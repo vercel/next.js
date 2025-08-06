@@ -28,8 +28,8 @@ use crate::{
     },
     references::async_module::{AsyncModule, OptionAsyncModule},
     runtime_functions::{
-        TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
-        TURBOPACK_LOAD_BY_URL,
+        TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXTERNAL_IMPORT,
+        TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_LOAD_BY_URL,
     },
     utils::StringifyJs,
 };
@@ -192,7 +192,7 @@ impl CachedExternalModule {
         writeln!(code)?;
 
         if self.external_type == CachedExternalType::CommonJs {
-            writeln!(code, "module.exports = mod;")?;
+            writeln!(code, "{TURBOPACK_EXPORT_VALUE}(mod);")?;
         } else {
             writeln!(code, "{TURBOPACK_EXPORT_NAMESPACE}(mod);")?;
         }
