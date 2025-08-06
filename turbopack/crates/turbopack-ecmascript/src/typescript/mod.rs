@@ -160,7 +160,7 @@ impl Module for TsConfigModuleAsset {
                     TsConfigTypesReference::new(
                         *self.origin,
                         Request::module(
-                            name,
+                            name.into(),
                             RcStr::default().into(),
                             RcStr::default(),
                             RcStr::default(),

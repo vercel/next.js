@@ -100,8 +100,10 @@ static MODULE_PATH: LazyLock<Regex> =
 impl Request {
     /// Turns the request into a string.
     ///
-    /// Note that this is only returns something for the most basic and
-    /// fully constant patterns.
+    /// This is not only used for printing the request to the user, but also for matching inner
+    /// assets.
+    ///
+    /// Note that this is only returns something for the most basic and fully constant patterns.
     pub fn request(&self) -> Option<RcStr> {
         Some(match self {
             Request::Raw {
@@ -113,7 +115,7 @@ impl Request {
                 ..
             } => path.clone(),
             Request::Module {
-                module,
+                module: Pattern::Constant(module),
                 path: Pattern::Constant(path),
                 ..
             } => format!("{module}{path}").into(),

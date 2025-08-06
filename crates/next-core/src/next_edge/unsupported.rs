@@ -1,6 +1,5 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -61,7 +60,7 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
 }
 
 #[turbo_tasks::function]
-fn unsupported_module_source(root_path: FileSystemPath, module: RcStr) -> Vc<VirtualSource> {
+fn unsupported_module_source(root_path: FileSystemPath, module: Pattern) -> Vc<VirtualSource> {
     // packages/next/src/server/web/globals.ts augments global with
     // `__import_unsupported` and necessary functions.
     let code = formatdoc! {

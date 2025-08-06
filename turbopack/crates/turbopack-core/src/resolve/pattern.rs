@@ -227,7 +227,17 @@ impl Pattern {
         longest_common_suffix(&strings)
     }
 
-    pub fn strip_prefix(&mut self, len: usize) {
+    pub fn strip_prefix(&self, prefix: &str) -> Option<Self> {
+        if self.must_match(prefix) {
+            let mut pat = self.clone();
+            pat.strip_prefix_len(prefix.len());
+            Some(pat)
+        } else {
+            None
+        }
+    }
+
+    pub fn strip_prefix_len(&mut self, len: usize) {
         fn strip_prefix_internal(pattern: &mut Pattern, chars_to_strip: &mut usize) {
             match pattern {
                 Pattern::Constant(c) => {
@@ -276,7 +286,7 @@ impl Pattern {
         self.normalize()
     }
 
-    pub fn strip_suffix(&mut self, len: usize) {
+    pub fn strip_suffix_len(&mut self, len: usize) {
         fn strip_suffix_internal(pattern: &mut Pattern, chars_to_strip: &mut usize) {
             match pattern {
                 Pattern::Constant(c) => {
@@ -1140,6 +1150,27 @@ impl Pattern {
         replaced
     }
 
+    /// Calls `cb` on all constants and replaces the them with the returned pattern. Returns true if
+    /// replacements were performed.
+    pub fn replace_constants(&mut self, cb: &impl Fn(&RcStr) -> Option<Pattern>) -> bool {
+        let mut replaced = false;
+        match self {
+            Pattern::Constant(c) => {
+                if let Some(replacement) = cb(c) {
+                    *self = replacement;
+                    replaced = true;
+                }
+            }
+            Pattern::Dynamic => {}
+            Pattern::Concatenation(list) | Pattern::Alternatives(list) => {
+                for i in list {
+                    replaced = i.replace_constants(cb) || replaced;
+                }
+            }
+        }
+        replaced
+    }
+
     /// Matches the given string against self, and applies the match onto the target pattern.
     ///
     /// The two patterns should have a similar structure (same number of alternatives and dynamics)
@@ -1961,7 +1992,7 @@ mod tests {
     #[test]
     fn strip_prefix() {
         fn strip(mut pat: Pattern, n: usize) -> Pattern {
-            pat.strip_prefix(n);
+            pat.strip_prefix_len(n);
             pat
         }
 
@@ -2002,7 +2033,7 @@ mod tests {
     #[test]
     fn strip_suffix() {
         fn strip(mut pat: Pattern, n: usize) -> Pattern {
-            pat.strip_suffix(n);
+            pat.strip_suffix_len(n);
             pat
         }
 
