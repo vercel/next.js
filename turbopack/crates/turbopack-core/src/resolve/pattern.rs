@@ -676,6 +676,15 @@ impl Pattern {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Pattern::Constant(s) => s.is_empty(),
+            Pattern::Dynamic => false,
+            Pattern::Concatenation(parts) => parts.iter().all(|p| p.is_empty()),
+            Pattern::Alternatives(parts) => parts.iter().all(|p| p.is_empty()),
+        }
+    }
+
     pub fn filter_could_match(&self, value: &str) -> Option<Pattern> {
         if let Pattern::Alternatives(list) = self {
             let new_list = list
