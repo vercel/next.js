@@ -847,6 +847,7 @@
       "app-root-param-getters - simple should allow reading root params in nested pages",
       "app-root-param-getters - simple should error when used in a route handler (until we implement it)",
       "app-root-param-getters - simple should error when used in a server action",
+      "app-root-param-getters - simple should not error when rerendering the page after a server action",
       "app-root-param-getters - simple should render the not found page without errors"
     ],
     "failed": [],
@@ -1690,6 +1691,39 @@
   },
   "test/e2e/app-dir/build-size/index.test.ts": {
     "passed": ["app-dir build size should have correct size in build output"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/bun-externals/bun-externals.test.ts": {
+    "passed": [
+      "app-dir - bun externals should handle bun builtins as external modules",
+      "app-dir - bun externals should handle bun builtins in edge runtime",
+      "app-dir - bun externals should handle bun builtins in route handlers",
+      "app-dir - bun externals should handle bun builtins in server actions",
+      "app-dir - bun externals should not bundle bun builtins in server bundles"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components-allow-otel-spans/cache-components-allow-otel-spans.test.ts": {
+    "passed": [
+      "hello-world should allow creating Spans during prerendering at runtime - inside a Cache Components",
+      "hello-world should allow creating Spans during prerendering during the build - inside a Cache Components",
+      "hello-world should allow creating Spans during resuming a fallback - inside a Cache Component"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components-create-component-tree/cache-components-create-component-tree.test.ts": {
+    "passed": [
+      "hello-world should not indicate there is an error when incidental math.random calls occur during component tree generation during build"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -3272,6 +3306,15 @@
       "app-dir - metadata-icons should re-insert the icons into head when icons are inserted in body during initial chunk",
       "app-dir - metadata-icons should render custom icons along with favicon in nested page",
       "app-dir - metadata-icons should render custom icons along with favicon in root page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-image-files/metadata-image-files.test.ts": {
+    "passed": [
+      "app dir - metadata image files should handle imported metadata images"
     ],
     "failed": [],
     "pending": [],
@@ -6262,6 +6305,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/typed-routes/typed-routes.test.ts": {
+    "passed": [
+      "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
+      "typed-routes should generate route types correctly",
+      "typed-routes should throw type errors"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/typeof-window/typeof-window.test.ts": {
     "passed": ["typeof-window should work using cheerio"],
     "failed": [],
@@ -7120,6 +7174,15 @@
       "edge-runtime uses edge-light import specifier for packages app-dir imports the correct module",
       "edge-runtime uses edge-light import specifier for packages pages import the correct module",
       "edge-runtime uses edge-light import specifier for packages pages/api endpoints import the correct module"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/error-handler-not-found-req-url/error-handler-not-found-req-url.test.ts": {
+    "passed": [
+      "error-handler-not-found-req-url should log the correct request url and asPath for not found _error page"
     ],
     "failed": [],
     "pending": [],
@@ -8677,6 +8740,7 @@
       "opentelemetry incoming context propagation app router should handle RSC with fetch",
       "opentelemetry incoming context propagation app router should handle RSC with fetch in RSC mode",
       "opentelemetry incoming context propagation app router should handle RSC with fetch on edge",
+      "opentelemetry incoming context propagation app router should handle error in RSC",
       "opentelemetry incoming context propagation app router should handle route handlers in app router",
       "opentelemetry incoming context propagation app router should handle route handlers in app router on edge",
       "opentelemetry incoming context propagation app router should propagate custom context without span",
@@ -8689,6 +8753,7 @@
       "opentelemetry root context app router should handle RSC with fetch",
       "opentelemetry root context app router should handle RSC with fetch in RSC mode",
       "opentelemetry root context app router should handle RSC with fetch on edge",
+      "opentelemetry root context app router should handle error in RSC",
       "opentelemetry root context app router should handle route handlers in app router",
       "opentelemetry root context app router should handle route handlers in app router on edge",
       "opentelemetry root context app router should propagate custom context without span",
@@ -9051,7 +9116,8 @@
       "styled-jsx should contain styled-jsx styles during SSR",
       "styled-jsx should render styles during CSR",
       "styled-jsx should render styles during CSR (AMP)",
-      "styled-jsx should render styles during SSR (AMP)"
+      "styled-jsx should render styles during SSR (AMP)",
+      "styled-jsx should render styles inside TypeScript"
     ],
     "failed": [],
     "pending": [],
@@ -9373,6 +9439,23 @@
       "useLinkStatus should remove pending state when server action triggers a redirect",
       "useLinkStatus should show pending state for the last link clicked when clicking multiple links in a row",
       "useLinkStatus should show pending state when navigating to the same path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/use-router-with-rewrites/use-router-with-rewrites.test.ts": {
+    "passed": [
+      "use-router-with-rewrites rewrite to another segment should preserve current pathname when using Link with rewrites on dynamic route",
+      "use-router-with-rewrites rewrite to another segment should preserve current pathname when using useRouter.push with rewrites on dynamic route",
+      "use-router-with-rewrites rewrite to another segment should preserve current pathname when using useRouter.replace with rewrites on dynamic route",
+      "use-router-with-rewrites rewrite to same segment should preserve current pathname when using Link with rewrites on dynamic route",
+      "use-router-with-rewrites rewrite to same segment should preserve current pathname when using useRouter.push with rewrites on dynamic route",
+      "use-router-with-rewrites rewrite to same segment should preserve current pathname when using useRouter.replace with rewrites on dynamic route",
+      "use-router-with-rewrites should preserve current pathname when using Link with rewrites",
+      "use-router-with-rewrites should preserve current pathname when using useRouter.push with rewrites",
+      "use-router-with-rewrites should preserve current pathname when using useRouter.replace with rewrites"
     ],
     "failed": [],
     "pending": [],
@@ -18728,6 +18811,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/webpack-bun-externals/test/index.test.js": {
+    "passed": [
+      "Webpack - Bun Externals should externalize Bun builtins in server bundles",
+      "Webpack - Bun Externals should not bundle Bun module implementations",
+      "Webpack - Bun Externals should successfully build with Bun module imports"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/webpack-config-extensionalias/test/index.test.js": {
     "passed": [
       "webpack config with extensionAlias setting should run correctly with an tsx file import with .js extension"
@@ -20004,10 +20098,11 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm",
+      "pnpm support should build with dependencies installed via pnpm"
+    ],
+    "failed": [
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

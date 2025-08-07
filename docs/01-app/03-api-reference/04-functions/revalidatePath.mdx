@@ -35,7 +35,17 @@ The path parameter can point to pages, layouts, or route handlers:
 
 - **Pages**: Revalidates the specific page
 - **Layouts**: Revalidates the layout and all pages beneath it
-- **GET Route Handlers**: Only if they're statically generated
+- **Route Handlers**: Revalidates Data Cache entries accessed within route handlers. For example `revalidatePath("/api/data")` revalidates this GET handler:
+
+```ts filename="app/api/data/route.ts"
+export async function GET() {
+  const data = await fetch('https://api.vercel.app/blog', {
+    cache: 'force-cache',
+  })
+
+  return Response.json(await data.json())
+}
+```
 
 ## Relationship with `revalidateTag`
 
@@ -84,7 +94,7 @@ This pattern ensures that both the specific page and any other pages using the s
 
 ## Examples
 
-### Revalidating A Specific URL
+### Revalidating a specific URL
 
 ```ts
 import { revalidatePath } from 'next/cache'
@@ -93,7 +103,7 @@ revalidatePath('/blog/post-1')
 
 This will revalidate one specific URL on the next page visit.
 
-### Revalidating A Page Path
+### Revalidating a Page path
 
 ```ts
 import { revalidatePath } from 'next/cache'
@@ -104,7 +114,7 @@ revalidatePath('/(main)/blog/[slug]', 'page')
 
 This will revalidate any URL that matches the provided `page` file on the next page visit. This will _not_ invalidate pages beneath the specific page. For example, `/blog/[slug]` won't invalidate `/blog/[slug]/[author]`.
 
-### Revalidating A Layout Path
+### Revalidating a Layout path
 
 ```ts
 import { revalidatePath } from 'next/cache'
@@ -115,7 +125,7 @@ revalidatePath('/(main)/post/[slug]', 'layout')
 
 This will revalidate any URL that matches the provided `layout` file on the next page visit. This will cause pages beneath with the same layout to revalidate on the next visit. For example, in the above case, `/blog/[slug]/[another]` would also revalidate on the next visit.
 
-### Revalidating All Data
+### Revalidating all data
 
 ```ts
 import { revalidatePath } from 'next/cache'

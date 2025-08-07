@@ -331,6 +331,7 @@ export interface ExperimentalConfig {
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   clientSegmentCache?: boolean | 'client-only'
+  clientParamParsing?: boolean
   dynamicOnHover?: boolean
   appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
@@ -1354,7 +1355,7 @@ export const defaultConfig = Object.freeze({
         expire: INFINITE_CACHE,
       },
       seconds: {
-        stale: undefined, // defaults to staleTimes.dynamic
+        stale: 30, // 30 seconds
         revalidate: 1, // 1 second
         expire: 60, // 1 minute
       },
@@ -1400,6 +1401,7 @@ export const defaultConfig = Object.freeze({
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientSegmentCache: false,
+    clientParamParsing: false,
     dynamicOnHover: false,
     appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,

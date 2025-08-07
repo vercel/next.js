@@ -377,6 +377,11 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
             .resolved_cell(),
     );
+    import_map.insert_exact_alias(
+        rcstr!("testGlobalExternalValue"),
+        ImportMapping::External(None, ExternalType::Global, ExternalTraced::Untraced)
+            .resolved_cell(),
+    );
 
     let remove_unused_exports = options.remove_unused_exports.unwrap_or(true);
 

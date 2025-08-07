@@ -54,6 +54,7 @@ fn is_error_class_name(name: &str) -> bool {
         || name == "SerializableError"
         || name == "StaticGenBailoutError"
         || name == "TimeoutError"
+        || name == "UnrecognizedActionError"
         || name == "Warning"
 }
 

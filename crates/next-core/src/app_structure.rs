@@ -1054,7 +1054,7 @@ async fn directory_tree_to_loader_tree_internal(
     let current_level_is_parallel_route = is_parallel_route(&directory_name);
 
     if current_level_is_parallel_route {
-        tree.segment = rcstr!("__virtual_segment__");
+        tree.segment = rcstr!("(slot)");
     }
 
     if let Some(page) = (app_path == for_app_path || app_path.is_catchall())

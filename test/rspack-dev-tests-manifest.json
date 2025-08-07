@@ -4289,14 +4289,14 @@
   },
   "test/development/tsconfig-path-reloading/index.test.ts": {
     "passed": [
-      "tsconfig-path-reloading tsconfig added after starting dev should automatically fast refresh content when path is added without error",
-      "tsconfig-path-reloading tsconfig added after starting dev should load with initial paths config correctly",
-      "tsconfig-path-reloading tsconfig should automatically fast refresh content when path is added without error",
-      "tsconfig-path-reloading tsconfig should load with initial paths config correctly"
+      "tsconfig-path-reloading tsconfig should load with initial paths config correctly",
+      "tsconfig-path-reloading tsconfig should automatically fast refresh content when path is added without error"
     ],
     "failed": [
       "tsconfig-path-reloading tsconfig added after starting dev should recover from module not found when paths is updated",
-      "tsconfig-path-reloading tsconfig should recover from module not found when paths is updated"
+      "tsconfig-path-reloading tsconfig should recover from module not found when paths is updated",
+      "tsconfig-path-reloading tsconfig added after starting dev should load with initial paths config correctly",
+      "tsconfig-path-reloading tsconfig added after starting dev should automatically fast refresh content when path is added without error"
     ],
     "pending": [],
     "flakey": [],
