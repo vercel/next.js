@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { users } from "@/data/users";
+import { userStore } from "@/data/users";
 import { UpdateUserBody } from "@/schemas/users";
 
 /**
@@ -13,7 +13,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const user = users.find((u) => u.id === params.id);
+  const user = userStore.getById(params.id);
   
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -34,17 +34,23 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const body = await request.json();
-  const updateData = UpdateUserBody.parse(body);
-  
-  const userIndex = users.findIndex((u) => u.id === params.id);
-  
-  if (userIndex === -1) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
+  try {
+    const body = await request.json();
+    const updateData = UpdateUserBody.parse(body);
+    
+    const updatedUser = userStore.update(params.id, updateData);
+    
+    if (!updatedUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
-  users[userIndex] = { ...users[userIndex], ...updateData };
-  return NextResponse.json(users[userIndex]);
+    return NextResponse.json(updatedUser);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
+    }
+    throw error;
+  }
 }
 
 /**
@@ -59,12 +65,11 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const userIndex = users.findIndex((u) => u.id === params.id);
+  const deletedUser = userStore.delete(params.id);
   
-  if (userIndex === -1) {
+  if (!deletedUser) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const deletedUser = users.splice(userIndex, 1)[0];
   return NextResponse.json(deletedUser, { status: 200 });
 }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { users } from "@/data/users";
+import { userStore } from "@/data/users";
 import { CreateUserBody, UsersQuery } from "@/schemas/users";
 
 /**
@@ -15,7 +15,8 @@ export async function GET(request: NextRequest) {
     limit: searchParams.get("limit"),
   });
 
-  const result = limit ? users.slice(0, limit) : users;
+  const allUsers = userStore.getAll();
+  const result = limit ? allUsers.slice(0, limit) : allUsers;
   return NextResponse.json(result);
 }
 
@@ -27,14 +28,16 @@ export async function GET(request: NextRequest) {
  * @openapi
  */
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const userData = CreateUserBody.parse(body);
+  try {
+    const body = await request.json();
+    const userData = CreateUserBody.parse(body);
 
-  const newUser = {
-    id: Date.now().toString(),
-    ...userData,
-  };
-
-  users.push(newUser);
-  return NextResponse.json(newUser, { status: 201 });
+    const newUser = userStore.create(userData);
+    return NextResponse.json(newUser, { status: 201 });
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
+    }
+    throw error;
+  }
 }
