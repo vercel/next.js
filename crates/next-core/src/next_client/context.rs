@@ -303,8 +303,8 @@ pub async fn get_client_module_options_context(
         config_location: PostCssConfigLocation::ProjectPath,
         ..postcss_transform_options.clone()
     };
-    let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
-    let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
+    let enable_postcss_transform = None;
+    let enable_foreign_postcss_transform = None;
 
     let source_maps = if *next_config.client_source_maps(mode).await? {
         SourceMapsType::Full
