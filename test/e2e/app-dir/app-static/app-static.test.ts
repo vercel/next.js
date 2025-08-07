@@ -997,8 +997,19 @@ describe('app-dir static/dynamic handling', () => {
              "x-next-revalidate-tag-token",
            ],
            "dataRoute": "/_not-found.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
            "initialRevalidateSeconds": false,
-           "srcRoute": null,
+           "srcRoute": "/_not-found",
          },
          "/api/large-data": {
            "allowHeader": [
