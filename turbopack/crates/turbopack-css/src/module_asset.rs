@@ -5,7 +5,7 @@ use indoc::formatdoc;
 use lightningcss::css_modules::CssModuleReference;
 use swc_core::common::{BytePos, FileName, LineCol, SourceMap};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, IntoTraitRef, ResolvedVc, ValueToString, Vc, task::TaskOutput};
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -49,14 +49,20 @@ pub struct ModuleCssAsset {
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    ) -> Vc<Self> {
-        Self::cell(ModuleCssAsset {
+    ) -> Result<Vc<Self>> {
+        println!(
+            "ModuleCss {:?} {:?} {:?}",
+            source.ident().to_string().await?,
+            source.try_into_raw_vc()?,
+            asset_context.into_trait_ref().await?.layer().name()
+        );
+        Ok(Self::cell(ModuleCssAsset {
             source,
             asset_context,
-        })
+        }))
     }
 }
 

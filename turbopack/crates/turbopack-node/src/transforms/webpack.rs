@@ -128,17 +128,25 @@ impl WebpackLoaders {
 #[turbo_tasks::value_impl]
 impl SourceTransform for WebpackLoaders {
     #[turbo_tasks::function]
-    fn transform(
+    async fn transform(
         self: ResolvedVc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
-    ) -> Vc<Box<dyn Source>> {
-        Vc::upcast(
+    ) -> Result<Vc<Box<dyn Source>>> {
+        let x = Vc::upcast(
             WebpackLoadersProcessedAsset {
                 transform: self,
                 source,
             }
             .cell(),
-        )
+        );
+        println!(
+            "WebpackLoadersProcessedAsset {:?} {:?} {:?}",
+            source,
+            // source.ident().to_string().await?,
+            self.await?.resolve_options_context.await?.browser,
+            x
+        );
+        Ok(x)
     }
 }
 
