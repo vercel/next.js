@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { userStore } from "@/data/users";
-import { UpdateUserBody } from "@/schemas/users";
+import { UpdateUserBody, UserParams } from "@/schemas/users";
+import { handleApiError } from "@/lib/api-helpers";
 
 /**
  * Get user by ID
@@ -13,13 +14,18 @@ export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const user = userStore.getById(params.id);
-  
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
+  try {
+    const { id } = UserParams.parse(params);
+    const user = userStore.getById(id);
+    
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
-  return NextResponse.json(user);
+    return NextResponse.json(user);
+  } catch (error) {
+    return handleApiError(error);
+  }
 }
 
 /**
@@ -35,10 +41,11 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
+    const { id } = UserParams.parse(params);
     const body = await request.json();
     const updateData = UpdateUserBody.parse(body);
     
-    const updatedUser = userStore.update(params.id, updateData);
+    const updatedUser = userStore.update(id, updateData);
     
     if (!updatedUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -46,10 +53,7 @@ export async function PUT(
 
     return NextResponse.json(updatedUser);
   } catch (error) {
-    if (error instanceof SyntaxError) {
-      return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });
-    }
-    throw error;
+    return handleApiError(error);
   }
 }
 
@@ -65,11 +69,16 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const deletedUser = userStore.delete(params.id);
-  
-  if (!deletedUser) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
-  }
+  try {
+    const { id } = UserParams.parse(params);
+    const deletedUser = userStore.delete(id);
+    
+    if (!deletedUser) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
-  return NextResponse.json(deletedUser, { status: 200 });
+    return NextResponse.json(deletedUser, { status: 200 });
+  } catch (error) {
+    return handleApiError(error);
+  }
 }
