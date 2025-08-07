@@ -287,23 +287,39 @@ mod non_recursive_helpers {
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
-        let mut cur_path = dir_path;
-        loop {
-            start_watching_dir(&mut state.notify_watcher, cur_path, root_path)?;
+        let mut found_watched_ancestor = false;
 
-            let Some(parent_path) = cur_path.parent() else {
-                // this should never happen as we break before we reach the root path
-                anyhow::bail!(
-                    "failed to compute parent path of {cur_path:?} while watching {dir_path:?} in \
-                     root {root_path:?}"
-                );
-            };
+        // NOTE: `Path::ancestors` yields ancestors from longest to shortest path.
+        let dir_and_ancestor_paths: Vec<_> = [dir_path]
+            .into_iter()
+            .chain(
+                dir_path
+                    .ancestors()
+                    // skip: `ancestors` includes `dir_path` itself, as well as the ancestors, but
+                    // we only want to apply the `take_while` check to parents
+                    .skip(1)
+                    .take_while(|p| {
+                        found_watched_ancestor = *p == root_path || state.watched.contains(*p);
+                        !found_watched_ancestor
+                    }),
+            )
+            .collect();
 
-            if parent_path == root_path || !state.watched.insert(parent_path.to_path_buf()) {
-                break;
-            }
+        if !found_watched_ancestor {
+            // this should never happen, as we should eventually hit the `root_path`
+            anyhow::bail!(
+                "failed to find the fs root of {root_path:?} while watching {dir_path:?}"
+            );
+        }
 
-            cur_path = parent_path;
+        // Reverse the iterator: We want to start closest to the root and work towards `dir_path`
+        // (opposite of `Path::ancestors`), to avoid a potential race condition if directories are
+        // removed and re-added before we've watched their parent.
+        for path in dir_and_ancestor_paths.into_iter().rev() {
+            // this will silently ignore if the path is not found, expecting that we've watched the
+            // parent directory
+            start_watching_dir(&mut state.notify_watcher, path, root_path)?;
+            state.watched.insert(path.to_owned());
         }
 
         Ok(())
