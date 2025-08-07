@@ -814,10 +814,14 @@ pub fn styles_rule_condition() -> RuleCondition {
             RuleCondition::not(RuleCondition::ContentTypeStartsWith(
                 "text/css+module".into(),
             )),
+        ]),
+        RuleCondition::all(vec![
             RuleCondition::ContentTypeStartsWith("text/sass".into()),
             RuleCondition::not(RuleCondition::ContentTypeStartsWith(
                 "text/sass+module".into(),
             )),
+        ]),
+        RuleCondition::all(vec![
             RuleCondition::ContentTypeStartsWith("text/scss".into()),
             RuleCondition::not(RuleCondition::ContentTypeStartsWith(
                 "text/scss+module".into(),

@@ -152,7 +152,7 @@ impl ModuleOptions {
 
         let module_css_condition = module_css_condition.clone().unwrap_or_else(|| {
             RuleCondition::any(vec![
-                RuleCondition::ResourcePathEndsWith(".module.scss".to_string()),
+                RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
                 RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
             ])
         });
