@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc, task::TaskOutput};
+use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -46,26 +46,20 @@ pub struct CssModuleAsset {
 impl CssModuleAsset {
     /// Creates a new CSS asset.
     #[turbo_tasks::function]
-    pub async fn new(
+    pub fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         ty: CssModuleAssetType,
         import_context: Option<ResolvedVc<ImportContext>>,
         environment: Option<ResolvedVc<Environment>>,
-    ) -> Result<Vc<Self>> {
-        println!(
-            "Css {:?} {:?} {:?}",
-            source.ident().to_string().await?,
-            source.try_into_raw_vc()?,
-            asset_context.into_trait_ref().await?.layer().name()
-        );
-        Ok(Self::cell(CssModuleAsset {
+    ) -> Vc<Self> {
+        Self::cell(CssModuleAsset {
             source,
             asset_context,
             import_context,
             ty,
             environment,
-        }))
+        })
     }
 
     /// Returns the asset ident of the source without the "css" modifier

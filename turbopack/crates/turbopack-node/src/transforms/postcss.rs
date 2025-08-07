@@ -3,8 +3,8 @@ use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt,
-    ValueToString, Vc, fxindexmap, trace::TraceRawVcs,
+    Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Vc,
+    fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
@@ -131,8 +131,8 @@ impl PostCssTransform {
 #[turbo_tasks::value_impl]
 impl SourceTransform for PostCssTransform {
     #[turbo_tasks::function]
-    async fn transform(&self, source: ResolvedVc<Box<dyn Source>>) -> Result<Vc<Box<dyn Source>>> {
-        let x = Vc::upcast(
+    fn transform(&self, source: ResolvedVc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
+        Vc::upcast(
             PostCssTransformedAsset {
                 evaluate_context: self.evaluate_context,
                 execution_context: self.execution_context,
@@ -141,14 +141,7 @@ impl SourceTransform for PostCssTransform {
                 source_map: self.source_maps,
             }
             .cell(),
-        );
-        println!(
-            "PostCssTransformedAsset {:?} {:?}",
-            source,
-            // source.ident().to_string().await?,
-            x
-        );
-        Ok(x)
+        )
     }
 }
 

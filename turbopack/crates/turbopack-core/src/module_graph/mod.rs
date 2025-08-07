@@ -364,7 +364,7 @@ impl SingleModuleGraph {
                     }
                 }
                 if !duplicates.is_empty() {
-                    println!("Duplicate module idents in graph: {duplicates:#?}");
+                    panic!("Duplicate module idents in graph: {duplicates:#?}");
                 }
             }
         }
