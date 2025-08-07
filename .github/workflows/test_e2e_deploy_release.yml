@@ -131,7 +131,7 @@ jobs:
         id: check-workflow-enabled
         with:
           retries: 3
-          retry-exempt-status-codes: 400,401,404
+          retry-exempt-status-codes: 400,401,403,404,422
           github-token: ${{ secrets.GH_UPDATE_NEXT_WORKFLOW_TRIGGER }}
           result-encoding: string
           script: |
