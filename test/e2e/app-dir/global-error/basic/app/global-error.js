@@ -3,28 +3,11 @@
 export default function GlobalError({ error }) {
   return (
     <html>
-      <head>
-        <title>500: Internal Server Error</title>
-      </head>
+      <head></head>
       <body>
-        <div
-          style={{
-            fontFamily: 'system-ui, sans-serif',
-            height: '100vh',
-            textAlign: 'center',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <h1>500</h1>
-          <h2>Global Error</h2>
-          <p id="error">{`Global error: ${error?.message || 'Internal Server Error'}`}</p>
-          {error?.digest && (
-            <p id="digest">{error?.digest || 'nextjs-app-error-digest'}</p>
-          )}
-        </div>
+        <h1>Global Error</h1>
+        <p id="error">{`Global error: ${error?.message}`}</p>
+        {error?.digest && <p id="digest">{error?.digest}</p>}
       </body>
     </html>
   )

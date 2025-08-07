@@ -16,6 +16,10 @@ import {
   extractInterceptionRouteInformation,
   isInterceptionRouteAppPath,
 } from '../../../shared/lib/router/utils/interception-routes'
+import {
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE,
+} from '../../../shared/lib/entry-constants'
 
 interface RouteInfo {
   path: string
@@ -235,11 +239,15 @@ export async function createRouteTypesManifest({
     }
   }
 
-  // Process layout routes
+  // Process layout routes (exclude internal app error/not-found layouts)
   for (const { route, filePath } of layoutRoutes) {
+    if (
+      route === UNDERSCORE_GLOBAL_ERROR_ROUTE ||
+      route === UNDERSCORE_NOT_FOUND_ROUTE
+    )
+      continue
     // Use the resolved route (for interception routes, this gives us the canonical route)
     const resolvedRoute = resolveInterceptingRoute(route)
-
     if (!manifest.layoutRoutes[resolvedRoute]) {
       manifest.layoutRoutes[resolvedRoute] = {
         path: getRelativePath(filePath),
@@ -256,8 +264,13 @@ export async function createRouteTypesManifest({
     }
   }
 
-  // Process app routes
+  // Process app routes (exclude internal app routes)
   for (const { route, filePath } of appRoutes) {
+    if (
+      route === UNDERSCORE_GLOBAL_ERROR_ROUTE ||
+      route === UNDERSCORE_NOT_FOUND_ROUTE
+    )
+      continue
     // Don't include metadata routes or pages
     if (
       !filePath.endsWith('page.ts') &&

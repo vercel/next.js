@@ -28,7 +28,6 @@ import {
   APP_CLIENT_INTERNALS,
   RSC_MODULE_TYPES,
   UNDERSCORE_NOT_FOUND_ROUTE,
-  UNDERSCORE_GLOBAL_ERROR_ROUTE,
 } from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -47,6 +46,7 @@ import {
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
   reduceAppConfig,
+  isAppBuiltinPage,
 } from './utils'
 import {
   getAppPageStaticInfo,
@@ -83,6 +83,7 @@ import { isParallelRouteSegment } from '../shared/lib/segment'
 import { ensureLeadingSlash } from '../shared/lib/page-path/ensure-leading-slash'
 import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
 } from '../shared/lib/entry-constants'
 
@@ -231,7 +232,12 @@ export function extractSlotsFromAppRoutes(mappedAppPages: {
   const slots: SlotInfo[] = []
 
   for (const [page] of Object.entries(mappedAppPages)) {
-    if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) continue
+    if (
+      page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY ||
+      page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+    ) {
+      continue
+    }
 
     const segments = page.split('/')
     for (let i = segments.length - 1; i >= 0; i--) {
@@ -333,7 +339,12 @@ export function processAppRoutes(
   const appRouteHandlers: RouteInfo[] = []
 
   for (const [page, filePath] of Object.entries(mappedAppPages)) {
-    if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) continue
+    if (
+      page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY ||
+      page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+    ) {
+      continue
+    }
 
     const relativeFilePath = createRelativeFilePath(
       baseDir,
@@ -445,10 +456,7 @@ export async function getStaticInfoIncludingLayouts({
   }
 
   // Skip inheritance for global-error pages - always use default config
-  if (
-    page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY ||
-    page?.endsWith('/global-error/page')
-  ) {
+  if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY) {
     return pageStaticInfo
   }
 
@@ -552,6 +560,7 @@ export async function createPagesMapping({
   pagesType,
   pagesDir,
   appDir,
+  appDirOnly,
 }: {
   isDev: boolean
   pageExtensions: PageExtensions
@@ -559,6 +568,7 @@ export async function createPagesMapping({
   pagesType: PAGE_TYPES
   pagesDir: string | undefined
   appDir: string | undefined
+  appDirOnly: boolean
 }): Promise<MappedPages> {
   const isAppRoute = pagesType === 'app'
   const pages: MappedPages = {}
@@ -621,9 +631,9 @@ export async function createPagesMapping({
       return pages
     }
     case PAGE_TYPES.APP: {
-      const hasAppPages = Object.keys(pages).some((page) =>
-        page.endsWith('/page')
-      )
+      const hasAppPages = Object.keys(pages).length > 0
+      // Whether to emit App router 500.html entry, which only presents in production and only app router presents
+      const hasAppGlobalError = !isDev && appDirOnly
       return {
         // If there's any app pages existed, add a default /_not-found route as 404.
         // If there's any custom /_not-found page, it will override the default one.
@@ -632,8 +642,7 @@ export async function createPagesMapping({
             'next/dist/client/components/builtin/global-not-found'
           ),
         }),
-        // App router default 500.html entry
-        ...(hasAppPages && {
+        ...(hasAppGlobalError && {
           [UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY]: require.resolve(
             'next/dist/client/components/builtin/app-error'
           ),
@@ -642,7 +651,6 @@ export async function createPagesMapping({
       }
     }
     case PAGE_TYPES.PAGES: {
-      const hasPagesRoutes = Object.keys(pages).length > 0
       if (isDev) {
         delete pages['/_app']
         delete pages['/_error']
@@ -655,7 +663,8 @@ export async function createPagesMapping({
       const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
 
       return {
-        ...(hasPagesRoutes && {
+        // Don't add default pages entries if this is an app-router-only build
+        ...((isDev || !appDirOnly) && {
           '/_app': `${root}/_app`,
           '/_error': `${root}/_error`,
           '/_document': `${root}/_document`,

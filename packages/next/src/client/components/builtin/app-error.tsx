@@ -1,3 +1,5 @@
+import React from 'react'
+
 const styles: Record<string, React.CSSProperties> = {
   error: {
     // https://github.com/sindresorhus/modern-normalize/blob/main/modern-normalize.css#L38-L52

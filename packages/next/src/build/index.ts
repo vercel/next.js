@@ -76,12 +76,11 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
-  UNDERSCORE_NOT_FOUND_ROUTE,
-  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   DYNAMIC_CSS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
 import {
+  UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
 } from '../shared/lib/entry-constants'
@@ -843,7 +842,8 @@ async function writeFullyStaticExport(
   dir: string,
   enabledDirectories: NextEnabledDirectories,
   configOutDir: string,
-  nextBuildSpan: Span
+  nextBuildSpan: Span,
+  appDirOnly: boolean
 ): Promise<void> {
   const exportApp = (require('../export') as typeof import('../export'))
     .default as typeof import('../export').default
@@ -857,6 +857,7 @@ async function writeFullyStaticExport(
       silent: true,
       outdir: path.join(dir, configOutDir),
       numWorkers: getNumberOfWorkers(config),
+      appDirOnly,
     },
     nextBuildSpan
   )
@@ -1003,6 +1004,11 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const { pagesDir, appDir } = findPagesDir(dir)
+
+      if (!appDirOnly && !pagesDir) {
+        appDirOnly = true
+      }
+
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
 
@@ -1179,6 +1185,7 @@ export default async function build(
             pagePaths: pagesPaths,
             pagesDir,
             appDir,
+            appDirOnly,
           })
         )
       NextBuildContext.mappedPages = mappedPages
@@ -1220,6 +1227,7 @@ export default async function build(
               pageExtensions: config.pageExtensions,
               pagesDir,
               appDir,
+              appDirOnly,
             })
           )
 
@@ -1233,6 +1241,7 @@ export default async function build(
               pageExtensions: config.pageExtensions,
               pagesDir,
               appDir,
+              appDirOnly,
             })
           )
 
@@ -1246,6 +1255,7 @@ export default async function build(
         pagesType: PAGE_TYPES.ROOT,
         pagesDir: pagesDir,
         appDir,
+        appDirOnly,
       })
       NextBuildContext.mappedRootPaths = mappedRootPaths
 
@@ -1324,6 +1334,7 @@ export default async function build(
                     pageExtensions: config.pageExtensions,
                     pagesDir,
                     appDir,
+                    appDirOnly,
                   })
                 )
               slotsFromDefaults =
@@ -1873,7 +1884,6 @@ export default async function build(
         const errorPageHasCustomGetInitialProps =
           nonStaticErrorPageSpan.traceAsyncFn(
             async () =>
-              hasUserPagesRoutes &&
               hasCustomErrorPage &&
               (await worker.hasCustomGetInitialProps({
                 page: '/_error',
@@ -1886,7 +1896,6 @@ export default async function build(
 
         const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
           async () =>
-            hasUserPagesRoutes &&
             hasCustomErrorPage &&
             worker.isPageStatic({
               dir,
@@ -2752,7 +2761,7 @@ export default async function build(
         }
       })
 
-      const hasPages500 = usedStaticStatusPages.includes('/500')
+      const hasPages500 = !appDirOnly && usedStaticStatusPages.includes('/500')
       const useDefaultStatic500 =
         !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
 
@@ -2851,28 +2860,15 @@ export default async function build(
                 })
               })
 
-              if (useStaticPages404 && hasUserPagesRoutes) {
+              if (useStaticPages404 && !appDirOnly) {
                 defaultMap['/404'] = {
                   page: hasPages404 ? '/404' : '/_error',
                 }
               }
 
-              if (useDefaultStatic500 && hasUserPagesRoutes) {
+              if (useDefaultStatic500 && !appDirOnly) {
                 defaultMap['/500'] = {
                   page: '/_error',
-                }
-              }
-
-              // If there's /global-error inside app and no user pages in pages router, use app router global error for 500
-              if (
-                hasStaticAppGlobalError &&
-                !hasUserPagesRoutes &&
-                mappedAppPages &&
-                Object.keys(mappedAppPages).length > 0
-              ) {
-                defaultMap['/500'] = {
-                  page: UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
-                  _isAppDir: true,
                 }
               }
 
@@ -2957,6 +2953,7 @@ export default async function build(
               outdir,
               statusMessage: 'Generating static pages',
               numWorkers: getNumberOfWorkers(exportConfig),
+              appDirOnly,
             },
             nextBuildSpan
           )
@@ -3612,6 +3609,13 @@ export default async function build(
             return staticGenerationSpan
               .traceChild('move-exported-app-global-error-')
               .traceAsyncFn(async () => {
+                // If static 500.html exists in pages router, don't move it
+                if (
+                  existsSync(path.join(distDir, 'server', 'pages', '500.html'))
+                ) {
+                  return
+                }
+
                 // Only handle 500.html generation for static export
                 const orig = path.join(
                   distDir,
@@ -3643,19 +3647,23 @@ export default async function build(
             await moveExportedAppNotFoundTo404()
           } else {
             // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
-            if (!hasPages404 && !hasApp404 && useStaticPages404) {
+            if (
+              !hasPages404 &&
+              !hasApp404 &&
+              useStaticPages404 &&
+              !appDirOnly
+            ) {
               await moveExportedPage('/_error', '/404', '/404', false, 'html')
             }
           }
 
-          if (useDefaultStatic500 && hasUserPagesRoutes) {
+          if (useDefaultStatic500 && !appDirOnly) {
             await moveExportedPage('/_error', '/500', '/500', false, 'html')
           }
 
-          // If there's /global-error inside app and no user pages in pages router, use app router global error for 500
+          // If there's app router and no pages router, use app router built-in 500.html
           if (
             hasStaticAppGlobalError &&
-            !hasUserPagesRoutes &&
             mappedAppPages &&
             Object.keys(mappedAppPages).length > 0
           ) {
@@ -4015,7 +4023,8 @@ export default async function build(
           dir,
           enabledDirectories,
           configOutDir,
-          nextBuildSpan
+          nextBuildSpan,
+          appDirOnly
         )
       }
 

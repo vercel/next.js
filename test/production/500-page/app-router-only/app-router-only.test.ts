@@ -3,7 +3,7 @@ import fsp from 'fs/promises'
 import path from 'path'
 
 describe('500-page app-router-only', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -17,6 +17,28 @@ describe('500-page app-router-only', () => {
       path.join(next.testDir, '.next', 'server', 'pages', '500.html'),
       'utf8'
     )
-    expect(html).toContain('app-router-global-error')
+    // Not use pages router to generate 500.html
+    expect(html).toContain('__next_error__')
+    expect(html).toContain('Internal Server Error.')
+    // global-error is not used in app router 500.html
+    expect(html).not.toContain('app-router-global-error')
+  })
+
+  it('should not contain pages router routes default assets', async () => {
+    // do not contain _app, _document, _error routes folder or files in .next/server/pages
+    const pagesDir = path.join(next.testDir, '.next', 'server', 'pages')
+    const files = await fsp.readdir(pagesDir)
+    expect(files).not.toContain('500')
+    if (isTurbopack) {
+      // In turbopack, _app, _document, _error are still generated with manifest, but no javascript files.
+      // The manifest are under the folder, they're still needed for static generation.
+      expect(files).not.toContain('_app.js')
+      expect(files).not.toContain('_document.js')
+      expect(files).not.toContain('_error.js')
+    } else {
+      expect(files).not.toContain('_app')
+      expect(files).not.toContain('_document')
+      expect(files).not.toContain('_error')
+    }
   })
 })

@@ -42,6 +42,8 @@ export const expectedWhenTrailingSlashTrue = [
     ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
     : []),
   '_next/static/test-build-id/_ssgManifest.js',
+  '_not-found/index.html',
+  '_not-found/index.txt',
   'another/first/index.html',
   'another/first/index.txt',
   'another/index.html',
@@ -72,6 +74,8 @@ const expectedWhenTrailingSlashFalse = [
     ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
     : []),
   '_next/static/test-build-id/_ssgManifest.js',
+  '_not-found.html',
+  '_not-found.txt',
   'another.html',
   'another.txt',
   'another/first.html',
