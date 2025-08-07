@@ -150,6 +150,7 @@ mod non_recursive_helpers {
     use crate::path_map::OrderedPathSetExt;
 
     /// Called after a rescan in case a previously watched-but-deleted directory was recreated.
+    #[instrument(skip_all, level = "trace")]
     pub fn restore_all_watched_ignore_errors(state: &RwLock<NonRecursiveState>, root_path: &Path) {
         let mut guard = state.write().unwrap();
         let NonRecursiveState::Watching(watching_state) = &mut *guard else {
@@ -167,6 +168,7 @@ mod non_recursive_helpers {
 
     /// Called when a new directory is found in a parent directory we're watching. Restores the
     /// watcher if we were previously watching it.
+    #[instrument(skip_all, level = "trace")]
     pub fn restore_if_watched(
         state: &RwLock<NonRecursiveState>,
         dir_path: &Path,
@@ -211,6 +213,7 @@ mod non_recursive_helpers {
     /// if we're not already watching the directory.
     ///
     /// This should be called *before* reading a file to avoid a race condition.
+    #[instrument(skip_all, level = "trace")]
     pub fn ensure_watched(
         state: &RwLock<NonRecursiveState>,
         dir_path: &Path,
@@ -251,7 +254,7 @@ mod non_recursive_helpers {
     /// This does not watch any of the parent directories. For that, use
     /// [`start_watching_dir_and_parents`]. Use this method when iterating over previously-watched
     /// values in `self.watching`.
-    pub fn start_watching_dir(
+    fn start_watching_dir(
         notify_watcher: &mut NotifyWatcher,
         dir_path: &Path,
         root_path: &Path,
@@ -279,7 +282,7 @@ mod non_recursive_helpers {
     /// Watches the given `dir_path` and every parent up to `root_path`. Parents must be recursively
     /// watched in case any of them change:
     /// https://docs.rs/notify/latest/notify/#parent-folder-deletion
-    pub fn start_watching_dir_and_parents(
+    fn start_watching_dir_and_parents(
         state: &mut NonRecursiveWatchingState,
         dir_path: &Path,
         root_path: &Path,
