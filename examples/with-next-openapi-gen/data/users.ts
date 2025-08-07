@@ -11,7 +11,7 @@ export const userStore = {
     users.push(newUser);
     return newUser;
   },
-  update: (id: string, updateData: any) => {
+  update: (id: string, updateData: Partial<{ name: string; email: string }>) => {
     const index = users.findIndex(u => u.id === id);
     if (index === -1) return null;
     users[index] = { ...users[index], ...updateData };
