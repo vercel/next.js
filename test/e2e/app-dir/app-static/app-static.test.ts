@@ -1009,6 +1009,7 @@ describe('app-dir static/dynamic handling', () => {
              },
            ],
            "initialRevalidateSeconds": false,
+           "initialStatus": 404,
            "srcRoute": "/_not-found",
          },
          "/api/large-data": {

@@ -76,6 +76,7 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
+  UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   DYNAMIC_CSS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
@@ -3156,9 +3157,13 @@ export default async function build(
                 }
 
                 const meta = collectMeta(metadata)
+                const status =
+                  route.pathname === UNDERSCORE_NOT_FOUND_ROUTE
+                    ? 404
+                    : meta.status
 
                 prerenderManifest.routes[route.pathname] = {
-                  initialStatus: meta.status,
+                  initialStatus: status,
                   initialHeaders: meta.headers,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
@@ -3522,7 +3527,7 @@ export default async function build(
             return staticGenerationSpan
               .traceChild('move-exported-app-not-found-')
               .traceAsyncFn(async () => {
-                const underscoreNotFoundHtml = path.join(
+                const orig = path.join(
                   distDir,
                   'server',
                   'app',
@@ -3532,10 +3537,9 @@ export default async function build(
                   .join('pages', '404.html')
                   .replace(/\\/g, '/')
 
-                // If the _not-found.html exists, use it instead of the pages 404.html
-                if (existsSync(underscoreNotFoundHtml)) {
+                if (existsSync(orig)) {
                   await fs.copyFile(
-                    underscoreNotFoundHtml,
+                    orig,
                     path.join(distDir, 'server', updatedRelativeDest)
                   )
 
