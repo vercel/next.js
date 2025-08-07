@@ -1752,27 +1752,32 @@ impl VisitAstPath for Analyzer<'_> {
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::ForInStmt(n, ForInStmtField::Right));
-            self.current_value = None;
-            self.visit_expr(&n.right, &mut ast_path);
+            n.right.visit_with_ast_path(self, &mut ast_path);
         }
 
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::ForInStmt(n, ForInStmtField::Left));
-            // TODO this should really be
-            // `Some(JsValue::iteratedKeys(Box::new(self.eval_context.eval(&n.right))))`
-            self.current_value = Some(JsValue::unknown_empty(
-                false,
-                "for-in variable currently not analyzed",
-            ));
-            self.visit_for_head(&n.left, &mut ast_path);
+            self.with_pat_value(
+                // TODO this should really be
+                // `Some(JsValue::iteratedKeys(Box::new(self.eval_context.eval(&n.right))))`
+                Some(JsValue::unknown_empty(
+                    false,
+                    "for-in variable currently not analyzed",
+                )),
+                |this| {
+                    n.left.visit_with_ast_path(this, &mut ast_path);
+                },
+            )
         }
 
         let mut ast_path =
             ast_path.with_guard(AstParentNodeRef::ForInStmt(n, ForInStmtField::Body));
 
-        self.visit_stmt(&n.body, &mut ast_path);
+        let prev_early_return_stack = take(&mut self.early_return_stack);
+        n.body.visit_with_ast_path(self, &mut ast_path);
         self.end_early_return_block();
+        self.early_return_stack = prev_early_return_stack;
     }
 
     fn visit_for_of_stmt<'ast: 'r, 'r>(
@@ -1783,22 +1788,25 @@ impl VisitAstPath for Analyzer<'_> {
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::ForOfStmt(n, ForOfStmtField::Right));
-            self.visit_expr(&n.right, &mut ast_path);
+            n.right.visit_with_ast_path(self, &mut ast_path);
         }
 
-        let array = self.eval_context.eval(&n.right);
+        let iterable = self.eval_context.eval(&n.right);
 
-        self.with_pat_value(Some(JsValue::iterated(Box::new(array))), |this| {
+        // TODO n.await is ignored (async interables)
+        self.with_pat_value(Some(JsValue::iterated(Box::new(iterable))), |this| {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::ForOfStmt(n, ForOfStmtField::Left));
-            this.visit_for_head(&n.left, &mut ast_path);
+            n.left.visit_with_ast_path(this, &mut ast_path);
         });
 
         let mut ast_path =
             ast_path.with_guard(AstParentNodeRef::ForOfStmt(n, ForOfStmtField::Body));
 
-        self.visit_stmt(&n.body, &mut ast_path);
+        let prev_early_return_stack = take(&mut self.early_return_stack);
+        n.body.visit_with_ast_path(self, &mut ast_path);
         self.end_early_return_block();
+        self.early_return_stack = prev_early_return_stack;
     }
 
     fn visit_for_stmt<'ast: 'r, 'r>(
@@ -1806,8 +1814,10 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast ForStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
+        let prev_early_return_stack = take(&mut self.early_return_stack);
         n.visit_children_with_ast_path(self, ast_path);
         self.end_early_return_block();
+        self.early_return_stack = prev_early_return_stack;
     }
 
     fn visit_while_stmt<'ast: 'r, 'r>(
@@ -1815,8 +1825,10 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast WhileStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
+        let prev_early_return_stack = take(&mut self.early_return_stack);
         n.visit_children_with_ast_path(self, ast_path);
         self.end_early_return_block();
+        self.early_return_stack = prev_early_return_stack;
     }
 
     fn visit_do_while_stmt<'ast: 'r, 'r>(
@@ -1824,8 +1836,10 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast DoWhileStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
+        let prev_early_return_stack = take(&mut self.early_return_stack);
         n.visit_children_with_ast_path(self, ast_path);
         self.end_early_return_block();
+        self.early_return_stack = prev_early_return_stack;
     }
 
     fn visit_simple_assign_target<'ast: 'r, 'r>(
