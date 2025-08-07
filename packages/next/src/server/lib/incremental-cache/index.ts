@@ -20,6 +20,7 @@ import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-
 
 import {
   CACHE_ONE_YEAR,
+  NEXT_CACHE_TAGS_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
@@ -34,6 +35,7 @@ import type { Revalidate } from '../cache-control'
 import { getPreviouslyRevalidatedTags } from '../../server-utils'
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { DetachedPromise } from '../../../lib/detached-promise'
+import { isStale as isTagsStale } from './tags-manifest.external'
 
 export interface CacheHandlerContext {
   fs?: CacheFs
@@ -48,7 +50,7 @@ export interface CacheHandlerContext {
 }
 
 export interface CacheHandlerValue {
-  lastModified?: number
+  lastModified: number
   age?: number
   cacheState?: string
   value: IncrementalCacheValue | null
@@ -541,17 +543,38 @@ export class IncrementalCache implements IncrementalCacheType {
       isStale = -1
       revalidateAfter = -1 * CACHE_ONE_YEAR
     } else {
+      const lastModified =
+        cacheData?.lastModified || performance.timeOrigin + performance.now()
+
       revalidateAfter = this.calculateRevalidate(
         cacheKey,
-        cacheData?.lastModified || performance.timeOrigin + performance.now(),
+        lastModified,
         this.dev ?? false,
         ctx.isFallback
       )
+
       isStale =
         revalidateAfter !== false &&
         revalidateAfter < performance.timeOrigin + performance.now()
           ? true
           : undefined
+
+      // If the stale time couldn't be determined based on the revalidation
+      // time, we check if the tags are stale.
+      if (
+        isStale === undefined &&
+        (cacheData?.value?.kind === CachedRouteKind.APP_PAGE ||
+          cacheData?.value?.kind === CachedRouteKind.APP_ROUTE)
+      ) {
+        const tagsHeader = cacheData.value.headers?.[NEXT_CACHE_TAGS_HEADER]
+
+        if (typeof tagsHeader === 'string') {
+          const cacheTags = tagsHeader.split(',')
+          if (cacheTags.length > 0 && isTagsStale(cacheTags, lastModified)) {
+            isStale = -1
+          }
+        }
+      }
     }
 
     if (cacheData) {

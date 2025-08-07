@@ -2,12 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('resume-data-cache', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    // TODO: re-enable once RDC support has been added to the deployment infrastructure
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it.each([
     { name: 'use cache', id: 'random-number' },
@@ -53,8 +50,12 @@ describe('resume-data-cache', () => {
       await next.fetch('/revalidate', { method: 'POST' })
 
       // Then get the dynamic RSC again and validate that it still contains the
-      // same random number.
-      await retry(async () => {
+      // same random number. The first request will get the stale data, but the
+      // second request will get the fresh data as it'll eventually have
+      // revalidated.
+      // NOTE: this current doesn't work on Next.js Deploy, as the dynamic RSC
+      // requests are not able to revalidate the page.
+      if (!isNextDeploy) {
         const rsc = await next
           .fetch('/', {
             headers: {
@@ -63,6 +64,19 @@ describe('resume-data-cache', () => {
           })
           .then((res) => res.text())
         expect(rsc).toContain(first)
+      }
+
+      // We then expect after the background revalidation has been completed,
+      // the dynamic RSC to get the fresh data.
+      await retry(async () => {
+        const rsc = await next
+          .fetch('/', {
+            headers: {
+              RSC: '1',
+            },
+          })
+          .then((res) => res.text())
+        expect(rsc).not.toContain(first)
       })
 
       // This proves that the dynamic RSC was able to use the resume data cache

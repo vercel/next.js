@@ -286,18 +286,14 @@ export default class FileSystemCache implements CacheHandler {
       data?.value?.kind === CachedRouteKind.APP_ROUTE ||
       data?.value?.kind === CachedRouteKind.PAGES
     ) {
-      let cacheTags: undefined | string[]
       const tagsHeader = data.value.headers?.[NEXT_CACHE_TAGS_HEADER]
-
       if (typeof tagsHeader === 'string') {
-        cacheTags = tagsHeader.split(',')
-      }
+        const cacheTags = tagsHeader.split(',')
 
-      if (cacheTags?.length) {
         // we trigger a blocking validation if an ISR page
         // had a tag revalidated, if we want to be a background
         // revalidation instead we return data.lastModified = -1
-        if (isStale(cacheTags, data?.lastModified || Date.now())) {
+        if (cacheTags.length > 0 && isStale(cacheTags, data.lastModified)) {
           if (FileSystemCache.debug) {
             console.log('stale tags', cacheTags)
           }
@@ -321,7 +317,7 @@ export default class FileSystemCache implements CacheHandler {
         return null
       }
 
-      if (isStale(combinedTags, data?.lastModified || Date.now())) {
+      if (isStale(combinedTags, data.lastModified)) {
         if (FileSystemCache.debug) {
           console.log('stale tags', combinedTags)
         }
