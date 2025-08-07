@@ -1,5 +1,5 @@
 import type { RenderOpts } from './render'
-
+import type { Options as BeastiesOptions } from 'beasties'
 import { nonNullable } from '../lib/non-nullable'
 
 type PostProcessorFunction =
@@ -14,20 +14,23 @@ async function postProcessHTML(
     process.env.NEXT_RUNTIME !== 'edge' && renderOpts.optimizeCss
       ? async (html: string) => {
           // eslint-disable-next-line import/no-extraneous-dependencies
-          const Critters = require('critters') as typeof import('critters')
+          const Beasties = require('beasties') as typeof import('beasties')
           // @ts-expect-error -- interopRequireDefault
-          const cssOptimizer = new Critters({
-            ssrMode: true,
+          const beastiesConfig: BeastiesOptions = ({
+            /* beasties options v0.3.5 {@link https://github.com/danielroe/beasties#usage} */
             reduceInlineStyles: false,
             path: renderOpts.distDir,
             publicPath: `${renderOpts.assetPrefix}/_next/`,
+            inlineFonts: false, /* these are handled by next/font */
+            preloadFonts: false,
             preload: 'media',
-            fonts: false,
+            inlineThreshold: 0, /* default value  */
             logLevel:
-              process.env.CRITTERS_LOG_LEVEL ||
+              process.env.BEASTIES_LOG_LEVEL ||
               (process.env.NODE_ENV === 'production' ? 'warn' : 'info'),
             ...renderOpts.optimizeCss,
           })
+          const cssOptimizer = new Beasties(beastiesConfig)
           return await cssOptimizer.process(html)
         }
       : null,
