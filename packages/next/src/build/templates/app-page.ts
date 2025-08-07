@@ -656,8 +656,16 @@ export async function handler(
       // When serving a bot request, we want to serve a blocking render and not
       // the prerendered page. This ensures that the correct content is served
       // to the bot in the head.
+      // Skip this fallback mode change for DOM bots with PPR to allow them to use
+      // the same fallback cache mechanism as regular users. HTML bots should always
+      // use BLOCKING_STATIC_RENDER to ensure correct content is served.
       if (fallbackMode === FallbackMode.PRERENDER && isBot(userAgent)) {
-        fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
+        // For DOM bots with PPR, keep PRERENDER mode to allow fallback cache lookup
+        if (isRoutePPREnabled && botType === 'dom') {
+          // Keep PRERENDER mode
+        } else {
+          fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
+        }
       }
 
       if (previousCacheEntry?.isStale === -1) {
