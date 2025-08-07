@@ -138,7 +138,6 @@ import {
   consumeDynamicAccess,
   type DynamicAccess,
   logDisallowedDynamicError,
-  warnOnSyncDynamicError,
 } from './dynamic-rendering'
 import {
   getClientComponentLoaderMetrics,
@@ -908,8 +907,6 @@ async function finalRuntimeServerPrerender(
       finalServerController.abort()
     }
   )
-
-  warnOnSyncDynamicError(serverDynamicTracking)
 
   return {
     result,
