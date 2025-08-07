@@ -102,9 +102,10 @@ mod tests {
         map.insert(PathBuf::from("a/b"), 2);
         map.insert(PathBuf::from("a/b/c"), 3);
         map.insert(PathBuf::from("a/b/d"), 4);
-        map.insert(PathBuf::from("a/c"), 5);
-        map.insert(PathBuf::from("x/y/z"), 6);
-        map.insert(PathBuf::from("z/a/b"), 7);
+        map.insert(PathBuf::from("a/b/d/e"), 5);
+        map.insert(PathBuf::from("a/c"), 6);
+        map.insert(PathBuf::from("x/y/z"), 7);
+        map.insert(PathBuf::from("z/a/b"), 8);
 
         let parent_path = PathBuf::from("a/b");
         let extracted: Vec<_> = map.extract_path_with_children(&parent_path).collect();
@@ -113,14 +114,15 @@ mod tests {
             (PathBuf::from("a/b"), 2),
             (PathBuf::from("a/b/c"), 3),
             (PathBuf::from("a/b/d"), 4),
+            (PathBuf::from("a/b/d/e"), 5),
         ];
         assert_eq!(extracted, expected_extracted);
 
         let mut expected_remaining = BTreeMap::new();
         expected_remaining.insert(PathBuf::from("a"), 1);
-        expected_remaining.insert(PathBuf::from("a/c"), 5);
-        expected_remaining.insert(PathBuf::from("x/y/z"), 6);
-        expected_remaining.insert(PathBuf::from("z/a/b"), 7);
+        expected_remaining.insert(PathBuf::from("a/c"), 6);
+        expected_remaining.insert(PathBuf::from("x/y/z"), 7);
+        expected_remaining.insert(PathBuf::from("z/a/b"), 8);
 
         assert_eq!(map, expected_remaining);
     }
@@ -132,6 +134,7 @@ mod tests {
         set.insert(PathBuf::from("a/b"));
         set.insert(PathBuf::from("a/b/c"));
         set.insert(PathBuf::from("a/b/d"));
+        set.insert(PathBuf::from("a/b/d/e"));
         set.insert(PathBuf::from("a/c"));
         set.insert(PathBuf::from("x/y/z"));
         set.insert(PathBuf::from("z/a/b"));
@@ -139,7 +142,11 @@ mod tests {
         let parent_path = PathBuf::from("a/b");
         let iterated: Vec<_> = set.iter_path_children(&parent_path).collect();
 
-        let expected_iterated = vec![PathBuf::from("a/b/c"), PathBuf::from("a/b/d")];
+        let expected_iterated = vec![
+            PathBuf::from("a/b/c"),
+            PathBuf::from("a/b/d"),
+            PathBuf::from("a/b/d/e"),
+        ];
         assert_eq!(iterated, expected_iterated);
     }
 }
