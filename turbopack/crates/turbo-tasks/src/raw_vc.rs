@@ -82,15 +82,21 @@ pub enum RawVc {
 impl Debug for RawVc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RawVc::TaskOutput(task_id) => write!(f, "RawVc::TaskOutput({})", **task_id),
-            RawVc::TaskCell(task_id, cell_id) => {
-                write!(f, "RawVc::TaskCell({}, {})", **task_id, cell_id)
-            }
-            RawVc::LocalOutput(execution_id, local_task_id, persistence) => write!(
-                f,
-                "RawVc::LocalOutput({}, {}, {:?})",
-                **execution_id, **local_task_id, persistence
-            ),
+            RawVc::TaskOutput(task_id) => f
+                .debug_tuple("RawVc::TaskOutput")
+                .field(&**task_id)
+                .finish(),
+            RawVc::TaskCell(task_id, cell_id) => f
+                .debug_tuple("RawVc::TaskCell")
+                .field(&**task_id)
+                .field(&cell_id.to_string())
+                .finish(),
+            RawVc::LocalOutput(execution_id, local_task_id, task_persistence) => f
+                .debug_tuple("RawVc::LocalOutput")
+                .field(&**execution_id)
+                .field(&**local_task_id)
+                .field(task_persistence)
+                .finish(),
         }
     }
 }
