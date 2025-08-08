@@ -647,6 +647,18 @@ impl AppProject {
         Ok(ModuleAssetContext::new(
             TransitionOptions {
                 named_transitions: transitions,
+                transition_rules: vec![
+                    // Change context, this is used to determine the list of CSS module classes.
+                    TransitionRule::new(
+                        RuleCondition::all(vec![
+                            RuleCondition::ReferenceType(ReferenceType::Css(
+                                CssReferenceSubType::Analyze,
+                            )),
+                            module_styles_rule_condition(),
+                        ]),
+                        ResolvedVc::upcast(self.client_transition().to_resolved().await?),
+                    ),
+                ],
                 ..Default::default()
             }
             .cell(),
@@ -707,6 +719,18 @@ impl AppProject {
         Ok(ModuleAssetContext::new(
             TransitionOptions {
                 named_transitions: transitions,
+                transition_rules: vec![
+                    // Change context, this is used to determine the list of CSS module classes.
+                    TransitionRule::new(
+                        RuleCondition::all(vec![
+                            RuleCondition::ReferenceType(ReferenceType::Css(
+                                CssReferenceSubType::Analyze,
+                            )),
+                            module_styles_rule_condition(),
+                        ]),
+                        ResolvedVc::upcast(self.client_transition().to_resolved().await?),
+                    ),
+                ],
                 ..Default::default()
             }
             .cell(),
