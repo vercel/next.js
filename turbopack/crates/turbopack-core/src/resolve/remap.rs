@@ -487,7 +487,7 @@ fn is_folder_shorthand(key: &str) -> bool {
 /// we do the expansion here.
 fn expand_folder_shorthand(key: &str, value: &mut SubpathValue) -> Result<AliasPattern> {
     // Transform folder patterns into wildcard patterns.
-    let pattern = AliasPattern::wildcard(key, "");
+    let pattern = AliasPattern::wildcard(key, rcstr!(""));
 
     // Transform templates into wildcard patterns as well.
     for result in value.results_mut() {

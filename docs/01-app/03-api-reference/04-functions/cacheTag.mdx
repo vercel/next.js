@@ -6,7 +6,7 @@ related:
   title: Related
   description: View related API references.
   links:
-    - app/api-reference/config/next-config-js/dynamicIO
+    - app/api-reference/config/next-config-js/cacheComponents
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/revalidateTag
     - app/api-reference/functions/cacheLife
@@ -16,14 +16,14 @@ The `cacheTag` function allows you to tag cached data for on-demand invalidation
 
 ## Usage
 
-To use `cacheTag`, enable the [`dynamicIO` flag](/docs/app/api-reference/config/next-config-js/dynamicIO) in your `next.config.js` file:
+To use `cacheTag`, enable the [`cacheComponents` flag](/docs/app/api-reference/config/next-config-js/cacheComponents) in your `next.config.js` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
   },
 }
 
@@ -33,14 +33,14 @@ export default nextConfig
 ```js filename="next.config.js" switcher
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    cacheComponents: true,
   },
 }
 
 export default nextConfig
 ```
 
-The `cacheTag` function takes a single string value, or a string array.
+The `cacheTag` function takes one or more string values.
 
 ```tsx filename="app/data.ts" switcher
 import { unstable_cacheTag as cacheTag } from 'next/cache'
@@ -91,7 +91,7 @@ export default async function submit() {
 ## Good to know
 
 - **Idempotent Tags**: Applying the same tag multiple times has no additional effect.
-- **Multiple Tags**: You can assign multiple tags to a single cache entry by passing an array to `cacheTag`.
+- **Multiple Tags**: You can assign multiple tags to a single cache entry by passing multiple string values to `cacheTag`.
 
 ```tsx
 cacheTag('tag-one', 'tag-two')

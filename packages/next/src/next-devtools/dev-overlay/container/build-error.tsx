@@ -37,12 +37,38 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
     [message]
   )
 
+  const generateErrorInfo = useCallback(() => {
+    const parts: string[] = []
+
+    // 1. Error Type
+    parts.push(`## Error Type\nBuild Error`)
+
+    // 2. Error Message
+    if (formattedMessage) {
+      parts.push(`## Error Message\n${formattedMessage}`)
+    }
+
+    // 3. Build Output (decoded stderr)
+    if (message) {
+      const decodedOutput = stripAnsi(message)
+      parts.push(`## Build Output\n${decodedOutput}`)
+    }
+
+    // Format as AI prompt
+    const errorInfo = `${parts.join('\n\n')}
+
+Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\n`
+
+    return errorInfo
+  }, [message, formattedMessage, props.versionInfo])
+
   return (
     <ErrorOverlayLayout
       errorType="Build Error"
       errorMessage={formattedMessage}
       onClose={noop}
       error={error}
+      generateErrorInfo={generateErrorInfo}
       {...props}
     >
       <Terminal content={message} />

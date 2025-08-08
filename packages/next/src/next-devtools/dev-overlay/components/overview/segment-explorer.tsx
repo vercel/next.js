@@ -5,14 +5,17 @@ import {
 } from '../../segment-explorer-trie'
 import { cx } from '../../utils/cx'
 import { SegmentBoundaryTrigger } from './segment-boundary-trigger'
-import { Tooltip } from '../../../components/tooltip'
+import { Tooltip } from '../tooltip/tooltip'
 import { useCallback, useMemo } from 'react'
 import {
   BUILTIN_PREFIX,
   getBoundaryOriginFileType,
   isBoundaryFile,
+  isBuiltinBoundaryFile,
   normalizeBoundaryFilename,
 } from '../../../../server/app-render/segment-explorer-path'
+import { SegmentSuggestion } from './segment-suggestion'
+import type { SegmentBoundaryType } from '../../../userspace/app/segment-explorer-node'
 
 const isFileNode = (node: SegmentTrieNode) => {
   return !!node.value?.type && !!node.value?.pagePath
@@ -96,26 +99,49 @@ function SegmentExplorerFooter({
   )
 }
 
-export function PageSegmentTree({
-  isAppRouter,
-  page,
+export function FilePill({
+  type,
+  isBuiltin,
+  isOverridden,
+  filePath,
+  fileName,
 }: {
-  isAppRouter: boolean
-  page: string
+  type: string
+  isBuiltin: boolean
+  isOverridden: boolean
+  filePath: string
+  fileName: string
 }) {
+  return (
+    <span
+      className={cx(
+        'segment-explorer-file-label',
+        `segment-explorer-file-label--${type}`,
+        isBuiltin && 'segment-explorer-file-label--builtin',
+        isOverridden && 'segment-explorer-file-label--overridden'
+      )}
+      onClick={() => {
+        openInEditor({ filePath })
+      }}
+    >
+      <span className="segment-explorer-file-label-text">{fileName}</span>
+      {isBuiltin ? <InfoIcon /> : <CodeIcon className="code-icon" />}
+    </span>
+  )
+}
+
+export function PageSegmentTree({ page }: { page: string }) {
   const tree = useSegmentTree()
 
   // Count active boundaries for the badge
   const activeBoundariesCount = useMemo(() => {
-    return isAppRouter ? countActiveBoundaries(tree) : 0
-  }, [tree, isAppRouter])
+    return countActiveBoundaries(tree)
+  }, [tree])
 
   // Global reset handler
   const handleGlobalReset = useCallback(() => {
-    if (isAppRouter) {
-      traverseTreeAndResetBoundaries(tree)
-    }
-  }, [tree, isAppRouter])
+    traverseTreeAndResetBoundaries(tree)
+  }, [tree])
 
   return (
     <div
@@ -126,7 +152,7 @@ export function PageSegmentTree({
         height: '100%',
       }}
     >
-      {isAppRouter && <PageRouteBar page={page} />}
+      <PageRouteBar page={page} />
       <div
         className="segment-explorer-content"
         data-nextjs-devtool-segment-explorer
@@ -135,21 +161,17 @@ export function PageSegmentTree({
           overflow: 'auto',
         }}
       >
-        {isAppRouter ? (
-          <PageSegmentTreeLayerPresentation node={tree} level={0} segment="" />
-        ) : (
-          <p>Route Info currently is only available for the App Router.</p>
-        )}
+        <PageSegmentTreeLayerPresentation node={tree} level={0} segment="" />
       </div>
-      {isAppRouter && (
-        <SegmentExplorerFooter
-          activeBoundariesCount={activeBoundariesCount}
-          onGlobalReset={handleGlobalReset}
-        />
-      )}
+      <SegmentExplorerFooter
+        activeBoundariesCount={activeBoundariesCount}
+        onGlobalReset={handleGlobalReset}
+      />
     </div>
   )
 }
+
+const GLOBAL_ERROR_BOUNDARY_TYPE = 'global-error'
 
 function PageSegmentTreeLayerPresentation({
   segment,
@@ -160,7 +182,34 @@ function PageSegmentTreeLayerPresentation({
   node: SegmentTrieNode
   level: number
 }) {
-  const childrenKeys = Object.keys(node.children)
+  const childrenKeys = useMemo(
+    () => Object.keys(node.children),
+    [node.children]
+  )
+
+  const missingGlobalError = useMemo(() => {
+    const existingBoundaries: string[] = []
+    childrenKeys.forEach((key) => {
+      const childNode = node.children[key]
+      if (!childNode || !childNode.value) return
+      const boundaryType = getBoundaryOriginFileType(childNode.value.type)
+      const isGlobalConvention = boundaryType === GLOBAL_ERROR_BOUNDARY_TYPE
+      if (
+        // If global-* convention is not built-in, it's existed
+        (isGlobalConvention &&
+          !isBuiltinBoundaryFile(childNode.value.pagePath)) ||
+        (!isGlobalConvention &&
+          // If it's non global boundary, we check if file is boundary type
+          isBoundaryFile(childNode.value.type))
+      ) {
+        existingBoundaries.push(boundaryType)
+      }
+    })
+
+    return (
+      level === 0 && !existingBoundaries.includes(GLOBAL_ERROR_BOUNDARY_TYPE)
+    )
+  }, [node.children, childrenKeys, level])
 
   const sortedChildrenKeys = childrenKeys.sort((a, b) => {
     // Prioritize files with extensions over directories
@@ -222,6 +271,11 @@ function PageSegmentTreeLayerPresentation({
     folderChildrenKeys.push(childKey)
   }
 
+  const possibleExtension =
+    normalizeBoundaryFilename(filesChildrenKeys[0] || '')
+      .split('.')
+      .pop() || 'js'
+
   let firstChild = null
 
   for (let i = sortedChildrenKeys.length - 1; i >= 0; i--) {
@@ -247,10 +301,11 @@ function PageSegmentTreeLayerPresentation({
   firstChild = firstChild || firstBoundaryChild
 
   const hasFilesChildren = filesChildrenKeys.length > 0
-  const boundaries: Record<'not-found' | 'loading' | 'error', string | null> = {
+  const boundaries: Record<SegmentBoundaryType, string | null> = {
     'not-found': null,
     loading: null,
     error: null,
+    'global-error': null,
   }
 
   filesChildrenKeys.forEach((childKey) => {
@@ -265,8 +320,6 @@ function PageSegmentTreeLayerPresentation({
       }
     }
   })
-
-  const filesChildrenKeysBesidesSelectedBoundary = filesChildrenKeys
 
   return (
     <>
@@ -283,19 +336,25 @@ function PageSegmentTreeLayerPresentation({
               ...{ paddingLeft: `${(level + 1) * 8}px` },
             }}
           >
-            <div className="segment-explorer-filename">
-              {folderName && (
-                <span className="segment-explorer-filename--path">
-                  {folderName}
-                  {/* hidden slashes for testing snapshots */}
-                  <small>{'/'}</small>
-                </span>
-              )}
-              {/* display all the file segments in this level */}
-              {filesChildrenKeysBesidesSelectedBoundary.length > 0 && (
-                <span className="segment-explorer-files">
-                  {filesChildrenKeysBesidesSelectedBoundary.map(
-                    (fileChildSegment) => {
+            <div className="segment-explorer-item-row-main">
+              <div className="segment-explorer-filename">
+                {folderName && (
+                  <span className="segment-explorer-filename--path">
+                    {folderName}
+                    {/* hidden slashes for testing snapshots */}
+                    <small>{'/'}</small>
+                  </span>
+                )}
+                {missingGlobalError && (
+                  <SegmentSuggestion
+                    possibleExtension={possibleExtension}
+                    missingGlobalError={missingGlobalError}
+                  />
+                )}
+                {/* display all the file segments in this level */}
+                {filesChildrenKeys.length > 0 && (
+                  <span className="segment-explorer-files">
+                    {filesChildrenKeys.map((fileChildSegment) => {
                       const childNode = node.children[fileChildSegment]
                       if (!childNode || !childNode.value) {
                         return null
@@ -333,43 +392,26 @@ function PageSegmentTreeLayerPresentation({
                           direction={isBuiltin ? 'right' : 'top'}
                           title={tooltipMessage}
                           offset={12}
-                          bgcolor="var(--color-gray-1000)"
-                          color="var(--color-gray-100)"
                         >
-                          <span
-                            className={cx(
-                              'segment-explorer-file-label',
-                              `segment-explorer-file-label--${childNode.value.type}`,
-                              isBuiltin &&
-                                'segment-explorer-file-label--builtin',
-                              isOverridden &&
-                                'segment-explorer-file-label--overridden'
-                            )}
-                            onClick={() => {
-                              openInEditor({ filePath })
-                            }}
-                          >
-                            <span className="segment-explorer-file-label-text">
-                              {fileName}
-                            </span>
-                            {isBuiltin ? (
-                              <InfoIcon />
-                            ) : (
-                              <CodeIcon className="code-icon" />
-                            )}
-                          </span>
+                          <FilePill
+                            type={childNode.value.type}
+                            isBuiltin={isBuiltin}
+                            isOverridden={isOverridden}
+                            filePath={filePath}
+                            fileName={fileName}
+                          />
                         </Tooltip>
                       )
-                    }
-                  )}
-                </span>
-              )}
-              {firstChild && firstChild.value && (
-                <SegmentBoundaryTrigger
-                  nodeState={firstChild.value}
-                  boundaries={boundaries}
-                />
-              )}
+                    })}
+                  </span>
+                )}
+                {firstChild && firstChild.value && (
+                  <SegmentBoundaryTrigger
+                    nodeState={firstChild.value}
+                    boundaries={boundaries}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -399,7 +441,7 @@ function PageSegmentTreeLayerPresentation({
   )
 }
 
-function openInEditor({ filePath }: { filePath: string }) {
+export function openInEditor({ filePath }: { filePath: string }) {
   const params = new URLSearchParams({
     file: filePath,
     // Mark the file path is relative to the app directory,
@@ -413,7 +455,7 @@ function openInEditor({ filePath }: { filePath: string }) {
   )
 }
 
-function InfoIcon(props: React.SVGProps<SVGSVGElement>) {
+export function InfoIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       width="16"
@@ -449,7 +491,7 @@ function BackArrowIcon() {
   )
 }
 
-function CodeIcon(props: React.SVGProps<SVGSVGElement>) {
+export function CodeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       width="12"

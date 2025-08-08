@@ -10,7 +10,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
@@ -31,8 +31,8 @@ use super::util::{request_to_string, throw_module_not_found_expr};
 use crate::{
     references::util::throw_module_not_found_error_expr,
     runtime_functions::{
-        TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT,
-        TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE,
+        TURBOPACK_ASYNC_LOADER, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
+        TURBOPACK_IMPORT, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE,
     },
     utils::module_id_to_lit,
 };
@@ -208,9 +208,8 @@ impl SinglePatternMapping {
                 &format!("Unsupported external type {ty:?} for dynamic import reference"),
             ),
             Self::ModuleLoader(module_id) => {
-                quote!("($turbopack_require($id))($turbopack_import)" as Expr,
-                    turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
-                    turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                quote!("$turbopack_async_loader($id)" as Expr,
+                    turbopack_async_loader: Expr = TURBOPACK_ASYNC_LOADER.into(),
                     id: Expr = module_id_to_lit(module_id)
                 )
             }
@@ -342,9 +341,9 @@ async fn to_single_pattern_mapping(
             // TODO implement mapping
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug,
-                title: StyledString::Text(
-                    "pattern mapping is not implemented for this result".into(),
-                )
+                title: StyledString::Text(rcstr!(
+                    "pattern mapping is not implemented for this result"
+                ))
                 .resolved_cell(),
                 message: StyledString::Text(
                     format!(
@@ -375,10 +374,10 @@ async fn to_single_pattern_mapping(
     }
     CodeGenerationIssue {
         severity: IssueSeverity::Bug,
-        title: StyledString::Text("non-ecmascript placeable asset".into()).resolved_cell(),
-        message: StyledString::Text(
-            "asset is not placeable in ESM chunks, so it doesn't have a module id".into(),
-        )
+        title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
+        message: StyledString::Text(rcstr!(
+            "asset is not placeable in ESM chunks, so it doesn't have a module id"
+        ))
         .resolved_cell(),
         path: origin.origin_path().owned().await?,
     }

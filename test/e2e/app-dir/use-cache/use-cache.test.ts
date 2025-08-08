@@ -473,6 +473,7 @@ describe('use-cache', () => {
 
       expect(prerenderedRouteKeys).toEqual(
         [
+          '/_not-found',
           // [id] route, first entry in generateStaticParams
           expect.stringMatching(/\/a\d/),
           withCacheComponents && '/api',
@@ -895,7 +896,7 @@ describe('use-cache', () => {
 
   if (isNextDev) {
     if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS !== 'true') {
-      it('should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO', async () => {
+      it('should not have unhandled rejection of Request data promises when use cache is enabled without cacheComponents', async () => {
         await next.render('/unhandled-promise-regression')
         // We assert both to better defend against changes in error messaging invalidating this test silently.
         // They are today asserting the same thing

@@ -4,6 +4,7 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack
   List all export names manually (`export { a, b, c } from "...") or rewrite the module to ESM, to avoid the additional runtime code.`
   
   Import trace:
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/scope-hoisting/reexport-dynamic-cjs/input/b.js
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/scope-hoisting/reexport-dynamic-cjs/input/reexport.js
-    ./turbopack/crates/turbopack-tests/tests/execution/turbopack/scope-hoisting/reexport-dynamic-cjs/input/index.js
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/scope-hoisting/reexport-dynamic-cjs/input/b.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/scope-hoisting/reexport-dynamic-cjs/input/reexport.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/scope-hoisting/reexport-dynamic-cjs/input/index.js

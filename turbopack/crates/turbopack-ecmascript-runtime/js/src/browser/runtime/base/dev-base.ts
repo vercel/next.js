@@ -2,6 +2,12 @@
 /// <reference path="./dev-protocol.d.ts" />
 /// <reference path="./dev-extensions.ts" />
 
+interface TurbopackDevContext extends TurbopackBrowserBaseContext<HotModule> {
+  k: RefreshContext
+}
+
+const devContextPrototype = Context.prototype as TurbopackDevContext
+
 /**
  * This file contains runtime types and functions that are shared between all
  * Turbopack *development* ECMAScript runtimes.
@@ -13,6 +19,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 const devModuleCache: ModuleCache<HotModule> = Object.create(null)
+devContextPrototype.c = devModuleCache
 
 // This file must not use `import` and `export` statements. Otherwise, it
 // becomes impossible to augment interfaces declared in `<reference>`d files
@@ -33,16 +40,9 @@ type RefreshContext = {
 
 type RefreshHelpers = RefreshRuntimeGlobals['$RefreshHelpers$']
 
-interface TurbopackDevBaseContext extends TurbopackBaseContext<Module> {
-  k: RefreshContext
-  R: ResolvePathFromModule
-}
-
-interface TurbopackDevContext extends TurbopackDevBaseContext {}
-
 type ModuleFactory = (
   this: Module['exports'],
-  context: TurbopackDevBaseContext
+  context: TurbopackDevContext
 ) => unknown
 
 interface DevRuntimeBackend {
@@ -63,6 +63,38 @@ class UpdateApplyError extends Error {
 }
 
 /**
+ * Module IDs that are instantiated as part of the runtime of a chunk.
+ */
+const runtimeModules: Set<ModuleId> = new Set()
+
+/**
+ * Map from module ID to the chunks that contain this module.
+ *
+ * In HMR, we need to keep track of which modules are contained in which so
+ * chunks. This is so we don't eagerly dispose of a module when it is removed
+ * from chunk A, but still exists in chunk B.
+ */
+const moduleChunksMap: Map<ModuleId, Set<ChunkPath>> = new Map()
+/**
+ * Map from a chunk path to all modules it contains.
+ */
+const chunkModulesMap: Map<ChunkPath, Set<ModuleId>> = new Map()
+/**
+ * Chunk lists that contain a runtime. When these chunk lists receive an update
+ * that can't be reconciled with the current state of the page, we need to
+ * reload the runtime entirely.
+ */
+const runtimeChunkLists: Set<ChunkListPath> = new Set()
+/**
+ * Map from a chunk list to the chunk paths it contains.
+ */
+const chunkListChunksMap: Map<ChunkListPath, Set<ChunkPath>> = new Map()
+/**
+ * Map from a chunk path to the chunk lists it belongs to.
+ */
+const chunkChunkListsMap: Map<ChunkPath, Set<ChunkListPath>> = new Map()
+
+/**
  * Maps module IDs to persisted data between executions of their hot module
  * implementation (`hot.data`).
  */
@@ -81,8 +113,8 @@ const queuedInvalidatedModules: Set<ModuleId> = new Set()
  */
 // @ts-ignore
 function getOrInstantiateRuntimeModule(
-  moduleId: ModuleId,
-  chunkPath: ChunkPath
+  chunkPath: ChunkPath,
+  moduleId: ModuleId
 ): Module {
   const module = devModuleCache[moduleId]
   if (module) {
@@ -93,7 +125,7 @@ function getOrInstantiateRuntimeModule(
   }
 
   // @ts-ignore
-  return instantiateModule(moduleId, { type: SourceType.Runtime, chunkPath })
+  return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
 }
 
 /**
@@ -116,6 +148,10 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
   }
 
   if (module) {
+    if (module.error) {
+      throw module.error
+    }
+
     if (module.parents.indexOf(sourceModule.id) === -1) {
       module.parents.push(sourceModule.id)
     }
@@ -123,45 +159,44 @@ const getOrInstantiateModuleFromParent: GetOrInstantiateModuleFromParent<
     return module
   }
 
-  return instantiateModule(id, {
-    type: SourceType.Parent,
-    parentId: sourceModule.id,
-  })
+  return instantiateModule(id, SourceType.Parent, sourceModule.id)
 }
 
-function instantiateModule(moduleId: ModuleId, source: SourceInfo): Module {
+function DevContext(
+  this: TurbopackDevContext,
+  module: HotModule,
+  refresh: RefreshContext
+) {
+  Context.call(this, module)
+  this.k = refresh
+}
+DevContext.prototype = Context.prototype
+
+type DevContextConstructor = {
+  new (module: HotModule, refresh: RefreshContext): TurbopackDevContext
+}
+
+function instantiateModule(
+  moduleId: ModuleId,
+  sourceType: SourceType,
+  sourceData: SourceData
+): Module {
   // We are in development, this is always a string.
   let id = moduleId as string
 
-  const moduleFactory = moduleFactories[id]
+  const moduleFactory = moduleFactories.get(id)
   if (typeof moduleFactory !== 'function') {
     // This can happen if modules incorrectly handle HMR disposes/updates,
     // e.g. when they keep a `setTimeout` around which still executes old code
     // and contains e.g. a `require("something")` call.
-    let instantiationReason
-    switch (source.type) {
-      case SourceType.Runtime:
-        instantiationReason = `as a runtime entry of chunk ${source.chunkPath}`
-        break
-      case SourceType.Parent:
-        instantiationReason = `because it was required from module ${source.parentId}`
-        break
-      case SourceType.Update:
-        instantiationReason = 'because of an HMR update'
-        break
-      default:
-        invariant(source, (source) => `Unknown source type: ${source?.type}`)
-    }
-    throw new Error(
-      `Module ${id} was instantiated ${instantiationReason}, but the module factory is not available. It might have been deleted in an HMR update.`
-    )
+    factoryNotAvailable(id, sourceType, sourceData)
   }
 
   const hotData = moduleHotData.get(id)!
   const { hot, hotState } = createModuleHot(id, hotData)
 
   let parents: ModuleId[]
-  switch (source.type) {
+  switch (sourceType) {
     case SourceType.Runtime:
       runtimeModules.add(id)
       parents = []
@@ -169,75 +204,52 @@ function instantiateModule(moduleId: ModuleId, source: SourceInfo): Module {
     case SourceType.Parent:
       // No need to add this module as a child of the parent module here, this
       // has already been taken care of in `getOrInstantiateModuleFromParent`.
-      parents = [source.parentId]
+      parents = [sourceData as ModuleId]
       break
     case SourceType.Update:
-      parents = source.parents || []
+      parents = (sourceData as ModuleId[]) || []
       break
     default:
-      invariant(source, (source) => `Unknown source type: ${source?.type}`)
+      invariant(
+        sourceType,
+        (sourceType) => `Unknown source type: ${sourceType}`
+      )
   }
 
-  const module: HotModule = {
-    exports: {},
-    error: undefined,
-    loaded: false,
-    id: id,
-    parents,
-    children: [],
-    namespaceObject: undefined,
-    hot,
-  }
+  const module: HotModule = createModuleObject(id) as HotModule
+  module.parents = parents
+  module.children = []
+  module.hot = hot
 
   devModuleCache[id] = module
   moduleHotState.set(module, hotState)
 
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
-    const sourceInfo: SourceInfo = { type: SourceType.Parent, parentId: id }
-
     runModuleExecutionHooks(module, (refresh) => {
-      const r = commonJsRequire.bind(null, module)
-      moduleFactory(
-        augmentContext({
-          a: asyncModule.bind(null, module),
-          e: module.exports,
-          r: commonJsRequire.bind(null, module),
-          t: runtimeRequire,
-          f: moduleContext,
-          i: esmImport.bind(null, module),
-          s: esmExport.bind(null, module, module.exports, devModuleCache),
-          j: dynamicExport.bind(null, module, module.exports, devModuleCache),
-          v: exportValue.bind(null, module, devModuleCache),
-          n: exportNamespace.bind(null, module, devModuleCache),
-          m: module,
-          c: devModuleCache,
-          M: moduleFactories,
-          l: loadChunk.bind(null, sourceInfo),
-          L: loadChunkByUrl.bind(null, sourceInfo),
-          w: loadWebAssembly.bind(null, sourceInfo),
-          u: loadWebAssemblyModule.bind(null, sourceInfo),
-          P: resolveAbsolutePath,
-          U: relativeURL,
-          k: refresh,
-          R: createResolvePathFromModule(r),
-          b: getWorkerBlobURL,
-          z: requireStub,
-        })
+      const context = new (DevContext as any as DevContextConstructor)(
+        module,
+        refresh
       )
+      moduleFactory(context)
     })
   } catch (error) {
     module.error = error as any
     throw error
   }
 
-  module.loaded = true
   if (module.namespaceObject && module.exports !== module.namespaceObject) {
     // in case of a circular dependency: cjs1 -> esm2 -> cjs1
     interopEsm(module.exports, module.namespaceObject)
   }
 
   return module
+}
+
+const DUMMY_REFRESH_CONTEXT = {
+  register: (_type: unknown, _id: unknown) => {},
+  signature: () => (_type: unknown) => {},
+  registerExports: (_module: unknown, _helpers: unknown) => {},
 }
 
 /**
@@ -266,11 +278,7 @@ function runModuleExecutionHooks(
     // If the react refresh hooks are not installed we need to bind dummy functions.
     // This is expected when running in a Web Worker.  It is also common in some of
     // our test environments.
-    executeModule({
-      register: (_type, _id) => {},
-      signature: () => (_type) => {},
-      registerExports: (_module, _helpers) => {},
-    })
+    executeModule(DUMMY_REFRESH_CONTEXT)
   }
 }
 
@@ -546,7 +554,8 @@ function applyPhase(
 ) {
   // Update module factories.
   for (const [moduleId, factory] of newModuleFactories.entries()) {
-    moduleFactories[moduleId] = factory
+    applyModuleFactoryName(factory)
+    moduleFactories.set(moduleId, factory)
   }
 
   // TODO(alexkirsz) Run new runtime entries here.
@@ -556,10 +565,11 @@ function applyPhase(
   // Re-instantiate all outdated self-accepted modules.
   for (const { moduleId, errorHandler } of outdatedSelfAcceptedModules) {
     try {
-      instantiateModule(moduleId, {
-        type: SourceType.Update,
-        parents: outdatedModuleParents.get(moduleId),
-      })
+      instantiateModule(
+        moduleId,
+        SourceType.Update,
+        outdatedModuleParents.get(moduleId)
+      )
     } catch (err) {
       if (typeof errorHandler === 'function') {
         try {
@@ -606,7 +616,7 @@ function applyChunkListUpdate(update: ChunkListUpdate) {
 
       switch (chunkUpdate.type) {
         case 'added':
-          BACKEND.loadChunk(chunkUrl, { type: SourceType.Update })
+          BACKEND.loadChunkCached(SourceType.Update, chunkUrl)
           break
         case 'total':
           DEV_BACKEND.reloadChunk?.(chunkUrl)
@@ -1079,6 +1089,54 @@ function disposeChunk(chunkPath: ChunkPath): boolean {
   }
 
   return true
+}
+
+/**
+ * Adds a module to a chunk.
+ */
+function addModuleToChunk(moduleId: ModuleId, chunkPath: ChunkPath) {
+  let moduleChunks = moduleChunksMap.get(moduleId)
+  if (!moduleChunks) {
+    moduleChunks = new Set([chunkPath])
+    moduleChunksMap.set(moduleId, moduleChunks)
+  } else {
+    moduleChunks.add(chunkPath)
+  }
+
+  let chunkModules = chunkModulesMap.get(chunkPath)
+  if (!chunkModules) {
+    chunkModules = new Set([moduleId])
+    chunkModulesMap.set(chunkPath, chunkModules)
+  } else {
+    chunkModules.add(moduleId)
+  }
+}
+
+/**
+ * Marks a chunk list as a runtime chunk list. There can be more than one
+ * runtime chunk list. For instance, integration tests can have multiple chunk
+ * groups loaded at runtime, each with its own chunk list.
+ */
+function markChunkListAsRuntime(chunkListPath: ChunkListPath) {
+  runtimeChunkLists.add(chunkListPath)
+}
+
+function registerChunk(registration: ChunkRegistration) {
+  const chunkPath = getPathFromScript(registration[0])
+  let runtimeParams: RuntimeParams | undefined
+  // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
+  if (registration.length === 2) {
+    runtimeParams = registration[1] as RuntimeParams
+  } else {
+    runtimeParams = undefined
+    installCompressedModuleFactories(
+      registration as CompressedModuleFactories,
+      /* offset= */ 1,
+      moduleFactories,
+      (id: ModuleId) => addModuleToChunk(id, chunkPath)
+    )
+  }
+  return BACKEND.registerChunk(chunkPath, runtimeParams)
 }
 
 /**

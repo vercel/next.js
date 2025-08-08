@@ -86,22 +86,25 @@ pub async fn get_app_page_entry(
     let source = load_next_js_template(
         "app-page.js",
         project_root.clone(),
-        fxindexmap! {
-            "VAR_DEFINITION_PAGE" => page.to_string().into(),
-            "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            "VAR_MODULE_GLOBAL_ERROR" => if inner_assets.contains_key(GLOBAL_ERROR) {
-                GLOBAL_ERROR.into()
-             } else {
-                "next/dist/client/components/builtin/global-error".into()
-            },
-        },
-        fxindexmap! {
-            "tree" => loader_tree_code,
-            "pages" => StringifyJs(&pages).to_string().into(),
-            "__next_app_require__" => TURBOPACK_REQUIRE.full.into(),
-            "__next_app_load_chunk__" => TURBOPACK_LOAD.full.into(),
-        },
-        fxindexmap! {},
+        &[
+            ("VAR_DEFINITION_PAGE", &*page.to_string()),
+            ("VAR_DEFINITION_PATHNAME", &pathname),
+            (
+                "VAR_MODULE_GLOBAL_ERROR",
+                if inner_assets.contains_key(GLOBAL_ERROR) {
+                    GLOBAL_ERROR
+                } else {
+                    "next/dist/client/components/builtin/global-error"
+                },
+            ),
+        ],
+        &[
+            ("tree", &*loader_tree_code),
+            ("pages", &StringifyJs(&pages).to_string()),
+            ("__next_app_require__", &TURBOPACK_REQUIRE.bound()),
+            ("__next_app_load_chunk__", &TURBOPACK_LOAD.bound()),
+        ],
+        &[],
     )
     .await?;
 
@@ -155,41 +158,16 @@ async fn wrap_edge_page(
 
     let next_config_val = &*next_config.await?;
 
-    // TODO(WEB-1824): add build support
-    let dev = true;
-
-    // TODO(timneutkens): remove this
-    let is_server_component = true;
-
-    let server_actions = next_config.experimental_server_actions().await?;
-
-    let sri_enabled = !dev
-        && next_config
-            .experimental_sri()
-            .await?
-            .as_ref()
-            .map(|sri| sri.algorithm.as_ref())
-            .is_some();
-
     let source = load_next_js_template(
         "edge-ssr-app.js",
         project_root.clone(),
-        fxindexmap! {
-            "VAR_USERLAND" => INNER.into(),
-            "VAR_PAGE" => page.to_string().into(),
-        },
-        fxindexmap! {
-            "sriEnabled" => serde_json::Value::Bool(sri_enabled).to_string().into(),
+        &[("VAR_USERLAND", INNER), ("VAR_PAGE", &page.to_string())],
+        &[
             // TODO do we really need to pass the entire next config here?
             // This is bad for invalidation as any config change will invalidate this
-            "nextConfig" => serde_json::to_string(next_config_val)?.into(),
-            "isServerComponent" => serde_json::Value::Bool(is_server_component).to_string().into(),
-            "dev" => serde_json::Value::Bool(dev).to_string().into(),
-            "serverActions" => serde_json::to_string(&server_actions)?.into(),
-        },
-        fxindexmap! {
-            "incrementalCacheHandler" => None,
-        },
+            ("nextConfig", &*serde_json::to_string(next_config_val)?),
+        ],
+        &[("incrementalCacheHandler", None)],
     )
     .await?;
 

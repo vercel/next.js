@@ -363,7 +363,8 @@ function getAmpPath(ampPath: string, asPath: string): string {
 function getNextFontLinkTags(
   nextFontManifest: DeepReadonly<NextFontManifest> | undefined,
   dangerousAsPath: string,
-  assetPrefix: string = ''
+  assetPrefix: string = '',
+  assetQueryString: string = ''
 ) {
   if (!nextFontManifest) {
     return {
@@ -403,7 +404,7 @@ function getNextFontLinkTags(
             <link
               key={fontFile}
               rel="preload"
-              href={`${assetPrefix}/_next/${encodeURIPath(fontFile)}`}
+              href={`${assetPrefix}/_next/${encodeURIPath(fontFile)}${assetQueryString}`}
               as="font"
               type={`font/${ext}`}
               crossOrigin="anonymous"
@@ -657,22 +658,12 @@ export class Head extends React.Component<HeadProps> {
           child.props['rel'] === 'preload' &&
           child.props['as'] === 'style'
         ) {
-          if (this.context.strictNextHead) {
-            cssPreloads.push(
-              React.cloneElement(child, { 'data-next-head': '' })
-            )
-          } else {
-            cssPreloads.push(child)
-          }
+          cssPreloads.push(child)
         } else {
           if (child) {
-            if (this.context.strictNextHead) {
-              otherHeadElements.push(
-                React.cloneElement(child, { 'data-next-head': '' })
-              )
-            } else {
-              otherHeadElements.push(child)
-            }
+            otherHeadElements.push(
+              React.cloneElement(child, { 'data-next-head': '' })
+            )
           }
         }
       })
@@ -765,7 +756,8 @@ export class Head extends React.Component<HeadProps> {
     const nextFontLinkTags = getNextFontLinkTags(
       nextFontManifest,
       dangerousAsPath,
-      assetPrefix
+      assetPrefix,
+      this.context.assetQueryString
     )
 
     const tracingMetadata = getTracedMetadata(
@@ -811,12 +803,6 @@ export class Head extends React.Component<HeadProps> {
           </>
         )}
         {head}
-        {this.context.strictNextHead ? null : (
-          <meta
-            name="next-head-count"
-            content={React.Children.count(head || []).toString()}
-          />
-        )}
 
         {children}
 

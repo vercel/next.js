@@ -2,6 +2,7 @@ import { useState, useLayoutEffect } from 'react'
 import type { Corners } from '../../../shared'
 import { useResize, type ResizeDirection } from './resize-provider'
 import './resize-handle.css'
+import { saveDevToolsConfig } from '../../../utils/save-devtools-config'
 
 export const ResizeHandle = ({
   direction,
@@ -27,8 +28,7 @@ export const ResizeHandle = ({
     left: 0,
   })
 
-  // TODO(rob): if parallel with >2 sides (user resizes panel to be max width/height)
-  // then we need to relax disabled resize heuristic
+  // TODO: NEXT-4645
   const shouldShowHandle = () => {
     const getOppositeCorner = (corner: Corners): ResizeDirection => {
       switch (corner) {
@@ -76,6 +76,7 @@ export const ResizeHandle = ({
     const borderBottom = parseFloat(computedStyle.borderBottomWidth) || 0
     const borderLeft = parseFloat(computedStyle.borderLeftWidth) || 0
 
+    // eslint-disable-next-line react-hooks/react-compiler -- TODO
     setBorderWidths({
       top: borderTop,
       right: borderRight,
@@ -127,8 +128,9 @@ export const ResizeHandle = ({
       }
 
       const { width, height } = resizeRef.current.getBoundingClientRect()
-
-      localStorage.setItem(storageKey, JSON.stringify({ width, height }))
+      saveDevToolsConfig({
+        devToolsPanelSize: { [storageKey]: { width, height } },
+      })
     }
     document.addEventListener('mousemove', handleMouseMove)
     document.addEventListener('mouseup', handleMouseUp)

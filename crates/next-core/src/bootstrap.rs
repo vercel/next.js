@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -92,8 +93,8 @@ pub async fn bootstrap(
         .await?;
 
     let mut inner_assets = inner_assets.owned().await?;
-    inner_assets.insert("ENTRY".into(), asset);
-    inner_assets.insert("BOOTSTRAP_CONFIG".into(), config_asset);
+    inner_assets.insert(rcstr!("ENTRY"), asset);
+    inner_assets.insert(rcstr!("BOOTSTRAP_CONFIG"), config_asset);
 
     let asset = asset_context
         .process(

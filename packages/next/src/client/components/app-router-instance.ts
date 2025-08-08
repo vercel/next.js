@@ -14,7 +14,11 @@ import {
 import { reducer } from './router-reducer/router-reducer'
 import { startTransition } from 'react'
 import { isThenable } from '../../shared/lib/is-thenable'
-import { prefetch as prefetchWithSegmentCache } from './segment-cache'
+import {
+  FetchStrategy,
+  prefetch as prefetchWithSegmentCache,
+  type PrefetchTaskFetchStrategy,
+} from './segment-cache'
 import { dispatchAppRouterAction } from './use-action-queue'
 import { addBasePath } from '../add-base-path'
 import { createPrefetchURL, isExternalURL } from './app-router'
@@ -323,11 +327,40 @@ export const publicAppRouterInstance: AppRouterInstance = {
       // cache. So we don't need to dispatch an action.
       (href: string, options?: PrefetchOptions) => {
         const actionQueue = getAppRouterActionQueue()
+        const prefetchKind = options?.kind ?? PrefetchKind.AUTO
+
+        // We don't currently offer a way to issue a runtime prefetch via `router.prefetch()`.
+        // This will be possible when we update its API to not take a PrefetchKind.
+        let fetchStrategy: PrefetchTaskFetchStrategy
+        switch (prefetchKind) {
+          case PrefetchKind.AUTO: {
+            // We default to PPR. We'll discover whether or not the route supports it with the initial prefetch.
+            fetchStrategy = FetchStrategy.PPR
+            break
+          }
+          case PrefetchKind.FULL: {
+            fetchStrategy = FetchStrategy.Full
+            break
+          }
+          case PrefetchKind.TEMPORARY: {
+            // This concept doesn't exist in the segment cache implementation.
+            return
+          }
+          default: {
+            prefetchKind satisfies never
+            // Despite typescript thinking that this can't happen,
+            // we might get an unexpected value from user code.
+            // We don't know what they want, but we know they want a prefetch,
+            // so use the default.
+            fetchStrategy = FetchStrategy.PPR
+          }
+        }
+
         prefetchWithSegmentCache(
           href,
           actionQueue.state.nextUrl,
           actionQueue.state.tree,
-          options?.kind === PrefetchKind.FULL,
+          fetchStrategy,
           options?.onInvalidate ?? null
         )
       }

@@ -24,7 +24,7 @@ indexmap = { workspace = true }
 once_cell = { workspace = true }
 patricia_tree = "0.5.5"
 petgraph = { workspace = true, features = ["serde-1"] }
-roaring = { version = "0.10.10", features = ["serde"] }
+roaring = { workspace = true, features = ["serde"] }
 ref-cast = "1.0.20"
 rustc-hash = { workspace = true }
 regex = { workspace = true }
@@ -41,6 +41,7 @@ turbo-tasks = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
+turbo-unix-path = { workspace = true }
 urlencoding = { workspace = true }
 bytes-str = { workspace = true }
 

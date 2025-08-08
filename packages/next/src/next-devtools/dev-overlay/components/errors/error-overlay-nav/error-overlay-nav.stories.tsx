@@ -21,6 +21,7 @@ export const Default: Story = {
         runtime: true,
         error: new Error('First error message'),
         frames: () => Promise.resolve([]),
+        componentStackFrames: undefined,
         type: 'runtime',
       },
       {
@@ -28,6 +29,7 @@ export const Default: Story = {
         runtime: true,
         error: new Error('Second error message'),
         frames: () => Promise.resolve([]),
+        componentStackFrames: undefined,
         type: 'runtime',
       },
       {
@@ -35,6 +37,7 @@ export const Default: Story = {
         runtime: true,
         error: new Error('Third error message'),
         frames: () => Promise.resolve([]),
+        componentStackFrames: undefined,
         type: 'runtime',
       },
     ],

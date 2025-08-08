@@ -18,6 +18,7 @@ import {
   ACTION_RENDERING_INDICATOR_HIDE,
   ACTION_RENDERING_INDICATOR_SHOW,
   ACTION_DEVTOOL_UPDATE_ROUTE_STATE,
+  ACTION_DEVTOOLS_CONFIG,
   type OverlayState,
   type DispatcherEvent,
 } from './dev-overlay/shared'
@@ -41,6 +42,7 @@ import {
   removeSegmentNode,
 } from './dev-overlay/segment-explorer-trie'
 import type { SegmentNodeState } from './userspace/app/segment-explorer-node'
+import type { DevToolsConfig } from './dev-overlay/shared'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -51,6 +53,7 @@ export interface Dispatcher {
   onRefresh(): void
   onStaticIndicator(status: boolean): void
   onDevIndicator(devIndicator: DevIndicatorServerState): void
+  onDevToolsConfig(config: DevToolsConfig): void
   onUnhandledError(reason: Error): void
   onUnhandledRejection(reason: Error): void
   openErrorOverlay(): void
@@ -113,6 +116,11 @@ export const dispatcher: Dispatcher = {
   onDevIndicator: createQueuable(
     (dispatch: Dispatch, devIndicator: DevIndicatorServerState) => {
       dispatch({ type: ACTION_DEV_INDICATOR, devIndicator })
+    }
+  ),
+  onDevToolsConfig: createQueuable(
+    (dispatch: Dispatch, devToolsConfig: DevToolsConfig) => {
+      dispatch({ type: ACTION_DEVTOOLS_CONFIG, devToolsConfig })
     }
   ),
   onUnhandledError: createQueuable((dispatch: Dispatch, error: Error) => {
@@ -223,12 +231,7 @@ function DevOverlayRoot({
           state,
         }}
       >
-        <DevOverlay
-          // we also pass props for legacy UI
-          dispatch={dispatch}
-          state={state}
-          getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
-        />
+        <DevOverlay />
       </DevOverlayContext>
     </>
   )

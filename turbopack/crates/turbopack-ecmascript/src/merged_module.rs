@@ -173,7 +173,6 @@ impl EcmascriptChunkItem for MergedEcmascriptModuleChunkItem {
         Ok(EcmascriptChunkItemContent::new(
             content,
             *self.chunking_context,
-            *module.options,
             async_module_options,
         ))
     }

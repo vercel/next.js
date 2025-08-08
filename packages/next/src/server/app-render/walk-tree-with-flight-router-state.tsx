@@ -176,6 +176,32 @@ export async function walkTreeWithFlightRouterState({
     ]
   }
 
+  // Similar to the previous branch. This flag is sent by the client to request
+  // only the metadata for a page. No segment data.
+  if (flightRouterState && flightRouterState[3] === 'metadata-only') {
+    const overriddenSegment =
+      flightRouterState &&
+      canSegmentBeOverridden(actualSegment, flightRouterState[0])
+        ? flightRouterState[0]
+        : actualSegment
+    const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
+      ? createRouteTreePrefetch(loaderTreeToFilter, getDynamicParamFromSegment)
+      : createFlightRouterStateFromLoaderTree(
+          loaderTreeToFilter,
+          getDynamicParamFromSegment,
+          query
+        )
+    return [
+      [
+        overriddenSegment,
+        routerState,
+        null,
+        rscHead,
+        false,
+      ] satisfies FlightDataSegment,
+    ]
+  }
+
   if (renderComponentsOnThisLevel) {
     const overriddenSegment =
       flightRouterState &&

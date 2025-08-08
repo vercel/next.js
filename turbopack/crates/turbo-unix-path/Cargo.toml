@@ -1,0 +1,17 @@
+[package]
+name = "turbo-unix-path"
+version = "0.0.1"
+description = "TBD"
+license = "MIT"
+edition = "2024"
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+
+[dev-dependencies]
+rstest = { workspace = true }

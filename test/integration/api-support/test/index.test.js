@@ -25,6 +25,12 @@ let mode
 let app
 
 function runTests(dev = false) {
+  it('should not strip .json from API route', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/hello.json')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ post: 'hello.json' })
+  })
+
   it('should handle proxying to self correctly', async () => {
     const res1 = await fetchViaHTTP(appPort, '/api/proxy-self')
     expect(res1.status).toBe(200)

@@ -272,6 +272,8 @@ export function useSelectedLayoutSegment(
     : selectedLayoutSegment
 }
 
+export { unstable_isUnrecognizedActionError } from './unrecognized-action-error'
+
 // Shared components APIs
 export {
   notFound,

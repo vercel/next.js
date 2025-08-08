@@ -141,12 +141,14 @@ function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
       switch (workUnitStore?.type) {
         case 'prerender':
         case 'prerender-client':
+        case 'prerender-runtime':
           originalMethod.apply(this, dimConsoleCall(methodName, args))
           break
         case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
         case 'cache':
+        case 'private-cache':
         case 'unstable-cache':
         case undefined:
           originalMethod.apply(this, args)

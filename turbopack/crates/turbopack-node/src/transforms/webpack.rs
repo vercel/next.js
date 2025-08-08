@@ -362,6 +362,7 @@ pub enum InfoMessage {
     // Sent to inform Turbopack about the dependencies of the task.
     // All fields are `default` since it is ok for the client to
     // simply omit instead of sending empty arrays.
+    #[serde(rename_all = "camelCase")]
     Dependencies {
         #[serde(default)]
         env_variables: Vec<RcStr>,

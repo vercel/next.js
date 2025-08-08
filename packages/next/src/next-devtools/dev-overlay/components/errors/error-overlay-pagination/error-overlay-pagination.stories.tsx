@@ -22,6 +22,7 @@ const mockErrors: ReadyRuntimeError[] = [
     runtime: true as const,
     error: new Error('First error'),
     frames: () => Promise.resolve([]),
+    componentStackFrames: undefined,
     type: 'runtime',
   },
   {
@@ -29,6 +30,7 @@ const mockErrors: ReadyRuntimeError[] = [
     runtime: true as const,
     error: new Error('Second error'),
     frames: () => Promise.resolve([]),
+    componentStackFrames: undefined,
     type: 'runtime',
   },
   {
@@ -36,6 +38,7 @@ const mockErrors: ReadyRuntimeError[] = [
     runtime: true as const,
     error: new Error('Third error'),
     frames: () => Promise.resolve([]),
+    componentStackFrames: undefined,
     type: 'runtime',
   },
 ]

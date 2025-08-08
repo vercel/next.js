@@ -211,6 +211,10 @@ where
             }
         }
     }
+
+    fn shutdown(&self) -> Result<()> {
+        either::for_both!(self, this => this.shutdown())
+    }
 }
 
 // similar to `Either::unwrap_left`, but does not require `R: Debug`.

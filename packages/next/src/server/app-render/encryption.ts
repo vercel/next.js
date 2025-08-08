@@ -30,6 +30,17 @@ const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
 
+const filterStackFrame =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .filterStackFrameDEV
+    : undefined
+const findSourceMapURL =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .findSourceMapURLDEV
+    : undefined
+
 /**
  * Decrypt the serialized string with the action id as the salt.
  */
@@ -140,12 +151,6 @@ export const encryptActionBoundArgs = React.cache(
       })
     }
 
-    const filterStackFrame =
-      process.env.NODE_ENV !== 'production'
-        ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
-            .filterStackFrameDEV
-        : undefined
-
     // Using Flight to serialize the args into a string.
     const serialized = await streamToString(
       renderToReadableStream(args, clientModules, {
@@ -255,6 +260,7 @@ export async function decryptActionBoundArgs(
 
         switch (workUnitStore?.type) {
           case 'prerender':
+          case 'prerender-runtime':
             // Explicitly don't close the stream here (until prerendering is
             // complete) so that hanging promises are not rejected.
             if (workUnitStore.renderSignal.aborted) {
@@ -272,6 +278,7 @@ export async function decryptActionBoundArgs(
           case 'prerender-legacy':
           case 'request':
           case 'cache':
+          case 'private-cache':
           case 'unstable-cache':
           case undefined:
             return controller.close()
@@ -281,6 +288,7 @@ export async function decryptActionBoundArgs(
       },
     }),
     {
+      findSourceMapURL,
       serverConsumerManifest: {
         // moduleLoading must be null because we don't want to trigger preloads of ClientReferences
         // to be added to the current execution. Instead, we'll wait for any ClientReference

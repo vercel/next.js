@@ -3,11 +3,11 @@ use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
 use anyhow::{Result, bail};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
+use smallvec::{SmallVec, smallvec};
 use swc_core::{
     common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{
-        AssignTarget, Expr, ExprStmt, Ident, KeyValueProp, ObjectLit, Prop, PropName, PropOrSpread,
-        SimpleAssignTarget, Stmt, Str,
+        ArrayLit, AssignTarget, Expr, ExprOrSpread, ExprStmt, Ident, SimpleAssignTarget, Stmt, Str,
     },
     quote, quote_expr,
 };
@@ -614,10 +614,10 @@ impl EsmExports {
 
         let mut getters = Vec::new();
         for (exported, local) in &expanded.exports {
-            let expr = match local {
-                EsmExport::Error => Some(quote!(
+            let exprs: SmallVec<[Expr; 1]> = match local {
+                EsmExport::Error => smallvec![quote!(
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
-                )),
+                )],
                 EsmExport::LocalBinding(name, mutable) => {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
@@ -645,16 +645,20 @@ impl EsmExports {
                     });
 
                     if *mutable {
-                        Some(quote!(
-                            "([() => $local, ($new) => $local = $new])" as Expr,
-                            local = Ident::new(local.into(), DUMMY_SP, ctxt),
-                            new = Ident::new(format!("new_{name}").into(), DUMMY_SP, ctxt),
-                        ))
+                        let local = Ident::new(local.into(), DUMMY_SP, ctxt);
+                        smallvec![
+                            quote!("() => $local" as Expr, local = local.clone()),
+                            quote!(
+                                "($new) => $local = $new" as Expr,
+                                local = local,
+                                new = Ident::new(format!("new_{name}").into(), DUMMY_SP, ctxt),
+                            )
+                        ]
                     } else {
-                        Some(quote!(
-                            "(() => $local)" as Expr,
+                        smallvec![quote!(
+                            "() => $local" as Expr,
                             local = Ident::new((name as &str).into(), DUMMY_SP, ctxt)
-                        ))
+                        )]
                     }
                 }
                 EsmExport::ImportedBinding(esm_ref, name, mutable) => {
@@ -666,9 +670,13 @@ impl EsmExports {
                         .map(|ident| {
                             let expr = ident.as_expr_individual(DUMMY_SP);
                             if *mutable {
+                                smallvec![
                                 quote!(
-                                    "([() => $expr, ($new) => $lhs = $new])" as Expr,
+                                    "() => $expr" as Expr,
                                     expr: Expr = expr.clone().map_either(Expr::from, Expr::from).into_inner(),
+                                ),
+                                quote!(
+                                    "($new) => $lhs = $new" as Expr,
                                     lhs: AssignTarget = AssignTarget::Simple(
                                         expr.map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner()),
                                     new = Ident::new(
@@ -677,13 +685,14 @@ impl EsmExports {
                                         Default::default()
                                     ),
                                 )
+                                ]
                             } else {
-                                quote!(
+                                smallvec![quote!(
                                     "(() => $expr)" as Expr,
                                     expr: Expr = expr.map_either(Expr::from, Expr::from).into_inner()
-                                )
+                                )]
                             }
-                        })
+                        }).unwrap_or_default()
                 }
                 EsmExport::ImportedNamespace(esm_ref) => {
                     let referenced_asset =
@@ -692,27 +701,29 @@ impl EsmExports {
                         .get_ident(chunking_context, None, scope_hoisting_context)
                         .await?
                         .map(|ident| {
-                            quote!(
+                            smallvec![quote!(
                                 "(() => $imported)" as Expr,
                                 imported: Expr = ident.as_expr(DUMMY_SP, false)
-                            )
+                            )]
                         })
+                        .unwrap_or_default()
                 }
             };
-            if let Some(expr) = expr {
-                getters.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                    key: PropName::Str(Str {
+            if !exprs.is_empty() {
+                getters.push(Some(
+                    Expr::Lit(swc_core::ecma::ast::Lit::Str(Str {
                         span: DUMMY_SP,
                         value: exported.as_str().into(),
                         raw: None,
-                    }),
-                    value: Box::new(expr),
-                }))));
+                    }))
+                    .into(),
+                ));
+                getters.extend(exprs.into_iter().map(|e| Some(ExprOrSpread::from(e))));
             }
         }
-        let getters = Expr::Object(ObjectLit {
+        let getters = Expr::Array(ArrayLit {
             span: DUMMY_SP,
-            props: getters,
+            elems: getters,
         });
         let dynamic_stmt = if !dynamic_exports.is_empty() {
             Some(Stmt::Expr(ExprStmt {

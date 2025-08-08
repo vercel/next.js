@@ -22,7 +22,7 @@ export function useShortcuts(
         e.key !== 'Alt' &&
         e.key !== 'Shift'
       ) {
-        keys.push(e.key)
+        keys.push(e.code)
       }
 
       const shortcut = keys.join('+')
@@ -35,8 +35,7 @@ export function useShortcuts(
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shortcuts])
+  }, [rootRef, shortcuts])
 }
 
 export function isFocusedOnElement(

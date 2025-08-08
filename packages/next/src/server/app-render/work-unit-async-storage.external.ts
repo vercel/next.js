@@ -5,6 +5,7 @@ import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
 import type { DynamicTrackingState } from './dynamic-rendering'
+import type { FallbackRouteParams } from '../request/fallback-params'
 
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -27,7 +28,7 @@ export interface CommonWorkUnitStore {
 }
 
 export interface RequestStore extends CommonWorkUnitStore {
-  type: 'request'
+  readonly type: 'request'
 
   /**
    * The URL of the request. This only specifies the pathname and the search
@@ -81,31 +82,72 @@ export interface RequestStore extends CommonWorkUnitStore {
 export type PrerenderStoreModern =
   | PrerenderStoreModernClient
   | PrerenderStoreModernServer
+  | PrerenderStoreModernRuntime
 
-interface PrerenderStoreModernClient extends PrerenderStoreModernCommon {
-  type: 'prerender-client'
+/** Like `PrerenderStoreModern`, but only including static prerenders (i.e. not runtime prerenders) */
+export type StaticPrerenderStoreModern = Exclude<
+  PrerenderStoreModern,
+  PrerenderStoreModernRuntime
+>
+
+export interface PrerenderStoreModernClient
+  extends PrerenderStoreModernCommon,
+    StaticPrerenderStoreCommon {
+  readonly type: 'prerender-client'
 }
 
-interface PrerenderStoreModernServer extends PrerenderStoreModernCommon {
-  type: 'prerender'
+export interface PrerenderStoreModernServer
+  extends PrerenderStoreModernCommon,
+    StaticPrerenderStoreCommon {
+  readonly type: 'prerender'
 }
 
-interface PrerenderStoreModernCommon extends CommonWorkUnitStore {
+export interface PrerenderStoreModernRuntime
+  extends PrerenderStoreModernCommon {
+  readonly type: 'prerender-runtime'
+
+  readonly cookies: RequestStore['cookies']
+  readonly draftMode: RequestStore['draftMode']
+}
+
+export interface RevalidateStore {
+  // Collected revalidate times and tags for this document during the prerender.
+  revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
+  expire: number // server expiration time
+  stale: number // client expiration time
+  tags: null | string[]
+}
+
+interface PrerenderStoreModernCommon
+  extends CommonWorkUnitStore,
+    RevalidateStore {
   /**
-   * This signal is aborted when the React render is complete. (i.e. it is the same signal passed to react)
+   * The render signal is aborted after React's `prerender` function is aborted
+   * (using a separate signal), which happens in two cases:
+   *
+   * 1. When all caches are filled during the prospective prerender.
+   * 2. When the final prerender is aborted immediately after the prerender was
+   *    started.
+   *
+   * It can be used to reject any pending I/O, including hanging promises. This
+   * allows React to properly track the async I/O in dev mode, which yields
+   * better owner stacks for dynamic validation errors.
    */
   readonly renderSignal: AbortSignal
+
   /**
-   * This is the AbortController which represents the boundary between Prerender and dynamic. In some renders it is
-   * the same as the controller for the renderSignal but in others it is a separate controller. It should be aborted
-   * whenever the we are no longer in the prerender phase of rendering. Typically this is after one task or when you call
-   * a sync API which requires the prerender to end immediately
+   * This is the AbortController which represents the boundary between Prerender
+   * and dynamic. In some renders it is the same as the controller for React,
+   * but in others it is a separate controller. It should be aborted whenever we
+   * are no longer in the prerender phase of rendering. Typically this is after
+   * one task, or when you call a sync API which requires the prerender to end
+   * immediately.
    */
   readonly controller: AbortController
 
   /**
-   * when not null this signal is used to track cache reads during prerendering and
-   * to await all cache reads completing before aborting the prerender.
+   * When not null, this signal is used to track cache reads during prerendering
+   * and to await all cache reads completing, before aborting the prerender.
    */
   readonly cacheSignal: null | CacheSignal
 
@@ -115,20 +157,6 @@ interface PrerenderStoreModernCommon extends CommonWorkUnitStore {
   readonly dynamicTracking: null | DynamicTrackingState
 
   readonly rootParams: Params
-
-  /**
-   * When true, the page is prerendered as a fallback shell, while allowing any
-   * dynamic accesses to result in an empty shell. This is the case when there
-   * are also routes prerendered with a more complete set of params.
-   * Prerendering those routes would catch any invalid dynamic accesses.
-   */
-  readonly allowEmptyStaticShell: boolean
-
-  // Collected revalidate times and tags for this document during the prerender.
-  revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
-  expire: number // server expiration time
-  stale: number // client expiration time
-  tags: null | string[]
 
   /**
    * A mutable resume data cache for this prerender.
@@ -156,15 +184,34 @@ interface PrerenderStoreModernCommon extends CommonWorkUnitStore {
   readonly captureOwnerStack: undefined | (() => string | null)
 }
 
-export interface PrerenderStorePPR extends CommonWorkUnitStore {
-  type: 'prerender-ppr'
+interface StaticPrerenderStoreCommon {
+  /**
+   * The set of unknown route parameters. Accessing these will be tracked as
+   * a dynamic access.
+   */
+  readonly fallbackRouteParams: FallbackRouteParams | null
+
+  /**
+   * When true, the page is prerendered as a fallback shell, while allowing any
+   * dynamic accesses to result in an empty shell. This is the case when there
+   * are also routes prerendered with a more complete set of params.
+   * Prerendering those routes would catch any invalid dynamic accesses.
+   */
+  readonly allowEmptyStaticShell: boolean
+}
+
+export interface PrerenderStorePPR
+  extends CommonWorkUnitStore,
+    RevalidateStore {
+  readonly type: 'prerender-ppr'
   readonly rootParams: Params
   readonly dynamicTracking: null | DynamicTrackingState
-  // Collected revalidate times and tags for this document during the prerender.
-  revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
-  expire: number // server expiration time
-  stale: number // client expiration time
-  tags: null | string[]
+
+  /**
+   * The set of unknown route parameters. Accessing these will be tracked as
+   * a dynamic access.
+   */
+  readonly fallbackRouteParams: FallbackRouteParams | null
 
   /**
    * The resume data cache for this prerender.
@@ -172,20 +219,23 @@ export interface PrerenderStorePPR extends CommonWorkUnitStore {
   prerenderResumeDataCache: PrerenderResumeDataCache
 }
 
-export interface PrerenderStoreLegacy extends CommonWorkUnitStore {
-  type: 'prerender-legacy'
+export interface PrerenderStoreLegacy
+  extends CommonWorkUnitStore,
+    RevalidateStore {
+  readonly type: 'prerender-legacy'
   readonly rootParams: Params
-  // Collected revalidate times and tags for this document during the prerender.
-  revalidate: number // in seconds. 0 means dynamic. INFINITE_CACHE and higher means never revalidate.
-  expire: number // server expiration time
-  stale: number // client expiration time
-  tags: null | string[]
 }
 
 export type PrerenderStore =
   | PrerenderStoreLegacy
   | PrerenderStorePPR
   | PrerenderStoreModern
+
+// /** Like `PrerenderStoreModern`, but only including static prerenders (i.e. not runtime prerenders) */
+export type StaticPrerenderStore = Exclude<
+  PrerenderStore,
+  PrerenderStoreModernRuntime
+>
 
 export interface CommonCacheStore
   extends Omit<CommonWorkUnitStore, 'implicitTags'> {
@@ -201,24 +251,41 @@ export interface CommonCacheStore
   readonly draftMode: DraftModeProvider | undefined
 }
 
-export interface UseCacheStore extends CommonCacheStore {
-  type: 'cache'
-  // Collected revalidate times and tags for this cache entry during the cache render.
-  revalidate: number // implicit revalidate time from inner caches / fetches
-  expire: number // server expiration time
-  stale: number // client expiration time
+export interface CommonUseCacheStore extends CommonCacheStore, RevalidateStore {
   explicitRevalidate: undefined | number // explicit revalidate time from cacheLife() calls
   explicitExpire: undefined | number // server expiration time
   explicitStale: undefined | number // client expiration time
-  tags: null | string[]
   readonly hmrRefreshHash: string | undefined
   readonly isHmrRefresh: boolean
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly forceRevalidate: boolean
 }
 
+export interface PublicUseCacheStore extends CommonUseCacheStore {
+  readonly type: 'cache'
+}
+
+export interface PrivateUseCacheStore extends CommonUseCacheStore {
+  readonly type: 'private-cache'
+
+  /**
+   * As opposed to the public cache store, the private cache store is allowed to
+   * access the request cookies.
+   */
+  readonly cookies: ReadonlyRequestCookies
+
+  /**
+   * Private caches don't currently need to track root params in the cache key
+   * because they're not persisted anywhere, so we can allow root params access
+   * (unlike public caches)
+   */
+  readonly rootParams: Params
+}
+
+export type UseCacheStore = PublicUseCacheStore | PrivateUseCacheStore
+
 export interface UnstableCacheStore extends CommonCacheStore {
-  type: 'unstable-cache'
+  readonly type: 'unstable-cache'
 }
 
 /**
@@ -238,43 +305,6 @@ export type WorkUnitAsyncStorage = AsyncLocalStorage<WorkUnitStore>
 
 export { workUnitAsyncStorageInstance as workUnitAsyncStorage }
 
-export function getExpectedRequestStore(
-  callingExpression: string
-): RequestStore {
-  const workUnitStore = workUnitAsyncStorageInstance.getStore()
-
-  if (!workUnitStore) {
-    throwForMissingRequestStore(callingExpression)
-  }
-
-  switch (workUnitStore.type) {
-    case 'request':
-      return workUnitStore
-
-    case 'prerender':
-    case 'prerender-client':
-    case 'prerender-ppr':
-    case 'prerender-legacy':
-      // This should not happen because we should have checked it already.
-      throw new Error(
-        `\`${callingExpression}\` cannot be called inside a prerender. This is a bug in Next.js.`
-      )
-
-    case 'cache':
-      throw new Error(
-        `\`${callingExpression}\` cannot be called inside "use cache". Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/messages/next-request-in-use-cache`
-      )
-
-    case 'unstable-cache':
-      throw new Error(
-        `\`${callingExpression}\` cannot be called inside unstable_cache. Call it outside and pass an argument instead. Read more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-      )
-
-    default:
-      return workUnitStore satisfies never
-  }
-}
-
 export function throwForMissingRequestStore(callingExpression: string): never {
   throw new Error(
     `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
@@ -286,6 +316,7 @@ export function getPrerenderResumeDataCache(
 ): PrerenderResumeDataCache | null {
   switch (workUnitStore.type) {
     case 'prerender':
+    case 'prerender-runtime':
     case 'prerender-ppr':
       return workUnitStore.prerenderResumeDataCache
     case 'prerender-client':
@@ -295,6 +326,7 @@ export function getPrerenderResumeDataCache(
     case 'prerender-legacy':
     case 'request':
     case 'cache':
+    case 'private-cache':
     case 'unstable-cache':
       return null
     default:
@@ -309,6 +341,7 @@ export function getRenderResumeDataCache(
     case 'request':
       return workUnitStore.renderResumeDataCache
     case 'prerender':
+    case 'prerender-runtime':
     case 'prerender-client':
       if (workUnitStore.renderResumeDataCache) {
         // If we are in a prerender, we might have a render resume data cache
@@ -321,6 +354,7 @@ export function getRenderResumeDataCache(
       // version of the cache as it can also be used for reading.
       return workUnitStore.prerenderResumeDataCache
     case 'cache':
+    case 'private-cache':
     case 'unstable-cache':
     case 'prerender-legacy':
       return null
@@ -336,11 +370,63 @@ export function getHmrRefreshHash(
   if (workStore.dev) {
     switch (workUnitStore.type) {
       case 'cache':
+      case 'private-cache':
       case 'prerender':
+      case 'prerender-runtime':
         return workUnitStore.hmrRefreshHash
       case 'request':
         return workUnitStore.cookies.get(NEXT_HMR_REFRESH_HASH_COOKIE)?.value
       case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
+  }
+
+  return undefined
+}
+
+export function isHmrRefresh(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore
+): boolean {
+  if (workStore.dev) {
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'private-cache':
+      case 'request':
+        return workUnitStore.isHmrRefresh ?? false
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-runtime':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
+  }
+
+  return false
+}
+
+export function getServerComponentsHmrCache(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore
+): ServerComponentsHmrCache | undefined {
+  if (workStore.dev) {
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'private-cache':
+      case 'request':
+        return workUnitStore.serverComponentsHmrCache
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-runtime':
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'unstable-cache':
@@ -363,7 +449,9 @@ export function getDraftModeProviderForCacheScope(
   if (workStore.isDraftMode) {
     switch (workUnitStore.type) {
       case 'cache':
+      case 'private-cache':
       case 'unstable-cache':
+      case 'prerender-runtime':
       case 'request':
         return workUnitStore.draftMode
       case 'prerender':
@@ -385,11 +473,13 @@ export function getCacheSignal(
   switch (workUnitStore.type) {
     case 'prerender':
     case 'prerender-client':
+    case 'prerender-runtime':
       return workUnitStore.cacheSignal
     case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'cache':
+    case 'private-cache':
     case 'unstable-cache':
       return null
     default:

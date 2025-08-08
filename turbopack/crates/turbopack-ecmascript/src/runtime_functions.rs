@@ -1,6 +1,10 @@
 use std::fmt::{Display, Formatter};
 
-use swc_core::ecma::ast::{Expr, MemberExpr, MemberProp};
+use swc_core::{
+    atoms::atom,
+    ecma::ast::{Expr, MemberExpr, MemberProp},
+};
+use turbo_rcstr::rcstr;
 use turbopack_core::compile_time_info::FreeVarReference;
 
 pub struct TurbopackRuntimeFunctionShortcut {
@@ -12,6 +16,13 @@ impl TurbopackRuntimeFunctionShortcut {
     pub const fn new(full: &'static str, shortcut: &'static str) -> Self {
         Self { full, shortcut }
     }
+
+    pub fn bound(&self) -> String {
+        format!(
+            "__turbopack_context__.{}.bind(__turbopack_context__)",
+            self.shortcut
+        )
+    }
 }
 
 impl Display for TurbopackRuntimeFunctionShortcut {
@@ -22,22 +33,34 @@ impl Display for TurbopackRuntimeFunctionShortcut {
 
 impl From<&TurbopackRuntimeFunctionShortcut> for FreeVarReference {
     fn from(val: &TurbopackRuntimeFunctionShortcut) -> Self {
-        FreeVarReference::Member("__turbopack_context__".into(), val.shortcut.into())
+        FreeVarReference::Member(rcstr!("__turbopack_context__"), val.shortcut.into())
     }
 }
 
 impl From<&TurbopackRuntimeFunctionShortcut> for Expr {
     fn from(val: &TurbopackRuntimeFunctionShortcut) -> Self {
         Expr::Member(MemberExpr {
-            obj: Box::new(Expr::Ident("__turbopack_context__".into())),
+            obj: Box::new(Expr::Ident(atom!("__turbopack_context__").into())),
             prop: MemberProp::Ident(val.shortcut.into()),
             ..Default::default()
         })
     }
 }
 
+impl<'l> From<&'l TurbopackRuntimeFunctionShortcut> for &'l str {
+    fn from(val: &TurbopackRuntimeFunctionShortcut) -> Self {
+        val.full
+    }
+}
+
+pub const TURBOPACK_EXPORTS: &TurbopackRuntimeFunctionShortcut =
+    &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.e", "e");
+pub const TURBOPACK_MODULE: &TurbopackRuntimeFunctionShortcut =
+    &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.m", "m");
 pub const TURBOPACK_REQUIRE: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.r", "r");
+pub const TURBOPACK_ASYNC_LOADER: &TurbopackRuntimeFunctionShortcut =
+    &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.A", "A");
 pub const TURBOPACK_MODULE_CONTEXT: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.f", "f");
 pub const TURBOPACK_IMPORT: &TurbopackRuntimeFunctionShortcut =
@@ -56,6 +79,8 @@ pub const TURBOPACK_LOAD: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.l", "l");
 pub const TURBOPACK_LOAD_BY_URL: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.L", "L");
+pub const TURBOPACK_CLEAR_CHUNK_CACHE: &TurbopackRuntimeFunctionShortcut =
+    &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.C", "C");
 pub const TURBOPACK_DYNAMIC: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.j", "j");
 pub const TURBOPACK_RESOLVE_ABSOLUTE_PATH: &TurbopackRuntimeFunctionShortcut =
@@ -78,14 +103,17 @@ pub const TURBOPACK_REQUIRE_STUB: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.z", "z");
 pub const TURBOPACK_REQUIRE_REAL: &TurbopackRuntimeFunctionShortcut =
     &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.t", "t");
+pub const TURBOPACK_WASM: &TurbopackRuntimeFunctionShortcut =
+    &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.w", "w");
+pub const TURBOPACK_WASM_MODULE: &TurbopackRuntimeFunctionShortcut =
+    &TurbopackRuntimeFunctionShortcut::new("__turbopack_context__.u", "u");
 
 /// Adding an entry to this list will automatically ensure that `__turbopack_XXX__` can be called
 /// from user code (by inserting a replacement into free_var_references)
-pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctionShortcut); 21] = [
+pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctionShortcut); 22] = [
     ("__turbopack_require__", TURBOPACK_REQUIRE),
     ("__turbopack_module_context__", TURBOPACK_MODULE_CONTEXT),
     ("__turbopack_import__", TURBOPACK_IMPORT),
-    ("__turbopack_esm__", TURBOPACK_ESM),
     ("__turbopack_export_value__", TURBOPACK_EXPORT_VALUE),
     ("__turbopack_export_namespace__", TURBOPACK_EXPORT_NAMESPACE),
     ("__turbopack_cache__", TURBOPACK_CACHE),
@@ -103,10 +131,15 @@ pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctio
         TURBOPACK_RESOLVE_MODULE_ID_PATH,
     ),
     ("__turbopack_worker_blob_url__", TURBOPACK_WORKER_BLOB_URL),
-    ("__turbopack_async_module__", TURBOPACK_ASYNC_MODULE),
     ("__turbopack_external_require__", TURBOPACK_EXTERNAL_REQUIRE),
     ("__turbopack_external_import__", TURBOPACK_EXTERNAL_IMPORT),
     ("__turbopack_refresh__", TURBOPACK_REFRESH),
     ("__turbopack_require_stub__", TURBOPACK_REQUIRE_STUB),
     ("__turbopack_require_real__", TURBOPACK_REQUIRE_REAL),
+    (
+        "__turbopack_clear_chunk_cache__",
+        TURBOPACK_CLEAR_CHUNK_CACHE,
+    ),
+    ("__turbopack_wasm__", TURBOPACK_WASM),
+    ("__turbopack_wasm_module__", TURBOPACK_WASM_MODULE),
 ];

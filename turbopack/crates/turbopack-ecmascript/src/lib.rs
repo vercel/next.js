@@ -178,7 +178,6 @@ pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
-    pub refresh: bool,
     /// variant of tree shaking to use
     pub tree_shaking_mode: Option<TreeShakingMode>,
     /// module is forced to a specific type (happens e. g. for .cjs and .mjs)
@@ -810,7 +809,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let span = tracing::info_span!(
             "code generation",
-            module = self.asset_ident().to_string().await?.to_string()
+            name = self.asset_ident().to_string().await?.to_string()
         );
         async {
             let this = self.await?;
@@ -824,14 +823,9 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 .module
                 .module_content(*this.chunking_context, async_module_info);
 
-            EcmascriptChunkItemContent::new(
-                content,
-                *this.chunking_context,
-                this.module.options(),
-                async_module_options,
-            )
-            .resolve()
-            .await
+            EcmascriptChunkItemContent::new(content, *this.chunking_context, async_module_options)
+                .resolve()
+                .await
         }
         .instrument(span)
         .await
@@ -2062,6 +2056,8 @@ fn hygiene_rename_only(
     }
     // Copied from `hygiene_with_config`'s HygieneRenamer, but added an `preserved_exports`
     impl swc_core::ecma::transforms::base::rename::Renamer for HygieneRenamer<'_> {
+        type Target = Id;
+
         const MANGLE: bool = false;
         const RESET_N: bool = true;
 
@@ -2079,7 +2075,7 @@ fn hygiene_rename_only(
             self.preserved_exports.contains(orig) || orig.1.has_mark(self.is_import_mark)
         }
     }
-    swc_core::ecma::transforms::base::rename::renamer(
+    swc_core::ecma::transforms::base::rename::renamer_keep_contexts(
         swc_core::ecma::transforms::base::hygiene::Config {
             top_level_mark: top_level_mark.unwrap_or_default(),
             ..Default::default()
@@ -2430,7 +2426,10 @@ impl CodeGenResultComments {
         } else if old_high_bits == 0 {
             false
         } else {
-            panic!("The high bits of the position {pos} are not all 0s or 1s: {old_high_bits:b}",);
+            panic!(
+                "The high bits of the position {pos} are not all 0s or 1s. \
+                 modules_header_width={modules_header_width}, module={module}",
+            );
         };
 
         let pos = pos & !((2u32.pow(header_width) - 1) << pos_width);

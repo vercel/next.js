@@ -393,18 +393,18 @@ async function exportAppImpl(
           serverActionsManifest,
         }
       : {}),
-    strictNextHead: nextConfig.experimental.strictNextHead ?? true,
     deploymentId: nextConfig.deploymentId,
     htmlLimitedBots: nextConfig.htmlLimitedBots.source,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
       staleTimes: nextConfig.experimental.staleTimes,
-      dynamicIO: nextConfig.experimental.dynamicIO ?? false,
+      cacheComponents: nextConfig.experimental.cacheComponents ?? false,
       clientSegmentCache:
         nextConfig.experimental.clientSegmentCache === 'client-only'
           ? 'client-only'
           : Boolean(nextConfig.experimental.clientSegmentCache),
+      clientParamParsing: nextConfig.experimental.clientParamParsing ?? false,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
@@ -628,7 +628,7 @@ async function exportAppImpl(
   let initialPhaseExportPaths: ExportPathEntry[] = []
   const finalPhaseExportPaths: ExportPathEntry[] = []
 
-  if (renderOpts.experimental.dynamicIO) {
+  if (renderOpts.experimental.cacheComponents) {
     for (const exportPath of allExportPaths) {
       if (exportPath._allowEmptyStaticShell) {
         finalPhaseExportPaths.push(exportPath)
@@ -763,6 +763,10 @@ async function exportAppImpl(
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
       Object.keys(prerenderManifest.routes).map(async (unnormalizedRoute) => {
+        // Skip handling /_not-found route, it will copy the 404.html file later
+        if (unnormalizedRoute === '/_not-found') {
+          return
+        }
         const { srcRoute } = prerenderManifest!.routes[unnormalizedRoute]
         const appPageName = mapAppRouteToPage.get(srcRoute || '')
         const pageName = appPageName || srcRoute || unnormalizedRoute

@@ -1,6 +1,5 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_bff03a32._.js", {
-
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_bff03a32._.js",
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 
 var { m: module, e: exports } = __turbopack_context__;
 {
@@ -11,16 +10,17 @@ var Foo = function Foo() {
 };
 console.log(Foo, [].includes('foo'));
 }}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@swc/helpers/_/_class_call_check.js [test] (ecmascript)": ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@swc/helpers/_/_class_call_check.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
-__turbopack_context__.s({
-    "_": ()=>_
-});
+__turbopack_context__.s([
+    "_",
+    ()=>_
+]);
 function _() {
     return 'purposefully empty stub for @swc/helpers/_/_class_call_check.js';
 }
 }),
-}]);
+]);
 
 //# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_bff03a32._.js.map

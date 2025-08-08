@@ -8,7 +8,21 @@ import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-ser
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
 
+export type DevToolsConfig = {
+  theme?: 'light' | 'dark' | 'system'
+  disableDevIndicator?: boolean
+  devToolsPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  devToolsPanelPosition?: Record<
+    string,
+    'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+  >
+  devToolsPanelSize?: Record<string, { width: number; height: number }>
+  scale?: number
+  hideShortcut?: string | null
+}
+
 export type Corners = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+export type DevToolsIndicatorPosition = Corners
 
 const BASE_SIZE = 16
 
@@ -18,39 +32,47 @@ export const NEXT_DEV_TOOLS_SCALE = {
   Large: BASE_SIZE / 18,
 }
 
+export type DevToolsScale =
+  (typeof NEXT_DEV_TOOLS_SCALE)[keyof typeof NEXT_DEV_TOOLS_SCALE]
+
 type FastRefreshState =
   /** No refresh in progress. */
   | { type: 'idle' }
   /** The refresh process has been triggered, but the new code has not been executed yet. */
-  | { type: 'pending'; errors: SupportedErrorEvent[] }
+  | { type: 'pending'; errors: readonly SupportedErrorEvent[] }
 
 export interface OverlayState {
-  nextId: number
-  buildError: string | null
-  errors: SupportedErrorEvent[]
-  refreshState: FastRefreshState
-  versionInfo: VersionInfo
-  notFound: boolean
-  buildingIndicator: boolean
-  renderingIndicator: boolean
-  staticIndicator: boolean
-  showIndicator: boolean
-  disableDevIndicator: boolean
+  readonly nextId: number
+  readonly buildError: string | null
+  readonly errors: readonly SupportedErrorEvent[]
+  readonly refreshState: FastRefreshState
+  readonly versionInfo: VersionInfo
+  readonly notFound: boolean
+  readonly buildingIndicator: boolean
+  readonly renderingIndicator: boolean
+  readonly staticIndicator: boolean
+  readonly showIndicator: boolean
+  readonly disableDevIndicator: boolean
   /** Whether to show the restart server button in the panel UI. Currently
    *  only used when Turbopack + Persistent Cache is enabled.
    */
-  showRestartServerButton: boolean
-  debugInfo: DebugInfo
-  routerType: 'pages' | 'app'
+  readonly showRestartServerButton: boolean
+  readonly debugInfo: DebugInfo
+  readonly routerType: 'pages' | 'app'
   /** This flag is used to handle the Error Overlay state in the "old" overlay.
    *  In the DevTools panel, this value will used for the "Error Overlay Mode"
    *  which is viewing the "Issues Tab" as a fullscreen.
    */
-  isErrorOverlayOpen: boolean
-  devToolsPosition: Corners
-  devToolsPanelPosition: Record<DevtoolsPanelName, Corners>
-  scale: number
-  page: string
+  readonly isErrorOverlayOpen: boolean
+  readonly devToolsPosition: Corners
+  readonly devToolsPanelPosition: Readonly<Record<DevtoolsPanelName, Corners>>
+  readonly devToolsPanelSize: Readonly<
+    Record<DevtoolsPanelName, { width: number; height: number }>
+  >
+  readonly scale: number
+  readonly page: string
+  readonly theme: 'light' | 'dark' | 'system'
+  readonly hideShortcut: string | null
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -86,6 +108,8 @@ export const ACTION_DEVTOOLS_PANEL_SIZE = 'devtools-panel-size'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
 export const ACTION_RESTART_SERVER_BUTTON = 'restart-server-button'
 
+export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
+
 export const STORAGE_KEY_THEME = '__nextjs-dev-tools-theme'
 export const STORAGE_KEY_POSITION = '__nextjs-dev-tools-position'
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
@@ -96,7 +120,6 @@ export const STORE_KEY_SHARED_PANEL_SIZE =
 export const STORE_KEY_SHARED_PANEL_LOCATION =
   '__nextjs-dev-tools-shared-panel-location'
 export const STORAGE_KEY_SCALE = '__nextjs-dev-tools-scale'
-export const STORAGE_KEY_ACTIVE_TAB = '__nextjs-devtools-active-tab'
 
 export const ACTION_DEVTOOL_UPDATE_ROUTE_STATE =
   'segment-explorer-update-route-state'
@@ -199,6 +222,11 @@ export interface RestartServerButtonAction {
   showRestartServerButton: boolean
 }
 
+export interface DevToolsConfigAction {
+  type: typeof ACTION_DEVTOOLS_CONFIG
+  devToolsConfig: DevToolsConfig
+}
+
 export type DispatcherEvent =
   | BuildOkAction
   | BuildErrorAction
@@ -223,6 +251,7 @@ export type DispatcherEvent =
   | DevToolUpdateRouteStateAction
   | RestartServerButtonAction
   | DevIndicatorSetAction
+  | DevToolsConfigAction
 
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX =
   // 1st group: new frame + v8
@@ -241,41 +270,6 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
 
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
-
-// TODO: change local storage impl
-function getStoredPosition(): Corners {
-  if (typeof localStorage === 'undefined') {
-    return 'bottom-left' as const
-  }
-  const stored = localStorage.getItem(STORAGE_KEY_POSITION)
-  if (
-    stored &&
-    ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(stored)
-  ) {
-    return stored as Corners
-  } else {
-    localStorage.removeItem(STORAGE_KEY_POSITION)
-  }
-
-  // we give priority to local storage over next.config
-  return (process.env.__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
-}
-
-export function getStoredPanelPosition() {
-  if (typeof localStorage === 'undefined') {
-    return 'bottom-left' as const
-  }
-  const stored = localStorage.getItem(STORE_KEY_SHARED_PANEL_LOCATION)
-  if (
-    stored &&
-    ['top-left', 'top-right', 'bottom-left', 'bottom-right'].includes(stored)
-  ) {
-    return stored as Corners
-  } else {
-    localStorage.removeItem(STORE_KEY_SHARED_PANEL_LOCATION)
-  }
-  return 'bottom-left' as const
-}
 
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
@@ -299,13 +293,15 @@ export const INITIAL_OVERLAY_STATE: Omit<
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
   showRestartServerButton: false,
-  devToolsPosition: getStoredPosition(),
+  devToolsPosition: 'bottom-left',
   devToolsPanelPosition: {
-    [STORE_KEY_SHARED_PANEL_LOCATION]: getStoredPanelPosition(),
+    [STORE_KEY_SHARED_PANEL_LOCATION]: 'bottom-left',
   },
-
+  devToolsPanelSize: {},
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
   page: '',
+  theme: 'system',
+  hideShortcut: null,
 }
 
 function getInitialState(
@@ -328,10 +324,10 @@ export function useErrorOverlayReducer(
   isRecoverableError: (error: Error) => boolean
 ) {
   function pushErrorFilterDuplicates(
-    events: SupportedErrorEvent[],
+    events: readonly SupportedErrorEvent[],
     id: number,
     error: Error
-  ): SupportedErrorEvent[] {
+  ): readonly SupportedErrorEvent[] {
     const componentStack = getComponentStack(error)
     const componentStackFrames =
       componentStack === undefined
@@ -495,6 +491,32 @@ export function useErrorOverlayReducer(
           return {
             ...state,
             showRestartServerButton: action.showRestartServerButton,
+          }
+        }
+        case ACTION_DEVTOOLS_CONFIG: {
+          const {
+            theme,
+            disableDevIndicator,
+            devToolsPosition,
+            devToolsPanelPosition,
+            devToolsPanelSize,
+            scale,
+            hideShortcut,
+          } = action.devToolsConfig
+
+          return {
+            ...state,
+            theme: theme ?? state.theme,
+            disableDevIndicator:
+              disableDevIndicator ?? state.disableDevIndicator,
+            devToolsPosition: devToolsPosition ?? state.devToolsPosition,
+            devToolsPanelPosition:
+              devToolsPanelPosition ?? state.devToolsPanelPosition,
+            scale: scale ?? state.scale,
+            devToolsPanelSize: devToolsPanelSize ?? state.devToolsPanelSize,
+            hideShortcut:
+              // hideShortcut can be null.
+              hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
           }
         }
         default: {

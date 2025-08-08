@@ -106,7 +106,7 @@ There are two ways to fetch data in Client Components, using:
 You can use React's [`use` hook](https://react.dev/reference/react/use) to [stream](#streaming) data from the server to client. Start by fetching data in your Server component, and pass the promise to your Client Component as prop:
 
 ```tsx filename="app/blog/page.tsx" switcher
-import Posts from '@/app/ui/posts
+import Posts from '@/app/ui/posts'
 import { Suspense } from 'react'
 
 export default function Page() {
@@ -122,7 +122,7 @@ export default function Page() {
 ```
 
 ```jsx filename="app/blog/page.js" switcher
-import Posts from '@/app/ui/posts
+import Posts from '@/app/ui/posts'
 import { Suspense } from 'react'
 
 export default function Page() {
@@ -271,7 +271,7 @@ export const getPost = cache(async (id) => {
 
 ## Streaming
 
-> **Warning:** The content below assumes the [`dynamicIO` config option](/docs/app/api-reference/config/next-config-js/dynamicIO) is enabled in your application. The flag was introduced in Next.js 15 canary.
+> **Warning:** The content below assumes the [`cacheComponents` config option](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled in your application. The flag was introduced in Next.js 15 canary.
 
 When using `async/await` in Server Components, Next.js will opt into [dynamic rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering). This means the data will be fetched and rendered on the server for every user request. If there are any slow data requests, the whole route will be blocked from rendering.
 

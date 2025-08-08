@@ -15,9 +15,8 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap, TaskInput,
     TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{
-    FileSystemEntryType, FileSystemPath, RealPathResult, util::normalize_request,
-};
+use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, RealPathResult};
+use turbo_unix_path::normalize_request;
 
 use self::{
     options::{
@@ -1392,7 +1391,7 @@ async fn find_package(
                     for name in names.iter() {
                         let fs_path = lookup_path.join(name)?;
                         if let Some(fs_path) = dir_exists(fs_path, &mut affecting_sources).await? {
-                            let fs_path = fs_path.join(&package_name.clone())?;
+                            let fs_path = fs_path.join(&package_name)?;
                             if let Some(fs_path) =
                                 dir_exists(fs_path.clone(), &mut affecting_sources).await?
                             {
@@ -1431,7 +1430,7 @@ async fn find_package(
                     if excluded_extensions.contains(extension) {
                         continue;
                     }
-                    let package_file = package_dir.append(&extension.clone())?;
+                    let package_file = package_dir.append(extension)?;
                     if let Some(package_file) = exists(package_file, &mut affecting_sources).await?
                     {
                         packages.push(FindPackageItem::PackageFile(package_file));
@@ -1573,7 +1572,7 @@ pub async fn resolve_inline(
         tracing::info_span!(
             "resolving",
             lookup_path = lookup_path,
-            request = request,
+            name = request,
             reference_type = display(&reference_type),
         )
     };
@@ -1778,7 +1777,7 @@ async fn resolve_internal_inline(
         tracing::info_span!(
             "internal resolving",
             lookup_path = lookup_path,
-            request = request
+            name = request
         )
     };
     async move {
@@ -2108,7 +2107,7 @@ async fn resolve_into_folder(
                         .await?
                     && let Some(field_value) = package_json[name.as_str()].as_str()
                 {
-                    let normalized_request: RcStr = normalize_request(field_value).into();
+                    let normalized_request = RcStr::from(normalize_request(field_value));
                     if normalized_request.is_empty()
                         || &*normalized_request == "."
                         || &*normalized_request == "./"

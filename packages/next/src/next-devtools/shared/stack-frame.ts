@@ -80,10 +80,10 @@ function getOriginalStackFrame(
 }
 
 export async function getOriginalStackFrames(
-  frames: StackFrame[],
+  frames: readonly StackFrame[],
   type: 'server' | 'edge-server' | null,
   isAppDir: boolean
-): Promise<OriginalStackFrame[]> {
+): Promise<readonly OriginalStackFrame[]> {
   const req: OriginalStackFramesRequest = {
     frames,
     isServer: type === 'server',

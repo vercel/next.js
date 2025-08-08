@@ -11,6 +11,7 @@ import {
   ACTION_DEV_INDICATOR,
   ACTION_DEV_INDICATOR_SET,
   ACTION_DEVTOOL_UPDATE_ROUTE_STATE,
+  ACTION_DEVTOOLS_CONFIG,
   ACTION_DEVTOOLS_PANEL_POSITION,
   ACTION_DEVTOOLS_POSITION,
   ACTION_DEVTOOLS_SCALE,
@@ -86,6 +87,7 @@ export function useStorybookOverlayReducer(initialState?: OverlayState) {
         case ACTION_UNHANDLED_ERROR:
         case ACTION_UNHANDLED_REJECTION:
         case ACTION_VERSION_INFO:
+        case ACTION_DEVTOOLS_CONFIG:
           return state
         default: {
           return action satisfies never

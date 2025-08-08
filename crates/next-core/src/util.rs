@@ -1,6 +1,7 @@
-use std::future::Future;
+use std::{future::Future, str::FromStr};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
+use next_taskless::expand_next_js_template;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use swc_core::{
     common::{GLOBALS, Spanned, source_map::SmallPos},
@@ -8,12 +9,12 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, ValueDefault, Vc,
-    trace::TraceRawVcs, util::WrapFuture,
+    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, ValueDefault, Vc, trace::TraceRawVcs,
+    util::WrapFuture,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, json::parse_json_rope_with_source_context,
-    rope::Rope, util::join_path,
+    rope::Rope,
 };
 use turbopack_core::{
     asset::AssetContent,
@@ -31,7 +32,6 @@ use turbopack_ecmascript::{
     EcmascriptParsable,
     analyzer::{ConstantValue, JsValue, ObjectPart},
     parse::ParseResult,
-    utils::StringifyJs,
 };
 
 use crate::{
@@ -60,13 +60,10 @@ pub fn defines(define_env: &FxIndexMap<RcStr, Option<RcStr>>) -> CompileTimeDefi
             )
             .or_insert_with(|| {
                 if let Some(v) = v {
-                    let val = serde_json::from_str(v);
+                    let val = serde_json::Value::from_str(v);
                     match val {
-                        Ok(serde_json::Value::Bool(v)) => CompileTimeDefineValue::Bool(v),
-                        Ok(serde_json::Value::String(v)) => {
-                            CompileTimeDefineValue::String(v.into())
-                        }
-                        _ => CompileTimeDefineValue::JSON(v.clone()),
+                        Ok(v) => v.into(),
+                        _ => CompileTimeDefineValue::Evaluate(v.clone()),
                     }
                 } else {
                     CompileTimeDefineValue::Undefined
@@ -105,7 +102,7 @@ pub async fn pathname_for_path(
     };
     let path = match (path_ty, path) {
         // "/" is special-cased to "/index" for data routes.
-        (PathType::Data, "") => "/index".into(),
+        (PathType::Data, "") => rcstr!("/index"),
         // `get_path_to` always strips the leading `/` from the path, so we need to add
         // it back here.
         (_, path) => format!("/{path}").into(),
@@ -141,7 +138,7 @@ pub async fn get_transpiled_packages(
 
     let default_transpiled_packages: Vec<RcStr> = load_next_js_templateon(
         project_path,
-        "dist/lib/default-transpiled-packages.json".into(),
+        rcstr!("dist/lib/default-transpiled-packages.json"),
     )
     .await?;
 
@@ -280,8 +277,10 @@ impl Issue for NextSourceConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Next.js can't recognize the exported `config` field in route".into())
-            .cell()
+        StyledString::Text(rcstr!(
+            "Next.js can't recognize the exported `config` field in route"
+        ))
+        .cell()
     }
 
     #[turbo_tasks::function]
@@ -553,7 +552,7 @@ pub async fn parse_config_from_source(
                             if let Expr::Lit(Lit::Str(str_value)) = &**init {
                                 let mut config = NextSourceConfig::default();
 
-                                let runtime = str_value.value.to_string();
+                                let runtime = &str_value.value;
                                 match runtime.as_str() {
                                     "edge" | "experimental-edge" => {
                                         config.runtime = NextRuntime::Edge;
@@ -725,256 +724,31 @@ async fn parse_config_from_js_value(
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
 /// sure there are none left over.
 pub async fn load_next_js_template(
-    path: &str,
+    template_path: &str,
     project_path: FileSystemPath,
-    replacements: FxIndexMap<&'static str, RcStr>,
-    injections: FxIndexMap<&'static str, RcStr>,
-    imports: FxIndexMap<&'static str, Option<RcStr>>,
+    replacements: &[(&str, &str)],
+    injections: &[(&str, &str)],
+    imports: &[(&str, Option<&str>)],
 ) -> Result<Vc<Box<dyn Source>>> {
-    let path = virtual_next_js_template_path(project_path.clone(), path.to_string()).await?;
+    let template_path = virtual_next_js_template_path(project_path.clone(), template_path).await?;
 
-    let content = &*file_content_rope(path.read()).await?;
-    let content = content.to_str()?.into_owned();
+    let content = file_content_rope(template_path.read()).await?;
+    let content = content.to_str()?;
 
-    let parent_path = path.parent();
-    let parent_path_value = parent_path.clone();
+    let package_root = &*get_next_package(project_path).await?;
 
-    let package_root = get_next_package(project_path).await?.parent();
-    let package_root_value = package_root.clone();
-
-    /// See [regex::Regex::replace_all].
-    fn replace_all<E>(
-        re: &regex::Regex,
-        haystack: &str,
-        mut replacement: impl FnMut(&regex::Captures) -> Result<String, E>,
-    ) -> Result<String, E> {
-        let mut new = String::with_capacity(haystack.len());
-        let mut last_match = 0;
-        for caps in re.captures_iter(haystack) {
-            let m = caps.get(0).unwrap();
-            new.push_str(&haystack[last_match..m.start()]);
-            new.push_str(&replacement(&caps)?);
-            last_match = m.end();
-        }
-        new.push_str(&haystack[last_match..]);
-        Ok(new)
-    }
-
-    // Update the relative imports to be absolute. This will update any relative
-    // imports to be relative to the root of the `next` package.
-    let regex = lazy_regex::regex!("(?:from '(\\..*)'|import '(\\..*)')");
-
-    let mut count = 0;
-    let mut content = replace_all(regex, &content, |caps| {
-        let from_request = caps.get(1).map_or("", |c| c.as_str());
-        let import_request = caps.get(2).map_or("", |c| c.as_str());
-
-        count += 1;
-        let is_from_request = !from_request.is_empty();
-
-        let imported = FileSystemPath {
-            fs: package_root_value.fs,
-            path: join_path(
-                &parent_path_value.path,
-                if is_from_request {
-                    from_request
-                } else {
-                    import_request
-                },
-            )
-            .context("path should not leave the fs")?
-            .into(),
-        };
-
-        let relative = package_root_value
-            .get_relative_path_to(&imported)
-            .context("path has to be relative to package root")?;
-
-        if !relative.starts_with("./next/") {
-            bail!(
-                "Invariant: Expected relative import to start with \"./next/\", found \"{}\"",
-                relative
-            )
-        }
-
-        let relative = relative
-            .strip_prefix("./")
-            .context("should be able to strip the prefix")?;
-
-        Ok(if is_from_request {
-            format!("from {}", StringifyJs(relative))
-        } else {
-            format!("import {}", StringifyJs(relative))
-        })
-    })
-    .context("replacing imports failed")?;
-
-    // Verify that at least one import was replaced. It's the case today where
-    // every template file has at least one import to update, so this ensures that
-    // we don't accidentally remove the import replacement code or use the wrong
-    // template file.
-    if count == 0 {
-        bail!("Invariant: Expected to replace at least one import")
-    }
-
-    // Replace all the template variables with the actual values. If a template
-    // variable is missing, throw an error.
-    let mut replaced = FxIndexSet::default();
-    for (key, replacement) in &replacements {
-        let full = format!("'{key}'");
-
-        if content.contains(&full) {
-            replaced.insert(*key);
-            content = content.replace(&full, &StringifyJs(&replacement).to_string());
-        }
-    }
-
-    // Check to see if there's any remaining template variables.
-    let regex = lazy_regex::regex!("/VAR_[A-Z_]+");
-    let matches = regex
-        .find_iter(&content)
-        .map(|m| m.as_str().to_string())
-        .collect::<Vec<_>>();
-
-    if !matches.is_empty() {
-        bail!(
-            "Invariant: Expected to replace all template variables, found {}",
-            matches.join(", "),
-        )
-    }
-
-    // Check to see if any template variable was provided but not used.
-    if replaced.len() != replacements.len() {
-        // Find the difference between the provided replacements and the replaced
-        // template variables. This will let us notify the user of any template
-        // variables that were not used but were provided.
-        let difference = replacements
-            .keys()
-            .filter(|k| !replaced.contains(*k))
-            .cloned()
-            .collect::<Vec<_>>();
-
-        bail!(
-            "Invariant: Expected to replace all template variables, missing {} in template",
-            difference.join(", "),
-        )
-    }
-
-    // Replace the injections.
-    let mut injected = FxIndexSet::default();
-    for (key, injection) in &injections {
-        let full = format!("// INJECT:{key}");
-
-        if content.contains(&full) {
-            // Track all the injections to ensure that we're not missing any.
-            injected.insert(*key);
-            content = content.replace(&full, &format!("const {key} = {injection}"));
-        }
-    }
-
-    // Check to see if there's any remaining injections.
-    let regex = lazy_regex::regex!("// INJECT:[A-Za-z0-9_]+");
-    let matches = regex
-        .find_iter(&content)
-        .map(|m| m.as_str().to_string())
-        .collect::<Vec<_>>();
-
-    if !matches.is_empty() {
-        bail!(
-            "Invariant: Expected to inject all injections, found {}",
-            matches.join(", "),
-        )
-    }
-
-    // Check to see if any injection was provided but not used.
-    if injected.len() != injections.len() {
-        // Find the difference between the provided replacements and the replaced
-        // template variables. This will let us notify the user of any template
-        // variables that were not used but were provided.
-        let difference = injections
-            .keys()
-            .filter(|k| !injected.contains(*k))
-            .cloned()
-            .collect::<Vec<_>>();
-
-        bail!(
-            "Invariant: Expected to inject all injections, missing {} in template",
-            difference.join(", "),
-        )
-    }
-
-    // Replace the optional imports.
-    let mut imports_added = FxIndexSet::default();
-    for (key, import_path) in &imports {
-        let mut full = format!("// OPTIONAL_IMPORT:{key}");
-        let namespace = if !content.contains(&full) {
-            full = format!("// OPTIONAL_IMPORT:* as {key}");
-            if content.contains(&full) {
-                true
-            } else {
-                continue;
-            }
-        } else {
-            false
-        };
-
-        // Track all the imports to ensure that we're not missing any.
-        imports_added.insert(*key);
-
-        if let Some(path) = import_path {
-            content = content.replace(
-                &full,
-                &format!(
-                    "import {}{} from {}",
-                    if namespace { "* as " } else { "" },
-                    key,
-                    &StringifyJs(&path).to_string()
-                ),
-            );
-        } else {
-            content = content.replace(&full, &format!("const {key} = null"));
-        }
-    }
-
-    // Check to see if there's any remaining imports.
-    let regex = lazy_regex::regex!("// OPTIONAL_IMPORT:(\\* as )?[A-Za-z0-9_]+");
-    let matches = regex
-        .find_iter(&content)
-        .map(|m| m.as_str().to_string())
-        .collect::<Vec<_>>();
-
-    if !matches.is_empty() {
-        bail!(
-            "Invariant: Expected to inject all imports, found {}",
-            matches.join(", "),
-        )
-    }
-
-    // Check to see if any import was provided but not used.
-    if imports_added.len() != imports.len() {
-        // Find the difference between the provided imports and the injected
-        // imports. This will let us notify the user of any imports that were
-        // not used but were provided.
-        let difference = imports
-            .keys()
-            .filter(|k| !imports_added.contains(*k))
-            .cloned()
-            .collect::<Vec<_>>();
-
-        bail!(
-            "Invariant: Expected to inject all imports, missing {} in template",
-            difference.join(", "),
-        )
-    }
-
-    // Ensure that the last line is a newline.
-    if !content.ends_with('\n') {
-        content.push('\n');
-    }
+    let content = expand_next_js_template(
+        &content,
+        &template_path.path,
+        &package_root.path,
+        replacements.iter().copied(),
+        injections.iter().copied(),
+        imports.iter().copied(),
+    )?;
 
     let file = File::from(content);
 
-    let source = VirtualSource::new(path, AssetContent::file(file.into()));
+    let source = VirtualSource::new(template_path, AssetContent::file(file.into()));
 
     Ok(Vc::upcast(source))
 }
@@ -990,9 +764,9 @@ pub async fn file_content_rope(content: Vc<FileContent>) -> Result<Vc<Rope>> {
     Ok(file.content().to_owned().cell())
 }
 
-pub async fn virtual_next_js_template_path(
+async fn virtual_next_js_template_path(
     project_path: FileSystemPath,
-    file: String,
+    file: &str,
 ) -> Result<FileSystemPath> {
     debug_assert!(!file.contains('/'));
     get_next_package(project_path)

@@ -70,20 +70,6 @@ export const WithHydrationWarning: Story = {
 -     <p> hello world and welcome to my amazing website with lots of content hello world and welcome to my amazing website with lots of content </p>
 +     <div> hello world and welcome to my amazing website with lots of content hello world and welcome to my amazing website with lots of content </div>`,
           },
-          componentStackFrames: [
-            {
-              component: 'MyComponent',
-              file: 'app/page.tsx',
-              lineNumber: 10,
-              columnNumber: 5,
-            },
-            {
-              component: 'ParentComponent',
-              file: 'app/layout.tsx',
-              lineNumber: 20,
-              columnNumber: 3,
-            },
-          ],
         }),
         frames: () =>
           Promise.resolve([
@@ -103,6 +89,22 @@ export const WithHydrationWarning: Story = {
               },
             },
           ]),
+        componentStackFrames: [
+          {
+            component: 'MyComponent',
+            file: 'app/page.tsx',
+            line1: 10,
+            column1: 5,
+            canOpenInEditor: true,
+          },
+          {
+            component: 'ParentComponent',
+            file: 'app/layout.tsx',
+            line1: 20,
+            column1: 3,
+            canOpenInEditor: true,
+          },
+        ],
         type: 'runtime',
       },
     ],

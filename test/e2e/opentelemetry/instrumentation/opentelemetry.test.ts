@@ -13,7 +13,7 @@ const EXTERNAL = {
 const COLLECTOR_PORT = 9001
 
 describe('opentelemetry', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
@@ -170,7 +170,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': 7,
+                          'next.clientComponentLoadCount': isNextDev ? 8 : 7,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -526,6 +526,136 @@ describe('opentelemetry', () => {
                   'next.span_name': 'GET /behind-middleware',
                   'next.span_type': 'BaseServer.handleRequest',
                 },
+              },
+            ])
+          })
+
+          it('should handle error in RSC', async () => {
+            await next.fetch(
+              '/app/param/rsc-fetch/error?status=error',
+              env.fetchInit
+            )
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /app/[param]/rsc-fetch/error',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/app/[param]/rsc-fetch/error',
+                  'http.status_code': 500,
+                  'http.target': '/app/param/rsc-fetch/error?status=error',
+                  'next.route': '/app/[param]/rsc-fetch/error',
+                  'next.rsc': false,
+                  'next.span_name': 'GET /app/[param]/rsc-fetch/error',
+                  'next.span_type': 'BaseServer.handleRequest',
+                  'error.type': '500',
+                },
+                kind: 1,
+                status: { code: 2 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'render route (app) /app/[param]/rsc-fetch/error',
+                    attributes: {
+                      'next.route': '/app/[param]/rsc-fetch/error',
+                      'next.span_name':
+                        'render route (app) /app/[param]/rsc-fetch/error',
+                      'next.span_type': 'AppRender.getBodyResult',
+                    },
+                    kind: 0,
+                    status: { code: 2 },
+                    spans: [
+                      {
+                        name: 'build component tree',
+                        attributes: {
+                          'next.span_name': 'build component tree',
+                          'next.span_type':
+                            'NextNodeServer.createComponentTree',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                        spans: [
+                          {
+                            name: 'resolve segment modules',
+                            attributes: {
+                              'next.segment': '__PAGE__',
+                              'next.span_name': 'resolve segment modules',
+                              'next.span_type':
+                                'NextNodeServer.getLayoutOrPageModule',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
+                          },
+                          {
+                            name: 'resolve segment modules',
+                            attributes: {
+                              'next.segment': '[param]',
+                              'next.span_name': 'resolve segment modules',
+                              'next.span_type':
+                                'NextNodeServer.getLayoutOrPageModule',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
+                          },
+                        ],
+                      },
+                      {
+                        name: 'generateMetadata /app/[param]/layout',
+                        attributes: {
+                          'next.page': '/app/[param]/layout',
+                          'next.span_name':
+                            'generateMetadata /app/[param]/layout',
+                          'next.span_type': 'ResolveMetadata.generateMetadata',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                      {
+                        name: 'generateMetadata /app/[param]/layout',
+                        attributes: {
+                          'next.page': '/app/[param]/layout',
+                          'next.span_name':
+                            'generateMetadata /app/[param]/layout',
+                          'next.span_type': 'ResolveMetadata.generateMetadata',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                      {
+                        attributes: {
+                          'next.clientComponentLoadCount': isNextDev ? 9 : 8,
+                          'next.span_type':
+                            'NextNodeServer.clientComponentLoading',
+                        },
+                        kind: 0,
+                        name: 'NextNodeServer.clientComponentLoading',
+                        status: {
+                          code: 0,
+                        },
+                      },
+                      {
+                        name: 'start response',
+                        attributes: {
+                          'next.span_name': 'start response',
+                          'next.span_type': 'NextNodeServer.startResponse',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                    ],
+                  },
+                  {
+                    name: 'resolve page components',
+                    attributes: {
+                      'next.route': '/app/[param]/rsc-fetch/error',
+                      'next.span_name': 'resolve page components',
+                      'next.span_type': 'NextNodeServer.findPageComponents',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
               },
             ])
           })

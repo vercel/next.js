@@ -91,7 +91,6 @@ export function DevToolsInfo({
 
 export const DEV_TOOLS_INFO_STYLES = css`
   [data-info-popover] {
-    -webkit-font-smoothing: antialiased;
     display: flex;
     flex-direction: column;
     align-items: flex-start;

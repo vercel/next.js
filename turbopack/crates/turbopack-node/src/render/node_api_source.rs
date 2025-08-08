@@ -127,7 +127,7 @@ impl GetContentSourceContent for NodeApiContentSource {
         Ok(ContentSourceContent::HttpProxy(render_proxy_operation(
             self.cwd.clone(),
             self.env,
-            self.server_root.join(&path.clone())?,
+            self.server_root.join(&path)?,
             ResolvedVc::upcast(entry.module),
             entry.runtime_entries,
             entry.chunking_context,

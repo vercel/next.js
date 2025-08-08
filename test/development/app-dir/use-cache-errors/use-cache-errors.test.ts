@@ -28,7 +28,7 @@ describe('use-cache-errors', () => {
          "source": null,
          "stack": [
            "<FIXME-file-protocol>",
-           "useCachedStuff rsc:/Cache/webpack-internal:///(action-browser)/app/module-with-use-cache.ts (25:68)",
+           "useCachedStuff about:/Cache/webpack-internal:///(action-browser)/app/module-with-use-cache.ts (25:68)",
            "Page ./app/page.tsx",
          ],
        }
@@ -43,7 +43,6 @@ describe('use-cache-errors', () => {
        > 16 |   return useStuff()
             |                  ^",
          "stack": [
-           "<FIXME-file-protocol>",
            "useCachedStuff app/module-with-use-cache.ts (16:18)",
            "Page app/page.tsx (22:10)",
          ],

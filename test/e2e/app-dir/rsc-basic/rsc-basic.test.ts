@@ -169,9 +169,9 @@ describe('app dir - rsc basics', () => {
           requestsCount++
           const headers = request.headers()
           if (
-            headers['RSC'.toLowerCase()] === '1' &&
-            // Prefetches also include `RSC`
-            headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
+            headers['rsc'] === '1' &&
+            // Prefetches also include `rsc`
+            headers['next-router-prefetch'] !== '1'
           ) {
             flightRequests.push(request.url())
           }

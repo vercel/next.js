@@ -10,15 +10,11 @@ describe('initial-css-not-found', () => {
   it('should serve styles', async () => {
     const browser = await next.browser('/')
 
+    // Simply check that our css was served and applied.
     expect(
       await browser.eval(
         `window.getComputedStyle(document.querySelector('body')).color`
       )
-    ).toBe(
-      // This only fails in production turbopack builds
-      process.env.IS_TURBOPACK_TEST && process.env.NEXT_TEST_MODE !== 'dev'
-        ? 'rgb(0, 0, 0)'
-        : 'rgb(255, 0, 0)'
-    )
+    ).toBe('rgb(255, 0, 0)')
   })
 })

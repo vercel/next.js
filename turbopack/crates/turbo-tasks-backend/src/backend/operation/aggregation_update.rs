@@ -2144,12 +2144,25 @@ impl AggregationUpdateQueue {
             TaskDataCategory::Meta,
         );
         let state = get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
+        let is_new = state.is_empty();
         let is_zero = state.decrement_active_counter();
         let is_empty = state.is_empty();
         if is_empty {
             task.remove(&CachedDataItemKey::Activeness {});
         }
-        if is_zero {
+        debug_assert!(
+            !(is_new && is_zero),
+            // This allows us to but the `if is_zero` block in the else branch of the `if is_new`
+            // block below for fewer checks and less problems with the borrow checker.
+            "A new Activeness will never be zero after decrementing"
+        );
+        if is_new {
+            // A task is considered "active" purely by the existence of an `Activeness` item, even
+            // if that item has an negative active counter. So we need to make sure to
+            // schedule it here. That case is pretty rare and only happens under extreme race
+            // conditions.
+            self.find_and_schedule_dirty_internal(task_id, task, ctx);
+        } else if is_zero {
             let followers = get_followers(&task);
             drop(task);
             if !followers.is_empty() {
@@ -2157,6 +2170,8 @@ impl AggregationUpdateQueue {
                     task_ids: followers,
                 });
             }
+        } else {
+            drop(task);
         }
     }
 
@@ -2173,16 +2188,27 @@ impl AggregationUpdateQueue {
             TaskDataCategory::Meta,
         );
         let state = get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
+        let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
         let is_empty = state.is_empty();
         // This can happen if active count was negative before
         if is_empty {
             task.remove(&CachedDataItemKey::Activeness {});
         }
+        debug_assert!(
+            !is_new || is_positive_now,
+            // This allows us to nest the `if is_new` block below `if is_positive_now` for fewer
+            // checks.
+            "A new Activeness will always be positive after incrementing"
+        );
         if is_positive_now {
             let followers = get_followers(&task);
-            // Fast path to schedule
-            self.find_and_schedule_dirty_internal(task_id, task, ctx);
+            if is_new {
+                // Fast path to schedule
+                self.find_and_schedule_dirty_internal(task_id, task, ctx);
+            } else {
+                drop(task);
+            }
 
             if !followers.is_empty() {
                 self.push(AggregationUpdateJob::IncreaseActiveCounts {

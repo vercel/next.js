@@ -50,7 +50,6 @@ describe('app-dir action size limit invalid config', () => {
       module.exports = {
         experimental: {
           serverActions: { bodySizeLimit: -3000 },
-          nodeMiddleware: true
         },
       }
       `
@@ -69,7 +68,6 @@ describe('app-dir action size limit invalid config', () => {
       module.exports = {
         experimental: {
           serverActions: { bodySizeLimit: 'testmb' },
-          nodeMiddleware: true
         },
       }
       `
@@ -88,7 +86,6 @@ describe('app-dir action size limit invalid config', () => {
       module.exports = {
         experimental: {
           serverActions: { bodySizeLimit: '-3000mb' },
-          nodeMiddleware: true
         },
       }
       `

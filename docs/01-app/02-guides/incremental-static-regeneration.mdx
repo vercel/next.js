@@ -35,11 +35,6 @@ interface Post {
 // request comes in, at most once every 60 seconds.
 export const revalidate = 60
 
-// We'll prerender only the params from `generateStaticParams` at build time.
-// If a request comes in for a path that hasn't been generated,
-// Next.js will server-render the page on-demand.
-export const dynamicParams = true // or false, to 404 on unknown paths
-
 export async function generateStaticParams() {
   const posts: Post[] = await fetch('https://api.vercel.app/blog').then((res) =>
     res.json()
@@ -67,15 +62,10 @@ export default async function Page({
 }
 ```
 
-```jsx filename="app/blog/[id]/page.js" switcher
+```jsx filename="app/blog/[id]/page.jsx" switcher
 // Next.js will invalidate the cache when a
 // request comes in, at most once every 60 seconds.
 export const revalidate = 60
-
-// We'll prerender only the params from `generateStaticParams` at build time.
-// If a request comes in for a path that hasn't been generated,
-// Next.js will server-render the page on-demand.
-export const dynamicParams = true // or false, to 404 on unknown paths
 
 export async function generateStaticParams() {
   const posts = await fetch('https://api.vercel.app/blog').then((res) =>
@@ -99,6 +89,15 @@ export default async function Page({ params }) {
   )
 }
 ```
+
+Here's how this example works:
+
+1. During `next build`, all known blog posts are generated
+2. All requests made to these pages (e.g. `/blog/1`) are cached and instantaneous
+3. After 60 seconds has passed, the next request will still return the cached (now stale) page
+4. The cache is invalidated and a new version of the page begins generating in the background
+5. Once generated successfully, the next request will return the updated page and cache it for subsequent requests
+6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [dynamicParams](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) value. However, if the post does not exist, then 404 is returned.
 
 </AppOnly>
 
@@ -125,10 +124,7 @@ export const getStaticPaths: GetStaticPaths = async () => {
     params: { id: String(post.id) },
   }))
 
-  // We'll prerender only these paths at build time.
-  // { fallback: 'blocking' } will server-render pages
-  // on-demand if the path doesn't exist.
-  return { paths, fallback: false }
+  return { paths, fallback: 'blocking' }
 }
 
 export const getStaticProps: GetStaticProps<Props> = async ({
@@ -167,9 +163,7 @@ export async function getStaticPaths() {
     params: { id: post.id },
   }))
 
-  // We'll prerender only these paths at build time.
-  // { fallback: false } means other routes should 404.
-  return { paths, fallback: false }
+  return { paths, fallback: 'blocking' }
 }
 
 export async function getStaticProps({ params }) {
@@ -195,16 +189,16 @@ export default function Page({ post }) {
 }
 ```
 
-</PagesOnly>
-
 Here's how this example works:
 
-1. During `next build`, all known blog posts are generated (there are 25 in this example)
+1. During `next build`, all known blog posts are generated
 2. All requests made to these pages (e.g. `/blog/1`) are cached and instantaneous
-3. After 60 seconds has passed, the next request will still show the cached (stale) page
+3. After 60 seconds has passed, the next request will still return the cached (now stale) page
 4. The cache is invalidated and a new version of the page begins generating in the background
-5. Once generated successfully, Next.js will display and cache the updated page
-6. If `/blog/26` is requested, Next.js will generate and cache this page on-demand
+5. Once generated successfully, the next request will return the updated page and cache it for subsequent requests
+6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [fallback](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-false) value. However, if the post does not exist, then 404 is returned.
+
+</PagesOnly>
 
 ## Reference
 
@@ -237,7 +231,7 @@ Here's how this example works:
 
 ### Time-based revalidation
 
-This fetches and displays a list of blog posts on `/blog`. After an hour, the cache for this page is invalidated on the next visit to the page. Then, in the background, a new version of the page is generated with the latest blog posts.
+This fetches and displays a list of blog posts on /blog. After an hour has passed, the next visitor will still receive the cached (stale) version of the page immediately for a fast response. Simultaneously, Next.js triggers regeneration of a fresh version in the background. Once the new version is successfully generated, it replaces the cached version, and subsequent visitors will receive the updated content.
 
 ```tsx filename="app/blog/page.tsx" switcher
 interface Post {
@@ -289,7 +283,7 @@ We recommend setting a high revalidation time. For instance, 1 hour instead of 1
 
 For a more precise method of revalidation, invalidate pages on-demand with the `revalidatePath` function.
 
-For example, this Server Action would get called after adding a new post. Regardless of how you retrieve your data in your Server Component, either using `fetch` or connecting to a database, this will clear the cache for the entire route and allow the Server Component to fetch fresh data.
+For example, this Server Action would get called after adding a new post. Regardless of how you retrieve your data in your Server Component, either using `fetch` or connecting to a database, this will immediately clear the cache for the entire route. Unlike time-based revalidation, the next request after on-demand revalidation won't return stale data but will serve the updated version right away and cache it for subsequent requests.
 
 ```ts filename="app/actions.ts" switcher
 'use server'
