@@ -1309,14 +1309,12 @@ function App<T>({
   preinitScripts,
   clientReferenceManifest,
   ServerInsertedHTMLProvider,
-  gracefullyDegrade,
   nonce,
 }: {
   reactServerStream: BinaryStreamOf<T>
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
-  gracefullyDegrade: boolean
   nonce?: string
 }): JSX.Element {
   preinitScripts()
@@ -1360,7 +1358,6 @@ function App<T>({
           actionQueue={actionQueue}
           globalErrorState={response.G}
           assetPrefix={response.p}
-          gracefullyDegrade={gracefullyDegrade}
         />
       </ServerInsertedHTMLProvider>
     </HeadManagerContext.Provider>
@@ -1375,14 +1372,12 @@ function ErrorApp<T>({
   preinitScripts,
   clientReferenceManifest,
   ServerInsertedHTMLProvider,
-  gracefullyDegrade,
   nonce,
 }: {
   reactServerStream: BinaryStreamOf<T>
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
-  gracefullyDegrade: boolean
   nonce?: string
 }): JSX.Element {
   preinitScripts()
@@ -1417,7 +1412,6 @@ function ErrorApp<T>({
         actionQueue={actionQueue}
         globalErrorState={response.G}
         assetPrefix={response.p}
-        gracefullyDegrade={gracefullyDegrade}
       />
     </ServerInsertedHTMLProvider>
   )
@@ -2070,7 +2064,6 @@ async function renderToStream(
 
   const {
     basePath,
-    botType,
     buildManifest,
     clientReferenceManifest,
     ComponentMod,
@@ -2289,7 +2282,6 @@ async function renderToStream(
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
-            gracefullyDegrade={!!botType}
           />,
           postponed,
           { onError: htmlRendererErrorHandler, nonce }
@@ -2327,7 +2319,6 @@ async function renderToStream(
         preinitScripts={preinitScripts}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-        gracefullyDegrade={!!botType}
         nonce={nonce}
       />,
       {
@@ -2486,7 +2477,6 @@ async function renderToStream(
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
-              gracefullyDegrade={!!botType}
               nonce={nonce}
             />
           ),
@@ -2585,7 +2575,7 @@ async function spawnDynamicValidationInDev(
     workStore,
   } = ctx
 
-  const { allowEmptyStaticShell = false, botType } = renderOpts
+  const { allowEmptyStaticShell = false } = renderOpts
 
   // These values are placeholder values for this validating render
   // that are provided during the actual prerenderToStream.
@@ -2830,7 +2820,6 @@ async function spawnDynamicValidationInDev(
         preinitScripts={preinitScripts}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-        gracefullyDegrade={!!botType}
         nonce={nonce}
       />,
       {
@@ -3059,7 +3048,6 @@ async function spawnDynamicValidationInDev(
               preinitScripts={preinitScripts}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              gracefullyDegrade={!!botType}
               nonce={nonce}
             />,
             {
@@ -3208,7 +3196,6 @@ async function prerenderToStream(
   const {
     allowEmptyStaticShell = false,
     basePath,
-    botType,
     buildManifest,
     clientReferenceManifest,
     ComponentMod,
@@ -3573,7 +3560,6 @@ async function prerenderToStream(
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-            gracefullyDegrade={!!botType}
             nonce={nonce}
           />,
           {
@@ -3807,7 +3793,6 @@ async function prerenderToStream(
                 preinitScripts={preinitScripts}
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-                gracefullyDegrade={!!botType}
                 nonce={nonce}
               />,
               {
@@ -3965,7 +3950,6 @@ async function prerenderToStream(
               preinitScripts={() => {}}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              gracefullyDegrade={!!botType}
               nonce={nonce}
             />,
             JSON.parse(JSON.stringify(postponed)),
@@ -4071,7 +4055,6 @@ async function prerenderToStream(
           preinitScripts={preinitScripts}
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-          gracefullyDegrade={!!botType}
           nonce={nonce}
         />,
         {
@@ -4203,7 +4186,6 @@ async function prerenderToStream(
               preinitScripts={() => {}}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              gracefullyDegrade={!!botType}
               nonce={nonce}
             />,
             JSON.parse(JSON.stringify(postponed)),
@@ -4287,7 +4269,6 @@ async function prerenderToStream(
           preinitScripts={preinitScripts}
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-          gracefullyDegrade={!!botType}
           nonce={nonce}
         />,
         {
@@ -4461,7 +4442,6 @@ async function prerenderToStream(
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
-              gracefullyDegrade={!!botType}
               nonce={nonce}
             />
           ),
