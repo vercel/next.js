@@ -157,6 +157,18 @@ impl ModuleOptions {
             ])
         });
 
+        // For React Client References, the CSS Module "facade" module lives in the parent (server)
+        // module context, but the facade's references should be transitioned to the client (and
+        // only then be processed with Webpack/PostCSS).
+        let module_css_external_transform_condition = RuleCondition::Any(vec![
+            // If module css, then only when (Inner or Analyze or Compose)
+            // <=> (not (module css)) or (Inner or Analyzer or Compose)
+            RuleCondition::not(module_css_condition.clone()),
+            RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Inner)),
+            RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Analyze)),
+            RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Compose)),
+        ]);
+
         let mut ts_preprocess = vec![];
         let mut ecma_preprocess = vec![];
         let mut postprocess = vec![];
@@ -490,9 +502,15 @@ impl ModuleOptions {
                 };
 
                 rules.push(ModuleRule::new(
-                    RuleCondition::Any(vec![
-                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
-                        RuleCondition::ContentTypeStartsWith("text/css".to_string()),
+                    RuleCondition::All(vec![
+                        RuleCondition::All(vec![
+                            RuleCondition::Any(vec![
+                                RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                                RuleCondition::ContentTypeStartsWith("text/css".to_string()),
+                            ]),
+                            RuleCondition::not(module_css_condition.clone()),
+                        ]),
+                        module_css_external_transform_condition.clone(),
                     ]),
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         ResolvedVc::upcast(
@@ -675,20 +693,7 @@ impl ModuleOptions {
                             RuleCondition::ResourceBasePathGlob(Glob::new(key.clone()).await?)
                         },
                         RuleCondition::not(RuleCondition::ResourceIsVirtualSource),
-                        RuleCondition::Any(vec![
-                            // if module css, then only when internal or analyze
-                            // <=> (not (module css)) or (Inner or Analyzer or Compose)
-                            RuleCondition::not(module_css_condition.clone()),
-                            RuleCondition::ReferenceType(ReferenceType::Css(
-                                CssReferenceSubType::Inner,
-                            )),
-                            RuleCondition::ReferenceType(ReferenceType::Css(
-                                CssReferenceSubType::Analyze,
-                            )),
-                            RuleCondition::ReferenceType(ReferenceType::Css(
-                                CssReferenceSubType::Compose,
-                            )),
-                        ]),
+                        module_css_external_transform_condition.clone(),
                     ]),
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         ResolvedVc::upcast(
