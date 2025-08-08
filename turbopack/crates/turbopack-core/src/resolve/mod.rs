@@ -1140,24 +1140,36 @@ impl ResolveResultOption {
 }
 
 async fn exists(
-    fs_path: FileSystemPath,
+    fs_path: &FileSystemPath,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<FileSystemPath>> {
     type_exists(fs_path, FileSystemEntryType::File, refs).await
 }
 
 async fn dir_exists(
-    fs_path: FileSystemPath,
+    fs_path: &FileSystemPath,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<FileSystemPath>> {
     type_exists(fs_path, FileSystemEntryType::Directory, refs).await
 }
 
 async fn type_exists(
-    fs_path: FileSystemPath,
+    fs_path: &FileSystemPath,
     ty: FileSystemEntryType,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<FileSystemPath>> {
+    let path = realpath(fs_path, refs).await?;
+    Ok(if *path.get_type().await? == ty {
+        Some(path)
+    } else {
+        None
+    })
+}
+
+async fn realpath(
+    fs_path: &FileSystemPath,
+    refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
+) -> Result<FileSystemPath> {
     let result = fs_path.realpath_with_links().owned().await?;
     refs.extend(
         result
@@ -1171,12 +1183,7 @@ async fn type_exists(
             .try_join()
             .await?,
     );
-    let path = result.path;
-    Ok(if *path.get_type().await? == ty {
-        Some(path)
-    } else {
-        None
-    })
+    Ok(result.path)
 }
 
 #[turbo_tasks::value(shared)]
@@ -1279,7 +1286,7 @@ pub async fn find_context_file(
     let mut refs = Vec::new();
     for name in &*names.await? {
         let fs_path = lookup_path.join(name)?;
-        if let Some(fs_path) = exists(fs_path, &mut refs).await? {
+        if let Some(fs_path) = exists(&fs_path, &mut refs).await? {
             return Ok(FindContextFileResult::Found(fs_path, refs).cell());
         }
     }
@@ -1319,7 +1326,7 @@ pub async fn find_context_file_or_package_key(
 ) -> Result<Vc<FindContextFileResult>> {
     let mut refs = Vec::new();
     let package_json_path = lookup_path.join("package.json")?;
-    if let Some(package_json_path) = exists(package_json_path, &mut refs).await?
+    if let Some(package_json_path) = exists(&package_json_path, &mut refs).await?
         && let Some(json) =
             &*read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?
         && json.get(&*package_key).is_some()
@@ -1328,7 +1335,7 @@ pub async fn find_context_file_or_package_key(
     }
     for name in &*names.await? {
         let fs_path = lookup_path.join(name)?;
-        if let Some(fs_path) = exists(fs_path, &mut refs).await? {
+        if let Some(fs_path) = exists(&fs_path, &mut refs).await? {
             return Ok(FindContextFileResult::Found(fs_path, refs).into());
         }
     }
@@ -1388,17 +1395,13 @@ async fn find_package(
 
     for resolve_modules in &options.modules {
         match resolve_modules {
-            ResolveModules::Nested(root_vc, names) => {
+            ResolveModules::Nested(root, names) => {
                 let mut lookup_path = lookup_path.clone();
                 let mut lookup_path_value = lookup_path.clone();
-                // For clippy -- This explicit deref is necessary
-                let root = root_vc.clone();
-                while lookup_path_value.is_inside_ref(&root) {
+                while lookup_path_value.is_inside_ref(root) {
                     for name in names.iter() {
                         let fs_path = lookup_path.join(name)?;
-                        if let Some(fs_path) = dir_exists(fs_path, &mut affecting_sources).await? {
-                            // TODO this is wrong, it should only match match 1 or 2 levels deep?
-                            // TODO affecting_sources are not getting added?
+                        if let Some(fs_path) = dir_exists(&fs_path, &mut affecting_sources).await? {
                             let matches =
                                 read_matches(fs_path.clone(), rcstr!(""), true, package_name_cell)
                                     .await?;
@@ -1406,7 +1409,7 @@ async fn find_package(
                                 if let PatternMatch::Directory(_, package_dir) = m {
                                     packages.push(FindPackageItem::PackageDirectory {
                                         name: get_package_name(&fs_path, package_dir)?,
-                                        dir: package_dir.clone(),
+                                        dir: realpath(package_dir, &mut affecting_sources).await?,
                                     });
                                 }
                             }
@@ -1424,24 +1427,20 @@ async fn find_package(
                 dir,
                 excluded_extensions,
             } => {
-                // TODO this is wrong, it should only match match 1 or 2 levels deep?
-                // TODO affecting_sources are not getting added?
                 let matches =
                     read_matches(dir.clone(), rcstr!(""), true, package_name_cell).await?;
                 for m in &*matches {
                     match m {
                         PatternMatch::Directory(_, package_dir) => {
-                            let name = get_package_name(dir, package_dir)?;
                             packages.push(FindPackageItem::PackageDirectory {
-                                name: name.clone(),
-                                dir: package_dir.clone(),
+                                name: get_package_name(dir, package_dir)?,
+                                dir: realpath(package_dir, &mut affecting_sources).await?,
                             });
                         }
                         PatternMatch::File(_, package_file) => {
-                            let name = get_package_name(dir, package_file)?;
                             packages.push(FindPackageItem::PackageFile {
-                                name: name.clone(),
-                                file: package_file.clone(),
+                                name: get_package_name(dir, package_file)?,
+                                file: realpath(package_file, &mut affecting_sources).await?,
                             });
                         }
                     }
@@ -1459,17 +1458,14 @@ async fn find_package(
                 ));
                 let package_name_with_extensions = Pattern::new(package_name_with_extensions);
 
-                // TODO this is wrong, it should only match match 1 or 2 levels deep?
-                // TODO affecting_sources are not getting added?
                 let matches =
                     read_matches(dir.clone(), rcstr!(""), true, package_name_with_extensions)
                         .await?;
                 for m in matches {
                     if let PatternMatch::File(_, package_file) = m {
-                        let name = get_package_name(dir, package_file)?;
                         packages.push(FindPackageItem::PackageFile {
-                            name: name.clone(),
-                            file: package_file.clone(),
+                            name: get_package_name(dir, package_file)?,
+                            file: realpath(package_file, &mut affecting_sources).await?,
                         });
                     }
                 }
