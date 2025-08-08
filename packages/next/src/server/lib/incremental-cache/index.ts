@@ -146,13 +146,16 @@ export class IncrementalCache implements IncrementalCacheType {
       } else {
         if (fs && serverDistDir) {
           if (IncrementalCache.debug) {
-            console.log('using filesystem cache handler')
+            console.log('IncrementalCache: using filesystem cache handler')
           }
           CurCacheHandler = FileSystemCache
         }
       }
     } else if (IncrementalCache.debug) {
-      console.log('using custom cache handler', CurCacheHandler.name)
+      console.log(
+        'IncrementalCache: using custom cache handler',
+        CurCacheHandler.name
+      )
     }
 
     if (process.env.__NEXT_TEST_MAX_ISR_CACHE) {
@@ -244,7 +247,7 @@ export class IncrementalCache implements IncrementalCacheType {
       const lock = this.locks.get(cacheKey)
 
       if (IncrementalCache.debug) {
-        console.log('lock get', cacheKey, !!lock)
+        console.log('IncrementalCache: lock get', cacheKey, !!lock)
       }
 
       // If no lock exists, we can proceed to acquire it
@@ -259,7 +262,7 @@ export class IncrementalCache implements IncrementalCacheType {
     const { resolve, promise } = new DetachedPromise<void>()
 
     if (IncrementalCache.debug) {
-      console.log('successfully locked', cacheKey)
+      console.log('IncrementalCache: successfully locked', cacheKey)
     }
 
     // Store the lock promise in the locks map
@@ -432,16 +435,16 @@ export class IncrementalCache implements IncrementalCacheType {
         const memoryCacheData = resumeDataCache.fetch.get(cacheKey)
         if (memoryCacheData?.kind === CachedRouteKind.FETCH) {
           if (IncrementalCache.debug) {
-            console.log('rdc:hit', cacheKey)
+            console.log('IncrementalCache: rdc:hit', cacheKey)
           }
 
           return { isStale: false, value: memoryCacheData }
         } else if (IncrementalCache.debug) {
-          console.log('rdc:miss', cacheKey)
+          console.log('IncrementalCache: rdc:miss', cacheKey)
         }
       } else {
         if (IncrementalCache.debug) {
-          console.log('rdc:no-resume-data')
+          console.log('IncrementalCache: rdc:no-resume-data')
         }
       }
     }
@@ -486,7 +489,7 @@ export class IncrementalCache implements IncrementalCacheType {
         )
       ) {
         if (IncrementalCache.debug) {
-          console.log('stale tag', cacheKey)
+          console.log('IncrementalCache: stale tag', cacheKey)
         }
 
         return null
@@ -506,7 +509,7 @@ export class IncrementalCache implements IncrementalCacheType {
           getPrerenderResumeDataCache(workUnitStore)
         if (prerenderResumeDataCache) {
           if (IncrementalCache.debug) {
-            console.log('rdc:set', cacheKey)
+            console.log('IncrementalCache: rdc:set', cacheKey)
           }
 
           prerenderResumeDataCache.fetch.set(cacheKey, cacheData.value)
@@ -543,8 +546,8 @@ export class IncrementalCache implements IncrementalCacheType {
       isStale = -1
       revalidateAfter = -1 * CACHE_ONE_YEAR
     } else {
-      const lastModified =
-        cacheData?.lastModified || performance.timeOrigin + performance.now()
+      const now = performance.timeOrigin + performance.now()
+      const lastModified = cacheData?.lastModified || now
 
       revalidateAfter = this.calculateRevalidate(
         cacheKey,
@@ -554,10 +557,7 @@ export class IncrementalCache implements IncrementalCacheType {
       )
 
       isStale =
-        revalidateAfter !== false &&
-        revalidateAfter < performance.timeOrigin + performance.now()
-          ? true
-          : undefined
+        revalidateAfter !== false && revalidateAfter < now ? true : undefined
 
       // If the stale time couldn't be determined based on the revalidation
       // time, we check if the tags are stale.
@@ -633,7 +633,7 @@ export class IncrementalCache implements IncrementalCacheType {
         : null
       if (prerenderResumeDataCache) {
         if (IncrementalCache.debug) {
-          console.log('rdc:set', pathname)
+          console.log('IncrementalCache: rdc:set', pathname)
         }
 
         prerenderResumeDataCache.fetch.set(pathname, data)

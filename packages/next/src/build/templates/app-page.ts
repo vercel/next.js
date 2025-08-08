@@ -280,7 +280,7 @@ export async function handler(
   )
 
   // In development, we always want to generate dynamic HTML.
-  let supportsDynamicResponse: boolean =
+  const supportsDynamicResponse: boolean =
     // If we're in development, we always support dynamic HTML, unless it's
     // a data request, in which case we only produce static HTML.
     routeModule.isDev === true ||
@@ -467,9 +467,6 @@ export async function handler(
        */
       forceStaticRender: boolean
     }): Promise<ResponseCacheEntry> => {
-      // When we're resuming a render, we should allow dynamic response.
-      if (typeof postponed === 'string') supportsDynamicResponse = true
-
       const context: AppPageRouteHandlerContext = {
         query,
         params,
@@ -495,7 +492,8 @@ export async function handler(
           postponed,
           shouldWaitOnAllReady,
           serveStreamingMetadata,
-          supportsDynamicResponse,
+          supportsDynamicResponse:
+            typeof postponed === 'string' || supportsDynamicResponse,
           buildManifest,
           nextFontManifest,
           reactLoadableManifest,

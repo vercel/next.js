@@ -50,15 +50,15 @@ export default class FileSystemCache implements CacheHandler {
     if (ctx.maxMemoryCacheSize) {
       if (!FileSystemCache.memoryCache) {
         if (FileSystemCache.debug) {
-          console.log('using memory store for fetch cache')
+          console.log('FileSystemCache: using memory store for fetch cache')
         }
 
         FileSystemCache.memoryCache = getMemoryCache(ctx.maxMemoryCacheSize)
       } else if (FileSystemCache.debug) {
-        console.log('memory store already initialized')
+        console.log('FileSystemCache: memory store already initialized')
       }
     } else if (FileSystemCache.debug) {
-      console.log('not using memory store for fetch cache')
+      console.log('FileSystemCache: not using memory store for fetch cache')
     }
   }
 
@@ -71,7 +71,7 @@ export default class FileSystemCache implements CacheHandler {
     tags = typeof tags === 'string' ? [tags] : tags
 
     if (FileSystemCache.debug) {
-      console.log('revalidateTag', tags)
+      console.log('FileSystemCache: revalidateTag', tags)
     }
 
     if (tags.length === 0) {
@@ -93,9 +93,9 @@ export default class FileSystemCache implements CacheHandler {
 
     if (FileSystemCache.debug) {
       if (kind === IncrementalCacheKind.FETCH) {
-        console.log('get', key, ctx.tags, kind, !!data)
+        console.log('FileSystemCache: get', key, ctx.tags, kind, !!data)
       } else {
-        console.log('get', key, kind, !!data)
+        console.log('FileSystemCache: get', key, kind, !!data)
       }
     }
 
@@ -155,7 +155,11 @@ export default class FileSystemCache implements CacheHandler {
               // via header on GET same as SET
               if (!tags?.every((tag) => storedTags?.includes(tag))) {
                 if (FileSystemCache.debug) {
-                  console.log('tags vs storedTags mismatch', tags, storedTags)
+                  console.log(
+                    'FileSystemCache: tags vs storedTags mismatch',
+                    tags,
+                    storedTags
+                  )
                 }
                 await this.set(key, data.value, {
                   fetchCache: true,
@@ -275,7 +279,7 @@ export default class FileSystemCache implements CacheHandler {
     // that the tags have expired or not yet been revalidated.
     if ('allowStale' in ctx && ctx.allowStale) {
       if (FileSystemCache.debug) {
-        console.log('allow stale', ctx.allowStale)
+        console.log('FileSystemCache: allow stale', ctx.allowStale)
       }
 
       return data ?? null
@@ -295,7 +299,7 @@ export default class FileSystemCache implements CacheHandler {
         // revalidation instead we return data.lastModified = -1
         if (cacheTags.length > 0 && isStale(cacheTags, data.lastModified)) {
           if (FileSystemCache.debug) {
-            console.log('stale tags', cacheTags)
+            console.log('FileSystemCache: stale tags', cacheTags)
           }
 
           return null
@@ -311,7 +315,7 @@ export default class FileSystemCache implements CacheHandler {
       // updated right away.
       if (combinedTags.some((tag) => this.revalidatedTags.includes(tag))) {
         if (FileSystemCache.debug) {
-          console.log('was revalidated', combinedTags)
+          console.log('FileSystemCache: was revalidated', combinedTags)
         }
 
         return null
@@ -319,7 +323,7 @@ export default class FileSystemCache implements CacheHandler {
 
       if (isStale(combinedTags, data.lastModified)) {
         if (FileSystemCache.debug) {
-          console.log('stale tags', combinedTags)
+          console.log('FileSystemCache: stale tags', combinedTags)
         }
 
         return null
@@ -340,7 +344,7 @@ export default class FileSystemCache implements CacheHandler {
     })
 
     if (FileSystemCache.debug) {
-      console.log('set', key)
+      console.log('FileSystemCache: set', key)
     }
 
     if (!this.flushToDisk || !data) return
