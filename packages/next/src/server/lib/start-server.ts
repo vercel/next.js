@@ -32,6 +32,7 @@ import { initialize } from './router-server'
 import {
   CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_SERVER,
 } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
@@ -185,11 +186,12 @@ export async function startServer(
   } = serverOptions
   let { port } = serverOptions
 
-  const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+  const phase = isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
+  const config = await loadConfig(phase, dir, {
     silent: false,
   })
   const distDir = path.join(dir, config.distDir ?? '.next')
-  setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
+  setGlobal('phase', phase)
   setGlobal('distDir', distDir)
 
   process.title = `next-server (v${process.env.__NEXT_VERSION})`
