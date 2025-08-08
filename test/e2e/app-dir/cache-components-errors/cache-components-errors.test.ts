@@ -2430,7 +2430,7 @@ describe('Cache Components Errors', () => {
                     |                                      ^",
                  "stack": [
                    "{module evaluation} app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
-                   "<FIXME-file-protocol>",
+                   "{module evaluation} .next-internal/server/app/use-cache-private-in-unstable-cache/page/actions.js (server actions loader) (1:1)",
                    "<FIXME-file-protocol>",
                    "<FIXME-next-dist-dir>",
                  ],
@@ -2574,7 +2574,7 @@ describe('Cache Components Errors', () => {
                     | ^",
                  "stack": [
                    "{module evaluation} app/use-cache-private-in-use-cache/page.tsx (15:1)",
-                   "<FIXME-file-protocol>",
+                   "{module evaluation} .next-internal/server/app/use-cache-private-in-use-cache/page/actions.js (server actions loader) (1:1)",
                    "<FIXME-file-protocol>",
                    "<FIXME-next-dist-dir>",
                  ],
