@@ -120,7 +120,7 @@ jobs:
           - repo: front
             workflow_id: cron-update-next.yml
           - repo: v0
-            workflow_id: update-next.yml
+            workflow_id: update-next.yaml
     steps:
       - name: Check token
         run: gh auth status
@@ -190,8 +190,8 @@ jobs:
             workflow_id: cron-update-next.yml
             workflow_url: https://github.com/vercel/front/actions/workflows/cron-update-next.yml?query=event%3Aworkflow_dispatch
           - repo: v0
-            workflow_id: update-next.yml
-            workflow_url: https://github.com/vercel/v0/actions/workflows/update-next.yml?query=event%3Aworkflow_dispatch
+            workflow_id: update-next.yaml
+            workflow_url: https://github.com/vercel/v0/actions/workflows/update-next.yaml?query=event%3Aworkflow_dispatch
     steps:
       - name: Check token
         run: gh auth status
