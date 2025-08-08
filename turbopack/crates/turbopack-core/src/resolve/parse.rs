@@ -148,7 +148,7 @@ impl Request {
     /// recursively. Most users should call [Self::parse] instead.
     fn parse_ref(request: Pattern) -> Self {
         match request {
-            Pattern::Dynamic => Request::Dynamic,
+            Pattern::Dynamic | Pattern::DynamicNoSlash => Request::Dynamic,
             Pattern::Constant(r) => Request::parse_constant_pattern(r),
             Pattern::Concatenation(list) => Request::parse_concatenation_pattern(list),
             Pattern::Alternatives(_) => panic!(
@@ -281,7 +281,7 @@ impl Request {
                         // Insert dynamic between module and path (by adding it to both of them,
                         // because both could happen). Note that path is empty at this
                         // point anyway.
-                        module.push(Pattern::Dynamic);
+                        module.push(Pattern::DynamicNoSlash);
                         path.push(item);
                     } else {
                         path.push(item);
@@ -870,7 +870,7 @@ mod tests {
             Request::Module {
                 module: Pattern::Concatenation(vec![
                     Pattern::Constant(rcstr!("foo-")),
-                    Pattern::Dynamic,
+                    Pattern::DynamicNoSlash,
                 ]),
                 path: Pattern::Dynamic,
                 query: rcstr!(""),
@@ -886,7 +886,7 @@ mod tests {
             Request::Module {
                 module: Pattern::Concatenation(vec![
                     Pattern::Constant(rcstr!("foo-")),
-                    Pattern::Dynamic,
+                    Pattern::DynamicNoSlash,
                 ]),
                 path: Pattern::Concatenation(vec![
                     Pattern::Dynamic,
