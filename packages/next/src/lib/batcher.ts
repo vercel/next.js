@@ -66,7 +66,7 @@ export class Batcher<K, V, C extends string | number | null> {
   public async batch(key: K, fn: WorkFn<V, K>): Promise<V> {
     const cacheKey = (this.cacheKeyFn ? await this.cacheKeyFn(key) : key) as C
     if (cacheKey === null) {
-      return fn({ resolve: Promise.resolve, key })
+      return fn({ resolve: (value) => Promise.resolve(value), key })
     }
 
     const pending = this.pending.get(cacheKey)
