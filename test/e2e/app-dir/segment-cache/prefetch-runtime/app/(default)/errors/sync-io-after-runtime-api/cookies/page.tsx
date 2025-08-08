@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
-import { cachedDelay, DebugRenderKind } from '../../../shared'
+import { DebugRenderKind } from '../../../../shared'
 
 export default async function Page() {
   return (
@@ -8,18 +8,16 @@ export default async function Page() {
       <DebugRenderKind />
       <p id="intro">
         This page performs sync IO after a cookies() call, so we should only see
-        the error in a runtime prefetch or a navigation (and not during
-        prerendering / prefetching)
+        the error in a runtime prefetch
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
-        <One />
+        <RuntimePrefetchable />
       </Suspense>
     </main>
   )
 }
 
-async function One() {
-  const cookieStore = await cookies()
-  await cachedDelay(['/cookies', cookieStore.get('user-agent')?.value])
+async function RuntimePrefetchable() {
+  await cookies()
   return <div id="timestamp">Timestamp: {Date.now()}</div>
 }

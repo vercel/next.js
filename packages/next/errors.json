@@ -775,5 +775,6 @@
   "774": "Route %s used %s outside of a Server Component. This is not allowed.",
   "775": "Node.js instrumentation extensions should not be loaded in the Edge runtime.",
   "776": "`unstable_isUnrecognizedActionError` can only be used on the client.",
-  "777": "Invariant: failed to find source route %s for prerender %s"
+  "777": "Invariant: failed to find source route %s for prerender %s",
+  "778": "`prerenderAndAbortInSequentialTasksWithStages` should not be called in edge runtime."
 }

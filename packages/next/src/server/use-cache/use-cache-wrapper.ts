@@ -34,6 +34,7 @@ import {
   getCacheSignal,
   isHmrRefresh,
   getServerComponentsHmrCache,
+  getRuntimeStagePromise,
 } from '../app-render/work-unit-async-storage.external'
 
 import { makeHangingPromise } from '../dynamic-rendering-utils'
@@ -199,6 +200,7 @@ function createUseCacheStore(
         outerWorkUnitStore
       ),
       forceRevalidate: shouldForceRevalidate(workStore, outerWorkUnitStore),
+      runtimeStagePromise: getRuntimeStagePromise(outerWorkUnitStore),
       draftMode: getDraftModeProviderForCacheScope(
         workStore,
         outerWorkUnitStore
@@ -953,6 +955,17 @@ export function cache(
         ? createHangingInputAbortSignal(workUnitStore)
         : undefined
 
+      // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
+      // are resolved with a delay, in the runtime stage. Private caches are one of these.
+      if (cacheContext.kind === 'private') {
+        const runtimeStagePromise = getRuntimeStagePromise(
+          cacheContext.outerWorkUnitStore
+        )
+        if (runtimeStagePromise) {
+          await runtimeStagePromise
+        }
+      }
+
       let isPageOrLayout = false
 
       // For page and layout components, the cache function is overwritten,
@@ -1068,6 +1081,14 @@ export function cache(
 
       switch (workUnitStore?.type) {
         case 'prerender-runtime':
+        // We're currently only using `dynamicAccessAsyncStorage` for params,
+        // which are always available in a runtime prerender, so they will never hang,
+        // effectively making the tracking below a no-op.
+        // However, a runtime prerender shares a lot of the semantics with a static prerender,
+        // and might need to follow this codepath in the future
+        // if we start using `dynamicAccessAsyncStorage` for other APIs.
+        //
+        // fallthrough
         case 'prerender':
           if (!isPageOrLayout) {
             // If the "use cache" function is not a page or a layout, we need to
@@ -1156,7 +1177,14 @@ export function cache(
                     workStore.route,
                     'dynamic "use cache"'
                   )
-                case 'prerender-runtime':
+                case 'prerender-runtime': {
+                  // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
+                  // are resolved with a delay, in the runtime stage.
+                  if (workUnitStore.runtimeStagePromise) {
+                    await workUnitStore.runtimeStagePromise
+                  }
+                  break
+                }
                 case 'prerender-ppr':
                 case 'prerender-legacy':
                 case 'request':
@@ -1338,6 +1366,12 @@ export function cache(
                 'dynamic "use cache"'
               )
             case 'prerender-runtime':
+              // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
+              // are resolved with a delay, in the runtime stage.
+              if (workUnitStore.runtimeStagePromise) {
+                await workUnitStore.runtimeStagePromise
+              }
+              break
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'request':

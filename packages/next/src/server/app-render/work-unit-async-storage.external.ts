@@ -106,6 +106,18 @@ export interface PrerenderStoreModernRuntime
   extends PrerenderStoreModernCommon {
   readonly type: 'prerender-runtime'
 
+  /**
+   * A runtime prerender resolves APIs in two tasks:
+   *
+   * 1. Static data (available in a static prerender)
+   * 2. Runtime data (available in a runtime prerender)
+   *
+   * This separation is achieved by awaiting this promise in "runtime" APIs.
+   * In the final prerender, the promise will be resolved during the second task,
+   * and the render will be aborted in the task that follows it.
+   */
+  readonly runtimeStagePromise: Promise<void> | null
+
   readonly cookies: RequestStore['cookies']
   readonly draftMode: RequestStore['draftMode']
 }
@@ -267,6 +279,18 @@ export interface PublicUseCacheStore extends CommonUseCacheStore {
 
 export interface PrivateUseCacheStore extends CommonUseCacheStore {
   readonly type: 'private-cache'
+
+  /**
+   * A runtime prerender resolves APIs in two tasks:
+   *
+   * 1. Static data (available in a static prerender)
+   * 2. Runtime data (available in a runtime prerender)
+   *
+   * This separation is achieved by awaiting this promise in "runtime" APIs.
+   * In the final prerender, the promise will be resolved during the second task,
+   * and the render will be aborted in the task that follows it.
+   */
+  readonly runtimeStagePromise: Promise<void> | null
 
   /**
    * As opposed to the public cache store, the private cache store is allowed to
@@ -480,6 +504,26 @@ export function getCacheSignal(
     case 'request':
     case 'cache':
     case 'private-cache':
+    case 'unstable-cache':
+      return null
+    default:
+      return workUnitStore satisfies never
+  }
+}
+
+export function getRuntimeStagePromise(
+  workUnitStore: WorkUnitStore
+): Promise<void> | null {
+  switch (workUnitStore.type) {
+    case 'prerender-runtime':
+    case 'private-cache':
+      return workUnitStore.runtimeStagePromise
+    case 'prerender':
+    case 'prerender-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'request':
+    case 'cache':
     case 'unstable-cache':
       return null
     default:

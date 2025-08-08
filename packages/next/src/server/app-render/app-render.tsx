@@ -155,7 +155,10 @@ import { createMutableActionQueue } from '../../client/components/app-router-ins
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { FallbackRouteParams } from '../request/fallback-params'
-import { processPrelude } from './app-render-prerender-utils'
+import {
+  prerenderAndAbortInSequentialTasksWithStages,
+  processPrelude,
+} from './app-render-prerender-utils'
 import {
   type ReactServerPrerenderResult,
   ReactServerResult,
@@ -200,6 +203,7 @@ import { getRequestMeta } from '../request-meta'
 import { getDynamicParam } from '../../shared/lib/router/utils/get-dynamic-param'
 import type { ExperimentalConfig } from '../config-shared'
 import type { Params } from '../request/params'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -711,6 +715,8 @@ async function prospectiveRuntimeServerPrerender(
     prerenderResumeDataCache,
     hmrRefreshHash: undefined,
     captureOwnerStack: undefined,
+    // We only need task sequencing in the final prerender.
+    runtimeStagePromise: null,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
     cookies,
     draftMode,
@@ -821,6 +827,9 @@ async function finalRuntimeServerPrerender(
     isDebugDynamicAccesses
   )
 
+  const { promise: runtimeStagePromise, resolve: resolveBlockedRuntimeAPIs } =
+    createPromiseWithResolvers<void>()
+
   const finalServerPrerenderStore: PrerenderStoreModernRuntime = {
     type: 'prerender-runtime',
     phase: 'render',
@@ -841,6 +850,8 @@ async function finalRuntimeServerPrerender(
     renderResumeDataCache,
     hmrRefreshHash: undefined,
     captureOwnerStack: undefined,
+    // Used to separate the "Static" stage from the "Runtime" stage.
+    runtimeStagePromise,
     // These are not present in regular prerenders, but allowed in a runtime prerender.
     cookies,
     draftMode,
@@ -852,8 +863,9 @@ async function finalRuntimeServerPrerender(
   )
 
   let prerenderIsPending = true
-  const result = await prerenderAndAbortInSequentialTasks(
+  const result = await prerenderAndAbortInSequentialTasksWithStages(
     async () => {
+      // Static stage
       const prerenderResult = await workUnitAsyncStorage.run(
         finalServerPrerenderStore,
         ComponentMod.prerender,
@@ -869,6 +881,17 @@ async function finalRuntimeServerPrerender(
       return prerenderResult
     },
     () => {
+      // Advance to the runtime stage.
+      //
+      // We make runtime APIs hang during the first task (above), and unblock them in the following task (here).
+      // This makes sure that, at this point, we'll have finished all the static parts (what we'd prerender statically).
+      // We know that they don't contain any incorrect sync IO, because that'd have caused a build error.
+      // After we unblock Runtime APIs, if we encounter sync IO (e.g. `await cookies(); Date.now()`),
+      // we'll abort, but we'll produce at least as much output as a static prerender would.
+      resolveBlockedRuntimeAPIs()
+    },
+    () => {
+      // Abort.
       if (finalServerController.signal.aborted) {
         // If the server controller is already aborted we must have called something
         // that required aborting the prerender synchronously such as with new Date()

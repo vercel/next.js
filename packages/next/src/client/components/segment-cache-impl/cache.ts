@@ -78,6 +78,7 @@ import {
   doesExportedHtmlMatchBuildId,
 } from '../../../shared/lib/segment-cache/output-export-prefetch-encoding'
 import { FetchStrategy } from '../segment-cache'
+import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 
 // A note on async/await when working in the prefetch cache:
 //
@@ -2048,17 +2049,6 @@ function addSegmentPathToUrlInOutputExportMode(
     return staticUrl
   }
   return url
-}
-
-function createPromiseWithResolvers<T>(): PromiseWithResolvers<T> {
-  // Shim of Stage 4 Promise.withResolvers proposal
-  let resolve: (value: T | PromiseLike<T>) => void
-  let reject: (reason: any) => void
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-  return { resolve: resolve!, reject: reject!, promise }
 }
 
 /**

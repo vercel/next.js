@@ -26,6 +26,7 @@ import type {
   RequestStore,
   PrerenderStoreLegacy,
   PrerenderStoreModern,
+  PrerenderStoreModernRuntime,
 } from '../app-render/work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
@@ -33,7 +34,10 @@ import React from 'react'
 
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import {
+  getRuntimeStagePromise,
+  workUnitAsyncStorage,
+} from './work-unit-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import {
@@ -548,12 +552,25 @@ export function createHangingInputAbortSignal(
         })
       } else {
         // Otherwise we're in the final render and we should already have all
-        // our caches filled. We might still be waiting on some microtasks so we
+        // our caches filled.
+        // If the prerender uses stages, we have wait until the runtime stage,
+        // at which point all runtime inputs will be resolved.
+        // (otherwise, a runtime prerender might consider `cookies()` hanging
+        //  even though they'd resolve in the next task.)
+        //
+        // We might still be waiting on some microtasks so we
         // wait one tick before giving up. When we give up, we still want to
         // render the content of this cache as deeply as we can so that we can
         // suspend as deeply as possible in the tree or not at all if we don't
         // end up waiting for the input.
-        scheduleOnNextTick(() => controller.abort())
+        const runtimeStagePromise = getRuntimeStagePromise(workUnitStore)
+        if (runtimeStagePromise) {
+          runtimeStagePromise.then(() =>
+            scheduleOnNextTick(() => controller.abort())
+          )
+        } else {
+          scheduleOnNextTick(() => controller.abort())
+        }
       }
 
       return controller.signal
@@ -823,4 +840,14 @@ export function throwIfDisallowedDynamic(
       throw new StaticGenBailoutError()
     }
   }
+}
+
+export function delayUntilRuntimeStage<T>(
+  prerenderStore: PrerenderStoreModernRuntime,
+  result: Promise<T>
+): Promise<T> {
+  if (prerenderStore.runtimeStagePromise) {
+    return prerenderStore.runtimeStagePromise.then(() => result)
+  }
+  return result
 }

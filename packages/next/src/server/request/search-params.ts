@@ -7,6 +7,7 @@ import {
   trackDynamicDataInDynamicRender,
   annotateDynamicAccess,
   trackSynchronousRequestDataAccessInDev,
+  delayUntilRuntimeStage,
 } from '../app-render/dynamic-rendering'
 
 import {
@@ -114,6 +115,10 @@ export function createServerSearchParamsForServerPage(
           'createServerSearchParamsForServerPage should not be called in cache contexts.'
         )
       case 'prerender-runtime':
+        return delayUntilRuntimeStage(
+          workUnitStore,
+          createRenderSearchParams(underlyingSearchParams, workStore)
+        )
       case 'request':
         break
       default:

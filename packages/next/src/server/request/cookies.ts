@@ -15,6 +15,7 @@ import {
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
 import {
+  delayUntilRuntimeStage,
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
@@ -118,6 +119,10 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             workUnitStore
           )
         case 'prerender-runtime':
+          return delayUntilRuntimeStage(
+            workUnitStore,
+            makeUntrackedExoticCookies(workUnitStore.cookies)
+          )
         case 'private-cache':
           return makeUntrackedExoticCookies(workUnitStore.cookies)
         case 'request':
