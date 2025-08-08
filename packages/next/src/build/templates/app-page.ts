@@ -878,7 +878,10 @@ export async function handler(
                       // RSC request is not treated as static.
                       forceStaticRender: true,
                     }),
-                  incrementalCacheEntry,
+                  // CRITICAL: we need to pass null here because passing the
+                  // previous cache entry here (which is stale) will switch on
+                  // isOnDemandRevalidate and break the prerendering.
+                  null,
                   hasResolved,
                   ctx.waitUntil
                 )

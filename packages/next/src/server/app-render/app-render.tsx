@@ -3524,6 +3524,7 @@ async function prerenderToStream(
         'abort',
         () => {
           initialServerRenderController.abort()
+          initialServerPrerenderController.abort()
         },
         { once: true }
       )
