@@ -2959,12 +2959,7 @@ async fn handle_free_var_reference(
                             span.hi.to_u32(),
                         ),
                         Default::default(),
-                        match state.tree_shaking_mode {
-                            Some(
-                                TreeShakingMode::ModuleFragments | TreeShakingMode::ReexportsOnly,
-                            ) => export.clone().map(ModulePart::export),
-                            None => None,
-                        },
+                        export.clone().map(ModulePart::export),
                         ImportUsage::TopLevel,
                         state.import_externals,
                         state.tree_shaking_mode,
