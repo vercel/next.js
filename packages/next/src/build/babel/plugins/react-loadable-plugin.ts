@@ -19,9 +19,13 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWAR
 */
 // This file is https://github.com/jamiebuilds/react-loadable/blob/master/src/babel.js
-// Modified to also look for `next/dynamic`
-// Modified to put `webpack` and `modules` under `loadableGenerated` to be backwards compatible with next/dynamic which has a `modules` key
-// Modified to support `dynamic(import('something'))` and `dynamic(import('something'), options)
+// - Modified to also look for `next/dynamic`
+// - Modified to put `webpack` and `modules` under `loadableGenerated` to be
+//   backwards compatible with next/dynamic which has a `modules` key
+// - Modified to support `dynamic(import('something'))` and
+//   `dynamic(import('something'), options)
+// - Removed `Loadable.Map` support, `next/dynamic` uses overloaded arguments
+//   instead of a separate API
 
 import type {
   NodePath,
@@ -60,20 +64,6 @@ export default function ({
 
         binding.referencePaths.forEach((refPath) => {
           let callExpression = refPath.parentPath
-
-          if (
-            callExpression?.isMemberExpression() &&
-            callExpression.node.computed === false
-          ) {
-            const property = callExpression.get('property')
-            if (
-              !Array.isArray(property) &&
-              property.isIdentifier({ name: 'Map' })
-            ) {
-              callExpression = callExpression.parentPath
-            }
-          }
-
           if (!callExpression?.isCallExpression()) return
 
           let args = callExpression.get('arguments')
