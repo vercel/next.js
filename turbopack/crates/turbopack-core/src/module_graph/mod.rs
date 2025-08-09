@@ -1221,23 +1221,6 @@ impl ModuleGraph {
         Ok(idx)
     }
 
-    pub async fn entries(&self) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
-        Ok(self
-            .get_graphs()
-            .await?
-            .iter()
-            .flat_map(|g| g.entries.iter())
-            .flat_map(|e| e.entries())
-            .collect())
-    }
-
-    pub async fn has_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<bool> {
-        let graphs = self.get_graphs().await?;
-        Ok(graphs
-            .iter()
-            .any(|graph| graph.modules.contains_key(&entry)))
-    }
-
     /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
     /// target.
     ///
@@ -2091,7 +2074,7 @@ pub mod tests {
     impl Asset for MockModule {
         #[turbo_tasks::function]
         fn content(&self) -> Vc<AssetContent> {
-            todo!()
+            panic!("MockModule::content shouldn't be called")
         }
     }
 

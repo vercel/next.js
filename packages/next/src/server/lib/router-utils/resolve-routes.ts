@@ -743,8 +743,7 @@ export function getResolveRoutes(
             // is currently on, which wouldn't be extractable from the matched route params.
             // This attempts to extract the dynamic params from the provided router state.
             if (isInterceptionRouteRewrite(route as Rewrite)) {
-              const stateHeader =
-                req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
+              const stateHeader = req.headers[NEXT_ROUTER_STATE_TREE_HEADER]
 
               if (stateHeader) {
                 rewriteParams = {
@@ -776,7 +775,7 @@ export function getResolveRoutes(
           }
 
           // Set the rewrite headers only if this is a RSC request.
-          if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+          if (req.headers[RSC_HEADER] === '1') {
             // We set the rewritten path and query headers on the response now
             // that we know that the it's not an external rewrite.
             if (parsedUrl.pathname !== parsedDestination.pathname) {

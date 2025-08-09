@@ -4,6 +4,11 @@ import { useEffect, useRef, useState } from 'react'
 import { format, measure } from '../lib/measure'
 
 function report(result, element, textarea) {
+  if (!globalThis.BENCHMARK_RESULTS) {
+    globalThis.BENCHMARK_RESULTS = []
+  }
+  globalThis.BENCHMARK_RESULTS.push(result)
+
   const formattedResult = format(result)
   element.textContent += `: ${formattedResult}`
   textarea.current.value += `\n    ${formattedResult}`

@@ -6,11 +6,10 @@ import * as Log from '../output/log'
 import globOriginal from 'next/dist/compiled/glob'
 import { interopDefault } from '../../lib/interop-default'
 import type { AdapterOutputs, NextAdapter } from '../../server/config-shared'
-import {
-  RouteType,
-  type FunctionsConfigManifest,
-  type PrerenderManifest,
-  type RoutesManifest,
+import type {
+  FunctionsConfigManifest,
+  PrerenderManifest,
+  RoutesManifest,
 } from '..'
 import type {
   EdgeFunctionDefinition,
@@ -19,6 +18,8 @@ import type {
 import { isMiddlewareFilename } from '../utils'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { AdapterOutputType } from '../../shared/lib/constants'
+import { RenderingMode } from '../rendering-mode'
 
 const glob = promisify(globOriginal)
 
@@ -33,8 +34,9 @@ export async function handleBuildComplete({
   hasInstrumentationHook,
   requiredServerFiles,
   routesManifest,
-  // prerenderManifest,
+  prerenderManifest,
   middlewareManifest,
+  functionsConfigManifest,
 }: {
   dir: string
   distDir: string
@@ -68,7 +70,7 @@ export async function handleBuildComplete({
         const pathname = path.posix.join('/_next/static', file)
         const filePath = path.join(distDir, 'static', file)
         outputs.push({
-          type: RouteType.STATIC_FILE,
+          type: AdapterOutputType.STATIC_FILE,
           id: path.join('static', file),
           pathname,
           filePath,
@@ -126,19 +128,19 @@ export async function handleBuildComplete({
         page: EdgeFunctionDefinition,
         isMiddleware: boolean = false
       ) {
-        let type = RouteType.PAGES
+        let type = AdapterOutputType.PAGES
         const isAppPrefix = page.page.startsWith('app/')
         const isAppPage = isAppPrefix && page.page.endsWith('/page')
         const isAppRoute = isAppPrefix && page.page.endsWith('/route')
 
         if (isMiddleware) {
-          type = RouteType.MIDDLEWARE
+          type = AdapterOutputType.MIDDLEWARE
         } else if (isAppPage) {
-          type = RouteType.APP_PAGE
+          type = AdapterOutputType.APP_PAGE
         } else if (isAppRoute) {
-          type = RouteType.APP_ROUTE
+          type = AdapterOutputType.APP_ROUTE
         } else if (page.page.startsWith('/api')) {
-          type = RouteType.PAGES_API
+          type = AdapterOutputType.PAGES_API
         }
 
         const output: AdapterOutputs[0] = {
@@ -155,6 +157,12 @@ export async function handleBuildComplete({
           ),
           assets: {},
           type,
+          config:
+            type === AdapterOutputType.MIDDLEWARE
+              ? {
+                  matchers: page.matchers,
+                }
+              : {},
         }
 
         function handleFile(file: string) {
@@ -188,6 +196,7 @@ export async function handleBuildComplete({
       for (const page of Object.values(middlewareManifest.functions)) {
         edgeFunctionHandlers.push(handleEdgeFunction(page))
       }
+      const pageOutputMap: Record<string, AdapterOutputs[0]> = {}
 
       for (const page of pageKeys) {
         if (middlewareManifest.functions.hasOwnProperty(page)) {
@@ -204,35 +213,50 @@ export async function handleBuildComplete({
         const pageTraceFile = `${pageFile}.nft.json`
         const assets = await handleTraceFiles(pageTraceFile).catch((err) => {
           if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
-            Log.warn(`Failed to copy traced files for ${pageFile}`, err)
+            Log.warn(`Failed to locate traced assets for ${pageFile}`, err)
           }
           return {} as Record<string, string>
         })
+        const functionConfig = functionsConfigManifest.functions[route] || {}
 
-        outputs.push({
+        const output: AdapterOutputs[0] = {
           id: route,
-          type: page.startsWith('/api') ? RouteType.PAGES_API : RouteType.PAGES,
+          type: page.startsWith('/api')
+            ? AdapterOutputType.PAGES_API
+            : AdapterOutputType.PAGES,
           filePath: pageTraceFile.replace(/\.nft\.json$/, ''),
           pathname: route,
           assets,
           runtime: 'nodejs',
-        })
+          config: {
+            maxDuration: functionConfig.maxDuration,
+            preferredRegion: functionConfig.regions,
+          },
+        }
+        pageOutputMap[page] = output
+        outputs.push(output)
       }
 
       if (hasNodeMiddleware) {
         const middlewareFile = path.join(distDir, 'server', 'middleware.js')
         const middlewareTrace = `${middlewareFile}.nft.json`
         const assets = await handleTraceFiles(middlewareTrace)
+        const functionConfig =
+          functionsConfigManifest.functions['/_middleware'] || {}
 
         outputs.push({
           pathname: '/_middleware',
           id: '/_middleware',
           assets,
-          type: RouteType.MIDDLEWARE,
+          type: AdapterOutputType.MIDDLEWARE,
           runtime: 'nodejs',
           filePath: middlewareFile,
+          config: {
+            matchers: functionConfig.matchers,
+          },
         })
       }
+      const appOutputMap: Record<string, AdapterOutputs[0]> = {}
 
       if (appPageKeys) {
         for (const page of appPageKeys) {
@@ -246,21 +270,180 @@ export async function handleBuildComplete({
             Log.warn(`Failed to copy traced files for ${pageFile}`, err)
             return {} as Record<string, string>
           })
+          const functionConfig =
+            functionsConfigManifest.functions[normalizedPage] || {}
 
-          outputs.push({
+          const output: AdapterOutputs[0] = {
             pathname: normalizedPage,
             id: normalizedPage,
             assets,
             type: page.endsWith('/route')
-              ? RouteType.APP_ROUTE
-              : RouteType.APP_PAGE,
+              ? AdapterOutputType.APP_ROUTE
+              : AdapterOutputType.APP_PAGE,
             runtime: 'nodejs',
             filePath: pageFile,
+            config: {
+              maxDuration: functionConfig.maxDuration,
+              preferredRegion: functionConfig.regions,
+            },
+          }
+          appOutputMap[normalizedPage] = output
+          outputs.push(output)
+        }
+      }
+
+      const getParentOutput = (srcRoute: string, childRoute: string) => {
+        const parentOutput = pageOutputMap[srcRoute] || appOutputMap[srcRoute]
+
+        if (!parentOutput) {
+          console.error({
+            appOutputs: Object.keys(appOutputMap),
+            pageOutputs: Object.keys(pageOutputMap),
+          })
+          throw new Error(
+            `Invariant: failed to find source route ${srcRoute} for prerender ${childRoute}`
+          )
+        }
+        return parentOutput
+      }
+
+      for (const route in prerenderManifest.routes) {
+        const {
+          initialExpireSeconds: initialExpiration,
+          initialRevalidateSeconds: initialRevalidate,
+          initialHeaders,
+          initialStatus,
+          prefetchDataRoute,
+          dataRoute,
+          renderingMode,
+        } = prerenderManifest.routes[route]
+
+        const srcRoute = prerenderManifest.routes[route].srcRoute || route
+        const isAppPage = dataRoute?.endsWith('.rsc')
+
+        const filePath = path.join(
+          distDir,
+          'server',
+          isAppPage ? 'app' : 'pages',
+          `${route}.html`
+        )
+        const initialOutput = {
+          id: route,
+          type: AdapterOutputType.PRERENDER,
+          pathname: route,
+          parentOutputId: getParentOutput(srcRoute, route).id,
+          fallback: {
+            filePath,
+            initialStatus,
+            initialHeaders,
+            initialExpiration,
+            initialRevalidate,
+          },
+          config: {
+            renderingMode,
+          },
+        }
+        outputs.push(initialOutput)
+
+        if (dataRoute) {
+          let dataFilePath = path.join(
+            distDir,
+            'server',
+            'pages',
+            `${route}.json`
+          )
+
+          if (isAppPage) {
+            // When experimental PPR is enabled, we expect that the data
+            // that should be served as a part of the prerender should
+            // be from the prefetch data route. If this isn't enabled
+            // for ppr, the only way to get the data is from the data
+            // route.
+            dataFilePath = path.join(
+              distDir,
+              'server',
+              'app',
+              prefetchDataRoute &&
+                renderingMode === RenderingMode.PARTIALLY_STATIC
+                ? prefetchDataRoute
+                : dataRoute
+            )
+          }
+
+          outputs.push({
+            ...initialOutput,
+            id: dataRoute,
+            pathname: dataRoute,
+            fallback: {
+              ...initialOutput.fallback,
+              filePath: dataFilePath,
+            },
           })
         }
       }
 
-      // TODO: prerender assets
+      for (const dynamicRoute in prerenderManifest.dynamicRoutes) {
+        const {
+          fallback,
+          fallbackExpire,
+          fallbackRevalidate,
+          fallbackHeaders,
+          fallbackStatus,
+          dataRoute,
+        } = prerenderManifest.dynamicRoutes[dynamicRoute]
+
+        const isAppPage = dataRoute?.endsWith('.rsc')
+
+        const initialOutput = {
+          id: dynamicRoute,
+          type: AdapterOutputType.PRERENDER,
+          pathname: dynamicRoute,
+          parentOutputId: getParentOutput(dynamicRoute, dynamicRoute).id,
+          fallback:
+            typeof fallback === 'string'
+              ? {
+                  filePath: path.join(
+                    distDir,
+                    'server',
+                    isAppPage ? 'app' : 'pages',
+                    fallback
+                  ),
+                  initialStatus: fallbackStatus,
+                  initialHeaders: fallbackHeaders,
+                  initialExpiration: fallbackExpire,
+                  initialRevalidate: fallbackRevalidate,
+                }
+              : undefined,
+        }
+        outputs.push(initialOutput)
+
+        if (dataRoute) {
+          outputs.push({
+            ...initialOutput,
+            id: dataRoute,
+            pathname: dataRoute,
+          })
+        }
+      }
+
+      // TODO: should these be normal outputs or meta on associated routes?
+      // for (const route of prerenderManifest.notFoundRoutes) {
+      //   // The fallback here is the 404 page if statically generated
+      //   // if it is not then the fallback is empty and it is generated
+      //   // at runtime
+
+      //   outputs.push({
+      //     id: route,
+      //     type: OutputType.PRERENDER,
+      //     pathname: route,
+      //     runtime: 'nodejs',
+      //     fallback: {
+      //       filePath: '',
+      //       initialStatus: 404,
+      //       initialHeaders: {},
+      //     },
+      //   })
+      // }
 
       await adapterMod.onBuildComplete({
         routes: {

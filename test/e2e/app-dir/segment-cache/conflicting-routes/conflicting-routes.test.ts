@@ -25,9 +25,9 @@ describe('conflicting routes', () => {
     fetchUrl.search = searchParams.toString()
     return await next.fetch(fetchUrl.pathname + fetchUrl.search, {
       headers: {
-        RSC: '1',
-        'Next-Router-Prefetch': '1',
-        'Next-Router-Segment-Prefetch': segmentPath,
+        rsc: '1',
+        'next-router-prefetch': '1',
+        'next-router-segment-prefetch': segmentPath,
       },
     })
   }

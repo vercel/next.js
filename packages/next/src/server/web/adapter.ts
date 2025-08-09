@@ -154,11 +154,10 @@ export async function adapter(
   // Headers should only be stripped for middleware
   if (!isEdgeRendering) {
     for (const header of FLIGHT_HEADERS) {
-      const key = header.toLowerCase()
-      const value = requestHeaders.get(key)
+      const value = requestHeaders.get(header)
       if (value !== null) {
-        flightHeaders.set(key, value)
-        requestHeaders.delete(key)
+        flightHeaders.set(header, value)
+        requestHeaders.delete(header)
       }
     }
   }
@@ -299,9 +298,8 @@ export async function adapter(
                 onAfterTaskError: undefined,
               },
               requestEndedState: { ended: false },
-              isPrefetchRequest: request.headers.has(
-                NEXT_ROUTER_PREFETCH_HEADER
-              ),
+              isPrefetchRequest:
+                request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
               buildId: buildId ?? '',
               previouslyRevalidatedTags: [],
             })

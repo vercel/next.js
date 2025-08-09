@@ -1,6 +1,11 @@
 import os from 'os'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
+import type {
+  Header,
+  Redirect,
+  Rewrite,
+  RouteHas,
+} from '../lib/load-custom-routes'
 import { imageConfigDefault } from '../shared/lib/image-config'
 import type {
   ImageConfig,
@@ -17,10 +22,13 @@ import type {
   ManifestRewriteRoute,
   ManifestHeaderRoute,
   ManifestRedirectRoute,
-  RouteType,
   ManifestRoute,
 } from '../build'
 import { isStableBuild } from '../shared/lib/canary-only'
+import type { RenderingMode } from '../build/rendering-mode'
+import type { Revalidate } from './lib/cache-control'
+import type { AdapterOutputType } from '../shared/lib/constants'
+import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -35,19 +43,112 @@ export type NextConfigComplete = Required<NextConfig> & {
 }
 
 export type AdapterOutputs = Array<{
+  /**
+   * id is a unique identifier for the output
+   */
   id: string
-  fallbackID?: string
-  runtime?: 'nodejs' | 'edge'
+  /**
+   * pathname is the URL path that the output is meant to
+   * be routable to at e.g. /blog/[slug] or /_next/static/chunks/chunk.js
+   */
   pathname: string
-  allowQuery?: string[]
+  /**
+   * runtime for the route, this doesn't apply for prerender or static
+   */
+  runtime?: 'nodejs' | 'edge'
+  /**
+   * config related to the route
+   */
   config?: {
+    /**
+     * maxDuration is a segment config to signal the max
+     * execution duration a route should be allowed before
+     * it's timed out
+     */
     maxDuration?: number
-    expiration?: number
-    revalidate?: number
+    /**
+     * preferredRegion is a segment config to signal deployment
+     * region preferences to the provider being used
+     */
+    preferredRegion?: string | string[]
+
+    /**
+     * allowQuery is the allowed query values to be passed
+     * to an ISR function and what should be considered for the cacheKey
+     * e.g. for /blog/[slug], "slug" is the only allowQuery
+     */
+    allowQuery?: string[]
+    /**
+     * allowHeader is the allowed headers to be passed to an
+     * ISR function to prevent accidentally poisoning the cache
+     * from leaking additional information that can impact the render
+     */
+    allowHeader?: string[]
+    /**
+     * bypass for is a list of has conditions the cache
+     * should be bypassed and invoked directly e.g. action header
+     */
+    bypassFor?: RouteHas[]
+    /**
+     * renderingMode signals PPR or not for a prerender
+     */
+    renderingMode?: RenderingMode
+
+    /**
+     * matchers are the configured matchers for middleware
+     */
+    matchers?: MiddlewareMatcher[]
   }
+  /**
+   * For prerenders the parent output is the originating
+   * page that the prerender is created from
+   */
+  parentOutputId?: string
+  /**
+   * fallback is initial cache data generated during build for a prerender
+   */
+  fallback?: {
+    /**
+     * path to the fallback file can be HTML/JSON/RSC
+     */
+    filePath: string
+    /**
+     * initialStatus is the status code that should be applied
+     * when serving the fallback
+     */
+    initialStatus?: number
+    /**
+     * initialHeaders are the headers that should be sent when
+     * serving the fallback
+     */
+    initialHeaders?: Record<string, string | string[]>
+    /**
+     * initial expiration is how long until the fallback entry
+     * is considered expired and no longer valid to serve
+     */
+    initialExpiration?: number
+    /**
+     * initial revalidate is how long until the fallback is
+     * considered stale and should be revalidated
+     */
+    initialRevalidate?: Revalidate
+  }
+  /**
+   * assets are all necessary traced assets that could be
+   * loaded by the output to handle a request e.g. traced
+   * node_modules or necessary manifests for Next.js
+   */
   assets?: Record<string, string>
-  filePath: string
-  type: RouteType
+  /**
+   * filePath is present for all cases except a Prerender
+   * which may or may not have a fallback (initial cache entry).
+   * The parent output will have a filePath for a prerender though
+   */
+  filePath?: string
+  /**
+   * type of output
+   */
+  type: AdapterOutputType
 }>
 
 export interface NextAdapter {
@@ -331,6 +432,7 @@ export interface ExperimentalConfig {
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   clientSegmentCache?: boolean | 'client-only'
+  clientParamParsing?: boolean
   dynamicOnHover?: boolean
   appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
@@ -1354,7 +1456,7 @@ export const defaultConfig = Object.freeze({
         expire: INFINITE_CACHE,
       },
       seconds: {
-        stale: undefined, // defaults to staleTimes.dynamic
+        stale: 30, // 30 seconds
         revalidate: 1, // 1 second
         expire: 60, // 1 minute
       },
@@ -1400,6 +1502,7 @@ export const defaultConfig = Object.freeze({
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientSegmentCache: false,
+    clientParamParsing: false,
     dynamicOnHover: false,
     appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,

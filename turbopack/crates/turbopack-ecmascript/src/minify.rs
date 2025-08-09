@@ -3,6 +3,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result, bail};
 use bytes_str::BytesStr;
 use swc_core::{
+    atoms::atom,
     base::try_with_handler,
     common::{
         BytePos, FileName, FilePathMapping, GLOBALS, LineCol, Mark, SourceMap as SwcSourceMap,
@@ -89,7 +90,7 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                             ..Default::default()
                         }),
                         mangle: mangle.map(|mangle| {
-                            let reserved = vec!["AbortSignal".into()];
+                            let reserved = vec![atom!("AbortSignal")];
                             match mangle {
                                 MangleType::OptimalSize => MangleOptions {
                                     reserved,

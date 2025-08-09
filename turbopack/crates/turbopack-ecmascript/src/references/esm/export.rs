@@ -3,11 +3,11 @@ use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
 use anyhow::{Result, bail};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
+use smallvec::{SmallVec, smallvec};
 use swc_core::{
     common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{
-        AssignTarget, Expr, ExprStmt, Ident, KeyValueProp, ObjectLit, Prop, PropName, PropOrSpread,
-        SimpleAssignTarget, Stmt, Str,
+        ArrayLit, AssignTarget, Expr, ExprOrSpread, ExprStmt, Ident, SimpleAssignTarget, Stmt, Str,
     },
     quote, quote_expr,
 };
@@ -141,17 +141,8 @@ pub async fn follow_reexports(
     side_effect_free_packages: Vc<Glob>,
     ignore_side_effect_of_entry: bool,
 ) -> Result<Vc<FollowExportsResult>> {
-    if !ignore_side_effect_of_entry
-        && !*module
-            .is_marked_as_side_effect_free(side_effect_free_packages)
-            .await?
-    {
-        return Ok(FollowExportsResult::cell(FollowExportsResult {
-            module,
-            export_name: Some(export_name),
-            ty: FoundExportType::SideEffects,
-        }));
-    }
+    let mut ignore_side_effects = ignore_side_effect_of_entry;
+
     let mut module = module;
     let mut export_name = export_name;
     loop {
@@ -164,12 +155,26 @@ pub async fn follow_reexports(
             }));
         };
 
+        if !ignore_side_effects
+            && !*module
+                .is_marked_as_side_effect_free(side_effect_free_packages)
+                .await?
+        {
+            // TODO It's unfortunate that we have to use the whole module here.
+            // This is often the Facade module, which includes all reexports.
+            // Often we could use Locals + the followed reexports instead.
+            return Ok(FollowExportsResult::cell(FollowExportsResult {
+                module,
+                export_name: Some(export_name),
+                ty: FoundExportType::SideEffects,
+            }));
+        }
+        ignore_side_effects = false;
+
         // Try to find the export in the local exports
         let exports_ref = exports.await?;
         if let Some(export) = exports_ref.exports.get(&export_name) {
-            match handle_declared_export(module, export_name, export, side_effect_free_packages)
-                .await?
-            {
+            match handle_declared_export(module, export_name, export).await? {
                 ControlFlow::Continue((m, n)) => {
                     module = m.to_resolved().await?;
                     export_name = n;
@@ -222,23 +227,12 @@ async fn handle_declared_export(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     export: &EsmExport,
-    side_effect_free_packages: Vc<Glob>,
 ) -> Result<ControlFlow<FollowExportsResult, (Vc<Box<dyn EcmascriptChunkPlaceable>>, RcStr)>> {
     match export {
         EsmExport::ImportedBinding(reference, name, _) => {
             if let ReferencedAsset::Some(module) =
                 *ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
             {
-                if !*module
-                    .is_marked_as_side_effect_free(side_effect_free_packages)
-                    .await?
-                {
-                    return Ok(ControlFlow::Break(FollowExportsResult {
-                        module,
-                        export_name: Some(name.clone()),
-                        ty: FoundExportType::SideEffects,
-                    }));
-                }
                 return Ok(ControlFlow::Continue((*module, name.clone())));
             }
         }
@@ -286,6 +280,7 @@ async fn find_export_from_reexports(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
 ) -> Result<Vc<FindExportFromReexportsResult>> {
+    // TODO why do we need a special case for this?
     if let Some(module) =
         Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(*module).await?
         && matches!(module.await?.part, ModulePart::Exports)
@@ -614,10 +609,10 @@ impl EsmExports {
 
         let mut getters = Vec::new();
         for (exported, local) in &expanded.exports {
-            let expr = match local {
-                EsmExport::Error => Some(quote!(
+            let exprs: SmallVec<[Expr; 1]> = match local {
+                EsmExport::Error => smallvec![quote!(
                     "(() => { throw new Error(\"Failed binding. See build errors!\"); })" as Expr,
-                )),
+                )],
                 EsmExport::LocalBinding(name, mutable) => {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
@@ -645,16 +640,20 @@ impl EsmExports {
                     });
 
                     if *mutable {
-                        Some(quote!(
-                            "([() => $local, ($new) => $local = $new])" as Expr,
-                            local = Ident::new(local.into(), DUMMY_SP, ctxt),
-                            new = Ident::new(format!("new_{name}").into(), DUMMY_SP, ctxt),
-                        ))
+                        let local = Ident::new(local.into(), DUMMY_SP, ctxt);
+                        smallvec![
+                            quote!("() => $local" as Expr, local = local.clone()),
+                            quote!(
+                                "($new) => $local = $new" as Expr,
+                                local = local,
+                                new = Ident::new(format!("new_{name}").into(), DUMMY_SP, ctxt),
+                            )
+                        ]
                     } else {
-                        Some(quote!(
-                            "(() => $local)" as Expr,
+                        smallvec![quote!(
+                            "() => $local" as Expr,
                             local = Ident::new((name as &str).into(), DUMMY_SP, ctxt)
-                        ))
+                        )]
                     }
                 }
                 EsmExport::ImportedBinding(esm_ref, name, mutable) => {
@@ -666,9 +665,13 @@ impl EsmExports {
                         .map(|ident| {
                             let expr = ident.as_expr_individual(DUMMY_SP);
                             if *mutable {
+                                smallvec![
                                 quote!(
-                                    "([() => $expr, ($new) => $lhs = $new])" as Expr,
+                                    "() => $expr" as Expr,
                                     expr: Expr = expr.clone().map_either(Expr::from, Expr::from).into_inner(),
+                                ),
+                                quote!(
+                                    "($new) => $lhs = $new" as Expr,
                                     lhs: AssignTarget = AssignTarget::Simple(
                                         expr.map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner()),
                                     new = Ident::new(
@@ -677,13 +680,14 @@ impl EsmExports {
                                         Default::default()
                                     ),
                                 )
+                                ]
                             } else {
-                                quote!(
+                                smallvec![quote!(
                                     "(() => $expr)" as Expr,
                                     expr: Expr = expr.map_either(Expr::from, Expr::from).into_inner()
-                                )
+                                )]
                             }
-                        })
+                        }).unwrap_or_default()
                 }
                 EsmExport::ImportedNamespace(esm_ref) => {
                     let referenced_asset =
@@ -692,27 +696,29 @@ impl EsmExports {
                         .get_ident(chunking_context, None, scope_hoisting_context)
                         .await?
                         .map(|ident| {
-                            quote!(
+                            smallvec![quote!(
                                 "(() => $imported)" as Expr,
                                 imported: Expr = ident.as_expr(DUMMY_SP, false)
-                            )
+                            )]
                         })
+                        .unwrap_or_default()
                 }
             };
-            if let Some(expr) = expr {
-                getters.push(PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                    key: PropName::Str(Str {
+            if !exprs.is_empty() {
+                getters.push(Some(
+                    Expr::Lit(swc_core::ecma::ast::Lit::Str(Str {
                         span: DUMMY_SP,
                         value: exported.as_str().into(),
                         raw: None,
-                    }),
-                    value: Box::new(expr),
-                }))));
+                    }))
+                    .into(),
+                ));
+                getters.extend(exprs.into_iter().map(|e| Some(ExprOrSpread::from(e))));
             }
         }
-        let getters = Expr::Object(ObjectLit {
+        let getters = Expr::Array(ArrayLit {
             span: DUMMY_SP,
-            props: getters,
+            elems: getters,
         });
         let dynamic_stmt = if !dynamic_exports.is_empty() {
             Some(Stmt::Expr(ExprStmt {

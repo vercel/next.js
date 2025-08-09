@@ -33,7 +33,10 @@ use turbopack_core::compile_time_info::{
 
 use self::imports::ImportAnnotations;
 pub(crate) use self::imports::ImportMap;
-use crate::{references::require_context::RequireContextMap, utils::StringifyJs};
+use crate::{
+    analyzer::graph::EvalContext, references::require_context::RequireContextMap,
+    utils::StringifyJs,
+};
 
 pub mod builtin;
 pub mod graph;
@@ -581,38 +584,73 @@ impl From<ConstantValue> for JsValue {
     }
 }
 
-impl From<&CompileTimeDefineValue> for JsValue {
-    fn from(v: &CompileTimeDefineValue) -> Self {
-        match v {
-            CompileTimeDefineValue::String(s) => JsValue::Constant(s.as_str().into()),
-            CompileTimeDefineValue::Bool(b) => JsValue::Constant((*b).into()),
-            CompileTimeDefineValue::JSON(_) => {
-                JsValue::unknown_empty(false, "compile time injected JSON")
+impl TryFrom<&CompileTimeDefineValue> for JsValue {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &CompileTimeDefineValue) -> Result<Self> {
+        match value {
+            CompileTimeDefineValue::Null => Ok(JsValue::Constant(ConstantValue::Null)),
+            CompileTimeDefineValue::Bool(b) => Ok(JsValue::Constant((*b).into())),
+            CompileTimeDefineValue::Number(n) => Ok(JsValue::Constant(ConstantValue::Num(
+                ConstantNumber(n.as_str().parse::<f64>()?),
+            ))),
+            CompileTimeDefineValue::String(s) => Ok(JsValue::Constant(s.as_str().into())),
+            CompileTimeDefineValue::Array(a) => {
+                let mut js_value = JsValue::Array {
+                    total_nodes: a.len() as u32,
+                    items: a.iter().map(|i| i.try_into()).collect::<Result<Vec<_>>>()?,
+                    mutable: false,
+                };
+                js_value.update_total_nodes();
+                Ok(js_value)
             }
-            CompileTimeDefineValue::Undefined => JsValue::Constant(ConstantValue::Undefined),
+            CompileTimeDefineValue::Object(m) => {
+                let mut js_value = JsValue::Object {
+                    total_nodes: m.len() as u32,
+                    parts: m
+                        .iter()
+                        .map(|(k, v)| {
+                            Ok::<ObjectPart, anyhow::Error>(ObjectPart::KeyValue(
+                                k.clone().into(),
+                                v.try_into()?,
+                            ))
+                        })
+                        .collect::<Result<Vec<_>>>()?,
+                    mutable: false,
+                };
+                js_value.update_total_nodes();
+                Ok(js_value)
+            }
+            CompileTimeDefineValue::Undefined => Ok(JsValue::Constant(ConstantValue::Undefined)),
+            CompileTimeDefineValue::Evaluate(s) => EvalContext::eval_single_expr_lit(s.clone()),
         }
     }
 }
 
-impl From<&FreeVarReference> for JsValue {
-    fn from(v: &FreeVarReference) -> Self {
-        match v {
-            FreeVarReference::Value(v) => v.into(),
+impl TryFrom<&FreeVarReference> for JsValue {
+    type Error = anyhow::Error;
+
+    fn try_from(value: &FreeVarReference) -> Result<Self> {
+        match value {
+            FreeVarReference::Value(v) => v.try_into(),
             FreeVarReference::Ident(_) => {
-                JsValue::unknown_empty(false, "compile time injected ident")
+                Ok(JsValue::unknown_empty(false, "compile time injected ident"))
             }
-            FreeVarReference::Member(_, _) => {
-                JsValue::unknown_empty(false, "compile time injected member")
-            }
-            FreeVarReference::EcmaScriptModule { .. } => {
-                JsValue::unknown_empty(false, "compile time injected free var module")
-            }
-            FreeVarReference::Error(_) => {
-                JsValue::unknown_empty(false, "compile time injected free var error")
-            }
+            FreeVarReference::Member(_, _) => Ok(JsValue::unknown_empty(
+                false,
+                "compile time injected member",
+            )),
+            FreeVarReference::EcmaScriptModule { .. } => Ok(JsValue::unknown_empty(
+                false,
+                "compile time injected free var module",
+            )),
+            FreeVarReference::Error(_) => Ok(JsValue::unknown_empty(
+                false,
+                "compile time injected free var error",
+            )),
             FreeVarReference::InputRelative(kind) => {
                 use turbopack_core::compile_time_info::InputRelativeConstant;
-                JsValue::unknown_empty(
+                Ok(JsValue::unknown_empty(
                     false,
                     match kind {
                         InputRelativeConstant::DirName => {
@@ -622,7 +660,7 @@ impl From<&FreeVarReference> for JsValue {
                             "compile time injected free var referencing the file name"
                         }
                     },
-                )
+                ))
             }
         }
     }
@@ -3960,8 +3998,8 @@ pub mod test_utils {
                 }
             }
             JsValue::FreeVar(ref var) => match &**var {
-                "__dirname" => "__dirname".into(),
-                "__filename" => "__filename".into(),
+                "__dirname" => rcstr!("__dirname").into(),
+                "__filename" => rcstr!("__filename").into(),
 
                 "require" => JsValue::unknown_if(
                     ignore,
@@ -4069,7 +4107,7 @@ mod tests {
                 m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
                 let eval_context = EvalContext::new(
-                    &m,
+                    Some(&m),
                     unresolved_mark,
                     top_level_mark,
                     Default::default(),

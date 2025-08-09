@@ -84,7 +84,7 @@ fn base_alloc() -> &'static impl GlobalAlloc {
         feature = "custom_allocator",
         not(any(target_family = "wasm", target_env = "musl"))
     ))]
-    return &mimalloc::MiMalloc;
+    return &mimalloc_rspack::MiMalloc;
     #[cfg(any(
         not(feature = "custom_allocator"),
         any(target_family = "wasm", target_env = "musl")
@@ -92,32 +92,53 @@ fn base_alloc() -> &'static impl GlobalAlloc {
     return &std::alloc::System;
 }
 
+#[allow(unused_variables)]
+unsafe fn base_alloc_size(ptr: *const u8, layout: Layout) -> usize {
+    #[cfg(all(
+        feature = "custom_allocator",
+        not(any(target_family = "wasm", target_env = "musl"))
+    ))]
+    return unsafe { mimalloc_rspack::MiMalloc.usable_size(ptr) };
+    #[cfg(any(
+        not(feature = "custom_allocator"),
+        any(target_family = "wasm", target_env = "musl")
+    ))]
+    return layout.size();
+}
+
 unsafe impl GlobalAlloc for TurboMalloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let ret = unsafe { base_alloc().alloc(layout) };
         if !ret.is_null() {
-            add(layout.size());
+            let size = unsafe { base_alloc_size(ret, layout) };
+            add(size);
         }
         ret
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        let size = unsafe { base_alloc_size(ptr, layout) };
         unsafe { base_alloc().dealloc(ptr, layout) };
-        remove(layout.size());
+        remove(size);
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
         let ret = unsafe { base_alloc().alloc_zeroed(layout) };
         if !ret.is_null() {
-            add(layout.size());
+            let size = unsafe { base_alloc_size(ret, layout) };
+            add(size);
         }
         ret
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
+        let old_size = unsafe { base_alloc_size(ptr, layout) };
         let ret = unsafe { base_alloc().realloc(ptr, layout, new_size) };
         if !ret.is_null() {
-            let old_size = layout.size();
+            // SAFETY: the caller must ensure that the `new_size` does not overflow.
+            // `layout.align()` comes from a `Layout` and is thus guaranteed to be valid.
+            let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };
+            let new_size = unsafe { base_alloc_size(ret, new_layout) };
             update(old_size, new_size);
         }
         ret

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { useUpdateAnimation } from './hooks/use-update-animation'
 import { useMeasureWidth } from './hooks/use-measure-width'
 import { useMinimumLoadingTimeMultiple } from './hooks/use-minimum-loading-time-multiple'
@@ -28,6 +28,12 @@ export function NextLogo({
 
   const hasError = totalErrorCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
+  const [previousHasError, setPreviousHasError] = useState(hasError)
+  if (previousHasError !== hasError) {
+    setPreviousHasError(hasError)
+    // Reset the expanded state when the error state changes
+    setIsErrorExpanded(hasError)
+  }
   const [dismissed, setDismissed] = useState(false)
   const newErrorDetected = useUpdateAnimation(
     totalErrorCount,
@@ -42,10 +48,6 @@ export function NextLogo({
   )
   const isExpanded = isErrorExpanded || state.disableDevIndicator
   const width = measuredWidth === 0 ? 'auto' : measuredWidth
-
-  useEffect(() => {
-    setIsErrorExpanded(hasError)
-  }, [hasError])
 
   return (
     <div

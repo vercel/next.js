@@ -268,8 +268,7 @@ export function getServerUtils({
           // is currently on, which wouldn't be extractable from the matched route params.
           // This attempts to extract the dynamic params from the provided router state.
           if (isInterceptionRouteRewrite(rewrite as Rewrite)) {
-            const stateHeader =
-              req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
+            const stateHeader = req.headers[NEXT_ROUTER_STATE_TREE_HEADER]
 
             if (stateHeader) {
               params = {

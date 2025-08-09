@@ -29,14 +29,14 @@ describe('Client Navigation', () => {
       })
       await browser.elementByCss('#empty-props').click()
       await expect(browser).toDisplayRedbox(`
-         {
-           "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": null,
-           "stack": [],
-         }
-        `)
+       {
+         "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
       expect(pageErrors).toEqual([
         expect.objectContaining({
           message:
@@ -353,11 +353,11 @@ describe('Client Navigation', () => {
              "description": "An Expected error occurred",
              "environmentLabel": null,
              "label": "Runtime Error",
-             "source": "pages/error-in-the-browser-global-scope.js (2:9) @ [project]/pages/error-in-the-browser-global-scope.js [client] (ecmascript)
+             "source": "pages/error-in-the-browser-global-scope.js (2:9) @ {module evaluation}
            > 2 |   throw new Error('An Expected error occurred')
                |         ^",
              "stack": [
-               "[project]/pages/error-in-the-browser-global-scope.js [client] (ecmascript) pages/error-in-the-browser-global-scope.js (2:9)",
+               "{module evaluation} pages/error-in-the-browser-global-scope.js (2:9)",
              ],
            }
           `)

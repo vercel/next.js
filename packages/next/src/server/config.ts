@@ -711,17 +711,12 @@ function assignDefaults(
   }
 
   // use the highest level lockfile as tracing root
-  if (!result?.outputFileTracingRoot || !result?.turbopack?.root) {
+  if (!result?.outputFileTracingRoot && !result?.turbopack?.root) {
     let rootDir = findRootDir(dir)
 
     if (rootDir) {
-      if (!result?.outputFileTracingRoot) {
-        result.outputFileTracingRoot = rootDir
-      }
-
-      if (!result?.turbopack?.root) {
-        dset(result, ['turbopack', 'root'], rootDir)
-      }
+      result.outputFileTracingRoot = rootDir
+      dset(result, ['turbopack', 'root'], rootDir)
     }
   }
 
@@ -946,18 +941,6 @@ function assignDefaults(
         defaultCacheLifeProfile.expire =
           result.expireTime ?? defaultDefault.expire
       }
-    }
-    // This is the most dynamic cache life profile.
-    const secondsCacheLifeProfile = result.experimental.cacheLife['seconds']
-    if (
-      secondsCacheLifeProfile &&
-      secondsCacheLifeProfile.stale === undefined
-    ) {
-      // We default this to whatever stale time you had configured for dynamic content.
-      // Since this is basically a dynamic cache life profile.
-      const dynamicStaleTime = result.experimental.staleTimes?.dynamic
-      secondsCacheLifeProfile.stale =
-        dynamicStaleTime ?? defaultConfig.experimental?.staleTimes?.dynamic
     }
   }
 
@@ -1714,6 +1697,25 @@ function enforceExperimentalFeatures(
       addConfiguredExperimentalFeature(
         configuredExperimentalFeatures,
         'clientSegmentCache',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made Client Param Parsing the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.clientParamParsing === undefined ||
+      (isDefaultConfig && !config.experimental.clientParamParsing))
+  ) {
+    config.experimental.clientParamParsing = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'clientParamParsing',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_PPR`'
       )

@@ -51,7 +51,7 @@ export function usePersistentCacheErrorDetection({
   errors,
   dispatch,
 }: {
-  errors: SupportedErrorEvent[]
+  errors: readonly SupportedErrorEvent[]
   dispatch: OverlayDispatch
 }) {
   useEffect(() => {

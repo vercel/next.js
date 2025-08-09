@@ -253,10 +253,13 @@ impl Tokens {
 
 fn build_alternates(re: &mut String, patterns: &Vec<Tokens>, branch_fn: fn(&[Token], &mut String)) {
     let mut parts = Vec::with_capacity(patterns.len());
+    let mut has_empty_part = false;
     for pat in patterns {
         let mut altre = String::new();
         branch_fn(pat, &mut altre);
-        if !altre.is_empty() {
+        if altre.is_empty() {
+            has_empty_part = true;
+        } else {
             parts.push(altre);
         }
     }
@@ -265,6 +268,9 @@ fn build_alternates(re: &mut String, patterns: &Vec<Tokens>, branch_fn: fn(&[Tok
     // resulting alternation '()' would be an error.
     if !parts.is_empty() {
         re.push_str("(?:");
+        if has_empty_part {
+            re.push('|');
+        }
         re.push_str(&parts.join("|"));
         re.push(')');
     }

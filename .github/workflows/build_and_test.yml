@@ -52,8 +52,10 @@ jobs:
       is-release: ${{ steps.is-release.outputs.IS_RELEASE == 'true' }}
       rspack: >-
         ${{
-          github.event_name == 'pull_request' &&
-          contains(github.event.pull_request.labels.*.name, 'Rspack')
+          steps.is-release.outputs.IS_RELEASE == 'true' || (
+            github.event_name == 'pull_request' &&
+            contains(github.event.pull_request.labels.*.name, 'Rspack')
+          )
         }}
 
   build-native:

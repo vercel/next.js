@@ -3,7 +3,7 @@ import { useMemo, useState, useRef } from 'react'
 import { CallStack } from '../../call-stack/call-stack'
 
 interface CallStackProps {
-  frames: OriginalStackFrame[]
+  frames: readonly OriginalStackFrame[]
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 

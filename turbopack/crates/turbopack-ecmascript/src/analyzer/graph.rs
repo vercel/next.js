@@ -4,10 +4,15 @@ use std::{
     sync::Arc,
 };
 
+use anyhow::{Ok, Result};
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
-    common::{GLOBALS, Mark, Span, Spanned, SyntaxContext, comments::Comments, pass::AstNodePath},
+    base::try_with_handler,
+    common::{
+        GLOBALS, Mark, SourceMap, Span, Spanned, SyntaxContext, comments::Comments,
+        pass::AstNodePath, sync::Lrc,
+    },
     ecma::{
         ast::*,
         atoms::atom,
@@ -26,6 +31,7 @@ use super::{
 use crate::{
     SpecifiedModuleType,
     analyzer::{WellKnownObjectKind, is_unresolved},
+    references::constant_value::parse_single_expr_lit,
     utils::{AstPathRange, unparen},
 };
 
@@ -311,7 +317,7 @@ impl EvalContext {
     /// webpackIgnore or turbopackIgnore comments, you must pass those in,
     /// since the AST does not include comments by default.
     pub fn new(
-        module: &Program,
+        module: Option<&Program>,
         unresolved_mark: Mark,
         top_level_mark: Mark,
         force_free_values: Arc<FxHashSet<Id>>,
@@ -321,7 +327,9 @@ impl EvalContext {
         Self {
             unresolved_mark,
             top_level_mark,
-            imports: ImportMap::analyze(module, source, comments),
+            imports: module.map_or(ImportMap::default(), |m| {
+                ImportMap::analyze(m, source, comments)
+            }),
             force_free_values,
         }
     }
@@ -622,7 +630,6 @@ impl EvalContext {
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(callee) {
                     let obj = Box::new(self.eval(obj));
                     let prop = Box::new(match prop {
-                        // TODO avoid clone
                         MemberProp::Ident(i) => i.sym.clone().into(),
                         MemberProp::PrivateName(_) => {
                             return JsValue::unknown_empty(
@@ -719,6 +726,29 @@ impl EvalContext {
 
             _ => JsValue::unknown_empty(true, "unsupported expression"),
         }
+    }
+
+    pub fn eval_single_expr_lit(expr_lit: RcStr) -> Result<JsValue> {
+        let cm = Lrc::new(SourceMap::default());
+
+        let js_value = try_with_handler(cm, Default::default(), |_| {
+            GLOBALS.set(&Default::default(), || {
+                let expr = parse_single_expr_lit(expr_lit);
+                let eval_context = EvalContext::new(
+                    None,
+                    Mark::new(),
+                    Mark::new(),
+                    Default::default(),
+                    None,
+                    None,
+                );
+
+                Ok(eval_context.eval(&expr))
+            })
+        })
+        .map_err(|e| e.to_pretty_error())?;
+
+        Ok(js_value)
     }
 }
 
@@ -942,7 +972,7 @@ impl Analyzer<'_> {
 
                         // We cannot analyze recursive IIFE
                         if let Some(ident) = ident
-                            && contains_ident_ref(&function.body, &ident.to_id())
+                            && contains_ident_ref(&function.body, ident)
                         {
                             return false;
                         }
@@ -1714,6 +1744,42 @@ impl VisitAstPath for Analyzer<'_> {
         }
     }
 
+    fn visit_for_in_stmt<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast ForInStmt,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::ForInStmt(n, ForInStmtField::Right));
+            n.right.visit_with_ast_path(self, &mut ast_path);
+        }
+
+        {
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::ForInStmt(n, ForInStmtField::Left));
+            self.with_pat_value(
+                // TODO this should really be
+                // `Some(JsValue::iteratedKeys(Box::new(self.eval_context.eval(&n.right))))`
+                Some(JsValue::unknown_empty(
+                    false,
+                    "for-in variable currently not analyzed",
+                )),
+                |this| {
+                    n.left.visit_with_ast_path(this, &mut ast_path);
+                },
+            )
+        }
+
+        let mut ast_path =
+            ast_path.with_guard(AstParentNodeRef::ForInStmt(n, ForInStmtField::Body));
+
+        let prev_early_return_stack = take(&mut self.early_return_stack);
+        n.body.visit_with_ast_path(self, &mut ast_path);
+        self.end_early_return_block();
+        self.early_return_stack = prev_early_return_stack;
+    }
+
     fn visit_for_of_stmt<'ast: 'r, 'r>(
         &mut self,
         n: &'ast ForOfStmt,
@@ -1722,21 +1788,58 @@ impl VisitAstPath for Analyzer<'_> {
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::ForOfStmt(n, ForOfStmtField::Right));
-            self.visit_expr(&n.right, &mut ast_path);
+            n.right.visit_with_ast_path(self, &mut ast_path);
         }
 
-        let array = self.eval_context.eval(&n.right);
+        let iterable = self.eval_context.eval(&n.right);
 
-        self.with_pat_value(Some(JsValue::iterated(Box::new(array))), |this| {
+        // TODO n.await is ignored (async interables)
+        self.with_pat_value(Some(JsValue::iterated(Box::new(iterable))), |this| {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::ForOfStmt(n, ForOfStmtField::Left));
-            this.visit_for_head(&n.left, &mut ast_path);
+            n.left.visit_with_ast_path(this, &mut ast_path);
         });
 
         let mut ast_path =
             ast_path.with_guard(AstParentNodeRef::ForOfStmt(n, ForOfStmtField::Body));
 
-        self.visit_stmt(&n.body, &mut ast_path);
+        let prev_early_return_stack = take(&mut self.early_return_stack);
+        n.body.visit_with_ast_path(self, &mut ast_path);
+        self.end_early_return_block();
+        self.early_return_stack = prev_early_return_stack;
+    }
+
+    fn visit_for_stmt<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast ForStmt,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        let prev_early_return_stack = take(&mut self.early_return_stack);
+        n.visit_children_with_ast_path(self, ast_path);
+        self.end_early_return_block();
+        self.early_return_stack = prev_early_return_stack;
+    }
+
+    fn visit_while_stmt<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast WhileStmt,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        let prev_early_return_stack = take(&mut self.early_return_stack);
+        n.visit_children_with_ast_path(self, ast_path);
+        self.end_early_return_block();
+        self.early_return_stack = prev_early_return_stack;
+    }
+
+    fn visit_do_while_stmt<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast DoWhileStmt,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        let prev_early_return_stack = take(&mut self.early_return_stack);
+        n.visit_children_with_ast_path(self, ast_path);
+        self.end_early_return_block();
+        self.early_return_stack = prev_early_return_stack;
     }
 
     fn visit_simple_assign_target<'ast: 'r, 'r>(

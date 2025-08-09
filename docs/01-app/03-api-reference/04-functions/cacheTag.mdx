@@ -40,7 +40,7 @@ const nextConfig = {
 export default nextConfig
 ```
 
-The `cacheTag` function takes a single string value, or a string array.
+The `cacheTag` function takes one or more string values.
 
 ```tsx filename="app/data.ts" switcher
 import { unstable_cacheTag as cacheTag } from 'next/cache'
@@ -91,7 +91,7 @@ export default async function submit() {
 ## Good to know
 
 - **Idempotent Tags**: Applying the same tag multiple times has no additional effect.
-- **Multiple Tags**: You can assign multiple tags to a single cache entry by passing an array to `cacheTag`.
+- **Multiple Tags**: You can assign multiple tags to a single cache entry by passing multiple string values to `cacheTag`.
 
 ```tsx
 cacheTag('tag-one', 'tag-two')

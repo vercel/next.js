@@ -72,5 +72,5 @@ remove_console = { workspace = true }
 preset_env_base = { workspace = true }
 
 [dev-dependencies]
-swc_core = { workspace = true, features = ["testing_transform"] }
+swc_core = { workspace = true, features = ["testing_transform", "plugin_backend_wasmer"] }
 testing = { workspace = true }

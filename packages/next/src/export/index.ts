@@ -404,6 +404,7 @@ async function exportAppImpl(
         nextConfig.experimental.clientSegmentCache === 'client-only'
           ? 'client-only'
           : Boolean(nextConfig.experimental.clientSegmentCache),
+      clientParamParsing: nextConfig.experimental.clientParamParsing ?? false,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
@@ -762,6 +763,10 @@ async function exportAppImpl(
   if (!options.buildExport && prerenderManifest) {
     await Promise.all(
       Object.keys(prerenderManifest.routes).map(async (unnormalizedRoute) => {
+        // Skip handling /_not-found route, it will copy the 404.html file later
+        if (unnormalizedRoute === '/_not-found') {
+          return
+        }
         const { srcRoute } = prerenderManifest!.routes[unnormalizedRoute]
         const appPageName = mapAppRouteToPage.get(srcRoute || '')
         const pageName = appPageName || srcRoute || unnormalizedRoute

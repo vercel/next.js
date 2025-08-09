@@ -358,6 +358,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         clientSegmentCache: z
           .union([z.boolean(), z.literal('client-only')])
           .optional(),
+        clientParamParsing: z.boolean().optional(),
         dynamicOnHover: z.boolean().optional(),
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),

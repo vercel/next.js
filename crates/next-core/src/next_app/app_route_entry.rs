@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::ModuleAssetContext;
@@ -57,36 +57,33 @@ pub async fn get_app_route_entry(
 
     let path = source.ident().path().owned().await?;
 
-    const INNER: &str = "INNER_APP_ROUTE";
+    let inner = rcstr!("INNER_APP_ROUTE");
 
-    let output_type: RcStr = next_config
+    let output_type: &str = next_config
         .await?
         .output
         .as_ref()
         .map(|o| match o {
-            OutputType::Standalone => "\"standalone\"".to_string(),
-            OutputType::Export => "\"export\"".to_string(),
+            OutputType::Standalone => "\"standalone\"",
+            OutputType::Export => "\"export\"",
         })
-        .map(RcStr::from)
-        .unwrap_or_else(|| "\"\"".into());
+        .unwrap_or("\"\"");
 
     // Load the file from the next.js codebase.
     let virtual_source = load_next_js_template(
         "app-route.js",
         project_root.clone(),
-        fxindexmap! {
-            "VAR_DEFINITION_PAGE" => page.to_string().into(),
-            "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            "VAR_DEFINITION_FILENAME" => path.file_stem().unwrap().into(),
+        &[
+            ("VAR_DEFINITION_PAGE", &*page.to_string()),
+            ("VAR_DEFINITION_PATHNAME", &pathname),
+            ("VAR_DEFINITION_FILENAME", path.file_stem().unwrap()),
             // TODO(alexkirsz) Is this necessary?
-            "VAR_DEFINITION_BUNDLE_PATH" => "".to_string().into(),
-            "VAR_RESOLVED_PAGE_PATH" => path.value_to_string().owned().await?,
-            "VAR_USERLAND" => INNER.into(),
-        },
-        fxindexmap! {
-            "nextConfigOutput" => output_type
-        },
-        fxindexmap! {},
+            ("VAR_DEFINITION_BUNDLE_PATH", ""),
+            ("VAR_RESOLVED_PAGE_PATH", &path.value_to_string().await?),
+            ("VAR_USERLAND", &inner),
+        ],
+        &[("nextConfigOutput", output_type)],
+        &[],
     )
     .await?;
 
@@ -100,7 +97,7 @@ pub async fn get_app_route_entry(
         .await?;
 
     let inner_assets = fxindexmap! {
-        INNER.into() => userland_module
+        inner => userland_module
     };
 
     let mut rsc_entry = module_asset_context
@@ -137,26 +134,21 @@ async fn wrap_edge_route(
     page: AppPage,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    const INNER: &str = "INNER_ROUTE_ENTRY";
+    let inner = rcstr!("INNER_ROUTE_ENTRY");
 
     let next_config = &*next_config.await?;
 
     let source = load_next_js_template(
         "edge-app-route.js",
         project_root.clone(),
-        fxindexmap! {
-            "VAR_USERLAND" => INNER.into(),
-            "VAR_PAGE" => page.to_string().into(),
-        },
-        fxindexmap! {
-            "nextConfig" => serde_json::to_string(next_config)?.into(),
-        },
-        fxindexmap! {},
+        &[("VAR_USERLAND", &*inner), ("VAR_PAGE", &page.to_string())],
+        &[("nextConfig", &*serde_json::to_string(next_config)?)],
+        &[],
     )
     .await?;
 
     let inner_assets = fxindexmap! {
-        INNER.into() => entry
+        inner => entry
     };
 
     let wrapped = asset_context

@@ -26,7 +26,7 @@ describe('rsc-redirect', () => {
       {
         redirect: 'manual',
         headers: {
-          RSC: '1',
+          rsc: '1',
         },
       }
     )

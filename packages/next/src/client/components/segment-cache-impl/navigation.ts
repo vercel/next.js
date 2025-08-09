@@ -274,7 +274,7 @@ function readRenderSnapshotFromCache(
   let loading: LoadingModuleData | Promise<LoadingModuleData> = null
   let isPartial: boolean = true
 
-  const segmentEntry = readSegmentCacheEntry(now, route, tree.key)
+  const segmentEntry = readSegmentCacheEntry(now, route, tree.cacheKey)
   if (segmentEntry !== null) {
     switch (segmentEntry.status) {
       case EntryStatus.Fulfilled: {

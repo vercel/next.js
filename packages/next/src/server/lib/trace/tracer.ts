@@ -56,6 +56,7 @@ const closeSpanWithError = (span: Span, error?: Error) => {
   } else {
     if (error) {
       span.recordException(error)
+      span.setAttribute('error.type', error.name)
     }
     span.setStatus({ code: SpanStatusCode.ERROR, message: error?.message })
   }

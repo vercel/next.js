@@ -39,7 +39,7 @@ use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use swc_core::{
-    atoms::Atom,
+    atoms::{Atom, atom},
     common::{
         GLOBALS, Globals, Span, Spanned,
         comments::{CommentKind, Comments},
@@ -171,7 +171,6 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub esm_references: ResolvedVc<EsmAssetReferences>,
     pub esm_local_references: ResolvedVc<EsmAssetReferences>,
     pub esm_reexport_references: ResolvedVc<EsmAssetReferences>,
-    pub esm_evaluation_references: ResolvedVc<EsmAssetReferences>,
 
     pub code_generation: ResolvedVc<CodeGens>,
     pub exports: ResolvedVc<EcmascriptExports>,
@@ -217,7 +216,6 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     esm_references: FxHashSet<usize>,
     esm_local_references: FxHashSet<usize>,
     esm_reexport_references: FxHashSet<usize>,
-    esm_evaluation_references: FxHashSet<usize>,
 
     esm_references_free_var: FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>,
     // Ad-hoc created import references that are resolved `import * as x from ...; x.foo` accesses
@@ -239,7 +237,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             esm_references: Default::default(),
             esm_local_references: Default::default(),
             esm_reexport_references: Default::default(),
-            esm_evaluation_references: Default::default(),
             esm_references_rewritten: Default::default(),
             esm_references_free_var: Default::default(),
             code_gens: Default::default(),
@@ -282,7 +279,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     pub fn add_esm_evaluation_reference(&mut self, idx: usize) {
         self.esm_references.insert(idx);
         self.esm_local_references.insert(idx);
-        self.esm_evaluation_references.insert(idx);
     }
 
     /// Adds a codegen to the analysis result.
@@ -369,8 +365,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         });
         let mut esm_reexport_references = track_reexport_references
             .then(|| Vec::with_capacity(self.esm_reexport_references.len()));
-        let mut esm_evaluation_references = track_reexport_references
-            .then(|| Vec::with_capacity(self.esm_evaluation_references.len()));
         for (i, reference) in import_references.iter().enumerate() {
             if self.esm_references.contains(&i) {
                 esm_references.push(*reference);
@@ -392,11 +386,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                         .flat_map(|m| m.values().copied()),
                 );
             }
-            if let Some(esm_evaluation_references) = &mut esm_evaluation_references
-                && self.esm_evaluation_references.contains(&i)
-            {
-                esm_evaluation_references.push(*reference);
-            }
             if let Some(esm_reexport_references) = &mut esm_reexport_references
                 && self.esm_reexport_references.contains(&i)
             {
@@ -414,9 +403,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 esm_local_references: ResolvedVc::cell(esm_local_references.unwrap_or_default()),
                 esm_reexport_references: ResolvedVc::cell(
                     esm_reexport_references.unwrap_or_default(),
-                ),
-                esm_evaluation_references: ResolvedVc::cell(
-                    esm_evaluation_references.unwrap_or_default(),
                 ),
                 code_generation: ResolvedVc::cell(self.code_gens),
                 exports: self.exports.resolved_cell(),
@@ -1469,7 +1455,7 @@ async fn compile_time_info_for_module_type(
             DefinableNameSegment::Name(rcstr!("meta")),
             DefinableNameSegment::TypeOf,
         ])
-        .or_insert("object".into());
+        .or_insert(rcstr!("object").into());
     free_var_references
         .entry(vec![
             DefinableNameSegment::Name(rcstr!("exports")),
@@ -1487,31 +1473,31 @@ async fn compile_time_info_for_module_type(
             DefinableNameSegment::Name(rcstr!("require")),
             DefinableNameSegment::TypeOf,
         ])
-        .or_insert("function".into());
+        .or_insert(rcstr!("function").into());
     free_var_references
         .entry(vec![DefinableNameSegment::Name(rcstr!("require"))])
         .or_insert(require.into());
 
-    let dir_name: RcStr = rcstr!("__dirname");
+    let dir_name = rcstr!("__dirname");
     free_var_references
         .entry(vec![
             DefinableNameSegment::Name(dir_name.clone()),
             DefinableNameSegment::TypeOf,
         ])
-        .or_insert("string".into());
+        .or_insert(rcstr!("string").into());
     free_var_references
         .entry(vec![DefinableNameSegment::Name(dir_name)])
         .or_insert(FreeVarReference::InputRelative(
             InputRelativeConstant::DirName,
         ));
-    let file_name: RcStr = rcstr!("__filename");
+    let file_name = rcstr!("__filename");
 
     free_var_references
         .entry(vec![
             DefinableNameSegment::Name(file_name.clone()),
             DefinableNameSegment::TypeOf,
         ])
-        .or_insert("string".into());
+        .or_insert(rcstr!("string").into());
     free_var_references
         .entry(vec![DefinableNameSegment::Name(file_name)])
         .or_insert(FreeVarReference::InputRelative(
@@ -1519,16 +1505,16 @@ async fn compile_time_info_for_module_type(
         ));
 
     // Compiletime rewrite the nodejs `global` to `globalThis`
-    let global: RcStr = rcstr!("global");
+    let global = rcstr!("global");
     free_var_references
         .entry(vec![
             DefinableNameSegment::Name(global.clone()),
             DefinableNameSegment::TypeOf,
         ])
-        .or_insert("object".into());
+        .or_insert(rcstr!("object").into());
     free_var_references
         .entry(vec![DefinableNameSegment::Name(global)])
-        .or_insert(FreeVarReference::Ident("globalThis".into()));
+        .or_insert(FreeVarReference::Ident(rcstr!("globalThis")));
 
     free_var_references.extend(TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS.into_iter().map(
         |(name, shortcut)| {
@@ -1558,9 +1544,9 @@ async fn compile_time_info_for_module_type(
             DefinableNameSegment::TypeOf,
         ])
         .or_insert(if is_esm {
-            "undefined".into()
+            rcstr!("undefined").into()
         } else {
-            "object".into()
+            rcstr!("object").into()
         });
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
@@ -2268,7 +2254,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                                 WellKnownFunctionKind::PathJoin,
                                             )),
                                             vec![
-                                                JsValue::FreeVar("__dirname".into()),
+                                                JsValue::FreeVar(atom!("__dirname")),
                                                 pkg_or_dir.clone(),
                                             ],
                                         ),
@@ -2328,9 +2314,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                     WellKnownFunctionKind::PathJoin,
                                 )),
                                 vec![
-                                    JsValue::FreeVar("__dirname".into()),
+                                    JsValue::FreeVar(atom!("__dirname")),
                                     p.into(),
-                                    "intl".into(),
+                                    atom!("intl").into(),
                                 ],
                             ),
                             ImportAttributes::empty_ref(),
@@ -2906,11 +2892,11 @@ async fn value_visitor_inner(
                 &DefinableNameSegment::TypeOf,
             )
         {
-            return Ok(((&*value.await?).into(), true));
+            return Ok(((&*value.await?).try_into()?, true));
         }
 
         if let Some(value) = v.match_define(&*compile_time_info.defines.individual().await?) {
-            return Ok(((&*value.await?).into(), true));
+            return Ok(((&*value.await?).try_into()?, true));
         }
     }
     let value = match v {
@@ -3039,9 +3025,15 @@ async fn require_resolve_visitor(
     Ok(if args.len() == 1 {
         let pat = js_value_to_pattern(&args[0]);
         let request = Request::parse(pat.clone());
-        let resolved = cjs_resolve_source(origin, request, None, true)
-            .resolve()
-            .await?;
+        let resolved = cjs_resolve_source(
+            origin,
+            request,
+            CommonJsReferenceSubType::Undefined,
+            None,
+            true,
+        )
+        .resolve()
+        .await?;
         let mut values = resolved
             .primary_sources()
             .await?
@@ -3567,7 +3559,7 @@ impl From<Vec<AstParentKind>> for AstPath {
     }
 }
 
-pub static TURBOPACK_HELPER: Lazy<Atom> = Lazy::new(|| "__turbopack-helper__".into());
+pub static TURBOPACK_HELPER: Lazy<Atom> = Lazy::new(|| atom!("__turbopack-helper__"));
 
 pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
     let annotations = ImportAnnotations::parse(import.with.as_deref());

@@ -57,7 +57,7 @@ pub fn benchmark(c: &mut Criterion) {
                 program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
                 let eval_context = EvalContext::new(
-                    &program,
+                    Some(&program),
                     unresolved_mark,
                     top_level_mark,
                     Default::default(),

@@ -31,6 +31,7 @@ use turbopack_core::{
     module::Module,
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
+    reference_type::CommonJsReferenceSubType,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
     source::Source,
 };
@@ -196,9 +197,15 @@ impl RequireContextMap {
             let request = Request::parse(origin_relative.clone().into())
                 .to_resolved()
                 .await?;
-            let result = cjs_resolve(origin, *request, issue_source, is_optional)
-                .to_resolved()
-                .await?;
+            let result = cjs_resolve(
+                origin,
+                *request,
+                CommonJsReferenceSubType::Undefined,
+                issue_source,
+                is_optional,
+            )
+            .to_resolved()
+            .await?;
 
             map.insert(
                 context_relative.clone(),
