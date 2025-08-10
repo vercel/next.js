@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { ErrorOverlayCallStack } from './error-overlay-call-stack'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
-import { withDevOverlayContexts } from '../../../storybook/with-dev-overlay-contexts'
 
 const meta: Meta<typeof ErrorOverlayCallStack> = {
   component: ErrorOverlayCallStack,
@@ -23,7 +22,7 @@ const meta: Meta<typeof ErrorOverlayCallStack> = {
       },
     },
   },
-  decorators: [withShadowPortal, withDevOverlayContexts()],
+  decorators: [withShadowPortal],
 }
 
 export default meta

@@ -11,7 +11,7 @@ const meta: Meta<typeof NextLogo> = {
   args: {
     onTriggerClick: () => {},
   },
-  decorators: [withShadowPortal, withDevOverlayContexts()],
+  decorators: [withShadowPortal],
 }
 
 export default meta

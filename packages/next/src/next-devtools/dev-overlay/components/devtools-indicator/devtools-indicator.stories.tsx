@@ -12,7 +12,6 @@ const meta: Meta<typeof DevToolsIndicator> = {
   argTypes: {},
   decorators: [
     withShadowPortal,
-    withDevOverlayContexts(),
     // Test for high z-index
     (Story) => (
       <div
@@ -39,9 +38,7 @@ const meta: Meta<typeof DevToolsIndicator> = {
 export default meta
 type Story = StoryObj<typeof DevToolsIndicator>
 
-export const Default: Story = {
-  decorators: [withDevOverlayContexts()],
-}
+export const Default: Story = {}
 
 export const SingleError: Story = {
   decorators: [

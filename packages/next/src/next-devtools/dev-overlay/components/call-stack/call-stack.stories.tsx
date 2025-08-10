@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { CallStack } from './call-stack'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
-import { withDevOverlayContexts } from '../../storybook/with-dev-overlay-contexts'
 
 const meta: Meta<typeof CallStack> = {
   component: CallStack,
@@ -23,7 +22,7 @@ const meta: Meta<typeof CallStack> = {
       },
     },
   },
-  decorators: [withShadowPortal, withDevOverlayContexts()],
+  decorators: [withShadowPortal],
 }
 
 export default meta

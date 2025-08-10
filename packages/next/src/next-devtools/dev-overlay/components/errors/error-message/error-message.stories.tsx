@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { ErrorMessage } from './error-message'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
-import { withDevOverlayContexts } from '../../../storybook/with-dev-overlay-contexts'
 
 const meta: Meta<typeof ErrorMessage> = {
   component: ErrorMessage,
@@ -23,7 +22,7 @@ const meta: Meta<typeof ErrorMessage> = {
       },
     },
   },
-  decorators: [withShadowPortal, withDevOverlayContexts()],
+  decorators: [withShadowPortal],
 }
 
 export default meta

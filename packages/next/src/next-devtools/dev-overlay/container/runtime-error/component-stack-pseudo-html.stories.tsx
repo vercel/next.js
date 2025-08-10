@@ -1,14 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { PseudoHtmlDiff } from './component-stack-pseudo-html'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
-import { withDevOverlayContexts } from '../../storybook/with-dev-overlay-contexts'
 
 const meta: Meta<typeof PseudoHtmlDiff> = {
   component: PseudoHtmlDiff,
   parameters: {
     layout: 'fullscreen',
   },
-  decorators: [withShadowPortal, withDevOverlayContexts()],
+  decorators: [withShadowPortal],
 }
 
 export default meta

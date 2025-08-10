@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { ErrorOverlayPagination } from './error-overlay-pagination'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
-import { withDevOverlayContexts } from '../../../storybook/with-dev-overlay-contexts'
 import { useState } from 'react'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 
@@ -10,7 +9,7 @@ const meta: Meta<typeof ErrorOverlayPagination> = {
   parameters: {
     layout: 'centered',
   },
-  decorators: [withShadowPortal, withDevOverlayContexts()],
+  decorators: [withShadowPortal],
 }
 
 export default meta

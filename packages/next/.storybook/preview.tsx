@@ -1,5 +1,6 @@
 import type { Preview } from '@storybook/react'
 import { useInsertionEffect } from 'react'
+import { withDevOverlayContexts } from '../src/next-devtools/dev-overlay/storybook/with-dev-overlay-contexts'
 
 function CreatePortalNode() {
   useInsertionEffect(() => {
@@ -63,6 +64,7 @@ const preview: Preview = {
     },
   },
   decorators: [
+    withDevOverlayContexts(),
     (Story) => (
       <>
         <CreatePortalNode />

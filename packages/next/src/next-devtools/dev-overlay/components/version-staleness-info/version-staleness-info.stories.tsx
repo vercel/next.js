@@ -1,14 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { VersionStalenessInfo } from './version-staleness-info'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
-import { withDevOverlayContexts } from '../../storybook/with-dev-overlay-contexts'
 
 const meta: Meta<typeof VersionStalenessInfo> = {
   component: VersionStalenessInfo,
   parameters: {
     layout: 'centered',
   },
-  decorators: [withShadowPortal, withDevOverlayContexts()],
+  decorators: [withShadowPortal],
 }
 
 export default meta
