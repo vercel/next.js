@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { DevToolsIndicator } from './devtools-indicator'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
 import { withDevOverlayContexts } from '../../storybook/with-dev-overlay-contexts'
+import { INITIAL_OVERLAY_STATE, type OverlayState } from '../../shared'
 
 const meta: Meta<typeof DevToolsIndicator> = {
   component: DevToolsIndicator,
@@ -34,6 +35,11 @@ const meta: Meta<typeof DevToolsIndicator> = {
     ),
   ],
 }
+const state: OverlayState = {
+  ...INITIAL_OVERLAY_STATE,
+  routerType: 'app',
+  isErrorOverlayOpen: false,
+}
 
 export default meta
 type Story = StoryObj<typeof DevToolsIndicator>
@@ -43,6 +49,7 @@ export const Default: Story = {}
 export const SingleError: Story = {
   decorators: [
     withDevOverlayContexts({
+      state,
       totalErrorCount: 1,
     }),
   ],
@@ -51,6 +58,7 @@ export const SingleError: Story = {
 export const MultipleErrors: Story = {
   decorators: [
     withDevOverlayContexts({
+      state,
       totalErrorCount: 3,
     }),
   ],

@@ -9,7 +9,7 @@ const meta: Meta<typeof NextLogo> = {
     layout: 'centered',
   },
   args: {
-    onTriggerClick: () => {},
+    'aria-label': 'Open Next.js DevTools',
   },
   decorators: [withShadowPortal],
 }
