@@ -641,6 +641,7 @@ async function generateCacheEntryImpl(
         // the "use cache" function dynamic.
         const hangingPromise = makeHangingPromise<never>(
           outerWorkUnitStore.renderSignal,
+          workStore.route,
           abortSignal.reason
         )
 
@@ -835,7 +836,11 @@ export function cache(
         switch (workUnitStore?.type) {
           // "use cache: private" is dynamic in prerendering contexts.
           case 'prerender':
-            return makeHangingPromise(workUnitStore.renderSignal, expression)
+            return makeHangingPromise(
+              workUnitStore.renderSignal,
+              workStore.route,
+              expression
+            )
           case 'prerender-ppr':
             return postponeWithTracking(
               workStore.route,
@@ -1082,6 +1087,7 @@ export function cache(
             if (dynamicAccessAbortController.signal.aborted) {
               return makeHangingPromise(
                 workUnitStore.renderSignal,
+                workStore.route,
                 dynamicAccessAbortController.signal.reason.message
               )
             }
@@ -1147,6 +1153,7 @@ export function cache(
                   }
                   return makeHangingPromise(
                     workUnitStore.renderSignal,
+                    workStore.route,
                     'dynamic "use cache"'
                   )
                 case 'prerender-runtime':
@@ -1174,6 +1181,7 @@ export function cache(
                   }
                   return makeHangingPromise(
                     workUnitStore.renderSignal,
+                    workStore.route,
                     'dynamic "use cache"'
                   )
                 case 'prerender':
@@ -1226,6 +1234,7 @@ export function cache(
                 if (workUnitStore.allowEmptyStaticShell) {
                   return makeHangingPromise(
                     workUnitStore.renderSignal,
+                    workStore.route,
                     'dynamic "use cache"'
                   )
                 }
@@ -1325,6 +1334,7 @@ export function cache(
               }
               return makeHangingPromise(
                 workUnitStore.renderSignal,
+                workStore.route,
                 'dynamic "use cache"'
               )
             case 'prerender-runtime':

@@ -1,7 +1,7 @@
 use std::io::Write;
 
 use anyhow::Result;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, fxindexmap};
 use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack::ModuleAssetContext;
@@ -86,22 +86,25 @@ pub async fn get_app_page_entry(
     let source = load_next_js_template(
         "app-page.js",
         project_root.clone(),
-        fxindexmap! {
-            "VAR_DEFINITION_PAGE" => page.to_string().into(),
-            "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            "VAR_MODULE_GLOBAL_ERROR" => if inner_assets.contains_key(GLOBAL_ERROR) {
-                GLOBAL_ERROR.into()
-             } else {
-                rcstr!("next/dist/client/components/builtin/global-error")
-            },
-        },
-        fxindexmap! {
-            "tree" => loader_tree_code,
-            "pages" => StringifyJs(&pages).to_string().into(),
-            "__next_app_require__" => TURBOPACK_REQUIRE.bound().into(),
-            "__next_app_load_chunk__" => TURBOPACK_LOAD.bound().into(),
-        },
-        fxindexmap! {},
+        &[
+            ("VAR_DEFINITION_PAGE", &*page.to_string()),
+            ("VAR_DEFINITION_PATHNAME", &pathname),
+            (
+                "VAR_MODULE_GLOBAL_ERROR",
+                if inner_assets.contains_key(GLOBAL_ERROR) {
+                    GLOBAL_ERROR
+                } else {
+                    "next/dist/client/components/builtin/global-error"
+                },
+            ),
+        ],
+        &[
+            ("tree", &*loader_tree_code),
+            ("pages", &StringifyJs(&pages).to_string()),
+            ("__next_app_require__", &TURBOPACK_REQUIRE.bound()),
+            ("__next_app_load_chunk__", &TURBOPACK_LOAD.bound()),
+        ],
+        &[],
     )
     .await?;
 
@@ -158,18 +161,13 @@ async fn wrap_edge_page(
     let source = load_next_js_template(
         "edge-ssr-app.js",
         project_root.clone(),
-        fxindexmap! {
-            "VAR_USERLAND" => INNER.into(),
-            "VAR_PAGE" => page.to_string().into(),
-        },
-        fxindexmap! {
+        &[("VAR_USERLAND", INNER), ("VAR_PAGE", &page.to_string())],
+        &[
             // TODO do we really need to pass the entire next config here?
             // This is bad for invalidation as any config change will invalidate this
-            "nextConfig" => serde_json::to_string(next_config_val)?.into(),
-        },
-        fxindexmap! {
-            "incrementalCacheHandler" => None,
-        },
+            ("nextConfig", &*serde_json::to_string(next_config_val)?),
+        ],
+        &[("incrementalCacheHandler", None)],
     )
     .await?;
 

@@ -1247,7 +1247,7 @@
           "object" === typeof value && null !== value
             ? addObjectToProperties(value, properties, 0, "")
             : void 0 !== value &&
-              addValueToProperties("Resolved", value, properties, 0, "");
+              addValueToProperties("awaited value", value, properties, 0, "");
           asyncInfo = getIOLongName(
             asyncInfo.awaited,
             description,
@@ -1290,7 +1290,7 @@
         debugTask
           ? ((error = [
               [
-                "Rejected",
+                "rejected with",
                 "object" === typeof error &&
                 null !== error &&
                 "string" === typeof error.message
@@ -1618,7 +1618,7 @@
                 waitForReference(
                   debugChunk,
                   {},
-                  "",
+                  "debug",
                   response,
                   initializeDebugInfo,
                   [""]
@@ -2199,6 +2199,37 @@
     function createModel(response, model) {
       return model;
     }
+    function getInferredFunctionApproximate(code) {
+      code = code.startsWith("Object.defineProperty(")
+        ? code.slice(22)
+        : code.startsWith("(")
+          ? code.slice(1)
+          : code;
+      if (code.startsWith("async function")) {
+        var idx = code.indexOf("(", 14);
+        if (-1 !== idx)
+          return (
+            (code = code.slice(14, idx).trim()),
+            (0, eval)("({" + JSON.stringify(code) + ":async function(){}})")[
+              code
+            ]
+          );
+      } else if (code.startsWith("function")) {
+        if (((idx = code.indexOf("(", 8)), -1 !== idx))
+          return (
+            (code = code.slice(8, idx).trim()),
+            (0, eval)("({" + JSON.stringify(code) + ":function(){}})")[code]
+          );
+      } else if (
+        code.startsWith("class") &&
+        ((idx = code.indexOf("{", 5)), -1 !== idx)
+      )
+        return (
+          (code = code.slice(5, idx).trim()),
+          (0, eval)("({" + JSON.stringify(code) + ":class{}})")[code]
+        );
+      return function () {};
+    }
     function parseModelString(response, parentObject, key, value) {
       if ("$" === value[0]) {
         if ("$" === value)
@@ -2323,42 +2354,26 @@
           case "E":
             response = value.slice(2);
             try {
-              return (0, eval)(response);
-            } catch (x) {
-              if (response.startsWith("(async function")) {
-                if (
-                  ((parentObject = response.indexOf("(", 15)),
-                  -1 !== parentObject)
-                )
-                  return (
-                    (response = response.slice(15, parentObject).trim()),
-                    (0, eval)(
-                      "({" + JSON.stringify(response) + ":async function(){}})"
-                    )[response]
+              if (!mightHaveStaticConstructor.test(response))
+                return (0, eval)(response);
+            } catch (x) {}
+            try {
+              if (
+                ((ref = getInferredFunctionApproximate(response)),
+                response.startsWith("Object.defineProperty("))
+              ) {
+                var idx = response.lastIndexOf(',"name",{value:"');
+                if (-1 !== idx) {
+                  var name = JSON.parse(
+                    response.slice(idx + 16 - 1, response.length - 2)
                   );
-              } else if (response.startsWith("(function")) {
-                if (
-                  ((parentObject = response.indexOf("(", 9)),
-                  -1 !== parentObject)
-                )
-                  return (
-                    (response = response.slice(9, parentObject).trim()),
-                    (0, eval)(
-                      "({" + JSON.stringify(response) + ":function(){}})"
-                    )[response]
-                  );
-              } else if (
-                response.startsWith("(class") &&
-                ((parentObject = response.indexOf("{", 6)), -1 !== parentObject)
-              )
-                return (
-                  (response = response.slice(6, parentObject).trim()),
-                  (0, eval)("({" + JSON.stringify(response) + ":class{}})")[
-                    response
-                  ]
-                );
-              return function () {};
+                  Object.defineProperty(ref, "name", { value: name });
+                }
+              }
+            } catch (_) {
+              ref = function () {};
             }
+            return ref;
           case "Y":
             if (2 < value.length && (ref = response._debugChannel)) {
               if ("@" === value[2])
@@ -2369,9 +2384,9 @@
                   getChunk(response, key)
                 );
               value = value.slice(2);
-              var _id2 = parseInt(value, 16);
-              response._chunks.has(_id2) || ref("Q:" + value);
-              ref = getChunk(response, _id2);
+              idx = parseInt(value, 16);
+              response._chunks.has(idx) || ref("Q:" + value);
+              ref = getChunk(response, idx);
               return "fulfilled" === ref.status
                 ? ref.value
                 : defineLazyGetter(response, ref, parentObject, key);
@@ -4309,6 +4324,7 @@
           : null,
       initializingHandler = null,
       initializingChunk = null,
+      mightHaveStaticConstructor = /\bclass\b.*\bstatic\b/,
       supportsCreateTask = !!console.createTask,
       fakeFunctionCache = new Map(),
       fakeFunctionIdx = 0,
@@ -4417,10 +4433,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-experimental-c260b38d-20250731",
+      version: "19.2.0-experimental-3958d5d8-20250807",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-experimental-c260b38d-20250731",
+      reconcilerVersion: "19.2.0-experimental-3958d5d8-20250807",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

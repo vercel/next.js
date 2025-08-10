@@ -770,5 +770,10 @@
   "769": "createSearchParamsFromClient should not be called in a runtime prerender.",
   "770": "createParamsFromClient should not be called in a runtime prerender.",
   "771": "\\`%s\\` was called during a runtime prerender. Next.js should be preventing %s from being included in server components statically, but did not in this case.",
-  "772": "FetchStrategy.PPRRuntime should never be used when `experimental.clientSegmentCache` is disabled"
+  "772": "FetchStrategy.PPRRuntime should never be used when `experimental.clientSegmentCache` is disabled",
+  "773": "Missing workStore in createPrerenderParamsForClientSegment",
+  "774": "Route %s used %s outside of a Server Component. This is not allowed.",
+  "775": "Node.js instrumentation extensions should not be loaded in the Edge runtime.",
+  "776": "`unstable_isUnrecognizedActionError` can only be used on the client.",
+  "777": "Invariant: failed to find source route %s for prerender %s"
 }

@@ -5,7 +5,10 @@ import {
   RequestCookiesAdapter,
 } from '../web/spec-extension/adapters/request-cookies'
 import { RequestCookies } from '../web/spec-extension/cookies'
-import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
 import {
   throwForMissingRequestStore,
   workUnitAsyncStorage,
@@ -92,7 +95,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
           )
         case 'prerender':
-          return makeHangingCookies(workUnitStore)
+          return makeHangingCookies(workStore, workUnitStore)
         case 'prerender-client':
           const exportName = '`cookies`'
           throw new InvariantError(
@@ -170,6 +173,7 @@ const CachedCookies = new WeakMap<
 >()
 
 function makeHangingCookies(
+  workStore: WorkStore,
   prerenderStore: PrerenderStoreModern
 ): Promise<ReadonlyRequestCookies> {
   const cachedPromise = CachedCookies.get(prerenderStore)
@@ -179,6 +183,7 @@ function makeHangingCookies(
 
   const promise = makeHangingPromise<ReadonlyRequestCookies>(
     prerenderStore.renderSignal,
+    workStore.route,
     '`cookies()`'
   )
   CachedCookies.set(prerenderStore, promise)

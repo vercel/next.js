@@ -153,7 +153,9 @@ export default function Error({ error, reset }) {
 
 ### Global Error
 
-While less common, you can handle errors in the root layout or template using `global-error.js`, located in the root app directory, even when leveraging [internationalization](/docs/app/guides/internationalization). Global error UI must define its own `<html>` and `<body>` tags. This file replaces the root layout or template when active.
+While less common, you can handle errors in the root layout or template using `global-error.js`, located in the root app directory, even when leveraging [internationalization](/docs/app/guides/internationalization). Global error UI must define its own `<html>` and `<body>` tags, global styles, fonts, or other dependencies that your error page requires. This file replaces the root layout or template when active.
+
+> **Good to know**: Error boundaries must be [Client Components](/docs/app/getting-started/server-and-client-components#using-client-components), which means that [`metadata` and `generateMetadata`](/docs/app/getting-started/metadata-and-og-images) exports are not supported in `global-error.js`. As an alternative, you can use the React [`<title>`](https://react.dev/reference/react-dom/components/title) component.
 
 ```tsx filename="app/global-error.tsx" switcher
 'use client' // Error boundaries must be Client Components

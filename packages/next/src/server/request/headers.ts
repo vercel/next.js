@@ -2,7 +2,10 @@ import {
   HeadersAdapter,
   type ReadonlyHeaders,
 } from '../web/spec-extension/adapters/headers'
-import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
 import { throwForMissingRequestStore } from '../app-render/work-unit-async-storage.external'
 import {
   workUnitAsyncStorage,
@@ -121,7 +124,7 @@ export function headers(): Promise<ReadonlyHeaders> {
       switch (workUnitStore.type) {
         case 'prerender':
         case 'prerender-runtime':
-          return makeHangingHeaders(workUnitStore)
+          return makeHangingHeaders(workStore, workUnitStore)
         case 'prerender-client':
           const exportName = '`headers`'
           throw new InvariantError(
@@ -183,6 +186,7 @@ interface CacheLifetime {}
 const CachedHeaders = new WeakMap<CacheLifetime, Promise<ReadonlyHeaders>>()
 
 function makeHangingHeaders(
+  workStore: WorkStore,
   prerenderStore: PrerenderStoreModern
 ): Promise<ReadonlyHeaders> {
   const cachedHeaders = CachedHeaders.get(prerenderStore)
@@ -192,6 +196,7 @@ function makeHangingHeaders(
 
   const promise = makeHangingPromise<ReadonlyHeaders>(
     prerenderStore.renderSignal,
+    workStore.route,
     '`headers()`'
   )
   CachedHeaders.set(prerenderStore, promise)

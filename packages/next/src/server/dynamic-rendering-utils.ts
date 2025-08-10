@@ -13,9 +13,12 @@ const HANGING_PROMISE_REJECTION = 'HANGING_PROMISE_REJECTION'
 class HangingPromiseRejectionError extends Error {
   public readonly digest = HANGING_PROMISE_REJECTION
 
-  constructor(public readonly expression: string) {
+  constructor(
+    public readonly route: string,
+    public readonly expression: string
+  ) {
     super(
-      `During prerendering, ${expression} rejects when the prerender is complete. Typically these errors are handled by React but if you move ${expression} to a different context by using \`setTimeout\`, \`after\`, or similar functions you may observe this error and you should handle it in that context.`
+      `During prerendering, ${expression} rejects when the prerender is complete. Typically these errors are handled by React but if you move ${expression} to a different context by using \`setTimeout\`, \`after\`, or similar functions you may observe this error and you should handle it in that context. This occurred at route "${route}".`
     )
   }
 }
@@ -32,15 +35,16 @@ const abortListenersBySignal = new WeakMap<AbortSignal, AbortListeners>()
  */
 export function makeHangingPromise<T>(
   signal: AbortSignal,
+  route: string,
   expression: string
 ): Promise<T> {
   if (signal.aborted) {
-    return Promise.reject(new HangingPromiseRejectionError(expression))
+    return Promise.reject(new HangingPromiseRejectionError(route, expression))
   } else {
     const hangingPromise = new Promise<T>((_, reject) => {
       const boundRejection = reject.bind(
         null,
-        new HangingPromiseRejectionError(expression)
+        new HangingPromiseRejectionError(route, expression)
       )
       let currentListeners = abortListenersBySignal.get(signal)
       if (currentListeners) {

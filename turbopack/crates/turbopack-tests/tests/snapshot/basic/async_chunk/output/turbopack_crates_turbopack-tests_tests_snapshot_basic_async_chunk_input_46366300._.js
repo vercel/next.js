@@ -1,12 +1,11 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_46366300._.js", {
-
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/shared.js [test] (ecmascript)": ((__turbopack_context__) => {
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/turbopack_crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_46366300._.js",
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/shared.js [test] (ecmascript)", ((__turbopack_context__) => {
 
 var { m: module, e: exports } = __turbopack_context__;
 {
 // shared package
 }}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([]);
@@ -19,7 +18,7 @@ __turbopack_context__.A("[project]/turbopack/crates/turbopack-tests/tests/snapsh
     foo(true);
 });
 }),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/node_modules/bar/index.js [test] (ecmascript)": ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk/input/node_modules/bar/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([
@@ -30,6 +29,6 @@ function bar(value) {
     console.assert(value);
 }
 }),
-}]);
+]);
 
 //# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_basic_async_chunk_input_46366300._.js.map

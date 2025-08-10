@@ -416,6 +416,47 @@ function createPromise<T>() {
   }
 }
 
+// Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
+// The CompressedModuleFactories format is
+// - 1 or more module ids
+// - a module factory function
+// So walking this is a little complex but the flat structure is also fast to
+// traverse, we can use `typeof` operators to distinguish the two cases.
+function installCompressedModuleFactories(
+  chunkModules: CompressedModuleFactories,
+  offset: number,
+  moduleFactories: ModuleFactories,
+  newModuleId?: (id: ModuleId) => void
+) {
+  let i = offset
+  while (i < chunkModules.length) {
+    let moduleId = chunkModules[i] as ModuleId
+    let end = i + 1
+    // Find our factory function
+    while (
+      end < chunkModules.length &&
+      typeof chunkModules[end] !== 'function'
+    ) {
+      end++
+    }
+    if (end === chunkModules.length) {
+      throw new Error('malformed chunk format, expected a factory function')
+    }
+    // Each chunk item has a 'primary id' and optional additional ids. If the primary id is already
+    // present we know all the additional ids are also present, so we don't need to check.
+    if (!moduleFactories.has(moduleId)) {
+      const moduleFactoryFn = chunkModules[end] as Function
+      applyModuleFactoryName(moduleFactoryFn)
+      newModuleId?.(moduleId)
+      for (; i < end; i++) {
+        moduleId = chunkModules[i] as ModuleId
+        moduleFactories.set(moduleId, moduleFactoryFn)
+      }
+    }
+    i = end + 1 // end is pointing at the last factory advance to the next id or the end of the array.
+  }
+}
+
 // everything below is adapted from webpack
 // https://github.com/webpack/webpack/blob/6be4065ade1e252c1d8dcba4af0f43e32af1bdc1/lib/runtime/AsyncModuleRuntimeModule.js#L13
 
@@ -624,4 +665,11 @@ contextPrototype.z = requireStub
 
 type ContextConstructor<M> = {
   new (module: Module): TurbopackBaseContext<M>
+}
+
+function applyModuleFactoryName(factory: Function) {
+  // Give the module factory a nice name to improve stack traces.
+  Object.defineProperty(factory, 'name', {
+    value: '__TURBOPACK__module__evaluation__',
+  })
 }

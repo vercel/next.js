@@ -27,18 +27,18 @@ use crate::{
     arc_slice::ArcSlice,
     compaction::selector::{Compactable, compute_metrics, get_merge_segments},
     constants::{
-        AQMF_AVG_SIZE, AQMF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE,
+        AMQF_AVG_SIZE, AMQF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE,
         KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
         VALUE_BLOCK_CACHE_SIZE,
     },
     key::{StoreKey, hash_key},
     lookup_entry::{LookupEntry, LookupValue},
     merge_iter::MergeIter,
-    meta_file::{AqmfCache, MetaFile, MetaLookupResult, StaticSortedFileRange},
+    meta_file::{AmqfCache, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult},
-    static_sorted_file_builder::{StaticSortedFileBuilder, StaticSortedFileBuilderMeta},
+    static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
     write_batch::{FinishResult, WriteBatch},
 };
 
@@ -84,12 +84,12 @@ pub struct Statistics {
     pub sst_files: usize,
     pub key_block_cache: CacheStatistics,
     pub value_block_cache: CacheStatistics,
-    pub aqmf_cache: CacheStatistics,
+    pub amqf_cache: CacheStatistics,
     pub hits: u64,
     pub misses: u64,
     pub miss_family: u64,
     pub miss_range: u64,
-    pub miss_aqmf: u64,
+    pub miss_amqf: u64,
     pub miss_key: u64,
 }
 
@@ -101,7 +101,7 @@ struct TrackedStats {
     hits_blob: std::sync::atomic::AtomicU64,
     miss_family: std::sync::atomic::AtomicU64,
     miss_range: std::sync::atomic::AtomicU64,
-    miss_aqmf: std::sync::atomic::AtomicU64,
+    miss_amqf: std::sync::atomic::AtomicU64,
     miss_key: std::sync::atomic::AtomicU64,
     miss_global: std::sync::atomic::AtomicU64,
 }
@@ -119,8 +119,8 @@ pub struct TurboPersistence {
     /// A flag to indicate if a write operation is currently active. Prevents multiple concurrent
     /// write operations.
     active_write_operation: AtomicBool,
-    /// A cache for deserialized AQMF filters.
-    aqmf_cache: AqmfCache,
+    /// A cache for deserialized AMQF filters.
+    amqf_cache: AmqfCache,
     /// A cache for decompressed key blocks.
     key_block_cache: BlockCache,
     /// A cache for decompressed value blocks.
@@ -158,9 +158,9 @@ impl TurboPersistence {
                 current_sequence_number: 0,
             }),
             active_write_operation: AtomicBool::new(false),
-            aqmf_cache: AqmfCache::with(
-                AQMF_CACHE_SIZE as usize / AQMF_AVG_SIZE,
-                AQMF_CACHE_SIZE,
+            amqf_cache: AmqfCache::with(
+                AMQF_CACHE_SIZE as usize / AMQF_AVG_SIZE,
+                AMQF_CACHE_SIZE,
                 Default::default(),
                 Default::default(),
                 Default::default(),
@@ -876,11 +876,11 @@ impl TurboPersistence {
                             let index_in_meta = ssts_with_ranges[index].index_in_meta;
                             let meta_file = &meta_files[meta_index];
                             let entry = meta_file.entry(index_in_meta);
-                            let aqmf = Cow::Borrowed(entry.raw_aqmf(meta_file.aqmf_data()));
+                            let amqf = Cow::Borrowed(entry.raw_amqf(meta_file.amqf_data()));
                             let meta = StaticSortedFileBuilderMeta {
                                 min_hash: entry.min_hash(),
                                 max_hash: entry.max_hash(),
-                                aqmf,
+                                amqf,
                                 key_compression_dictionary_length: entry
                                     .key_compression_dictionary_length(),
                                 value_compression_dictionary_length: entry
@@ -904,13 +904,12 @@ impl TurboPersistence {
                         ) -> Result<(u32, File, StaticSortedFileBuilderMeta<'static>)>
                         {
                             let _span = tracing::trace_span!("write merged sst file").entered();
-                            let builder = StaticSortedFileBuilder::new(
+                            let (meta, file) = write_static_stored_file(
                                 entries,
                                 total_key_size,
                                 total_value_size,
+                                &path.join(format!("{seq:08}.sst")),
                             )?;
-                            let (meta, file) =
-                                builder.write(&path.join(format!("{seq:08}.sst")))?;
                             Ok((seq, file, meta))
                         }
 
@@ -1148,7 +1147,7 @@ impl TurboPersistence {
                 family as u32,
                 hash,
                 key,
-                &self.aqmf_cache,
+                &self.amqf_cache,
                 &self.key_block_cache,
                 &self.value_block_cache,
             )? {
@@ -1162,7 +1161,7 @@ impl TurboPersistence {
                 }
                 MetaLookupResult::QuickFilterMiss => {
                     #[cfg(feature = "stats")]
-                    self.stats.miss_aqmf.fetch_add(1, Ordering::Relaxed);
+                    self.stats.miss_amqf.fetch_add(1, Ordering::Relaxed);
                 }
                 MetaLookupResult::SstLookup(result) => match result {
                     SstLookupResult::Found(result) => match result {
@@ -1204,14 +1203,14 @@ impl TurboPersistence {
             sst_files: inner.meta_files.iter().map(|m| m.entries().len()).sum(),
             key_block_cache: CacheStatistics::new(&self.key_block_cache),
             value_block_cache: CacheStatistics::new(&self.value_block_cache),
-            aqmf_cache: CacheStatistics::new(&self.aqmf_cache),
+            amqf_cache: CacheStatistics::new(&self.amqf_cache),
             hits: self.stats.hits_deleted.load(Ordering::Relaxed)
                 + self.stats.hits_small.load(Ordering::Relaxed)
                 + self.stats.hits_blob.load(Ordering::Relaxed),
             misses: self.stats.miss_global.load(Ordering::Relaxed),
             miss_family: self.stats.miss_family.load(Ordering::Relaxed),
             miss_range: self.stats.miss_range.load(Ordering::Relaxed),
-            miss_aqmf: self.stats.miss_aqmf.load(Ordering::Relaxed),
+            miss_amqf: self.stats.miss_amqf.load(Ordering::Relaxed),
             miss_key: self.stats.miss_key.load(Ordering::Relaxed),
         }
     }
@@ -1228,14 +1227,14 @@ impl TurboPersistence {
                     .entries()
                     .iter()
                     .map(|entry| {
-                        let aqmf = entry.raw_aqmf(meta_file.aqmf_data());
+                        let amqf = entry.raw_amqf(meta_file.amqf_data());
                         MetaFileEntryInfo {
                             sequence_number: entry.sequence_number(),
                             min_hash: entry.min_hash(),
                             max_hash: entry.max_hash(),
                             sst_size: entry.size(),
-                            aqmf_size: entry.aqmf_size(),
-                            aqmf_entries: aqmf.len(),
+                            amqf_size: entry.amqf_size(),
+                            amqf_entries: amqf.len(),
                             key_compression_dictionary_size: entry
                                 .key_compression_dictionary_length(),
                             value_compression_dictionary_size: entry
@@ -1273,8 +1272,8 @@ pub struct MetaFileEntryInfo {
     pub sequence_number: u32,
     pub min_hash: u64,
     pub max_hash: u64,
-    pub aqmf_size: u32,
-    pub aqmf_entries: usize,
+    pub amqf_size: u32,
+    pub amqf_entries: usize,
     pub sst_size: u64,
     pub key_compression_dictionary_size: u16,
     pub value_compression_dictionary_size: u16,

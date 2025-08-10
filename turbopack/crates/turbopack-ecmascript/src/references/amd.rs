@@ -19,6 +19,7 @@ use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
     reference::ModuleReference,
+    reference_type::CommonJsReferenceSubType,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
@@ -67,6 +68,7 @@ impl ModuleReference for AmdDefineAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
+            CommonJsReferenceSubType::Undefined,
             Some(self.issue_source),
             self.in_try,
         )
@@ -176,6 +178,7 @@ impl AmdDefineWithDependenciesCodeGen {
                             cjs_resolve(
                                 *self.origin,
                                 **request,
+                                CommonJsReferenceSubType::Undefined,
                                 Some(self.issue_source),
                                 self.in_try,
                             ),

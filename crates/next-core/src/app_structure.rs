@@ -1054,7 +1054,7 @@ async fn directory_tree_to_loader_tree_internal(
     let current_level_is_parallel_route = is_parallel_route(&directory_name);
 
     if current_level_is_parallel_route {
-        tree.segment = rcstr!("children");
+        tree.segment = rcstr!("(slot)");
     }
 
     if let Some(page) = (app_path == for_app_path || app_path.is_catchall())
@@ -1075,10 +1075,6 @@ async fn directory_tree_to_loader_tree_internal(
                 global_metadata: global_metadata.to_resolved().await?,
             },
         );
-
-        if current_level_is_parallel_route {
-            tree.segment = rcstr!("page$");
-        }
     }
 
     let mut duplicate = FxHashMap::default();

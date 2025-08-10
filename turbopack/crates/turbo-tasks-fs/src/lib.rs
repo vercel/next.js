@@ -59,16 +59,21 @@ use turbo_tasks::{
     mark_session_dependent, mark_stateful, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
+use turbo_unix_path::{
+    get_parent_path, get_relative_path_to, join_path, normalize_path, sys_to_unix, unix_to_sys,
+};
 
-use self::{invalidation::Write, json::UnparsableJson, mutex_map::MutexMap};
 use crate::{
     attach::AttachedFileSystem,
     glob::Glob,
+    invalidation::Write,
     invalidator_map::{InvalidatorMap, WriteContent},
+    json::UnparsableJson,
+    mutex_map::MutexMap,
     read_glob::{read_glob, track_glob},
     retry::retry_blocking,
     rope::{Rope, RopeReader},
-    util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys},
+    util::extract_disk_access,
     watcher::DiskWatcher,
 };
 pub use crate::{read_glob::ReadGlobResult, virtual_fs::VirtualFileSystem};
@@ -474,7 +479,7 @@ impl DiskFileSystem {
         self.inner.watcher.stop_watching();
     }
 
-    pub async fn to_sys_path(&self, fs_path: FileSystemPath) -> Result<PathBuf> {
+    pub fn to_sys_path(&self, fs_path: FileSystemPath) -> Result<PathBuf> {
         // just in case there's a windows unc path prefix we remove it with `dunce`
         let path = self.inner.root_path();
         Ok(if fs_path.path.is_empty() {
@@ -545,7 +550,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
     async fn read(&self, fs_path: FileSystemPath) -> Result<Vc<FileContent>> {
         mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = self.to_sys_path(fs_path)?;
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
@@ -571,7 +576,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
     async fn raw_read_dir(&self, fs_path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
         mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = self.to_sys_path(fs_path)?;
         self.inner.register_dir_invalidator(&full_path)?;
 
         // we use the sync std function here as it's a lot faster (600%) in
@@ -626,7 +631,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
     async fn read_link(&self, fs_path: FileSystemPath) -> Result<Vc<LinkContent>> {
         mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path.clone()).await?;
+        let full_path = self.to_sys_path(fs_path.clone())?;
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
@@ -716,7 +721,7 @@ impl FileSystem for DiskFileSystem {
         // `write` purely declares a side effect and does not need to be reexecuted in the next
         // session. All side effects are reexecuted in general.
 
-        let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = self.to_sys_path(fs_path)?;
         let content = content.await?;
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
@@ -851,7 +856,7 @@ impl FileSystem for DiskFileSystem {
         // `write_link` purely declares a side effect and does not need to be reexecuted in the next
         // session. All side effects are reexecuted in general.
 
-        let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = self.to_sys_path(fs_path)?;
         let content = target.await?;
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
@@ -975,7 +980,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
     async fn metadata(&self, fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
         mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = self.to_sys_path(fs_path)?;
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
@@ -998,39 +1003,6 @@ impl ValueToString for DiskFileSystem {
     fn to_string(&self) -> Vc<RcStr> {
         Vc::cell(self.inner.name.clone())
     }
-}
-
-/// Note: this only works for Unix-style paths (with `/` as a separator).
-pub fn get_relative_path_to(path: &str, other_path: &str) -> String {
-    fn split(s: &str) -> impl Iterator<Item = &str> {
-        let empty = s.is_empty();
-        let mut iterator = s.split('/');
-        if empty {
-            iterator.next();
-        }
-        iterator
-    }
-
-    let mut self_segments = split(path).peekable();
-    let mut other_segments = split(other_path).peekable();
-    while self_segments.peek() == other_segments.peek() {
-        self_segments.next();
-        if other_segments.next().is_none() {
-            return ".".to_string();
-        }
-    }
-    let mut result = Vec::new();
-    if self_segments.peek().is_none() {
-        result.push(".");
-    } else {
-        while self_segments.next().is_some() {
-            result.push("..");
-        }
-    }
-    for segment in other_segments {
-        result.push(segment);
-    }
-    result.join("/")
 }
 
 #[turbo_tasks::value(shared)]
@@ -1456,11 +1428,7 @@ impl FileSystemPath {
         if path.is_empty() {
             return self.clone();
         }
-        let p = match str::rfind(path, '/') {
-            Some(index) => path[..index].to_string(),
-            None => "".to_string(),
-        };
-        FileSystemPath::new_normalized(self.fs, p.into())
+        FileSystemPath::new_normalized(self.fs, RcStr::from(get_parent_path(path)))
     }
 
     // It is important that get_type uses read_dir and not stat/metadata.
@@ -1942,15 +1910,15 @@ impl FileContent {
                 ) {
                     Ok(data) => match data {
                         Some(value) => FileJsonContent::Content(value),
-                        None => FileJsonContent::unparsable(
-                            "text content doesn't contain any json data",
-                        ),
+                        None => FileJsonContent::unparsable(rcstr!(
+                            "text content doesn't contain any json data"
+                        )),
                     },
                     Err(e) => FileJsonContent::Unparsable(Box::new(
                         UnparsableJson::from_jsonc_error(e, string.as_ref()),
                     )),
                 },
-                Err(_) => FileJsonContent::unparsable("binary is not valid utf-8 text"),
+                Err(_) => FileJsonContent::unparsable(rcstr!("binary is not valid utf-8 text")),
             },
             FileContent::NotFound => FileJsonContent::NotFound,
         }
@@ -1969,15 +1937,15 @@ impl FileContent {
                 ) {
                     Ok(data) => match data {
                         Some(value) => FileJsonContent::Content(value),
-                        None => FileJsonContent::unparsable(
-                            "text content doesn't contain any json data",
-                        ),
+                        None => FileJsonContent::unparsable(rcstr!(
+                            "text content doesn't contain any json data"
+                        )),
                     },
                     Err(e) => FileJsonContent::Unparsable(Box::new(
                         UnparsableJson::from_jsonc_error(e, string.as_ref()),
                     )),
                 },
-                Err(_) => FileJsonContent::unparsable("binary is not valid utf-8 text"),
+                Err(_) => FileJsonContent::unparsable(rcstr!("binary is not valid utf-8 text")),
             },
             FileContent::NotFound => FileJsonContent::NotFound,
         }
@@ -2084,16 +2052,16 @@ impl FileJsonContent {
     }
 }
 impl FileJsonContent {
-    pub fn unparsable(message: &'static str) -> Self {
+    pub fn unparsable(message: RcStr) -> Self {
         FileJsonContent::Unparsable(Box::new(UnparsableJson {
-            message: Cow::Borrowed(message),
+            message,
             path: None,
             start_location: None,
             end_location: None,
         }))
     }
 
-    pub fn unparsable_with_message(message: Cow<'static, str>) -> Self {
+    pub fn unparsable_with_message(message: RcStr) -> Self {
         FileJsonContent::Unparsable(Box::new(UnparsableJson {
             message,
             path: None,
@@ -2308,7 +2276,7 @@ pub async fn to_sys_path(mut path: FileSystemPath) -> Result<Option<PathBuf>> {
         }
 
         if let Some(fs) = Vc::try_resolve_downcast_type::<DiskFileSystem>(path.fs()).await? {
-            let sys_path = fs.await?.to_sys_path(path).await?;
+            let sys_path = fs.await?.to_sys_path(path)?;
             return Ok(Some(sys_path));
         }
 

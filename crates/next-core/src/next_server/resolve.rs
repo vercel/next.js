@@ -1,4 +1,7 @@
+use std::sync::LazyLock;
+
 use anyhow::Result;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
@@ -93,13 +96,15 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         };
 
         // from https://github.com/vercel/next.js/blob/8d1c619ad650f5d147207f267441caf12acd91d1/packages/next/src/build/handle-externals.ts#L188
-        let never_external_regex = lazy_regex::regex!("^(?:private-next-pages\\/|next\\/(?:dist\\/pages\\/|(?:app|cache|document|link|form|head|image|legacy\\/image|constants|dynamic|script|navigation|headers|router|compat\\/router|server)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper$)");
+        static NEVER_EXTERNAL_RE: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new("^(?:private-next-pages\\/|next\\/(?:dist\\/pages\\/|(?:app|cache|document|link|form|head|image|legacy\\/image|constants|dynamic|script|navigation|headers|router|compat\\/router|server)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper$)").unwrap()
+        });
 
         let Pattern::Constant(package_subpath) = package_subpath else {
             return Ok(ResolveResultOption::none());
         };
         let request_str: RcStr = format!("{package}{package_subpath}").into();
-        if never_external_regex.is_match(&request_str) {
+        if NEVER_EXTERNAL_RE.is_match(&request_str) {
             return Ok(ResolveResultOption::none());
         }
 

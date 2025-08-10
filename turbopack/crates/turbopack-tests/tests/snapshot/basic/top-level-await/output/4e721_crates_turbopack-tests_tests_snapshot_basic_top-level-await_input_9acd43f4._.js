@@ -1,6 +1,5 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/4e721_crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_9acd43f4._.js", {
-
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/Actions.js [test] (ecmascript)": ((__turbopack_context__) => {
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/4e721_crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_9acd43f4._.js",
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/Actions.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 // import() doesn't care about whether a module is an async module or not
@@ -24,7 +23,7 @@ const AlternativeCreateUserAction = async (name)=>{
  //       except in rare cases. It will import modules sequentially.
 ;
 }),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 __turbopack_context__.s([]);
@@ -35,6 +34,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
     console.log('created user John');
 })();
 }),
-}]);
+]);
 
 //# sourceMappingURL=4e721_crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_9acd43f4._.js.map

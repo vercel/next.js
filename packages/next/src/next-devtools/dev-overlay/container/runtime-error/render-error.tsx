@@ -12,8 +12,8 @@ import { usePersistentCacheErrorDetection } from '../../components/errors/error-
 export type SupportedErrorEvent = {
   id: number
   error: Error
-  frames: StackFrame[]
-  componentStackFrames?: ComponentStackFrame[]
+  frames: readonly StackFrame[]
+  componentStackFrames?: readonly ComponentStackFrame[]
   type: 'runtime' | 'recoverable' | 'console'
 }
 

@@ -533,6 +533,9 @@ export async function handler(
             clientSegmentCache: Boolean(
               nextConfig.experimental.clientSegmentCache
             ),
+            clientParamParsing: Boolean(
+              nextConfig.experimental.clientParamParsing
+            ),
             dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
@@ -650,11 +653,13 @@ export async function handler(
         fallbackMode = parseFallbackField(prerenderInfo.fallback)
       }
 
-      // When serving a bot request, we want to serve a blocking render and not
-      // the prerendered page. This ensures that the correct content is served
+      // When serving a HTML bot request, we want to serve a blocking render and
+      // not the prerendered page. This ensures that the correct content is served
       // to the bot in the head.
       if (fallbackMode === FallbackMode.PRERENDER && isBot(userAgent)) {
-        fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
+        if (!isRoutePPREnabled || isHtmlBot) {
+          fallbackMode = FallbackMode.BLOCKING_STATIC_RENDER
+        }
       }
 
       if (previousCacheEntry?.isStale === -1) {

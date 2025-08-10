@@ -19,6 +19,7 @@ export function useUpdateAnimation(
         return
       }
 
+      // eslint-disable-next-line react-hooks/react-compiler -- TODO
       setAnimate(true)
       // It is important to use a CSS transitioned state, not a CSS keyframed animation
       // because if the issue count increases faster than the animation duration, it

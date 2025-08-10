@@ -403,6 +403,8 @@ var TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
           throw Error(
             "Cannot render a Client Context Provider on the Server. Instead, you can export a Client Component wrapper that itself renders a Client Context Provider."
           );
+        case "then":
+          return;
       }
       throw Error(
         "Cannot access " +

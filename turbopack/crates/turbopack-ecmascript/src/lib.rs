@@ -850,8 +850,8 @@ pub struct EcmascriptModuleContentOptions {
     specified_module_type: SpecifiedModuleType,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     references: ResolvedVc<ModuleReferences>,
-    esm_references: ResolvedVc<EsmAssetReferences>,
     part_references: Vec<ResolvedVc<EcmascriptModulePartReference>>,
+    esm_references: ResolvedVc<EsmAssetReferences>,
     code_generation: ResolvedVc<CodeGens>,
     async_module: ResolvedVc<OptionAsyncModule>,
     generate_source_map: bool,
@@ -872,8 +872,8 @@ impl EcmascriptModuleContentOptions {
             module,
             chunking_context,
             references,
-            esm_references,
             part_references,
+            esm_references,
             code_generation,
             async_module,
             exports,
@@ -912,14 +912,14 @@ impl EcmascriptModuleContentOptions {
                 },
             ];
 
-            let esm_code_gens = esm_references
-                .await?
+            let part_code_gens = part_references
                 .iter()
                 .map(|r| r.code_generation(**chunking_context, scope_hoisting_context))
                 .try_join()
                 .await?;
 
-            let part_code_gens = part_references
+            let esm_code_gens = esm_references
+                .await?
                 .iter()
                 .map(|r| r.code_generation(**chunking_context, scope_hoisting_context))
                 .try_join()
@@ -933,9 +933,9 @@ impl EcmascriptModuleContentOptions {
                 .await?;
 
             anyhow::Ok(
-                esm_code_gens
+                part_code_gens
                     .into_iter()
-                    .chain(part_code_gens.into_iter())
+                    .chain(esm_code_gens.into_iter())
                     .chain(additional_code_gens.into_iter().flatten())
                     .chain(code_gens.into_iter())
                     .collect(),

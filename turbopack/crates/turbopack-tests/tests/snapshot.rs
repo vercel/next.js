@@ -16,8 +16,8 @@ use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storag
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
     DiskFileSystem, FileSystem, FileSystemPath, json::parse_json_with_source_context,
-    util::sys_to_unix,
 };
+use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
     ecmascript::{EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType},
@@ -34,7 +34,7 @@ use turbopack_core::{
         EvaluatableAssets, MinifyType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
-    compile_time_info::CompileTimeInfo,
+    compile_time_info::{CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment},
     condition::ContextCondition,
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -126,7 +126,7 @@ impl Default for SnapshotOptions {
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
-            tree_shaking_mode: Default::default(),
+            tree_shaking_mode: None,
             remove_unused_exports: false,
             scope_hoisting: false,
             production_chunking: false,
@@ -264,7 +264,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let project_root = project_fs.root().owned().await?;
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
-    let relative_path: RcStr = sys_to_unix(relative_path.to_str().unwrap()).into();
+    let relative_path = RcStr::from(sys_to_unix(relative_path.to_str().unwrap()));
     let project_path = project_root.join(&relative_path)?;
 
     let project_path_to_project_root = project_path
@@ -296,13 +296,31 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     .to_resolved()
     .await?;
 
-    let defines = compile_time_defines!(
+    let mut defines = compile_time_defines!(
         process.turbopack = true,
         process.env.TURBOPACK = true,
         process.env.NODE_ENV = "development",
         DEFINED_VALUE = "value",
         DEFINED_TRUE = true,
+        DEFINED_NULL = json!(null),
+        DEFINED_INT = json!(1),
+        DEFINED_FLOAT = json!(0.01),
+        DEFINED_ARRAY = json!([ false, 0, "1", { "v": "v" }, null ]),
         A.VERY.LONG.DEFINED.VALUE = json!({ "test": true }),
+    );
+
+    defines.0.insert(
+        vec![DefinableNameSegment::from("DEFINED_EVALUATE")],
+        CompileTimeDefineValue::Evaluate("1 + 1".into()),
+    );
+
+    defines.0.insert(
+        vec![DefinableNameSegment::from("DEFINED_EVALUATE_NESTED")],
+        CompileTimeDefineValue::Array(vec![
+            CompileTimeDefineValue::Bool(true),
+            CompileTimeDefineValue::Undefined,
+            CompileTimeDefineValue::Evaluate("() => 1".into()),
+        ]),
     );
 
     let compile_time_info = CompileTimeInfo::builder(env)
@@ -321,7 +339,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let module_rules = ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![
+            preprocess: ResolvedVc::cell(vec![]),
+            main: ResolvedVc::cell(vec![
                 EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     EmotionTransformer::new(&EmotionTransformConfig::default())
                         .expect("Should be able to create emotion transformer"),
@@ -330,7 +349,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
                 ) as _)),
             ]),
-            append: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![]),
         }],
     );
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
@@ -559,14 +578,7 @@ async fn walk_asset(
         diff(path.clone(), asset.content()).await?;
     }
 
-    queue.extend(
-        asset
-            .references()
-            .await?
-            .iter()
-            .copied()
-            .flat_map(ResolvedVc::try_downcast::<Box<dyn OutputAsset>>),
-    );
+    queue.extend(asset.references().await?.iter().copied());
 
     Ok(())
 }

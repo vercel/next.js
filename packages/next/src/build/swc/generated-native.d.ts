@@ -424,6 +424,14 @@ export interface NapiDiagnostic {
   name: string
   payload: Record<string, string>
 }
+export declare function expandNextJsTemplate(
+  content: Buffer,
+  templatePath: string,
+  nextPackageDirPath: string,
+  replacements: Record<string, string>,
+  injections: Record<string, string>,
+  imports: Record<string, string | null>
+): string
 export declare function parse(
   src: string,
   options: Buffer,

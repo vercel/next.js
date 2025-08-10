@@ -1,6 +1,11 @@
 import stripAnsi from 'strip-ansi'
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, hasErrorToast, retry } from 'next-test-utils'
+import {
+  assertNoRedbox,
+  assertNoErrorToast,
+  hasErrorToast,
+  retry,
+} from 'next-test-utils'
 import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
@@ -32,7 +37,7 @@ describe('Cache Components Dev Errors', () => {
     `)
   })
 
-  it('should show a red box error on client navigations', async () => {
+  it('should not show a red box error on client navigations', async () => {
     const browser = await next.browser('/no-error')
 
     await retry(async () => {
@@ -40,6 +45,9 @@ describe('Cache Components Dev Errors', () => {
     })
 
     await browser.elementByCss("[href='/error']").click()
+    await assertNoErrorToast(browser)
+
+    await browser.loadPage(`${next.url}/error`)
 
     // TODO: React should not include the anon stack in the Owner Stack.
     await expect(browser).toDisplayCollapsedRedbox(`

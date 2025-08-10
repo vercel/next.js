@@ -189,6 +189,40 @@ export default async function Page() {
             </li>
           </ul>
         </li>
+        <li>
+          public, cacheLife("seconds")
+          <ul>
+            <li>
+              <DebugLinkAccordion
+                href="/caches/public-seconds"
+                prefetch={'auto'}
+              />
+            </li>
+            <li>
+              <DebugLinkAccordion
+                href="/caches/public-seconds"
+                prefetch={true}
+              />
+            </li>
+          </ul>
+        </li>
+        <li>
+          private, cacheLife("seconds")
+          <ul>
+            <li>
+              <DebugLinkAccordion
+                href="/caches/private-seconds"
+                prefetch={'auto'}
+              />
+            </li>
+            <li>
+              <DebugLinkAccordion
+                href="/caches/private-seconds"
+                prefetch={true}
+              />
+            </li>
+          </ul>
+        </li>
       </ul>
 
       <h2>misc</h2>

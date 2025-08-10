@@ -142,10 +142,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/server/page.js (2:26)
+         "source": "./app/server/page.js (2:28)
        Parsing ecmascript source code failed
        > 2 |   return <p>Hello world</p>
-           |                          ^",
+           |                            ^",
          "stack": [],
        }
       `)
@@ -160,7 +160,6 @@ describe('Error recovery app', () => {
           ,-[2:1]
         1 | export default function Page() {
         2 |   return <p>Hello world</p>
-          :                          ^
           \`----
        Caused by:
            Syntax Error
@@ -206,10 +205,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/client/page.js (2:26)
+         "source": "./app/client/page.js (2:28)
        Parsing ecmascript source code failed
        > 2 |   return <p>Hello world</p>
-           |                          ^",
+           |                            ^",
          "stack": [],
        }
       `)
@@ -224,7 +223,6 @@ describe('Error recovery app', () => {
           ,-[2:1]
         1 | export default function Page() {
         2 |   return <p>Hello world</p>
-          :                          ^
           \`----
        Caused by:
            Syntax Error
@@ -623,10 +621,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (10:39)
+         "source": "./index.js (10:42)
        Parsing ecmascript source code failed
        > 10 | export default function FunctionNamed() {
-            |                                       ^",
+            |                                          ^",
          "stack": [],
        }
       `)
@@ -640,7 +638,6 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
            ,-[10:1]
         10 | export default function FunctionNamed() {
-           :                                       ^
            \`----
        Caused by:
            Syntax Error
@@ -660,10 +657,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (10:39)
+         "source": "./index.js (10:42)
        Parsing ecmascript source code failed
        > 10 | export default function FunctionNamed() {
-            |                                       ^",
+            |                                          ^",
          "stack": [],
        }
       `)
@@ -677,7 +674,6 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
            ,-[10:1]
         10 | export default function FunctionNamed() {
-           :                                       ^
            \`----
        Caused by:
            Syntax Error
@@ -1016,10 +1012,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/page.js (1:2)
+         "source": "./app/page.js (1:4)
        Parsing ecmascript source code failed
        > 1 | {{{
-           |  ^",
+           |    ^",
          "stack": [],
        }
       `)
@@ -1033,7 +1029,6 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
           ,----
         1 | {{{
-          :  ^
           \`----
        Caused by:
            Syntax Error",

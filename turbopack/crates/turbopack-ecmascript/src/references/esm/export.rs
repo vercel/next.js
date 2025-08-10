@@ -141,17 +141,8 @@ pub async fn follow_reexports(
     side_effect_free_packages: Vc<Glob>,
     ignore_side_effect_of_entry: bool,
 ) -> Result<Vc<FollowExportsResult>> {
-    if !ignore_side_effect_of_entry
-        && !*module
-            .is_marked_as_side_effect_free(side_effect_free_packages)
-            .await?
-    {
-        return Ok(FollowExportsResult::cell(FollowExportsResult {
-            module,
-            export_name: Some(export_name),
-            ty: FoundExportType::SideEffects,
-        }));
-    }
+    let mut ignore_side_effects = ignore_side_effect_of_entry;
+
     let mut module = module;
     let mut export_name = export_name;
     loop {
@@ -164,12 +155,26 @@ pub async fn follow_reexports(
             }));
         };
 
+        if !ignore_side_effects
+            && !*module
+                .is_marked_as_side_effect_free(side_effect_free_packages)
+                .await?
+        {
+            // TODO It's unfortunate that we have to use the whole module here.
+            // This is often the Facade module, which includes all reexports.
+            // Often we could use Locals + the followed reexports instead.
+            return Ok(FollowExportsResult::cell(FollowExportsResult {
+                module,
+                export_name: Some(export_name),
+                ty: FoundExportType::SideEffects,
+            }));
+        }
+        ignore_side_effects = false;
+
         // Try to find the export in the local exports
         let exports_ref = exports.await?;
         if let Some(export) = exports_ref.exports.get(&export_name) {
-            match handle_declared_export(module, export_name, export, side_effect_free_packages)
-                .await?
-            {
+            match handle_declared_export(module, export_name, export).await? {
                 ControlFlow::Continue((m, n)) => {
                     module = m.to_resolved().await?;
                     export_name = n;
@@ -222,23 +227,12 @@ async fn handle_declared_export(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     export: &EsmExport,
-    side_effect_free_packages: Vc<Glob>,
 ) -> Result<ControlFlow<FollowExportsResult, (Vc<Box<dyn EcmascriptChunkPlaceable>>, RcStr)>> {
     match export {
         EsmExport::ImportedBinding(reference, name, _) => {
             if let ReferencedAsset::Some(module) =
                 *ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
             {
-                if !*module
-                    .is_marked_as_side_effect_free(side_effect_free_packages)
-                    .await?
-                {
-                    return Ok(ControlFlow::Break(FollowExportsResult {
-                        module,
-                        export_name: Some(name.clone()),
-                        ty: FoundExportType::SideEffects,
-                    }));
-                }
                 return Ok(ControlFlow::Continue((*module, name.clone())));
             }
         }
@@ -286,6 +280,7 @@ async fn find_export_from_reexports(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
 ) -> Result<Vc<FindExportFromReexportsResult>> {
+    // TODO why do we need a special case for this?
     if let Some(module) =
         Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(*module).await?
         && matches!(module.await?.part, ModulePart::Exports)

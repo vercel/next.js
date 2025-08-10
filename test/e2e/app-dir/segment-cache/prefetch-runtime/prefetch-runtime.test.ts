@@ -670,10 +670,32 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
   })
 
   describe('cache stale time handling', () => {
-    it('includes short-lived public caches with a long enough staleTime', async () => {
-      // If a cache has an expiration time under 5min (DYNAMIC_EXPIRE), we omit it from static prerenders.
-      // However, it should still be included in a runtime prefetch if it's stale time is above 30s. (RUNTIME_PREFETCH_DYNAMIC_STALE)
-
+    it.each([
+      {
+        // If a cache has an expiration time under 5min (DYNAMIC_EXPIRE), we omit it from static prerenders.
+        // However, it should still be included in a runtime prefetch if its stale time is >=30s. (RUNTIME_PREFETCH_DYNAMIC_STALE)
+        description:
+          'includes short-lived public caches with a long enough staleTime',
+        staticContent: 'This page uses a short-lived public cache',
+        path: '/caches/public-short-expire-long-stale',
+      },
+      {
+        // If a cache has an expiration time under 5min (DYNAMIC_EXPIRE), we omit it from static prerenders.
+        // However, it should still be included in a runtime prefetch if its stale time is >=30s. (RUNTIME_PREFETCH_DYNAMIC_STALE)
+        // `cacheLife("seconds")` is deliberately set to have a stale time of 30s to stay above this treshold.
+        description: 'includes public caches with cacheLife("seconds")',
+        staticContent: 'This page uses a short-lived public cache',
+        path: '/caches/public-seconds',
+      },
+      {
+        // A Private cache will always be omitted from static prerenders.
+        // However, it should still be included in a runtime prefetch if its stale time is >=30s. (RUNTIME_PREFETCH_DYNAMIC_STALE)
+        // `cacheLife("seconds")` is deliberately set to have a stale time of 30s to stay above this treshold.
+        description: 'includes private caches with cacheLife("seconds")',
+        staticContent: 'This page uses a short-lived private cache',
+        path: '/caches/private-seconds',
+      },
+    ])('$description', async ({ path, staticContent }) => {
       let page: Playwright.Page
       const browser = await next.browser('/', {
         beforePageLoad(p: Playwright.Page) {
@@ -682,22 +704,20 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
       })
       const act = createRouterAct(page)
 
-      const STATIC_CONTENT = 'This page uses a short-lived public cache'
       const DYNAMICALLY_PREFETCHABLE_CONTENT = 'Short-lived cached content'
 
       // Reveal the link to trigger a static prefetch
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="auto"][data-link-accordion="/caches/public-short-expire-long-stale"]`
+          `input[data-prefetch="auto"][data-link-accordion="${path}"]`
         )
         await linkToggle.click()
       }, [
         // Should include the static shell
         {
-          includes: STATIC_CONTENT,
+          includes: staticContent,
         },
         // Should not include the short-lived cache
-        // (We set the `expire` value to be under 5min, so it will be excluded from prerenders)
         {
           includes: DYNAMICALLY_PREFETCHABLE_CONTENT,
           block: 'reject',
@@ -707,12 +727,11 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
       // Reveal the link to trigger a runtime prefetch
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="runtime"][data-link-accordion="/caches/public-short-expire-long-stale"]`
+          `input[data-prefetch="runtime"][data-link-accordion="${path}"]`
         )
         await linkToggle.click()
       }, [
         // Should include the short-lived cache
-        // (We set `stale` to be above 30s, which means it shouldn't be omitted)
         {
           includes: DYNAMICALLY_PREFETCHABLE_CONTENT,
         },
@@ -721,9 +740,7 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
       // Navigate to the page. We didn't include any uncached IO, so the page is fully prefetched,
       // and this shouldn't issue any more requests
       await act(async () => {
-        await browser
-          .elementByCss(`a[href="/caches/public-short-expire-long-stale"]`)
-          .click()
+        await browser.elementByCss(`a[href="${path}"]`).click()
       }, 'no-requests')
 
       expect(await browser.elementByCss('main').text()).toInclude(

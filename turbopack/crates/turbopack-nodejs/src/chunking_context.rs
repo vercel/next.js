@@ -484,9 +484,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         _module_graph: Vc<ModuleGraph>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        // TODO(alexkirsz) This method should be part of a separate trait that is
-        // only implemented for client/edge runtimes.
-        bail!("the build chunking context does not support evaluated chunk groups")
+        bail!("the Node.js chunking context does not support evaluated chunk groups")
     }
 
     #[turbo_tasks::function]

@@ -1,6 +1,5 @@
-(globalThis.TURBOPACK = globalThis.TURBOPACK || []).push(["output/4c35f_tests_snapshot_scope-hoisting_split-shared_input_big_index_6f69a308.js", {
-
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/index.js [test] (ecmascript)": ((__turbopack_context__) => {
+(globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push(["output/4c35f_tests_snapshot_scope-hoisting_split-shared_input_big_index_6f69a308.js",
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/index.js [test] (ecmascript)
@@ -68,6 +67,6 @@ FG6adF1kPdxcnQ9rUk0b1jaemDjUwXJRycSSrmUPKiA6MTt8YVMx3Xf4NTZvmTugEE9pXSLyFeQQzEx3
 ;
 const __TURBOPACK__default__export__1 = __TURBOPACK__default__export__.length;
 }),
-}]);
+]);
 
 //# sourceMappingURL=4c35f_tests_snapshot_scope-hoisting_split-shared_input_big_index_6f69a308.js.map

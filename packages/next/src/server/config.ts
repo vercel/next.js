@@ -942,18 +942,6 @@ function assignDefaults(
           result.expireTime ?? defaultDefault.expire
       }
     }
-    // This is the most dynamic cache life profile.
-    const secondsCacheLifeProfile = result.experimental.cacheLife['seconds']
-    if (
-      secondsCacheLifeProfile &&
-      secondsCacheLifeProfile.stale === undefined
-    ) {
-      // We default this to whatever stale time you had configured for dynamic content.
-      // Since this is basically a dynamic cache life profile.
-      const dynamicStaleTime = result.experimental.staleTimes?.dynamic
-      secondsCacheLifeProfile.stale =
-        dynamicStaleTime ?? defaultConfig.experimental?.staleTimes?.dynamic
-    }
   }
 
   if (result.experimental?.cacheHandlers) {
@@ -1709,6 +1697,25 @@ function enforceExperimentalFeatures(
       addConfiguredExperimentalFeature(
         configuredExperimentalFeatures,
         'clientSegmentCache',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made Client Param Parsing the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.clientParamParsing === undefined ||
+      (isDefaultConfig && !config.experimental.clientParamParsing))
+  ) {
+    config.experimental.clientParamParsing = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'clientParamParsing',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_PPR`'
       )

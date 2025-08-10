@@ -38,6 +38,7 @@ import {
   addSearchParamsIfPageSegment,
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
+import type { SegmentCacheKey } from '../../../shared/lib/segment-cache/segment-value-encoding'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'
@@ -583,7 +584,10 @@ function pingRootRouteTree(
         case FetchStrategy.PPRRuntime:
         case FetchStrategy.LoadingBoundary: {
           // Prefetch multiple segments using a single dynamic request.
-          const spawnedEntries = new Map<string, PendingSegmentCacheEntry>()
+          const spawnedEntries = new Map<
+            SegmentCacheKey,
+            PendingSegmentCacheEntry
+          >()
           const dynamicRequestTree = diffRouteTreeAgainstCurrent(
             now,
             task,
@@ -658,8 +662,8 @@ function pingPPRRouteTree(
   route: FulfilledRouteCacheEntry,
   tree: RouteTree
 ): PrefetchTaskExitStatus.InProgress | PrefetchTaskExitStatus.Done {
-  const segment = readOrCreateSegmentCacheEntry(now, task, route, tree.key)
-  pingPerSegment(now, task, route, segment, task.key, tree.key)
+  const segment = readOrCreateSegmentCacheEntry(now, task, route, tree.cacheKey)
+  pingPerSegment(now, task, route, segment, task.key, tree)
   if (tree.slots !== null) {
     if (!hasNetworkBandwidth(task)) {
       // Stop prefetching segments until there's more bandwidth.
@@ -848,7 +852,7 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   let refetchMarker: 'refetch' | 'inside-shared-layout' | null =
     refetchMarkerContext === null ? 'inside-shared-layout' : null
 
-  const segment = readOrCreateSegmentCacheEntry(now, task, route, tree.key)
+  const segment = readOrCreateSegmentCacheEntry(now, task, route, tree.cacheKey)
   switch (segment.status) {
     case EntryStatus.Empty: {
       // This segment is not cached. Add a refetch marker so the server knows
@@ -861,7 +865,7 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
 
       // Add the pending cache entry to the result map.
       spawnedEntries.set(
-        tree.key,
+        tree.cacheKey,
         upgradeToPendingSegment(
           segment,
           // Set the fetch strategy to LoadingBoundary to indicate that the server
@@ -951,7 +955,7 @@ function pingRouteTreeAndIncludeDynamicData(
   // explicit "refetch" marker so the server knows where to start rendering.
   // Once the server starts rendering along a path, it keeps rendering the
   // entire subtree.
-  const segment = readOrCreateSegmentCacheEntry(now, task, route, tree.key)
+  const segment = readOrCreateSegmentCacheEntry(now, task, route, tree.cacheKey)
 
   let spawnedSegment: PendingSegmentCacheEntry | null = null
 
@@ -980,7 +984,7 @@ function pingRouteTreeAndIncludeDynamicData(
           task,
           route,
           segment,
-          tree.key,
+          tree,
           fetchStrategy
         )
       }
@@ -1001,7 +1005,7 @@ function pingRouteTreeAndIncludeDynamicData(
           task,
           route,
           segment,
-          tree.key,
+          tree,
           fetchStrategy
         )
       }
@@ -1029,7 +1033,7 @@ function pingRouteTreeAndIncludeDynamicData(
 
   if (spawnedSegment !== null) {
     // Add the pending entry to the result map.
-    spawnedEntries.set(tree.key, spawnedSegment)
+    spawnedEntries.set(tree.cacheKey, spawnedSegment)
   }
 
   // Don't bother to add a refetch marker if one is already present in a parent.
@@ -1052,7 +1056,7 @@ function pingPerSegment(
   route: FulfilledRouteCacheEntry,
   segment: SegmentCacheEntry,
   routeKey: RouteCacheKey,
-  segmentKey: string
+  tree: RouteTree
 ): void {
   switch (segment.status) {
     case EntryStatus.Empty:
@@ -1062,7 +1066,7 @@ function pingPerSegment(
           route,
           upgradeToPendingSegment(segment, FetchStrategy.PPR),
           routeKey,
-          segmentKey
+          tree
         )
       )
       break
@@ -1090,7 +1094,7 @@ function pingPerSegment(
               segment,
               route,
               routeKey,
-              segmentKey
+              tree
             )
           }
           break
@@ -1119,14 +1123,7 @@ function pingPerSegment(
           // Because a rejected segment will definitely prevent the segment (and
           // all of its children) from rendering, we perform this revalidation
           // immediately instead of deferring it to a background task.
-          pingPPRSegmentRevalidation(
-            now,
-            task,
-            segment,
-            route,
-            routeKey,
-            segmentKey
-          )
+          pingPPRSegmentRevalidation(now, task, segment, route, routeKey, tree)
           break
         default:
           segment.fetchStrategy satisfies never
@@ -1151,7 +1148,7 @@ function pingPPRSegmentRevalidation(
   currentSegment: SegmentCacheEntry,
   route: FulfilledRouteCacheEntry,
   routeKey: RouteCacheKey,
-  segmentKey: string
+  tree: RouteTree
 ): void {
   const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(
     now,
@@ -1164,13 +1161,13 @@ function pingPPRSegmentRevalidation(
       upsertSegmentOnCompletion(
         task,
         route,
-        segmentKey,
+        tree.cacheKey,
         spawnPrefetchSubtask(
           fetchSegmentOnCacheMiss(
             route,
             upgradeToPendingSegment(revalidatingSegment, FetchStrategy.PPR),
             routeKey,
-            segmentKey
+            tree
           )
         )
       )
@@ -1194,7 +1191,7 @@ function pingFullSegmentRevalidation(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
   currentSegment: SegmentCacheEntry,
-  segmentKey: string,
+  tree: RouteTree,
   fetchStrategy: FetchStrategy.Full | FetchStrategy.PPRRuntime
 ): PendingSegmentCacheEntry | null {
   const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(
@@ -1214,7 +1211,7 @@ function pingFullSegmentRevalidation(
     upsertSegmentOnCompletion(
       task,
       route,
-      segmentKey,
+      tree.cacheKey,
       waitForSegmentCacheEntry(pendingSegment)
     )
     return pendingSegment
@@ -1239,7 +1236,7 @@ function pingFullSegmentRevalidation(
       upsertSegmentOnCompletion(
         task,
         route,
-        segmentKey,
+        tree.cacheKey,
         waitForSegmentCacheEntry(pendingSegment)
       )
       return pendingSegment
@@ -1266,14 +1263,14 @@ const noop = () => {}
 function upsertSegmentOnCompletion(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  key: string,
+  cacheKey: SegmentCacheKey,
   promise: Promise<FulfilledSegmentCacheEntry | null>
 ) {
   // Wait for a segment to finish loading, then upsert it into the cache
   promise.then((fulfilled) => {
     if (fulfilled !== null) {
       // Received new data. Attempt to replace the existing entry in the cache.
-      const keypath = getSegmentKeypathForTask(task, route, key)
+      const keypath = getSegmentKeypathForTask(task, route, cacheKey)
       upsertSegmentEntry(Date.now(), keypath, fulfilled)
     }
   }, noop)

@@ -6942,6 +6942,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/metadata-image-files/metadata-image-files.test.ts": {
+    "passed": [
+      "app dir - metadata image files should handle imported metadata images"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/metadata-json-manifest/index.test.ts": {
     "passed": [
       "app-dir metadata-json-manifest should support metadata.json manifest"

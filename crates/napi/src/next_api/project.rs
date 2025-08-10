@@ -39,9 +39,9 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, get_relative_path_to,
-    util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, util::uri_from_file,
 };
+use turbo_unix_path::get_relative_path_to;
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     diagnostics::PlainDiagnostic,
@@ -541,7 +541,7 @@ async fn benchmark_file_io(
         ))?
         .await?;
 
-    let directory = fs.to_sys_path(directory).await?;
+    let directory = fs.to_sys_path(directory)?;
     let temp_path = directory.join(format!(
         "tmp_file_io_benchmark_{:x}",
         rand::random::<u128>()

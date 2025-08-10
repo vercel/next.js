@@ -1238,6 +1238,23 @@ async function loadWasm(importPath = '') {
         )
       },
     },
+    expandNextJsTemplate(
+      content: Buffer,
+      templatePath: string,
+      nextPackageDirPath: string,
+      replacements: Record<`VAR_${string}`, string>,
+      injections: Record<string, string>,
+      imports: Record<string, string | null>
+    ): string {
+      return rawBindings.expandNextJsTemplate(
+        content,
+        templatePath,
+        nextPackageDirPath,
+        replacements,
+        injections,
+        imports
+      )
+    },
   }
   return wasmBindings
 }
@@ -1420,6 +1437,23 @@ function loadNative(importPath?: string) {
           return bindings.warnForEdgeRuntime(source, isProduction)
         },
       },
+      expandNextJsTemplate(
+        content: Buffer,
+        templatePath: string,
+        nextPackageDirPath: string,
+        replacements: Record<`VAR_${string}`, string>,
+        injections: Record<string, string>,
+        imports: Record<string, string | null>
+      ): string {
+        return bindings.expandNextJsTemplate(
+          content,
+          templatePath,
+          nextPackageDirPath,
+          replacements,
+          injections,
+          imports
+        )
+      },
     }
     return nativeBindings
   }
@@ -1498,7 +1532,7 @@ export function getBinaryMetadata() {
  *
  */
 export function initCustomTraceSubscriber(traceFileName?: string) {
-  if (swcTraceFlushGuard) {
+  if (!swcTraceFlushGuard) {
     // Wasm binary doesn't support trace emission
     let bindings = loadNative()
     swcTraceFlushGuard = bindings.initCustomTraceSubscriber?.(traceFileName)

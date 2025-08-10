@@ -61,6 +61,7 @@ function createPrerenderPathname(
       if (fallbackParams && fallbackParams.size > 0) {
         return makeHangingPromise<string>(
           prerenderStore.renderSignal,
+          workStore.route,
           '`pathname`'
         )
       }
