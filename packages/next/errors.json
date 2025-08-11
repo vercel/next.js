@@ -797,5 +797,6 @@
   "796": "Page \"%s\" cannot use \\`export const unstable_prefetch = ...\\` without enabling \\`experimental.cacheComponents\\` and \\`experimental.clientSegmentCache\\`.",
   "797": "Failed to transpile \"%s\".",
   "798": "expected a result to be returned",
-  "799": "expected a page response, got %s"
+  "799": "expected a page response, got %s",
+  "800": "`experimental.rdcForNavigations` is enabled, but `experimental.ppr` is not."
 }

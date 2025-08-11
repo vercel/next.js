@@ -1568,7 +1568,12 @@ export default async function build(
               clientParamParsingOrigins: config.experimental.clientParamParsing
                 ? config.experimental.clientParamParsingOrigins
                 : undefined,
-              dynamicRSCPrerender: isAppPPREnabled,
+              dynamicRSCPrerender:
+                // Only enable RDC for Navigations if the feature is enabled.
+                // Once we've made RDC for Navigations the default for PPR, we
+                // can remove the check for `config.experimental.rdcForNavigations`.
+                isAppPPREnabled &&
+                config.experimental.rdcForNavigations === true,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,

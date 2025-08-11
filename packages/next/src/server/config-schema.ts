@@ -363,6 +363,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         clientSegmentCache: z
           .union([z.boolean(), z.literal('client-only')])
           .optional(),
+        rdcForNavigations: z.boolean().optional(),
         clientParamParsing: z.boolean().optional(),
         clientParamParsingOrigins: z.array(z.string()).optional(),
         dynamicOnHover: z.boolean().optional(),

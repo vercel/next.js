@@ -279,6 +279,11 @@ export async function handler(
       !(isHtmlBot && isRoutePPREnabled)
   )
 
+  // When a page supports PPR, we can support RSC for Navigations so long as the
+  // feature is not disabled.
+  const supportsRSCForNavigations =
+    isRoutePPREnabled && nextConfig.experimental.rdcForNavigations === true
+
   // In development, we always want to generate dynamic HTML.
   const supportsDynamicResponse: boolean =
     // If we're in development, we always support dynamic HTML, unless it's
@@ -293,8 +298,12 @@ export async function handler(
     // If this handler supports onCacheEntryV2, then we can only support
     // dynamic responses if it's a dynamic RSC request and not in minimal mode. If it
     // doesn't support it we must fallback to the default behavior.
-    (getRequestMeta(req, 'onCacheEntryV2')
-      ? isDynamicRSCRequest && !minimalMode
+    (supportsRSCForNavigations && getRequestMeta(req, 'onCacheEntryV2')
+      ? // In minimal mode, we'll always want to generate a static response
+        // which will generate the RDC for the route. When resuming a Dynamic
+        // RSC request, we'll pass the minimal postponed data to the render
+        // which will trigger the `supportsDynamicResponse` to be true.
+        isDynamicRSCRequest && !minimalMode
       : // Otherwise, we can support dynamic responses if it's a dynamic RSC request.
         isDynamicRSCRequest)
 
@@ -812,6 +821,8 @@ export async function handler(
       // resume data cache (RDC) from the static render to ensure that the data
       // is consistent between the static and dynamic renders.
       if (
+        // Only enable RDC for Navigations if the feature is enabled.
+        supportsRSCForNavigations &&
         process.env.NEXT_RUNTIME !== 'edge' &&
         !minimalMode &&
         incrementalCache &&
@@ -1121,11 +1132,14 @@ export async function handler(
       }
 
       // If there's a callback for `onCacheEntry`, call it with the cache entry
-      // and the revalidate options.
-      const onCacheEntry =
-        getRequestMeta(req, 'onCacheEntryV2') ??
-        // TODO: Remove this once we've migrated to `onCacheEntryV2`
-        getRequestMeta(req, 'onCacheEntry')
+      // and the revalidate options. If we support RDC for Navigations, we
+      // prefer the `onCacheEntryV2` callback. Once RDC for Navigations is the
+      // default, we can remove the fallback to `onCacheEntry` as
+      // `onCacheEntryV2` is now fully supported.
+      const onCacheEntry = supportsRSCForNavigations
+        ? (getRequestMeta(req, 'onCacheEntryV2') ??
+          getRequestMeta(req, 'onCacheEntry'))
+        : getRequestMeta(req, 'onCacheEntry')
       if (onCacheEntry) {
         const finished = await onCacheEntry(cacheEntry, {
           url: getRequestMeta(req, 'initURL') ?? req.url,
