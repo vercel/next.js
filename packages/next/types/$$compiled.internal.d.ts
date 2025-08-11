@@ -488,6 +488,7 @@ declare module 'next/dist/compiled/image-detector/detector.js' {
     | 'tga'
     | 'tiff'
     | 'webp'
+    | undefined
 }
 
 declare module 'next/dist/compiled/@hapi/accept' {
