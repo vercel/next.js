@@ -73,6 +73,10 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
         let f: *mut (dyn Future<Output = ()> + Send + 'scope) = Box::into_raw(f);
         // SAFETY: Scope ensures (e. g. in Drop) that spawned tasks is awaited before the
         // lifetime `'env` ends.
+        #[allow(
+            clippy::unnecessary_cast,
+            reason = "Clippy thinks this is unnecessary, but it actually changes the lifetime"
+        )]
         let f = f as *mut (dyn Future<Output = ()> + Send + 'static);
         // SAFETY: We just called `Box::into_raw`.
         let f = unsafe { Box::from_raw(f) };
