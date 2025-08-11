@@ -71,6 +71,7 @@ mod raw_vc;
 mod read_options;
 mod read_ref;
 pub mod registry;
+pub mod scope;
 mod serialization_invalidation;
 pub mod small_duration;
 mod state;
