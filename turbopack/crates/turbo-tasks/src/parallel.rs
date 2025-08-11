@@ -4,13 +4,9 @@
 //! This avoid the problem of sleeping threads with mimalloc when using rayon in combination with
 //! tokio. It also avoid having multiple thread pools.
 
-use std::{
-    mem::{ManuallyDrop, transmute},
-    sync::LazyLock,
-    thread::available_parallelism,
-};
+use std::{sync::LazyLock, thread::available_parallelism};
 
-use crate::scope::scope_and_block;
+use crate::{scope::scope_and_block, util::into_chunks};
 
 /// Calculates a good chunk size for parallel processing based on the number of available threads.
 /// This is used to ensure that the workload is evenly distributed across the threads.
@@ -65,17 +61,11 @@ where
     }
     let chunk_size = good_chunk_size(len);
     let f = &f;
-    // SAFETY: transmuting to ManuallyDrop is always safe. We just need to make sure to not leak
-    // memory.
-    let mut items = unsafe { transmute::<Vec<T>, Vec<ManuallyDrop<T>>>(items) };
     let _results = scope_and_block(len.div_ceil(chunk_size), |scope| {
-        for chunk in items.chunks_mut(chunk_size) {
+        for chunk in into_chunks(items, chunk_size) {
             scope.spawn(async move {
                 // SAFETY: Even when f() panics we drop all items in the chunk.
-                for item in MapEvenWhenDropped::new(chunk.iter_mut(), |item| {
-                    // SAFETY: We call ManuallyDrop::take(item) only once per item
-                    unsafe { ManuallyDrop::take(item) }
-                }) {
+                for item in chunk {
                     f(item);
                 }
             })
@@ -169,17 +159,10 @@ where
     }
     let chunk_size = good_chunk_size(len);
     let f = &f;
-    // SAFETY: transmuting to ManuallyDrop is always safe. We just need to make sure to not leak
-    // memory.
-    let mut items = unsafe { transmute::<Vec<T>, Vec<ManuallyDrop<T>>>(items) };
     scope_and_block(len.div_ceil(chunk_size), |scope| {
-        for chunk in items.chunks_mut(chunk_size) {
+        for chunk in into_chunks(items, chunk_size) {
             scope.spawn(async move {
-                // SAFETY: Even when f() panics we drop all items in the chunk.
-                for item in MapEvenWhenDropped::new(chunk.iter_mut(), |item| {
-                    // SAFETY: We call ManuallyDrop::take(item) only once per item
-                    unsafe { ManuallyDrop::take(item) }
-                }) {
+                for item in chunk {
                     f(item)?;
                 }
                 Ok(())
@@ -222,70 +205,13 @@ where
     }
     let chunk_size = good_chunk_size(len);
     let f = &f;
-    let mut items = unsafe { transmute::<Vec<T>, Vec<ManuallyDrop<T>>>(items) };
     scope_and_block(len.div_ceil(chunk_size), |scope| {
-        for chunk in items.chunks_mut(chunk_size) {
-            scope.spawn(async move {
-                // SAFETY: Even when f() panics we drop all items in the chunk.
-                MapEvenWhenDropped::new(chunk.iter_mut(), |item| {
-                    // SAFETY: We call ManuallyDrop::take(item) only once per item
-                    unsafe { ManuallyDrop::take(item) }
-                })
-                .map(f)
-                .collect::<Vec<_>>()
-            })
+        for chunk in into_chunks(items, chunk_size) {
+            scope.spawn(async move { chunk.map(f).collect::<Vec<_>>() })
         }
     })
     .flatten()
     .collect()
-}
-
-struct MapEvenWhenDropped<I, B, F>
-where
-    I: Iterator,
-    F: FnMut(I::Item) -> B,
-{
-    iter: I,
-    f: F,
-}
-
-impl<I, B, F> MapEvenWhenDropped<I, B, F>
-where
-    I: Iterator,
-    F: FnMut(I::Item) -> B,
-{
-    fn new(iter: I, f: F) -> Self {
-        Self { iter, f }
-    }
-}
-
-impl<I, B, F> Iterator for MapEvenWhenDropped<I, B, F>
-where
-    I: Iterator,
-    F: FnMut(I::Item) -> B,
-{
-    type Item = B;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(&mut self.f)
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
-    }
-}
-
-impl<I, B, F> Drop for MapEvenWhenDropped<I, B, F>
-where
-    I: Iterator,
-    F: FnMut(I::Item) -> B,
-{
-    fn drop(&mut self) {
-        // Ensure that the mapping function is called even when the iterator is dropped.
-        for item in &mut self.iter {
-            drop((self.f)(item));
-        }
-    }
 }
 
 #[cfg(test)]

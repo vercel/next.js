@@ -37,6 +37,7 @@
 #![feature(never_type)]
 #![feature(downcast_unchecked)]
 #![feature(ptr_metadata)]
+#![feature(sync_unsafe_cell)]
 
 pub mod backend;
 mod capture_future;
