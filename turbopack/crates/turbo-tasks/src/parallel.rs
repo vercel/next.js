@@ -5,21 +5,22 @@
 //! tokio. It also avoid having multiple thread pools.
 
 use std::{
-    mem::{ManuallyDrop, transmute},
+    mem::{ManuallyDrop, take, transmute},
     panic,
+    pin::Pin,
     sync::{Arc, LazyLock},
     thread::available_parallelism,
 };
 
 use tokio::{
-    runtime::Handle,
+    runtime::{Builder, Handle},
     task::{JoinHandle, block_in_place},
 };
 use tracing::{Instrument, Span};
 
 use crate::{
     TurboTasksApi,
-    manager::{try_turbo_tasks, turbo_tasks_try_scope},
+    manager::{try_turbo_tasks, turbo_tasks_future_scope},
 };
 
 /// Calculates a good chunk size for parallel processing based on the number of available threads.
@@ -31,29 +32,27 @@ fn good_chunk_size(len: usize) -> usize {
     len.div_ceil(min_chunk_count)
 }
 
-/// Context to allow spawning a task with a limited lifetime.
+/// Scope to allow spawning tasks with a limited lifetime.
 ///
-/// ## Safety
-///
-/// This context must not be dropped before all tasks spawned with it have been awaited.
-struct ProcessInParallelContext<'l, R: Send + 'l> {
-    results: Box<[Option<R>]>,
-    index: usize,
+/// Dropping this Scope will wait for all tasks to complete.
+struct Scope<'l, R: Send + 'l> {
+    results: Option<Box<[Option<R>]>>,
+    futures: Vec<JoinHandle<std::marker::PhantomData<&'l ()>>>,
     handle: Handle,
     turbo_tasks: Option<Arc<dyn TurboTasksApi>>,
     span: Span,
     phantom: std::marker::PhantomData<&'l ()>,
 }
 
-impl<'l, R: Send + 'l> ProcessInParallelContext<'l, R> {
+impl<'l, R: Send + 'l> Scope<'l, R> {
     fn new(len: usize) -> Self {
         let mut results = Vec::with_capacity(len);
         for _ in 0..len {
             results.push(None);
         }
         Self {
-            results: results.into_boxed_slice(),
-            index: 0,
+            results: Some(results.into_boxed_slice()),
+            futures: Vec::with_capacity(len),
             handle: Handle::current(),
             turbo_tasks: try_turbo_tasks(),
             span: Span::current(),
@@ -61,9 +60,10 @@ impl<'l, R: Send + 'l> ProcessInParallelContext<'l, R> {
         }
     }
 
-    fn task<F>(&mut self, f: F) -> JoinHandle<()>
+    /// Spawns a new task in the scope.
+    pub fn spawn<F>(&mut self, f: F)
     where
-        F: FnOnce() -> R + Send + 'l,
+        F: Future<Output = R> + Send + 'l,
     {
         struct SendablePtr<T>(*mut Option<T>);
         unsafe impl<T: Send> Send for SendablePtr<T> {}
@@ -79,62 +79,77 @@ impl<'l, R: Send + 'l> ProcessInParallelContext<'l, R> {
             }
         }
 
-        let mut result_cell = SendablePtr::new(&mut self.results[self.index]);
-        self.index += 1;
+        let results = self
+            .results
+            .as_mut()
+            .expect("spawn can't be called after the results have been read");
+        assert!(results.len() > self.futures.len(), "Too many tasks spawned");
+        let mut result_cell = SendablePtr::new(&mut results[self.futures.len()]);
 
-        let f: Box<dyn FnOnce() + Send + 'l> = Box::new(move || {
-            let result = f();
+        let f: Pin<Box<dyn Future<Output = ()> + Send + 'l>> = Box::pin(async move {
+            let result = f.await;
             // SAFETY: This is a valid pointer, as we got this pointer from a reference.
             let result_cell = unsafe { result_cell.get_mut() };
             *result_cell = Some(result);
         });
         // SAFETY: In `process_in_parallel` we ensure that the spawned tasks is awaited before the
         // lifetime `'l` ends.
-        let f: Box<dyn FnOnce() + Send + 'static> = unsafe {
-            transmute::<Box<dyn FnOnce() + Send + 'l>, Box<dyn FnOnce() + Send + 'static>>(f)
+        let f: Pin<Box<dyn Future<Output = ()> + Send + 'static>> = unsafe {
+            transmute::<
+                Pin<Box<dyn Future<Output = ()> + Send + 'l>>,
+                Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+            >(f)
         };
         let turbo_tasks = self.turbo_tasks.clone();
         let span = self.span.clone();
-        self.handle.spawn(async move {
-            turbo_tasks_try_scope(turbo_tasks, || {
-                let _guard = span.entered();
-                f();
-            })
-        })
+        let future = self.handle.spawn(
+            async move {
+                if let Some(turbo_tasks) = turbo_tasks {
+                    // Ensure that the turbo tasks context is maintained across the task.
+                    turbo_tasks_future_scope(turbo_tasks, f).await;
+                } else {
+                    // If no turbo tasks context is available, just run the future.
+                    f.await;
+                }
+                std::marker::PhantomData
+            }
+            .instrument(span),
+        );
+        self.futures.push(future);
     }
 
-    /// Converts the context into a vector of results
+    /// Converts the scope into results, ensuring that all futures have been awaited.
     ///
     /// ## Safety
     ///
-    /// The caller must ensure that all tasks have been awaited before calling this method.
-    unsafe fn into_results(self) -> Vec<Option<R>> {
-        self.results.into_vec()
+    /// This method is safe as it ensures that all futures have been awaited before returning the
+    /// results.
+    fn into_results(mut self) -> Vec<Option<R>> {
+        self.block_until_complete();
+        debug_assert!(
+            self.futures.is_empty(),
+            "All futures should be awaited before accessing the results"
+        );
+        self.results.take().unwrap().into_vec()
     }
-}
 
-/// Helper method to spawn tasks in parallel, ensuring that all tasks are awaited and errors are
-/// handled. Also ensures turbo tasks and tracing context are maintained across the tasks.
-///
-/// ## Safety
-///
-/// The caller must ensure that all references in `inner` are valid for the lifetime `'l`.
-unsafe fn process_in_parallel<'l, I, R>(len: usize, inner: I) -> Vec<Option<R>>
-where
-    R: Send + 'l,
-    I: FnOnce(&mut ProcessInParallelContext<'l, R>) -> Vec<JoinHandle<()>> + 'l,
-{
-    let mut process_context = ProcessInParallelContext::new(len);
-    block_in_place(|| {
-        let tasks = inner(&mut process_context);
-        process_context.handle.block_on(
+    /// Blocks the current thread until all spawned tasks have completed.
+    fn block_until_complete(&mut self) {
+        let futures = take(&mut self.futures);
+        if futures.is_empty() {
+            return; // No tasks to wait for, return early
+        }
+        // We create a new current thread runtime to be independent of the current tokio runtime.
+        // This makes us not subject to runtime shutdown and we can drive the futures to completion
+        // in all cases.
+        Builder::new_current_thread().build().unwrap().block_on(
             async {
                 let mut first_err = None;
-                for task in tasks {
+                for task in futures {
                     match task.await {
-                        Ok(()) => {}
+                        Ok(_) => {}
                         Err(err) if first_err.is_none() => {
-                            // SAFETY: We need to finish all tasks before panicking.
+                            // SAFETY: We need to finish all futures before panicking.
                             first_err = Some(err);
                         }
                         Err(_) => {
@@ -146,11 +161,33 @@ where
                     panic::resume_unwind(err.into_panic());
                 }
             }
-            .instrument(process_context.span.clone()),
+            .instrument(self.span.clone()),
         );
-    });
-    // SAFETY: We ensure that all tasks have been awaited before calling this method.
-    unsafe { process_context.into_results() }
+    }
+}
+
+impl<'l, R: Send + 'l> Drop for Scope<'l, R> {
+    fn drop(&mut self) {
+        self.block_until_complete();
+    }
+}
+
+/// Helper method to spawn tasks in parallel, ensuring that all tasks are awaited and errors are
+/// handled. Also ensures turbo tasks and tracing context are maintained across the tasks.
+///
+/// ## Safety
+///
+/// The caller must ensure that all references in `inner` are valid for the lifetime `'l`.
+unsafe fn scope_and_block<'l, I, R>(number_of_tasks: usize, inner: I) -> Vec<Option<R>>
+where
+    R: Send + 'l,
+    I: FnOnce(&mut Scope<'l, R>) + 'l,
+{
+    block_in_place(|| {
+        let mut scope = Scope::new(number_of_tasks);
+        inner(&mut scope);
+        scope.into_results()
+    })
 }
 
 pub fn for_each<'l, T, F>(items: &'l [T], f: F)
@@ -167,17 +204,14 @@ where
     // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
     // function.
     unsafe {
-        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
-            items
-                .chunks(chunk_size)
-                .map(|chunk| {
-                    ctx.task(move || {
-                        for item in chunk {
-                            f(item);
-                        }
-                    })
+        scope_and_block(len.div_ceil(chunk_size), |scope| {
+            for chunk in items.chunks(chunk_size) {
+                scope.spawn(async move {
+                    for item in chunk {
+                        f(item);
+                    }
                 })
-                .collect::<Vec<_>>()
+            }
         })
     };
     // SAFETY: Ensure references are kept until here
@@ -201,20 +235,17 @@ where
     // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
     // function.
     unsafe {
-        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
-            items
-                .chunks_mut(chunk_size)
-                .map(|chunk| {
-                    ctx.task(move || {
-                        // SAFETY: Even when f() panics we drop all items in the chunk.
-                        for item in MapEvenWhenDropped::new(chunk.iter_mut(), |item| {
-                            ManuallyDrop::take(item)
-                        }) {
-                            f(item);
-                        }
-                    })
+        scope_and_block(len.div_ceil(chunk_size), |scope| {
+            for chunk in items.chunks_mut(chunk_size) {
+                scope.spawn(async move {
+                    // SAFETY: Even when f() panics we drop all items in the chunk.
+                    for item in
+                        MapEvenWhenDropped::new(chunk.iter_mut(), |item| ManuallyDrop::take(item))
+                    {
+                        f(item);
+                    }
                 })
-                .collect::<Vec<_>>()
+            }
         })
     };
     // SAFETY: Ensure references are kept until here
@@ -239,18 +270,15 @@ where
     // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
     // function.
     let results = unsafe {
-        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
-            items
-                .chunks(chunk_size)
-                .map(|chunk| {
-                    ctx.task(move || {
-                        for item in chunk {
-                            f(item)?;
-                        }
-                        Ok(())
-                    })
+        scope_and_block(len.div_ceil(chunk_size), |scope| {
+            for chunk in items.chunks(chunk_size) {
+                scope.spawn(async move {
+                    for item in chunk {
+                        f(item)?;
+                    }
+                    Ok(())
                 })
-                .collect::<Vec<_>>()
+            }
         })
     };
     let result = results.into_iter().flatten().collect::<Result<(), E>>();
@@ -277,18 +305,15 @@ where
     // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
     // function.
     let results = unsafe {
-        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
-            items
-                .chunks_mut(chunk_size)
-                .map(|chunk| {
-                    ctx.task(move || {
-                        for item in chunk {
-                            f(item)?;
-                        }
-                        Ok(())
-                    })
+        scope_and_block(len.div_ceil(chunk_size), |scope| {
+            for chunk in items.chunks_mut(chunk_size) {
+                scope.spawn(async move {
+                    for item in chunk {
+                        f(item)?;
+                    }
+                    Ok(())
                 })
-                .collect::<Vec<_>>()
+            }
         })
     };
     let result = results.into_iter().flatten().collect::<Result<(), E>>();
@@ -318,21 +343,18 @@ where
     // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
     // function.
     let results = unsafe {
-        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
-            items
-                .chunks_mut(chunk_size)
-                .map(|chunk| {
-                    ctx.task(move || {
-                        // SAFETY: Even when f() panics we drop all items in the chunk.
-                        for item in MapEvenWhenDropped::new(chunk.iter_mut(), |item| {
-                            ManuallyDrop::take(item)
-                        }) {
-                            f(item)?;
-                        }
-                        Ok(())
-                    })
+        scope_and_block(len.div_ceil(chunk_size), |scope| {
+            for chunk in items.chunks_mut(chunk_size) {
+                scope.spawn(async move {
+                    // SAFETY: Even when f() panics we drop all items in the chunk.
+                    for item in
+                        MapEvenWhenDropped::new(chunk.iter_mut(), |item| ManuallyDrop::take(item))
+                    {
+                        f(item)?;
+                    }
+                    Ok(())
                 })
-                .collect::<Vec<_>>()
+            }
         })
     };
     let result = results.into_iter().flatten().collect::<Result<(), E>>();
@@ -357,11 +379,10 @@ where
     // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
     // function.
     let results = unsafe {
-        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
-            items
-                .chunks(chunk_size)
-                .map(|chunk| ctx.task(move || chunk.iter().map(f).collect::<Vec<_>>()))
-                .collect::<Vec<_>>()
+        scope_and_block(len.div_ceil(chunk_size), |scope| {
+            for chunk in items.chunks(chunk_size) {
+                scope.spawn(async move { chunk.iter().map(f).collect::<Vec<_>>() })
+            }
         })
     };
     let result = results.into_iter().flatten().flatten().collect();
@@ -387,18 +408,15 @@ where
     // SAFETY: We ensured that references in the closure are valid for the whole lifetime of this
     // function.
     let results = unsafe {
-        process_in_parallel(len.div_ceil(chunk_size), |ctx| {
-            items
-                .chunks_mut(chunk_size)
-                .map(|chunk| {
-                    ctx.task(move || {
-                        // SAFETY: Even when f() panics we drop all items in the chunk.
-                        MapEvenWhenDropped::new(chunk.iter_mut(), |item| ManuallyDrop::take(item))
-                            .map(f)
-                            .collect::<Vec<_>>()
-                    })
+        scope_and_block(len.div_ceil(chunk_size), |scope| {
+            for chunk in items.chunks_mut(chunk_size) {
+                scope.spawn(async move {
+                    // SAFETY: Even when f() panics we drop all items in the chunk.
+                    MapEvenWhenDropped::new(chunk.iter_mut(), |item| ManuallyDrop::take(item))
+                        .map(f)
+                        .collect::<Vec<_>>()
                 })
-                .collect::<Vec<_>>()
+            }
         })
     };
     let result = results.into_iter().flatten().flatten().collect();
@@ -458,7 +476,10 @@ where
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicI32, Ordering};
+    use std::{
+        panic::{AssertUnwindSafe, catch_unwind},
+        sync::atomic::{AtomicI32, Ordering},
+    };
 
     use super::*;
 
@@ -531,5 +552,24 @@ mod tests {
         let input = vec![1; 1000];
         let result: Vec<_> = vec_into_map_collect(input, |x| x * 2);
         assert_eq!(result, vec![2; 1000]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_panic_in_scope() {
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            let mut input = vec![1; 1000];
+            input[744] = 2;
+            for_each(&input, |x| {
+                if *x == 2 {
+                    panic!("Intentional panic");
+                }
+            });
+            panic!("Should not get here")
+        }));
+        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err().downcast_ref::<&str>(),
+            Some(&"Intentional panic")
+        );
     }
 }

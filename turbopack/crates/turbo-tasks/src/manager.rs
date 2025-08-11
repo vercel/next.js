@@ -1692,14 +1692,6 @@ pub fn turbo_tasks_scope<T>(tt: Arc<dyn TurboTasksApi>, f: impl FnOnce() -> T) -
     TURBO_TASKS.sync_scope(tt, f)
 }
 
-pub fn turbo_tasks_try_scope<T>(tt: Option<Arc<dyn TurboTasksApi>>, f: impl FnOnce() -> T) -> T {
-    if let Some(tt) = tt {
-        TURBO_TASKS.sync_scope(tt, f)
-    } else {
-        f()
-    }
-}
-
 pub fn turbo_tasks_future_scope<T>(
     tt: Arc<dyn TurboTasksApi>,
     f: impl Future<Output = T>,
