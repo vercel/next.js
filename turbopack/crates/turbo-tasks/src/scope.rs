@@ -6,7 +6,7 @@
 
 use std::{
     marker::PhantomData,
-    mem::{take, transmute},
+    mem::take,
     panic::{self, AssertUnwindSafe, catch_unwind},
     pin::Pin,
     sync::{
@@ -66,18 +66,19 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
         assert!(index < self.results.len(), "Too many tasks spawned");
         let result_cell: &Mutex<Option<R>> = &self.results[index];
 
-        let f: Pin<Box<dyn Future<Output = ()> + Send + 'scope>> = Box::pin(async move {
+        let f: Box<dyn Future<Output = ()> + Send + 'scope> = Box::new(async move {
             let result = f.await;
             *result_cell.lock() = Some(result);
         });
-        // SAFETY: In `process_in_parallel` we ensure that the spawned tasks is awaited before the
-        // lifetime `'l` ends.
-        let f: Pin<Box<dyn Future<Output = ()> + Send + 'static>> = unsafe {
-            transmute::<
-                Pin<Box<dyn Future<Output = ()> + Send + 'scope>>,
-                Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
-            >(f)
-        };
+        let f: *mut (dyn Future<Output = ()> + Send + 'scope) = Box::into_raw(f);
+        // SAFETY: Scope ensures (e. g. in Drop) that spawned tasks is awaited before the
+        // lifetime `'env` ends.
+        let f = f as *mut (dyn Future<Output = ()> + Send + 'static);
+        // SAFETY: We just called `Box::into_raw`.
+        let f = unsafe { Box::from_raw(f) };
+        // We pin the future in the box in memory to be able to await it.
+        let f = Pin::from(f);
+
         let turbo_tasks = self.turbo_tasks.clone();
         let span = self.span.clone();
         let future = self.handle.spawn(
