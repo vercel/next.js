@@ -257,12 +257,6 @@ impl Request {
 
         let mut result = Self::parse_ref(list[0].clone());
 
-        let mut was_module_name_terminated = if let Request::Module { path, .. } = &result {
-            !path.is_empty()
-        } else {
-            false
-        };
-
         for item in list.into_iter().skip(1) {
             match &mut result {
                 Request::Raw { path, .. } => {
@@ -272,21 +266,17 @@ impl Request {
                     path.push(item);
                 }
                 Request::Module { module, path, .. } => {
-                    if !was_module_name_terminated && matches!(item, Pattern::Dynamic) {
+                    if path.is_empty() && matches!(item, Pattern::Dynamic) {
                         // TODO ideally this would be more general (i.e. support also
                         // `module-part<dynamic>more-module/subpath`) and not just handle
                         // Pattern::Dynamic, but this covers the common case of
                         // `require('@img/sharp-' + arch + '/sharp.node')`
 
                         // Insert dynamic between module and path (by adding it to both of them,
-                        // because both could happen). Note that path is empty at this
-                        // point anyway.
+                        // because both could happen).
                         module.push(Pattern::DynamicNoSlash);
-                        path.push(item);
-                    } else {
-                        path.push(item);
-                        was_module_name_terminated = true;
                     }
+                    path.push(item);
                 }
                 Request::ServerRelative { path, .. } => {
                     path.push(item);
@@ -899,6 +889,29 @@ mod tests {
                 Pattern::Constant(rcstr!("foo-")),
                 Pattern::Dynamic,
                 Pattern::Constant(rcstr!("/file")),
+            ]))
+        );
+        assert_eq!(
+            Request::Module {
+                module: Pattern::Concatenation(vec![
+                    Pattern::Constant(rcstr!("foo-")),
+                    Pattern::DynamicNoSlash,
+                ]),
+                path: Pattern::Concatenation(vec![
+                    Pattern::Dynamic,
+                    Pattern::Constant(rcstr!("/file")),
+                    Pattern::Dynamic,
+                    Pattern::Constant(rcstr!("sub")),
+                ]),
+                query: rcstr!(""),
+                fragment: rcstr!(""),
+            },
+            Request::parse_ref(Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("foo-")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!("/file")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!("sub")),
             ]))
         );
 
