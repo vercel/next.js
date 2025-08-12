@@ -5,6 +5,7 @@ describe('css-modules-rsc-postcss', () => {
     files: __dirname,
     dependencies: {
       'postcss-nested': '4.2.1',
+      sass: 'latest',
     },
   })
 
