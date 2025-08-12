@@ -1,7 +1,7 @@
 import { appBootstrap } from './app-bootstrap'
 import { isRecoverableError } from './react-client-callbacks/on-recoverable-error'
 
-window.next.version += '-turbo'
+window.next.turbopack = true
 ;(self as any).__webpack_hash__ = ''
 
 // eslint-disable-next-line @next/internal/typechecked-require

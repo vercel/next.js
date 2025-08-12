@@ -8,7 +8,8 @@ import { connect } from '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-cl
 import type { TurbopackMsgToBrowser } from '../server/dev/hot-reloader-types'
 
 window.next = {
-  version: `${version}-turbo`,
+  version,
+  turbopack: true,
   // router is initialized later so it has to be live-binded
   get router() {
     return router
