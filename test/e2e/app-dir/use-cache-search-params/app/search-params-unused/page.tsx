@@ -5,5 +5,9 @@ export default async function Page({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
-  return <p>hello world</p>
+  return (
+    <p>
+      Page: <span id="page-date">{new Date().toISOString()}</span>
+    </p>
+  )
 }

@@ -9639,21 +9639,21 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
+  "test/e2e/app-dir/use-cache-search-params/use-cache-search-params.test.ts": {
     "passed": [
-      "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
+      "use-cache-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
+      "use-cache-search-params when searchParams are caught inside of \"use cache\" should show an error",
+      "use-cache-search-params when searchParams are unused inside of \"use cache\" should not show an error",
+      "use-cache-search-params when searchParams are used inside of \"use cache\" should show an error"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts": {
+  "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
     "passed": [
-      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
-      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should show an error",
-      "use-cache-standalone-search-params when searchParams are unused inside of \"use cache\" should not show an error",
-      "use-cache-standalone-search-params when searchParams are used inside of \"use cache\" should show an error"
+      "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
     ],
     "failed": [],
     "pending": [],

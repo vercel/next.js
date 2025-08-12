@@ -59,7 +59,7 @@ import {
   throwToInterruptStaticGeneration,
 } from '../app-render/dynamic-rendering'
 import {
-  makeErroringExoticSearchParamsForUseCache,
+  makeErroringSearchParamsForUseCache,
   type SearchParams,
 } from '../request/search-params'
 import type { Params } from '../request/params'
@@ -90,6 +90,11 @@ type CacheContext = PrivateCacheContext | PublicCacheContext
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
   | [buildId: string, id: string, args: unknown[], hmrRefreshHash: string]
+
+interface UseCacheInnerPageComponentProps {
+  params: Promise<Params>
+  searchParams?: Promise<SearchParams>
+}
 
 export interface UseCachePageComponentProps {
   params: Promise<Params>
@@ -981,37 +986,38 @@ export function cache(
         isPageOrLayout = true
 
         const [{ params: outerParams, searchParams: outerSearchParams }] = args
-        const keepSearchParams = workStore.cacheComponentsEnabled || isPrivate
 
-        args = [
-          {
-            params: outerParams,
-            searchParams: keepSearchParams
-              ? outerSearchParams
-              : Promise.resolve({}),
-            // omit $$isPageComponent.
-          },
-        ]
+        const props: UseCacheInnerPageComponentProps = {
+          params: outerParams,
+          // Omit searchParams and $$isPageComponent.
+        }
+
+        if (isPrivate) {
+          // Private caches allow accessing search params. We need to include
+          // them in the serialized args and when generating the cache key.
+          props.searchParams = outerSearchParams
+        }
+
+        args = [props]
 
         fn = {
           [name]: async ({
             params: _innerParams,
             searchParams: innerSearchParams,
-          }: Omit<UseCachePageComponentProps, '$$isPageComponent'>) =>
+          }: UseCacheInnerPageComponentProps) =>
             originalFn.apply(null, [
               {
                 params: outerParams,
-                searchParams: keepSearchParams
-                  ? innerSearchParams
-                  : // When cacheComponents is not enabled, we can not encode
-                    // searchParams as a hanging promise. To still avoid unused
-                    // search params from making a page dynamic, we define them
-                    // as a promise that resolves to an empty object above. And
-                    // here, we're creating an erroring searchParams prop, when
-                    // invoking the original function. This ensures that used
-                    // searchParams inside of cached functions would still yield
-                    // an error.
-                    makeErroringExoticSearchParamsForUseCache(workStore),
+                searchParams:
+                  innerSearchParams ??
+                  // For public caches, search params are omitted from the cache
+                  // key (and the serialized args) to avoid mismatches between
+                  // prerendering and resuming a cached page that does not
+                  // access search params. This is also the reason why we're not
+                  // using a hanging promise for search params. For cached pages
+                  // that do access them, which is an invalid dynamic usage, we
+                  // need to ensure that an error is shown.
+                  makeErroringSearchParamsForUseCache(workStore),
               },
             ]),
         }[name] as (...args: unknown[]) => Promise<unknown>

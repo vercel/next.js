@@ -276,7 +276,6 @@
       "test/e2e/app-dir/use-cache-metadata-route-handler/**/*",
       "test/e2e/app-dir/use-cache-route-handler-only/**/*",
       "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts",
-      "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts",
       "test/e2e/app-dir/use-cache-without-experimental-flag/use-cache-without-experimental-flag.test.ts",
       "test/e2e/app-dir/use-params/use-params.test.ts",
       "test/e2e/app-dir/use-selected-layout-segment-s/use-selected-layout-segment-s.test.ts",
