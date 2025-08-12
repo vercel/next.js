@@ -64,5 +64,5 @@ export function findRootDir(cwd: string) {
     }
   }
 
-  return dirname(lockFile)
+  return dirname(lockFiles[lockFiles.length - 1])
 }
