@@ -13,5 +13,8 @@ describe('css-modules-rsc-postcss', () => {
     expect(await browser.elementByCss('p').getComputedCss('color')).toBe(
       'rgb(0, 128, 0)'
     )
+    expect(await browser.elementByCss('span').getComputedCss('color')).toBe(
+      'rgb(0, 128, 0)'
+    )
   })
 })
