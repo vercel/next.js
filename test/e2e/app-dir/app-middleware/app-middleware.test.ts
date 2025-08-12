@@ -248,6 +248,24 @@ describe('app-dir with middleware', () => {
 
     await browser.deleteCookies()
   })
+
+  it('should not incorrectly treat a Location header as a redirect', async () => {
+    const res = await next.fetch('/test-location-header')
+
+    // Should get status 200 (not a redirect status)
+    expect(res.status).toBe(200)
+
+    // Should get the JSON response associated with the route,
+    // and not follow the redirect
+    const json = await res.json()
+    expect(json).toEqual({ foo: 'bar' })
+
+    // Ensure the provided location is still on the response
+    const locationHeader = res.headers.get('location')
+    expect(locationHeader).toBe(
+      'https://next-data-api-endpoint.vercel.app/api/random'
+    )
+  })
 })
 
 describe('app dir - middleware without pages dir', () => {
