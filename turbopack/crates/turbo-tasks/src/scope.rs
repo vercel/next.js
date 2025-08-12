@@ -1,27 +1,58 @@
 //! A scoped tokio spawn implementation that allow a non-'static lifetime for tasks.
 
 use std::{
+    any::Any,
     marker::PhantomData,
-    mem::take,
     panic::{self, AssertUnwindSafe, catch_unwind},
     pin::Pin,
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
     },
+    thread::{self, Thread},
 };
 
+use futures::FutureExt;
 use parking_lot::Mutex;
-use tokio::{
-    runtime::{Builder, Handle},
-    task::{JoinHandle, block_in_place},
-};
-use tracing::{Instrument, Span};
+use tokio::{runtime::Handle, task::block_in_place};
+use tracing::{Instrument, Span, info_span};
 
 use crate::{
     TurboTasksApi,
     manager::{try_turbo_tasks, turbo_tasks_future_scope},
 };
+
+struct ScopeInner {
+    main_thread: Thread,
+    remaining_tasks: AtomicUsize,
+    /// The first panic that occurred in the tasks, by task index.
+    /// The usize value is the index of the task.
+    panic: Mutex<Option<(Box<dyn Any + Send + 'static>, usize)>>,
+}
+
+impl ScopeInner {
+    fn on_task_finished(&self, panic: Option<(Box<dyn Any + Send + 'static>, usize)>) {
+        if let Some((err, index)) = panic {
+            let mut old_panic = self.panic.lock();
+            if old_panic.as_ref().is_none_or(|&(_, i)| i > index) {
+                *old_panic = Some((err, index));
+            }
+        }
+        if self.remaining_tasks.fetch_sub(1, Ordering::Release) == 1 {
+            self.main_thread.unpark();
+        }
+    }
+
+    fn wait(&self) {
+        let _span = info_span!("blocking").entered();
+        while self.remaining_tasks.load(Ordering::Acquire) != 0 {
+            thread::park();
+        }
+        if let Some((err, _)) = self.panic.lock().take() {
+            panic::resume_unwind(err);
+        }
+    }
+}
 
 /// Scope to allow spawning tasks with a limited lifetime.
 ///
@@ -29,7 +60,7 @@ use crate::{
 pub struct Scope<'scope, 'env: 'scope, R: Send + 'env> {
     results: &'scope [Mutex<Option<R>>],
     index: AtomicUsize,
-    futures: Mutex<Vec<JoinHandle<()>>>,
+    inner: Arc<ScopeInner>,
     handle: Handle,
     turbo_tasks: Option<Arc<dyn TurboTasksApi>>,
     span: Span,
@@ -50,7 +81,11 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
         Self {
             results,
             index: AtomicUsize::new(0),
-            futures: Mutex::new(Vec::with_capacity(results.len())),
+            inner: Arc::new(ScopeInner {
+                main_thread: thread::current(),
+                remaining_tasks: AtomicUsize::new(0),
+                panic: Mutex::new(None),
+            }),
             handle: Handle::current(),
             turbo_tasks: try_turbo_tasks(),
             span: Span::current(),
@@ -86,57 +121,33 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
 
         let turbo_tasks = self.turbo_tasks.clone();
         let span = self.span.clone();
-        let future = self.handle.spawn(
-            async move {
-                if let Some(turbo_tasks) = turbo_tasks {
-                    // Ensure that the turbo tasks context is maintained across the task.
-                    turbo_tasks_future_scope(turbo_tasks, f).await;
-                } else {
-                    // If no turbo tasks context is available, just run the future.
-                    f.await;
-                }
-            }
-            .instrument(span),
-        );
-        self.futures.lock().push(future);
-    }
 
-    /// Blocks the current thread until all spawned tasks have completed.
-    fn block_until_complete(&self) {
-        let futures = take(&mut *self.futures.lock());
-        if futures.is_empty() {
-            return; // No tasks to wait for, return early
-        }
-        // We create a new current thread runtime to be independent of the current tokio runtime.
-        // This makes us not subject to runtime shutdown and we can drive the futures to completion
-        // in all cases.
-        Builder::new_current_thread().build().unwrap().block_on(
-            async {
-                let mut first_err = None;
-                for task in futures {
-                    match task.await {
-                        Ok(_) => {}
-                        Err(err) if first_err.is_none() => {
-                            // SAFETY: We need to finish all futures before panicking.
-                            first_err = Some(err);
-                        }
-                        Err(_) => {
-                            // Ignore subsequent errors
-                        }
+        let inner = self.inner.clone();
+        inner.remaining_tasks.fetch_add(1, Ordering::Relaxed);
+        self.handle.spawn(async move {
+            let result = AssertUnwindSafe(
+                async move {
+                    if let Some(turbo_tasks) = turbo_tasks {
+                        // Ensure that the turbo tasks context is maintained across the task.
+                        turbo_tasks_future_scope(turbo_tasks, f).await;
+                    } else {
+                        // If no turbo tasks context is available, just run the future.
+                        f.await;
                     }
                 }
-                if let Some(err) = first_err {
-                    panic::resume_unwind(err.into_panic());
-                }
-            }
-            .instrument(self.span.clone()),
-        );
+                .instrument(span),
+            )
+            .catch_unwind()
+            .await;
+            let panic = result.err().map(|e| (e, index));
+            inner.on_task_finished(panic);
+        });
     }
 }
 
 impl<'scope, 'env: 'scope, R: Send + 'env> Drop for Scope<'scope, 'env, R> {
     fn drop(&mut self) {
-        self.block_until_complete();
+        self.inner.wait();
     }
 }
 
@@ -190,6 +201,47 @@ mod tests {
         results.enumerate().for_each(|(i, result)| {
             assert_eq!(result, i);
         });
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_empty_scope() {
+        let results = scope_and_block(0, |scope| {
+            if false {
+                scope.spawn(async move { 42 });
+            }
+        });
+        assert_eq!(results.count(), 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_single_task() {
+        let results = scope_and_block(1, |scope| {
+            scope.spawn(async move { 42 });
+        })
+        .collect::<Vec<_>>();
+        assert_eq!(results, vec![42]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_task_finish_before_scope() {
+        let results = scope_and_block(1, |scope| {
+            scope.spawn(async move { 42 });
+            thread::sleep(std::time::Duration::from_millis(100));
+        })
+        .collect::<Vec<_>>();
+        assert_eq!(results, vec![42]);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_task_finish_after_scope() {
+        let results = scope_and_block(1, |scope| {
+            scope.spawn(async move {
+                thread::sleep(std::time::Duration::from_millis(100));
+                42
+            });
+        })
+        .collect::<Vec<_>>();
+        assert_eq!(results, vec![42]);
     }
 
     #[tokio::test(flavor = "multi_thread")]
