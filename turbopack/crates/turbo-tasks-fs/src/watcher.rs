@@ -411,14 +411,14 @@ impl DiskWatcher {
                         invalidators.into_iter().map(move |i| (reason.clone(), i))
                     })
                     .collect::<Vec<_>>();
-                parallel::vec_into_for_each(invalidators, |(reason, (invalidator, _))| {
+                parallel::for_each_owned(invalidators, |(reason, (invalidator, _))| {
                     invalidator.invalidate_with_reason(reason);
                 });
             } else {
                 let invalidators = iter
                     .flat_map(|(_, invalidators)| invalidators.into_keys())
                     .collect::<Vec<_>>();
-                parallel::vec_into_for_each(invalidators, |invalidator| {
+                parallel::for_each_owned(invalidators, |invalidator| {
                     invalidator.invalidate();
                 });
             }

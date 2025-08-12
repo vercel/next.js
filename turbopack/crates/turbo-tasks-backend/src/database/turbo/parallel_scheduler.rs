@@ -36,7 +36,7 @@ impl ParallelScheduler for TurboTasksParallelScheduler {
         parallel::try_for_each_mut(items, f)
     }
 
-    fn try_vec_into_parallel_for_each<T, E>(
+    fn try_parallel_for_each_owned<T, E>(
         &self,
         items: Vec<T>,
         f: impl (Fn(T) -> Result<(), E>) + Send + Sync,
@@ -45,7 +45,7 @@ impl ParallelScheduler for TurboTasksParallelScheduler {
         T: Send + Sync,
         E: Send + 'static,
     {
-        parallel::try_into_for_each(items, f)
+        parallel::try_for_each_owned(items, f)
     }
 
     fn parallel_map_collect<'l, T, I, R>(
@@ -61,7 +61,7 @@ impl ParallelScheduler for TurboTasksParallelScheduler {
         parallel::map_collect(items, f)
     }
 
-    fn vec_into_parallel_map_collect<T, I, R>(
+    fn parallel_map_collect_owned<T, I, R>(
         &self,
         items: Vec<T>,
         f: impl Fn(T) -> I + Send + Sync,
@@ -71,6 +71,6 @@ impl ParallelScheduler for TurboTasksParallelScheduler {
         I: Send + Sync,
         R: FromIterator<I>,
     {
-        parallel::vec_into_map_collect(items, f)
+        parallel::map_collect_owned(items, f)
     }
 }

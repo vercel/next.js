@@ -315,7 +315,7 @@ impl DiskFileSystemInner {
             .chain(dir_invalidator_map)
             .flat_map(|(_, invalidators)| invalidators.into_keys())
             .collect::<Vec<_>>();
-        parallel::vec_into_for_each(invalidators, |invalidator| invalidator.invalidate());
+        parallel::for_each_owned(invalidators, |invalidator| invalidator.invalidate());
     }
 
     /// Invalidates every tracked file in the filesystem.
@@ -338,7 +338,7 @@ impl DiskFileSystemInner {
                     .map(move |i| (reason_for_path.clone(), i))
             })
             .collect::<Vec<_>>();
-        parallel::vec_into_for_each(invalidators, |(reason, invalidator)| {
+        parallel::for_each_owned(invalidators, |(reason, invalidator)| {
             invalidator.invalidate_with_reason(reason)
         });
     }

@@ -350,7 +350,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                         items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
                     )
                     .entered();
-                    let result = parallel::vec_into_map_collect::<_, _, Result<Vec<_>>>(
+                    let result = parallel::map_collect_owned::<_, _, Result<Vec<_>>>(
                         task_cache_updates,
                         |updates| {
                             let _span = _span.clone().entered();
@@ -690,7 +690,7 @@ where
         > + Send
         + Sync,
 {
-    parallel::vec_into_map_collect::<_, _, Result<Vec<_>>>(tasks, |tasks| {
+    parallel::map_collect_owned::<_, _, Result<Vec<_>>>(tasks, |tasks| {
         let mut result = Vec::new();
         for (task_id, meta, data) in tasks {
             if let Some(batch) = batch {

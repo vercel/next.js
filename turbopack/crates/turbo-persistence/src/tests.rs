@@ -45,7 +45,7 @@ impl ParallelScheduler for RayonParallelScheduler {
         items.into_par_iter().try_for_each(f)
     }
 
-    fn try_vec_into_parallel_for_each<T, E>(
+    fn try_parallel_for_each_owned<T, E>(
         &self,
         items: Vec<T>,
         f: impl (Fn(T) -> Result<(), E>) + Send + Sync,
@@ -57,15 +57,15 @@ impl ParallelScheduler for RayonParallelScheduler {
         items.into_par_iter().try_for_each(f)
     }
 
-    fn parallel_map_collect<'l, T, I, R>(
+    fn parallel_map_collect<'l, Item, PerItemResult, Result>(
         &self,
-        items: &'l [T],
-        f: impl Fn(&'l T) -> I + Send + Sync,
-    ) -> R
+        items: &'l [Item],
+        f: impl Fn(&'l Item) -> PerItemResult + Send + Sync,
+    ) -> Result
     where
-        T: Sync,
-        I: Send + Sync,
-        R: FromIterator<I>,
+        Item: Sync,
+        PerItemResult: Send + Sync,
+        Result: FromIterator<PerItemResult>,
     {
         items
             .into_par_iter()
@@ -76,15 +76,15 @@ impl ParallelScheduler for RayonParallelScheduler {
             .collect()
     }
 
-    fn vec_into_parallel_map_collect<T, I, R>(
+    fn parallel_map_collect_owned<Item, PerItemResult, Result>(
         &self,
-        items: Vec<T>,
-        f: impl Fn(T) -> I + Send + Sync,
-    ) -> R
+        items: Vec<Item>,
+        f: impl Fn(Item) -> PerItemResult + Send + Sync,
+    ) -> Result
     where
-        T: Send + Sync,
-        I: Send + Sync,
-        R: FromIterator<I>,
+        Item: Send + Sync,
+        PerItemResult: Send + Sync,
+        Result: FromIterator<PerItemResult>,
     {
         items
             .into_par_iter()

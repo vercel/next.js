@@ -1,8 +1,4 @@
-//! Parallel for each resp. map running in the current tokio thread pool maintaining turbo tasks and
-//! tracing context.
-//!
-//! This avoid the problem of sleeping threads with mimalloc when using rayon in combination with
-//! tokio. It also avoid having multiple thread pools.
+//! A scoped tokio spawn implementation that allow a non-'static lifetime for tasks.
 
 use std::{
     marker::PhantomData,
@@ -45,7 +41,12 @@ pub struct Scope<'scope, 'env: 'scope, R: Send + 'env> {
 }
 
 impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
-    fn new(results: &'scope [Mutex<Option<R>>]) -> Self {
+    /// Creates a new scope.
+    ///
+    /// # Safety
+    ///
+    /// The caller must ensure `Scope` is dropped and not forgotten.
+    unsafe fn new(results: &'scope [Mutex<Option<R>>]) -> Self {
         Self {
             results,
             index: AtomicUsize::new(0),
@@ -141,6 +142,11 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Drop for Scope<'scope, 'env, R> {
 
 /// Helper method to spawn tasks in parallel, ensuring that all tasks are awaited and errors are
 /// handled. Also ensures turbo tasks and tracing context are maintained across the tasks.
+///
+/// Be aware that although this function avoids starving other independently spawned tasks, any
+/// other code running concurrently in the same task will be suspended during the call to
+/// block_in_place. This can happen e.g. when using the `join!` macro. To avoid this issue, call
+/// `scope_and_block` in `spawn_blocking`.
 pub fn scope_and_block<'env, F, R>(number_of_tasks: usize, f: F) -> impl Iterator<Item = R>
 where
     R: Send + 'env,
@@ -153,7 +159,8 @@ where
         }
         let results = results.into_boxed_slice();
         let result = {
-            let scope = Scope::new(&results);
+            // SAFETY: We drop the Scope later.
+            let scope = unsafe { Scope::new(&results) };
             catch_unwind(AssertUnwindSafe(|| f(&scope)))
         };
         if let Err(panic) = result {

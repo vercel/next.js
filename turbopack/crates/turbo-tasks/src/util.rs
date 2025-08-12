@@ -4,7 +4,7 @@ use std::{
     fmt::{Debug, Display},
     future::Future,
     hash::{Hash, Hasher},
-    mem::{ManuallyDrop, transmute},
+    mem::ManuallyDrop,
     ops::Deref,
     pin::Pin,
     sync::Arc,
@@ -265,9 +265,14 @@ impl<F: Future, W: for<'a> Fn(Pin<&mut F>, &mut Context<'a>) -> Poll<F::Output>>
 /// Similar to slice::chunks but for owned data. Chunks are Send and Sync to allow to use it for
 /// parallelism.
 pub fn into_chunks<T>(data: Vec<T>, chunk_size: usize) -> IntoChunks<T> {
-    // SAFETY: transmuting to SyncUnsafeCell<ManuallyDrop<..>> is safe. We just need to make sure to
-    // not leak memory. Both types have repr(transparent).
-    let data = unsafe { transmute::<Vec<T>, Vec<SyncUnsafeCell<ManuallyDrop<T>>>>(data) };
+    let (ptr, length, capacity) = data.into_raw_parts();
+    // SAFETY: changing a pointer from T to SyncUnsafeCell<ManuallyDrop<..>> is safe as both types
+    // have repr(transparent).
+    let ptr = ptr as *mut SyncUnsafeCell<ManuallyDrop<T>>;
+    // SAFETY: The ptr, length and capacity were from into_raw_parts(). This is the only place where
+    // we use ptr.
+    let data =
+        unsafe { Vec::<SyncUnsafeCell<ManuallyDrop<T>>>::from_raw_parts(ptr, length, capacity) };
     IntoChunks {
         data: Arc::new(data),
         index: 0,

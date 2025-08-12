@@ -226,7 +226,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         }
 
         self.parallel_scheduler
-            .try_vec_into_parallel_for_each(collectors, |mut collector| {
+            .try_parallel_for_each_owned(collectors, |mut collector| {
                 self.flush_thread_local_collector(family, &mut collector)?;
                 drop(collector);
                 anyhow::Ok(())
@@ -295,7 +295,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                         .map(move |collector| (family as u32, collector))
                 })
                 .collect::<Vec<_>>();
-            self.parallel_scheduler.try_vec_into_parallel_for_each(
+            self.parallel_scheduler.try_parallel_for_each_owned(
                 to_flush,
                 |(family, mut collector)| {
                     self.flush_thread_local_collector(family, &mut collector)?;
@@ -329,7 +329,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
                 }
             })
             .collect::<Vec<_>>();
-        self.parallel_scheduler.try_vec_into_parallel_for_each(
+        self.parallel_scheduler.try_parallel_for_each_owned(
             collectors,
             |(family, mut collector)| {
                 let family = family as u32;
@@ -355,7 +355,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
             .collect::<Vec<_>>();
         let new_meta_files = self
             .parallel_scheduler
-            .vec_into_parallel_map_collect::<_, _, Result<Vec<_>>>(
+            .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(
                 file_to_write,
                 |(family, sst_files)| {
                     let family = family as u32;

@@ -38,6 +38,7 @@
 #![feature(downcast_unchecked)]
 #![feature(ptr_metadata)]
 #![feature(sync_unsafe_cell)]
+#![feature(vec_into_raw_parts)]
 
 pub mod backend;
 mod capture_future;

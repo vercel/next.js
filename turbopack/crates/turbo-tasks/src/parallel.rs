@@ -1,8 +1,8 @@
-//! Parallel for each resp. map running in the current tokio thread pool maintaining turbo tasks and
-//! tracing context.
+//! Parallel for each and map using tokio tasks.
 //!
 //! This avoid the problem of sleeping threads with mimalloc when using rayon in combination with
 //! tokio. It also avoid having multiple thread pools.
+//! see also https://pwy.io/posts/mimalloc-cigarette/
 
 use std::{sync::LazyLock, thread::available_parallelism};
 
@@ -23,10 +23,7 @@ where
     F: Fn(&'l T) + Send + Sync,
 {
     let len = items.len();
-    if len == 0 {
-        return;
-    }
-    if len == 1 {
+    if len <= 1 {
         for item in items {
             f(item);
         }
@@ -45,15 +42,12 @@ where
     });
 }
 
-pub fn vec_into_for_each<T>(items: Vec<T>, f: impl Fn(T) + Send + Sync)
+pub fn for_each_owned<T>(items: Vec<T>, f: impl Fn(T) + Send + Sync)
 where
     T: Send + Sync,
 {
     let len = items.len();
-    if len == 0 {
-        return;
-    }
-    if len == 1 {
+    if len <= 1 {
         for item in items {
             f(item);
         }
@@ -82,10 +76,7 @@ where
     E: Send + 'static,
 {
     let len = items.len();
-    if len == 0 {
-        return Ok(()); // No items to process, return early
-    }
-    if len == 1 {
+    if len <= 1 {
         for item in items {
             f(item)?;
         }
@@ -115,10 +106,7 @@ where
     E: Send + 'static,
 {
     let len = items.len();
-    if len == 0 {
-        return Ok(()); // No items to process, return early
-    }
-    if len == 1 {
+    if len <= 1 {
         for item in items {
             f(item)?;
         }
@@ -139,7 +127,7 @@ where
     .collect::<Result<(), E>>()
 }
 
-pub fn try_into_for_each<T, E>(
+pub fn try_for_each_owned<T, E>(
     items: Vec<T>,
     f: impl (Fn(T) -> Result<(), E>) + Send + Sync,
 ) -> Result<(), E>
@@ -148,10 +136,7 @@ where
     E: Send + 'static,
 {
     let len = items.len();
-    if len == 0 {
-        return Ok(()); // No items to process, return early
-    }
-    if len == 1 {
+    if len <= 1 {
         for item in items {
             f(item)?;
         }
@@ -172,15 +157,19 @@ where
     .collect::<Result<(), E>>()
 }
 
-pub fn map_collect<'l, T, I, R>(items: &'l [T], f: impl Fn(&'l T) -> I + Send + Sync) -> R
+pub fn map_collect<'l, Item, PerItemResult, Result>(
+    items: &'l [Item],
+    f: impl Fn(&'l Item) -> PerItemResult + Send + Sync,
+) -> Result
 where
-    T: Sync,
-    I: Send + Sync + 'l,
-    R: FromIterator<I>,
+    Item: Sync,
+    PerItemResult: Send + Sync + 'l,
+    Result: FromIterator<PerItemResult>,
 {
     let len = items.len();
     if len == 0 {
-        return R::from_iter(std::iter::empty()); // No items to process, return empty collection
+        return Result::from_iter(std::iter::empty()); // No items to process, return empty
+        // collection
     }
     let chunk_size = good_chunk_size(len);
     let f = &f;
@@ -193,15 +182,19 @@ where
     .collect()
 }
 
-pub fn vec_into_map_collect<'l, T, I, R>(items: Vec<T>, f: impl Fn(T) -> I + Send + Sync) -> R
+pub fn map_collect_owned<'l, Item, PerItemResult, Result>(
+    items: Vec<Item>,
+    f: impl Fn(Item) -> PerItemResult + Send + Sync,
+) -> Result
 where
-    T: Send + Sync,
-    I: Send + Sync + 'l,
-    R: FromIterator<I>,
+    Item: Send + Sync,
+    PerItemResult: Send + Sync + 'l,
+    Result: FromIterator<PerItemResult>,
 {
     let len = items.len();
     if len == 0 {
-        return R::from_iter(std::iter::empty()); // No items to process, return empty collection;
+        return Result::from_iter(std::iter::empty()); // No items to process, return empty
+        // collection;
     }
     let chunk_size = good_chunk_size(len);
     let f = &f;
@@ -264,10 +257,10 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_parallel_vec_into_for_each() {
+    async fn test_parallel_for_each_owned() {
         let input = vec![1, 2, 3, 4, 5];
         let sum = AtomicI32::new(0);
-        vec_into_for_each(input, |x| {
+        for_each_owned(input, |x| {
             sum.fetch_add(x, Ordering::SeqCst);
         });
         assert_eq!(sum.load(Ordering::SeqCst), 15);
@@ -281,16 +274,16 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_parallel_into_map_collect() {
+    async fn test_parallel_map_collect_owned() {
         let input = vec![1, 2, 3, 4, 5];
-        let result: Vec<_> = vec_into_map_collect(input, |x| x * 2);
+        let result: Vec<_> = map_collect_owned(input, |x| x * 2);
         assert_eq!(result, vec![2, 4, 6, 8, 10]);
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_parallel_vec_into_map_collect_many() {
+    async fn test_parallel_map_collect_owned_many() {
         let input = vec![1; 1000];
-        let result: Vec<_> = vec_into_map_collect(input, |x| x * 2);
+        let result: Vec<_> = map_collect_owned(input, |x| x * 2);
         assert_eq!(result, vec![2; 1000]);
     }
 
