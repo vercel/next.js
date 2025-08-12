@@ -215,7 +215,7 @@ describe('use-cache-hanging-inputs', () => {
 
       expect(cliOutput).toIncludeRepeated(
         escapeStringRegexp(expectedTimeoutErrorMessage),
-        6
+        4
       )
 
       expect(cliOutput).toInclude(
