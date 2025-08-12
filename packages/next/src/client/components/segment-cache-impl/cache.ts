@@ -43,6 +43,8 @@ import type {
   NormalizedSearch,
   RouteCacheKey,
 } from './cache-key'
+// TODO: Rename this module to avoid confusion with other types of cache keys
+import { createCacheKey as createPrefetchRequestKey } from './cache-key'
 import {
   doesStaticSegmentAppearInURL,
   getCacheKeyForDynamicParam,
@@ -130,6 +132,7 @@ type RouteCacheEntryShared = {
 
   // See comment in scheduler.ts for context
   TODO_metadataStatus: EntryStatus.Empty | EntryStatus.Fulfilled
+  TODO_isHeadDynamic: boolean
 
   // LRU-related fields
   keypath: null | Prefix<RouteCacheKeypath>
@@ -588,6 +591,7 @@ export function readOrCreateRouteCacheEntry(
     renderedSearch: null,
 
     TODO_metadataStatus: EntryStatus.Empty,
+    TODO_isHeadDynamic: false,
 
     // LRU-related fields
     keypath: null,
@@ -603,6 +607,135 @@ export function readOrCreateRouteCacheEntry(
   pendingEntry.keypath = keypath
   routeCacheLru.put(pendingEntry)
   return pendingEntry
+}
+
+export function requestOptimisticRouteCacheEntry(
+  now: number,
+  requestedUrl: URL,
+  nextUrl: string | null
+): FulfilledRouteCacheEntry | null {
+  // This function is called during a navigation when there was no matching
+  // route tree in the prefetch cache. Before de-opting to a blocking,
+  // unprefetched navigation, we will first attempt to construct an "optimistic"
+  // route tree by checking the cache for similar routes.
+  //
+  // Check if there's a route with the same pathname, but with different
+  // search params. We can then base our optimistic route tree on this entry.
+  //
+  // Conceptually, we are simulating what would happen if we did perform a
+  // prefetch the requested URL, under the assumption that the server will
+  // not redirect or rewrite the request in a different manner than the
+  // base route tree. This assumption might not hold, in which case we'll have
+  // to recover when we perform the dynamic navigation request. However, this
+  // is what would happen if a route were dynamically rewritten/redirected
+  // in between the prefetch and the navigation. So the logic needs to exist
+  // to handle this case regardless.
+
+  // Look for a route with the same pathname, but with an empty search string.
+  // TODO: There's nothing inherently special about the empty search string;
+  // it's chosen somewhat arbitrarily, with the rationale that it's the most
+  // likely one to exist. But we should update this to match _any_ search
+  // string. The plan is to generalize this logic alongside other improvements
+  // related to "fallback" cache entries.
+  const requestedSearch = requestedUrl.search as NormalizedSearch
+  if (requestedSearch === '') {
+    // The caller would have already checked if a route with an empty search
+    // string is in the cache. So we can bail out here.
+    return null
+  }
+  const routeWithNoSearchParams = readRouteCacheEntry(
+    now,
+    createPrefetchRequestKey(
+      requestedUrl.origin + requestedUrl.pathname,
+      nextUrl
+    )
+  )
+
+  if (
+    routeWithNoSearchParams === null ||
+    routeWithNoSearchParams.status !== EntryStatus.Fulfilled ||
+    // There's no point constructing an optimistic route tree if the metadata
+    // isn't fully available, because we'll have to do a blocking
+    // navigation anyway.
+    routeWithNoSearchParams.isHeadPartial ||
+    // We cannot reuse this route if it has dynamic metadata.
+    // TODO: Move the metadata out of the route cache entry so the route
+    // tree is reusable separately from the metadata. Then we can remove
+    // these checks.
+    routeWithNoSearchParams.TODO_metadataStatus !== EntryStatus.Empty ||
+    routeWithNoSearchParams.TODO_isHeadDynamic
+  ) {
+    // Bail out of constructing an optimistic route tree. This will result in
+    // a blocking, unprefetched navigation.
+    return null
+  }
+
+  // Now we have a base route tree we can "patch" with our optimistic values.
+
+  // Optimistically assume that redirects for the requested pathname do
+  // not vary on the search string. Therefore, if the base route was
+  // redirected to a different search string, then the optimistic route
+  // should be redirected to the same search string. Otherwise, we use
+  // the requested search string.
+  const canonicalUrlForRouteWithNoSearchParams = new URL(
+    routeWithNoSearchParams.canonicalUrl,
+    requestedUrl.origin
+  )
+  const optimisticCanonicalSearch =
+    canonicalUrlForRouteWithNoSearchParams.search !== ''
+      ? // Base route was redirected. Reuse the same redirected search string.
+        canonicalUrlForRouteWithNoSearchParams.search
+      : requestedSearch
+
+  // Similarly, optimistically assume that rewrites for the requested
+  // pathname do not vary on the search string. Therefore, if the base
+  // route was rewritten to a different search string, then the optimistic
+  // route should be rewritten to the same search string. Otherwise, we use
+  // the requested search string.
+  const optimisticRenderedSearch =
+    routeWithNoSearchParams.renderedSearch !== ''
+      ? // Base route was rewritten. Reuse the same rewritten search string.
+        routeWithNoSearchParams.renderedSearch
+      : requestedSearch
+
+  const optimisticUrl = new URL(
+    routeWithNoSearchParams.canonicalUrl,
+    location.origin
+  )
+  optimisticUrl.search = optimisticCanonicalSearch
+  const optimisticCanonicalUrl = createHrefFromUrl(optimisticUrl)
+
+  // Clone the base route tree, and override the relevant fields with our
+  // optimistic values.
+  const optimisticEntry: FulfilledRouteCacheEntry = {
+    canonicalUrl: optimisticCanonicalUrl,
+
+    status: EntryStatus.Fulfilled,
+    // This isn't cloned because it's instance-specific
+    blockedTasks: null,
+    tree: routeWithNoSearchParams.tree,
+    head: routeWithNoSearchParams.head,
+    isHeadPartial: routeWithNoSearchParams.isHeadPartial,
+    staleAt: routeWithNoSearchParams.staleAt,
+    couldBeIntercepted: routeWithNoSearchParams.couldBeIntercepted,
+    isPPREnabled: routeWithNoSearchParams.isPPREnabled,
+
+    // Override the rendered search with the optimistic value.
+    renderedSearch: optimisticRenderedSearch,
+
+    TODO_metadataStatus: routeWithNoSearchParams.TODO_metadataStatus,
+    TODO_isHeadDynamic: routeWithNoSearchParams.TODO_isHeadDynamic,
+
+    // LRU-related fields
+    keypath: null,
+    next: null,
+    prev: null,
+    size: 0,
+  }
+
+  // Do not insert this entry into the cache. It only exists so we can
+  // perform the current navigation. Just return it to the caller.
+  return optimisticEntry
 }
 
 /**
@@ -833,7 +966,8 @@ function fulfillRouteCacheEntry(
   couldBeIntercepted: boolean,
   canonicalUrl: string,
   renderedSearch: NormalizedSearch,
-  isPPREnabled: boolean
+  isPPREnabled: boolean,
+  isHeadDynamic: boolean
 ): FulfilledRouteCacheEntry {
   const fulfilledEntry: FulfilledRouteCacheEntry = entry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
@@ -845,6 +979,7 @@ function fulfillRouteCacheEntry(
   fulfilledEntry.canonicalUrl = canonicalUrl
   fulfilledEntry.renderedSearch = renderedSearch
   fulfilledEntry.isPPREnabled = isPPREnabled
+  fulfilledEntry.TODO_isHeadDynamic = isHeadDynamic
   pingBlockedTasks(entry)
   return fulfilledEntry
 }
@@ -1272,6 +1407,10 @@ export async function fetchRouteOnCacheMiss(
       // because all data is static in this mode.
       isOutputExportMode
 
+    // Regardless of the type of response, we will never receive dynamic
+    // metadata as part of this prefetch request.
+    const isHeadDynamic = false
+
     if (routeIsPPREnabled) {
       const prefetchStream = createPrefetchResponseStream(
         response.body,
@@ -1315,7 +1454,8 @@ export async function fetchRouteOnCacheMiss(
         couldBeIntercepted,
         canonicalUrl,
         renderedSearch,
-        routeIsPPREnabled
+        routeIsPPREnabled,
+        isHeadDynamic
       )
     } else {
       // PPR is not enabled for this route. The server responds with a
@@ -1681,6 +1821,10 @@ function writeDynamicTreeResponseIntoCache(
   const isResponsePartial =
     response.headers.get(NEXT_DID_POSTPONE_HEADER) === '1'
 
+  // Since this is a dynamic response, we must conservatively assume that the
+  // head responded with dynamic data.
+  const isHeadDynamic = true
+
   const fulfilledEntry = fulfillRouteCacheEntry(
     entry,
     convertRootFlightRouterStateToRouteTree(flightRouterState),
@@ -1690,7 +1834,8 @@ function writeDynamicTreeResponseIntoCache(
     couldBeIntercepted,
     canonicalUrl,
     renderedSearch,
-    routeIsPPREnabled
+    routeIsPPREnabled,
+    isHeadDynamic
   )
 
   // If the server sent segment data as part of the response, we should write
@@ -1822,6 +1967,8 @@ function writeDynamicRenderResponseIntoCache(
     // segment data may be reused from a previous request).
     route.head = flightData.head
     route.isHeadPartial = flightData.isHeadPartial
+    route.TODO_isHeadDynamic = true
+
     // TODO: Currently the stale time of the route tree represents the
     // stale time of both the route tree *and* all the segment data. So we
     // can't just overwrite this field; we have to use whichever value is
