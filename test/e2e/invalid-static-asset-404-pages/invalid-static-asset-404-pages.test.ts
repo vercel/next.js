@@ -1,17 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const BASE_PATH = '/_base'
-
-describe('pages-dir - invalid-asset-path-req-404 - base-path', () => {
+describe('pages-dir - invalid-static-asset-404', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    nextConfig: {
-      basePath: BASE_PATH,
-    },
   })
 
-  it('should return correct output with status 200 on valid base path', async () => {
-    const buildManifestPath = `${BASE_PATH}/_next/static/${
+  it('should return correct output with status 200 on valid asset path', async () => {
+    const buildManifestPath = `/_next/static/${
       isNextDev ? 'development' : next.buildId
     }/_buildManifest.js`
 
@@ -28,8 +23,8 @@ describe('pages-dir - invalid-asset-path-req-404 - base-path', () => {
     expect(text).toContain('Custom Not Found')
   })
 
-  it('should return 404 with plain text when fetching invalid base path', async () => {
-    const res = await next.fetch(`${BASE_PATH}/_next/static/_invalid-base-path`)
+  it('should return 404 with plain text when fetching invalid asset path', async () => {
+    const res = await next.fetch('/_next/static/invalid-path')
     expect(res.status).toBe(404)
     const text = await res.text()
     expect(text).toBe('Not Found')
