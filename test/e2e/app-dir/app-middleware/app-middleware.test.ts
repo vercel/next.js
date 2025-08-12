@@ -249,7 +249,7 @@ describe('app-dir with middleware', () => {
     await browser.deleteCookies()
   })
 
-  it('should not incorrectly treat a Location header as a redirect', async () => {
+  it('should not incorrectly treat a Location header as a rewrite', async () => {
     const res = await next.fetch('/test-location-header')
 
     // Should get status 200 (not a redirect status)
