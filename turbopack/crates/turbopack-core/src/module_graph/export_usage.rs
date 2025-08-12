@@ -35,10 +35,12 @@ pub async fn compute_export_usage_info(
                 // partially populated exports object. We only need to mark cycle entry points as
                 // 'cycle breakers' however we do not know which modules are entry points.
 
-                // We could compute this based on the module graph (scope hoisting does something
-                // similar) and then we would only need to mark 'entry' modules (basically the
-                // targets of back edges in the export graph) as circuit breakers.  For now we just
-                // mark everything on the theory that cycles are rare.
+                // We could compute this based on the module graph via a DFS from each entry point
+                // to the cycle.  Whatever node is hit first is an entry point to the cycle.
+                // (scope hoisting does something similar) and then we would only need to
+                // mark 'entry' modules (basically the targets of back edges in the export graph) as
+                // circuit breakers.  For now we just mark everything on the theory that cycles are
+                // rare.
                 circuit_breakers.extend(cycle.iter().map(|n| n.module));
             },
         )

@@ -110,8 +110,8 @@ const BindingTag_Value = 0 as BindingTag
 
 // an arbitrary sequence of bindings as
 // - a prop name
-// - a binding tag
-// - 1 or 2 values dependending on the tag
+// - BindingTag_Value, a value to be bound directly, or
+// - 1 or 2 functions to bind as getters and sdetters
 type EsmBindings = Array<
   string | BindingTag | (() => unknown) | ((v: unknown) => void) | unknown
 >

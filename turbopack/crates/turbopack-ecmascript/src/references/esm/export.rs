@@ -687,6 +687,8 @@ impl EsmExports {
                         (Liveness::Constant, false) => {
                             ExportBinding::Value(quote!("$local" as Expr, local = local))
                         }
+                        // If the value might change or we are a circuit breaker we must bind a
+                        // getter to avoid capturing the value at the wrong time.
                         (Liveness::Live, _) | (Liveness::Constant, true) => {
                             ExportBinding::Getter(quote!("() => $local" as Expr, local = local))
                         }
@@ -773,6 +775,8 @@ impl EsmExports {
                         getters.push(Some(setter.into()));
                     }
                     ExportBinding::Value(value) => {
+                        // We need to push a discriminator in this case to make the fact that we are
+                        // binding a value unambiguous to the runtime.
                         getters.push(Some(Expr::Lit(Lit::Num(Number::from(0))).into()));
                         getters.push(Some(value.into()));
                     }

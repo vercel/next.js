@@ -235,7 +235,7 @@ function esmImport(id) {
 contextPrototype.i = esmImport;
 function asyncLoader(moduleId) {
     const loader = this.r(moduleId);
-    return loader(this.i.bind(this));
+    return loader(esmImport.bind(this));
 }
 contextPrototype.A = asyncLoader;
 // Add a simple runtime require so that environments without one can still pass
