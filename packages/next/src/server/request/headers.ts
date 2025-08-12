@@ -169,6 +169,10 @@ export function headers(): Promise<ReadonlyHeaders> {
               workStore?.route
             )
           } else {
+            if (process.env.__NEXT_CACHE_COMPONENTS) {
+              return makeUntrackedHeaders(workUnitStore.headers)
+            }
+
             return makeUntrackedExoticHeaders(workUnitStore.headers)
           }
           break
@@ -200,6 +204,20 @@ function makeHangingHeaders(
     '`headers()`'
   )
   CachedHeaders.set(prerenderStore, promise)
+
+  return promise
+}
+
+function makeUntrackedHeaders(
+  underlyingHeaders: ReadonlyHeaders
+): Promise<ReadonlyHeaders> {
+  const cachedHeaders = CachedHeaders.get(underlyingHeaders)
+  if (cachedHeaders) {
+    return cachedHeaders
+  }
+
+  const promise = Promise.resolve(underlyingHeaders)
+  CachedHeaders.set(underlyingHeaders, promise)
 
   return promise
 }

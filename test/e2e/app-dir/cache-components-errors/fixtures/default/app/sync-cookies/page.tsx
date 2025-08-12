@@ -14,6 +14,11 @@ export default async function Page() {
 }
 
 async function CookiesReadingComponent() {
-  const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-  return <div>this component reads the `token` cookie synchronously</div>
+  const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+
+  return (
+    <div>
+      this component reads the `token` cookie synchronously: {token?.value}
+    </div>
+  )
 }
