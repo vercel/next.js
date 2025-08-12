@@ -93,7 +93,7 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 
 ## Known Behavior differences with Webpack
 
-### Css Module Ordering
+### CSS Module Ordering
 
 Turbopack will follow JS import order to order [CSS modules](/docs/app/getting-started/css#css-modules) which are not otherwise ordered. For example,
 
@@ -110,7 +110,7 @@ This can lead to subtle rendering changes when adopting Turbopack, if applicatio
 
 ### Bundle Sizes
 
-Turbopack does not yet have an equivalent to the `[Inner Graph Optimization](docs/app/getting-started/css#css-modules)` in Webpack. This optimization is useful to tree shake large modules. For example:
+Turbopack does not yet have an equivalent to the [Inner Graph Optimization](https://webpack.js.org/configuration/optimization/#optimizationinnergraph) in Webpack. This optimization is useful to tree shake large modules. For example:
 
 ```js filename=large.module.js
 import heavy from 'some-heavy-dependency.js'
