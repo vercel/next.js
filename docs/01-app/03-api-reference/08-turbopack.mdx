@@ -91,6 +91,40 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 | **Fast Refresh**         | **Supported** | Updates JavaScript, TypeScript, and CSS without a full refresh.                          |
 | **Incremental Bundling** | **Supported** | Turbopack lazily builds only what’s requested by the dev server, speeding up large apps. |
 
+## Known Behavior differences with Webpack
+
+### Css Module Ordering
+
+Turbopack will follow JS import order to order [CSS modules](/docs/app/getting-started/css#css-modules) which are not otherwise ordered. For example,
+
+```jsx filename="pages/blog/index.js" switcher
+import s1 from './utils.module.css'
+import s2 from './button.module.css'
+```
+
+Given such a module, `utils.module.css` will appear before `button.module.css` in the produced CSS chunk.
+
+Webpack generally does this as well, but there are cases where it will ignore JS inferred ordering, for example if it infers the JS file is side-effect-free.
+
+This can lead to subtle rendering changes when adopting Turbopack, if applications have come to rely on an arbitrary ordering. Generally, the solution is easy, e.g. have `button.module.css` `@import utils.module.css` to force the ordering, or identify the conflicting rules and change them to not target the same properties.
+
+### Bundle Sizes
+
+Turbopack does not yet have an equivalent to the `[Inner Graph Optimization](docs/app/getting-started/css#css-modules)` in Webpack. This optimization is useful to tree shake large modules. For example:
+
+```js filename=large.module.js
+import heavy from 'some-heavy-dependency.js'
+
+export function usesHeavy() {...}
+
+export const CONSTANT_VALUE = 3;
+
+```
+
+If an application only uses `CONSTANT_VALUE` Turbopack will detect this and delete the `usesHeavy` export but not the `import`, however, with the `optimization.innerGraph = true` option enabled, Webpack can delete the `import` too.
+
+We are planning to offer an equivalent to the `innerGraph` optimization in Turbopack but it is still under development. As a workaround, it is sometimes easy to just manually split these modules.
+
 ## Unsupported and unplanned features
 
 Some features are not yet implemented or not planned:
