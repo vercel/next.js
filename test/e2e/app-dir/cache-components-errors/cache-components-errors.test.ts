@@ -1118,60 +1118,60 @@ describe('Cache Components Errors', () => {
 
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
-                            [
-                              {
-                                "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                                "environmentLabel": "Prerender",
-                                "label": "Console Error",
-                                "source": "app/sync-cookies/page.tsx (17:26) @ CookiesReadingComponent
-                            > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                                 |                          ^",
-                                "stack": [
-                                  "CookiesReadingComponent app/sync-cookies/page.tsx (17:26)",
-                                  "Page app/sync-cookies/page.tsx (11:7)",
-                                ],
-                              },
-                              {
-                                "description": "(0 , <turbopack-module-id>.cookies)(...).get is not a function",
-                                "environmentLabel": "Prerender",
-                                "label": "Runtime TypeError",
-                                "source": "app/sync-cookies/page.tsx (17:67) @ CookiesReadingComponent
-                            > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                                 |                                                                   ^",
-                                "stack": [
-                                  "CookiesReadingComponent app/sync-cookies/page.tsx (17:67)",
-                                ],
-                              },
-                            ]
-                          `)
+               [
+                 {
+                   "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "environmentLabel": "Prerender",
+                   "label": "Console Error",
+                   "source": "app/sync-cookies/page.tsx (17:25) @ CookiesReadingComponent
+               > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                    |                         ^",
+                   "stack": [
+                     "CookiesReadingComponent app/sync-cookies/page.tsx (17:25)",
+                     "Page app/sync-cookies/page.tsx (11:7)",
+                   ],
+                 },
+                 {
+                   "description": "(0 , <turbopack-module-id>.cookies)(...).get is not a function",
+                   "environmentLabel": "Prerender",
+                   "label": "Runtime TypeError",
+                   "source": "app/sync-cookies/page.tsx (17:66) @ CookiesReadingComponent
+               > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                    |                                                                  ^",
+                   "stack": [
+                     "CookiesReadingComponent app/sync-cookies/page.tsx (17:66)",
+                   ],
+                 },
+               ]
+              `)
             } else {
               await expect(browser).toDisplayRedbox(`
-                            [
-                              {
-                                "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                                "environmentLabel": "Prerender",
-                                "label": "Console Error",
-                                "source": "app/sync-cookies/page.tsx (17:18) @ CookiesReadingComponent
-                            > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                                 |                  ^",
-                                "stack": [
-                                  "CookiesReadingComponent app/sync-cookies/page.tsx (17:18)",
-                                  "Page app/sync-cookies/page.tsx (11:7)",
-                                ],
-                              },
-                              {
-                                "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
-                                "environmentLabel": "Prerender",
-                                "label": "Runtime TypeError",
-                                "source": "app/sync-cookies/page.tsx (17:67) @ CookiesReadingComponent
-                            > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                                 |                                                                   ^",
-                                "stack": [
-                                  "CookiesReadingComponent app/sync-cookies/page.tsx (17:67)",
-                                ],
-                              },
-                            ]
-                          `)
+               [
+                 {
+                   "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "environmentLabel": "Prerender",
+                   "label": "Console Error",
+                   "source": "app/sync-cookies/page.tsx (17:17) @ CookiesReadingComponent
+               > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                    |                 ^",
+                   "stack": [
+                     "CookiesReadingComponent app/sync-cookies/page.tsx (17:17)",
+                     "Page app/sync-cookies/page.tsx (11:7)",
+                   ],
+                 },
+                 {
+                   "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
+                   "environmentLabel": "Prerender",
+                   "label": "Runtime TypeError",
+                   "source": "app/sync-cookies/page.tsx (17:66) @ CookiesReadingComponent
+               > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                    |                                                                  ^",
+                   "stack": [
+                     "CookiesReadingComponent app/sync-cookies/page.tsx (17:66)",
+                   ],
+                 },
+               ]
+              `)
             }
           })
         } else {
@@ -1192,15 +1192,15 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at CookiesReadingComponent (bundler:///app/sync-cookies/page.tsx:17:67)
+                     at CookiesReadingComponent (bundler:///app/sync-cookies/page.tsx:17:66)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
-                 > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                      |                                                                   ^
-                   18 |   return <div>this component reads the \`token\` cookie synchronously</div>
-                   19 | }
-                   20 | {
+                 > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                      |                                                                  ^
+                   18 |
+                   19 |   return (
+                   20 |     <div> {
                    digest: '<error-digest>'
                  }
 
@@ -1211,15 +1211,15 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (bundler:///app/sync-cookies/page.tsx:17:67)
+                     at a (bundler:///app/sync-cookies/page.tsx:17:66)
                      at b (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
-                 > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                      |                                                                   ^
-                   18 |   return <div>this component reads the \`token\` cookie synchronously</div>
-                   19 | }
-                   20 | {
+                 > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                      |                                                                  ^
+                   18 |
+                   19 |   return (
+                   20 |     <div> {
                    digest: '<error-digest>'
                  }
                  Export encountered an error on /sync-cookies/page: /sync-cookies, exiting the build."
@@ -1230,15 +1230,15 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at CookiesReadingComponent (bundler:///app/sync-cookies/page.tsx:17:67)
+                     at CookiesReadingComponent (bundler:///app/sync-cookies/page.tsx:17:66)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
-                 > 17 |   const _token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
-                      |                                                                   ^
-                   18 |   return <div>this component reads the \`token\` cookie synchronously</div>
-                   19 | }
-                   20 | {
+                 > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                      |                                                                  ^
+                   18 |
+                   19 |   return (
+                   20 |     <div> {
                    digest: '<error-digest>'
                  }
 
