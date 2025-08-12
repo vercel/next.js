@@ -159,17 +159,8 @@
       componentName = this.props.ref;
       return void 0 !== componentName ? componentName : null;
     }
-    function ReactElement(
-      type,
-      key,
-      self,
-      source,
-      owner,
-      props,
-      debugStack,
-      debugTask
-    ) {
-      self = props.ref;
+    function ReactElement(type, key, props, owner, debugStack, debugTask) {
+      var refProp = props.ref;
       type = {
         $$typeof: REACT_ELEMENT_TYPE,
         type: type,
@@ -177,7 +168,7 @@
         props: props,
         _owner: owner
       };
-      null !== (void 0 !== self ? self : null)
+      null !== (void 0 !== refProp ? refProp : null)
         ? Object.defineProperty(type, "ref", {
             enumerable: !1,
             get: elementRefGetterWithDeprecationWarning
@@ -215,10 +206,8 @@
       newKey = ReactElement(
         oldElement.type,
         newKey,
-        void 0,
-        void 0,
-        oldElement._owner,
         oldElement.props,
+        oldElement._owner,
         oldElement._debugStack,
         oldElement._debugTask
       );
@@ -671,10 +660,8 @@
       props = ReactElement(
         element.type,
         key,
-        void 0,
-        void 0,
-        owner,
         props,
+        owner,
         element._debugStack,
         element._debugTask
       );
@@ -732,10 +719,8 @@
       return ReactElement(
         type,
         node,
-        void 0,
-        void 0,
-        getOwner(),
         i,
+        getOwner(),
         propName ? Error("react-stack-top-frame") : unknownOwnerDebugStack,
         propName ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
@@ -850,5 +835,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.2.0-canary-ac7820a9-20250811";
+    exports.version = "19.2.0-canary-1dc3bdea-20250812";
   })();

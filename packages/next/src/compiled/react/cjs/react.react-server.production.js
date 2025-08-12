@@ -46,25 +46,18 @@ function getIteratorFn(maybeIterable) {
 }
 var hasOwnProperty = Object.prototype.hasOwnProperty,
   assign = Object.assign;
-function ReactElement(type, key, self, source, owner, props) {
-  self = props.ref;
+function ReactElement(type, key, props) {
+  var refProp = props.ref;
   return {
     $$typeof: REACT_ELEMENT_TYPE,
     type: type,
     key: key,
-    ref: void 0 !== self ? self : null,
+    ref: void 0 !== refProp ? refProp : null,
     props: props
   };
 }
 function cloneAndReplaceKey(oldElement, newKey) {
-  return ReactElement(
-    oldElement.type,
-    newKey,
-    void 0,
-    void 0,
-    void 0,
-    oldElement.props
-  );
+  return ReactElement(oldElement.type, newKey, oldElement.props);
 }
 function isValidElement(object) {
   return (
@@ -351,12 +344,9 @@ exports.cloneElement = function (element, config, children) {
   if (null === element || void 0 === element)
     throw Error(formatProdErrorMessage(267, element));
   var props = assign({}, element.props),
-    key = element.key,
-    owner = void 0;
+    key = element.key;
   if (null != config)
-    for (propName in (void 0 !== config.ref && (owner = void 0),
-    void 0 !== config.key && (key = "" + config.key),
-    config))
+    for (propName in (void 0 !== config.key && (key = "" + config.key), config))
       !hasOwnProperty.call(config, propName) ||
         "key" === propName ||
         "__self" === propName ||
@@ -370,7 +360,7 @@ exports.cloneElement = function (element, config, children) {
       childArray[i] = arguments[i + 2];
     props.children = childArray;
   }
-  return ReactElement(element.type, key, void 0, void 0, owner, props);
+  return ReactElement(element.type, key, props);
 };
 exports.createElement = function (type, config, children) {
   var propName,
@@ -394,7 +384,7 @@ exports.createElement = function (type, config, children) {
     for (propName in ((childrenLength = type.defaultProps), childrenLength))
       void 0 === props[propName] &&
         (props[propName] = childrenLength[propName]);
-  return ReactElement(type, key, void 0, void 0, null, props);
+  return ReactElement(type, key, props);
 };
 exports.createRef = function () {
   return { current: null };
@@ -430,4 +420,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.2.0-canary-ac7820a9-20250811";
+exports.version = "19.2.0-canary-1dc3bdea-20250812";
