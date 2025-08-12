@@ -2091,11 +2091,15 @@ export default abstract class Server<
 
     const prerenderManifest = this.getPrerenderManifest()
 
-    // Instead of returning an HTML 404 page, return plain text 404
-    // for static assets to avoid confusing search engine bots.
-    // Use includes() to avoid issues with basePath and assetPrefix
+    // When bots crawl a site, they may render the page after awhile (e.g. re-sync),
+    // and the sub-assets may not be available then. In this case, the link to
+    // static assets could be not found, and return a 404 HTML. This behavior can
+    // bait the bots as if they found 404 pages. Therefore, we return a plain text
+    // "Not Found" for not found static assets. Use "includes()" to avoid issues
+    // with basePath and assetPrefix.
     if (is404Page && req.url.includes('/_next/static/')) {
       res.statusCode = 404
+      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
       res.body('Not Found').send()
       return null
     }
