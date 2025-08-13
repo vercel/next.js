@@ -194,7 +194,7 @@ describe('loadConfig', () => {
             dynamicIO: true,
           },
         },
-        silent: false,
+        silent: true,
       })
 
       expect(result.experimental.cacheComponents).toBe(true)
@@ -214,7 +214,7 @@ describe('loadConfig', () => {
           },
           configFile: '/project/next.config.js',
         },
-        silent: false,
+        silent: true,
       })
 
       expect(result.experimental.cacheComponents).toBe(false)
