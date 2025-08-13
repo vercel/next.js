@@ -18,7 +18,10 @@ import { formatHostname } from '../format-hostname'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { isAbortError } from '../../pipe-readable'
 import { getHostname } from '../../../shared/lib/get-hostname'
-import { getRedirectStatus } from '../../../lib/redirect-status'
+import {
+  getRedirectStatus,
+  allowedStatusCodes,
+} from '../../../lib/redirect-status'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
 import { getRelativeURL } from '../../../shared/lib/router/utils/relativize-url'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
@@ -657,15 +660,36 @@ export function getResolveRoutes(
 
             if (middlewareHeaders['location']) {
               const value = middlewareHeaders['location'] as string
-              const rel = getRelativeURL(value, initUrl)
-              resHeaders['location'] = rel
-              parsedUrl = url.parse(rel, true)
 
-              return {
-                parsedUrl,
-                resHeaders,
-                finished: true,
-                statusCode: middlewareRes.status,
+              // Only process Location header as a redirect if it has a proper redirect status
+              // This prevents a Location header with non-redirect status from being treated as a redirect
+              const isRedirectStatus = allowedStatusCodes.has(
+                middlewareRes.status
+              )
+
+              if (isRedirectStatus) {
+                // Process as redirect: update parsedUrl and convert to relative URL
+                const rel = getRelativeURL(value, initUrl)
+                resHeaders['location'] = rel
+                parsedUrl = url.parse(rel, true)
+
+                return {
+                  parsedUrl,
+                  resHeaders,
+                  finished: true,
+                  statusCode: middlewareRes.status,
+                }
+              } else {
+                // Not a redirect: just pass through the Location header
+                resHeaders['location'] = value
+
+                return {
+                  parsedUrl,
+                  resHeaders,
+                  finished: true,
+                  bodyStream,
+                  statusCode: middlewareRes.status,
+                }
               }
             }
 
