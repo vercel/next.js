@@ -479,7 +479,7 @@ function Router({
     head = (
       <Head
         key={
-          // During a resume SSR, omit search params from the key to match prerendered keys
+          // Necessary for PPR: omit search params from the key to match prerendered keys
           typeof window === 'undefined' ? headKeyWithoutSearchParams : headKey
         }
         headCacheNode={headCacheNode}
