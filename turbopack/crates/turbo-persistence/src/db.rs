@@ -18,8 +18,6 @@ use jiff::Timestamp;
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use parking_lot::{Mutex, RwLock};
-use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
-use tracing::Span;
 
 pub use crate::compaction::selector::CompactConfig;
 use crate::{
@@ -36,6 +34,7 @@ use crate::{
     merge_iter::MergeIter,
     meta_file::{AmqfCache, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
+    parallel_scheduler::ParallelScheduler,
     sst_filter::SstFilter,
     static_sorted_file::{BlockCache, SstLookupResult},
     static_sorted_file_builder::{StaticSortedFileBuilderMeta, write_static_stored_file},
@@ -108,7 +107,8 @@ struct TrackedStats {
 
 /// TurboPersistence is a persistent key-value store. It is limited to a single writer at a time
 /// using a single write batch. It allows for concurrent reads.
-pub struct TurboPersistence {
+pub struct TurboPersistence<S: ParallelScheduler> {
+    parallel_scheduler: S,
     /// The path to the directory where the database is stored
     path: PathBuf,
     /// If true, the database is opened in read-only mode. In this mode, no writes are allowed and
@@ -148,9 +148,26 @@ pub struct CommitOptions {
     keys_written: u64,
 }
 
-impl TurboPersistence {
-    fn new(path: PathBuf, read_only: bool) -> Self {
+impl<S: ParallelScheduler + Default> TurboPersistence<S> {
+    /// Open a TurboPersistence database at the given path.
+    /// This will read the directory and might performance cleanup when the database was not closed
+    /// properly. Cleanup only requires to read a few bytes from a few files and to delete
+    /// files, so it's fast.
+    pub fn open(path: PathBuf) -> Result<Self> {
+        Self::open_with_parallel_scheduler(path, Default::default())
+    }
+
+    /// Open a TurboPersistence database at the given path in read only mode.
+    /// This will read the directory. No Cleanup is performed.
+    pub fn open_read_only(path: PathBuf) -> Result<Self> {
+        Self::open_read_only_with_parallel_scheduler(path, Default::default())
+    }
+}
+
+impl<S: ParallelScheduler> TurboPersistence<S> {
+    fn new(path: PathBuf, read_only: bool, parallel_scheduler: S) -> Self {
         Self {
+            parallel_scheduler,
             path,
             read_only,
             inner: RwLock::new(Inner {
@@ -188,16 +205,19 @@ impl TurboPersistence {
     /// This will read the directory and might performance cleanup when the database was not closed
     /// properly. Cleanup only requires to read a few bytes from a few files and to delete
     /// files, so it's fast.
-    pub fn open(path: PathBuf) -> Result<Self> {
-        let mut db = Self::new(path, false);
+    pub fn open_with_parallel_scheduler(path: PathBuf, parallel_scheduler: S) -> Result<Self> {
+        let mut db = Self::new(path, false, parallel_scheduler);
         db.open_directory(false)?;
         Ok(db)
     }
 
     /// Open a TurboPersistence database at the given path in read only mode.
     /// This will read the directory. No Cleanup is performed.
-    pub fn open_read_only(path: PathBuf) -> Result<Self> {
-        let mut db = Self::new(path, true);
+    pub fn open_read_only_with_parallel_scheduler(
+        path: PathBuf,
+        parallel_scheduler: S,
+    ) -> Result<Self> {
+        let mut db = Self::new(path, true, parallel_scheduler);
         db.open_directory(false)?;
         Ok(db)
     }
@@ -341,16 +361,12 @@ impl TurboPersistence {
 
         meta_files.retain(|seq| !deleted_files.contains(seq));
         meta_files.sort_unstable();
-        let span = Span::current();
-        let mut meta_files = meta_files
-            .into_par_iter()
-            .with_min_len(1)
-            .map(|seq| {
-                let _span = span.enter();
+        let mut meta_files = self
+            .parallel_scheduler
+            .parallel_map_collect::<_, _, Result<Vec<MetaFile>>>(&meta_files, |&seq| {
                 let meta_file = MetaFile::open(&self.path, seq)?;
                 Ok(meta_file)
-            })
-            .collect::<Result<Vec<MetaFile>>>()?;
+            })?;
 
         let mut sst_filter = SstFilter::new();
         for meta_file in meta_files.iter_mut().rev() {
@@ -398,7 +414,7 @@ impl TurboPersistence {
     /// This data will only become visible after the WriteBatch is committed.
     pub fn write_batch<K: StoreKey + Send + Sync + 'static, const FAMILIES: usize>(
         &self,
-    ) -> Result<WriteBatch<K, FAMILIES>> {
+    ) -> Result<WriteBatch<K, S, FAMILIES>> {
         if self.read_only {
             bail!("Cannot write to a read-only database");
         }
@@ -413,7 +429,11 @@ impl TurboPersistence {
             );
         }
         let current = self.inner.read().current_sequence_number;
-        Ok(WriteBatch::new(self.path.clone(), current))
+        Ok(WriteBatch::new(
+            self.path.clone(),
+            current,
+            self.parallel_scheduler.clone(),
+        ))
     }
 
     fn open_log(&self) -> Result<BufWriter<File>> {
@@ -432,7 +452,7 @@ impl TurboPersistence {
     /// visible to readers.
     pub fn commit_write_batch<K: StoreKey + Send + Sync + 'static, const FAMILIES: usize>(
         &self,
-        mut write_batch: WriteBatch<K, FAMILIES>,
+        mut write_batch: WriteBatch<K, S, FAMILIES>,
     ) -> Result<()> {
         if self.read_only {
             unreachable!("It's not possible to create a write batch for a read-only database");
@@ -475,15 +495,13 @@ impl TurboPersistence {
 
         new_meta_files.sort_unstable_by_key(|(seq, _)| *seq);
 
-        let mut new_meta_files = new_meta_files
-            .into_par_iter()
-            .with_min_len(1)
-            .map(|(seq, file)| {
+        let mut new_meta_files = self
+            .parallel_scheduler
+            .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(new_meta_files, |(seq, file)| {
                 file.sync_all()?;
                 let meta_file = MetaFile::open(&self.path, seq)?;
                 Ok(meta_file)
-            })
-            .collect::<Result<Vec<_>>>()?;
+            })?;
 
         let mut sst_filter = SstFilter::new();
         for meta_file in new_meta_files.iter_mut().rev() {
@@ -777,7 +795,6 @@ impl TurboPersistence {
         let path = &self.path;
 
         let log_mutex = Mutex::new(());
-        let span = Span::current();
 
         struct PartialResultPerFamily {
             new_meta_file: Option<(u32, File)>,
@@ -789,336 +806,337 @@ impl TurboPersistence {
 
         let mut compact_config = compact_config.clone();
         let merge_jobs = sst_by_family
-            .iter()
-            .map(|ssts_with_ranges| {
+            .into_iter()
+            .enumerate()
+            .filter_map(|(family, ssts_with_ranges)| {
                 if compact_config.max_merge_segment_count == 0 {
-                    return Vec::new();
+                    return None;
                 }
                 let (merge_jobs, real_merge_job_size) =
-                    get_merge_segments(ssts_with_ranges, &compact_config);
+                    get_merge_segments(&ssts_with_ranges, &compact_config);
                 compact_config.max_merge_segment_count -= real_merge_job_size;
-                merge_jobs
+                Some((family, ssts_with_ranges, merge_jobs))
             })
             .collect::<Vec<_>>();
 
-        let result = sst_by_family
-            .into_par_iter()
-            .zip(merge_jobs.into_par_iter())
-            .with_min_len(1)
-            .enumerate()
-            .map(|(family, (ssts_with_ranges, merge_jobs))| {
-                let family = family as u32;
-                let _span = span.clone().entered();
+        let result = self
+            .parallel_scheduler
+            .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(
+                merge_jobs,
+                |(family, ssts_with_ranges, merge_jobs)| {
+                    let family = family as u32;
 
-                if merge_jobs.is_empty() {
-                    return Ok(PartialResultPerFamily {
-                        new_meta_file: None,
-                        new_sst_files: Vec::new(),
-                        sst_seq_numbers_to_delete: Vec::new(),
-                        blob_seq_numbers_to_delete: Vec::new(),
-                        keys_written: 0,
-                    });
-                }
-
-                {
-                    let metrics = compute_metrics(&ssts_with_ranges, 0..=u64::MAX);
-                    let guard = log_mutex.lock();
-                    let mut log = self.open_log()?;
-                    writeln!(
-                        log,
-                        "Compaction for family {family} (coverage: {}, overlap: {}, duplication: \
-                         {} / {} MiB):",
-                        metrics.coverage,
-                        metrics.overlap,
-                        metrics.duplication,
-                        metrics.duplicated_size / 1024 / 1024
-                    )?;
-                    for job in merge_jobs.iter() {
-                        writeln!(log, "  merge")?;
-                        for i in job.iter() {
-                            let seq = ssts_with_ranges[*i].seq;
-                            let (min, max) = ssts_with_ranges[*i].range().into_inner();
-                            writeln!(log, "    {seq:08} {min:016x}-{max:016x}")?;
-                        }
+                    if merge_jobs.is_empty() {
+                        return Ok(PartialResultPerFamily {
+                            new_meta_file: None,
+                            new_sst_files: Vec::new(),
+                            sst_seq_numbers_to_delete: Vec::new(),
+                            blob_seq_numbers_to_delete: Vec::new(),
+                            keys_written: 0,
+                        });
                     }
-                    drop(guard);
-                }
 
-                // Later we will remove the merged files
-                let sst_seq_numbers_to_delete = merge_jobs
-                    .iter()
-                    .filter(|l| l.len() > 1)
-                    .flat_map(|l| l.iter().copied())
-                    .map(|index| ssts_with_ranges[index].seq)
-                    .collect::<Vec<_>>();
-
-                // Merge SST files
-                let span = tracing::trace_span!("merge files");
-                enum PartialMergeResult<'l> {
-                    Merged {
-                        new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
-                        blob_seq_numbers_to_delete: Vec<u32>,
-                        keys_written: u64,
-                    },
-                    Move {
-                        seq: u32,
-                        meta: StaticSortedFileBuilderMeta<'l>,
-                    },
-                }
-                let merge_result = merge_jobs
-                    .into_par_iter()
-                    .with_min_len(1)
-                    .map(|indices| {
-                        let _span = span.clone().entered();
-                        if indices.len() == 1 {
-                            // If we only have one file, we can just move it
-                            let index = indices[0];
-                            let meta_index = ssts_with_ranges[index].meta_index;
-                            let index_in_meta = ssts_with_ranges[index].index_in_meta;
-                            let meta_file = &meta_files[meta_index];
-                            let entry = meta_file.entry(index_in_meta);
-                            let amqf = Cow::Borrowed(entry.raw_amqf(meta_file.amqf_data()));
-                            let meta = StaticSortedFileBuilderMeta {
-                                min_hash: entry.min_hash(),
-                                max_hash: entry.max_hash(),
-                                amqf,
-                                key_compression_dictionary_length: entry
-                                    .key_compression_dictionary_length(),
-                                value_compression_dictionary_length: entry
-                                    .value_compression_dictionary_length(),
-                                block_count: entry.block_count(),
-                                size: entry.size(),
-                                entries: 0,
-                            };
-                            return Ok(PartialMergeResult::Move {
-                                seq: entry.sequence_number(),
-                                meta,
-                            });
+                    {
+                        let metrics = compute_metrics(&ssts_with_ranges, 0..=u64::MAX);
+                        let guard = log_mutex.lock();
+                        let mut log = self.open_log()?;
+                        writeln!(
+                            log,
+                            "Compaction for family {family} (coverage: {}, overlap: {}, \
+                             duplication: {} / {} MiB):",
+                            metrics.coverage,
+                            metrics.overlap,
+                            metrics.duplication,
+                            metrics.duplicated_size / 1024 / 1024
+                        )?;
+                        for job in merge_jobs.iter() {
+                            writeln!(log, "  merge")?;
+                            for i in job.iter() {
+                                let seq = ssts_with_ranges[*i].seq;
+                                let (min, max) = ssts_with_ranges[*i].range().into_inner();
+                                writeln!(log, "    {seq:08} {min:016x}-{max:016x}")?;
+                            }
                         }
+                        drop(guard);
+                    }
 
-                        fn create_sst_file(
-                            entries: &[LookupEntry],
-                            total_key_size: usize,
-                            total_value_size: usize,
-                            path: &Path,
+                    // Later we will remove the merged files
+                    let sst_seq_numbers_to_delete = merge_jobs
+                        .iter()
+                        .filter(|l| l.len() > 1)
+                        .flat_map(|l| l.iter().copied())
+                        .map(|index| ssts_with_ranges[index].seq)
+                        .collect::<Vec<_>>();
+
+                    // Merge SST files
+                    let span = tracing::trace_span!("merge files");
+                    enum PartialMergeResult<'l> {
+                        Merged {
+                            new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
+                            blob_seq_numbers_to_delete: Vec<u32>,
+                            keys_written: u64,
+                        },
+                        Move {
                             seq: u32,
-                        ) -> Result<(u32, File, StaticSortedFileBuilderMeta<'static>)>
-                        {
-                            let _span = tracing::trace_span!("write merged sst file").entered();
-                            let (meta, file) = write_static_stored_file(
-                                entries,
-                                total_key_size,
-                                total_value_size,
-                                &path.join(format!("{seq:08}.sst")),
-                            )?;
-                            Ok((seq, file, meta))
-                        }
-
-                        let mut new_sst_files = Vec::new();
-
-                        // Iterate all SST files
-                        let iters = indices
-                            .iter()
-                            .map(|&index| {
+                            meta: StaticSortedFileBuilderMeta<'l>,
+                        },
+                    }
+                    let merge_result = self
+                        .parallel_scheduler
+                        .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(merge_jobs, |indices| {
+                            let _span = span.clone().entered();
+                            if indices.len() == 1 {
+                                // If we only have one file, we can just move it
+                                let index = indices[0];
                                 let meta_index = ssts_with_ranges[index].meta_index;
                                 let index_in_meta = ssts_with_ranges[index].index_in_meta;
-                                let meta = &meta_files[meta_index];
-                                meta.entry(index_in_meta)
-                                    .sst(meta)?
-                                    .iter(key_block_cache, value_block_cache)
-                            })
-                            .collect::<Result<Vec<_>>>()?;
+                                let meta_file = &meta_files[meta_index];
+                                let entry = meta_file.entry(index_in_meta);
+                                let amqf = Cow::Borrowed(entry.raw_amqf(meta_file.amqf_data()));
+                                let meta = StaticSortedFileBuilderMeta {
+                                    min_hash: entry.min_hash(),
+                                    max_hash: entry.max_hash(),
+                                    amqf,
+                                    key_compression_dictionary_length: entry
+                                        .key_compression_dictionary_length(),
+                                    value_compression_dictionary_length: entry
+                                        .value_compression_dictionary_length(),
+                                    block_count: entry.block_count(),
+                                    size: entry.size(),
+                                    entries: 0,
+                                };
+                                return Ok(PartialMergeResult::Move {
+                                    seq: entry.sequence_number(),
+                                    meta,
+                                });
+                            }
 
-                        let iter = MergeIter::new(iters.into_iter())?;
+                            fn create_sst_file(
+                                entries: &[LookupEntry],
+                                total_key_size: usize,
+                                total_value_size: usize,
+                                path: &Path,
+                                seq: u32,
+                            ) -> Result<(u32, File, StaticSortedFileBuilderMeta<'static>)>
+                            {
+                                let _span = tracing::trace_span!("write merged sst file").entered();
+                                let (meta, file) = write_static_stored_file(
+                                    entries,
+                                    total_key_size,
+                                    total_value_size,
+                                    &path.join(format!("{seq:08}.sst")),
+                                )?;
+                                Ok((seq, file, meta))
+                            }
 
-                        // TODO figure out how to delete blobs when they are no longer
-                        // referenced
-                        let blob_seq_numbers_to_delete: Vec<u32> = Vec::new();
+                            let mut new_sst_files = Vec::new();
 
-                        let mut keys_written = 0;
+                            // Iterate all SST files
+                            let iters = indices
+                                .iter()
+                                .map(|&index| {
+                                    let meta_index = ssts_with_ranges[index].meta_index;
+                                    let index_in_meta = ssts_with_ranges[index].index_in_meta;
+                                    let meta = &meta_files[meta_index];
+                                    meta.entry(index_in_meta)
+                                        .sst(meta)?
+                                        .iter(key_block_cache, value_block_cache)
+                                })
+                                .collect::<Result<Vec<_>>>()?;
 
-                        let mut total_key_size = 0;
-                        let mut total_value_size = 0;
-                        let mut current: Option<LookupEntry> = None;
-                        let mut entries = Vec::new();
-                        let mut last_entries = Vec::new();
-                        let mut last_entries_total_sizes = (0, 0);
-                        for entry in iter {
-                            let entry = entry?;
+                            let iter = MergeIter::new(iters.into_iter())?;
 
-                            // Remove duplicates
-                            if let Some(current) = current.take() {
-                                if current.key != entry.key {
-                                    let key_size = current.key.len();
-                                    let value_size = current.value.size_in_sst();
-                                    total_key_size += key_size;
-                                    total_value_size += value_size;
+                            // TODO figure out how to delete blobs when they are no longer
+                            // referenced
+                            let blob_seq_numbers_to_delete: Vec<u32> = Vec::new();
 
-                                    if total_key_size + total_value_size
-                                        > DATA_THRESHOLD_PER_COMPACTED_FILE
-                                        || entries.len() >= MAX_ENTRIES_PER_COMPACTED_FILE
-                                    {
-                                        let (selected_total_key_size, selected_total_value_size) =
-                                            last_entries_total_sizes;
-                                        swap(&mut entries, &mut last_entries);
-                                        last_entries_total_sizes = (
-                                            total_key_size - key_size,
-                                            total_value_size - value_size,
-                                        );
-                                        total_key_size = key_size;
-                                        total_value_size = value_size;
+                            let mut keys_written = 0;
 
-                                        if !entries.is_empty() {
-                                            let seq =
-                                                sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                            let mut total_key_size = 0;
+                            let mut total_value_size = 0;
+                            let mut current: Option<LookupEntry> = None;
+                            let mut entries = Vec::new();
+                            let mut last_entries = Vec::new();
+                            let mut last_entries_total_sizes = (0, 0);
+                            for entry in iter {
+                                let entry = entry?;
 
-                                            keys_written += entries.len() as u64;
-                                            new_sst_files.push(create_sst_file(
-                                                &entries,
+                                // Remove duplicates
+                                if let Some(current) = current.take() {
+                                    if current.key != entry.key {
+                                        let key_size = current.key.len();
+                                        let value_size = current.value.size_in_sst();
+                                        total_key_size += key_size;
+                                        total_value_size += value_size;
+
+                                        if total_key_size + total_value_size
+                                            > DATA_THRESHOLD_PER_COMPACTED_FILE
+                                            || entries.len() >= MAX_ENTRIES_PER_COMPACTED_FILE
+                                        {
+                                            let (
                                                 selected_total_key_size,
                                                 selected_total_value_size,
-                                                path,
-                                                seq,
-                                            )?);
+                                            ) = last_entries_total_sizes;
+                                            swap(&mut entries, &mut last_entries);
+                                            last_entries_total_sizes = (
+                                                total_key_size - key_size,
+                                                total_value_size - value_size,
+                                            );
+                                            total_key_size = key_size;
+                                            total_value_size = value_size;
 
-                                            entries.clear();
+                                            if !entries.is_empty() {
+                                                let seq = sequence_number
+                                                    .fetch_add(1, Ordering::SeqCst)
+                                                    + 1;
+
+                                                keys_written += entries.len() as u64;
+                                                new_sst_files.push(create_sst_file(
+                                                    &entries,
+                                                    selected_total_key_size,
+                                                    selected_total_value_size,
+                                                    path,
+                                                    seq,
+                                                )?);
+
+                                                entries.clear();
+                                            }
                                         }
+
+                                        entries.push(current);
+                                    } else {
+                                        // Override value
                                     }
-
-                                    entries.push(current);
-                                } else {
-                                    // Override value
                                 }
+                                current = Some(entry);
                             }
-                            current = Some(entry);
-                        }
-                        if let Some(entry) = current {
-                            total_key_size += entry.key.len();
-                            total_value_size += entry.value.size_in_sst();
-                            entries.push(entry);
-                        }
+                            if let Some(entry) = current {
+                                total_key_size += entry.key.len();
+                                total_value_size += entry.value.size_in_sst();
+                                entries.push(entry);
+                            }
 
-                        // If we have one set of entries left, write them to a new SST file
-                        if last_entries.is_empty() && !entries.is_empty() {
-                            let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                            // If we have one set of entries left, write them to a new SST file
+                            if last_entries.is_empty() && !entries.is_empty() {
+                                let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
-                            keys_written += entries.len() as u64;
-                            new_sst_files.push(create_sst_file(
-                                &entries,
-                                total_key_size,
-                                total_value_size,
-                                path,
-                                seq,
-                            )?);
-                        } else
-                        // If we have two sets of entries left, merge them and
-                        // split it into two SST files, to avoid having a
-                        // single SST file that is very small.
-                        if !last_entries.is_empty() {
-                            last_entries.append(&mut entries);
+                                keys_written += entries.len() as u64;
+                                new_sst_files.push(create_sst_file(
+                                    &entries,
+                                    total_key_size,
+                                    total_value_size,
+                                    path,
+                                    seq,
+                                )?);
+                            } else
+                            // If we have two sets of entries left, merge them and
+                            // split it into two SST files, to avoid having a
+                            // single SST file that is very small.
+                            if !last_entries.is_empty() {
+                                last_entries.append(&mut entries);
 
-                            last_entries_total_sizes.0 += total_key_size;
-                            last_entries_total_sizes.1 += total_value_size;
+                                last_entries_total_sizes.0 += total_key_size;
+                                last_entries_total_sizes.1 += total_value_size;
 
-                            let (part1, part2) = last_entries.split_at(last_entries.len() / 2);
+                                let (part1, part2) = last_entries.split_at(last_entries.len() / 2);
 
-                            let seq1 = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-                            let seq2 = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                                let seq1 = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                                let seq2 = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
 
-                            keys_written += part1.len() as u64;
-                            new_sst_files.push(create_sst_file(
-                                part1,
-                                // We don't know the exact sizes so we estimate them
-                                last_entries_total_sizes.0 / 2,
-                                last_entries_total_sizes.1 / 2,
-                                path,
-                                seq1,
-                            )?);
+                                keys_written += part1.len() as u64;
+                                new_sst_files.push(create_sst_file(
+                                    part1,
+                                    // We don't know the exact sizes so we estimate them
+                                    last_entries_total_sizes.0 / 2,
+                                    last_entries_total_sizes.1 / 2,
+                                    path,
+                                    seq1,
+                                )?);
 
-                            keys_written += part2.len() as u64;
-                            new_sst_files.push(create_sst_file(
-                                part2,
-                                last_entries_total_sizes.0 / 2,
-                                last_entries_total_sizes.1 / 2,
-                                path,
-                                seq2,
-                            )?);
-                        }
-                        Ok(PartialMergeResult::Merged {
-                            new_sst_files,
-                            blob_seq_numbers_to_delete,
-                            keys_written,
+                                keys_written += part2.len() as u64;
+                                new_sst_files.push(create_sst_file(
+                                    part2,
+                                    last_entries_total_sizes.0 / 2,
+                                    last_entries_total_sizes.1 / 2,
+                                    path,
+                                    seq2,
+                                )?);
+                            }
+                            Ok(PartialMergeResult::Merged {
+                                new_sst_files,
+                                blob_seq_numbers_to_delete,
+                                keys_written,
+                            })
                         })
-                    })
-                    .collect::<Result<Vec<_>>>()
-                    .with_context(|| {
-                        format!("Failed to merge database files for family {family}")
-                    })?;
+                        .with_context(|| {
+                            format!("Failed to merge database files for family {family}")
+                        })?;
 
-                let Some((sst_files_len, blob_delete_len)) = merge_result
-                    .iter()
-                    .map(|r| {
-                        if let PartialMergeResult::Merged {
-                            new_sst_files,
-                            blob_seq_numbers_to_delete,
-                            keys_written: _,
-                        } = r
-                        {
-                            (new_sst_files.len(), blob_seq_numbers_to_delete.len())
-                        } else {
-                            (0, 0)
-                        }
-                    })
-                    .reduce(|(a1, a2), (b1, b2)| (a1 + b1, a2 + b2))
-                else {
-                    unreachable!()
-                };
-
-                let mut new_sst_files = Vec::with_capacity(sst_files_len);
-                let mut blob_seq_numbers_to_delete = Vec::with_capacity(blob_delete_len);
-
-                let mut meta_file_builder = MetaFileBuilder::new(family);
-
-                let mut keys_written = 0;
-                for result in merge_result {
-                    match result {
-                        PartialMergeResult::Merged {
-                            new_sst_files: merged_new_sst_files,
-                            blob_seq_numbers_to_delete: merged_blob_seq_numbers_to_delete,
-                            keys_written: merged_keys_written,
-                        } => {
-                            for (seq, file, meta) in merged_new_sst_files {
-                                meta_file_builder.add(seq, meta);
-                                new_sst_files.push((seq, file));
+                    let Some((sst_files_len, blob_delete_len)) = merge_result
+                        .iter()
+                        .map(|r| {
+                            if let PartialMergeResult::Merged {
+                                new_sst_files,
+                                blob_seq_numbers_to_delete,
+                                keys_written: _,
+                            } = r
+                            {
+                                (new_sst_files.len(), blob_seq_numbers_to_delete.len())
+                            } else {
+                                (0, 0)
                             }
-                            blob_seq_numbers_to_delete.extend(merged_blob_seq_numbers_to_delete);
-                            keys_written += merged_keys_written;
-                        }
-                        PartialMergeResult::Move { seq, meta } => {
-                            meta_file_builder.add(seq, meta);
+                        })
+                        .reduce(|(a1, a2), (b1, b2)| (a1 + b1, a2 + b2))
+                    else {
+                        unreachable!()
+                    };
+
+                    let mut new_sst_files = Vec::with_capacity(sst_files_len);
+                    let mut blob_seq_numbers_to_delete = Vec::with_capacity(blob_delete_len);
+
+                    let mut meta_file_builder = MetaFileBuilder::new(family);
+
+                    let mut keys_written = 0;
+                    for result in merge_result {
+                        match result {
+                            PartialMergeResult::Merged {
+                                new_sst_files: merged_new_sst_files,
+                                blob_seq_numbers_to_delete: merged_blob_seq_numbers_to_delete,
+                                keys_written: merged_keys_written,
+                            } => {
+                                for (seq, file, meta) in merged_new_sst_files {
+                                    meta_file_builder.add(seq, meta);
+                                    new_sst_files.push((seq, file));
+                                }
+                                blob_seq_numbers_to_delete
+                                    .extend(merged_blob_seq_numbers_to_delete);
+                                keys_written += merged_keys_written;
+                            }
+                            PartialMergeResult::Move { seq, meta } => {
+                                meta_file_builder.add(seq, meta);
+                            }
                         }
                     }
-                }
 
-                for &seq in sst_seq_numbers_to_delete.iter() {
-                    meta_file_builder.add_obsolete_sst_file(seq);
-                }
+                    for &seq in sst_seq_numbers_to_delete.iter() {
+                        meta_file_builder.add_obsolete_sst_file(seq);
+                    }
 
-                let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-                let meta_file = {
-                    let _span = tracing::trace_span!("write meta file").entered();
-                    meta_file_builder.write(&self.path, seq)?
-                };
+                    let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                    let meta_file = {
+                        let _span = tracing::trace_span!("write meta file").entered();
+                        meta_file_builder.write(&self.path, seq)?
+                    };
 
-                Ok(PartialResultPerFamily {
-                    new_meta_file: Some((seq, meta_file)),
-                    new_sst_files,
-                    sst_seq_numbers_to_delete,
-                    blob_seq_numbers_to_delete,
-                    keys_written,
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
+                    Ok(PartialResultPerFamily {
+                        new_meta_file: Some((seq, meta_file)),
+                        new_sst_files,
+                        sst_seq_numbers_to_delete,
+                        blob_seq_numbers_to_delete,
+                        keys_written,
+                    })
+                },
+            )?;
 
         for PartialResultPerFamily {
             new_meta_file: inner_new_meta_file,

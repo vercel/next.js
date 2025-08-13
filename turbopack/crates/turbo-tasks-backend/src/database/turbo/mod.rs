@@ -1,20 +1,23 @@
-use std::{
-    cmp::max,
-    path::PathBuf,
-    sync::Arc,
-    thread::{JoinHandle, available_parallelism, spawn},
-};
+use std::{cmp::max, path::PathBuf, sync::Arc, thread::available_parallelism};
 
 use anyhow::Result;
 use parking_lot::Mutex;
+use tokio::{
+    runtime::Handle,
+    spawn,
+    task::{JoinHandle, block_in_place},
+};
 use turbo_persistence::{
     ArcSlice, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
 };
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
+    turbo::parallel_scheduler::TurboTasksParallelScheduler,
     write_batch::{BaseWriteBatch, ConcurrentWriteBatch, WriteBatch, WriteBuffer},
 };
+
+mod parallel_scheduler;
 
 const MB: u64 = 1024 * 1024;
 const COMPACT_CONFIG: CompactConfig = CompactConfig {
@@ -28,7 +31,7 @@ const COMPACT_CONFIG: CompactConfig = CompactConfig {
 };
 
 pub struct TurboKeyValueDatabase {
-    db: Arc<TurboPersistence>,
+    db: Arc<TurboPersistence<TurboTasksParallelScheduler>>,
     compact_join_handle: Mutex<Option<JoinHandle<Result<()>>>>,
     is_ci: bool,
     is_short_session: bool,
@@ -45,7 +48,7 @@ impl TurboKeyValueDatabase {
         };
         // start compaction in background if the database is not empty
         if !db.is_empty() {
-            let handle = spawn(move || {
+            let handle = spawn(async move {
                 db.compact(&CompactConfig {
                     max_merge_segment_count: available_parallelism()
                         .map_or(4, |c| max(4, c.get() / 4)),
@@ -96,7 +99,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
         // Wait for the compaction to finish
         if let Some(join_handle) = self.compact_join_handle.lock().take() {
-            join_handle.join().unwrap()?;
+            join(join_handle)?;
         }
         // Start a new write batch
         Ok(WriteBatch::concurrent(TurboWriteBatch {
@@ -112,7 +115,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     fn shutdown(&self) -> Result<()> {
         // Wait for the compaction to finish
         if let Some(join_handle) = self.compact_join_handle.lock().take() {
-            join_handle.join().unwrap()?;
+            join(join_handle)?;
         }
         // Compact the database on shutdown
         self.db.compact(&CompactConfig {
@@ -130,8 +133,8 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
 }
 
 pub struct TurboWriteBatch<'a> {
-    batch: turbo_persistence::WriteBatch<WriteBuffer<'static>, 5>,
-    db: &'a Arc<TurboPersistence>,
+    batch: turbo_persistence::WriteBatch<WriteBuffer<'static>, TurboTasksParallelScheduler, 5>,
+    db: &'a Arc<TurboPersistence<TurboTasksParallelScheduler>>,
     compact_join_handle: Option<&'a Mutex<Option<JoinHandle<Result<()>>>>>,
 }
 
@@ -156,7 +159,7 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
         if let Some(compact_join_handle) = self.compact_join_handle {
             // Start a new compaction in the background
             let db = self.db.clone();
-            let handle = spawn(move || {
+            let handle = spawn(async move {
                 db.compact(&CompactConfig {
                     max_merge_segment_count: available_parallelism()
                         .map_or(4, |c| max(4, c.get() / 2)),
@@ -231,4 +234,8 @@ impl<'l> From<WriteBuffer<'l>> for ValueBuffer<'l> {
             WriteBuffer::SmallVec(sv) => ValueBuffer::SmallVec(sv),
         }
     }
+}
+
+fn join(handle: JoinHandle<Result<()>>) -> Result<()> {
+    block_in_place(|| Handle::current().block_on(handle))?
 }

@@ -23,7 +23,7 @@ fn assert_resolved(input: ResolvedVc<u32>) {
     assert!(input_vc.is_resolved());
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_conversion() -> Result<()> {
     run(&REGISTRATION, || async {
         let unresolved: Vc<u32> = Vc::cell(42);
@@ -38,7 +38,7 @@ async fn test_conversion() -> Result<()> {
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_cell_construction() -> Result<()> {
     run(&REGISTRATION, || async {
         let a: ResolvedVc<u32> = ResolvedVc::cell(42);
@@ -50,7 +50,7 @@ async fn test_cell_construction() -> Result<()> {
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_resolved_vc_as_arg() -> Result<()> {
     run(&REGISTRATION, || async {
         let unresolved: Vc<u32> = returns_int(42);
@@ -62,7 +62,7 @@ async fn test_resolved_vc_as_arg() -> Result<()> {
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_into_future() -> Result<()> {
     run(&REGISTRATION, || async {
         let mut resolved = ResolvedVc::cell(42);
@@ -78,7 +78,7 @@ async fn test_into_future() -> Result<()> {
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_sidecast() -> Result<()> {
     run(&REGISTRATION, || async {
         let concrete_value = ImplementsAAndB.resolved_cell();
