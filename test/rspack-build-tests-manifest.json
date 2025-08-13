@@ -718,6 +718,7 @@
       "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
       "app-dir with middleware should filter correctly after middleware rewrite",
       "app-dir with middleware should ignore x-middleware-set-cookie as a request header",
+      "app-dir with middleware should not incorrectly treat a Location header as a rewrite",
       "app-dir with middleware should omit internal headers for middleware cookies",
       "app-dir with middleware should respect cookie options of merged middleware cookies"
     ],
@@ -2194,6 +2195,15 @@
     "passed": [
       "css-modules-pure-no-check should apply styles correctly",
       "css-modules-pure-no-check should have emitted a CSS file"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/css-modules-rsc-postcss/css-modules-rsc-postcss.test.ts": {
+    "passed": [
+      "css-modules-rsc-postcss should compile successfully and apply the correct styles"
     ],
     "failed": [],
     "pending": [],
@@ -5106,6 +5116,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/resuming-head-runtime-search-param/resuming-head-runtime-search-param.test.ts": {
+    "passed": [
+      "resuming-head-runtime-search-param should not show resumable slots error when using runtime search params"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts": {
     "passed": [
       "app-dir revalidate-dynamic should correctly mark a route handler that uses unstable_expireTag as dynamic",
@@ -6018,7 +6037,10 @@
       "<Link prefetch={true}> (runtime prefetch) cache stale time handling omits private caches with a short enough staleTime",
       "<Link prefetch={true}> (runtime prefetch) cache stale time handling omits short-lived public caches with a short enough staleTime",
       "<Link prefetch={true}> (runtime prefetch) can completely prefetch a page that is fully static",
-      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender and logs an error when sync IO is used after cookies()",
+      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender and logs an error when sync IO is used after awaiting a private cache",
+      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender and logs an error when sync IO is used after awaiting a quickly-expiring public cache",
+      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender and logs an error when sync IO is used after awaiting cookies()",
+      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender and logs an error when sync IO is used after awaiting searchParams",
       "<Link prefetch={true}> (runtime prefetch) errors should trigger error boundaries for errors that occurred in runtime-prefetched content",
       "<Link prefetch={true}> (runtime prefetch) in a page can completely prefetch a page that uses cookies and no uncached IO",
       "<Link prefetch={true}> (runtime prefetch) in a page includes cookies, but not dynamic content",
@@ -6030,6 +6052,11 @@
       "<Link prefetch={true}> (runtime prefetch) in a private cache includes dynamic params, but not dynamic content",
       "<Link prefetch={true}> (runtime prefetch) in a private cache includes root params, but not dynamic content",
       "<Link prefetch={true}> (runtime prefetch) in a private cache includes search params, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) passed to a public cache can completely prefetch a page that uses cookies and no uncached IO",
+      "<Link prefetch={true}> (runtime prefetch) passed to a public cache includes cookies, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) passed to a public cache includes dynamic params, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) passed to a public cache includes root params, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) passed to a public cache includes search params, but not dynamic content",
       "<Link prefetch={true}> (runtime prefetch) should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a page",
       "<Link prefetch={true}> (runtime prefetch) should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
       "<Link prefetch={true}> (runtime prefetch) should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
@@ -6335,6 +6362,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/typed-routes/typed-links.test.ts": {
+    "passed": [
+      "typed-links should fail type checking with invalid routes",
+      "typed-links should generate types for next/link",
+      "typed-links should pass type checking with valid routes",
+      "typed-links should work with Route type casting"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/typed-routes/typed-routes.test.ts": {
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
@@ -6493,7 +6532,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-search-params/use-cache-search-params.test.ts": {
-    "passed": ["use-cache-search-params should fail the build with errors"],
+    "passed": [
+      "use-cache-search-params should fail the build with errors",
+      "use-cache-search-params should resume a cached page that does not access search params without hydration errors"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -10158,10 +10200,10 @@
   },
   "test/integration/app-types/app-types.test.js": {
     "passed": [
-      "app type checking production mode should generate route types correctly and report form errors",
-      "app type checking production mode should generate route types correctly and report link error",
-      "app type checking production mode should generate route types correctly and report router API errors",
-      "app type checking production mode should type check invalid entry exports"
+      "app type checking - production mode should generate route types correctly and report form errors",
+      "app type checking - production mode should generate route types correctly and report router API errors",
+      "app type checking - production mode should report link errors",
+      "app type checking - production mode should type check invalid entry exports"
     ],
     "failed": [],
     "pending": [],
@@ -10298,6 +10340,15 @@
       "Build Output production mode Basic Application Output (experimental: {\"gzipSize\":false}) should not deviate from snapshot",
       "Build Output production mode Basic Application Output (experimental: {}) should not deviate from snapshot"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/build-trace-extra-entries-monorepo/test/index.test.ts": {
+    "passed": [
+      "build trace with extra entries in monorepo production mode should build and trace correctly"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },

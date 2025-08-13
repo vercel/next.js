@@ -505,15 +505,15 @@ function testPlatform(re: RegExp): boolean | undefined {
     : undefined
 }
 
-export function isMac(): boolean | undefined {
+function isMac(): boolean | undefined {
   return testPlatform(/^Mac/)
 }
 
-export function isIPhone(): boolean | undefined {
+function isIPhone(): boolean | undefined {
   return testPlatform(/^iPhone/)
 }
 
-export function isIPad(): boolean | undefined {
+function isIPad(): boolean | undefined {
   return (
     testPlatform(/^iPad/) ||
     // iPadOS 13 lies and says it's a Mac, but we can distinguish by detecting touch support.
@@ -521,10 +521,6 @@ export function isIPad(): boolean | undefined {
   )
 }
 
-export function isIOS(): boolean | undefined {
-  return isIPhone() || isIPad()
-}
-
-export function isApple(): boolean | undefined {
+function isApple(): boolean | undefined {
   return isMac() || isIPhone() || isIPad()
 }

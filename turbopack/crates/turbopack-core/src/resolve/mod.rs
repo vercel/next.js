@@ -1035,6 +1035,32 @@ impl ResolveResult {
         .into())
     }
 
+    /// Returns a new [ResolveResult] where all [RequestKey]s are updated. The prefix is removed
+    /// from all [RequestKey]s. It's not expected that the [ResolveResult] contains [RequestKey]s
+    /// without the prefix, but if there are still some, they are discarded.
+    #[turbo_tasks::function]
+    fn with_stripped_request_key_prefix(&self, prefix: RcStr) -> Result<Vc<Self>> {
+        let new_primary = self
+            .primary
+            .iter()
+            .filter_map(|(k, v)| {
+                let remaining = k.request.as_ref()?.strip_prefix(&*prefix)?;
+                Some((
+                    RequestKey {
+                        request: Some(remaining.into()),
+                        conditions: k.conditions.clone(),
+                    },
+                    v.clone(),
+                ))
+            })
+            .collect();
+        Ok(ResolveResult {
+            primary: new_primary,
+            affecting_sources: self.affecting_sources.clone(),
+        }
+        .into())
+    }
+
     /// Returns a new [ResolveResult] where all [RequestKey]s are updated. All keys matching
     /// `old_request_key` are rewritten according to `request_key`. It's not expected that the
     /// [ResolveResult] contains [RequestKey]s that do not match the `old_request_key` prefix, but
@@ -1114,38 +1140,25 @@ impl ResolveResultOption {
 }
 
 async fn exists(
-    fs_path: FileSystemPath,
+    fs_path: &FileSystemPath,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<FileSystemPath>> {
     type_exists(fs_path, FileSystemEntryType::File, refs).await
 }
 
 async fn dir_exists(
-    fs_path: FileSystemPath,
+    fs_path: &FileSystemPath,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<FileSystemPath>> {
     type_exists(fs_path, FileSystemEntryType::Directory, refs).await
 }
 
 async fn type_exists(
-    fs_path: FileSystemPath,
+    fs_path: &FileSystemPath,
     ty: FileSystemEntryType,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<FileSystemPath>> {
-    let result = fs_path.realpath_with_links().owned().await?;
-    refs.extend(
-        result
-            .symlinks
-            .into_iter()
-            .map(|path| async move {
-                Ok(ResolvedVc::upcast(
-                    FileSource::new(path).to_resolved().await?,
-                ))
-            })
-            .try_join()
-            .await?,
-    );
-    let path = result.path;
+    let path = realpath(fs_path, refs).await?;
     Ok(if *path.get_type().await? == ty {
         Some(path)
     } else {
@@ -1153,10 +1166,10 @@ async fn type_exists(
     })
 }
 
-async fn any_exists(
-    fs_path: FileSystemPath,
+async fn realpath(
+    fs_path: &FileSystemPath,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
-) -> Result<Option<(FileSystemEntryType, FileSystemPath)>> {
+) -> Result<FileSystemPath> {
     let result = fs_path.realpath_with_links().owned().await?;
     refs.extend(
         result
@@ -1170,18 +1183,7 @@ async fn any_exists(
             .try_join()
             .await?,
     );
-    let path = result.path;
-    let ty = *path.get_type().await?;
-    Ok(
-        if matches!(
-            ty,
-            FileSystemEntryType::NotFound | FileSystemEntryType::Error
-        ) {
-            None
-        } else {
-            Some((ty, path))
-        },
-    )
+    Ok(result.path)
 }
 
 #[turbo_tasks::value(shared)]
@@ -1284,7 +1286,7 @@ pub async fn find_context_file(
     let mut refs = Vec::new();
     for name in &*names.await? {
         let fs_path = lookup_path.join(name)?;
-        if let Some(fs_path) = exists(fs_path, &mut refs).await? {
+        if let Some(fs_path) = exists(&fs_path, &mut refs).await? {
             return Ok(FindContextFileResult::Found(fs_path, refs).cell());
         }
     }
@@ -1324,7 +1326,7 @@ pub async fn find_context_file_or_package_key(
 ) -> Result<Vc<FindContextFileResult>> {
     let mut refs = Vec::new();
     let package_json_path = lookup_path.join("package.json")?;
-    if let Some(package_json_path) = exists(package_json_path, &mut refs).await?
+    if let Some(package_json_path) = exists(&package_json_path, &mut refs).await?
         && let Some(json) =
             &*read_package_json(Vc::upcast(FileSource::new(package_json_path.clone()))).await?
         && json.get(&*package_key).is_some()
@@ -1333,7 +1335,7 @@ pub async fn find_context_file_or_package_key(
     }
     for name in &*names.await? {
         let fs_path = lookup_path.join(name)?;
-        if let Some(fs_path) = exists(fs_path, &mut refs).await? {
+        if let Some(fs_path) = exists(&fs_path, &mut refs).await? {
             return Ok(FindContextFileResult::Found(fs_path, refs).into());
         }
     }
@@ -1361,11 +1363,12 @@ pub async fn find_context_file_or_package_key(
 
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue)]
 enum FindPackageItem {
-    PackageDirectory(FileSystemPath),
-    PackageFile(FileSystemPath),
+    PackageDirectory { name: RcStr, dir: FileSystemPath },
+    PackageFile { name: RcStr, file: FileSystemPath },
 }
 
 #[turbo_tasks::value]
+#[derive(Debug)]
 struct FindPackageResult {
     packages: Vec<FindPackageItem>,
     affecting_sources: Vec<ResolvedVc<Box<dyn Source>>>,
@@ -1374,28 +1377,41 @@ struct FindPackageResult {
 #[turbo_tasks::function]
 async fn find_package(
     lookup_path: FileSystemPath,
-    package_name: RcStr,
+    package_name: Pattern,
     options: Vc<ResolveModulesOptions>,
 ) -> Result<Vc<FindPackageResult>> {
     let mut packages = vec![];
     let mut affecting_sources = vec![];
     let options = options.await?;
+    let package_name_cell = Pattern::new(package_name.clone());
+
+    fn get_package_name(basepath: &FileSystemPath, package_dir: &FileSystemPath) -> Result<RcStr> {
+        if let Some(name) = basepath.get_path_to(package_dir) {
+            Ok(name.into())
+        } else {
+            bail!("Package directory {package_dir} is not inside the lookup path {basepath}");
+        }
+    }
+
     for resolve_modules in &options.modules {
         match resolve_modules {
-            ResolveModules::Nested(root_vc, names) => {
+            ResolveModules::Nested(root, names) => {
                 let mut lookup_path = lookup_path.clone();
                 let mut lookup_path_value = lookup_path.clone();
-                // For clippy -- This explicit deref is necessary
-                let root = root_vc.clone();
-                while lookup_path_value.is_inside_ref(&root) {
+                while lookup_path_value.is_inside_ref(root) {
                     for name in names.iter() {
                         let fs_path = lookup_path.join(name)?;
-                        if let Some(fs_path) = dir_exists(fs_path, &mut affecting_sources).await? {
-                            let fs_path = fs_path.join(&package_name)?;
-                            if let Some(fs_path) =
-                                dir_exists(fs_path.clone(), &mut affecting_sources).await?
-                            {
-                                packages.push(FindPackageItem::PackageDirectory(fs_path));
+                        if let Some(fs_path) = dir_exists(&fs_path, &mut affecting_sources).await? {
+                            let matches =
+                                read_matches(fs_path.clone(), rcstr!(""), true, package_name_cell)
+                                    .await?;
+                            for m in &*matches {
+                                if let PatternMatch::Directory(_, package_dir) = m {
+                                    packages.push(FindPackageItem::PackageDirectory {
+                                        name: get_package_name(&fs_path, package_dir)?,
+                                        dir: realpath(package_dir, &mut affecting_sources).await?,
+                                    });
+                                }
                             }
                         }
                     }
@@ -1411,29 +1427,46 @@ async fn find_package(
                 dir,
                 excluded_extensions,
             } => {
-                let excluded_extensions = excluded_extensions.await?;
-                let package_dir = dir.join(&package_name)?;
-                if let Some((ty, package_dir)) =
-                    any_exists(package_dir.clone(), &mut affecting_sources).await?
-                {
-                    match ty {
-                        FileSystemEntryType::Directory => {
-                            packages.push(FindPackageItem::PackageDirectory(package_dir.clone()));
+                let matches =
+                    read_matches(dir.clone(), rcstr!(""), true, package_name_cell).await?;
+                for m in &*matches {
+                    match m {
+                        PatternMatch::Directory(_, package_dir) => {
+                            packages.push(FindPackageItem::PackageDirectory {
+                                name: get_package_name(dir, package_dir)?,
+                                dir: realpath(package_dir, &mut affecting_sources).await?,
+                            });
                         }
-                        FileSystemEntryType::File => {
-                            packages.push(FindPackageItem::PackageFile(package_dir.clone()));
+                        PatternMatch::File(_, package_file) => {
+                            packages.push(FindPackageItem::PackageFile {
+                                name: get_package_name(dir, package_file)?,
+                                file: realpath(package_file, &mut affecting_sources).await?,
+                            });
                         }
-                        _ => {}
                     }
                 }
-                for extension in &options.extensions {
-                    if excluded_extensions.contains(extension) {
-                        continue;
-                    }
-                    let package_file = package_dir.append(extension)?;
-                    if let Some(package_file) = exists(package_file, &mut affecting_sources).await?
-                    {
-                        packages.push(FindPackageItem::PackageFile(package_file));
+
+                let excluded_extensions = excluded_extensions.await?;
+                let mut package_name_with_extensions = package_name.clone();
+                package_name_with_extensions.push(Pattern::alternatives(
+                    options
+                        .extensions
+                        .iter()
+                        .filter(|ext| !excluded_extensions.contains(*ext))
+                        .cloned()
+                        .map(Pattern::from),
+                ));
+                let package_name_with_extensions = Pattern::new(package_name_with_extensions);
+
+                let matches =
+                    read_matches(dir.clone(), rcstr!(""), true, package_name_with_extensions)
+                        .await?;
+                for m in matches {
+                    if let PatternMatch::File(_, package_file) = m {
+                        packages.push(FindPackageItem::PackageFile {
+                            name: get_package_name(dir, package_file)?,
+                            file: realpath(package_file, &mut affecting_sources).await?,
+                        });
                     }
                 }
             }
@@ -1535,7 +1568,7 @@ pub async fn resolve_raw(
         if matches.len() > 10000 {
             println!(
                 "WARN: resolving pattern {} in {} leads to {} results",
-                pat,
+                pat.describe_as_string(),
                 lookup_dir_str,
                 matches.len()
             );
@@ -2047,7 +2080,7 @@ async fn resolve_internal_inline(
                 if !has_alias {
                     ResolvingIssue {
                         severity: error_severity(options).await?,
-                        request_type: format!("unknown import: `{path}`"),
+                        request_type: format!("unknown import: `{}`", path.describe_as_string()),
                         request: request.to_resolved().await?,
                         file_path: lookup_path.clone(),
                         resolve_options: options.to_resolved().await?,
@@ -2184,7 +2217,7 @@ async fn resolve_relative_request(
         options,
         options_value,
         |package_path| {
-            let request = path_pattern.as_string()?;
+            let request = path_pattern.as_constant_string()?;
             let prefix_path = package_path.get_path_to(&lookup_path_ref)?;
             let request = normalize_request(&format!("./{prefix_path}/{request}"));
             Some(request.into())
@@ -2511,7 +2544,7 @@ async fn resolve_module_request(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
     options_value: &ResolveOptions,
-    module: &RcStr,
+    module: &Pattern,
     path: &Pattern,
     query: RcStr,
     fragment: RcStr,
@@ -2522,8 +2555,8 @@ async fn resolve_module_request(
         options,
         options_value,
         |_| {
-            let full_pattern = Pattern::concat([module.clone().into(), path.clone()]);
-            full_pattern.into_string()
+            let full_pattern = Pattern::concat([module.clone(), path.clone()]);
+            full_pattern.as_constant_string().cloned()
         },
         query.clone(),
         fragment.clone(),
@@ -2533,12 +2566,14 @@ async fn resolve_module_request(
         return Ok(result);
     }
 
+    let mut results = vec![];
+
     // Self references, if the nearest package.json has the name of the requested
     // module. This should match only using the exports field and no other
     // fields/fallbacks.
     if let FindSelfReferencePackageResult::Found { name, package_path } =
         &*find_self_reference(lookup_path.clone()).await?
-        && module == name
+        && module.is_match(name)
     {
         let result = resolve_into_package(
             path.clone(),
@@ -2565,8 +2600,6 @@ async fn resolve_module_request(
         ));
     }
 
-    let mut results = vec![];
-
     // There may be more than one package with the same name. For instance, in a
     // TypeScript project, `compilerOptions.baseUrl` can declare a path where to
     // resolve packages. A request to "foo/bar" might resolve to either
@@ -2574,20 +2607,23 @@ async fn resolve_module_request(
     // try both.
     for item in &result.packages {
         match item {
-            FindPackageItem::PackageDirectory(package_path) => {
-                results.push(resolve_into_package(
-                    path.clone(),
-                    package_path.clone(),
-                    query.clone(),
-                    fragment.clone(),
-                    options,
-                ));
+            FindPackageItem::PackageDirectory { name, dir } => {
+                results.push(
+                    resolve_into_package(
+                        path.clone(),
+                        dir.clone(),
+                        query.clone(),
+                        fragment.clone(),
+                        options,
+                    )
+                    .with_replaced_request_key(rcstr!("."), RequestKey::new(name.clone())),
+                );
             }
-            FindPackageItem::PackageFile(package_path) => {
+            FindPackageItem::PackageFile { name, file } => {
                 if path.is_match("") {
                     let resolved = resolved(
                         RequestKey::new(rcstr!(".")),
-                        package_path.clone(),
+                        file.clone(),
                         lookup_path.clone(),
                         request,
                         options_value,
@@ -2595,7 +2631,8 @@ async fn resolve_module_request(
                         query.clone(),
                         fragment.clone(),
                     )
-                    .await?;
+                    .await?
+                    .with_replaced_request_key(rcstr!("."), RequestKey::new(name.clone()));
                     results.push(resolved)
                 }
             }
@@ -2603,16 +2640,12 @@ async fn resolve_module_request(
     }
 
     let module_result =
-        merge_results_with_affecting_sources(results, result.affecting_sources.clone())
-            .with_replaced_request_key(rcstr!("."), RequestKey::new(module.clone()));
+        merge_results_with_affecting_sources(results, result.affecting_sources.clone());
 
     if options_value.prefer_relative {
-        let module_prefix: RcStr = format!("./{module}").into();
-        let pattern = Pattern::concat([
-            module_prefix.clone().into(),
-            rcstr!("/").into(),
-            path.clone(),
-        ]);
+        let mut module_prefixed = module.clone();
+        module_prefixed.push_front(rcstr!("./").into());
+        let pattern = Pattern::concat([module_prefixed.clone(), rcstr!("/").into(), path.clone()]);
         let relative = Request::relative(pattern, query, fragment, true)
             .to_resolved()
             .await?;
@@ -2622,8 +2655,7 @@ async fn resolve_module_request(
             options,
         ))
         .await?;
-        let relative_result = relative_result
-            .with_replaced_request_key(module_prefix, RequestKey::new(module.clone()));
+        let relative_result = relative_result.with_stripped_request_key_prefix(rcstr!("./"));
 
         Ok(merge_results(vec![relative_result, module_result]))
     } else {
@@ -2660,11 +2692,11 @@ async fn resolve_into_package(
                     continue;
                 };
 
-                let Some(path) = path.clone().into_string() else {
+                let Some(path) = path.as_constant_string() else {
                     todo!("pattern into an exports field is not implemented yet");
                 };
 
-                let path = if &*path == "/" {
+                let path = if path == "/" {
                     rcstr!(".")
                 } else {
                     format!(".{path}").into()

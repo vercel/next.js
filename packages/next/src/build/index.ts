@@ -115,8 +115,11 @@ import {
   processAppRoutes,
   processLayoutRoutes,
   extractSlotsFromAppRoutes,
+  extractSlotsFromDefaultFiles,
+  combineSlots,
   type RouteInfo,
   type SlotInfo,
+  collectPagesFiles,
 } from './entries'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
@@ -145,7 +148,6 @@ import isError from '../lib/is-error'
 import type { NextError } from '../lib/is-error'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
-import { recursiveReadDir } from '../lib/recursive-readdir'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
@@ -218,9 +220,11 @@ import {
   sortPages,
   sortSortableRouteObjects,
 } from '../shared/lib/router/utils/sortable-routes'
+import { mkdir } from 'fs/promises'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
+  writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
 
 type Fallback = null | boolean | string
@@ -1120,11 +1124,9 @@ export default async function build(
       let pagesPaths = Boolean(process.env.NEXT_PRIVATE_PAGE_PATHS)
         ? providedPagePaths
         : !appDirOnly && pagesDir
-          ? await nextBuildSpan.traceChild('collect-pages').traceAsyncFn(() =>
-              recursiveReadDir(pagesDir, {
-                pathnameFilter: validFileMatcher.isPageFile,
-              })
-            )
+          ? await nextBuildSpan
+              .traceChild('collect-pages')
+              .traceAsyncFn(() => collectPagesFiles(pagesDir, validFileMatcher))
           : []
 
       const middlewareDetectionRegExp = new RegExp(
@@ -1190,16 +1192,18 @@ export default async function build(
         let layoutPaths: string[]
 
         if (Boolean(process.env.NEXT_PRIVATE_APP_PATHS)) {
+          // used for testing?
           appPaths = providedAppPaths
           layoutPaths = []
         } else {
-          // Collect both app pages and layouts in a single directory traversal
+          // Collect app pages, layouts, and default files in a single directory traversal
           const result = await nextBuildSpan
             .traceChild('collect-app-files')
-            .traceAsyncFn(() => collectAppFiles(appDir, config.pageExtensions))
+            .traceAsyncFn(() => collectAppFiles(appDir, validFileMatcher))
 
           appPaths = result.appPaths
           layoutPaths = result.layoutPaths
+          // Note: defaultPaths are not used in the build process, only for slot detection in generating route types
         }
 
         mappedAppPages = await nextBuildSpan
@@ -1280,40 +1284,77 @@ export default async function build(
         .traceChild('generate-route-types')
         .traceAsyncFn(async () => {
           const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
-          await fs.mkdir(path.dirname(routeTypesFilePath), { recursive: true })
+          const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
+          await mkdir(path.dirname(routeTypesFilePath), { recursive: true })
 
-          let pageRoutes: RouteInfo[] = []
           let appRoutes: RouteInfo[] = []
+          let appRouteHandlers: RouteInfo[] = []
           let layoutRoutes: RouteInfo[] = []
           let slots: SlotInfo[] = []
 
-          // Build pages routes
-          const processedPages = processPageRoutes(mappedPages, dir)
-          // We combine both page routes and API routes
-          pageRoutes = [
-            ...processedPages.pageRoutes,
-            ...processedPages.pageApiRoutes,
-          ]
+          const { pageRoutes, pageApiRoutes } = processPageRoutes(
+            mappedPages,
+            dir,
+            isSrcDir
+          )
 
           // Build app routes
           if (appDir && mappedAppPages) {
-            slots = extractSlotsFromAppRoutes(mappedAppPages)
-            appRoutes = processAppRoutes(mappedAppPages, dir)
+            // Extract slots from both pages and default files
+            const slotsFromPages = extractSlotsFromAppRoutes(mappedAppPages)
+            let slotsFromDefaults: SlotInfo[] = []
+
+            // Collect and map default files for slot extraction
+            const { defaultPaths } = await nextBuildSpan
+              .traceChild('collect-default-files')
+              .traceAsyncFn(() => collectAppFiles(appDir, validFileMatcher))
+
+            if (defaultPaths.length > 0) {
+              const mappedDefaultFiles = await nextBuildSpan
+                .traceChild('create-default-mapping')
+                .traceAsyncFn(() =>
+                  createPagesMapping({
+                    pagePaths: defaultPaths,
+                    isDev: false,
+                    pagesType: PAGE_TYPES.APP,
+                    pageExtensions: config.pageExtensions,
+                    pagesDir,
+                    appDir,
+                  })
+                )
+              slotsFromDefaults =
+                extractSlotsFromDefaultFiles(mappedDefaultFiles)
+            }
+
+            // Combine slots and deduplicate using Set
+            slots = combineSlots(slotsFromPages, slotsFromDefaults)
+
+            const result = processAppRoutes(
+              mappedAppPages,
+              validFileMatcher,
+              dir,
+              isSrcDir
+            )
+            appRoutes = result.appRoutes
+            appRouteHandlers = result.appRouteHandlers
           }
 
           // Build app layouts
           if (appDir && mappedAppLayouts) {
-            layoutRoutes = processLayoutRoutes(mappedAppLayouts, dir)
+            layoutRoutes = processLayoutRoutes(mappedAppLayouts, dir, isSrcDir)
           }
 
           const routeTypesManifest = await createRouteTypesManifest({
             dir,
             pageRoutes,
             appRoutes,
+            appRouteHandlers,
+            pageApiRoutes,
             layoutRoutes,
             slots,
             redirects: config.redirects,
             rewrites: config.rewrites,
+            validatorFilePath,
           })
 
           await writeRouteTypesManifest(
@@ -1321,6 +1362,7 @@ export default async function build(
             routeTypesFilePath,
             config
           )
+          await writeValidatorFile(routeTypesManifest, validatorFilePath)
         })
 
       // Turbopack already handles conflicting app and page routes.
@@ -3980,7 +4022,7 @@ export default async function build(
     await lockfilePatchPromise.cur
 
     if (isTurbopack && !process.env.__NEXT_TEST_MODE) {
-      warnAboutTurbopackBuilds(loadedConfig)
+      warnAboutTurbopackBuilds()
     }
 
     // Ensure all traces are flushed before finishing the command
@@ -4007,31 +4049,12 @@ function errorFromUnsupportedSegmentConfig(): never {
   process.exit(1)
 }
 
-function warnAboutTurbopackBuilds(config?: NextConfigComplete) {
-  let warningStr =
-    `Support for Turbopack builds is experimental. ` +
-    bold(
-      `We don't recommend deploying mission-critical applications to production.`
-    )
-  warningStr +=
-    '\n\n- ' +
-    bold(
-      'Turbopack currently always builds production source maps for the browser. This will include project source code if deployed to production.'
-    )
-  warningStr +=
-    '\n- It is expected that your bundle size might be different from `next build` with webpack. This will be improved as we work towards stability.'
-
-  if (!config?.experimental.turbopackPersistentCaching) {
-    warningStr +=
-      '\n- This build is without disk caching; subsequent builds will become faster when disk caching becomes available.'
-  }
-
-  warningStr +=
-    '\n- When comparing output to webpack builds, make sure to first clear the Next.js cache by deleting the `.next` directory.'
-  warningStr +=
-    '\n\nProvide feedback for Turbopack builds at https://github.com/vercel/next.js/discussions/77721'
-
-  Log.warn(warningStr)
+function warnAboutTurbopackBuilds() {
+  Log.ready(
+    `Turbopack builds are ${bold('beta')}.\n\n` +
+      '   Please see our docs https://nextjs.org/docs/app/api-reference/turbopack for information on known differences with webpack builds.\n\n' +
+      '   Provide feedback for Turbopack builds at https://github.com/vercel/next.js/discussions/77721'
+  )
 }
 
 function getBundlerForTelemetry(isTurbopack: boolean) {

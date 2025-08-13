@@ -16,7 +16,7 @@ import {
 const queueMicroTask =
   globalThis.queueMicrotask || ((cb: () => void) => Promise.resolve().then(cb))
 
-export type ErrorHandler = (error: Error) => void
+type ErrorHandler = (error: Error) => void
 
 const errorQueue: Array<Error> = []
 const errorHandlers: Array<ErrorHandler> = []

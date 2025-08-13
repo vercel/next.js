@@ -100,7 +100,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             Regex::new("^(?:private-next-pages\\/|next\\/(?:dist\\/pages\\/|(?:app|cache|document|link|form|head|image|legacy\\/image|constants|dynamic|script|navigation|headers|router|compat\\/router|server)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper$)").unwrap()
         });
 
-        let Pattern::Constant(package_subpath) = package_subpath else {
+        let (Pattern::Constant(package), Pattern::Constant(package_subpath)) =
+            (package, package_subpath)
+        else {
             return Ok(ResolveResultOption::none());
         };
         let request_str: RcStr = format!("{package}{package_subpath}").into();

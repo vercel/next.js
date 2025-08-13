@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useOnClickOutside } from '../../hooks/use-on-click-outside'
 
-export type DialogProps = {
+type DialogProps = {
   children?: React.ReactNode
   'aria-labelledby': string
   'aria-describedby': string
