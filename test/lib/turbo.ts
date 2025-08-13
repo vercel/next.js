@@ -5,13 +5,13 @@ export function shouldUseTurbopack(): boolean {
     return false
   }
 
-  const shouldRunTurboDev = !!process.env.IS_TURBOPACK_TEST
-  if (shouldRunTurboDev && !loggedTurbopack) {
+  const enabled = !!process.env.IS_TURBOPACK_TEST
+  if (enabled && !loggedTurbopack) {
     require('console').log(
       `Running tests with turbopack because environment variable IS_TURBOPACK_TEST is set`
     )
     loggedTurbopack = true
   }
 
-  return shouldRunTurboDev
+  return enabled
 }
