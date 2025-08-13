@@ -866,7 +866,13 @@ export default function Image({
         )
       }
 
-      if (!config.localPatterns && src.startsWith('/') && src.includes('?')) {
+      if (
+        src.startsWith('/') &&
+        src.includes('?') &&
+        (!config?.localPatterns?.length ||
+          (config.localPatterns.length === 1 &&
+            config.localPatterns[0].pathname === '/_next/static/media/**'))
+      ) {
         warnOnce(
           `Image with src "${src}" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.` +
             `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
