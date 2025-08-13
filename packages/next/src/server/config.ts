@@ -569,9 +569,14 @@ function assignDefaults(
   )
   if (
     hasWarnedBuildActivityPosition &&
-    result.devIndicators !== false &&
-    'buildActivityPosition' in result.devIndicators &&
-    result.devIndicators.buildActivityPosition !== result.devIndicators.position
+    userConfig.devIndicators !== false &&
+    userConfig.devIndicators &&
+    'buildActivityPosition' in userConfig.devIndicators &&
+    userConfig.devIndicators.position &&
+    userConfig.devIndicators.buildActivityPosition !==
+      userConfig.devIndicators.position &&
+    result.devIndicators &&
+    'buildActivityPosition' in result.devIndicators
   ) {
     Log.warnOnce(
       `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") for backward compatibility.`
@@ -580,28 +585,28 @@ function assignDefaults(
   }
 
   warnOptionHasBeenMovedOutOfExperimental(
-    result,
+    userConfig,
     'bundlePagesExternals',
     'bundlePagesRouterDependencies',
     configFileName,
     silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
-    result,
+    userConfig,
     'serverComponentsExternalPackages',
     'serverExternalPackages',
     configFileName,
     silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
-    result,
+    userConfig,
     'relay',
     'compiler.relay',
     configFileName,
     silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
-    result,
+    userConfig,
     'styledComponents',
     'compiler.styledComponents',
     configFileName,
@@ -615,42 +620,42 @@ function assignDefaults(
     silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
-    result,
+    userConfig,
     'reactRemoveProperties',
     'compiler.reactRemoveProperties',
     configFileName,
     silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
-    result,
+    userConfig,
     'removeConsole',
     'compiler.removeConsole',
     configFileName,
     silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
-    result,
+    userConfig,
     'swrDelta',
     'expireTime',
     configFileName,
     silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
-    result,
+    userConfig,
     'outputFileTracingRoot',
     'outputFileTracingRoot',
     configFileName,
     silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
-    result,
+    userConfig,
     'outputFileTracingIncludes',
     'outputFileTracingIncludes',
     configFileName,
     silent
   )
   warnOptionHasBeenMovedOutOfExperimental(
-    result,
+    userConfig,
     'outputFileTracingExcludes',
     'outputFileTracingExcludes',
     configFileName,
