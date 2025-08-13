@@ -23,7 +23,10 @@ use next_core::{
     pages_structure::{
         PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
-    util::{NextRuntime, get_asset_prefix_from_pathname, parse_config_from_source},
+    util::{
+        NextRuntime, get_asset_prefix_from_pathname, pages_middleware_function_name,
+        parse_config_from_source,
+    },
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -1528,7 +1531,7 @@ impl PageEndpoint {
                         files: file_paths_from_root.into_iter().collect(),
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
-                        name: format!("pages{}", this.original_name).into(),
+                        name: pages_middleware_function_name(&this.original_name).into(),
                         page: this.original_name.clone(),
                         regions,
                         matchers: vec![matchers],

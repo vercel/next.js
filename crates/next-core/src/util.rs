@@ -1,4 +1,4 @@
-use std::{future::Future, str::FromStr};
+use std::{fmt::Display, future::Future, str::FromStr};
 
 use anyhow::{Result, bail};
 use next_taskless::expand_next_js_template;
@@ -194,6 +194,13 @@ pub async fn internal_assets_conditions() -> Result<ContextCondition> {
         ),
         ContextCondition::InPath(turbopack_node::embed_js::embed_fs().root().owned().await?),
     ]))
+}
+
+pub fn app_middleware_function_name(page: impl Display) -> String {
+    format!("app{page}")
+}
+pub fn pages_middleware_function_name(page: impl Display) -> String {
+    format!("pages{page}")
 }
 
 #[derive(

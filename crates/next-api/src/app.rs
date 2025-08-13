@@ -34,7 +34,10 @@ use next_core::{
     },
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
-    util::{NextRuntime, module_styles_rule_condition, styles_rule_condition},
+    util::{
+        NextRuntime, app_middleware_function_name, module_styles_rule_condition,
+        styles_rule_condition,
+    },
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -1587,7 +1590,7 @@ impl AppEndpoint {
                         files: file_paths_from_root.into_iter().collect(),
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
-                        name: format!("app{}", app_entry.original_name).into(),
+                        name: app_middleware_function_name(&app_entry.original_name).into(),
                         page: app_entry.original_name.clone(),
                         regions: app_entry
                             .config
