@@ -7,7 +7,7 @@ const ASSET_PREFIX = "/";
  *
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
-const REEXPORTED_OBJECTS = Symbol('reexported objects');
+const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
  */ function Context(module, exports) {
@@ -44,8 +44,7 @@ function getOverwrittenModule(moduleCache, id) {
         exports: {},
         error: undefined,
         id,
-        namespaceObject: undefined,
-        [REEXPORTED_OBJECTS]: undefined
+        namespaceObject: undefined
     };
 }
 /**
@@ -95,9 +94,9 @@ function getOverwrittenModule(moduleCache, id) {
 }
 contextPrototype.s = esmExport;
 function ensureDynamicExports(module, exports) {
-    let reexportedObjects = module[REEXPORTED_OBJECTS];
+    let reexportedObjects = REEXPORTED_OBJECTS.get(module);
     if (!reexportedObjects) {
-        module[REEXPORTED_OBJECTS] = reexportedObjects = [];
+        REEXPORTED_OBJECTS.set(module, reexportedObjects = []);
         module.exports = module.namespaceObject = new Proxy(exports, {
             get (target, prop) {
                 if (hasOwnProperty.call(target, prop) || prop === 'default' || prop === '__esModule') {
