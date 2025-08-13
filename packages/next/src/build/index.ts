@@ -3308,7 +3308,7 @@ export default async function build(
                     // this route.
                     !config.experimental.clientSegmentCache ||
                     !config.experimental.clientParamParsing ||
-                    isRoutePPREnabled
+                    !isRoutePPREnabled
                   ) {
                     prefetchDataRoute = path.posix.join(
                       `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
