@@ -105,7 +105,6 @@ interface Module {
     | EsmNamespaceObject
     | Promise<EsmNamespaceObject>
     | AsyncModulePromise<EsmNamespaceObject>
-  [REEXPORTED_OBJECTS]?: any[]
 }
 
 interface ModuleWithDirection extends Module {

@@ -17,7 +17,7 @@ declare function getOrInstantiateModuleFromParent<M>(
   sourceModule: M
 ): M
 
-const REEXPORTED_OBJECTS = Symbol('reexported objects')
+const REEXPORTED_OBJECTS = new WeakMap<Module, ReexportedObjects>()
 
 /**
  * Constructs the `__turbopack_context__` object for a module.
@@ -102,7 +102,6 @@ function createModuleObject(id: ModuleId): Module {
     error: undefined,
     id,
     namespaceObject: undefined,
-    [REEXPORTED_OBJECTS]: undefined,
   }
 }
 
@@ -162,10 +161,10 @@ function ensureDynamicExports(
   exports: Exports
 ): ReexportedObjects {
   let reexportedObjects: ReexportedObjects | undefined =
-    module[REEXPORTED_OBJECTS]
+    REEXPORTED_OBJECTS.get(module)
 
   if (!reexportedObjects) {
-    module[REEXPORTED_OBJECTS] = reexportedObjects = []
+    REEXPORTED_OBJECTS.set(module, (reexportedObjects = []))
     module.exports = module.namespaceObject = new Proxy(exports, {
       get(target, prop) {
         if (
