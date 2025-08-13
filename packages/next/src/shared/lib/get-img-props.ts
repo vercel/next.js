@@ -538,6 +538,12 @@ export function getImgProps(
           `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
       )
     }
+    if (!config.localPatterns && src.startsWith('/') && src.includes('?')) {
+      warnOnce(
+        `Image with src "${src}" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.` +
+          `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
+      )
+    }
     if (placeholder === 'blur' && !blurDataURL) {
       const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
 
