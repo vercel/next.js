@@ -461,6 +461,12 @@ export type RoutesManifest = {
     prefetchSegmentHeader: typeof NEXT_ROUTER_SEGMENT_PREFETCH_HEADER
     prefetchSegmentDirSuffix: typeof RSC_SEGMENTS_DIR_SUFFIX
     prefetchSegmentSuffix: typeof RSC_SEGMENT_SUFFIX
+
+    /**
+     * Whether the client param parsing is enabled. This is only relevant for
+     * app pages when PPR is enabled.
+     */
+    clientParamParsing: boolean
   }
   rewriteHeaders: {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
@@ -1541,6 +1547,8 @@ export default async function build(
               prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
               prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
               prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
+              clientParamParsing:
+                config.experimental.clientParamParsing ?? false,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
@@ -2886,9 +2894,19 @@ export default async function build(
                   // If the route has any dynamic root segments, we need to skip
                   // rendering the route. This is because we don't support
                   // revalidating the shells without the parameters present.
+                  // Note that we only have fallback root params if we also have
+                  // PPR enabled for this route/app already.
                   if (
                     route.fallbackRootParams &&
-                    route.fallbackRootParams.length > 0
+                    route.fallbackRootParams.length > 0 &&
+                    // We don't skip rendering the route if we have the
+                    // following enabled. This is because the flight data now
+                    // does not contain any of the route params and is instead
+                    // completely static.
+                    !(
+                      config.experimental.clientSegmentCache &&
+                      config.experimental.clientParamParsing
+                    )
                   ) {
                     return
                   }
@@ -3186,12 +3204,25 @@ export default async function build(
                   dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
                 }
 
-                let prefetchDataRoute: string | null | undefined
+                let prefetchDataRoute: string | null = null
                 // While we may only write the `.rsc` when the route does not
                 // have PPR enabled, we still want to generate the route when
                 // deployed so it doesn't 404. If the app has PPR enabled, we
                 // should add this key.
-                if (!isAppRouteHandler && isAppPPREnabled) {
+                if (
+                  !isAppRouteHandler &&
+                  isAppPPREnabled &&
+                  // Don't add a prefetch data route if we have both
+                  // clientSegmentCache and clientParamParsing enabled. This is
+                  // because we don't actually use the prefetch data route in
+                  // this case. This only applies if we have PPR enabled for
+                  // this route.
+                  !(
+                    config.experimental.clientSegmentCache &&
+                    config.experimental.clientParamParsing &&
+                    isRoutePPREnabled
+                  )
+                ) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                   )
@@ -3264,14 +3295,25 @@ export default async function build(
                   dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
                 }
 
-                let prefetchDataRoute: string | undefined
+                let prefetchDataRoute: string | null = null
                 let dynamicRoute = routesManifest.dynamicRoutes.find(
                   (r) => r.page === route.pathname
                 )
                 if (!isAppRouteHandler && isAppPPREnabled) {
-                  prefetchDataRoute = path.posix.join(
-                    `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
-                  )
+                  if (
+                    // Don't add a prefetch data route if we have both
+                    // clientSegmentCache and clientParamParsing enabled. This is
+                    // because we don't actually use the prefetch data route in
+                    // this case. This only applies if we have PPR enabled for
+                    // this route.
+                    !config.experimental.clientSegmentCache ||
+                    !config.experimental.clientParamParsing ||
+                    isRoutePPREnabled
+                  ) {
+                    prefetchDataRoute = path.posix.join(
+                      `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
+                    )
+                  }
 
                   // If the dynamic route wasn't found, then we need to create
                   // it. This ensures that for each fallback shell there's an
