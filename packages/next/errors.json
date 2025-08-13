@@ -776,5 +776,6 @@
   "775": "Node.js instrumentation extensions should not be loaded in the Edge runtime.",
   "776": "`unstable_isUnrecognizedActionError` can only be used on the client.",
   "777": "Invariant: failed to find source route %s for prerender %s",
-  "778": "`prerenderAndAbortInSequentialTasksWithStages` should not be called in edge runtime."
+  "778": "`prerenderAndAbortInSequentialTasksWithStages` should not be called in edge runtime.",
+  "779": "Route %s used \"searchParams\" inside \"use cache\". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \"searchParams\" outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache"
 }

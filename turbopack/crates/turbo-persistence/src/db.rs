@@ -794,8 +794,9 @@ impl TurboPersistence {
                 if compact_config.max_merge_segment_count == 0 {
                     return Vec::new();
                 }
-                let merge_jobs = get_merge_segments(ssts_with_ranges, &compact_config);
-                compact_config.max_merge_segment_count -= merge_jobs.len();
+                let (merge_jobs, real_merge_job_size) =
+                    get_merge_segments(ssts_with_ranges, &compact_config);
+                compact_config.max_merge_segment_count -= real_merge_job_size;
                 merge_jobs
             })
             .collect::<Vec<_>>();

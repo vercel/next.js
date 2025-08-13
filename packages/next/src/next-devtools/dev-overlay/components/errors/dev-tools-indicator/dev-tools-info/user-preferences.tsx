@@ -4,6 +4,7 @@ import type {
   DevToolsScale,
 } from '../../../../shared'
 
+import { useDevOverlayContext } from '../../../../../dev-overlay.browser'
 import { css } from '../../../../utils/css'
 import EyeIcon from '../../../../icons/eye-icon'
 import { NEXT_DEV_TOOLS_SCALE } from '../../../../shared'
@@ -73,13 +74,10 @@ export function UserPreferencesBody({
   setScale: (value: DevToolsScale) => void
 }) {
   const { restartServer, isPending } = useRestartServer()
+  const { shadowRoot } = useDevOverlayContext()
 
   const handleThemeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const portal = document.querySelector('nextjs-portal')
-    if (!portal) {
-      return
-    }
-
+    const portal = shadowRoot.host
     if (e.target.value === 'system') {
       portal.classList.remove('dark')
       portal.classList.remove('light')

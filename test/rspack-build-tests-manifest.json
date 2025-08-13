@@ -2407,6 +2407,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/css-server-chunks/css-server-chunks.test.ts": {
+    "passed": ["css-server-chunks should not write CSS chunks for the server"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/cssnano-colormin/index.test.ts": {
     "passed": ["cssnano-colormin should not minify rgb colors to hsla"],
     "failed": [],
@@ -5226,6 +5233,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/root-suspense-dynamic/root-suspense-dynamic.test.ts": {
+    "passed": [
+      "Root Suspense Dynamic Rendering placeholder to satisfy at least one test when isNextDev is false",
+      "Root Suspense Dynamic Rendering should correctly mark route as dynamic",
+      "Root Suspense Dynamic Rendering should handle dynamic content wrapped in Suspense above HTML structure"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/route-page-manifest-bug/route-page-manifest-bug.test.ts": {
     "passed": [
       "route-page-manifest-bug should work when requesting route handler after page"
@@ -6474,18 +6492,16 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
-    "passed": [
-      "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
-    ],
+  "test/e2e/app-dir/use-cache-search-params/use-cache-search-params.test.ts": {
+    "passed": ["use-cache-search-params should fail the build with errors"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts": {
+  "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
     "passed": [
-      "use-cache-standalone-search-params should fail the build with errors"
+      "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
     ],
     "failed": [],
     "pending": [],
@@ -17706,16 +17722,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/production-browser-sourcemaps/test/index.test.js": {
-    "passed": [
-      "Production browser sourcemaps production mode Server support correctly generated the source map",
-      "Production browser sourcemaps production mode Server support includes sourcemaps for all browser files"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/production-build-dir/test/index.test.js": {
     "passed": [
       "Production Custom Build Directory production mode With basic usage should render the page"
@@ -20113,10 +20119,11 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm",
+      "pnpm support should build with dependencies installed via pnpm"
+    ],
+    "failed": [
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -20144,6 +20151,17 @@
       "Prerender prefetch with optimisticClientCache enabled should update cache using router.push with unstable_skipClientCache"
     ],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/production-browser-sourcemaps/index.test.ts": {
+    "passed": [
+      "Production browser sourcemaps productionBrowserSourceMaps = false check sourcemaps for all browser files"
+    ],
+    "failed": [
+      "Production browser sourcemaps productionBrowserSourceMaps = true check sourcemaps for all browser files"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false

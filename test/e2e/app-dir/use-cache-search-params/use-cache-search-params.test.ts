@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
   assertHasRedbox,
+  assertNoConsoleErrors,
   assertNoRedbox,
   getRedboxDescription,
   getRedboxSource,
@@ -8,9 +9,9 @@ import {
 import stripAnsi from 'strip-ansi'
 
 const getExpectedErrorMessage = (route: string) =>
-  `Route ${route} used "searchParams" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "searchParams" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+  `Route ${route} used "searchParams" inside "use cache". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await "searchParams" outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
 
-describe('use-cache-standalone-search-params', () => {
+describe('use-cache-search-params', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
@@ -128,6 +129,10 @@ describe('use-cache-standalone-search-params', () => {
       })
     })
   } else {
+    afterEach(async () => {
+      await next.stop()
+    })
+
     it('should fail the build with errors', async () => {
       const { cliOutput } = await next.build()
 
@@ -147,9 +152,49 @@ describe('use-cache-standalone-search-params', () => {
         'Error occurred prerendering page "/search-params-used"'
       )
 
+      expect(cliOutput).toInclude(
+        'Error occurred prerendering page "/search-params-caught"'
+      )
+
       expect(cliOutput).not.toInclude(
         'Error occurred prerendering page "/search-params-unused"'
       )
+    })
+
+    it('should resume a cached page that does not access search params without hydration errors', async () => {
+      await next.build({
+        env: {
+          NEXT_PRIVATE_APP_PATHS: JSON.stringify([
+            '/search-params-unused/page.tsx',
+          ]),
+        },
+      })
+
+      await next.start({ skipBuild: true })
+
+      let browser = await next.browser('/search-params-unused', {
+        disableJavaScript: true,
+      })
+
+      const prerenderedPageDate = await browser.elementById('page-date').text()
+
+      await browser.close()
+
+      browser = await next.browser('/search-params-unused', {
+        pushErrorAsConsoleLog: true,
+      })
+
+      // After hydration, the resumed page date should be the prerendered date.
+      // Note: When cacheComponents is not enabled, the page is not actually
+      // prerendered, but because the page is cached on the first page load, the
+      // date should still be the same for the second page load.
+      expect(await browser.elementById('page-date').text()).toBe(
+        prerenderedPageDate
+      )
+
+      // There should also be no hydration errors due to a buildtime date being
+      // replaced by a new runtime date.
+      await assertNoConsoleErrors(browser)
     })
   }
 })

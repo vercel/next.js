@@ -200,10 +200,13 @@ fn total_duplication_size(duplication: &IntervalMap<Option<DuplicationInfo>>) ->
 
 type MergeSegments = Vec<SmallVec<[usize; 1]>>;
 
+/// Computes the set of merge segments that should be run to compact the given compactables.
+///
+/// Returns both the mergeable segments and the actual number of merge segments that were created.
 pub fn get_merge_segments<T: Compactable>(
     compactables: &[T],
     config: &CompactConfig,
-) -> MergeSegments {
+) -> (MergeSegments, usize) {
     // Process all compactables in reverse order.
     // For each compactable, find the smallest set of compactables that overlaps with it and matches
     // the conditions.
@@ -259,7 +262,7 @@ pub fn get_merge_segments<T: Compactable>(
                     continue 'outer;
                 }
 
-                // If we are limited by size or count, we might also crate a merge segment if it's
+                // If we are limited by size or count, we might also create a merge segment if it's
                 // within the limits.
                 let valid_merge_job = current_set.len() >= config.min_merge_count
                     && duplication_size >= config.min_merge_duplication_bytes;
@@ -361,7 +364,7 @@ pub fn get_merge_segments<T: Compactable>(
         true
     });
 
-    merge_segments
+    (merge_segments, real_merge_segments)
 }
 
 #[cfg(test)]
@@ -398,7 +401,7 @@ mod tests {
             .into_iter()
             .map(|range| TestCompactable { range, size: 100 })
             .collect::<Vec<_>>();
-        let jobs = get_merge_segments(&compactables, config);
+        let (jobs, _) = get_merge_segments(&compactables, config);
         jobs.into_iter()
             .map(|job| job.into_iter().collect())
             .collect()
@@ -613,7 +616,7 @@ mod tests {
                 optimal_merge_duplication_bytes: 500,
                 max_merge_segment_count: 4,
             };
-            let jobs = get_merge_segments(&containers, &config);
+            let (jobs, _) = get_merge_segments(&containers, &config);
             if !jobs.is_empty() {
                 println!("{jobs:?}");
 

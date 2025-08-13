@@ -255,7 +255,18 @@ impl Module for CachedExternalModule {
                     .affecting_sources
                     .iter()
                     .map(|s| Vc::upcast::<Box<dyn Module>>(RawModule::new(**s)))
-                    .chain(external_result.primary_modules_raw_iter().map(|rvc| *rvc))
+                    .chain(
+                        external_result
+                            .primary_modules_raw_iter()
+                            // These modules aren't bundled but still need to be part of the module
+                            // graph for chunking. `compute_async_module_info` computes
+                            // `is_self_async` for every module, but at least for traced modules,
+                            // that value is never used as `ChunkingType::Traced.is_inherit_async()
+                            // == false`. Optimize this case by using `ModuleWithoutSelfAsync` to
+                            // short circuit that computation and thus defer parsing traced modules
+                            // to emitting to not block all of chunking on this.
+                            .map(|m| Vc::upcast(ModuleWithoutSelfAsync::new(*m))),
+                    )
                     .map(|s| {
                         Vc::upcast::<Box<dyn ModuleReference>>(TracedModuleReference::new(s))
                             .to_resolved()
@@ -401,4 +412,42 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
             async_module_options,
         )
     }
+}
+
+/// A wrapper "passthrough" module type that always returns `false` for `is_self_async`. Be careful
+/// when using it, as it may hide async dependencies.
+#[turbo_tasks::value]
+pub struct ModuleWithoutSelfAsync {
+    module: ResolvedVc<Box<dyn Module>>,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleWithoutSelfAsync {
+    #[turbo_tasks::function]
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::cell(ModuleWithoutSelfAsync { module })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for ModuleWithoutSelfAsync {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<AssetContent> {
+        self.module.content()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Module for ModuleWithoutSelfAsync {
+    #[turbo_tasks::function]
+    fn ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
+    }
+
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<ModuleReferences> {
+        self.module.references()
+    }
+
+    // Don't override and use default is_self_async that always returns false
 }

@@ -1,5 +1,6 @@
-import { forwardRef, useState } from 'react'
+import { forwardRef } from 'react'
 import { Tooltip as BaseTooltip } from '@base-ui-components/react/tooltip'
+import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { cx } from '../../utils/cx'
 import './tooltip.css'
 
@@ -26,11 +27,7 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
     },
     ref
   ) {
-    const [shadowRoot] = useState<ShadowRoot>(() => {
-      const ownerDocument = document
-      const portalNode = ownerDocument.querySelector('nextjs-portal')!
-      return portalNode.shadowRoot! as ShadowRoot
-    })
+    const { shadowRoot } = useDevOverlayContext()
     if (!title) {
       return children
     }

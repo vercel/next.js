@@ -52,10 +52,6 @@ export interface OverlayState {
   readonly staticIndicator: boolean
   readonly showIndicator: boolean
   readonly disableDevIndicator: boolean
-  /** Whether to show the restart server button in the panel UI. Currently
-   *  only used when Turbopack + Persistent Cache is enabled.
-   */
-  readonly showRestartServerButton: boolean
   readonly debugInfo: DebugInfo
   readonly routerType: 'pages' | 'app'
   /** This flag is used to handle the Error Overlay state in the "old" overlay.
@@ -105,7 +101,6 @@ export const ACTION_DEVTOOLS_POSITION = 'devtools-position'
 export const ACTION_DEVTOOLS_PANEL_POSITION = 'devtools-panel-position'
 export const ACTION_DEVTOOLS_PANEL_SIZE = 'devtools-panel-size'
 export const ACTION_DEVTOOLS_SCALE = 'devtools-scale'
-export const ACTION_RESTART_SERVER_BUTTON = 'restart-server-button'
 
 export const ACTION_DEVTOOLS_CONFIG = 'devtools-config'
 
@@ -216,11 +211,6 @@ export interface DevToolUpdateRouteStateAction {
   page: string
 }
 
-export interface RestartServerButtonAction {
-  type: typeof ACTION_RESTART_SERVER_BUTTON
-  showRestartServerButton: boolean
-}
-
 export interface DevToolsConfigAction {
   type: typeof ACTION_DEVTOOLS_CONFIG
   devToolsConfig: DevToolsConfig
@@ -248,7 +238,6 @@ export type DispatcherEvent =
   | DevToolsPanelPositionAction
   | DevToolsScaleAction
   | DevToolUpdateRouteStateAction
-  | RestartServerButtonAction
   | DevIndicatorSetAction
   | DevToolsConfigAction
 
@@ -291,7 +280,6 @@ export const INITIAL_OVERLAY_STATE: Omit<
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
-  showRestartServerButton: false,
   devToolsPosition: 'bottom-left',
   devToolsPanelPosition: {
     [STORE_KEY_SHARED_PANEL_LOCATION]: 'bottom-left',
@@ -478,12 +466,6 @@ export function useErrorOverlayReducer(
         }
         case ACTION_DEVTOOL_UPDATE_ROUTE_STATE: {
           return { ...state, page: action.page }
-        }
-        case ACTION_RESTART_SERVER_BUTTON: {
-          return {
-            ...state,
-            showRestartServerButton: action.showRestartServerButton,
-          }
         }
         case ACTION_DEVTOOLS_CONFIG: {
           const {

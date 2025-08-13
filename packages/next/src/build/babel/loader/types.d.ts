@@ -30,7 +30,7 @@ export type NextBabelLoaderOptionDefaultPresets = NextBabelLoaderBaseOptions & {
   transformMode: 'default'
   hasJsxRuntime: boolean
   hasReactRefresh: boolean
-  sourceMaps?: any[]
+  sourceMaps?: boolean | 'inline' | 'both' | null | undefined
   overrides: any
   configFile: string | undefined
 }

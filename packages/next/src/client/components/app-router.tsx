@@ -474,8 +474,17 @@ function Router({
     //
     // The `key` is used to remount the component whenever the head moves to
     // a different segment.
-    const [headCacheNode, headKey] = matchingHead
-    head = <Head key={headKey} headCacheNode={headCacheNode} />
+    const [headCacheNode, headKey, headKeyWithoutSearchParams] = matchingHead
+
+    head = (
+      <Head
+        key={
+          // Necessary for PPR: omit search params from the key to match prerendered keys
+          typeof window === 'undefined' ? headKeyWithoutSearchParams : headKey
+        }
+        headCacheNode={headCacheNode}
+      />
+    )
   } else {
     head = null
   }

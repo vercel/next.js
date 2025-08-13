@@ -5839,7 +5839,7 @@ function renderNode(request, task, node, childIndex) {
           thrownValue === SuspenseException
             ? getSuspendedThenable()
             : thrownValue),
-        "object" === typeof node && null !== node)
+        12 !== request.status && "object" === typeof node && null !== node)
       ) {
         if ("function" === typeof node.then) {
           childIndex =
@@ -5889,7 +5889,7 @@ function renderNode(request, task, node, childIndex) {
           thrownValue$69 === SuspenseException
             ? getSuspendedThenable()
             : thrownValue$69),
-        "object" === typeof node && null !== node)
+        12 !== request.status && "object" === typeof node && null !== node)
       ) {
         if ("function" === typeof node.then) {
           segment = node;
@@ -7293,13 +7293,13 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_869 = React.version;
 if (
-  "19.2.0-experimental-1dc3bdea-20250812" !==
+  "19.2.0-experimental-f1222f76-20250812" !==
   isomorphicReactPackageVersion$jscomp$inline_869
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_869 +
-        "\n  - react-dom:  19.2.0-experimental-1dc3bdea-20250812\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.2.0-experimental-f1222f76-20250812\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -7390,4 +7390,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-experimental-1dc3bdea-20250812";
+exports.version = "19.2.0-experimental-f1222f76-20250812";

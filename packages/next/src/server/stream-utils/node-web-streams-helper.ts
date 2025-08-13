@@ -1,3 +1,4 @@
+import type { ReactDOMServerReadableStream } from 'react-dom/server'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { DetachedPromise } from '../../lib/detached-promise'
@@ -15,10 +16,6 @@ function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
   // pipe implementation to forward errors but we don't want the pipeTo promise to reject
   // and be unhandled
-}
-
-export type ReactReadableStream = ReadableStream<Uint8Array> & {
-  allReady?: Promise<void> | undefined
 }
 
 // We can share the same encoder instance everywhere
@@ -221,7 +218,7 @@ export function renderToInitialFizzStream({
   }
   element: React.ReactElement
   streamOptions?: Parameters<typeof ReactDOMServer.renderToReadableStream>[1]
-}): Promise<ReactReadableStream> {
+}): Promise<ReactDOMServerReadableStream> {
   return getTracer().trace(AppRenderSpan.renderToReadableStream, async () =>
     ReactDOMServer.renderToReadableStream(element, streamOptions)
   )
@@ -678,7 +675,7 @@ export type ContinueStreamOptions = {
 }
 
 export async function continueFizzStream(
-  renderStream: ReactReadableStream,
+  renderStream: ReactDOMServerReadableStream,
   {
     suffix,
     inlinedDataStream,
@@ -693,9 +690,8 @@ export async function continueFizzStream(
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-  // If we're generating static HTML and there's an `allReady` promise on the
-  // stream, we need to wait for it to resolve before continuing.
-  if (isStaticGeneration && 'allReady' in renderStream) {
+  // If we're generating static HTML we need to wait for it to resolve before continuing.
+  if (isStaticGeneration) {
     await renderStream.allReady
   }
 

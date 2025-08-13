@@ -814,23 +814,21 @@ function bindingToApi(
     if (reactCompilerOptions) {
       const ruleKeys = ['*.ts', '*.js', '*.jsx', '*.tsx']
       if (
-        Object.keys(nextConfig?.turbopack?.rules ?? []).some((key) =>
+        Object.keys(nextConfig?.turbopack?.rules ?? {}).some((key) =>
           ruleKeys.includes(key)
         )
       ) {
         Log.warn(
-          `The React Compiler cannot be enabled automatically because 'turbopack.rules' contains a rule for '*.ts', '*.js', '*.jsx', and '*.tsx'. Remove this rule, or add 'babel-loader' and 'babel-plugin-react-compiler' to the Turbopack configuration manually.`
+          "The React Compiler cannot be enabled automatically because 'turbopack.rules' contains " +
+            "a rule for '*.ts', '*.js', '*.jsx', and '*.tsx'. Remove this rule, or add " +
+            "'babel-loader' and 'babel-plugin-react-compiler' to the Turbopack configuration " +
+            'manually.'
         )
       } else {
-        if (!nextConfig.turbopack) {
-          nextConfig.turbopack = {}
-        }
+        nextConfig.turbopack ??= {}
+        nextConfig.turbopack.rules ??= {}
 
-        if (!nextConfig.turbopack.rules) {
-          nextConfig.turbopack.rules = {}
-        }
-
-        for (const key of ['*.ts', '*.js', '*.jsx', '*.tsx']) {
+        for (const key of ruleKeys) {
           nextConfig.turbopack.rules[key] = {
             browser: {
               foreign: false,
@@ -839,8 +837,8 @@ function bindingToApi(
                   originalNextConfig.experimental.reactCompiler,
                   projectPath,
                   nextConfig.dev,
-                  false,
-                  undefined
+                  /* isServer */ false,
+                  /* reactCompilerExclude */ undefined
                 ),
               ],
             },

@@ -460,7 +460,7 @@ function makeErroringExoticSearchParams(
  * error on access, because accessing searchParams inside of `"use cache"` is
  * not allowed.
  */
-export function makeErroringExoticSearchParamsForUseCache(
+export function makeErroringSearchParamsForUseCache(
   workStore: WorkStore
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParamsForUseCache.get(workStore)
