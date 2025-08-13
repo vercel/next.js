@@ -11,7 +11,7 @@ createNextDescribe(
     files: __dirname,
     skipDeployment: true,
   },
-  ({ next }) => {
+  ({ next, isNextDeploy }) => {
     it('should filter correctly after middleware rewrite', async () => {
       const browser = await next.browser('/start')
 
@@ -240,6 +240,29 @@ createNextDescribe(
 
       await browser.deleteCookies()
     })
+
+    // TODO: This consistently 404s on Vercel deployments. It technically
+    // doesn't repro the bug we're trying to fix but we need to figure out
+    // why the handling is different.
+    if (!isNextDeploy) {
+      it('should not incorrectly treat a Location header as a rewrite', async () => {
+        const res = await next.fetch('/test-location-header')
+
+        // Should get status 200 (not a redirect status)
+        expect(res.status).toBe(200)
+
+        // Should get the JSON response associated with the route,
+        // and not follow the redirect
+        const json = await res.json()
+        expect(json).toEqual({ foo: 'bar' })
+
+        // Ensure the provided location is still on the response
+        const locationHeader = res.headers.get('location')
+        expect(locationHeader).toBe(
+          'https://next-data-api-endpoint.vercel.app/api/random'
+        )
+      })
+    }
   }
 )
 

@@ -69,6 +69,17 @@ export async function middleware(request) {
     return res
   }
 
+  if (request.nextUrl.pathname === '/test-location-header') {
+    return NextResponse.json(
+      { foo: 'bar' },
+      {
+        headers: {
+          location: 'https://next-data-api-endpoint.vercel.app/api/random',
+        },
+      }
+    )
+  }
+
   return NextResponse.next({
     request: {
       headers: headersFromRequest,
