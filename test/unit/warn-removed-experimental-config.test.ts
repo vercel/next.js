@@ -180,7 +180,7 @@ describe('warnOptionHasBeenDeprecated', () => {
     expect(spy).not.toHaveBeenCalled()
   })
 
-  it('should not warn when config key doesn not match', () => {
+  it('should not warn when config key does not match', () => {
     const config = {
       badAssetPrefixKey: '/bar',
     }
