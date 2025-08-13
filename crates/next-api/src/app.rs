@@ -1587,7 +1587,7 @@ impl AppEndpoint {
                         files: file_paths_from_root.into_iter().collect(),
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
-                        name: app_entry.pathname.clone(),
+                        name: format!("app{}", app_entry.original_name).into(),
                         page: app_entry.original_name.clone(),
                         regions: app_entry
                             .config

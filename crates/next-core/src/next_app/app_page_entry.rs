@@ -186,6 +186,6 @@ async fn wrap_edge_page(
         asset_context,
         project_root,
         wrapped,
-        AppPath::from(page).to_string().into(),
+        format!("app{page}").into(),
     ))
 }

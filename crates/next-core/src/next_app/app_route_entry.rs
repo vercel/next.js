@@ -162,6 +162,6 @@ async fn wrap_edge_route(
         asset_context,
         project_root.clone(),
         wrapped,
-        AppPath::from(page).to_string().into(),
+        format!("app{page}").into(),
     ))
 }

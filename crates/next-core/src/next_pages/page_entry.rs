@@ -163,7 +163,7 @@ pub async fn create_page_ssr_entry_module(
                 ssr_module_context,
                 project_root,
                 ssr_module,
-                definition_pathname.clone(),
+                format!("pages{definition_page}").into(),
             );
         }
     }
@@ -288,7 +288,7 @@ async fn wrap_edge_page(
         asset_context,
         project_root,
         wrapped,
-        pathname.clone(),
+        format!("pages{page}").into(),
     ))
 }
 
