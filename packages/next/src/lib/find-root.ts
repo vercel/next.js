@@ -27,6 +27,7 @@ export function findRootDir(cwd: string) {
     const currentDir = dirname(lastLockFile)
     const parentDir = dirname(currentDir)
 
+    // dirname('/')==='/' so if we happen to reach the FS root (as might happen in a container we need to quit to avoid looping forever
     if (parentDir === currentDir) break
 
     const newLockFile = findRootLockFile(parentDir)
