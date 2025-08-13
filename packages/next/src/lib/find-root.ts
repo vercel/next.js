@@ -32,7 +32,7 @@ export function findRootDir(cwd: string) {
 
     const newLockFile = findRootLockFile(parentDir)
 
-    if (!newLockFile || newLockFile === lastLockFile) break
+    if (!newLockFile) break
 
     lockFiles.push(newLockFile)
   }
