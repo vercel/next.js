@@ -20,7 +20,10 @@ import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
 import { prefetchQueue } from './prefetch-reducer'
 import { createEmptyCacheNode } from '../../app-router'
-import { DEFAULT_SEGMENT_KEY } from '../../../../shared/lib/segment'
+import {
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../../../../shared/lib/segment'
 import { listenForDynamicRequest, startPPRNavigation } from '../ppr-navigations'
 import {
   getOrCreatePrefetchCacheEntry,
@@ -482,10 +485,15 @@ export function navigateReducer(
                 ...flightSegmentPath,
                 ...subSegment,
               ]
+              const lastSegment =
+                scrollableSegmentPath[scrollableSegmentPath.length - 1]
               // Filter out the __DEFAULT__ paths as they shouldn't be scrolled to in this case.
+              // Also filter out non-page segments to avoid scrolling on loading segments.
+              // Only page segments (containing PAGE_SEGMENT_KEY) should trigger scroll behavior.
               if (
-                scrollableSegmentPath[scrollableSegmentPath.length - 1] !==
-                DEFAULT_SEGMENT_KEY
+                lastSegment !== DEFAULT_SEGMENT_KEY &&
+                typeof lastSegment === 'string' &&
+                lastSegment.includes(PAGE_SEGMENT_KEY)
               ) {
                 scrollableSegments.push(scrollableSegmentPath)
               }
