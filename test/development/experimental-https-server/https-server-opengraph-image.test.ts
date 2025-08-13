@@ -3,7 +3,7 @@ import { nextTestSetup } from 'e2e-utils'
 describe('experimental-https-server OpenGraph image', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    startCommand: 'pnpm next --experimental-https',
+    startCommand: 'pnpm next dev --experimental-https',
     skipStart: !process.env.NEXT_TEST_CI,
   })
   if (skipped) return
