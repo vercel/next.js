@@ -8,7 +8,7 @@ export function shouldUseTurbopack(): boolean {
   const shouldRunTurboDev = !!process.env.IS_TURBOPACK_TEST
   if (shouldRunTurboDev && !loggedTurbopack) {
     require('console').log(
-      `Running tests with turbopack because environment variable TURBOPACK is set`
+      `Running tests with turbopack because environment variable IS_TURBOPACK_TEST is set`
     )
     loggedTurbopack = true
   }
