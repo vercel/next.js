@@ -772,7 +772,7 @@ impl ValueToString for Request {
             Request::Module { module, path, .. } => {
                 if path.could_match_others("") {
                     format!(
-                        "module \"{}\" with subpath {}",
+                        "module {} with subpath {}",
                         module.describe_as_string(),
                         path.describe_as_string()
                     )
