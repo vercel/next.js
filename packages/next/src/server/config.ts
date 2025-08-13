@@ -71,17 +71,19 @@ export function warnOptionHasBeenDeprecated(
   let hasWarned = false
   if (!silent) {
     let current = config
-    let found = true
+    let found = false
     const nestedPropertyKeys = nestedPropertyKey.split('.')
     for (const key of nestedPropertyKeys) {
       if (current[key] !== undefined) {
         current = current[key]
+        found = true
       } else {
         found = false
         break
       }
     }
-    if (found) {
+
+    if (found && config.configFile) {
       Log.warnOnce(reason)
       hasWarned = true
     }

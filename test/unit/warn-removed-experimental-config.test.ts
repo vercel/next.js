@@ -1,6 +1,7 @@
 import {
   warnOptionHasBeenMovedOutOfExperimental,
   warnOptionHasBeenDeprecated,
+  NextConfig,
 } from 'next/dist/server/config'
 import stripAnsi from 'strip-ansi'
 
@@ -139,8 +140,11 @@ describe('warnOptionHasBeenMovedOutOfExperimental', () => {
 
 describe('warnOptionHasBeenDeprecated', () => {
   let spy: jest.SpyInstance
-  beforeAll(() => {
+  beforeEach(() => {
     spy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+  })
+  afterEach(() => {
+    spy.mockRestore()
   })
 
   it('should warn experimental.appDir has been deprecated', () => {
@@ -156,5 +160,38 @@ describe('warnOptionHasBeenDeprecated', () => {
       false
     )
     expect(spy).toHaveBeenCalled()
+  })
+
+  it('should not warn when config file is not defined', () => {
+    // When config file is not defined, the configFileName is default value,
+    // the configFile is undefined.
+    const config: NextConfig = {
+      configFile: undefined,
+      configFileName: 'next.config.js',
+    }
+
+    warnOptionHasBeenDeprecated(
+      config,
+      'experimental.appDir',
+      'experimental.appDir has been removed',
+      false
+    )
+
+    expect(spy).not.toHaveBeenCalled()
+  })
+
+  it('should not warn when config key doesn not match', () => {
+    const config = {
+      badAssetPrefixKey: '/bar',
+    }
+
+    warnOptionHasBeenDeprecated(
+      config,
+      'assetPrefix',
+      'assetPrefix is gone',
+      false
+    )
+
+    expect(spy).not.toHaveBeenCalled()
   })
 })
