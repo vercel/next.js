@@ -1,15 +1,6 @@
 let loggedTurbopack = false
 
-/**
- * Utility function to determine if a given test case needs to run with --turbo.
- *
- * This is primarily for the gradual test enablement with latest turbopack upstream changes.
- *
- * Note: it could be possible to dynamically create test cases itself (createDevTest(): it.each([...])), but
- * it makes hard to conform with existing lint rules. Instead, starting off from manual fixture setup and
- * update test cases accordingly as turbopack changes enable more test cases.
- */
-export function shouldRunTurboDevTest(): boolean {
+export function shouldUseTurbopack(): boolean {
   if (!!process.env.NEXT_TEST_WASM) {
     return false
   }
@@ -23,12 +14,4 @@ export function shouldRunTurboDevTest(): boolean {
   }
 
   return shouldRunTurboDev
-}
-
-export function getTurbopackFlag(): string {
-  if (!!process.env.IS_TURBOPACK_TEST) {
-    return '--turbo'
-  } else {
-    throw Error(`Cannot get the flag for running turbopack`)
-  }
 }
