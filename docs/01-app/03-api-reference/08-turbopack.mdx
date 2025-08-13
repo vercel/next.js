@@ -121,9 +121,9 @@ export const CONSTANT_VALUE = 3;
 
 ```
 
-If an application only uses `CONSTANT_VALUE` Turbopack will detect this and delete the `usesHeavy` export but not the `import`, however, with the `optimization.innerGraph = true` option enabled, webpack can delete the `import` too.
+If an application only uses `CONSTANT_VALUE` Turbopack will detect this and delete the `usesHeavy` export but not the corresponding `import`. However, with the `optimization.innerGraph = true` option enabled, webpack can delete the `import` too.
 
-We are planning to offer an equivalent to the `innerGraph` optimization in Turbopack but it is still under development. As a workaround, it is sometimes easy to just manually split these modules.
+We are planning to offer an equivalent to the `innerGraph` optimization in Turbopack but it is still under development. If you are affected by this gap, consider manually splitting these modules.
 
 ### Build Caching
 
@@ -152,7 +152,6 @@ Some features are not yet implemented or not planned:
 - **`experimental.esmExternals`**
   Not planned. Turbopack does not support the legacy `esmExternals` configuration in Next.js.
 - **Some Next.js Experimental Flags**
-  - `experimental.typedRoutes`
   - `experimental.nextScriptWorkers`
   - `experimental.sri.algorithm`
   - `experimental.fallbackNodePolyfills`
@@ -207,7 +206,8 @@ Stay tuned for more updates as we continue to improve Turbopack and add producti
 
 ## Version Changes
 
-| Version   | Changes                          |
-| --------- | -------------------------------- |
-| `v15.3.0` | Experimental support for `build` |
-| `v15.0.0` | Turbopack for `dev` stable       |
+| Version   | Changes                            |
+| --------- | ---------------------------------- |
+| `v15.5.0` | Turbopack support for `build` beta |
+| `v15.3.0` | Experimental support for `build`   |
+| `v15.0.0` | Turbopack for `dev` stable         |
