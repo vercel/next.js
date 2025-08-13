@@ -3143,10 +3143,10 @@
     "runtimeError": false
   },
   "test/development/basic/barrel-optimization/barrel-optimization-mui.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Skipped in Turbopack optimizePackageImports - mui should support MUI"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5039,6 +5039,7 @@
       "app-dir with middleware should be possible to modify cookies & read them in an RSC in a single request",
       "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
       "app-dir with middleware should ignore x-middleware-set-cookie as a request header",
+      "app-dir with middleware should not incorrectly treat a Location header as a rewrite",
       "app-dir with middleware should omit internal headers for middleware cookies",
       "app-dir with middleware should respect cookie options of merged middleware cookies"
     ],
@@ -6293,6 +6294,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/css-modules-rsc-postcss/css-modules-rsc-postcss.test.ts": {
+    "passed": [
+      "css-modules-rsc-postcss should compile successfully and apply the correct styles"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/css-modules-scoping/css-modules-scoping.test.ts": {
     "passed": [
       "css-modules-scoping should not prefix grid areas",
@@ -6807,10 +6817,10 @@
   "test/e2e/app-dir/error-on-next-codemod-comment/error-on-next-codemod-comment.test.ts": {
     "passed": [
       "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
-      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
       "app-dir - error-on-next-codemod-comment should error with inline comment as well"
     ],
     "failed": [
+      "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
     "pending": [],
@@ -9011,6 +9021,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/resuming-head-runtime-search-param/resuming-head-runtime-search-param.test.ts": {
+    "passed": [
+      "resuming-head-runtime-search-param should not show resumable slots error when using runtime search params"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts": {
     "passed": [
       "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-path",
@@ -10136,6 +10155,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/typed-routes/typed-links.test.ts": {
+    "passed": ["typed-links should generate types for next/link"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/typed-routes/typed-routes.test.ts": {
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
@@ -10247,10 +10273,7 @@
       "use-cache-hanging-inputs when a \"use cache\" function is closing over an uncached promise should show an error toast after a timeout",
       "use-cache-hanging-inputs when an error is thrown should show an error overlay with only one error",
       "use-cache-hanging-inputs when an uncached promise is used inside of \"use cache\" should show an error toast after a timeout",
-      "use-cache-hanging-inputs when an uncached promise is used inside of a nested \"use cache\" should show an error toast after a timeout",
-      "use-cache-hanging-inputs when searchParams are unused inside of \"use cache\" should not show an error",
-      "use-cache-hanging-inputs when searchParams are used inside of \"use cache\" should show an error toast after a timeout",
-      "use-cache-hanging-inputs when searchParams are used inside of \"use cache\", wrapped in try/catch should show an error toast after a timeout"
+      "use-cache-hanging-inputs when an uncached promise is used inside of a nested \"use cache\" should show an error toast after a timeout"
     ],
     "failed": [],
     "pending": [],
@@ -13933,14 +13956,13 @@
     "runtimeError": false
   },
   "test/integration/app-types/app-types.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app type checking production mode should generate route types correctly and report form errors",
-      "app type checking production mode should generate route types correctly and report link error",
-      "app type checking production mode should generate route types correctly and report router API errors",
-      "app type checking production mode should type check invalid entry exports"
+    "passed": [
+      "app type checking - production mode should generate route types correctly and report form errors",
+      "app type checking - production mode should generate route types correctly and report router API errors",
+      "app type checking - production mode should report link errors"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14073,6 +14095,15 @@
       "Build Output production mode Custom Static Error Output should not specify /404 as lambda when static",
       "Build Output production mode With AMP Output should not include custom error",
       "Build Output production mode With Parallel Routes should not have duplicate paths that resolve to the same route"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/build-trace-extra-entries-monorepo/test/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "build trace with extra entries in monorepo production mode should build and trace correctly"
     ],
     "flakey": [],
     "runtimeError": false
