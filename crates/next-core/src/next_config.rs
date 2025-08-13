@@ -577,10 +577,16 @@ impl TryInto<ConditionPath> for ConfigConditionPath {
     fn try_into(self) -> Result<ConditionPath> {
         Ok(match self {
             ConfigConditionPath::Glob(path) => ConditionPath::Glob(path),
-            ConfigConditionPath::Regex(path) => {
-                ConditionPath::Regex(EsRegex::new(&path.source, &path.flags)?.resolved_cell())
-            }
+            ConfigConditionPath::Regex(path) => ConditionPath::Regex(path.try_into()?),
         })
+    }
+
+    type Error = anyhow::Error;
+}
+
+impl TryInto<ResolvedVc<EsRegex>> for RegexComponents {
+    fn try_into(self) -> Result<ResolvedVc<EsRegex>> {
+        Ok(EsRegex::new(&self.source, &self.flags)?.resolved_cell())
     }
 
     type Error = anyhow::Error;
@@ -588,13 +594,15 @@ impl TryInto<ConditionPath> for ConfigConditionPath {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct ConfigConditionItem {
-    pub path: ConfigConditionPath,
+    pub path: Option<ConfigConditionPath>,
+    pub content: Option<RegexComponents>,
 }
 
 impl TryInto<ConditionItem> for ConfigConditionItem {
     fn try_into(self) -> Result<ConditionItem> {
         Ok(ConditionItem {
-            path: self.path.try_into()?,
+            path: self.path.map(|p| p.try_into()).transpose()?,
+            content: self.content.map(|r| r.try_into()).transpose()?,
         })
     }
 
