@@ -35,12 +35,12 @@ const AMQF_FALSE_POSITIVE_RATE: f64 = 0.01;
 const KEY_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
 /// The maximum bytes that should be selected as key samples to create a compression dictionary
 const KEY_COMPRESSION_SAMPLES_SIZE: usize = 256 * 1024;
-/// The minimum bytes that should be selected as value samples. Below that no compression dictionary
+/// The minimum bytes that should be selected as keys samples. Below that no compression dictionary
 /// is used.
 const MIN_KEY_COMPRESSION_SAMPLES_SIZE: usize = 1024;
-/// The bytes that are used per key/value entry for a sample.
+/// The bytes that are used per key entry for a sample.
 const COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY: usize = 100;
-/// The minimum bytes that are used per key/value entry for a sample.
+/// The minimum bytes that are used per key entry for a sample.
 const MIN_COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY: usize = 16;
 
 /// Trait for entries from that SST files can be created
