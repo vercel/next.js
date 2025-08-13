@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('app-dir - invalid-static-asset-404', () => {
+describe('invalid-static-asset-404-app', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
