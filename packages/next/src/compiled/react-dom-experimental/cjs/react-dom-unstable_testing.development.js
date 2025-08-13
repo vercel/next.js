@@ -15636,7 +15636,6 @@
     function attachSuspenseRetryListeners(finishedWork, wakeables) {
       var retryCache = getRetryCache(finishedWork);
       wakeables.forEach(function (wakeable) {
-        var retry = resolveRetryWakeable.bind(null, finishedWork, wakeable);
         if (!retryCache.has(wakeable)) {
           retryCache.add(wakeable);
           if (isDevToolsPresent)
@@ -15646,6 +15645,7 @@
               throw Error(
                 "Expected finished root and lanes to be set. This is a bug in React."
               );
+          var retry = resolveRetryWakeable.bind(null, finishedWork, wakeable);
           wakeable.then(retry, retry);
         }
       });
@@ -31743,11 +31743,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-1dc3bdea-20250812" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-f1222f76-20250812" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-1dc3bdea-20250812\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-f1222f76-20250812\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -31784,10 +31784,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.2.0-experimental-1dc3bdea-20250812",
+          version: "19.2.0-experimental-f1222f76-20250812",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.2.0-experimental-1dc3bdea-20250812"
+          reconcilerVersion: "19.2.0-experimental-f1222f76-20250812"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -32100,5 +32100,5 @@
         }
       };
     };
-    exports.version = "19.2.0-experimental-1dc3bdea-20250812";
+    exports.version = "19.2.0-experimental-f1222f76-20250812";
   })();

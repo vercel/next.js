@@ -5624,7 +5624,7 @@ function renderNode(request, task, node, childIndex) {
           thrownValue === SuspenseException
             ? getSuspendedThenable()
             : thrownValue),
-        "object" === typeof node && null !== node)
+        12 !== request.status && "object" === typeof node && null !== node)
       ) {
         if ("function" === typeof node.then) {
           childIndex =
@@ -5674,7 +5674,7 @@ function renderNode(request, task, node, childIndex) {
           thrownValue$60 === SuspenseException
             ? getSuspendedThenable()
             : thrownValue$60),
-        "object" === typeof node && null !== node)
+        12 !== request.status && "object" === typeof node && null !== node)
       ) {
         if ("function" === typeof node.then) {
           segment = node;
@@ -6875,12 +6875,12 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-canary-1dc3bdea-20250812" !== isomorphicReactPackageVersion)
+  if ("19.2.0-canary-f1222f76-20250812" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.2.0-canary-1dc3bdea-20250812"
+        "19.2.0-canary-f1222f76-20250812"
       )
     );
 }
@@ -7027,4 +7027,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-1dc3bdea-20250812";
+exports.version = "19.2.0-canary-f1222f76-20250812";
