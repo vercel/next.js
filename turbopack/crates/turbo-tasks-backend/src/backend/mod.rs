@@ -915,7 +915,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return Some(task_type);
         }
         if self.should_restore()
-            && self.local_is_partial.load(Ordering::Relaxed)
+            && self.local_is_partial.load(Ordering::Acquire)
             && !task_id.is_transient()
             && let Some(task_type) = unsafe {
                 self.backing_storage
