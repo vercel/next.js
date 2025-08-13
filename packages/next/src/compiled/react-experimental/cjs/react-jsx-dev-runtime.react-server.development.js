@@ -152,17 +152,8 @@
       componentName = this.props.ref;
       return void 0 !== componentName ? componentName : null;
     }
-    function ReactElement(
-      type,
-      key,
-      self,
-      source,
-      owner,
-      props,
-      debugStack,
-      debugTask
-    ) {
-      self = props.ref;
+    function ReactElement(type, key, props, owner, debugStack, debugTask) {
+      var refProp = props.ref;
       type = {
         $$typeof: REACT_ELEMENT_TYPE,
         type: type,
@@ -170,7 +161,7 @@
         props: props,
         _owner: owner
       };
-      null !== (void 0 !== self ? self : null)
+      null !== (void 0 !== refProp ? refProp : null)
         ? Object.defineProperty(type, "ref", {
             enumerable: !1,
             get: elementRefGetterWithDeprecationWarning
@@ -209,8 +200,6 @@
       config,
       maybeKey,
       isStaticChildren,
-      source,
-      self,
       debugStack,
       debugTask
     ) {
@@ -271,10 +260,8 @@
       return ReactElement(
         type,
         children,
-        self,
-        source,
-        getOwner(),
         maybeKey,
+        getOwner(),
         debugStack,
         debugTask
       );
@@ -329,7 +316,7 @@
     var unknownOwnerDebugTask = createTask(getTaskName(UnknownOwner));
     var didWarnAboutKeySpread = {};
     exports.Fragment = REACT_FRAGMENT_TYPE;
-    exports.jsx = function (type, config, maybeKey, source, self) {
+    exports.jsx = function (type, config, maybeKey) {
       var trackActualOwner =
         1e4 > ReactSharedInternalsServer.recentlyCreatedOwnerStacks++;
       return jsxDEVImpl(
@@ -337,22 +324,13 @@
         config,
         maybeKey,
         !1,
-        source,
-        self,
         trackActualOwner
           ? Error("react-stack-top-frame")
           : unknownOwnerDebugStack,
         trackActualOwner ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
     };
-    exports.jsxDEV = function (
-      type,
-      config,
-      maybeKey,
-      isStaticChildren,
-      source,
-      self
-    ) {
+    exports.jsxDEV = function (type, config, maybeKey, isStaticChildren) {
       var trackActualOwner =
         1e4 > ReactSharedInternalsServer.recentlyCreatedOwnerStacks++;
       return jsxDEVImpl(
@@ -360,15 +338,13 @@
         config,
         maybeKey,
         isStaticChildren,
-        source,
-        self,
         trackActualOwner
           ? Error("react-stack-top-frame")
           : unknownOwnerDebugStack,
         trackActualOwner ? createTask(getTaskName(type)) : unknownOwnerDebugTask
       );
     };
-    exports.jsxs = function (type, config, maybeKey, source, self) {
+    exports.jsxs = function (type, config, maybeKey) {
       var trackActualOwner =
         1e4 > ReactSharedInternalsServer.recentlyCreatedOwnerStacks++;
       return jsxDEVImpl(
@@ -376,8 +352,6 @@
         config,
         maybeKey,
         !0,
-        source,
-        self,
         trackActualOwner
           ? Error("react-stack-top-frame")
           : unknownOwnerDebugStack,

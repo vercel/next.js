@@ -1,6 +1,7 @@
 import type { WorkStore } from '../app-render/work-async-storage.external'
 
 import {
+  delayUntilRuntimeStage,
   postponeWithTracking,
   type DynamicTrackingState,
 } from '../app-render/dynamic-rendering'
@@ -37,6 +38,10 @@ export function createServerPathnameForMetadata(
         )
 
       case 'prerender-runtime':
+        return delayUntilRuntimeStage(
+          workUnitStore,
+          createRenderPathname(underlyingPathname)
+        )
       case 'request':
         break
       default:

@@ -2042,11 +2042,11 @@ impl JsValue {
     /// Returns any matching defined replacement that matches this value (the replacement that
     /// matches `$self.$prop`).
     ///
-    /// Optionally when passed a VarGraph, verifies that the first segment is not a local
+    /// Uses the `VarGraph` to verify that the first segment is not a local
     /// variable/was not reassigned.
     pub fn match_free_var_reference<'a, T>(
         &self,
-        var_graph: Option<&VarGraph>,
+        var_graph: &VarGraph,
         free_var_references: &'a FxIndexMap<
             DefinableNameSegment,
             FxIndexMap<Vec<DefinableNameSegment>, T>,
@@ -2063,9 +2063,7 @@ impl JsValue {
 
                 let name_rev_it = name.iter().map(Cow::Borrowed).rev();
                 if name_rev_it.eq(self.iter_definable_name_rev()) {
-                    if let Some(var_graph) = var_graph
-                        && let DefinableNameSegment::Name(first_str) = name.first().unwrap()
-                    {
+                    if let DefinableNameSegment::Name(first_str) = name.first().unwrap() {
                         let first_str: &str = first_str;
                         if var_graph
                             .free_var_ids

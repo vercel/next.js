@@ -23,21 +23,25 @@ export function findRootDir(cwd: string) {
 
   const lockFiles = [lockFile]
   while (true) {
-    const nextDir = dirname(dirname(lockFiles[lockFiles.length - 1]))
-    const newLockFile = findRootLockFile(nextDir)
+    const lastLockFile = lockFiles[lockFiles.length - 1]
+    const currentDir = dirname(lastLockFile)
+    const parentDir = dirname(currentDir)
 
-    if (newLockFile) {
-      lockFiles.push(newLockFile)
-    } else {
-      break
-    }
+    // dirname('/')==='/' so if we happen to reach the FS root (as might happen in a container we need to quit to avoid looping forever
+    if (parentDir === currentDir) break
+
+    const newLockFile = findRootLockFile(parentDir)
+
+    if (!newLockFile) break
+
+    lockFiles.push(newLockFile)
   }
 
   // Only warn if not in a build worker to avoid duplicate warnings
   if (typeof process.send !== 'function' && lockFiles.length > 1) {
     const additionalLockFiles = lockFiles
       .slice(0, -1)
-      .map((str) => '\n   * ' + str)
+      .map((str) => `\n   * ${str}`)
       .join('')
 
     if (process.env.TURBOPACK) {
@@ -61,5 +65,5 @@ export function findRootDir(cwd: string) {
     }
   }
 
-  return dirname(lockFile)
+  return dirname(lockFiles[lockFiles.length - 1])
 }

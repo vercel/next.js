@@ -2,11 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 
 const expectedDts = `
 type AppRoutes = "/" | "/_shop/[[...category]]" | "/dashboard" | "/dashboard/settings" | "/docs/[...slug]" | "/gallery/photo/[id]" | "/project/[slug]"
+type AppRouteHandlerRoutes = never
 type PageRoutes = "/about" | "/users/[id]"
 type LayoutRoutes = "/" | "/dashboard"
-type RedirectRoutes = "/blog/[category]/[[...slug]]" | "/optional/[[...param]]" | "/project/[slug]"
+type RedirectRoutes = "/blog/[category]/[[...slug]]" | "/project/[slug]"
 type RewriteRoutes = "/api-legacy/[version]/[[...endpoint]]" | "/docs-old/[...path]"
-type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes
+type Routes = AppRoutes | AppRouteHandlerRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes
 `
 
 describe('typed-routes', () => {
@@ -36,9 +37,6 @@ describe('typed-routes', () => {
     // Test catch-all zero-or-more: :slug* -> [[...slug]]
     expect(dts).toContain('"/blog/[category]/[[...slug]]"')
     expect(dts).toContain('"/api-legacy/[version]/[[...endpoint]]"')
-
-    // Test optional parameter: :param? -> [[...param]]
-    expect(dts).toContain('"/optional/[[...param]]"')
   })
 
   if (isNextDev) {

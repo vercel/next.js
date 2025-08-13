@@ -1,3 +1,5 @@
+use std::mem::take;
+
 use crate::{
     ValueBuffer,
     collector_entry::{CollectorEntry, CollectorEntryValue, EntryKey},
@@ -110,5 +112,12 @@ impl<K: StoreKey, const SIZE_SHIFT: usize> Collector<K, SIZE_SHIFT> {
         self.total_key_size = 0;
         self.total_value_size = 0;
         self.entries.drain(..)
+    }
+
+    /// Clears the collector and drops the capacity
+    pub fn drop_contents(&mut self) {
+        drop(take(&mut self.entries));
+        self.total_key_size = 0;
+        self.total_value_size = 0;
     }
 }

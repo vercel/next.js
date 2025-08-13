@@ -9,6 +9,7 @@ import {
   throwToInterruptStaticGeneration,
   postponeWithTracking,
   trackSynchronousRequestDataAccessInDev,
+  delayUntilRuntimeStage,
 } from '../app-render/dynamic-rendering'
 
 import {
@@ -114,6 +115,10 @@ export function createServerParamsForRoute(
           'createServerParamsForRoute should not be called in cache contexts.'
         )
       case 'prerender-runtime':
+        return delayUntilRuntimeStage(
+          workUnitStore,
+          createRenderParams(underlyingParams, workStore)
+        )
       case 'request':
         break
       default:
@@ -142,6 +147,10 @@ export function createServerParamsForServerSegment(
           'createServerParamsForServerSegment should not be called in cache contexts.'
         )
       case 'prerender-runtime':
+        return delayUntilRuntimeStage(
+          workUnitStore,
+          createRenderParams(underlyingParams, workStore)
+        )
       case 'request':
         break
       default:

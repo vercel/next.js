@@ -28,13 +28,13 @@ import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import { Playwright } from 'next-webdriver'
 
-import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
+import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
 // TODO: Create dedicated Jest environment that sets up these matchers
 // Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
 import './add-redbox-matchers'
 
-export { shouldRunTurboDevTest }
+export { shouldUseTurbopack }
 
 export const nextServer = server
 export const pkg = _pkg
@@ -451,11 +451,11 @@ export function launchApp(
   opts?: NextDevOptions
 ) {
   const options = opts ?? {}
-  const useTurbo = shouldRunTurboDevTest()
+  const useTurbo = shouldUseTurbopack()
 
   return runNextCommandDev(
     [
-      useTurbo ? getTurbopackFlag() : undefined,
+      useTurbo ? '--turbopack' : undefined,
       dir,
       '-p',
       port as string,
@@ -1435,7 +1435,7 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
     )
   }
 
-  const shouldRunTurboDev = shouldRunTurboDevTest()
+  const shouldRunTurboDev = shouldUseTurbopack()
   const shouldSkip =
     (runningEnv === 'turbo' && !shouldRunTurboDev) ||
     (runningEnv === 'default' && shouldRunTurboDev)

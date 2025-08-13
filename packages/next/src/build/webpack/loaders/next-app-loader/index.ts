@@ -287,7 +287,7 @@ async function createTreeCodeFromPath(
 
       // Fill in the loader tree for all of the special files types (layout, default, etc) at this level
       // `page` is not included here as it's added above.
-      const filePaths = await Promise.all(
+      const filePathEntries = await Promise.all(
         Object.values(FILE_TYPES).map(async (file) => {
           return [
             file,
@@ -302,6 +302,9 @@ async function createTreeCodeFromPath(
           ] as const
         })
       )
+      const filePaths = new Map<ValueOf<typeof FILE_TYPES>, string | undefined>(
+        filePathEntries
+      )
 
       // Only resolve global-* convention files at the root layer
       if (isRootLayer) {
@@ -313,7 +316,7 @@ async function createTreeCodeFromPath(
         }
         // Add global-error to root layer's filePaths, so that it's always available,
         // by default it's the built-in global-error.js
-        filePaths.push([GLOBAL_ERROR_FILE_TYPE, globalError])
+        filePaths.set(GLOBAL_ERROR_FILE_TYPE, globalError)
 
         // TODO(global-not-found): remove this flag assertion condition
         //  once global-not-found is stable
@@ -326,11 +329,11 @@ async function createTreeCodeFromPath(
           }
           // Add global-not-found to root layer's filePaths, so that it's always available,
           // by default it's the built-in global-not-found.js
-          filePaths.push([GLOBAL_NOT_FOUND_FILE_TYPE, globalNotFound])
+          filePaths.set(GLOBAL_NOT_FOUND_FILE_TYPE, globalNotFound)
         }
       }
 
-      let definedFilePaths = filePaths.filter(
+      let definedFilePaths = Array.from(filePaths.entries()).filter(
         ([, filePath]) => filePath !== undefined
       ) as [ValueOf<typeof FILE_TYPES>, string][]
 
@@ -403,7 +406,7 @@ async function createTreeCodeFromPath(
             : parallelSegmentKey
 
       const normalizedParallelKey = normalizeParallelKey(parallelKey)
-      let subtreeCode
+      let subtreeCode: string | undefined
       // If it's root not found page, set not-found boundary as children page
       if (isNotFoundRoute) {
         if (normalizedParallelKey === 'children') {

@@ -464,6 +464,33 @@ declare module 'next/dist/compiled/image-size' {
   export = m
 }
 
+declare module 'next/dist/compiled/image-detector/detector.js' {
+  export function detector(
+    arr: Uint8Array
+  ):
+    | 'bmp'
+    | 'cur'
+    | 'dds'
+    | 'gif'
+    | 'heif'
+    | 'icns'
+    | 'ico'
+    | 'j2c'
+    | 'jp2'
+    | 'jpg'
+    | 'jxl'
+    | 'jxl-stream'
+    | 'ktx'
+    | 'png'
+    | 'pnm'
+    | 'psd'
+    | 'svg'
+    | 'tga'
+    | 'tiff'
+    | 'webp'
+    | undefined
+}
+
 declare module 'next/dist/compiled/@hapi/accept' {
   import m from '@hapi/accept'
   export = m

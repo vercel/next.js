@@ -12,6 +12,7 @@ import {
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
+  delayUntilRuntimeStage,
   postponeWithTracking,
   trackDynamicDataInDynamicRender,
   trackSynchronousRequestDataAccessInDev,
@@ -56,6 +57,11 @@ export function draftMode(): Promise<DraftMode> {
 
   switch (workUnitStore.type) {
     case 'prerender-runtime':
+      // TODO(runtime-ppr): does it make sense to delay this? normally it's always microtasky
+      return delayUntilRuntimeStage(
+        workUnitStore,
+        createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
+      )
     case 'request':
       return createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
 

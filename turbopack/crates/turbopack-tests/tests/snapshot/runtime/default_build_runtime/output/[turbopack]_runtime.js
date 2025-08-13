@@ -10,9 +10,16 @@ const ASSET_PREFIX = "/";
 const REEXPORTED_OBJECTS = Symbol('reexported objects');
 /**
  * Constructs the `__turbopack_context__` object for a module.
- */ function Context(module) {
+ */ function Context(module, exports) {
     this.m = module;
-    this.e = module.exports;
+    // We need to store this here instead of accessing it from the module object to:
+    // 1. Make it available to factories directly, since we rewrite `this` to
+    //    `__turbopack_context__.e` in CJS modules.
+    // 2. Support async modules which rewrite `module.exports` to a promise, so we
+    //    can still access the original exports object from functions like
+    //    `esmExport`
+    // Ideally we could find a new approach for async modules and drop this property altogether.
+    this.e = exports;
 }
 const contextPrototype = Context.prototype;
 const hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -90,7 +97,7 @@ contextPrototype.s = esmExport;
 function ensureDynamicExports(module, exports) {
     let reexportedObjects = module[REEXPORTED_OBJECTS];
     if (!reexportedObjects) {
-        reexportedObjects = module[REEXPORTED_OBJECTS] = [];
+        module[REEXPORTED_OBJECTS] = reexportedObjects = [];
         module.exports = module.namespaceObject = new Proxy(exports, {
             get (target, prop) {
                 if (hasOwnProperty.call(target, prop) || prop === 'default' || prop === '__esModule') {
@@ -113,34 +120,42 @@ function ensureDynamicExports(module, exports) {
             }
         });
     }
+    return reexportedObjects;
 }
 /**
  * Dynamically exports properties from an object
  */ function dynamicExport(object, id) {
-    let module = this.m;
-    let exports = this.e;
+    let module;
+    let exports;
     if (id != null) {
         module = getOverwrittenModule(this.c, id);
         exports = module.exports;
+    } else {
+        module = this.m;
+        exports = this.e;
     }
-    ensureDynamicExports(module, exports);
+    const reexportedObjects = ensureDynamicExports(module, exports);
     if (typeof object === 'object' && object !== null) {
-        module[REEXPORTED_OBJECTS].push(object);
+        reexportedObjects.push(object);
     }
 }
 contextPrototype.j = dynamicExport;
 function exportValue(value, id) {
-    let module = this.m;
+    let module;
     if (id != null) {
         module = getOverwrittenModule(this.c, id);
+    } else {
+        module = this.m;
     }
     module.exports = value;
 }
 contextPrototype.v = exportValue;
 function exportNamespace(namespace, id) {
-    let module = this.m;
+    let module;
     if (id != null) {
         module = getOverwrittenModule(this.c, id);
+    } else {
+        module = this.m;
     }
     module.exports = module.namespaceObject = namespace;
 }
@@ -678,11 +693,12 @@ function instantiateModule(id, sourceType, sourceData) {
         throw new Error(`Module ${id} was instantiated ${instantiationReason}, but the module factory is not available.`);
     }
     const module1 = createModuleObject(id);
+    const exports = module1.exports;
     moduleCache[id] = module1;
+    const context = new Context(module1, exports);
     // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
     try {
-        const context = new Context(module1);
-        moduleFactory(context);
+        moduleFactory(context, module1, exports);
     } catch (error) {
         module1.error = error;
         throw error;

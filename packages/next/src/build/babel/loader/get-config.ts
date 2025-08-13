@@ -2,13 +2,30 @@ import { readFileSync } from 'fs'
 import JSON5 from 'next/dist/compiled/json5'
 
 import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
-import loadConfig from 'next/dist/compiled/babel/core-lib-config'
+import loadFullConfig from 'next/dist/compiled/babel/core-lib-config'
 
 import type { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
-import { consumeIterator } from './util'
+import {
+  consumeIterator,
+  type SourceMap,
+  type BabelLoaderTransformOptions,
+} from './util'
 import * as Log from '../../output/log'
 import jsx from 'next/dist/compiled/babel/plugin-syntax-jsx'
 import { isReactCompilerRequired } from '../../swc'
+
+/**
+ * An internal (non-exported) type used by babel.
+ */
+export type ResolvedBabelConfig = {
+  options: BabelLoaderTransformOptions
+  passes: BabelPluginPasses
+  externalDependencies: ReadonlyArray<string>
+}
+
+export type BabelPlugin = unknown
+export type BabelPluginPassList = ReadonlyArray<BabelPlugin>
+export type BabelPluginPasses = ReadonlyArray<BabelPluginPassList>
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -275,13 +292,13 @@ function checkCustomBabelConfigDeprecation(
  * This config should have no unresolved overrides, presets, etc.
  */
 async function getFreshConfig(
-  this: NextJsLoaderContext,
+  ctx: NextJsLoaderContext,
   cacheCharacteristics: CharacteristicsGermaneToCaching,
   loaderOptions: NextBabelLoaderOptions,
   target: string,
   filename: string,
-  inputSourceMap?: object | null
-) {
+  inputSourceMap?: SourceMap
+): Promise<ResolvedBabelConfig | null> {
   const hasReactCompiler = await (async () => {
     if (
       loaderOptions.reactCompilerPlugins &&
@@ -314,18 +331,18 @@ async function getFreshConfig(
 
   let { isServer, pagesDir, srcDir, development } = loaderOptions
 
-  let options = {
+  let options: BabelLoaderTransformOptions = {
     babelrc: false,
     cloneInputAst: false,
     filename,
-    inputSourceMap: inputSourceMap || undefined,
+    inputSourceMap,
 
     // Ensure that Webpack will get a full absolute path in the sourcemap
     // so that it can properly map the module back to its internal cached
     // modules.
     sourceFileName: filename,
-    sourceMaps: this.sourceMap,
-  } as any
+    sourceMaps: ctx.sourceMap,
+  }
 
   const baseCaller = {
     name: 'next-babel-turbo-loader',
@@ -334,7 +351,7 @@ async function getFreshConfig(
 
     // Provide plugins with insight into webpack target.
     // https://github.com/babel/babel-loader/issues/787
-    target: target,
+    target,
 
     // Webpack 5 supports TLA behind a flag. We enable it by default
     // for Babel, and then webpack will throw an error if the experimental
@@ -374,7 +391,7 @@ async function getFreshConfig(
     // but allow users to override if they want.
     options.sourceMaps =
       loaderOptions.sourceMaps === undefined
-        ? this.sourceMap
+        ? ctx.sourceMap
         : loaderOptions.sourceMaps
 
     options.plugins = [
@@ -424,12 +441,12 @@ async function getFreshConfig(
       if (!(reason instanceof Error)) {
         reason = new Error(reason)
       }
-      this.emitWarning(reason)
+      ctx.emitWarning(reason)
     },
   })
 
   const loadedOptions = loadOptions(options)
-  const config = consumeIterator(loadConfig(loadedOptions))
+  const config = consumeIterator(loadFullConfig(loadedOptions))
 
   return config
 }
@@ -453,12 +470,11 @@ function getCacheKey(cacheCharacteristics: CharacteristicsGermaneToCaching) {
   return fileNameOrExt + flags
 }
 
-type BabelConfig = any
-const configCache: Map<any, BabelConfig> = new Map()
+const configCache: Map<any, ResolvedBabelConfig | null> = new Map()
 const configFiles: Set<string> = new Set()
 
 export default async function getConfig(
-  this: NextJsLoaderContext,
+  ctx: NextJsLoaderContext,
   {
     source,
     target,
@@ -470,9 +486,9 @@ export default async function getConfig(
     loaderOptions: NextBabelLoaderOptions
     target: string
     filename: string
-    inputSourceMap?: object | null
+    inputSourceMap?: SourceMap | undefined
   }
-): Promise<BabelConfig> {
+): Promise<ResolvedBabelConfig | null> {
   const cacheCharacteristics = getCacheCharacteristics(
     loaderOptions,
     source,
@@ -482,7 +498,7 @@ export default async function getConfig(
 
   if (loaderOptions.transformMode === 'default' && loaderOptions.configFile) {
     // Ensures webpack invalidates the cache for this loader when the config file changes
-    this.addDependency(loaderOptions.configFile)
+    ctx.addDependency(loaderOptions.configFile)
   }
 
   const cacheKey = getCacheKey(cacheCharacteristics)
@@ -515,8 +531,8 @@ export default async function getConfig(
     )
   }
 
-  const freshConfig = await getFreshConfig.call(
-    this,
+  const freshConfig = await getFreshConfig(
+    ctx,
     cacheCharacteristics,
     loaderOptions,
     target,

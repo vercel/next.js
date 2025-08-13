@@ -810,7 +810,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let description = format!(
             "[local] (parent: {}) {}",
             self.backend.get_task_description(parent_task_id),
-            ty,
+            ty.task_type,
         );
         #[cfg(not(feature = "tokio_tracing"))]
         let _ = parent_task_id; // suppress unused variable warning
@@ -1060,27 +1060,30 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub async fn stop_and_wait(&self) {
-        self.backend.stopping(self);
-        self.stopped.store(true, Ordering::Release);
-        {
-            let listener = self
-                .event
-                .listen_with_note(|| || "wait for stop".to_string());
-            if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
-                listener.await;
-            }
-        }
-        {
-            let listener = self.event_background.listen();
-            if self
-                .currently_scheduled_background_jobs
-                .load(Ordering::Acquire)
-                != 0
+        turbo_tasks_future_scope(self.pin(), async move {
+            self.backend.stopping(self);
+            self.stopped.store(true, Ordering::Release);
             {
-                listener.await;
+                let listener = self
+                    .event
+                    .listen_with_note(|| || "wait for stop".to_string());
+                if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+                    listener.await;
+                }
             }
-        }
-        self.backend.stop(self);
+            {
+                let listener = self.event_background.listen();
+                if self
+                    .currently_scheduled_background_jobs
+                    .load(Ordering::Acquire)
+                    != 0
+                {
+                    listener.await;
+                }
+            }
+            self.backend.stop(self);
+        })
+        .await;
     }
 
     #[track_caller]
@@ -1675,6 +1678,10 @@ pub fn trait_call(
 
 pub fn turbo_tasks() -> Arc<dyn TurboTasksApi> {
     TURBO_TASKS.with(|arc| arc.clone())
+}
+
+pub fn try_turbo_tasks() -> Option<Arc<dyn TurboTasksApi>> {
+    TURBO_TASKS.try_with(|arc| arc.clone()).ok()
 }
 
 pub fn with_turbo_tasks<T>(func: impl FnOnce(&Arc<dyn TurboTasksApi>) -> T) -> T {

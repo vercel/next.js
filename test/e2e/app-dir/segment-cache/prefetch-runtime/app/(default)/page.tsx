@@ -136,6 +136,68 @@ export default async function Page() {
         </li>
       </ul>
 
+      <h2>
+        <code>runtime promise passed to public cache</code>
+      </h2>
+      <ul>
+        <li>
+          cookies() promise passed to public cache + dynamic content
+          <ul>
+            <li>
+              <DebugLinkAccordion
+                href="/passed-to-public-cache/cookies"
+                prefetch={true}
+              />
+            </li>
+          </ul>
+        </li>
+        <li>
+          dynamic params promise passed to public cache + dynamic content
+          <ul>
+            <li>
+              <DebugLinkAccordion
+                href="/passed-to-public-cache/dynamic-params/123"
+                prefetch={true}
+              />
+            </li>
+            <li>
+              <DebugLinkAccordion
+                href="/passed-to-public-cache/dynamic-params/456"
+                prefetch={true}
+              />
+            </li>
+          </ul>
+        </li>
+        <li>
+          search params promise passed to public cache + dynamic content
+          <ul>
+            <li>
+              <DebugLinkAccordion
+                href="/passed-to-public-cache/search-params?searchParam=123"
+                prefetch={true}
+              />
+            </li>
+            <li>
+              <DebugLinkAccordion
+                href="/passed-to-public-cache/search-params?searchParam=456"
+                prefetch={true}
+              />
+            </li>
+          </ul>
+        </li>
+        <li>
+          only cookies passed to public cache (no dynamic content)
+          <ul>
+            <li>
+              <DebugLinkAccordion
+                href="/passed-to-public-cache/cookies-only"
+                prefetch={true}
+              />
+            </li>
+          </ul>
+        </li>
+      </ul>
+
       <h2>short-lived caches</h2>
       <ul>
         <li>
@@ -229,22 +291,6 @@ export default async function Page() {
       <ul>
         <li>
           <DebugLinkAccordion href="/fully-static" prefetch={true} />
-        </li>
-      </ul>
-
-      <h2>errors</h2>
-      <ul>
-        <li>
-          <DebugLinkAccordion
-            href="/errors/error-after-cookies"
-            prefetch={true}
-          />
-        </li>
-        <li>
-          <DebugLinkAccordion
-            href="/errors/sync-io-after-cookies"
-            prefetch={true}
-          />
         </li>
       </ul>
     </main>

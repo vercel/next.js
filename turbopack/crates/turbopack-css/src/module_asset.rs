@@ -88,7 +88,7 @@ impl Module for ModuleCssAsset {
             .copied()
             .chain(
                 match *self
-                    .inner(ReferenceType::Css(CssReferenceSubType::Internal))
+                    .inner(ReferenceType::Css(CssReferenceSubType::Inner))
                     .try_into_module()
                     .await?
                 {

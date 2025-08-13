@@ -1,7 +1,6 @@
 import type { SupportedErrorEvent } from '../container/runtime-error/render-error'
 import { getOriginalStackFrames } from '../../shared/stack-frame'
 import type { OriginalStackFrame } from '../../shared/stack-frame'
-import type { ComponentStackFrame } from './parse-component-stack'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import React from 'react'
 
@@ -12,7 +11,6 @@ export type ReadyRuntimeError = {
   frames:
     | readonly OriginalStackFrame[]
     | (() => Promise<readonly OriginalStackFrame[]>)
-  componentStackFrames: readonly ComponentStackFrame[] | undefined
   type: 'runtime' | 'console' | 'recoverable'
 }
 
@@ -51,7 +49,6 @@ export async function getErrorByType(
     runtime: true,
     error: event.error,
     type: event.type,
-    componentStackFrames: event.componentStackFrames,
   } as const
 
   if ('use' in React) {

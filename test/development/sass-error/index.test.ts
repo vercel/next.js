@@ -27,7 +27,7 @@ describe('app dir - css', () => {
           // css-loader does not report an error for this case
           expect(source).toMatchInlineSnapshot(`
            "./app/global.scss.css (45:1)
-           Parsing css source code failed
+           Parsing CSS source code failed
              43 | }
              44 |
            > 45 | input.defaultCheckbox::before path {
@@ -36,7 +36,7 @@ describe('app dir - css', () => {
              47 | }
              48 |
 
-           Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")' at [project]/app/global.scss.css:0:884
+           Pseudo-elements like '::before' or '::after' can't be followed by selectors like 'Ident("path")'
 
            Import trace:
              Client Component Browser:

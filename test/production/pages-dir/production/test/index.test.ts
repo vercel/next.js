@@ -1156,9 +1156,15 @@ describe('Production Usage', () => {
       const version = await browser.eval('window.next.version')
       expect(version).toBeTruthy()
       expect(version).toBe(
-        (await next.readJSON('node_modules/next/package.json')).version +
-          (process.env.IS_TURBOPACK_TEST ? '-turbo' : '')
+        (await next.readJSON('node_modules/next/package.json')).version
       )
+
+      const turbopack = await browser.eval('window.next.turbopack')
+      if (process.env.IS_TURBOPACK_TEST) {
+        expect(turbopack).toBeTrue()
+      } else {
+        expect(turbopack).toBeFalsy()
+      }
     } finally {
       if (browser) {
         await browser.close()

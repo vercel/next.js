@@ -2,6 +2,9 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  experimental: {
+    typedRoutes: true,
+  },
   async redirects() {
     return [
       {
@@ -12,11 +15,6 @@ const nextConfig = {
       {
         source: '/blog/:category/:slug*',
         destination: '/posts/:category/:slug*',
-        permanent: false,
-      },
-      {
-        source: '/optional/:param?',
-        destination: '/fallback',
         permanent: false,
       },
     ]

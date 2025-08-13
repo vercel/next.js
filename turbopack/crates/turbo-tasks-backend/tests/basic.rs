@@ -8,7 +8,7 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn basic() {
     run(&REGISTRATION, || async {
         let output1 = func_without_args();

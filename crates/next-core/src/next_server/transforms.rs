@@ -3,7 +3,7 @@ use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
-use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
+use turbopack_core::reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType};
 
 use crate::{
     mode::NextMode,
@@ -21,7 +21,7 @@ use crate::{
         next_page_static_info::get_next_page_static_info_assert_rule,
         next_pure::get_next_pure_rule, server_actions::ActionsTransform,
     },
-    util::NextRuntime,
+    util::{NextRuntime, module_styles_rule_condition, styles_rule_condition},
 };
 
 /// Returns a list of module rules which apply server-side, Next.js-specific
@@ -51,35 +51,18 @@ pub async fn get_next_server_transforms_rules(
 
     if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
         rules.extend([
-            // Ignore the internal ModuleCssAsset -> CssModuleAsset references
-            // The CSS Module module itself is still needed for class names
-            ModuleRule::new_internal(
-                RuleCondition::any(vec![
-                    RuleCondition::ResourcePathEndsWith(".module.css".into()),
-                    RuleCondition::ContentTypeStartsWith("text/css+module".into()),
-                ]),
-                vec![ModuleRuleEffect::Ignore],
-            ),
-        ]);
-        rules.extend([
-            // Ignore all non-module CSS references
+            // Ignore the inner ModuleCssAsset -> CssModuleAsset references
+            // The CSS Module module itself (and the Analyze reference) is still needed to generate
+            // the class names object.
             ModuleRule::new(
-                RuleCondition::any(vec![
-                    RuleCondition::all(vec![
-                        RuleCondition::ResourcePathEndsWith(".css".into()),
-                        RuleCondition::not(RuleCondition::ResourcePathEndsWith(
-                            ".module.css".into(),
-                        )),
-                    ]),
-                    RuleCondition::all(vec![
-                        RuleCondition::ContentTypeStartsWith("text/css".into()),
-                        RuleCondition::not(RuleCondition::ContentTypeStartsWith(
-                            "text/css+module".into(),
-                        )),
-                    ]),
+                RuleCondition::all(vec![
+                    RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Inner)),
+                    module_styles_rule_condition(),
                 ]),
                 vec![ModuleRuleEffect::Ignore],
             ),
+            // Ignore all non-module CSS references
+            ModuleRule::new(styles_rule_condition(), vec![ModuleRuleEffect::Ignore]),
         ]);
     }
 

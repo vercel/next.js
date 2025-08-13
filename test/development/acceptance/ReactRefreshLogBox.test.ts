@@ -578,13 +578,13 @@ describe('ReactRefreshLogBox', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing css source code failed",
+         "description": "Parsing CSS source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.module.css (1:9)
-       Parsing css source code failed
+         "source": "./index.module.css (1:8)
+       Parsing CSS source code failed
        > 1 | .button
-           |         ^",
+           |        ^",
          "stack": [],
        }
       `)
@@ -610,11 +610,11 @@ describe('ReactRefreshLogBox', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing css source code failed",
+         "description": "Transforming CSS failed",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-       Parsing css source code failed
+       Transforming CSS failed
        Selector "button" is not pure. Pure selectors must contain at least one local class or id.
        Import traces:
          Browser:

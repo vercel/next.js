@@ -16,6 +16,7 @@ use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, json::parse_json_rope_with_source_context,
     rope::Rope,
 };
+use turbopack::module_options::RuleCondition;
 use turbopack_core::{
     asset::AssetContent,
     compile_time_info::{CompileTimeDefineValue, CompileTimeDefines, DefinableNameSegment},
@@ -792,4 +793,49 @@ pub async fn load_next_js_templateon<T: DeserializeOwned>(
     let result: T = parse_json_rope_with_source_context(file.content())?;
 
     Ok(result)
+}
+
+pub fn styles_rule_condition() -> RuleCondition {
+    RuleCondition::any(vec![
+        RuleCondition::all(vec![
+            RuleCondition::ResourcePathEndsWith(".css".into()),
+            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
+        ]),
+        RuleCondition::all(vec![
+            RuleCondition::ResourcePathEndsWith(".sass".into()),
+            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.sass".into())),
+        ]),
+        RuleCondition::all(vec![
+            RuleCondition::ResourcePathEndsWith(".scss".into()),
+            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.scss".into())),
+        ]),
+        RuleCondition::all(vec![
+            RuleCondition::ContentTypeStartsWith("text/css".into()),
+            RuleCondition::not(RuleCondition::ContentTypeStartsWith(
+                "text/css+module".into(),
+            )),
+        ]),
+        RuleCondition::all(vec![
+            RuleCondition::ContentTypeStartsWith("text/sass".into()),
+            RuleCondition::not(RuleCondition::ContentTypeStartsWith(
+                "text/sass+module".into(),
+            )),
+        ]),
+        RuleCondition::all(vec![
+            RuleCondition::ContentTypeStartsWith("text/scss".into()),
+            RuleCondition::not(RuleCondition::ContentTypeStartsWith(
+                "text/scss+module".into(),
+            )),
+        ]),
+    ])
+}
+pub fn module_styles_rule_condition() -> RuleCondition {
+    RuleCondition::any(vec![
+        RuleCondition::ResourcePathEndsWith(".module.css".into()),
+        RuleCondition::ResourcePathEndsWith(".module.scss".into()),
+        RuleCondition::ResourcePathEndsWith(".module.sass".into()),
+        RuleCondition::ContentTypeStartsWith("text/css+module".into()),
+        RuleCondition::ContentTypeStartsWith("text/sass+module".into()),
+        RuleCondition::ContentTypeStartsWith("text/scss+module".into()),
+    ])
 }

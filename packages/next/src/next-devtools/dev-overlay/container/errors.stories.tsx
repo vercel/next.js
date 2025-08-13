@@ -89,22 +89,6 @@ export const WithHydrationWarning: Story = {
               },
             },
           ]),
-        componentStackFrames: [
-          {
-            component: 'MyComponent',
-            file: 'app/page.tsx',
-            line1: 10,
-            column1: 5,
-            canOpenInEditor: true,
-          },
-          {
-            component: 'ParentComponent',
-            file: 'app/layout.tsx',
-            line1: 20,
-            column1: 3,
-            canOpenInEditor: true,
-          },
-        ],
         type: 'runtime',
       },
     ],

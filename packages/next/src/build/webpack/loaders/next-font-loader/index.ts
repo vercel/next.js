@@ -45,6 +45,7 @@ export default async function nextFontLoader(this: any) {
       assetPrefix,
       fontLoaderPath,
       postcss: getPostcss,
+      deploymentId,
     } = this.getOptions()
 
     if (assetPrefix && !/^\/|https?:\/\//.test(assetPrefix)) {
@@ -66,7 +67,7 @@ export default async function nextFontLoader(this: any) {
      * NextFontManifestPlugin uses this to see if fallback fonts are being used.
      * This is used to collect stats on fallback fonts usage by the Google Aurora team.
      */
-    const emitFontFile = (
+    const emitFontFile: Parameters<FontLoader>[0]['emitFontFile'] = (
       content: Buffer,
       ext: string,
       preload: boolean,
@@ -109,6 +110,7 @@ export default async function nextFontLoader(this: any) {
               ),
             isDev,
             isServer,
+            deploymentId,
             loaderContext: this,
           })
         )

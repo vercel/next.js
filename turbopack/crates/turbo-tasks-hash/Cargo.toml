@@ -14,4 +14,4 @@ workspace = true
 
 [dependencies]
 turbo-tasks-macros = { workspace = true }
-twox-hash = "1.6.3"
+twox-hash = { workspace = true }

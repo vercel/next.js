@@ -473,6 +473,7 @@ export interface ExperimentalConfig {
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
+  imgOptSkipMetadata?: boolean | null
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -500,6 +501,7 @@ export interface ExperimentalConfig {
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean
   externalDir?: boolean
+  /** @deprecated built-in amp support will be removed in Next 16 */
   amp?: {
     optimizer?: any
     validator?: string
@@ -1146,7 +1148,10 @@ export interface NextConfig extends Record<string, any> {
     pagesBufferLength?: number
   }
 
-  /** @see [`next/amp`](https://nextjs.org/docs/api-reference/next/amp) */
+  /**
+   * @deprecated built-in amp support will be removed in Next 16
+   * @see [`next/amp`](https://nextjs.org/docs/api-reference/next/amp)
+   */
   amp?: {
     canonicalBase?: string
   }
@@ -1522,6 +1527,7 @@ export const defaultConfig = Object.freeze({
     imgOptTimeoutInSeconds: 7,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
+    imgOptSkipMetadata: null,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,

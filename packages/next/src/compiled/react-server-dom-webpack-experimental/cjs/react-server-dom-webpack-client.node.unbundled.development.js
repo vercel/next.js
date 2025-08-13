@@ -1288,6 +1288,7 @@
             if (null === value) return "";
             if (value instanceof Error) return String(value.message);
             if ("string" === typeof value.url) return value.url;
+            if ("string" === typeof value.href) return value.href;
             if ("string" === typeof value.command) return value.command;
             if (
               "object" === typeof value.request &&

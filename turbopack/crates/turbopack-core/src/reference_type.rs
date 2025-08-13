@@ -221,7 +221,7 @@ pub enum CssReferenceSubType {
     /// class name
     Compose,
     /// Reference from ModuleCssAsset to the CssModuleAsset
-    Internal,
+    Inner,
     /// Used for generating the list of classes in a ModuleCssAsset
     Analyze,
     Custom(u8),
@@ -417,11 +417,6 @@ impl ReferenceType {
     /// combination with [`ModuleRuleCondition::Internal`] to determine if a
     /// rule should be applied to an internal asset/reference.
     pub fn is_internal(&self) -> bool {
-        matches!(
-            self,
-            ReferenceType::Internal(_)
-                | ReferenceType::Css(CssReferenceSubType::Internal)
-                | ReferenceType::Runtime
-        )
+        matches!(self, ReferenceType::Internal(_) | ReferenceType::Runtime)
     }
 }

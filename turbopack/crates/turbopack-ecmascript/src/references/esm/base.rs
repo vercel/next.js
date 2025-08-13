@@ -419,7 +419,7 @@ impl ModuleReference for EsmAssetReference {
         }
 
         if let Request::Module { module, .. } = &*self.request.await?
-            && module == TURBOPACK_PART_IMPORT_SOURCE
+            && module.is_match(TURBOPACK_PART_IMPORT_SOURCE)
         {
             if let Some(part) = &self.export_name {
                 let module: ResolvedVc<crate::EcmascriptModuleAsset> =

@@ -13,6 +13,7 @@ use turbopack_core::{
     resolve::{
         ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         parse::Request,
+        pattern::Pattern,
         plugin::{
             AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
             BeforeResolvePluginCondition,
@@ -39,7 +40,7 @@ static FEATURE_MODULES: LazyLock<FxHashMap<&'static str, Vec<&'static str>>> =
                     "/font/local",
                 ],
             ),
-            ("@next", vec!["/font/google", "/font/local"]),
+            ("@next/font", vec!["/google", "/local"]),
         ])
     });
 
@@ -360,7 +361,7 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         if let Request::Module {
-            module,
+            module: Pattern::Constant(module),
             path,
             query: _,
             fragment: _,

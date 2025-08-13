@@ -38,25 +38,7 @@ export function createInitialRouterState({
   // as a URL that should be crawled.
   const initialCanonicalUrl = initialCanonicalUrlParts.join('/')
 
-  // TODO: Eventually we want to always read the rendered params from the URL
-  // and/or the x-rewritten-path header, so that we can omit them from the
-  // response body. This lets reuse cached responses if params aren't referenced
-  // anywhere in the actual page data, e.g. if they're only accessed by client
-  // components. However, during the initial render, there's no way to access
-  // the headers. For a partially dynamic page, this is OK, because there's
-  // going to be a dynamic server render regardless, so we can send the URL
-  // in the resume body. For a completely static page, though, there's no
-  // dynamic server render, so that won't work.
-  //
-  // Instead, we'll perform a HEAD request and read the rewritten URL from
-  // that response.
-  const renderedPathname = new URL(initialCanonicalUrl, 'http://localhost')
-    .pathname
-
-  const normalizedFlightData = getFlightDataPartsFromPath(
-    initialFlightData[0],
-    renderedPathname
-  )
+  const normalizedFlightData = getFlightDataPartsFromPath(initialFlightData[0])
   const {
     tree: initialTree,
     seedData: initialSeedData,

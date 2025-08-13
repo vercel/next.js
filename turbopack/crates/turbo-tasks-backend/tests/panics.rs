@@ -25,7 +25,7 @@ static FILE_PATH_REGEX: LazyLock<Regex> =
 //
 // This test depends on the process-wide global panic handler. This test must be run in its own
 // process in isolation of any other tests.
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn test_panic_hook() {
     let prev_hook = take_hook();
     set_hook(Box::new(move |info| {

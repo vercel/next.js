@@ -20,7 +20,7 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
-import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
+import { OUTLET_BOUNDARY_NAME } from '../../lib/framework/boundary-constants'
 import type {
   UseCacheLayoutComponentProps,
   UseCachePageComponentProps,

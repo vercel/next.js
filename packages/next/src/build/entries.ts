@@ -76,37 +76,36 @@ import type { MappedPages } from './build-context'
 import { PAGE_TYPES } from '../lib/page-types'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import { createValidFileMatcher } from '../server/lib/find-page-file'
+import type { createValidFileMatcher } from '../server/lib/find-page-file'
 import { isReservedPage } from './utils'
 import { isParallelRouteSegment } from '../shared/lib/segment'
 import { ensureLeadingSlash } from '../shared/lib/page-path/ensure-leading-slash'
 
 /**
- * Collect app pages and layouts from the app directory
+ * Collect app pages, layouts, and default files from the app directory
  * @param appDir - The app directory path
- * @param pageExtensions - The configured page extensions
- * @param options - Optional configuration
- * @returns Object containing appPaths and layoutPaths arrays
+ * @param validFileMatcher - File matcher object
+ * @returns Object containing appPaths, layoutPaths, and defaultPaths arrays
  */
 export async function collectAppFiles(
   appDir: string,
-  pageExtensions: PageExtensions
+  validFileMatcher: ReturnType<typeof createValidFileMatcher>
 ): Promise<{
   appPaths: string[]
   layoutPaths: string[]
+  defaultPaths: string[]
 }> {
-  const validFileMatcher = createValidFileMatcher(pageExtensions, appDir)
-
-  // Collect both app pages and layouts in a single directory traversal
+  // Collect app pages, layouts, and default files in a single directory traversal
   const allAppFiles = await recursiveReadDir(appDir, {
     pathnameFilter: (absolutePath) =>
       validFileMatcher.isAppRouterPage(absolutePath) ||
       validFileMatcher.isRootNotFound(absolutePath) ||
-      validFileMatcher.isAppLayoutPage(absolutePath),
+      validFileMatcher.isAppLayoutPage(absolutePath) ||
+      validFileMatcher.isAppDefaultPage(absolutePath),
     ignorePartFilter: (part) => part.startsWith('_'),
   })
 
-  // Separate app pages from layouts
+  // Separate app pages, layouts, and defaults
   const appPaths = allAppFiles.filter(
     (absolutePath) =>
       validFileMatcher.isAppRouterPage(absolutePath) ||
@@ -115,26 +114,25 @@ export async function collectAppFiles(
   const layoutPaths = allAppFiles.filter((absolutePath) =>
     validFileMatcher.isAppLayoutPage(absolutePath)
   )
+  const defaultPaths = allAppFiles.filter((absolutePath) =>
+    validFileMatcher.isAppDefaultPage(absolutePath)
+  )
 
-  return { appPaths, layoutPaths }
+  return { appPaths, layoutPaths, defaultPaths }
 }
 
 /**
  * Collect pages from the pages directory
  * @param pagesDir - The pages directory path
- * @param pageExtensions - The configured page extensions
+ * @param validFileMatcher - File matcher object
  * @returns Array of page file paths
  */
 export async function collectPagesFiles(
   pagesDir: string,
-  pageExtensions: PageExtensions
+  validFileMatcher: ReturnType<typeof createValidFileMatcher>
 ): Promise<string[]> {
   return recursiveReadDir(pagesDir, {
-    pathnameFilter: (absolutePath) => {
-      const relativePath = absolutePath.replace(pagesDir + '/', '')
-      return pageExtensions.some((ext) => relativePath.endsWith(`.${ext}`))
-    },
-    ignorePartFilter: (part) => part.startsWith('_'),
+    pathnameFilter: validFileMatcher.isPageFile,
   })
 }
 
@@ -154,18 +152,21 @@ export type SlotInfo = {
  * @param baseDir - The base directory path
  * @param filePath - The mapped file path (with private prefix)
  * @param prefix - The directory prefix ('pages' or 'app')
+ * @param isSrcDir - Whether the project uses src directory structure
  * @returns The relative file path
  */
 export function createRelativeFilePath(
   baseDir: string,
   filePath: string,
-  prefix: 'pages' | 'app'
+  prefix: 'pages' | 'app',
+  isSrcDir: boolean
 ): string {
   const privatePrefix =
     prefix === 'pages' ? 'private-next-pages' : 'private-next-app-dir'
+  const srcPrefix = isSrcDir ? 'src/' : ''
   return join(
     baseDir,
-    filePath.replace(new RegExp(`^${privatePrefix}/`), `${prefix}/`)
+    filePath.replace(new RegExp(`^${privatePrefix}/`), `${srcPrefix}${prefix}/`)
   )
 }
 
@@ -173,11 +174,13 @@ export function createRelativeFilePath(
  * Process pages routes from mapped pages
  * @param mappedPages - The mapped pages object
  * @param baseDir - The base directory path
+ * @param isSrcDir - Whether the project uses src directory structure
  * @returns Object containing pageRoutes and pageApiRoutes
  */
 export function processPageRoutes(
   mappedPages: { [page: string]: string },
-  baseDir: string
+  baseDir: string,
+  isSrcDir: boolean
 ): {
   pageRoutes: RouteInfo[]
   pageApiRoutes: RouteInfo[]
@@ -186,7 +189,12 @@ export function processPageRoutes(
   const pageApiRoutes: RouteInfo[] = []
 
   for (const [route, filePath] of Object.entries(mappedPages)) {
-    const relativeFilePath = createRelativeFilePath(baseDir, filePath, 'pages')
+    const relativeFilePath = createRelativeFilePath(
+      baseDir,
+      filePath,
+      'pages',
+      isSrcDir
+    )
 
     if (route.startsWith('/api/')) {
       pageApiRoutes.push({
@@ -244,45 +252,128 @@ export function extractSlotsFromAppRoutes(mappedAppPages: {
 }
 
 /**
+ * Extract slots from default files
+ * @param mappedDefaultFiles - The mapped default files object
+ * @returns Array of slot information
+ */
+export function extractSlotsFromDefaultFiles(mappedDefaultFiles: {
+  [page: string]: string
+}): SlotInfo[] {
+  const slots: SlotInfo[] = []
+
+  for (const [route] of Object.entries(mappedDefaultFiles)) {
+    const segments = route.split('/')
+    for (let i = segments.length - 1; i >= 0; i--) {
+      const segment = segments[i]
+      if (isParallelRouteSegment(segment)) {
+        const parentPath = normalizeAppPath(segments.slice(0, i).join('/'))
+        const slotName = segment.slice(1)
+
+        // Check if the slot already exists
+        if (slots.some((s) => s.name === slotName && s.parent === parentPath))
+          continue
+
+        slots.push({
+          name: slotName,
+          parent: parentPath,
+        })
+        break
+      }
+    }
+  }
+
+  return slots
+}
+
+/**
+ * Combine and deduplicate slot arrays using a Set
+ * @param slotArrays - Arrays of slot information to combine
+ * @returns Deduplicated array of slots
+ */
+export function combineSlots(...slotArrays: SlotInfo[][]): SlotInfo[] {
+  const slotSet = new Set<string>()
+  const result: SlotInfo[] = []
+
+  for (const slots of slotArrays) {
+    for (const slot of slots) {
+      const key = `${slot.name}:${slot.parent}`
+      if (!slotSet.has(key)) {
+        slotSet.add(key)
+        result.push(slot)
+      }
+    }
+  }
+
+  return result
+}
+
+/**
  * Process app routes from mapped app pages
  * @param mappedAppPages - The mapped app pages object
+ * @param validFileMatcher - File matcher object
  * @param baseDir - The base directory path
+ * @param isSrcDir - Whether the project uses src directory structure
  * @returns Array of route information
  */
 export function processAppRoutes(
   mappedAppPages: { [page: string]: string },
-  baseDir: string
-): RouteInfo[] {
+  validFileMatcher: ReturnType<typeof createValidFileMatcher>,
+  baseDir: string,
+  isSrcDir: boolean
+): {
+  appRoutes: RouteInfo[]
+  appRouteHandlers: RouteInfo[]
+} {
   const appRoutes: RouteInfo[] = []
+  const appRouteHandlers: RouteInfo[] = []
 
   for (const [route, filePath] of Object.entries(mappedAppPages)) {
     if (route === '/_not-found/page') continue
 
-    const relativeFilePath = createRelativeFilePath(baseDir, filePath, 'app')
+    const relativeFilePath = createRelativeFilePath(
+      baseDir,
+      filePath,
+      'app',
+      isSrcDir
+    )
 
-    appRoutes.push({
-      route: normalizeAppPath(normalizePathSep(route)),
-      filePath: relativeFilePath,
-    })
+    if (validFileMatcher.isAppRouterRoute(filePath)) {
+      appRouteHandlers.push({
+        route: normalizeAppPath(normalizePathSep(route)),
+        filePath: relativeFilePath,
+      })
+    } else {
+      appRoutes.push({
+        route: normalizeAppPath(normalizePathSep(route)),
+        filePath: relativeFilePath,
+      })
+    }
   }
 
-  return appRoutes
+  return { appRoutes, appRouteHandlers }
 }
 
 /**
  * Process layout routes from mapped app layouts
  * @param mappedAppLayouts - The mapped app layouts object
  * @param baseDir - The base directory path
+ * @param isSrcDir - Whether the project uses src directory structure
  * @returns Array of layout route information
  */
 export function processLayoutRoutes(
   mappedAppLayouts: { [page: string]: string },
-  baseDir: string
+  baseDir: string,
+  isSrcDir: boolean
 ): RouteInfo[] {
   const layoutRoutes: RouteInfo[] = []
 
   for (const [route, filePath] of Object.entries(mappedAppLayouts)) {
-    const relativeFilePath = createRelativeFilePath(baseDir, filePath, 'app')
+    const relativeFilePath = createRelativeFilePath(
+      baseDir,
+      filePath,
+      'app',
+      isSrcDir
+    )
     layoutRoutes.push({
       route: ensureLeadingSlash(
         normalizeAppPath(normalizePathSep(route)).replace(/\/layout$/, '')

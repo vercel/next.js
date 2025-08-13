@@ -16,79 +16,111 @@ type InterceptableConsoleMethod =
   | 'trace'
   | 'warn'
 
-// This function could be used from multiple places, including hook.
-// Skips CSS and object arguments, inlines other in the first argument as a template string
-/**
- * Copyright (c) Meta Platforms, Inc. and affiliates.
- *
- * This source code is licensed under the MIT license found in the
- * LICENSE file in the root directory of this source tree.
- *
- * @source https://github.com/facebook/react/blob/b44a99bf58d69d52b5288d9eadcc6d226d705e11/packages/react-devtools-shared/src/backend/utils/formatConsoleArguments.js#L14
- */
-function formatConsoleArguments(maybeMessage: any, ...inputArgs: any[]): any[] {
-  if (inputArgs.length === 0 || typeof maybeMessage !== 'string') {
-    return [maybeMessage, ...inputArgs]
+const isColorSupported = dim('test') !== 'test'
+
+// 50% opacity for dimmed text
+const dimStyle = 'color: color(from currentColor xyz x y z / 0.5);'
+const reactBadgeFormat = '\x1b[0m\x1b[7m%c%s\x1b[0m%c '
+
+function dimmedConsoleArgs(...inputArgs: any[]): any[] {
+  if (!isColorSupported) {
+    return inputArgs
   }
 
-  const args = inputArgs.slice()
-
+  const newArgs = inputArgs.slice(0)
   let template = ''
   let argumentsPointer = 0
-  for (let i = 0; i < maybeMessage.length; ++i) {
-    const currentChar = maybeMessage[i]
-    if (currentChar !== '%') {
-      template += currentChar
-      continue
+  if (typeof inputArgs[0] === 'string') {
+    const originalTemplateString = inputArgs[0]
+    // Remove the original template string from the args.
+    newArgs.splice(argumentsPointer, 1)
+    argumentsPointer += 1
+
+    let i = 0
+    if (originalTemplateString.startsWith(reactBadgeFormat)) {
+      i = reactBadgeFormat.length
+      // for `format` we already moved the pointer earlier
+      // style, badge, reset style
+      argumentsPointer += 3
+      template += reactBadgeFormat
+      // React's badge reset styles, reapply dimming
+      template += '\x1b[2m%c'
+      // argumentsPointer includes template
+      newArgs.splice(argumentsPointer - 1, 0, dimStyle)
+      // dim the badge
+      newArgs[0] += `;${dimStyle}`
     }
 
-    const nextChar = maybeMessage[i + 1]
-    ++i
-
-    // Only keep CSS and objects, inline other arguments
-    switch (nextChar) {
-      case 'c':
-      case 'O':
-      case 'o': {
-        ++argumentsPointer
-        template += `%${nextChar}`
-
-        break
-      }
-      case 'd':
-      case 'i': {
-        const [arg] = args.splice(argumentsPointer, 1)
-        template += parseInt(arg, 10).toString()
-
-        break
-      }
-      case 'f': {
-        const [arg] = args.splice(argumentsPointer, 1)
-        template += parseFloat(arg).toString()
-
-        break
-      }
-      case 's': {
-        const [arg] = args.splice(argumentsPointer, 1)
-        template += String(arg)
-
-        break
+    for (i; i < originalTemplateString.length; i++) {
+      const currentChar = originalTemplateString[i]
+      if (currentChar !== '%') {
+        template += currentChar
+        continue
       }
 
-      default:
-        template += `%${nextChar}`
+      const nextChar = originalTemplateString[i + 1]
+      ++i
+
+      switch (nextChar) {
+        case 'f':
+        case 'O':
+        case 'o':
+        case 'd':
+        case 's':
+        case 'i':
+        case 'c':
+          ++argumentsPointer
+          template += `%${nextChar}`
+          break
+        default:
+          template += `%${nextChar}`
+      }
     }
   }
 
-  return [template, ...args]
-}
+  for (
+    argumentsPointer;
+    argumentsPointer < inputArgs.length;
+    ++argumentsPointer
+  ) {
+    const arg = inputArgs[argumentsPointer]
+    const argType = typeof arg
+    if (argumentsPointer > 0) {
+      template += ' '
+    }
+    switch (argType) {
+      case 'boolean':
+      case 'string':
+        template += '%s'
+        break
+      case 'bigint':
+        template += '%s'
+        break
+      case 'number':
+        if (arg % 0) {
+          template += '%f'
+        } else {
+          template += '%d'
+        }
+        break
+      case 'object':
+        template += '%O'
+        break
+      case 'symbol':
+      case 'undefined':
+      case 'function':
+        template += '%s'
+        break
+      default:
+        // deopt to string for new, unknown types
+        template += '%s'
+    }
+  }
 
-const isColorSupported = dim('test') !== 'test'
-// TODO: Breaks when complex objects are logged
-// dim("%s") does not work in Chrome
-const ANSI_STYLE_DIMMING_TEMPLATE = isColorSupported
-  ? '\x1b[2;38;2;124;124;124m%s\x1b[0m'
-  : '%s'
+  template += '\x1b[22m'
+
+  return [dim(`%c${template}`), dimStyle, ...newArgs]
+}
 
 function dimConsoleCall(
   methodName: InterceptableConsoleMethod,
@@ -106,10 +138,7 @@ function dimConsoleCall(
     }
     case 'assert': {
       // assert takes formatting options as the second argument.
-      return [args[0]].concat(
-        ANSI_STYLE_DIMMING_TEMPLATE,
-        ...formatConsoleArguments(args[1], ...args.slice(2))
-      )
+      return [args[0]].concat(...dimmedConsoleArgs(args[1], ...args.slice(2)))
     }
     case 'error':
     case 'debug':
@@ -117,9 +146,7 @@ function dimConsoleCall(
     case 'log':
     case 'trace':
     case 'warn':
-      return [ANSI_STYLE_DIMMING_TEMPLATE].concat(
-        ...formatConsoleArguments(args[0], ...args.slice(1))
-      )
+      return dimmedConsoleArgs(args[0], ...args.slice(1))
     default:
       return methodName satisfies never
   }

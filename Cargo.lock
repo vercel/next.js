@@ -9253,7 +9253,6 @@ dependencies = [
  "parking_lot",
  "pot",
  "rand 0.9.0",
- "rayon",
  "regex",
  "ringmap",
  "rstest",
@@ -9411,7 +9410,7 @@ name = "turbo-tasks-hash"
 version = "0.1.0"
 dependencies = [
  "turbo-tasks-macros",
- "twox-hash 1.6.3",
+ "twox-hash 2.1.0",
 ]
 
 [[package]]
@@ -10113,7 +10112,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
 dependencies = [
  "cfg-if",
- "rand 0.8.5",
  "static_assertions",
 ]
 

@@ -36,21 +36,19 @@ export type DynamicParamTypesShort = s.Infer<typeof dynamicParamTypesSchema>
 
 const segmentSchema = s.union([
   s.string(),
-  s.union([
-    s.tuple([s.string(), s.string(), dynamicParamTypesSchema]),
-    // On the client, the dynamic param array contains an additional
-    // slot for param value.
-    s.tuple([
-      // Param name
-      s.string(),
-      // Param cache key (almost the same as the value, but arrays are
-      // concatenated into strings)
-      s.string(),
-      // Dynamic param type
-      dynamicParamTypesSchema,
-      // Param value (the one passed to components)
-      s.nullable(s.union([s.string(), s.array(s.string())])),
-    ]),
+
+  s.tuple([
+    // Param name
+    s.string(),
+    // Param cache key (almost the same as the value, but arrays are
+    // concatenated into strings)
+    // TODO: We should change this to just be the value. Currently we convert
+    // it back to a value when passing to useParams. It only needs to be
+    // a string when converted to a a cache key, but that doesn't mean we
+    // need to store it as that representation.
+    s.string(),
+    // Dynamic param type
+    dynamicParamTypesSchema,
   ]),
 ])
 
@@ -329,9 +327,6 @@ export type InitialRSCPayload = {
   b: string
   /** assetPrefix */
   p: string
-  // TODO: This isn't really the "canonical" URL (which we usually use to refer
-  // to the URL shown in the browser), it's the URL used to render the page,
-  // which may have been rewritten on the server.
   /** initialCanonicalUrlParts */
   c: string[]
   /** couldBeIntercepted */
@@ -352,11 +347,6 @@ export type InitialRSCPayload = {
 export type NavigationFlightResponse = {
   /** buildId */
   b: string
-  // TODO: This isn't really the "canonical" URL (which we usually use to refer
-  // to the URL shown in the browser), it's the URL used to render the page,
-  // which may have been rewritten on the server.
-  /** canonicalUrlParts */
-  c: string[]
   /** flightData */
   f: FlightData
   /** prerendered */
@@ -369,11 +359,6 @@ export type ActionFlightResponse = {
   a: ActionResult
   /** buildId */
   b: string
-  // TODO: This isn't really the "canonical" URL (which we usually use to refer
-  // to the URL shown in the browser), it's the URL used to render the page,
-  // which may have been rewritten on the server.
-  /** canonicalUrlParts */
-  c: string[]
   /** flightData */
   f: FlightData
 }

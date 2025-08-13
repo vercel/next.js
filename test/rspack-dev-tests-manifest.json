@@ -78,7 +78,8 @@
       "next/font/local loader generated CSS Multiple styles default weight",
       "next/font/local loader generated CSS Multiple weights default style",
       "next/font/local loader generated CSS Other properties",
-      "next/font/local loader generated CSS Weight and style"
+      "next/font/local loader generated CSS Weight and style",
+      "next/font/local loader generated CSS with dpl query string"
     ],
     "failed": [],
     "pending": [],
@@ -5038,6 +5039,7 @@
       "app-dir with middleware should be possible to modify cookies & read them in an RSC in a single request",
       "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
       "app-dir with middleware should ignore x-middleware-set-cookie as a request header",
+      "app-dir with middleware should not incorrectly treat a Location header as a rewrite",
       "app-dir with middleware should omit internal headers for middleware cookies",
       "app-dir with middleware should respect cookie options of merged middleware cookies"
     ],
@@ -5568,7 +5570,7 @@
       "app-dir static/dynamic handling useSearchParams client should have empty search params on force-static"
     ],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/app-validation/validation.test.ts": {
     "passed": [
@@ -5850,6 +5852,15 @@
       "hello-world should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Cache Component - without prerendering the page",
       "hello-world should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Server Component - with prerendering the page",
       "hello-world should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Server Component - without prerendering the page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components-bot-ua/cache-components-bot-ua.test.ts": {
+    "passed": [
+      "cache-components PPR bot static generation bypass should bypass static generation for DOM bot requests to avoid SSG_BAILOUT"
     ],
     "failed": [],
     "pending": [],
@@ -6283,6 +6294,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/css-modules-rsc-postcss/css-modules-rsc-postcss.test.ts": {
+    "passed": [
+      "css-modules-rsc-postcss should compile successfully and apply the correct styles"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/css-modules-scoping/css-modules-scoping.test.ts": {
     "passed": [
       "css-modules-scoping should not prefix grid areas",
@@ -6487,6 +6507,13 @@
       "css-order true should load correct styles navigating back again third -> second -> third -> second",
       "css-order true should load correct styles navigating back again third -> second-client -> third -> second-client"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/css-server-chunks/css-server-chunks.test.ts": {
+    "passed": ["css-server-chunks should not write CSS chunks for the server"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8994,6 +9021,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/resuming-head-runtime-search-param/resuming-head-runtime-search-param.test.ts": {
+    "passed": [
+      "resuming-head-runtime-search-param should not show resumable slots error when using runtime search params"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts": {
     "passed": [
       "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-path",
@@ -9121,6 +9157,15 @@
       "app-dir root layout Missing required tags should error on page load on static generation",
       "app-dir root layout Missing required tags should error on page navigation"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/root-suspense-dynamic/root-suspense-dynamic.test.ts": {
+    "passed": [
+      "Root Suspense Dynamic Rendering placeholder to satisfy at least one test when isNextDev is false"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10110,6 +10155,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/typed-routes/typed-links.test.ts": {
+    "passed": ["typed-links should generate types for next/link"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/typed-routes/typed-routes.test.ts": {
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
@@ -10221,10 +10273,7 @@
       "use-cache-hanging-inputs when a \"use cache\" function is closing over an uncached promise should show an error toast after a timeout",
       "use-cache-hanging-inputs when an error is thrown should show an error overlay with only one error",
       "use-cache-hanging-inputs when an uncached promise is used inside of \"use cache\" should show an error toast after a timeout",
-      "use-cache-hanging-inputs when an uncached promise is used inside of a nested \"use cache\" should show an error toast after a timeout",
-      "use-cache-hanging-inputs when searchParams are unused inside of \"use cache\" should not show an error",
-      "use-cache-hanging-inputs when searchParams are used inside of \"use cache\" should show an error toast after a timeout",
-      "use-cache-hanging-inputs when searchParams are used inside of \"use cache\", wrapped in try/catch should show an error toast after a timeout"
+      "use-cache-hanging-inputs when an uncached promise is used inside of a nested \"use cache\" should show an error toast after a timeout"
     ],
     "failed": [],
     "pending": [],
@@ -10272,23 +10321,23 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
-    "passed": [],
+  "test/e2e/app-dir/use-cache-search-params/use-cache-search-params.test.ts": {
+    "passed": [
+      "use-cache-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
+      "use-cache-search-params when searchParams are caught inside of \"use cache\" should show an error",
+      "use-cache-search-params when searchParams are unused inside of \"use cache\" should not show an error"
+    ],
     "failed": [
-      "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
+      "use-cache-search-params when searchParams are used inside of \"use cache\" should show an error"
     ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts": {
-    "passed": [
-      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
-      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should show an error",
-      "use-cache-standalone-search-params when searchParams are unused inside of \"use cache\" should not show an error"
-    ],
+  "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
+    "passed": [],
     "failed": [
-      "use-cache-standalone-search-params when searchParams are used inside of \"use cache\" should show an error"
+      "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
     ],
     "pending": [],
     "flakey": [],
@@ -13907,14 +13956,13 @@
     "runtimeError": false
   },
   "test/integration/app-types/app-types.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app type checking production mode should generate route types correctly and report form errors",
-      "app type checking production mode should generate route types correctly and report link error",
-      "app type checking production mode should generate route types correctly and report router API errors",
-      "app type checking production mode should type check invalid entry exports"
+    "passed": [
+      "app type checking - production mode should generate route types correctly and report form errors",
+      "app type checking - production mode should generate route types correctly and report router API errors",
+      "app type checking - production mode should report link errors"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14047,6 +14095,15 @@
       "Build Output production mode Custom Static Error Output should not specify /404 as lambda when static",
       "Build Output production mode With AMP Output should not include custom error",
       "Build Output production mode With Parallel Routes should not have duplicate paths that resolve to the same route"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/build-trace-extra-entries-monorepo/test/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "build trace with extra entries in monorepo production mode should build and trace correctly"
     ],
     "flakey": [],
     "runtimeError": false
@@ -21472,16 +21529,6 @@
       "Preview mode with fallback pages production mode should not write preview dynamic prerendered SSG page to cache no fallback",
       "Preview mode with fallback pages production mode should not write preview dynamic prerendered SSG page to cache with fallback",
       "Preview mode with fallback pages production mode should not write preview index SSG page to cache"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/production-browser-sourcemaps/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Production browser sourcemaps production mode Server support correctly generated the source map",
-      "Production browser sourcemaps production mode Server support includes sourcemaps for all browser files"
     ],
     "flakey": [],
     "runtimeError": false

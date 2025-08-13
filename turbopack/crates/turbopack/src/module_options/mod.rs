@@ -137,6 +137,7 @@ impl ModuleOptions {
                 CssOptionsContext {
                     enable_raw_css,
                     source_maps: css_source_maps,
+                    ref module_css_condition,
                     ..
                 },
             ref enable_postcss_transform,
@@ -148,6 +149,30 @@ impl ModuleOptions {
             keep_last_successful_parse,
             ..
         } = *module_options_context.await?;
+
+        let module_css_condition = module_css_condition.clone().unwrap_or_else(|| {
+            RuleCondition::any(vec![
+                RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+            ])
+        });
+
+        // For React Client References, the CSS Module "facade" module lives in the parent (server)
+        // module context, but the facade's references should be transitioned to the client (and
+        // only then be processed with Webpack/PostCSS).
+        //
+        // Note that this is not an exhaustive condition for PostCSS/Webpack, but excludes certain
+        // cases, so it should be added conjunctively together with CSS Module rule.
+        //
+        // If module css, then only when (Inner or Analyze or Compose)
+        // <=> (not (module css)) or (Inner or Analyzer or Compose)
+        //
+        // So only if this is not a CSS module, or one of the special reference type constraints.
+        let module_css_external_transform_conditions = RuleCondition::Any(vec![
+            RuleCondition::not(module_css_condition.clone()),
+            RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Inner)),
+            RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Analyze)),
+        ]);
 
         let mut ts_preprocess = vec![];
         let mut ecma_preprocess = vec![];
@@ -445,6 +470,86 @@ impl ModuleOptions {
             ),
         ];
 
+        if let Some(webpack_loaders_options) = enable_webpack_loaders {
+            let webpack_loaders_options = webpack_loaders_options.await?;
+            let execution_context =
+                execution_context.context("execution_context is required for webpack_loaders")?;
+            let import_map = if let Some(loader_runner_package) =
+                webpack_loaders_options.loader_runner_package
+            {
+                package_import_map_from_import_mapping(
+                    rcstr!("loader-runner"),
+                    *loader_runner_package,
+                )
+            } else {
+                package_import_map_from_context(
+                    rcstr!("loader-runner"),
+                    path.clone()
+                        .context("need_path in ModuleOptions::new is incorrect")?,
+                )
+            };
+            for (key, rule) in webpack_loaders_options.rules.await?.iter() {
+                rules.push(ModuleRule::new(
+                    RuleCondition::All(vec![
+                        if key.starts_with("#") {
+                            // This is a custom marker requiring a corresponding condition entry
+                            let conditions = (*webpack_loaders_options.conditions.await?)
+                                .context(
+                                    "Expected a condition entry for the webpack loader rule \
+                                     matching {key}. Create a `conditions` mapping in your \
+                                     next.config.js",
+                                )?
+                                .await?;
+
+                            let condition = conditions.get(key).context(
+                                "Expected a condition entry for the webpack loader rule matching \
+                                 {key}.",
+                            )?;
+
+                            match &condition.path {
+                                ConditionPath::Glob(glob) => RuleCondition::ResourcePathGlob {
+                                    base: execution_context.project_path().owned().await?,
+                                    glob: Glob::new(glob.clone()).await?,
+                                },
+                                ConditionPath::Regex(regex) => {
+                                    RuleCondition::ResourcePathEsRegex(regex.await?)
+                                }
+                            }
+                        } else if key.contains('/') {
+                            RuleCondition::ResourcePathGlob {
+                                base: execution_context.project_path().owned().await?,
+                                glob: Glob::new(key.clone()).await?,
+                            }
+                        } else {
+                            RuleCondition::ResourceBasePathGlob(Glob::new(key.clone()).await?)
+                        },
+                        RuleCondition::not(RuleCondition::ResourceIsVirtualSource),
+                        module_css_external_transform_conditions.clone(),
+                    ]),
+                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                        ResolvedVc::upcast(
+                            WebpackLoaders::new(
+                                node_evaluate_asset_context(
+                                    *execution_context,
+                                    Some(import_map),
+                                    None,
+                                    Layer::new(rcstr!("webpack_loaders")),
+                                    false,
+                                ),
+                                *execution_context,
+                                *rule.loaders,
+                                rule.rename_as.clone(),
+                                resolve_options_context,
+                                matches!(ecmascript_source_maps, SourceMapsType::Full),
+                            )
+                            .to_resolved()
+                            .await?,
+                        ),
+                    ]))],
+                ));
+            }
+        }
+
         if enable_raw_css {
             rules.extend([
                 ModuleRule::new(
@@ -458,10 +563,7 @@ impl ModuleOptions {
                     })],
                 ),
                 ModuleRule::new(
-                    RuleCondition::any(vec![
-                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                        RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
-                    ]),
+                    module_css_condition.clone(),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                         environment,
@@ -485,9 +587,14 @@ impl ModuleOptions {
                 };
 
                 rules.push(ModuleRule::new(
-                    RuleCondition::Any(vec![
-                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
-                        RuleCondition::ContentTypeStartsWith("text/css".to_string()),
+                    RuleCondition::All(vec![
+                        RuleCondition::Any(vec![
+                            // Both CSS and CSS Modules
+                            RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                            RuleCondition::ContentTypeStartsWith("text/css".to_string()),
+                            module_css_condition.clone(),
+                        ]),
+                        module_css_external_transform_conditions.clone(),
                     ]),
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         ResolvedVc::upcast(
@@ -523,10 +630,7 @@ impl ModuleOptions {
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::Any(vec![
-                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                            RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
-                        ]),
+                        module_css_condition.clone(),
                         // Only create a module CSS asset if not `@import`ed from CSS already.
                         // NOTE: `composes` references should not be treated as `@import`s and
                         // should also create a module CSS asset.
@@ -538,10 +642,7 @@ impl ModuleOptions {
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::Any(vec![
-                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                            RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
-                        ]),
+                        module_css_condition.clone(),
                         // Create a normal CSS asset if `@import`ed from CSS already.
                         RuleCondition::ReferenceType(ReferenceType::Css(
                             CssReferenceSubType::AtImport(None),
@@ -553,10 +654,12 @@ impl ModuleOptions {
                     })],
                 ),
                 // Ecmascript CSS Modules referencing the actual CSS module to include it
-                ModuleRule::new_internal(
-                    RuleCondition::Any(vec![
-                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                        RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
+                ModuleRule::new(
+                    RuleCondition::all(vec![
+                        RuleCondition::ReferenceType(ReferenceType::Css(
+                            CssReferenceSubType::Inner,
+                        )),
+                        module_css_condition.clone(),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
@@ -569,10 +672,7 @@ impl ModuleOptions {
                         RuleCondition::ReferenceType(ReferenceType::Css(
                             CssReferenceSubType::Analyze,
                         )),
-                        RuleCondition::Any(vec![
-                            RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                            RuleCondition::ContentTypeStartsWith("text/css+module".to_string()),
-                        ]),
+                        module_css_condition.clone(),
                     ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
@@ -622,84 +722,6 @@ impl ModuleOptions {
                     ),
                 ]))],
             ));
-        }
-
-        if let Some(webpack_loaders_options) = enable_webpack_loaders {
-            let webpack_loaders_options = webpack_loaders_options.await?;
-            let execution_context =
-                execution_context.context("execution_context is required for webpack_loaders")?;
-            let import_map = if let Some(loader_runner_package) =
-                webpack_loaders_options.loader_runner_package
-            {
-                package_import_map_from_import_mapping(
-                    rcstr!("loader-runner"),
-                    *loader_runner_package,
-                )
-            } else {
-                package_import_map_from_context(
-                    rcstr!("loader-runner"),
-                    path.context("need_path in ModuleOptions::new is incorrect")?,
-                )
-            };
-            for (key, rule) in webpack_loaders_options.rules.await?.iter() {
-                rules.push(ModuleRule::new(
-                    RuleCondition::All(vec![
-                        if key.starts_with("#") {
-                            // This is a custom marker requiring a corresponding condition entry
-                            let conditions = (*webpack_loaders_options.conditions.await?)
-                                .context(
-                                    "Expected a condition entry for the webpack loader rule \
-                                     matching {key}. Create a `conditions` mapping in your \
-                                     next.config.js",
-                                )?
-                                .await?;
-
-                            let condition = conditions.get(key).context(
-                                "Expected a condition entry for the webpack loader rule matching \
-                                 {key}.",
-                            )?;
-
-                            match &condition.path {
-                                ConditionPath::Glob(glob) => RuleCondition::ResourcePathGlob {
-                                    base: execution_context.project_path().owned().await?,
-                                    glob: Glob::new(glob.clone()).await?,
-                                },
-                                ConditionPath::Regex(regex) => {
-                                    RuleCondition::ResourcePathEsRegex(regex.await?)
-                                }
-                            }
-                        } else if key.contains('/') {
-                            RuleCondition::ResourcePathGlob {
-                                base: execution_context.project_path().owned().await?,
-                                glob: Glob::new(key.clone()).await?,
-                            }
-                        } else {
-                            RuleCondition::ResourceBasePathGlob(Glob::new(key.clone()).await?)
-                        },
-                        RuleCondition::not(RuleCondition::ResourceIsVirtualSource),
-                    ]),
-                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                        ResolvedVc::upcast(
-                            WebpackLoaders::new(
-                                node_evaluate_asset_context(
-                                    *execution_context,
-                                    Some(import_map),
-                                    None,
-                                    Layer::new(rcstr!("webpack_loaders")),
-                                    false,
-                                ),
-                                *execution_context,
-                                *rule.loaders,
-                                rule.rename_as.clone(),
-                                resolve_options_context,
-                                matches!(ecmascript_source_maps, SourceMapsType::Full),
-                            )
-                            .to_resolved()
-                            .await?,
-                        ),
-                    ]))],
-                ));
-            }
         }
 
         rules.extend(module_rules.iter().cloned());
