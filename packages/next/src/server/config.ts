@@ -78,7 +78,6 @@ export function warnOptionHasBeenDeprecated(
         current = current[key]
         found = true
       } else {
-        found = false
         break
       }
     }
