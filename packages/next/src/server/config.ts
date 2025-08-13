@@ -71,13 +71,13 @@ export function warnOptionHasBeenDeprecated(
   let hasWarned = false
   if (!silent) {
     let current = config
-    let found = false
+    let found = true
     const nestedPropertyKeys = nestedPropertyKey.split('.')
     for (const key of nestedPropertyKeys) {
       if (current[key] !== undefined) {
         current = current[key]
-        found = true
       } else {
+        found = false
         break
       }
     }
@@ -525,7 +525,7 @@ function assignDefaults(
   }
 
   warnCustomizedOption(
-    result,
+    userConfig,
     'experimental.esmExternals',
     true,
     'experimental.esmExternals is not recommended to be modified as it may disrupt module resolution',
@@ -534,35 +534,35 @@ function assignDefaults(
   )
 
   warnOptionHasBeenDeprecated(
-    result,
+    userConfig,
     'experimental.instrumentationHook',
     `\`experimental.instrumentationHook\` is no longer needed, because \`instrumentation.js\` is available by default. You can remove it from ${configFileName}.`,
     silent
   )
 
   warnOptionHasBeenDeprecated(
-    result,
+    userConfig,
     'experimental.after',
     `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
     silent
   )
 
   warnOptionHasBeenDeprecated(
-    result,
+    userConfig,
     'devIndicators.appIsrStatus',
     `\`devIndicators.appIsrStatus\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
     silent
   )
 
   warnOptionHasBeenDeprecated(
-    result,
+    userConfig,
     'devIndicators.buildActivity',
     `\`devIndicators.buildActivity\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
     silent
   )
 
   const hasWarnedBuildActivityPosition = warnOptionHasBeenDeprecated(
-    result,
+    userConfig,
     'devIndicators.buildActivityPosition',
     `\`devIndicators.buildActivityPosition\` has been renamed to \`devIndicators.position\`. Please update your ${configFileName} file accordingly.`,
     silent

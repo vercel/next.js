@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { findPort, launchApp, killApp, waitFor, check } from 'next-test-utils'
+import { findPort, launchApp, killApp, waitFor, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 const appDir = join(__dirname, '..')
@@ -33,7 +33,7 @@ describe('Build Activity Indicator', () => {
       `
       module.exports = {
         devIndicators: {
-          buildActivityPosition: 'ttop-leff'
+          buildActivityPosition: 'top-leff'
         }
       }
     `
@@ -47,12 +47,13 @@ describe('Build Activity Indicator', () => {
     })
     await fs.remove(configPath)
 
-    await check(
-      () => stripAnsi(stderr),
-      new RegExp(
-        `Invalid "devIndicator.position" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
+    await retry(() => {
+      const cleanStderr = stripAnsi(stderr)
+      // buildActivityPosition is deprecated, but we should warn it's not a valid option
+      expect(cleanStderr).toContain(
+        `Invalid input at "devIndicators.buildActivityPosition"`
       )
-    )
+    })
 
     if (app) {
       await killApp(app)
