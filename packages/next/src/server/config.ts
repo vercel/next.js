@@ -746,11 +746,15 @@ function assignDefaults(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
+  // If either is set, set the other to the same value for tracing root.
   if (result?.outputFileTracingRoot && !result?.turbopack?.root) {
     dset(result, ['turbopack', 'root'], result.outputFileTracingRoot)
   }
+  if (result?.turbopack?.root && !result?.outputFileTracingRoot) {
+    result.outputFileTracingRoot = result.turbopack.root
+  }
 
-  // use the highest level lockfile as tracing root
+  // If neither is set, use the highest level lockfile as tracing root.
   if (!result?.outputFileTracingRoot && !result?.turbopack?.root) {
     let rootDir = findRootDir(dir)
 
