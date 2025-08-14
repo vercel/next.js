@@ -25,7 +25,10 @@ import { imageConfigDefault } from '../shared/lib/image-config'
 import type { ImageConfig } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
-import { findRootDir } from '../lib/find-root'
+import {
+  findRootDirAndLockFiles,
+  warnMultipleLockFiles,
+} from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
@@ -751,12 +754,13 @@ function assignDefaults(
 
   // use the highest level lockfile as tracing root
   if (!result?.outputFileTracingRoot && !result?.turbopack?.root) {
-    let rootDir = findRootDir(dir)
+    let { rootDir, lockFiles } = findRootDirAndLockFiles(dir)
 
     if (rootDir) {
       result.outputFileTracingRoot = rootDir
       dset(result, ['turbopack', 'root'], rootDir)
     }
+    warnMultipleLockFiles(lockFiles)
   }
 
   setHttpClientAndAgentOptions(result || defaultConfig)
@@ -1435,7 +1439,7 @@ export default async function loadConfig(
 
     // Check deprecation warnings on the actual user config before merging with defaults
     checkDeprecations(userConfig, configFileName, silent, dir)
-    
+
     await validateConfigSchema(userConfig, configFileName, curLog.warn)
 
     if (userConfig.target && userConfig.target !== 'server') {
@@ -1776,7 +1780,7 @@ function enforceExperimentalFeatures(
   }
 }
 
-export function addConfiguredExperimentalFeature<
+function addConfiguredExperimentalFeature<
   KeyType extends keyof ExperimentalConfig,
 >(
   configuredExperimentalFeatures: ConfiguredExperimentalFeature[],
