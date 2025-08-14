@@ -17,7 +17,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
 import type { NextConfigComplete } from '../server/config-shared'
-import { setGlobal, traceGlobals } from '../trace/shared'
+import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -228,10 +228,6 @@ const nextDev = async (
   // some set-ups that rely on listening on other interfaces
   const host = options.hostname
 
-  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-    silent: false,
-  })
-
   if (
     options.experimentalUploadTrace &&
     !process.env.NEXT_TRACE_UPLOAD_DISABLED
@@ -246,10 +242,6 @@ const nextDev = async (
     isDev: true,
     hostname: host,
   }
-
-  const distDir = path.join(dir, config.distDir ?? '.next')
-  setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-  setGlobal('distDir', distDir)
 
   const startServerPath = require.resolve('../server/lib/start-server')
 
@@ -322,6 +314,9 @@ const nextDev = async (
       })
 
       child.on('exit', async (code, signal) => {
+        config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+          silent: true,
+        })
         if (sessionStopHandled || signal) {
           return
         }
