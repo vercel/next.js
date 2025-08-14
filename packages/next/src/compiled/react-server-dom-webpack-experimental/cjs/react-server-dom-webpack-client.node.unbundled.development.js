@@ -1289,6 +1289,8 @@
             if (value instanceof Error) return String(value.message);
             if ("string" === typeof value.url) return value.url;
             if ("string" === typeof value.href) return value.href;
+            if ("string" === typeof value.src) return value.src;
+            if ("string" === typeof value.currentSrc) return value.currentSrc;
             if ("string" === typeof value.command) return value.command;
             if (
               "object" === typeof value.request &&

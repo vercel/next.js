@@ -3366,15 +3366,15 @@
       try {
         hook.inject(internals);
       } catch (err) {
-        console.error("React instrumentation encountered an error: %s.", err);
+        console.error("React instrumentation encountered an error: %o.", err);
       }
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-f1222f76-20250812",
+      version: "19.2.0-canary-379a083b-20250813",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-f1222f76-20250812",
+      reconcilerVersion: "19.2.0-canary-379a083b-20250813",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
