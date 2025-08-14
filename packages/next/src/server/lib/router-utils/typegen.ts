@@ -431,7 +431,7 @@ export function generateValidatorFile(
 
 import type { AppRoutes, AppRouteHandlerRoutes, LayoutRoutes, ParamMap } from "./routes.js"
 import type { ResolvingMetadata, ResolvingViewport } from "next/dist/lib/metadata/types/metadata-interface.js"
-import type { NextRequest } from 'next/server'
+import type { NextRequest } from 'next/server.js'
 
 type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
   default: React.ComponentType<{ params: Promise<ParamMap[Route]> } & any> | ((props: { params: Promise<ParamMap[Route]> } & any) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
