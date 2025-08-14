@@ -686,6 +686,9 @@ function requireStub(_moduleId: ModuleId): never {
 }
 contextPrototype.z = requireStub
 
+// Make `globalThis` available to the module in a way that cannot be shadowed by a local variable.
+contextPrototype.g = globalThis
+
 type ContextConstructor<M> = {
   new (module: Module, exports: Exports): TurbopackBaseContext<M>
 }

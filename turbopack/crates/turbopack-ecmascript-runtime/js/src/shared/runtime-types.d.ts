@@ -137,4 +137,5 @@ interface TurbopackBaseContext<M> {
   x: ExternalRequire
   y: ExternalImport
   z: CommonJsRequire
+  g: typeof globalThis
 }

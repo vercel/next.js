@@ -470,6 +470,8 @@ contextPrototype.U = relativeURL;
     throw new Error('dynamic usage of require is not supported');
 }
 contextPrototype.z = requireStub;
+// Make `globalThis` available to the module in a way that cannot be shadowed by a local variable.
+contextPrototype.g = globalThis;
 function applyModuleFactoryName(factory) {
     // Give the module factory a nice name to improve stack traces.
     Object.defineProperty(factory, 'name', {

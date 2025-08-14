@@ -159,7 +159,7 @@ use crate::{
         util::InlineSourceMap,
     },
     runtime_functions::{
-        TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXPORTS,
+        TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXPORTS, TURBOPACK_GLOBAL,
         TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
@@ -1506,7 +1506,8 @@ async fn compile_time_info_for_module_type(
             InputRelativeConstant::FileName,
         ));
 
-    // Compiletime rewrite the nodejs `global` to `globalThis`
+    // Compiletime rewrite the nodejs `global` to `__turbopack_context_.g` which is a shortcut for
+    // `globalThis` that cannot be shadowed by a local variable.
     let global = rcstr!("global");
     free_var_references
         .entry(vec![
@@ -1516,7 +1517,7 @@ async fn compile_time_info_for_module_type(
         .or_insert(rcstr!("object").into());
     free_var_references
         .entry(vec![DefinableNameSegment::Name(global)])
-        .or_insert(FreeVarReference::Ident(rcstr!("globalThis")));
+        .or_insert(TURBOPACK_GLOBAL.into());
 
     free_var_references.extend(TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS.into_iter().map(
         |(name, shortcut)| {
