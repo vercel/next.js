@@ -2172,7 +2172,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     }
 
                     let this = self.clone();
-                    let snapshot = turbo_tasks::spawn_blocking(move || this.snapshot()).await;
+                    let snapshot = this.snapshot();
                     if let Some((snapshot_start, new_data)) = snapshot {
                         last_snapshot = snapshot_start;
                         if new_data {
