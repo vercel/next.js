@@ -392,7 +392,9 @@ export function generateValidatorFile(
             : type
         return `// Validate ${filePath}
 {
-  const handler = {} as typeof import(${JSON.stringify(importPath)})
+  const handler = {} as typeof import(${JSON.stringify(
+    importPath.replace(/\.tsx?$/, '.js')
+  )})
   handler satisfies ${typeWithRoute}
 }`
       })
@@ -551,7 +553,7 @@ declare global {
     params: Promise<ParamMap[AppRoute]>
     searchParams: Promise<Record<string, string | string[] | undefined>>
   }
-  
+
   /**
    * Props for Next.js App Router layout components
    * @example
