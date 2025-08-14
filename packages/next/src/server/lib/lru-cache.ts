@@ -3,11 +3,11 @@
  * Each node represents a cache entry with bidirectional pointers.
  */
 class LRUNode<T> {
-  key: string
-  data: T
-  size: number
-  prev: LRUNode<T> | SentinelNode<T> | null = null
-  next: LRUNode<T> | SentinelNode<T> | null = null
+  public readonly key: string
+  public data: T
+  public size: number
+  public prev: LRUNode<T> | SentinelNode<T> | null = null
+  public next: LRUNode<T> | SentinelNode<T> | null = null
 
   constructor(key: string, data: T, size: number) {
     this.key = key
@@ -21,8 +21,8 @@ class LRUNode<T> {
  * These nodes don't contain actual cache data but simplify list operations.
  */
 class SentinelNode<T> {
-  prev: LRUNode<T> | SentinelNode<T> | null = null
-  next: LRUNode<T> | SentinelNode<T> | null = null
+  public prev: LRUNode<T> | SentinelNode<T> | null = null
+  public next: LRUNode<T> | SentinelNode<T> | null = null
 }
 
 /**
@@ -44,12 +44,12 @@ class SentinelNode<T> {
  * - Eviction: Remove least recent node (tail.prev) when size exceeds limit
  */
 export class LRUCache<T> {
-  private cache: Map<string, LRUNode<T>> = new Map()
-  private head: SentinelNode<T>
-  private tail: SentinelNode<T>
+  private readonly cache: Map<string, LRUNode<T>> = new Map()
+  private readonly head: SentinelNode<T>
+  private readonly tail: SentinelNode<T>
   private totalSize: number = 0
-  private maxSize: number
-  private calculateSize: ((value: T) => number) | undefined
+  private readonly maxSize: number
+  private readonly calculateSize: ((value: T) => number) | undefined
 
   constructor(maxSize: number, calculateSize?: (value: T) => number) {
     this.maxSize = maxSize
@@ -66,27 +66,25 @@ export class LRUCache<T> {
   /**
    * Adds a node immediately after the head (marks as most recently used).
    * Used when inserting new items or when an item is accessed.
+   * PRECONDITION: node must be disconnected (prev/next should be null)
    */
   private addToHead(node: LRUNode<T>): void {
     node.prev = this.head
     node.next = this.head.next
-    if (this.head.next) {
-      this.head.next.prev = node
-    }
+    // head.next is always non-null (points to tail or another node)
+    this.head.next!.prev = node
     this.head.next = node
   }
 
   /**
    * Removes a node from its current position in the doubly-linked list.
    * Updates the prev/next pointers of adjacent nodes to maintain list integrity.
+   * PRECONDITION: node must be connected (prev/next are non-null)
    */
   private removeNode(node: LRUNode<T>): void {
-    if (node.prev) {
-      node.prev.next = node.next
-    }
-    if (node.next) {
-      node.next.prev = node.prev
-    }
+    // Connected nodes always have non-null prev/next
+    node.prev!.next = node.next
+    node.next!.prev = node.prev
   }
 
   /**
@@ -101,15 +99,13 @@ export class LRUCache<T> {
   /**
    * Removes and returns the least recently used node (the one before tail).
    * This is called during eviction when the cache exceeds capacity.
+   * PRECONDITION: cache is not empty (ensured by caller)
    */
   private removeTail(): LRUNode<T> {
-    const lastNode = this.tail.prev
-    if (lastNode && lastNode instanceof LRUNode) {
-      this.removeNode(lastNode)
-      return lastNode
-    }
-
-    throw new Error('No LRU node to remove')
+    const lastNode = this.tail.prev as LRUNode<T>
+    // tail.prev is always non-null and always LRUNode when cache is not empty
+    this.removeNode(lastNode)
+    return lastNode
   }
 
   /**
@@ -117,9 +113,11 @@ export class LRUCache<T> {
    * If the key exists, updates the value and moves to head.
    * If new, adds at head and evicts from tail if necessary.
    *
-   * Time Complexity: O(1) average case
+   * Time Complexity:
+   * - O(1) for uniform item sizes
+   * - O(k) where k is the number of items evicted (can be O(N) for variable sizes)
    */
-  set(key: string, value: T): void {
+  public set(key: string, value: T): void {
     const size = this.calculateSize?.(value) ?? 1
     if (size > this.maxSize) {
       console.warn('Single item size exceeds maxSize')
@@ -155,7 +153,7 @@ export class LRUCache<T> {
    *
    * Time Complexity: O(1)
    */
-  has(key: string): boolean {
+  public has(key: string): boolean {
     return this.cache.has(key)
   }
 
@@ -165,7 +163,7 @@ export class LRUCache<T> {
    *
    * Time Complexity: O(1)
    */
-  get(key: string): T | undefined {
+  public get(key: string): T | undefined {
     const node = this.cache.get(key)
     if (!node) return undefined
 
@@ -179,13 +177,12 @@ export class LRUCache<T> {
    * Returns an iterator over the cache entries. The order is outputted in the
    * order of most recently used to least recently used.
    */
-  *[Symbol.iterator](): IterableIterator<[string, T]> {
+  public *[Symbol.iterator](): IterableIterator<[string, T]> {
     let current = this.head.next
     while (current && current !== this.tail) {
-      if (current instanceof LRUNode) {
-        yield [current.key, current.data]
-      }
-
+      // Between head and tail, current is always LRUNode
+      const node = current as LRUNode<T>
+      yield [node.key, node.data]
       current = current.next
     }
   }
@@ -196,7 +193,7 @@ export class LRUCache<T> {
    *
    * Time Complexity: O(1)
    */
-  remove(key: string): void {
+  public remove(key: string): void {
     const node = this.cache.get(key)
     if (!node) return
 
@@ -208,7 +205,7 @@ export class LRUCache<T> {
   /**
    * Returns the number of items in the cache.
    */
-  get size(): number {
+  public get size(): number {
     return this.cache.size
   }
 
@@ -216,7 +213,7 @@ export class LRUCache<T> {
    * Returns the current total size of all cached items.
    * This uses the custom size calculation if provided.
    */
-  get currentSize(): number {
+  public get currentSize(): number {
     return this.totalSize
   }
 }
