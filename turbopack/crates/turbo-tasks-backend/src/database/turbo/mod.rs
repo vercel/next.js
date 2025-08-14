@@ -6,7 +6,7 @@ use tokio::{runtime::Handle, task::block_in_place};
 use turbo_persistence::{
     ArcSlice, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
 };
-use turbo_tasks::{JoinHandle, message_queue::TimingEvent, spawn, turbo_tasks};
+use turbo_tasks::{JoinHandle, spawn};
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
