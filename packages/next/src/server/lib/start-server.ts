@@ -29,19 +29,14 @@ import {
 } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
-import {
-  CONFIG_FILES,
-  PHASE_DEVELOPMENT_SERVER,
-  PHASE_PRODUCTION_SERVER,
-} from '../../shared/lib/constants'
+import { CONFIG_FILES } from '../../shared/lib/constants'
 import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { type Span, trace, flushAllTraces, setGlobal } from '../../trace'
+import { type Span, trace, flushAllTraces } from '../../trace'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import type { ConfiguredExperimentalFeature } from '../config'
-import loadConfig from '../config'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -185,14 +180,6 @@ export async function startServer(
     selfSignedCertificate,
   } = serverOptions
   let { port } = serverOptions
-
-  const phase = isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER
-  const config = await loadConfig(phase, dir, {
-    silent: false,
-  })
-  const distDir = path.join(dir, config.distDir ?? '.next')
-  setGlobal('phase', phase)
-  setGlobal('distDir', distDir)
 
   process.title = `next-server (v${process.env.__NEXT_VERSION})`
   let handlersReady = () => {}

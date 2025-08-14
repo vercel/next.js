@@ -357,6 +357,8 @@ export default class DevServer extends Server {
     this.interceptionRoutePatterns = this.getinterceptionRoutePatterns()
 
     // This is required by the tracing subsystem.
+    setGlobal('distDir', this.distDir)
+    setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
     setGlobal('appDir', this.appDir)
     setGlobal('pagesDir', this.pagesDir)
     setGlobal('telemetry', telemetry)
