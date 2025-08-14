@@ -98,6 +98,17 @@ export type AdapterOutputs = Array<{
      * matchers are the configured matchers for middleware
      */
     matchers?: MiddlewareMatcher[]
+
+    /**
+     * bypassToken is the generated token that signals a prerender cache
+     * should be bypassed
+     */
+    bypassToken?: string
+
+    /**
+     * postponed is the PPR state when it postponed and is used for resuming
+     */
+    postponed?: string
   }
   /**
    * For prerenders the parent output is the originating

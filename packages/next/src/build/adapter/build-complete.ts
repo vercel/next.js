@@ -20,6 +20,7 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { AdapterOutputType } from '../../shared/lib/constants'
 import { RenderingMode } from '../rendering-mode'
+import { isDynamicRoute } from '../../shared/lib/router/utils'
 
 const glob = promisify(globOriginal)
 
@@ -37,6 +38,7 @@ export async function handleBuildComplete({
   prerenderManifest,
   middlewareManifest,
   functionsConfigManifest,
+  hasStatic404,
 }: {
   dir: string
   distDir: string
@@ -51,6 +53,7 @@ export async function handleBuildComplete({
   prerenderManifest: PrerenderManifest
   middlewareManifest: MiddlewareManifest
   functionsConfigManifest: FunctionsConfigManifest
+  hasStatic404: boolean
 }) {
   const adapterMod = interopDefault(
     await import(pathToFileURL(require.resolve(adapterPath)).href)
@@ -196,6 +199,7 @@ export async function handleBuildComplete({
       for (const page of Object.values(middlewareManifest.functions)) {
         edgeFunctionHandlers.push(handleEdgeFunction(page))
       }
+      const pagesDistDir = path.join(distDir, 'server', 'pages')
       const pageOutputMap: Record<string, AdapterOutputs[0]> = {}
 
       for (const page of pageKeys) {
@@ -205,9 +209,7 @@ export async function handleBuildComplete({
         const route = normalizePagePath(page)
 
         const pageFile = path.join(
-          distDir,
-          'server',
-          'pages',
+          pagesDistDir,
           `${normalizePagePath(page)}.js`
         )
         const pageTraceFile = `${pageFile}.nft.json`
@@ -257,6 +259,7 @@ export async function handleBuildComplete({
         })
       }
       const appOutputMap: Record<string, AdapterOutputs[0]> = {}
+      const appDistDir = path.join(distDir, 'server', 'app')
 
       if (appPageKeys) {
         for (const page of appPageKeys) {
@@ -264,7 +267,7 @@ export async function handleBuildComplete({
             continue
           }
           const normalizedPage = normalizeAppPath(page)
-          const pageFile = path.join(distDir, 'server', 'app', `${page}.js`)
+          const pageFile = path.join(appDistDir, `${page}.js`)
           const pageTraceFile = `${pageFile}.nft.json`
           const assets = await handleTraceFiles(pageTraceFile).catch((err) => {
             Log.warn(`Failed to copy traced files for ${pageFile}`, err)
@@ -292,10 +295,14 @@ export async function handleBuildComplete({
         }
       }
 
-      const getParentOutput = (srcRoute: string, childRoute: string) => {
+      const getParentOutput = (
+        srcRoute: string,
+        childRoute: string,
+        allowMissing?: boolean
+      ) => {
         const parentOutput = pageOutputMap[srcRoute] || appOutputMap[srcRoute]
 
-        if (!parentOutput) {
+        if (!parentOutput && !allowMissing) {
           console.error({
             appOutputs: Object.keys(appOutputMap),
             pageOutputs: Object.keys(pageOutputMap),
@@ -307,6 +314,77 @@ export async function handleBuildComplete({
         return parentOutput
       }
 
+      const {
+        prefetchSegmentDirSuffix,
+        prefetchSegmentSuffix,
+        varyHeader,
+        didPostponeHeader,
+        contentTypeHeader,
+      } = routesManifest.rsc
+
+      const handleAppMeta = async (
+        route: string,
+        initialOutput: AdapterOutputs[0]
+      ) => {
+        const meta: {
+          segmentPaths?: string[]
+          postponed?: string
+        } = JSON.parse(
+          await fs
+            .readFile(path.join(appDistDir, `${route}.meta`), 'utf8')
+            .catch(() => '{}')
+        )
+
+        if (meta.postponed && initialOutput.config) {
+          initialOutput.config.postponed = meta.postponed
+        }
+
+        if (meta?.segmentPaths) {
+          const segmentsDir = path.join(
+            appDistDir,
+            `${route}${prefetchSegmentDirSuffix}`
+          )
+
+          for (const segmentPath of meta.segmentPaths) {
+            const outputSegmentPath =
+              path.join(
+                appDistDir,
+                route + prefetchSegmentDirSuffix,
+                segmentPath
+              ) + prefetchSegmentSuffix
+
+            const fallbackPathname = path.join(
+              segmentsDir,
+              segmentPath + prefetchSegmentSuffix
+            )
+
+            outputs.push({
+              id: outputSegmentPath,
+              pathname: outputSegmentPath,
+              type: AdapterOutputType.PRERENDER,
+              parentOutputId: initialOutput.parentOutputId,
+
+              config: {
+                ...initialOutput.config,
+              },
+
+              fallback: {
+                filePath: fallbackPathname,
+                initialExpiration: initialOutput.fallback?.initialExpiration,
+                initialRevalidate: initialOutput.fallback?.initialRevalidate,
+
+                initialHeaders: {
+                  ...initialOutput.fallback?.initialHeaders,
+                  vary: varyHeader,
+                  'content-type': contentTypeHeader,
+                  [didPostponeHeader]: '2',
+                },
+              },
+            })
+          }
+        }
+      }
+
       for (const route in prerenderManifest.routes) {
         const {
           initialExpireSeconds: initialExpiration,
@@ -316,42 +394,79 @@ export async function handleBuildComplete({
           prefetchDataRoute,
           dataRoute,
           renderingMode,
+          allowHeader,
+          experimentalBypassFor,
         } = prerenderManifest.routes[route]
 
         const srcRoute = prerenderManifest.routes[route].srcRoute || route
-        const isAppPage = dataRoute?.endsWith('.rsc')
+        const isAppPage =
+          Boolean(appOutputMap[srcRoute]) || srcRoute === '/_not-found'
 
-        const filePath = path.join(
-          distDir,
-          'server',
-          isAppPage ? 'app' : 'pages',
-          `${route}.html`
+        const isNotFoundTrue = prerenderManifest.notFoundRoutes.includes(route)
+
+        let allowQuery: string[] | undefined
+        const routeKeys = routesManifest.dynamicRoutes.find(
+          (item) => item.page === srcRoute
+        )?.routeKeys
+
+        if (!isDynamicRoute(srcRoute)) {
+          // for non-dynamic routes we use an empty array since
+          // no query values bust the cache for non-dynamic prerenders
+          // prerendered paths also do not pass allowQuery as they match
+          // during handle: 'filesystem' so should not cache differently
+          // by query values
+          allowQuery = []
+        } else if (routeKeys) {
+          // if we have routeKeys in the routes-manifest we use those
+          // for allowQuery for dynamic routes
+          allowQuery = Object.values(routeKeys)
+        }
+
+        let filePath = path.join(
+          isAppPage ? appDistDir : pagesDistDir,
+          `${route}.${isAppPage && !dataRoute ? 'body' : 'html'}`
         )
-        const initialOutput = {
+
+        // we use the static 404 for notFound: true if available
+        // if not we do a blocking invoke on first request
+        if (isNotFoundTrue && hasStatic404) {
+          filePath = path.join(pagesDistDir, '404.html')
+        }
+
+        const initialOutput: AdapterOutputs[0] = {
           id: route,
           type: AdapterOutputType.PRERENDER,
           pathname: route,
-          parentOutputId: getParentOutput(srcRoute, route).id,
-          fallback: {
-            filePath,
-            initialStatus,
-            initialHeaders,
-            initialExpiration,
-            initialRevalidate,
-          },
+          parentOutputId:
+            srcRoute === '/_not-found'
+              ? srcRoute
+              : getParentOutput(srcRoute, route).id,
+          fallback:
+            !isNotFoundTrue || (isNotFoundTrue && hasStatic404)
+              ? {
+                  filePath,
+                  initialStatus,
+                  initialHeaders: {
+                    ...initialHeaders,
+                    vary: varyHeader,
+                    'content-type': contentTypeHeader,
+                  },
+                  initialExpiration,
+                  initialRevalidate: initialRevalidate || 1,
+                }
+              : undefined,
           config: {
+            allowQuery,
+            allowHeader,
             renderingMode,
+            bypassFor: experimentalBypassFor,
+            bypassToken: prerenderManifest.preview.previewModeId,
           },
         }
         outputs.push(initialOutput)
 
         if (dataRoute) {
-          let dataFilePath = path.join(
-            distDir,
-            'server',
-            'pages',
-            `${route}.json`
-          )
+          let dataFilePath = path.join(pagesDistDir, `${route}.json`)
 
           if (isAppPage) {
             // When experimental PPR is enabled, we expect that the data
@@ -360,9 +475,7 @@ export async function handleBuildComplete({
             // for ppr, the only way to get the data is from the data
             // route.
             dataFilePath = path.join(
-              distDir,
-              'server',
-              'app',
+              appDistDir,
               prefetchDataRoute &&
                 renderingMode === RenderingMode.PARTIALLY_STATIC
                 ? prefetchDataRoute
@@ -374,11 +487,17 @@ export async function handleBuildComplete({
             ...initialOutput,
             id: dataRoute,
             pathname: dataRoute,
-            fallback: {
-              ...initialOutput.fallback,
-              filePath: dataFilePath,
-            },
+            fallback: isNotFoundTrue
+              ? undefined
+              : {
+                  ...initialOutput.fallback,
+                  filePath: dataFilePath,
+                },
           })
+        }
+
+        if (isAppPage) {
+          await handleAppMeta(route, initialOutput)
         }
       }
 
@@ -389,61 +508,61 @@ export async function handleBuildComplete({
           fallbackRevalidate,
           fallbackHeaders,
           fallbackStatus,
+          allowHeader,
           dataRoute,
+          renderingMode,
+          experimentalBypassFor,
         } = prerenderManifest.dynamicRoutes[dynamicRoute]
 
-        const isAppPage = dataRoute?.endsWith('.rsc')
+        const isAppPage = Boolean(appOutputMap[dynamicRoute])
 
-        const initialOutput = {
+        const allowQuery = Object.values(
+          routesManifest.dynamicRoutes.find(
+            (item) => item.page === dynamicRoute
+          )?.routeKeys || {}
+        )
+
+        const initialOutput: AdapterOutputs[0] = {
           id: dynamicRoute,
           type: AdapterOutputType.PRERENDER,
           pathname: dynamicRoute,
           parentOutputId: getParentOutput(dynamicRoute, dynamicRoute).id,
+          config: {
+            allowQuery,
+            allowHeader,
+            renderingMode,
+            bypassFor: experimentalBypassFor,
+            bypassToken: prerenderManifest.preview.previewModeId,
+          },
           fallback:
             typeof fallback === 'string'
               ? {
                   filePath: path.join(
-                    distDir,
-                    'server',
-                    isAppPage ? 'app' : 'pages',
+                    isAppPage ? appDistDir : pagesDistDir,
                     fallback
                   ),
                   initialStatus: fallbackStatus,
                   initialHeaders: fallbackHeaders,
                   initialExpiration: fallbackExpire,
-                  initialRevalidate: fallbackRevalidate,
+                  initialRevalidate: fallbackRevalidate || 1,
                 }
               : undefined,
         }
         outputs.push(initialOutput)
+
+        if (isAppPage) {
+          await handleAppMeta(dynamicRoute, initialOutput)
+        }
 
         if (dataRoute) {
           outputs.push({
             ...initialOutput,
             id: dataRoute,
             pathname: dataRoute,
+            fallback: undefined,
           })
         }
       }
-
-      // TODO: should these be normal outputs or meta on associated routes?
-      // for (const route of prerenderManifest.notFoundRoutes) {
-      //   // The fallback here is the 404 page if statically generated
-      //   // if it is not then the fallback is empty and it is generated
-      //   // at runtime
-
-      //   outputs.push({
-      //     id: route,
-      //     type: OutputType.PRERENDER,
-      //     pathname: route,
-      //     runtime: 'nodejs',
-      //     fallback: {
-      //       filePath: '',
-      //       initialStatus: 404,
-      //       initialHeaders: {},
-      //     },
-      //   })
-      // }
 
       await adapterMod.onBuildComplete({
         routes: {
