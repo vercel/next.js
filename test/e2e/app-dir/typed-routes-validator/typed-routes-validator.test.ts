@@ -13,19 +13,19 @@ describe('typed-routes-validator', () => {
   it('should generate route validation correctly', async () => {
     const dts = await next.readFile('.next/types/validator.ts')
     expect(dts).toMatch(
-      /const handler = {} as typeof import\(".*\/app\/page.tsx"\)\s+handler satisfies AppPageConfig<"\/">/
+      /const handler = {} as typeof import\(".*\/app\/page.js"\)\s+handler satisfies AppPageConfig<"\/">/
     )
     expect(dts).toMatch(
-      /const handler = {} as typeof import\(".*\/app\/send-email\/route.ts"\)\s+handler satisfies RouteHandlerConfig<"\/send-email">/
+      /const handler = {} as typeof import\(".*\/app\/send-email\/route.js"\)\s+handler satisfies RouteHandlerConfig<"\/send-email">/
     )
     expect(dts).toMatch(
-      /const handler = {} as typeof import\(".*\/pages\/about.tsx"\)\s+handler satisfies PagesPageConfig/
+      /const handler = {} as typeof import\(".*\/pages\/about.js"\)\s+handler satisfies PagesPageConfig/
     )
     expect(dts).toMatch(
-      /const handler = {} as typeof import\(".*\/pages\/api\/test-route.ts"\)\s+handler satisfies ApiRouteConfig/
+      /const handler = {} as typeof import\(".*\/pages\/api\/test-route.js"\)\s+handler satisfies ApiRouteConfig/
     )
     expect(dts).toMatch(
-      /const handler = {} as typeof import\(".*\/app\/layout.tsx"\)\s+handler satisfies LayoutConfig<"\/">/
+      /const handler = {} as typeof import\(".*\/app\/layout.js"\)\s+handler satisfies LayoutConfig<"\/">/
     )
   })
 
