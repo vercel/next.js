@@ -11,7 +11,7 @@ static REGISTRATION: Registration = register!();
 #[turbo_tasks::value(transparent)]
 struct Wrapper(Vec<u32>);
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn test_shrink_to_fit() -> Result<()> {
     run(&REGISTRATION, || async {
         // `Vec::shrink_to_fit` is implicitly called when a cell is constructed.

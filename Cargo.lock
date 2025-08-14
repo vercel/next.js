@@ -9252,6 +9252,7 @@ dependencies = [
  "parking_lot",
  "pot",
  "rand 0.9.0",
+ "rayon",
  "regex",
  "ringmap",
  "rstest",

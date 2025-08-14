@@ -37,8 +37,6 @@
 #![feature(never_type)]
 #![feature(downcast_unchecked)]
 #![feature(ptr_metadata)]
-#![feature(sync_unsafe_cell)]
-#![feature(vec_into_raw_parts)]
 
 pub mod backend;
 mod capture_future;
@@ -66,14 +64,13 @@ mod no_move_vec;
 mod once_map;
 mod output;
 pub mod panic_hooks;
-pub mod parallel;
 pub mod persisted_graph;
 pub mod primitives;
 mod raw_vc;
 mod read_options;
 mod read_ref;
 pub mod registry;
-pub mod scope;
+mod scope;
 mod serialization_invalidation;
 pub mod small_duration;
 mod spawn;
@@ -118,6 +115,7 @@ pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
 pub use read_options::ReadCellOptions;
 pub use read_ref::ReadRef;
 use rustc_hash::FxHasher;
+pub use scope::scope;
 pub use serialization_invalidation::SerializationInvalidator;
 pub use shrink_to_fit::ShrinkToFit;
 pub use spawn::{JoinHandle, spawn, spawn_blocking, spawn_thread};

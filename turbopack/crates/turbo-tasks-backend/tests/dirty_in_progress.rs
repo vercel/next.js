@@ -11,7 +11,7 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn dirty_in_progress() {
     run(&REGISTRATION, || async {
         let cases = [

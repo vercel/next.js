@@ -10,7 +10,7 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn trait_ref() {
     run(&REGISTRATION, || async {
         let counter = Counter::cell(Counter {

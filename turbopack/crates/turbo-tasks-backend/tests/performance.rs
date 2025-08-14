@@ -142,7 +142,7 @@ fn check_skip() -> bool {
     false
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn many_calls_to_many_children() {
     if check_skip() {
         return;
@@ -157,7 +157,7 @@ async fn many_calls_to_many_children() {
     .unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn many_calls_to_uncached_many_children() {
     if check_skip() {
         return;
@@ -189,7 +189,7 @@ fn run_big_graph_test(counts: Vec<u32>) -> impl Future<Output = Result<()>> + Se
     )
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn many_calls_to_big_graph_1() {
     if check_skip() {
         return;
@@ -199,7 +199,7 @@ async fn many_calls_to_big_graph_1() {
         .unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn many_calls_to_big_graph_2() {
     if check_skip() {
         return;
@@ -211,7 +211,7 @@ async fn many_calls_to_big_graph_2() {
     .unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn many_calls_to_big_graph_3() {
     if check_skip() {
         return;
@@ -221,7 +221,7 @@ async fn many_calls_to_big_graph_3() {
         .unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn many_calls_to_big_graph_4() {
     if check_skip() {
         return;
@@ -231,7 +231,7 @@ async fn many_calls_to_big_graph_4() {
         .unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn many_calls_to_big_graph_5() {
     if check_skip() {
         return;
@@ -243,7 +243,7 @@ async fn many_calls_to_big_graph_5() {
     .unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn many_calls_to_big_graph_6() {
     if check_skip() {
         return;
@@ -255,7 +255,7 @@ async fn many_calls_to_big_graph_6() {
     .unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn many_calls_to_big_graph_7() {
     if check_skip() {
         return;
@@ -270,7 +270,7 @@ async fn many_calls_to_big_graph_7() {
     .unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn many_calls_to_big_graph_8() {
     if check_skip() {
         return;
@@ -282,7 +282,7 @@ async fn many_calls_to_big_graph_8() {
     .unwrap();
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn many_calls_to_big_graph_9() {
     if check_skip() {
         return;

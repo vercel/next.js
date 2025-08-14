@@ -33,7 +33,7 @@ pub struct TaskSpec {
 #[turbo_tasks::value(transparent)]
 struct Iteration(State<usize>);
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn graph_bug() {
     run(&REGISTRATION, move || async move {
         let spec = vec![

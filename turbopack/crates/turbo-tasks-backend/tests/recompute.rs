@@ -8,7 +8,7 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn recompute() {
     run(&REGISTRATION, || async {
         let input = ChangingInput {
@@ -58,7 +58,7 @@ async fn recompute() {
     .unwrap()
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn immutable_analysis() {
     run(&REGISTRATION, || async {
         let input = ChangingInput {

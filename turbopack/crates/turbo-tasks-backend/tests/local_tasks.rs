@@ -8,7 +8,7 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn test_local_task_id() -> Result<()> {
     run(&REGISTRATION, || async {
         let local_vc = get_local_task_id();

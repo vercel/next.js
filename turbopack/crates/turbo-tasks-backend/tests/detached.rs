@@ -15,7 +15,7 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn test_spawns_detached() -> anyhow::Result<()> {
     run(&REGISTRATION, || async {
         // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`, just
@@ -82,7 +82,7 @@ async fn spawns_detached(
     Vc::cell(())
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn test_spawns_detached_changing() -> anyhow::Result<()> {
     run(&REGISTRATION, || async {
         // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`

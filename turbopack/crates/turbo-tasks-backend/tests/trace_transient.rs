@@ -18,7 +18,7 @@ Adder::add_method (read cell of type turbo-tasks@TODO::::primitives::u64)
     unknown transient task (read cell of type turbo-tasks@TODO::::primitives::u16)
     unknown transient task (read cell of type turbo-tasks@TODO::::primitives::u32)";
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test]
 async fn test_trace_transient() {
     let result = run_without_cache_check(&REGISTRATION, async {
         read_incorrect_task_input_operation(IncorrectTaskInput(

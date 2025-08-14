@@ -1267,6 +1267,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return task_id;
         }
 
+        self.track_cache_miss(&task_type);
         let tx = self
             .should_restore()
             .then(|| self.backing_storage.start_read_transaction())
@@ -1278,7 +1279,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .forward_lookup_task_cache(tx.as_ref(), &task_type)
                     .expect("Failed to lookup task id")
             } {
-                self.track_cache_hit(&task_type);
                 let _ = self.task_cache.try_insert(Arc::new(task_type), task_id);
                 task_id
             } else {
@@ -1287,14 +1287,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let task_id = if let Err(existing_task_id) =
                     self.task_cache.try_insert(task_type.clone(), task_id)
                 {
-                    self.track_cache_hit(&task_type);
                     // Safety: We just created the id and failed to insert it.
                     unsafe {
                         self.persisted_task_id_factory.reuse(task_id);
                     }
                     existing_task_id
                 } else {
-                    self.track_cache_miss(&task_type);
                     task_id
                 };
                 if let Some(log) = &self.persisted_task_cache_log {
@@ -1329,10 +1327,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return task_id;
         }
 
+        self.track_cache_miss(&task_type);
         let task_type = Arc::new(task_type);
         let task_id = self.transient_task_id_factory.get();
-        if let Err(existing_task_id) = self.task_cache.try_insert(task_type.clone(), task_id) {
-            self.track_cache_hit(&task_type);
+        if let Err(existing_task_id) = self.task_cache.try_insert(task_type, task_id) {
             // Safety: We just created the id and failed to insert it.
             unsafe {
                 self.transient_task_id_factory.reuse(task_id);
@@ -1341,7 +1339,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return existing_task_id;
         }
 
-        self.track_cache_miss(&task_type);
         self.connect_child(parent_task, task_id, turbo_tasks);
 
         task_id
