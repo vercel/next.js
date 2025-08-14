@@ -431,6 +431,7 @@ export function generateValidatorFile(
 
 import type { AppRoutes, AppRouteHandlerRoutes, LayoutRoutes, ParamMap } from "./routes.js"
 import type { ResolvingMetadata, ResolvingViewport } from "next/dist/lib/metadata/types/metadata-interface.js"
+import type { NextRequest } from 'next/server'
 
 type AppPageConfig<Route extends AppRoutes = AppRoutes> = {
   default: React.ComponentType<{ params: Promise<ParamMap[Route]> } & any> | ((props: { params: Promise<ParamMap[Route]> } & any) => React.ReactNode | Promise<React.ReactNode> | never | void | Promise<void>)
@@ -481,13 +482,13 @@ type LayoutConfig<Route extends LayoutRoutes = LayoutRoutes> = {
 }
 
 type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRoutes> = {
-  GET?: (request: Request, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  POST?: (request: Request, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  PUT?: (request: Request, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  PATCH?: (request: Request, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  DELETE?: (request: Request, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  HEAD?: (request: Request, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  OPTIONS?: (request: Request, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
+  GET?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
+  POST?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
+  PUT?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
+  PATCH?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
+  DELETE?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
+  HEAD?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
+  OPTIONS?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
 }
 
 type ApiRouteConfig = {
