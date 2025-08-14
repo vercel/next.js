@@ -95,7 +95,9 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     const { eventCliSessionStopped } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    config = config || (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir))
+    config =
+      config ||
+      (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, { silent: true }))
 
     let telemetry =
       (traceGlobals.get('telemetry') as InstanceType<
