@@ -1,4 +1,4 @@
-use std::{collections::BinaryHeap, sync::Arc, usize};
+use std::{collections::BinaryHeap, sync::Arc};
 
 use parking_lot::Mutex;
 use tokio::sync::{AcquireError, Semaphore};
@@ -39,14 +39,14 @@ impl<T: Ord> HeapQueue<T> {
         if heap.is_empty() {
             // If the heap is empty, remove this queue from the active queues
             let mut queues = active_queues.lock();
-            if let Some(pos) = queues.iter().position(|q| Arc::ptr_eq(q, &self)) {
+            if let Some(pos) = queues.iter().position(|q| Arc::ptr_eq(q, self)) {
                 queues.remove(pos);
             }
         }
         Ok(item)
     }
 
-    pub fn reduce_to_one(self: Arc<Self>) {
+    pub fn reduce_to_one(&self) {
         // Drain the semaphore permits
         let mut n = self.semaphore.forget_permits(usize::MAX);
         if n <= 1 {
@@ -55,6 +55,7 @@ impl<T: Ord> HeapQueue<T> {
         }
         let mut heap: parking_lot::lock_api::MutexGuard<'_, parking_lot::RawMutex, BinaryHeap<T>> =
             self.heap.lock();
+        // We must only pop n items even if there are more since we only have n permits
         let top = heap.pop().unwrap();
         n -= 1;
         for _ in 0..n {
@@ -64,21 +65,21 @@ impl<T: Ord> HeapQueue<T> {
         self.semaphore.add_permits(1);
     }
 
-    pub fn reduce_to_zero(self: Arc<Self>, active_queues: &Mutex<Vec<Arc<Self>>>) {
+    pub fn reduce_to_zero(self: &Arc<Self>, active_queues: &Mutex<Vec<Arc<Self>>>) {
         // Drain the semaphore permits
         let n = self.semaphore.forget_permits(usize::MAX);
         if n == 0 {
             return;
         }
         let mut heap = self.heap.lock();
-        // We must only pop
+        // We must only pop n items even if there are more since we only have n permits
         for _ in 0..n {
             heap.pop();
         }
         if heap.is_empty() {
             // If the heap is empty, remove this queue from the active queues
             let mut queues = active_queues.lock();
-            if let Some(pos) = queues.iter().position(|q| Arc::ptr_eq(q, &self)) {
+            if let Some(pos) = queues.iter().position(|q| Arc::ptr_eq(q, self)) {
                 queues.remove(pos);
             }
         }
