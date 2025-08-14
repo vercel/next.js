@@ -5,7 +5,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
 } from '../../shared/lib/constants'
-import {
+import loadConfig, {
   loadConfiguredExperimentalFeaturesFromCache,
   type ConfiguredExperimentalFeature,
 } from '../config'
@@ -91,6 +91,17 @@ export async function getStartServerInfo({
   experimentalFeatures?: ConfiguredExperimentalFeature[]
 }> {
   let experimentalFeatures: ConfiguredExperimentalFeature[] = []
+
+  // Load config to populate the cache with experimental features
+  await loadConfig(
+    dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
+    dir,
+    {
+      silent: true,
+      reactProductionProfiling,
+      debugPrerender,
+    }
+  )
 
   const sortedExpFeatures = loadConfiguredExperimentalFeaturesFromCache(
     dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
