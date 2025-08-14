@@ -40,24 +40,12 @@ pub struct TurboKeyValueDatabase {
 impl TurboKeyValueDatabase {
     pub fn new(versioned_path: PathBuf, is_ci: bool, is_short_session: bool) -> Result<Self> {
         let db = Arc::new(TurboPersistence::open(versioned_path)?);
-        let mut this = Self {
+        Ok(Self {
             db: db.clone(),
             compact_join_handle: Mutex::new(None),
             is_ci,
             is_short_session,
-        };
-        // start compaction in background if the database is not empty
-        if !db.is_empty() {
-            let handle = spawn(async move {
-                db.compact(&CompactConfig {
-                    max_merge_segment_count: available_parallelism()
-                        .map_or(4, |c| max(4, c.get() / 4)),
-                    ..COMPACT_CONFIG
-                })
-            });
-            this.compact_join_handle.get_mut().replace(handle);
-        }
-        Ok(this)
+        })
     }
 }
 
