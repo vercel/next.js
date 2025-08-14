@@ -1,15 +1,12 @@
 use std::{cmp::max, path::PathBuf, sync::Arc, thread::available_parallelism};
 
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use parking_lot::Mutex;
-use tokio::{
-    runtime::Handle,
-    spawn,
-    task::{JoinHandle, block_in_place},
-};
+use tokio::{runtime::Handle, task::block_in_place};
 use turbo_persistence::{
     ArcSlice, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
 };
+use turbo_tasks::{JoinHandle, message_queue::TimingEvent, spawn, turbo_tasks};
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
@@ -225,5 +222,5 @@ impl<'l> From<WriteBuffer<'l>> for ValueBuffer<'l> {
 }
 
 fn join(handle: JoinHandle<Result<()>>) -> Result<()> {
-    block_in_place(|| Handle::current().block_on(handle))?
+    block_in_place(|| Handle::current().block_on(handle))
 }
