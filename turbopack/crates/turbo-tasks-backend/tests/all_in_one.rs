@@ -9,7 +9,7 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn all_in_one() {
     run(&REGISTRATION, || async {
         let a: Vc<u32> = Vc::cell(4242);

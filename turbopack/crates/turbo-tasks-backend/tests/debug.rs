@@ -9,7 +9,7 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn primitive_debug() {
     run(&REGISTRATION, || async {
         let a: Vc<u32> = Vc::cell(42);
@@ -20,7 +20,7 @@ async fn primitive_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn transparent_debug() {
     run(&REGISTRATION, || async {
         let a: Vc<Transparent> = Transparent(42).cell();
@@ -32,7 +32,7 @@ async fn transparent_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn enum_none_debug() {
     run(&REGISTRATION, || async {
         let a: Vc<Enum> = Enum::None.cell();
@@ -44,7 +44,7 @@ async fn enum_none_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn enum_transparent_debug() {
     run(&REGISTRATION, || async {
         let a: Vc<Enum> = Enum::Transparent(Transparent(42).resolved_cell()).cell();
@@ -60,7 +60,7 @@ async fn enum_transparent_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn enum_inner_vc_debug() {
     run(&REGISTRATION, || async {
         let a: Vc<Enum> = Enum::Enum(Enum::None.resolved_cell()).cell();
@@ -76,7 +76,7 @@ async fn enum_inner_vc_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn struct_unit_debug() {
     run(&REGISTRATION, || async {
         let a: Vc<StructUnit> = StructUnit.cell();
@@ -87,7 +87,7 @@ async fn struct_unit_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn struct_transparent_debug() {
     run(&REGISTRATION, || async {
         let a: Vc<StructWithTransparent> = StructWithTransparent {
@@ -106,7 +106,7 @@ async fn struct_transparent_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn struct_vec_debug() {
     run(&REGISTRATION, || async {
         let a: Vc<StructWithVec> = StructWithVec { vec: vec![] }.cell();
@@ -135,7 +135,7 @@ async fn struct_vec_debug() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn struct_ignore_debug() {
     run(&REGISTRATION, || async {
         let a: Vc<StructWithIgnore> = StructWithIgnore {
