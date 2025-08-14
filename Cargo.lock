@@ -8246,8 +8246,7 @@ dependencies = [
 [[package]]
 name = "swc_sourcemap"
 version = "9.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3cd6e0cad02163875258edaf9ae6004e2526be137bdde6a46c540515615949b1"
+source = "git+https://github.com/mischnic/rust-sourcemap.git?branch=mischnic%2Fsource-content-mixup#a11f621393345e87145108da20dffb310b5dbfd4"
 dependencies = [
  "base64-simd 0.8.0",
  "bitvec",

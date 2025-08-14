@@ -450,3 +450,4 @@ hyper = { git = "https://github.com/bgw/hyper-rs.git", branch = "v1.6.0-with-mac
 mdxjs = { git = "https://github.com/mischnic/mdxjs-rs.git", branch = "swc-core-32" }
 lightningcss = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
 parcel_selectors = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
+swc_sourcemap = { git = "https://github.com/mischnic/rust-sourcemap.git", branch = "mischnic/source-content-mixup" }
