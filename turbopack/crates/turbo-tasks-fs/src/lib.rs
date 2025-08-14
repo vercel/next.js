@@ -46,7 +46,6 @@ use dunce::simplified;
 use indexmap::IndexSet;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -56,7 +55,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
     ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat, effect,
-    mark_session_dependent, mark_stateful, trace::TraceRawVcs,
+    mark_session_dependent, mark_stateful, parallel, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
 use turbo_unix_path::{
@@ -309,19 +308,14 @@ impl DiskFileSystemInner {
 
     fn invalidate(&self) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
-        let span = tracing::Span::current();
-        let handle = tokio::runtime::Handle::current();
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
-        let iter = invalidator_map
-            .into_par_iter()
-            .chain(dir_invalidator_map.into_par_iter())
-            .flat_map(|(_, invalidators)| invalidators.into_par_iter());
-        iter.for_each(|(i, _)| {
-            let _span = span.clone().entered();
-            let _guard = handle.enter();
-            i.invalidate()
-        });
+        let invalidators = invalidator_map
+            .into_iter()
+            .chain(dir_invalidator_map)
+            .flat_map(|(_, invalidators)| invalidators.into_keys())
+            .collect::<Vec<_>>();
+        parallel::for_each_owned(invalidators, |invalidator| invalidator.invalidate());
     }
 
     /// Invalidates every tracked file in the filesystem.
@@ -332,23 +326,19 @@ impl DiskFileSystemInner {
         reason: impl Fn(&Path) -> R + Sync,
     ) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
-        let span = tracing::Span::current();
-        let handle = tokio::runtime::Handle::current();
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
-        let iter = invalidator_map
-            .into_par_iter()
-            .chain(dir_invalidator_map.into_par_iter())
+        let invalidators = invalidator_map
+            .into_iter()
+            .chain(dir_invalidator_map)
             .flat_map(|(path, invalidators)| {
-                let _span = span.clone().entered();
                 let reason_for_path = reason(&path);
                 invalidators
-                    .into_par_iter()
+                    .into_keys()
                     .map(move |i| (reason_for_path.clone(), i))
-            });
-        iter.for_each(|(reason, (invalidator, _))| {
-            let _span = span.clone().entered();
-            let _guard = handle.enter();
+            })
+            .collect::<Vec<_>>();
+        parallel::for_each_owned(invalidators, |(reason, invalidator)| {
             invalidator.invalidate_with_reason(reason)
         });
     }
