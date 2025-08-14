@@ -292,6 +292,7 @@ impl ModuleReference for RequireContextAssetReference {
         Vc::cell(Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
+            resolve_export: None,
         }))
     }
 }
@@ -383,6 +384,7 @@ impl ModuleReference for ResolvedModuleReference {
         Vc::cell(Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
+            resolve_export: None,
         }))
     }
 }

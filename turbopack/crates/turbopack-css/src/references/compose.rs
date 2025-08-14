@@ -48,6 +48,7 @@ impl ModuleReference for CssModuleComposeReference {
         Vc::cell(Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
+            resolve_export: None,
         }))
     }
 }

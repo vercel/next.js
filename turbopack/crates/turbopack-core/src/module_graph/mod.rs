@@ -1672,6 +1672,7 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                 ChunkingType::Parallel {
                     inherit_async: _,
                     hoisted: _,
+                    resolve_export: _,
                 } => {}
                 ChunkingType::Traced => {
                     let _span = span.entered();
