@@ -1081,7 +1081,7 @@ importers:
         version: 8.6.0(storybook@8.6.0(prettier@3.6.2))
       '@storybook/addon-essentials':
         specifier: 8.6.0
-        version: 8.6.0(@types/react@19.1.8)(storybook@8.6.0(prettier@3.6.2))
+        version: 8.6.0(@types/react@19.1.10)(storybook@8.6.0(prettier@3.6.2))
       '@storybook/addon-interactions':
         specifier: 8.6.0
         version: 8.6.0(storybook@8.6.0(prettier@3.6.2))
@@ -1091,13 +1091,13 @@ importers:
         version: 3.0.0(@swc/helpers@0.5.15)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2))
       '@storybook/blocks':
         specifier: 8.6.0
-        version: 8.6.0(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))
+        version: 8.6.0(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))
       '@storybook/react':
         specifier: 8.6.0
-        version: 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)
+        version: 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)
       '@storybook/react-webpack5':
         specifier: 8.6.0
-        version: 8.6.0(@rspack/core@1.4.5(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)
+        version: 8.6.0(@rspack/core@1.4.5(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)
       '@storybook/test':
         specifier: 8.6.0
         version: 8.6.0(storybook@8.6.0(prettier@3.6.2))
@@ -20901,25 +20901,25 @@ snapshots:
       storybook: 8.6.0(prettier@3.6.2)
       ts-dedent: 2.2.0
 
-  '@storybook/addon-docs@8.6.0(@types/react@19.1.8)(storybook@8.6.0(prettier@3.6.2))':
+  '@storybook/addon-docs@8.6.0(@types/react@19.1.10)(storybook@8.6.0(prettier@3.6.2))':
     dependencies:
-      '@mdx-js/react': 3.1.0(@types/react@19.1.8)(react@19.2.0-canary-7deda941-20250804)
-      '@storybook/blocks': 8.6.0(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))
+      '@mdx-js/react': 3.1.0(@types/react@19.1.10)(react@19.2.0-canary-379a083b-20250813)
+      '@storybook/blocks': 8.6.0(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))
       '@storybook/csf-plugin': 8.6.0(storybook@8.6.0(prettier@3.6.2))
-      '@storybook/react-dom-shim': 8.6.0(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))
-      react: 19.2.0-canary-7deda941-20250804
-      react-dom: 19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804)
+      '@storybook/react-dom-shim': 8.6.0(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))
+      react: 19.2.0-canary-379a083b-20250813
+      react-dom: 19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813)
       storybook: 8.6.0(prettier@3.6.2)
       ts-dedent: 2.2.0
     transitivePeerDependencies:
       - '@types/react'
 
-  '@storybook/addon-essentials@8.6.0(@types/react@19.1.8)(storybook@8.6.0(prettier@3.6.2))':
+  '@storybook/addon-essentials@8.6.0(@types/react@19.1.10)(storybook@8.6.0(prettier@3.6.2))':
     dependencies:
       '@storybook/addon-actions': 8.6.0(storybook@8.6.0(prettier@3.6.2))
       '@storybook/addon-backgrounds': 8.6.0(storybook@8.6.0(prettier@3.6.2))
       '@storybook/addon-controls': 8.6.0(storybook@8.6.0(prettier@3.6.2))
-      '@storybook/addon-docs': 8.6.0(@types/react@19.1.8)(storybook@8.6.0(prettier@3.6.2))
+      '@storybook/addon-docs': 8.6.0(@types/react@19.1.10)(storybook@8.6.0(prettier@3.6.2))
       '@storybook/addon-highlight': 8.6.0(storybook@8.6.0(prettier@3.6.2))
       '@storybook/addon-measure': 8.6.0(storybook@8.6.0(prettier@3.6.2))
       '@storybook/addon-outline': 8.6.0(storybook@8.6.0(prettier@3.6.2))
@@ -20987,9 +20987,9 @@ snapshots:
       - '@swc/helpers'
       - webpack
 
-  '@storybook/blocks@8.6.0(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))':
+  '@storybook/blocks@8.6.0(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))':
     dependencies:
-      '@storybook/icons': 1.3.0(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)
+      '@storybook/icons': 1.3.0(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)
       storybook: 8.6.0(prettier@3.6.2)
       ts-dedent: 2.2.0
     optionalDependencies:
@@ -21104,10 +21104,10 @@ snapshots:
       storybook: 8.6.0(prettier@3.6.2)
       storybook: 8.6.0(prettier@3.6.2)
 
-  '@storybook/preset-react-webpack@8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)':
+  '@storybook/preset-react-webpack@8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)':
     dependencies:
       '@storybook/core-webpack': 8.6.0(storybook@8.6.0(prettier@3.6.2))
-      '@storybook/react': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)
+      '@storybook/react': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)
       '@storybook/react-docgen-typescript-plugin': 1.0.6--canary.9.0c3f3b7.0(typescript@5.8.2)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2))
       '@types/semver': 7.5.6
       find-up: 5.0.0
@@ -21151,19 +21151,19 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@storybook/react-dom-shim@8.6.0(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))':
+  '@storybook/react-dom-shim@8.6.0(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))':
     dependencies:
-      react: 19.2.0-canary-7deda941-20250804
-      react-dom: 19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804)
+      react: 19.2.0-canary-379a083b-20250813
+      react-dom: 19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813)
       storybook: 8.6.0(prettier@3.6.2)
 
-  '@storybook/react-webpack5@8.6.0(@rspack/core@1.4.5(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)':
+  '@storybook/react-webpack5@8.6.0(@rspack/core@1.4.5(@swc/helpers@0.5.15))(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)':
     dependencies:
       '@storybook/builder-webpack5': 8.6.0(@rspack/core@1.4.5(@swc/helpers@0.5.15))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)
-      '@storybook/preset-react-webpack': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)
-      '@storybook/react': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)
-      react: 19.2.0-canary-7deda941-20250804
-      react-dom: 19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804)
+      '@storybook/preset-react-webpack': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(@swc/core@1.11.24(@swc/helpers@0.5.15))(esbuild@0.24.2)(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)
+      '@storybook/react': 8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)
+      react: 19.2.0-canary-379a083b-20250813
+      react-dom: 19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813)
       storybook: 8.6.0(prettier@3.6.2)
     optionalDependencies:
       typescript: 5.8.2
@@ -21176,17 +21176,17 @@ snapshots:
       - uglify-js
       - webpack-cli
 
-  '@storybook/react@8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)':
+  '@storybook/react@8.6.0(@storybook/test@8.6.0(storybook@8.6.0(prettier@3.6.2)))(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))(typescript@5.8.2)':
     dependencies:
       '@storybook/components': 8.6.0(storybook@8.6.0(prettier@3.6.2))
       '@storybook/components': 8.6.0(storybook@8.6.0(prettier@3.6.2))
       '@storybook/global': 5.0.0
       '@storybook/manager-api': 8.6.0(storybook@8.6.0(prettier@3.6.2))
       '@storybook/preview-api': 8.6.0(storybook@8.6.0(prettier@3.6.2))
-      '@storybook/react-dom-shim': 8.6.0(react-dom@19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804))(react@19.2.0-canary-7deda941-20250804)(storybook@8.6.0(prettier@3.6.2))
+      '@storybook/react-dom-shim': 8.6.0(react-dom@19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813))(react@19.2.0-canary-379a083b-20250813)(storybook@8.6.0(prettier@3.6.2))
       '@storybook/theming': 8.6.0(storybook@8.6.0(prettier@3.6.2))
-      react: 19.2.0-canary-7deda941-20250804
-      react-dom: 19.2.0-canary-7deda941-20250804(react@19.2.0-canary-7deda941-20250804)
+      react: 19.2.0-canary-379a083b-20250813
+      react-dom: 19.2.0-canary-379a083b-20250813(react@19.2.0-canary-379a083b-20250813)
       storybook: 8.6.0(prettier@3.6.2)
     optionalDependencies:
       '@storybook/test': 8.6.0(storybook@8.6.0(prettier@3.6.2))
