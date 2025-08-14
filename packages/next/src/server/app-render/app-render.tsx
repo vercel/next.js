@@ -1454,7 +1454,6 @@ async function renderToHTMLOrFlightImpl(
   renderOpts: RenderOpts,
   workStore: WorkStore,
   parsedRequestHeaders: ParsedRequestHeaders,
-  requestEndedState: { ended?: boolean },
   postponedState: PostponedState | null,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
   sharedContext: AppSharedContext,
@@ -1555,9 +1554,13 @@ async function renderToHTMLOrFlightImpl(
     process.env.NEXT_RUNTIME !== 'edge' &&
     isNodeNextRequest(req)
   ) {
-    req.originalRequest.on('end', () => {
-      requestEndedState.ended = true
+    res.onClose(() => {
+      // We stop tracking fetch metrics when the response closes, since we
+      // report them at that time.
+      workStore.shouldTrackFetchMetrics = false
+    })
 
+    req.originalRequest.on('end', () => {
       if ('performance' in globalThis) {
         const metrics = getClientComponentLoaderMetrics({ reset: true })
         if (metrics) {
@@ -1966,7 +1969,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
   const { isPrefetchRequest, previouslyRevalidatedTags } = parsedRequestHeaders
 
-  const requestEndedState = { ended: false }
   let postponedState: PostponedState | null = null
 
   // If provided, the postpone state should be parsed so it can be provided to
@@ -1996,7 +1998,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
   const workStore = createWorkStore({
     page: renderOpts.routeModule.definition.page,
     renderOpts,
-    requestEndedState,
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
     buildId: sharedContext.buildId,
@@ -2016,7 +2017,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
     renderOpts,
     workStore,
     parsedRequestHeaders,
-    requestEndedState,
     postponedState,
     serverComponentsHmrCache,
     sharedContext,
