@@ -697,9 +697,17 @@ export async function handler(
           throw new NoFallbackError()
         }
 
-        let fallbackResponse: ResponseCacheEntry | null | undefined
-
-        if (isRoutePPREnabled && !isRSCRequest) {
+        // When client param parsing is enabled, we can use the fallback
+        // response if the request is not a dynamic RSC request because the
+        // RSC data when this feature flag is enabled does not contain any
+        // param references. Without this feature flag enabled, the RSC data
+        // contains param references, and therefore we can't use the fallback.
+        if (
+          isRoutePPREnabled &&
+          (nextConfig.experimental.clientParamParsing
+            ? !isDynamicRSCRequest
+            : !isRSCRequest)
+        ) {
           const cacheKey =
             typeof prerenderInfo?.fallback === 'string'
               ? prerenderInfo.fallback
@@ -709,7 +717,7 @@ export async function handler(
 
           // We use the response cache here to handle the revalidation and
           // management of the fallback shell.
-          fallbackResponse = await routeModule.handleResponse({
+          const fallbackResponse = await routeModule.handleResponse({
             cacheKey,
             req,
             nextConfig,
@@ -747,6 +755,7 @@ export async function handler(
           }
         }
       }
+
       // Only requests that aren't revalidating can be resumed. If we have the
       // minimal postponed data, then we should resume the render with it.
       const postponed =
