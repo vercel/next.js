@@ -836,8 +836,10 @@ function bindingToApi(
             content:
               options.compilationMode === 'annotation'
                 ? /['"]use memo['"]/
-                : options.compilationMode === 'infer'
-                  ? /\Wuse[A-Z]|<\/|\/>/
+                : !options.compilationMode ||
+                    options.compilationMode === 'infer'
+                  ? // Matches declaration or useXXX or </ (closing jsx) or /> (self closing jsx)
+                    /['"]use memo['"]|\Wuse[A-Z]|<\/|\/>/
                   : undefined,
           }
           nextConfig.turbopack.rules[`#reactCompiler/${key}`] = {

@@ -507,10 +507,16 @@ impl ModuleOptions {
 
                     match &path {
                         Some(ConditionPath::Glob(glob)) => {
-                            rule_conditions.push(RuleCondition::ResourcePathGlob {
-                                base: execution_context.project_path().owned().await?,
-                                glob: Glob::new(glob.clone()).await?,
-                            });
+                            if glob.contains('/') {
+                                rule_conditions.push(RuleCondition::ResourcePathGlob {
+                                    base: execution_context.project_path().owned().await?,
+                                    glob: Glob::new(glob.clone()).await?,
+                                });
+                            } else {
+                                rule_conditions.push(RuleCondition::ResourceBasePathGlob(
+                                    Glob::new(glob.clone()).await?,
+                                ));
+                            }
                         }
                         Some(ConditionPath::Regex(regex)) => {
                             rule_conditions.push(RuleCondition::ResourcePathEsRegex(regex.await?));
