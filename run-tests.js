@@ -33,6 +33,8 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .number('c')
   .boolean('related')
   .boolean('dry')
+  .boolean('print-tests')
+  .describe('print-tests', 'Prints the test files that will be run')
   .boolean('local')
   .alias('r', 'related')
   .alias('c', 'concurrency').argv
@@ -74,15 +76,9 @@ const TIMINGS_API_HEADERS = {
 }
 
 const testFilters = {
-  development: new RegExp(
-    '^(test/(development|e2e)|packages/.*/src/.*|packages/next-codemod/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
-  ),
-  production: new RegExp(
-    '^(test/(production|e2e))/.*\\.test\\.(js|jsx|ts|tsx)$'
-  ),
-  unit: new RegExp(
-    '^test/unit|packages/.*/src/.*/.*\\.test\\.(js|jsx|ts|tsx)$'
-  ),
+  development: new RegExp('^(test/(development|e2e))'),
+  production: new RegExp('^(test/(production|e2e))'),
+  unit: new RegExp('^(test/unit|packages/.*/src|packages/next-codemod)'),
   examples: 'examples/',
   integration: 'test/integration/',
   e2e: 'test/e2e/',
@@ -217,6 +213,7 @@ async function main() {
     retries: argv.retries ?? DEFAULT_NUM_RETRIES,
     dry: argv.dry ?? false,
     local: argv.local ?? false,
+    printTests: argv.printTests ?? false,
   }
   let numRetries = options.retries
   const hideOutput = !options.debug && !options.dry
@@ -301,6 +298,8 @@ async function main() {
         file,
         excludedCases: [],
       }))
+
+    //
   }
 
   if (options.timings && options.group) {
@@ -405,6 +404,10 @@ async function main() {
 ${tests.map((t) => t.file).join('\n')}
 ${ENDGROUP}`)
   console.log(`total: ${tests.length}`)
+
+  if (options.printTests) {
+    await cleanUpAndExit(0)
+  }
 
   if (
     !options.dry &&

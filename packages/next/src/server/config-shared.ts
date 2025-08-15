@@ -262,7 +262,8 @@ export type TurbopackLoaderItem =
     }
 
 export type TurbopackRuleCondition = {
-  path: string | RegExp
+  path?: string | RegExp
+  content?: RegExp
 }
 
 export type TurbopackRuleConfigItemOrShortcut =

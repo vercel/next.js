@@ -30,6 +30,8 @@ import { Playwright } from 'next-webdriver'
 
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
+import escapeRegex from 'escape-string-regexp'
+
 // TODO: Create dedicated Jest environment that sets up these matchers
 // Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
 import './add-redbox-matchers'
@@ -1829,4 +1831,42 @@ export function trimEndMultiline(str: string) {
     .split('\n')
     .map((line) => line.trimEnd())
     .join('\n')
+}
+
+/**
+ * Normalizes the manifest by applying the replacements to the manifest. This
+ * is useful for testing the manifest in a snapshot test.
+ *
+ * @param manifest - The manifest to normalize.
+ * @param replacements - The replacements to perform on the manifest.
+ * @returns The normalized manifest.
+ */
+export function normalizeManifest<T>(
+  manifest: unknown,
+  replacements: [search: string, replace: string][]
+): T {
+  return JSON.parse(
+    replacements.reduce(
+      (acc, [search, replace]) =>
+        acc.replace(
+          new RegExp(
+            // We want to match the literal string, so we need to escape it
+            // again
+            escapeRegex(
+              JSON.stringify(
+                // The output has already been escaped, so we need to escape our
+                // search string.
+                escapeRegex(search)
+              )
+                // Remove the quotes added by the JSON.stringify call.
+                .replace(/^"(.*)"/, '$1')
+            ),
+            'g'
+          ),
+          replace
+        ),
+      // We'll perform the replacements on the JSON stringified manifest.
+      JSON.stringify(manifest)
+    )
+  )
 }
