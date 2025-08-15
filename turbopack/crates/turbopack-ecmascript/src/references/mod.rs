@@ -818,9 +818,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         EsmExport::ImportedBinding(
                             ResolvedVc::upcast(reference),
                             imported.to_string().into(),
-                            // We could make this const if we knew the thing we were importing was
-                            // const
-                            Liveness::Live,
+                            false,
                         ),
                     );
                     analysis.add_esm_reexport_reference(i);
@@ -3314,13 +3312,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                                     EsmExport::ImportedBinding(
                                         ResolvedVc::upcast(esm_ref),
                                         export,
-                                        if is_fake_esm {
-                                            Liveness::Mutable
-                                        } else {
-                                            // This could get upgraded to 'const' if we knew the
-                                            // thing we were importing was const
-                                            Liveness::Live
-                                        },
+                                        is_fake_esm,
                                     )
                                 } else {
                                     EsmExport::ImportedNamespace(ResolvedVc::upcast(esm_ref))

@@ -18,7 +18,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
-    references::esm::{EsmExport, EsmExports, Liveness},
+    references::esm::{EsmExport, EsmExports},
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
@@ -105,19 +105,11 @@ impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
             .to_resolved()
             .await?,
         );
-        let liveness = if let EcmascriptExports::EsmExports(exports) =
-            &*self.module.get_exports().await?
-            && let Some(export) = exports.await?.exports.get("default")
-        {
-            export.liveness()
-        } else {
-            Liveness::Live
-        };
         let mut exports = BTreeMap::new();
         let default = rcstr!("default");
         exports.insert(
             default.clone(),
-            EsmExport::ImportedBinding(module_reference, default, liveness),
+            EsmExport::ImportedBinding(module_reference, default, false),
         );
 
         Ok(EcmascriptExports::EsmExports(

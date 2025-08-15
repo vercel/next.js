@@ -63,7 +63,7 @@ pub enum EsmExport {
     /// An imported binding that is exported (export { a as b } from "...")
     ///
     /// The last bool is true if the binding is a mutable binding
-    ImportedBinding(ResolvedVc<Box<dyn ModuleReference>>, RcStr, Liveness),
+    ImportedBinding(ResolvedVc<Box<dyn ModuleReference>>, RcStr, bool),
     /// An imported namespace that is exported (export * from "...")
     ImportedNamespace(ResolvedVc<Box<dyn ModuleReference>>),
     /// An error occurred while resolving the export
@@ -74,7 +74,14 @@ impl EsmExport {
     pub fn liveness(&self) -> Liveness {
         match self {
             EsmExport::LocalBinding(_, liveness) => *liveness,
-            EsmExport::ImportedBinding(_, _, liveness) => *liveness,
+            EsmExport::ImportedBinding(_, _, mutable) => {
+                if *mutable {
+                    Liveness::Mutable
+                } else {
+                    // imported bindings are always live
+                    Liveness::Live
+                }
+            }
             EsmExport::ImportedNamespace(_) => Liveness::Constant,
             EsmExport::Error => Liveness::Live,
         }
@@ -560,9 +567,7 @@ impl EsmExports {
                         EsmExport::ImportedBinding(
                             ResolvedVc::upcast(esm_ref),
                             export.clone(),
-                            // we could analyze the target module and only export as live if it
-                            // does this could also be a runtime thing
-                            Liveness::Live,
+                            false,
                         ),
                     );
                 }
@@ -695,7 +700,7 @@ impl EsmExports {
                         ),
                     }
                 }
-                EsmExport::ImportedBinding(esm_ref, name, liveness) => {
+                EsmExport::ImportedBinding(esm_ref, name, mutable) => {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset
@@ -707,19 +712,13 @@ impl EsmExports {
                             // For imported bindings we could simply export the 'import' and have the runtime hook the bindings together.
                             // This would be cute, slightly smaller codegen but efficiency is an open question.  In fact we could even
                             // perform the 'liveness' check at runtime by querying the property descriptor.
-                            match (liveness, export_usage_info.is_circuit_breaker) {
-                                (Liveness::Constant, false) => ExportBinding::Value(quote!(
-                                "$expr" as Expr, expr: Expr = read_expr
-                            )),
-                                 (Liveness::Live, _) | (Liveness::Constant, true) => ExportBinding::Getter(quote!(
-                                "() => $expr" as Expr,
-                                expr: Expr = read_expr
-                            )),
-                                (Liveness::Mutable, _) => ExportBinding::GetterSetter(
-                                quote!(
+                            let getter = quote!(
                                     "() => $expr" as Expr,
                                     expr: Expr = read_expr,
-                                ),
+                                );
+                            if *mutable {
+                                ExportBinding::GetterSetter(
+                                    getter,
                                 quote!(
                                     "($new) => $lhs = $new" as Expr,
                                     lhs: AssignTarget = AssignTarget::Simple(
@@ -730,11 +729,11 @@ impl EsmExports {
                                         Default::default()
                                     ),
                                 )
-                            ),
+                            )
+                            } else {
+                                ExportBinding::Getter(getter)
                             }
-
-                            }
-                        ).unwrap_or(ExportBinding::None)
+                        }).unwrap_or(ExportBinding::None)
                 }
                 EsmExport::ImportedNamespace(esm_ref) => {
                     let referenced_asset =
