@@ -117,4 +117,56 @@ describe('config', () => {
     )
     expect(config.__test__ext).toBe('ts')
   })
+
+  describe('outputFileTracingRoot and turbopack.root consistency', () => {
+    it('Should set both outputFileTracingRoot and turbopack.root to the same value when only outputFileTracingRoot is provided', async () => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          outputFileTracingRoot: '/custom/root',
+        },
+      })
+      expect(config.outputFileTracingRoot).toBe('/custom/root')
+      expect(config.turbopack.root).toBe('/custom/root')
+    })
+
+    it('Should set both outputFileTracingRoot and turbopack.root to the same value when only turbopack.root is provided', async () => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          turbopack: { root: '/custom/root' },
+        },
+      })
+      expect(config.outputFileTracingRoot).toBe('/custom/root')
+      expect(config.turbopack.root).toBe('/custom/root')
+    })
+
+    it('Should use outputFileTracingRoot value when both are provided with different values', async () => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          outputFileTracingRoot: '/tracing/root',
+          turbopack: { root: '/turbo/root' },
+        },
+      })
+      expect(config.outputFileTracingRoot).toBe('/tracing/root')
+      expect(config.turbopack.root).toBe('/tracing/root')
+    })
+
+    it('Should keep the same value when both are provided with matching values', async () => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          outputFileTracingRoot: '/same/root',
+          turbopack: { root: '/same/root' },
+        },
+      })
+      expect(config.outputFileTracingRoot).toBe('/same/root')
+      expect(config.turbopack.root).toBe('/same/root')
+    })
+
+    it('Should set both to findRootDir result when neither is provided', async () => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {},
+      })
+      expect(config.outputFileTracingRoot).toBeDefined()
+      expect(config.turbopack.root).toBe(config.outputFileTracingRoot)
+    })
+  })
 })
