@@ -70,9 +70,9 @@ const nextLint = async (options: NextLintOptions, directory?: string) => {
       'For new projects, use ' +
       bold('create-next-app') +
       ' to choose your preferred linter.\n' +
-      'For existing projects, migrate to explicit ESLint configuration and update your package.json scripts to use ' +
-      bold('"eslint"') +
-      ' instead.\n'
+      'For existing projects, migrate to the ESLint CLI:\n' +
+      bold('npx @next/codemod@canary next-lint-to-eslint-cli .') +
+      '\n'
   )
 
   const baseDir = getProjectDir(directory)
