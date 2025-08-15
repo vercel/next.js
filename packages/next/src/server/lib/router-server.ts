@@ -60,6 +60,7 @@ import {
   handleChromeDevtoolsWorkspaceRequest,
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
+import { removeLocale } from '../../client/remove-locale'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -588,19 +589,13 @@ export async function initialize(opts: {
         'private, no-cache, no-store, max-age=0, must-revalidate'
       )
 
-      let realRequestPathname = removePathPrefix(
-        removeBasePath(parsedUrl.pathname!),
-        config.assetPrefix
+      const realRequestPathname = removeLocale(
+        removePathPrefix(
+          removeBasePath(parsedUrl.pathname!),
+          config.assetPrefix
+        ),
+        getRequestMeta(req, 'locale')
       )
-
-      if (config.i18n) {
-        const locale = getRequestMeta(req, 'locale')
-        if (locale) {
-          // + 1 for leading slash "/:locale"
-          realRequestPathname = realRequestPathname.slice(locale.length + 1)
-        }
-      }
-
       // For not found static assets, return plain text 404 instead of
       // full HTML 404 pages to save bandwidth.
       if (
