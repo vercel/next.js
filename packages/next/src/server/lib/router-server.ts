@@ -588,14 +588,24 @@ export async function initialize(opts: {
         'private, no-cache, no-store, max-age=0, must-revalidate'
       )
 
+      let realRequestPathname = removePathPrefix(
+        removeBasePath(parsedUrl.pathname!),
+        config.assetPrefix
+      )
+
+      if (config.i18n) {
+        const locale = getRequestMeta(req, 'locale')
+        if (locale) {
+          // + 1 for leading slash "/:locale"
+          realRequestPathname = realRequestPathname.slice(locale.length + 1)
+        }
+      }
+
       // For not found static assets, return plain text 404 instead of
       // full HTML 404 pages to save bandwidth.
       if (
         parsedUrl.pathname &&
-        removePathPrefix(
-          removeBasePath(parsedUrl.pathname),
-          config.assetPrefix
-        ).startsWith('/_next/static/')
+        realRequestPathname.startsWith('/_next/static/')
       ) {
         res.statusCode = 404
         res.setHeader('Content-Type', 'text/plain; charset=utf-8')
