@@ -96,11 +96,13 @@ type JSONValue =
   | JSONValue[]
   | { [k: string]: JSONValue }
 
+// At the moment, Turbopack options must be JSON-serializable, so restrict values.
+export type TurbopackLoaderOptions = Record<string, JSONValue>
+
 export type TurbopackLoaderItem =
   | string
   | {
       loader: string
-      // At the moment, Turbopack options must be JSON-serializable, so restrict values.
       options?: Record<string, JSONValue>
     }
 
@@ -248,15 +250,36 @@ export interface NextJsWebpackConfig {
 }
 
 /**
- * Set of options for the react compiler next.js
- * currently supports.
+ * Set of options for React Compiler that Next.js currently supports.
  *
- * This can be changed without breaking changes while supporting
- * react compiler in the experimental phase.
+ * These options may be changed in breaking ways at any time without notice
+ * while support for React Compiler is experimental.
+ *
+ * @see https://react.dev/reference/react-compiler/configuration
  */
 export interface ReactCompilerOptions {
+  /**
+   * Controls the strategy for determining which functions the React Compiler
+   * will optimize.
+   *
+   * The default is `'infer'`, which uses intelligent heuristics to identify
+   * React components and hooks.
+   *
+   * When using `infer`, Next.js applies its own heuristics before calling
+   * `react-compiler`. This improves compilation performance by avoiding extra
+   * invocations of Babel and reducing redundant parsing of code.
+   *
+   * @see https://react.dev/reference/react-compiler/compilationMode
+   */
   compilationMode?: 'infer' | 'annotation' | 'all'
-  panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
+  /**
+   * Controls how the React Compiler handles errors during compilation.
+   *
+   * The default is `'none'`, which skips components which cannot be compiled.
+   *
+   * @see https://react.dev/reference/react-compiler/panicThreshold
+   */
+  panicThreshold?: 'none' | 'critical_errors' | 'all_errors'
 }
 
 export interface IncomingRequestLoggingConfig {

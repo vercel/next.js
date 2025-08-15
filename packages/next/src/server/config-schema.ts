@@ -496,7 +496,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
                 .enum(['infer', 'annotation', 'all'])
                 .optional(),
               panicThreshold: z
-                .enum(['ALL_ERRORS', 'CRITICAL_ERRORS', 'NONE'])
+                .enum(['none', 'critical_errors', 'all_errors'])
                 .optional(),
             })
             .optional(),

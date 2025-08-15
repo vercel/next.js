@@ -2,7 +2,8 @@
 
 import { join } from 'path'
 import { nextBuild } from 'next-test-utils'
-;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)('Babel', () => {
+
+describe('Babel', () => {
   it('should allow setting babelrc env', async () => {
     await nextBuild(join(__dirname, '../fixtures/babel-env'))
   })
