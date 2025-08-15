@@ -201,28 +201,42 @@ export type DocumentProps = DocumentInitialProps & HtmlProps
  */
 export interface NextApiRequest extends IncomingMessage {
   /**
-   * Object of `query` values from url
+   * An object containing the query string. Defaults to `{}`
    */
   query: Partial<{
     [key: string]: string | string[]
   }>
   /**
-   * Object of `cookies` from header
+   * An object containing the cookies sent by the request. Defaults to `{}`
    */
   cookies: Partial<{
     [key: string]: string
   }>
 
+  /**
+   * An object containing the body parsed by `content-type`, or `null` if no body was sent
+   */
   body: any
 
+  /**
+   * An object containing the environment variables
+   */
   env: Env
 
+  /**
+   * Indicates if the request is in draft mode
+   */
   draftMode?: boolean
 
+  /**
+   * Indicates if the request is in preview mode
+   * @deprecated Use `draftMode` instead
+   */
   preview?: boolean
   /**
    * Preview data set on the request, if any
-   * */
+   * @deprecated Use `draftMode` instead
+   */
   previewData?: PreviewData
 }
 
@@ -236,24 +250,39 @@ type Send<T> = (body: T) => void
  */
 export type NextApiResponse<Data = any> = ServerResponse & {
   /**
-   * Send data `any` data in response
+   * Sends the HTTP response.
+   * Body can be a `string`, an `object`, a `Buffer`, a `Stream`, or `null`
    */
   send: Send<Data>
   /**
-   * Send data `json` data in response
+   * Sends a JSON response.
+   * Body must be a serializable object
    */
   json: Send<Data>
+  /**
+   * Sets the status code.
+   * Returns itself for method chaining
+   */
   status: (statusCode: number) => NextApiResponse<Data>
+  /**
+   * Redirects to a specified path or URL.
+   * Default status is 307
+   */
   redirect(url: string): NextApiResponse<Data>
+  /**
+   * Redirects to a specified path or URL with a custom status code.
+   * Status must be between 300-399
+   */
   redirect(status: number, url: string): NextApiResponse<Data>
 
   /**
-   * Set draft mode
+   * Enables or disables Draft Mode
    */
   setDraftMode: (options: { enable: boolean }) => NextApiResponse<Data>
 
   /**
-   * Set preview data for Next.js' prerender mode
+   * Sets preview data for Next.js' Preview Mode
+   * @deprecated Use `setDraftMode` instead
    */
   setPreviewData: (
     data: object | string,
@@ -274,16 +303,13 @@ export type NextApiResponse<Data = any> = ServerResponse & {
   ) => NextApiResponse<Data>
 
   /**
-   * Clear preview data for Next.js' prerender mode
+   * Clears the Preview Mode data
+   * @deprecated Use `setDraftMode` instead
    */
   clearPreviewData: (options?: { path?: string }) => NextApiResponse<Data>
 
   /**
-   * Revalidate a specific page and regenerate it using On-Demand Incremental
-   * Static Regeneration.
-   * The path should be an actual path, not a rewritten path. E.g. for
-   * "/blog/[slug]" this should be "/blog/post-1".
-   * @link https://nextjs.org/docs/app/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath
+   * Revalidates a page on demand using ISR
    */
   revalidate: (
     urlPath: string,
