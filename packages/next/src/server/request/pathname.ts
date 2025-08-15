@@ -64,7 +64,7 @@ function createPrerenderPathname(
       )
     case 'prerender': {
       const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams && fallbackParams.size > 0) {
+      if (fallbackParams && fallbackParams.sizes.route > 0) {
         return makeHangingPromise<string>(
           prerenderStore.renderSignal,
           workStore.route,
@@ -75,7 +75,7 @@ function createPrerenderPathname(
     }
     case 'prerender-ppr': {
       const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams && fallbackParams.size > 0) {
+      if (fallbackParams && fallbackParams.sizes.route > 0) {
         return makeErroringPathname(workStore, prerenderStore.dynamicTracking)
       }
       break

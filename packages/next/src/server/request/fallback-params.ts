@@ -12,7 +12,59 @@ function getParamKeys(page: string) {
   return Object.keys(matcher(page))
 }
 
-export type OpaqueFallbackRouteParams = ReadonlyMap<string, string>
+/**
+ * An opaque fallback route params object. This is used to store the fallback
+ * route params in a way that is not easily accessible to the client.
+ */
+export type OpaqueFallbackRouteParams = {
+  /**
+   * The sizes of the fallback route params.
+   */
+  readonly sizes: {
+    /**
+     * The number of fallback route params that contribute to the route
+     * segments. These are fallback parameters that are associated with the
+     * route segments and should be used to determine if the pathname for the
+     * route should be considered dynamic.
+     */
+    readonly route: number
+
+    /**
+     * The number of fallback route params that contribute to the parallel route
+     * segments. These are fallback parameters that are not associated with the
+     * route segments and should not be used to determine if the pathname for
+     * the route should be considered dynamic.
+     */
+    readonly parallel: number
+  }
+
+  /**
+   * Whether the fallback route params include the specified key. This will also
+   * include the keys associated with parallel route segments.
+   *
+   * @param key the key to check
+   * @returns whether the fallback route params include the specified key
+   */
+  readonly has: (key: string) => boolean
+
+  /**
+   * Gets the value of the fallback route param for the specified key. This will
+   * also include the values associated with parallel route segments.
+   *
+   * @param key the key to get the value for
+   * @returns the value of the fallback route param for the specified key
+   */
+  readonly get: (key: string) => string | undefined
+
+  /**
+   * The iterator for the fallback route params. This will only include the keys
+   * associated with the route segments, not the parallel route segments. This
+   * is because the only use for this is to generate the postponed state keys
+   * for replacement, yet the parallel route segments are not used in the static
+   * render, so it won't exist in the postponed state.
+   */
+  readonly [Symbol.iterator]: () => IterableIterator<[string, string]>
+}
 
 /**
  * Creates an opaque fallback route params object from the fallback route params.
@@ -23,33 +75,51 @@ export type OpaqueFallbackRouteParams = ReadonlyMap<string, string>
 export function createOpaqueFallbackRouteParams(
   fallbackRouteParams: readonly FallbackRouteParam[]
 ): OpaqueFallbackRouteParams | null {
-  const keys: readonly string[] = fallbackRouteParams.map(
-    ({ paramName }) => paramName
-  )
-
-  // If there are no keys, we can return early.
-  if (keys.length === 0) return null
-
-  const params = new Map<string, string>()
+  // If there are no fallback route params, we can return early.
+  if (fallbackRouteParams.length === 0) return null
 
   // As we're creating unique keys for each of the dynamic route params, we only
   // need to generate a unique ID once per request because each of the keys will
   // be also be unique.
   const uniqueID = Math.random().toString(16).slice(2)
 
-  for (const key of keys) {
-    params.set(key, `%%drp:${key}:${uniqueID}%%`)
+  const sizes = { route: 0, parallel: 0 }
+  const keys = new Map<string, string>()
+
+  for (const { paramName, isParallelRouteParam } of fallbackRouteParams) {
+    // We need to track the sizes of the fallback route params to determine if
+    // the render should be halted during static generation.
+    if (isParallelRouteParam) sizes.parallel++
+    else sizes.route++
+
+    // Generate a unique key for the fallback route param, if this key is found
+    // in the static output, it represents a bug in cache components.
+    keys.set(paramName, `%%drp:${paramName}:${uniqueID}%%`)
   }
 
-  return params
+  return {
+    sizes,
+    has: keys.has.bind(keys),
+    get: keys.get.bind(keys),
+    *[Symbol.iterator](): IterableIterator<[string, string]> {
+      for (const { paramName, isParallelRouteParam } of fallbackRouteParams) {
+        // We only want to include the route segments, not the parallel route
+        // segments.
+        if (isParallelRouteParam) continue
+        yield [paramName, keys.get(paramName)!]
+      }
+    },
+  } satisfies OpaqueFallbackRouteParams
 }
 
 /**
- * Gets the fallback route params for a given page.
+ * Gets the fallback route params for a given page. This is an expensive
+ * operation because it requires parsing the loader tree to extract the fallback
+ * route params.
  *
  * @param page the page
  * @param routeModule the route module
- * @returns the fallback route params
+ * @returns the opaque fallback route params
  */
 export function getFallbackRouteParams(
   page: string,
@@ -73,5 +143,5 @@ export function getFallbackRouteParams(
     }
   }
 
-  return fallbackRouteParams
+  return createOpaqueFallbackRouteParams(fallbackRouteParams)
 }

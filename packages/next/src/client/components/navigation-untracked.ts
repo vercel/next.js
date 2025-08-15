@@ -21,7 +21,7 @@ function hasFallbackRouteParams(): boolean {
       case 'prerender-client':
       case 'prerender-ppr':
         const fallbackParams = workUnitStore.fallbackRouteParams
-        return fallbackParams ? fallbackParams.size > 0 : false
+        return fallbackParams ? fallbackParams.sizes.route > 0 : false
       case 'prerender-legacy':
       case 'request':
       case 'prerender-runtime':

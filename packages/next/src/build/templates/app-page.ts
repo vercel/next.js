@@ -727,9 +727,7 @@ export async function handler(
               : // Otherwise, if we're debugging the fallback shell, then we
                 // have to manually generate the fallback route params.
                 isDebugFallbackShell
-                ? createOpaqueFallbackRouteParams(
-                    getFallbackRouteParams(normalizedSrcPage, routeModule)
-                  )
+                ? getFallbackRouteParams(normalizedSrcPage, routeModule)
                 : null
 
           // We use the response cache here to handle the revalidation and
@@ -803,9 +801,7 @@ export async function handler(
           : // Otherwise, if we're debugging the fallback shell, then we have to
             // manually generate the fallback route params.
             isDebugFallbackShell
-            ? createOpaqueFallbackRouteParams(
-                getFallbackRouteParams(normalizedSrcPage, routeModule)
-              )
+            ? getFallbackRouteParams(normalizedSrcPage, routeModule)
             : null
 
       // Perform the render.

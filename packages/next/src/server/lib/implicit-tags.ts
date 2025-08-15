@@ -81,7 +81,7 @@ export async function getImplicitTags(
 ): Promise<ImplicitTags> {
   const tags: string[] = []
   const hasFallbackRouteParams =
-    fallbackRouteParams && fallbackRouteParams.size > 0
+    fallbackRouteParams && fallbackRouteParams.sizes.route > 0
 
   // Add the derived tags from the page.
   const derivedTags = getDerivedTags(page)

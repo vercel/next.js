@@ -80,7 +80,7 @@ export async function getDynamicHTMLPostponedState(
   const data: DynamicHTMLPostponedState['data'] = [preludeState, postponed]
   const dataString = JSON.stringify(data)
 
-  if (!fallbackRouteParams || fallbackRouteParams.size === 0) {
+  if (!fallbackRouteParams || fallbackRouteParams.sizes.route === 0) {
     // Serialized as `<postponedString.length>:<postponedString><renderResumeDataCache>`
     return `${dataString.length}:${dataString}${await stringifyResumeDataCache(
       createRenderResumeDataCache(resumeDataCache)
