@@ -20,7 +20,7 @@ describe('invalid-static-asset-404-pages-base-path', () => {
   })
 
   it('should return custom 404 page when fetching invalid non-asset path', async () => {
-    const res = await next.fetch('/invalid-path')
+    const res = await next.fetch('/base/invalid-path')
     expect(res.status).toBe(404)
     const text = await res.text()
     expect(text).toContain('Custom Not Found')
