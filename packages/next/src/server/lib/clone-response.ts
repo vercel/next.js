@@ -1,21 +1,15 @@
-// @ts-ignore https://nodejs.org/api/stream.html#streamreadableisdisturbedstream
-import { isDisturbed, isErrored } from 'node:stream'
-
-// https://github.com/nodejs/undici/blob/c399fdf4246be4992e89efe42aa83062edd0609f/lib/web/fetch/body.js#L32
 const noop = () => {}
-const registry = new FinalizationRegistry(
-  (weakRef: WeakRef<ReadableStream>) => {
+
+let registry: FinalizationRegistry<WeakRef<ReadableStream>> | undefined
+
+if (globalThis.FinalizationRegistry) {
+  registry = new FinalizationRegistry((weakRef: WeakRef<ReadableStream>) => {
     const stream = weakRef.deref()
-    if (
-      stream &&
-      !stream.locked &&
-      !isDisturbed(stream) &&
-      !isErrored(stream as any as NodeJS.ReadableStream)
-    ) {
+    if (stream && !stream.locked) {
       stream.cancel('Response object has been garbage collected').then(noop)
     }
-  }
-)
+  })
+}
 
 /**
  * Clones a response by teeing the body so we can return two independent
@@ -66,7 +60,7 @@ export function cloneResponse(original: Response): [Response, Response] {
   // FinalizationRegistry in Undici, but since we're tee-ing the stream
   // ourselves, we need to cancel clone1's stream (the response returned from
   // our dedupe fetch) when clone1 is reclaimed, otherwise we leak memory.
-  if (cloned1.body) {
+  if (registry && cloned1.body) {
     registry.register(cloned1, new WeakRef(cloned1.body))
   }
 
