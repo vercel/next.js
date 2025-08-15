@@ -1,9 +1,4 @@
-import { unstable_cache } from 'next/cache'
 import Link from 'next/link'
-
-const cachedRandom = unstable_cache(() => Math.random(), [], {
-  tags: ['cached-random'],
-})
 
 export default function RootLayout({ children }) {
   return (
@@ -11,9 +6,6 @@ export default function RootLayout({ children }) {
       <head />
       <body>
         <div id="random-number">{Math.random()}</div>
-        <div>
-          Cached Random: <span id="cached-random">{cachedRandom()}</span>
-        </div>
         <div>
           <div>
             <Link id="navigate-client" href="/client">

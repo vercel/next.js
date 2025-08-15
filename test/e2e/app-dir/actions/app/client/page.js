@@ -39,15 +39,6 @@ export default function Counter() {
         +1 (Slow)
       </button>
       <button
-        id="slow-inc-revalidate"
-        onClick={async () => {
-          const newCount = await slowInc(count, true)
-          setCount(newCount)
-        }}
-      >
-        +1 (Slow + Revalidate)
-      </button>
-      <button
         id="dec"
         onClick={async () => {
           const newCount = await dec(count)

@@ -1908,15 +1908,16 @@ describe('app-dir action handling', () => {
 
   describe('action discarding', () => {
     it('should not trigger a refresh for a server action that gets discarded due to a navigation (without revalidation)', async () => {
-      let browser = await next.browser('/client')
+      let browser = await next.browser('/action-discarding')
+      await browser.waitForIdleNetwork()
       const initialRandomNumber = await browser
         .elementByCss('#cached-random')
         .text()
 
-      await browser.elementByCss('#slow-inc').click()
+      await browser.elementByCss('#slow-action').click()
 
-      // navigate to server
-      await browser.elementByCss('#navigate-server').click()
+      // navigate to destination
+      await browser.elementByCss('#navigate-destination').click()
 
       // wait for the 2s action to finish
       await waitFor(2000)
@@ -1931,15 +1932,16 @@ describe('app-dir action handling', () => {
     })
 
     it('should trigger a refresh for a server action that gets discarded due to a navigation (with revalidation)', async () => {
-      let browser = await next.browser('/client')
+      let browser = await next.browser('/action-discarding')
+      await browser.waitForIdleNetwork()
       const initialRandomNumber = await browser
         .elementByCss('#cached-random')
         .text()
 
-      await browser.elementByCss('#slow-inc-revalidate').click()
+      await browser.elementByCss('#slow-action-revalidate').click()
 
-      // navigate to server
-      await browser.elementByCss('#navigate-server').click()
+      // navigate to destination
+      await browser.elementByCss('#navigate-destination').click()
 
       // wait for the 2s action to finish
       await waitFor(2000)

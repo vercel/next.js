@@ -4,7 +4,6 @@ import 'server-only'
 
 import { redirect } from 'next/navigation'
 import { headers, cookies } from 'next/headers'
-import { revalidateTag } from 'next/cache'
 
 export async function getHeaders() {
   console.log('accept header:', (await headers()).get('accept'))
@@ -15,11 +14,8 @@ export async function inc(value) {
   return value + 1
 }
 
-export async function slowInc(value, revalidate) {
+export async function slowInc(value) {
   await new Promise((resolve) => setTimeout(resolve, 2000))
-  if (revalidate) {
-    revalidateTag('cached-random')
-  }
   return value + 1
 }
 

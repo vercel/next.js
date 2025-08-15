@@ -279,7 +279,7 @@ function getAppRelativeRedirectUrl(
     const resolved = new URL(redirectUrl, `http://n${base}`)
     // Include basePath in the final URL
     return new URL(
-      `${basePath}${resolved.pathname}${resolved.search}`,
+      `${basePath}${resolved.pathname}${resolved.search}${resolved.hash}`,
       'http://n'
     )
   }

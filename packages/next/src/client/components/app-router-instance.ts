@@ -69,7 +69,6 @@ function runRemainingActions(
   if (actionQueue.pending !== null) {
     actionQueue.pending = actionQueue.pending.next
     if (actionQueue.pending !== null) {
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       runAction({
         actionQueue,
         action: actionQueue.pending,
