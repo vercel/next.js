@@ -147,7 +147,6 @@ import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
 import type { PrerenderedRoute } from '../build/static-paths/types'
-import { removeBasePath } from '../client/remove-base-path'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -2091,20 +2090,6 @@ export default abstract class Server<
     let hasFallback = false
 
     const prerenderManifest = this.getPrerenderManifest()
-
-    // For not found static assets, return plain text 404 instead of
-    // full HTML 404 pages to save bandwidth.
-    if (
-      is404Page &&
-      removeBasePath(urlPathname)
-        .replace(this.nextConfig.assetPrefix, '')
-        .startsWith('/_next/static/')
-    ) {
-      res.statusCode = 404
-      res.setHeader('Content-Type', 'text/plain; charset=utf-8')
-      res.body('Not Found').send()
-      return null
-    }
 
     if (
       hasFallback ||

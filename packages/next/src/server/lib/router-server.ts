@@ -22,6 +22,7 @@ import { getResolveRoutes } from './router-utils/resolve-routes'
 import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
+import { removeBasePath } from '../../client/remove-base-path'
 import setupCompression from 'next/dist/compiled/compression'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isPostpone } from './router-utils/is-postpone'
@@ -574,6 +575,21 @@ export async function initialize(opts: {
             invokeOutput: matchedOutput.itemPath,
           }
         )
+      }
+
+      // For not found static assets, return plain text 404 instead of
+      // full HTML 404 pages to save bandwidth.
+      if (
+        parsedUrl.pathname &&
+        removePathPrefix(
+          removeBasePath(parsedUrl.pathname),
+          config.assetPrefix
+        ).startsWith('/_next/static/')
+      ) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end('Not Found')
+        return null
       }
 
       if (opts.dev && isChromeDevtoolsWorkspaceUrl(parsedUrl)) {
