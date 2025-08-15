@@ -22,7 +22,6 @@ import { getResolveRoutes } from './router-utils/resolve-routes'
 import { addRequestMeta, getRequestMeta } from '../request-meta'
 import { pathHasPrefix } from '../../shared/lib/router/utils/path-has-prefix'
 import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-prefix'
-import { removeBasePath } from '../../client/remove-base-path'
 import setupCompression from 'next/dist/compiled/compression'
 import { signalFromNodeResponse } from '../web/spec-extension/adapters/next-request'
 import { isPostpone } from './router-utils/is-postpone'
@@ -60,7 +59,6 @@ import {
   handleChromeDevtoolsWorkspaceRequest,
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
-import { removeLocale } from '../../client/remove-locale'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -592,7 +590,10 @@ export async function initialize(opts: {
       let realRequestPathname = parsedUrl.pathname ?? ''
       if (realRequestPathname) {
         if (config.basePath) {
-          realRequestPathname = removeBasePath(realRequestPathname)
+          realRequestPathname = removePathPrefix(
+            realRequestPathname,
+            config.basePath
+          )
         }
         if (config.assetPrefix) {
           realRequestPathname = removePathPrefix(
@@ -601,10 +602,9 @@ export async function initialize(opts: {
           )
         }
         if (config.i18n) {
-          realRequestPathname = removeLocale(
+          realRequestPathname = removePathPrefix(
             realRequestPathname,
-            getRequestMeta(req, 'locale'),
-            true
+            '/' + (getRequestMeta(req, 'locale') ?? '')
           )
         }
       }
