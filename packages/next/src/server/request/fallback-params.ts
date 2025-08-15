@@ -1,7 +1,8 @@
+import { collectFallbackRouteParams } from '../../build/segment-config/app/app-segments'
+import type { FallbackRouteParam } from '../../build/static-paths/types'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-
-export type FallbackRouteParams = ReadonlyMap<string, string>
+import type AppPageRouteModule from '../route-modules/app-page/module'
 
 function getParamKeys(page: string) {
   const pattern = getRouteRegex(page)
@@ -11,15 +12,20 @@ function getParamKeys(page: string) {
   return Object.keys(matcher(page))
 }
 
-export function getFallbackRouteParams(
-  pageOrKeys: string | readonly string[]
-): FallbackRouteParams | null {
-  let keys: readonly string[]
-  if (typeof pageOrKeys === 'string') {
-    keys = getParamKeys(pageOrKeys)
-  } else {
-    keys = pageOrKeys
-  }
+export type OpaqueFallbackRouteParams = ReadonlyMap<string, string>
+
+/**
+ * Creates an opaque fallback route params object from the fallback route params.
+ *
+ * @param fallbackRouteParams the fallback route params
+ * @returns the opaque fallback route params
+ */
+export function createOpaqueFallbackRouteParams(
+  fallbackRouteParams: readonly FallbackRouteParam[]
+): OpaqueFallbackRouteParams | null {
+  const keys: readonly string[] = fallbackRouteParams.map(
+    ({ paramName }) => paramName
+  )
 
   // If there are no keys, we can return early.
   if (keys.length === 0) return null
@@ -36,4 +42,36 @@ export function getFallbackRouteParams(
   }
 
   return params
+}
+
+/**
+ * Gets the fallback route params for a given page.
+ *
+ * @param page the page
+ * @param routeModule the route module
+ * @returns the fallback route params
+ */
+export function getFallbackRouteParams(
+  page: string,
+  routeModule: AppPageRouteModule
+) {
+  // First, get the fallback route params based on the provided page.
+  const unknownParamKeys = new Set(getParamKeys(page))
+
+  // Then, we have to get the fallback route params from the segments that are
+  // associated with parallel route segments.
+  const fallbackRouteParams: FallbackRouteParam[] = []
+  for (const fallbackRouteParam of collectFallbackRouteParams(routeModule)) {
+    if (fallbackRouteParam.isParallelRouteParam) {
+      // If this is a parallel route segment, we know it wasn't provided in the
+      // page, so we can add it to the fallback route params.
+      fallbackRouteParams.push(fallbackRouteParam)
+    } else if (unknownParamKeys.has(fallbackRouteParam.paramName)) {
+      // As this is a non-parallel route segment, and it exists in the unknown
+      // param keys, we know it's a fallback route param.
+      fallbackRouteParams.push(fallbackRouteParam)
+    }
+  }
+
+  return fallbackRouteParams
 }

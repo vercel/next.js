@@ -2,7 +2,7 @@ import {
   workAsyncStorage,
   type WorkStore,
 } from '../app-render/work-async-storage.external'
-import type { FallbackRouteParams } from './fallback-params'
+import type { OpaqueFallbackRouteParams } from './fallback-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
@@ -336,7 +336,7 @@ function createRenderParamsInProd(underlyingParams: Params): Promise<Params> {
 
 function createRenderParamsInDev(
   underlyingParams: Params,
-  devFallbackParams: FallbackRouteParams | null | undefined,
+  devFallbackParams: OpaqueFallbackRouteParams | null | undefined,
   workStore: WorkStore
 ): Promise<Params> {
   let hasFallbackParams = false
@@ -419,7 +419,7 @@ function makeHangingParams(
 
 function makeErroringExoticParams(
   underlyingParams: Params,
-  fallbackParams: FallbackRouteParams,
+  fallbackParams: OpaqueFallbackRouteParams,
   workStore: WorkStore,
   prerenderStore: PrerenderStorePPR | PrerenderStoreLegacy
 ): Promise<Params> {

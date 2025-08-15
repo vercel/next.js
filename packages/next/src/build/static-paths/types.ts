@@ -16,11 +16,29 @@ type StaticPrerenderedRoute = {
   throwOnEmptyStaticShell: undefined
 }
 
+export type FallbackRouteParam = {
+  /**
+   * The name of the param.
+   */
+  readonly paramName: string
+
+  /**
+   * Whether this is a parallel route param or descends from a parallel route
+   * param.
+   */
+  readonly isParallelRouteParam: boolean
+}
+
 type FallbackPrerenderedRoute = {
   readonly params: Params
   readonly pathname: string
   readonly encodedPathname: string
-  readonly fallbackRouteParams: readonly string[]
+
+  /**
+   * The fallback route params for the route. This includes both the parallel
+   * route params and the non-parallel route params.
+   */
+  readonly fallbackRouteParams: readonly FallbackRouteParam[]
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: readonly string[]
 

@@ -2320,7 +2320,7 @@ export default abstract class Server<
           }
           if (smallestFallbackRouteParams) {
             const devValidatingFallbackParams = new Map<string, string>(
-              smallestFallbackRouteParams.map((v) => [v, ''])
+              smallestFallbackRouteParams.map((v) => [v.paramName, ''])
             )
             addRequestMeta(
               req,

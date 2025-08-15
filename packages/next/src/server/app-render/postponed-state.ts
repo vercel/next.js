@@ -1,4 +1,4 @@
-import type { FallbackRouteParams } from '../../server/request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../../server/request/fallback-params'
 import type { Params } from '../request/params'
 import {
   createPrerenderResumeDataCache,
@@ -74,7 +74,7 @@ export type PostponedState =
 export async function getDynamicHTMLPostponedState(
   postponed: ReactPostponed,
   preludeState: DynamicHTMLPreludeState,
-  fallbackRouteParams: FallbackRouteParams | null,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
   resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache
 ): Promise<string> {
   const data: DynamicHTMLPostponedState['data'] = [preludeState, postponed]

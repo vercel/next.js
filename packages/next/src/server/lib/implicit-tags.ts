@@ -1,5 +1,5 @@
 import { NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
-import type { FallbackRouteParams } from '../request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import { getCacheHandlerEntries } from '../use-cache/handlers'
 import { createLazyResult, type LazyResult } from './lazy-result'
 
@@ -77,7 +77,7 @@ export async function getImplicitTags(
     pathname: string
     search?: string
   },
-  fallbackRouteParams: null | FallbackRouteParams
+  fallbackRouteParams: null | OpaqueFallbackRouteParams
 ): Promise<ImplicitTags> {
   const tags: string[] = []
   const hasFallbackRouteParams =

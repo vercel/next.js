@@ -24,7 +24,7 @@ import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
 import type { FetchMetrics } from '../../server/base-http'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
-import type { FallbackRouteParams } from '../../server/request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../../server/request/fallback-params'
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
@@ -45,7 +45,7 @@ export async function exportAppPage(
   path: string,
   pathname: string,
   query: NextParsedUrlQuery,
-  fallbackRouteParams: FallbackRouteParams | null,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
   partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>,
   htmlFilepath: string,
   debugOutput: boolean,

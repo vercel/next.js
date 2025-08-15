@@ -785,5 +785,6 @@
   "784": "Expected document.currentScript src to contain '/_next/'. Received %s instead.",
   "785": "Expected webSocket to be defined in dev mode.",
   "786": "Expected staticIndicatorState to be defined in dev mode.",
-  "787": "\\`experimental.clientParamParsing\\` can not be \\`true\\` when \\`experimental.clientSegmentCache\\` is \\`false\\`. Client param parsing is only relevant when client segment cache is enabled."
+  "787": "\\`experimental.clientParamParsing\\` can not be \\`true\\` when \\`experimental.clientSegmentCache\\` is \\`false\\`. Client param parsing is only relevant when client segment cache is enabled.",
+  "788": "Unexpected dynamic param type: %s"
 }

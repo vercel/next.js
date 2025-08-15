@@ -18,7 +18,8 @@ import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import {
   getFallbackRouteParams,
-  type FallbackRouteParams,
+  createOpaqueFallbackRouteParams,
+  type OpaqueFallbackRouteParams,
 } from '../../server/request/fallback-params'
 import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
 import {
@@ -447,7 +448,7 @@ export async function handler(
       /**
        * The unknown route params for this render.
        */
-      fallbackRouteParams: FallbackRouteParams | null
+      fallbackRouteParams: OpaqueFallbackRouteParams | null
     }): Promise<ResponseCacheEntry> => {
       const context: AppPageRouteHandlerContext = {
         query,
@@ -515,7 +516,9 @@ export async function handler(
           basePath: nextConfig.basePath,
           serverActions: nextConfig.experimental.serverActions,
 
-          ...(isDebugStaticShell || isDebugDynamicAccesses
+          ...(isDebugStaticShell ||
+          isDebugDynamicAccesses ||
+          isDebugFallbackShell
             ? {
                 nextExport: true,
                 supportsDynamicResponse: false,
@@ -709,10 +712,23 @@ export async function handler(
             : !isRSCRequest)
         ) {
           const cacheKey =
-            typeof prerenderInfo?.fallback === 'string'
+            isProduction && typeof prerenderInfo?.fallback === 'string'
               ? prerenderInfo.fallback
-              : isProduction
-                ? normalizedSrcPage
+              : normalizedSrcPage
+
+          const fallbackRouteParams =
+            // If we're in production and we have fallback route params, then we
+            // can use the manifest fallback route params.
+            isProduction && prerenderInfo?.fallbackRouteParams
+              ? createOpaqueFallbackRouteParams(
+                  prerenderInfo.fallbackRouteParams
+                )
+              : // Otherwise, if we're debugging the fallback shell, then we
+                // have to manually generate the fallback route params.
+                isDebugFallbackShell
+                ? createOpaqueFallbackRouteParams(
+                    getFallbackRouteParams(normalizedSrcPage, routeModule)
+                  )
                 : null
 
           // We use the response cache here to handle the revalidation and
@@ -731,13 +747,7 @@ export async function handler(
                 // We pass `undefined` as rendering a fallback isn't resumed
                 // here.
                 postponed: undefined,
-                fallbackRouteParams:
-                  // If we're in production or we're debugging the fallback
-                  // shell then we should postpone when dynamic params are
-                  // accessed.
-                  isProduction || isDebugFallbackShell
-                    ? getFallbackRouteParams(normalizedSrcPage)
-                    : null,
+                fallbackRouteParams,
               }),
             waitUntil: ctx.waitUntil,
           })
@@ -781,15 +791,21 @@ export async function handler(
         }
       }
 
-      // If this is a dynamic route with PPR enabled and the default route
-      // matches were set, then we should pass the fallback route params to
-      // the renderer as this is a fallback revalidation request.
       const fallbackRouteParams =
-        pageIsDynamic &&
-        isRoutePPREnabled &&
-        (getRequestMeta(req, 'renderFallbackShell') || isDebugFallbackShell)
-          ? getFallbackRouteParams(pathname)
-          : null
+        // If we're in production and we have fallback route params, then we
+        // can use the manifest fallback route params if we need to render the
+        // fallback shell.
+        isProduction &&
+        prerenderInfo?.fallbackRouteParams &&
+        getRequestMeta(req, 'renderFallbackShell')
+          ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
+          : // Otherwise, if we're debugging the fallback shell, then we have to
+            // manually generate the fallback route params.
+            isDebugFallbackShell
+            ? createOpaqueFallbackRouteParams(
+                getFallbackRouteParams(normalizedSrcPage, routeModule)
+              )
+            : null
 
       // Perform the render.
       return doRender({

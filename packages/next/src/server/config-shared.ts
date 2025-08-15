@@ -29,6 +29,7 @@ import type { RenderingMode } from '../build/rendering-mode'
 import type { Revalidate } from './lib/cache-control'
 import type { AdapterOutputType } from '../shared/lib/constants'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { FallbackRouteParam } from '../build/static-paths/types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -940,7 +941,7 @@ export type ExportPathMap = {
      *
      * @internal
      */
-    _fallbackRouteParams?: readonly string[]
+    _fallbackRouteParams?: readonly FallbackRouteParam[]
 
     /**
      * @internal

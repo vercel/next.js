@@ -1,19 +1,27 @@
 import type { Params } from '../../server/request/params'
 import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type { AppSegment } from '../segment-config/app/app-segments'
-import type { PrerenderedRoute, StaticPathsResult } from './types'
+import type {
+  FallbackRouteParam,
+  PrerenderedRoute,
+  StaticPathsResult,
+} from './types'
 
 import path from 'node:path'
 import { AfterRunner } from '../../server/after/run-with-after'
 import { createWorkStore } from '../../server/async-storage/work-store'
 import { FallbackMode } from '../../lib/fallback'
-import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import {
   getRouteRegex,
   type RouteRegex,
 } from '../../shared/lib/router/utils/route-regex'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
-import { normalizePathname, encodeParam } from './utils'
+import {
+  normalizePathname,
+  encodeParam,
+  filterNonParallelFallbackRouteParams,
+  createFallbackRouteParam,
+} from './utils'
 import escapePathDelimiters from '../../shared/lib/router/utils/escape-path-delimiters'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
 import type { NextConfigComplete } from '../../server/config-shared'
@@ -492,7 +500,12 @@ export function assignErrorIfEmpty(
         // might be `undefined` or `null`, treating them as 0 length.
         minFallbacks = Math.min(
           minFallbacks,
-          r.fallbackRouteParams?.length ?? 0
+          // We only consider non-parallel fallback route params for this
+          // calculation because parallel route params won't contribute to
+          // the request pathname.
+          r.fallbackRouteParams
+            ? filterNonParallelFallbackRouteParams(r.fallbackRouteParams).length
+            : 0
         )
       }
 
@@ -513,7 +526,11 @@ export function assignErrorIfEmpty(
         if (
           hasChildren ||
           (route.fallbackRouteParams &&
-            route.fallbackRouteParams.length > minFallbacks)
+            // We only consider non-parallel fallback route params for this
+            // calculation because parallel route params won't contribute to
+            // the request pathname.
+            filterNonParallelFallbackRouteParams(route.fallbackRouteParams)
+              .length > minFallbacks)
         ) {
           route.throwOnEmptyStaticShell = false // Should not throw on empty static shell.
         } else {
@@ -681,7 +698,16 @@ export async function buildAppStaticPaths({
   })
 
   const regex = getRouteRegex(page)
-  const routeParamKeys = Object.keys(getRouteMatcher(regex)(page) || {})
+
+  const routeParamKeys: string[] = segments.reduce<string[]>((acc, segment) => {
+    // Collect all the route param keys that are not parallel route params.
+    // These are the ones that will be included in the request pathname.
+    if (segment.paramName && !segment.isParallelRouteSegment) {
+      acc.push(segment.paramName)
+    }
+
+    return acc
+  }, [])
 
   const afterRunner = new AfterRunner()
 
@@ -715,19 +741,19 @@ export async function buildAppStaticPaths({
     // Check to see if there are any missing params for segments that have
     // dynamicParams set to false.
     if (
-      segment.param &&
+      segment.paramName &&
       segment.isDynamicSegment &&
       segment.config?.dynamicParams === false
     ) {
       for (const params of routeParams) {
-        if (segment.param in params) continue
+        if (segment.paramName in params) continue
 
         const relative = segment.filePath
           ? path.relative(dir, segment.filePath)
           : undefined
 
         throw new Error(
-          `Segment "${relative}" exports "dynamicParams: false" but the param "${segment.param}" is missing from the generated route params.`
+          `Segment "${relative}" exports "dynamicParams: false" but the param "${segment.paramName}" is missing from the generated route params.`
         )
       }
     }
@@ -785,6 +811,17 @@ export async function buildAppStaticPaths({
     paramPatterns.set(key, pattern)
   }
 
+  // Collect all the parallel route keys (as they won't be included in the
+  // generateStaticParams).
+  const parallelFallbackRouteParams: FallbackRouteParam[] = []
+  for (const segment of segments) {
+    if (segment.isParallelRouteSegment && segment.paramName) {
+      parallelFallbackRouteParams.push(
+        createFallbackRouteParam(segment.paramName, true)
+      )
+    }
+  }
+
   // Convert rootParamKeys to Set for O(1) lookup.
   const rootParamSet = new Set(rootParamKeys)
 
@@ -801,13 +838,20 @@ export async function buildAppStaticPaths({
         rootParamKeys
       )
 
+      // The fallback route params for this route is a combination of the
+      // parallel route params and the non-parallel route params.
+      const fallbackRouteParams: readonly FallbackRouteParam[] = [
+        ...parallelFallbackRouteParams,
+        ...routeParamKeys.map((key) => createFallbackRouteParam(key, false)),
+      ]
+
       // Add the base route, this is the route with all the placeholders as it's
       // derived from the `page` string.
       prerenderedRoutesByPathname.set(page, {
         params: {},
         pathname: page,
         encodedPathname: page,
-        fallbackRouteParams: routeParamKeys,
+        fallbackRouteParams,
         fallbackMode: calculateFallbackMode(
           dynamicParams,
           rootParamKeys,
@@ -832,7 +876,11 @@ export async function buildAppStaticPaths({
       let pathname = page
       let encodedPathname = page
 
-      const fallbackRouteParams: string[] = []
+      // None of the parallel route params will be included in the request
+      // pathname, so they won't be included in the fallback route params.
+      const fallbackRouteParams: FallbackRouteParam[] = [
+        ...parallelFallbackRouteParams,
+      ]
 
       for (const key of routeParamKeys) {
         const paramValue = params[key]
@@ -840,13 +888,15 @@ export async function buildAppStaticPaths({
         if (!paramValue) {
           if (isRoutePPREnabled) {
             // Mark remaining params as fallback params.
-            fallbackRouteParams.push(key)
+            fallbackRouteParams.push(createFallbackRouteParam(key, false))
             for (
               let i = routeParamKeys.indexOf(key) + 1;
               i < routeParamKeys.length;
               i++
             ) {
-              fallbackRouteParams.push(routeParamKeys[i])
+              fallbackRouteParams.push(
+                createFallbackRouteParam(routeParamKeys[i], false)
+              )
             }
             break
           } else {
@@ -869,9 +919,13 @@ export async function buildAppStaticPaths({
       }
 
       const fallbackRootParams: string[] = []
-      for (const param of fallbackRouteParams) {
-        if (rootParamSet.has(param)) {
-          fallbackRootParams.push(param)
+      // Only add the param to the fallback root params if it's not a
+      // parallel route param. They won't contribute to the request pathname.
+      for (const { paramName } of filterNonParallelFallbackRouteParams(
+        fallbackRouteParams
+      )) {
+        if (rootParamSet.has(paramName)) {
+          fallbackRootParams.push(paramName)
         }
       }
 
