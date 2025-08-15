@@ -1,0 +1,27 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/renaming-4967/input/index.js:2:9  Module not found: Can't resolve './module'
+  
+       1 | it('should check existing variables when renaming', function () {
+         +          v-----------------v
+       2 +   expect(require('./module').d.x()).toBe('ok')
+         +          ^-----------------^
+       3 |   expect(require('./module').c.a()).toBe('ok')
+       4 |   expect(require('./module').test()).toBe('ok')
+       5 | })
+       6 | 
+  
+  all exported names should be analyzed
+  
+  Debug info:
+  - Execution of <ModuleAssetContext as AssetContext>::process_resolve_result failed
+  - Execution of apply_module_type failed
+  - Execution of *EcmascriptExports::split_locals_and_reexports failed
+  - Execution of <EcmascriptModuleAsset as EcmascriptChunkPlaceable>::get_exports failed
+  - Execution of analyse_ecmascript_module failed
+  - all exported names should be analyzed
+  
+  
+  | An error happened during resolving.
+  | Parsed request as written in source code: relative './module'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/renaming-4967/input/index.js
+  | Type of request: commonjs request
+  |

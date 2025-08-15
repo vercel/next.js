@@ -1,0 +1,25 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/issue-5443/input/index.js:1:0  Module not found: Can't resolve './reexport'
+  
+         + v---------------------------------v
+       1 + import { module } from './reexport'
+         + ^---------------------------------^
+       2 | 
+       3 | it('should have the correct values', function () {
+       4 |   expect(module).toEqual(
+       5 |     nsObj({
+  
+  all exported names should be analyzed
+  
+  Debug info:
+  - Execution of <ModuleAssetContext as AssetContext>::process_resolve_result failed
+  - Execution of apply_module_type failed
+  - Execution of <EcmascriptModuleAsset as EcmascriptChunkPlaceable>::is_marked_as_side_effect_free failed
+  - Execution of analyse_ecmascript_module failed
+  - all exported names should be analyzed
+  
+  
+  | An error happened during resolving.
+  | Parsed request as written in source code: relative './reexport'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/issue-5443/input/index.js
+  | Type of request: EcmaScript Modules (part) request
+  |

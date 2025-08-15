@@ -35,7 +35,8 @@ function localUnused() {
 ;
 __turbopack_context__.s([
     "local",
-    ()=>local
+    0,
+    local
 ]);
 }),
 ]);

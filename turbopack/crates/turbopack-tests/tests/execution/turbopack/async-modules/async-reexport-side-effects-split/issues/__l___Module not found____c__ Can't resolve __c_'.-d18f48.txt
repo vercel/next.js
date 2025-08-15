@@ -1,0 +1,30 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/async-modules/async-reexport-side-effects-split/input/index.js:27:4  Module not found: Can't resolve './side-effect-free/reexport-external.js'
+  
+      23 |     import('./side-effect-free/reexport-external.js'),
+      24 |   'module with externals flagged side-effect-free via esm import': async () =>
+      25 |     (await import('./side-effect-free/reexport-external-test.js')).default,
+      26 |   'module with externals flagged side-effect-free via require': () =>
+         +     v------------------------------------------------v
+      27 +     require('./side-effect-free/reexport-external.js'),
+         +     ^------------------------------------------------^
+      28 | }
+      29 | 
+      30 | for (const [name, fn] of Object.entries(cases)) {
+      31 |   it(`should reexport a ${name} with side effects optimization`, async () => {
+  
+  all exported names should be analyzed
+  
+  Debug info:
+  - Execution of <ModuleAssetContext as AssetContext>::process_resolve_result failed
+  - Execution of apply_module_type failed
+  - Execution of *EcmascriptExports::split_locals_and_reexports failed
+  - Execution of <EcmascriptModuleAsset as EcmascriptChunkPlaceable>::get_exports failed
+  - Execution of analyse_ecmascript_module failed
+  - all exported names should be analyzed
+  
+  
+  | An error happened during resolving.
+  | Parsed request as written in source code: relative './side-effect-free/reexport-external.js'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/async-modules/async-reexport-side-effects-split/input/index.js
+  | Type of request: commonjs request
+  |

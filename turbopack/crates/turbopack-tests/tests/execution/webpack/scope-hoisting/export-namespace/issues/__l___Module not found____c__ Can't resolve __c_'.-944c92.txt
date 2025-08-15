@@ -1,0 +1,27 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/export-namespace/input/index.js:2:12  Module not found: Can't resolve './module2'
+  
+       1 | import { ns as ns1 } from './module1'
+         +             v------------------v
+       2 + const ns2 = require('./module2').ns
+         +             ^------------------^
+       3 | 
+       4 | it('should allow to export a namespace object (concated)', function () {
+       5 |   expect(ns1).toEqual(
+       6 |     nsObj({
+  
+  all exported names should be analyzed
+  
+  Debug info:
+  - Execution of <ModuleAssetContext as AssetContext>::process_resolve_result failed
+  - Execution of apply_module_type failed
+  - Execution of *EcmascriptExports::split_locals_and_reexports failed
+  - Execution of <EcmascriptModuleAsset as EcmascriptChunkPlaceable>::get_exports failed
+  - Execution of analyse_ecmascript_module failed
+  - all exported names should be analyzed
+  
+  
+  | An error happened during resolving.
+  | Parsed request as written in source code: relative './module2'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/webpack/scope-hoisting/export-namespace/input/index.js
+  | Type of request: commonjs request
+  |
