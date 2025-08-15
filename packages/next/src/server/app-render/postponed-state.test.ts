@@ -10,11 +10,30 @@ import {
   parsePostponedState,
   DynamicHTMLPreludeState,
 } from './postponed-state'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
+
+function createMockOpaqueFallbackRouteParams(
+  params: Record<string, string>
+): OpaqueFallbackRouteParams {
+  const entries = Object.entries(params)
+  return {
+    sizes: { route: entries.length, parallel: 0 },
+    has: (key: string) => key in params,
+    get: (key: string) => params[key],
+    *[Symbol.iterator]() {
+      for (const [key, value] of entries) {
+        yield [key, value] as [string, string]
+      }
+    },
+  }
+}
 
 describe('getDynamicHTMLPostponedState', () => {
   it('serializes a HTML postponed state with fallback params', async () => {
     const key = '%%drp:slug:e9615126684e5%%'
-    const fallbackRouteParams = new Map([['slug', key]])
+    const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
+      slug: key,
+    })
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
     prerenderResumeDataCache.cache.set(
@@ -79,7 +98,9 @@ describe('getDynamicHTMLPostponedState', () => {
 
   it('can serialize and deserialize a HTML postponed state with fallback params', async () => {
     const key = '%%drp:slug:e9615126684e5%%'
-    const fallbackRouteParams = new Map([['slug', key]])
+    const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
+      slug: key,
+    })
     const state = await getDynamicHTMLPostponedState(
       { [key]: key },
       DynamicHTMLPreludeState.Full,
