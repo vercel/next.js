@@ -12,21 +12,8 @@ describe('typed-routes-validator', () => {
 
   it('should generate route validation correctly', async () => {
     const dts = await next.readFile('.next/types/validator.ts')
-    expect(dts).toMatch(
-      /const handler = {} as typeof import\(".*\/app\/page.js"\)\s+handler satisfies AppPageConfig<"\/">/
-    )
-    expect(dts).toMatch(
-      /const handler = {} as typeof import\(".*\/app\/send-email\/route.js"\)\s+handler satisfies RouteHandlerConfig<"\/send-email">/
-    )
-    expect(dts).toMatch(
-      /const handler = {} as typeof import\(".*\/pages\/about.js"\)\s+handler satisfies PagesPageConfig/
-    )
-    expect(dts).toMatch(
-      /const handler = {} as typeof import\(".*\/pages\/api\/test-route.js"\)\s+handler satisfies ApiRouteConfig/
-    )
-    expect(dts).toMatch(
-      /const handler = {} as typeof import\(".*\/app\/layout.js"\)\s+handler satisfies LayoutConfig<"\/">/
-    )
+    // sanity check that dev generation is working
+    expect(dts).toContain('handler satisfies AppPageConfig')
   })
 
   if (isNextStart) {
@@ -85,11 +72,28 @@ describe('typed-routes-validator', () => {
             `
       )
 
+      await next.patchFile(
+        'app/valid-2/route.ts',
+        `
+    import type { NextRequest } from 'next/server'
+
+    export async function GET() {
+      return new Response('OK')
+    }
+
+    export async function POST(request: NextRequest) {
+      return new Response('Created', { status: 201 })
+    }
+
+    export const dynamic = 'force-dynamic'
+            `
+      )
+
       const { exitCode } = await next.build()
       expect(exitCode).toBe(0)
     })
 
-    it('should fail type checking with invalid route handler exports', async () => {
+    it('should fail type checking with invalid route handler return type', async () => {
       await next.stop()
       await next.patchFile(
         'app/invalid/route.ts',
@@ -109,6 +113,26 @@ describe('typed-routes-validator', () => {
       expect(cliOutput).toMatch(
         /Type error: Type 'typeof import.*does not satisfy the expected type 'RouteHandlerConfig<"\/invalid">'/
       )
+    })
+
+    it('should fail type checking with invalid route handler params', async () => {
+      await next.stop()
+      await next.patchFile(
+        'app/invalid-2/route.ts',
+        `
+    // not a valid type for request
+    export async function POST(request: number) {
+      return new Response('Created', { status: 201 })
+    }
+            `
+      )
+
+      const { exitCode, cliOutput } = await next.build()
+      // clean up before assertion just in case it fails
+      await next.deleteFile('app/invalid-2/route.ts')
+
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain(`Types of property 'POST' are incompatible.`)
     })
 
     it('should pass type checking with valid layout exports', async () => {

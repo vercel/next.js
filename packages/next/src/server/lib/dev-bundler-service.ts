@@ -11,7 +11,7 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
  * bundler while in development.
  */
 export class DevBundlerService {
-  public appIsrManifestInner: InstanceType<typeof LRUCache>
+  public appIsrManifestInner: InstanceType<typeof LRUCache<boolean>>
 
   constructor(
     private readonly bundler: DevBundler,
@@ -87,9 +87,10 @@ export class DevBundlerService {
   public get appIsrManifest() {
     const serializableManifest: Record<string, boolean> = {}
 
-    for (const key of this.appIsrManifestInner.keys() as string[]) {
-      serializableManifest[key] = this.appIsrManifestInner.get(key) as boolean
+    for (const [key, value] of this.appIsrManifestInner) {
+      serializableManifest[key] = value
     }
+
     return serializableManifest
   }
 

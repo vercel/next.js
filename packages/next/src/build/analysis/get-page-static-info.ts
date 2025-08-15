@@ -416,7 +416,7 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
     return
   }
 
-  if (apiRouteWarnings.has(apiRoute)) {
+  if (apiRoute && apiRouteWarnings.has(apiRoute)) {
     return
   }
 
@@ -425,7 +425,10 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
       ? `${apiRoute} provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
       : `You are using an experimental edge runtime, the API might change.`
   )
-  apiRouteWarnings.set(apiRoute, 1)
+
+  if (apiRoute) {
+    apiRouteWarnings.set(apiRoute, 1)
+  }
 }
 
 let hadUnsupportedValue = false
