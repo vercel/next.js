@@ -80,6 +80,10 @@ function pluginSyntaxJsx() {
   return require('next/dist/compiled/babel-packages').pluginSyntaxJsx()
 }
 
+function pluginSyntaxTypescript() {
+  return require('next/dist/compiled/babel-packages').pluginSyntaxTypescript()
+}
+
 function pluginTransformDefine() {
   return require('next/dist/compiled/babel-packages').pluginTransformDefine()
 }
@@ -129,6 +133,7 @@ module.exports = {
   pluginSyntaxDynamicImport,
   pluginSyntaxImportAttributes,
   pluginSyntaxJsx,
+  pluginSyntaxTypescript,
   pluginTransformDefine,
   pluginTransformModulesCommonjs,
   pluginTransformReactRemovePropTypes,

@@ -69,9 +69,6 @@ importers:
       '@babel/plugin-transform-object-rest-spread':
         specifier: 7.25.9
         version: 7.25.9(@babel/core@7.26.10)
-      '@babel/preset-flow':
-        specifier: 7.25.9
-        version: 7.25.9(@babel/core@7.26.10)
       '@babel/preset-react':
         specifier: 7.26.3
         version: 7.26.3(@babel/core@7.26.10)
@@ -2267,12 +2264,6 @@ packages:
     peerDependencies:
       '@babel/core': 7.26.10
 
-  '@babel/plugin-syntax-flow@7.26.0':
-    resolution: {integrity: sha512-B+O2DnPc0iG+YXFqOxv2WNuNU97ToWjOomUQ78DouOENWUaM5sVrmet9mcomUGQFwpJd//gvUagXBSdzO1fRKg==}
-    engines: {node: '>=6.9.0'}
-    peerDependencies:
-      '@babel/core': 7.26.10
-
   '@babel/plugin-syntax-import-assertions@7.26.0':
     resolution: {integrity: sha512-QCWT5Hh830hK5EQa7XzuqIkQU9tT/whqbDz7kuaZMHFl1inRRg7JnuAEOQ0Ur0QUl0NufCk1msK2BeY79Aj/eg==}
     engines: {node: '>=6.9.0'}
@@ -2459,12 +2450,6 @@ packages:
 
   '@babel/plugin-transform-flow-strip-types@7.25.2':
     resolution: {integrity: sha512-InBZ0O8tew5V0K6cHcQ+wgxlrjOw1W4wDXLkOTjLRD8GYhTSkxTVBtdy3MMtvYBrbAWa1Qm3hNoTc1620Yj+Mg==}
-    engines: {node: '>=6.9.0'}
-    peerDependencies:
-      '@babel/core': 7.26.10
-
-  '@babel/plugin-transform-flow-strip-types@7.26.5':
-    resolution: {integrity: sha512-eGK26RsbIkYUns3Y8qKl362juDDYK+wEdPGHGrhzUl6CewZFo55VZ7hg+CyMFU4dd5QQakBN86nBMpRsFpRvbQ==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': 7.26.10
@@ -2753,12 +2738,6 @@ packages:
 
   '@babel/preset-flow@7.24.7':
     resolution: {integrity: sha512-NL3Lo0NorCU607zU3NwRyJbpaB6E3t0xtd3LfAQKDfkeX4/ggcDXvkmkW42QWT5owUeW/jAe4hn+2qvkV1IbfQ==}
-    engines: {node: '>=6.9.0'}
-    peerDependencies:
-      '@babel/core': 7.26.10
-
-  '@babel/preset-flow@7.25.9':
-    resolution: {integrity: sha512-EASHsAhE+SSlEzJ4bzfusnXSHiU+JfAYzj+jbw2vgQKgq5HrUr8qs+vgtiEL5dOH6sEweI+PNt2D7AqrDSHyqQ==}
     engines: {node: '>=6.9.0'}
     peerDependencies:
       '@babel/core': 7.26.10
@@ -18287,11 +18266,6 @@ snapshots:
       '@babel/core': 7.26.10
       '@babel/helper-plugin-utils': 7.26.5
 
-  '@babel/plugin-syntax-flow@7.26.0(@babel/core@7.26.10)':
-    dependencies:
-      '@babel/core': 7.26.10
-      '@babel/helper-plugin-utils': 7.26.5
-
   '@babel/plugin-syntax-import-assertions@7.26.0(@babel/core@7.26.10)':
     dependencies:
       '@babel/core': 7.26.10
@@ -18483,12 +18457,6 @@ snapshots:
       '@babel/core': 7.26.10
       '@babel/helper-plugin-utils': 7.26.5
       '@babel/plugin-syntax-flow': 7.24.7(@babel/core@7.26.10)
-
-  '@babel/plugin-transform-flow-strip-types@7.26.5(@babel/core@7.26.10)':
-    dependencies:
-      '@babel/core': 7.26.10
-      '@babel/helper-plugin-utils': 7.26.5
-      '@babel/plugin-syntax-flow': 7.26.0(@babel/core@7.26.10)
 
   '@babel/plugin-transform-for-of@7.26.9(@babel/core@7.26.10)':
     dependencies:
@@ -18885,13 +18853,6 @@ snapshots:
       '@babel/helper-plugin-utils': 7.26.5
       '@babel/helper-validator-option': 7.25.9
       '@babel/plugin-transform-flow-strip-types': 7.25.2(@babel/core@7.26.10)
-
-  '@babel/preset-flow@7.25.9(@babel/core@7.26.10)':
-    dependencies:
-      '@babel/core': 7.26.10
-      '@babel/helper-plugin-utils': 7.26.5
-      '@babel/helper-validator-option': 7.25.9
-      '@babel/plugin-transform-flow-strip-types': 7.26.5(@babel/core@7.26.10)
 
   '@babel/preset-modules@0.1.6-no-external-plugins(@babel/core@7.26.10)':
     dependencies:

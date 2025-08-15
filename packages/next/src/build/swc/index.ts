@@ -807,11 +807,16 @@ function bindingToApi(
   ): Record<string, any> {
     let nextConfig = { ...originalNextConfig }
 
-    const reactCompilerOptions = nextConfig.experimental?.reactCompiler
-
     // TODO: Merge this with `crates/next-core/src/next_shared/webpack_rules/babel.rs` so that we're
     // not configuring babel in two different places (potentially causing it to run twice)
-    if (reactCompilerOptions) {
+    const reactCompilerOptions = nextConfig.experimental?.reactCompiler
+    const reactCompilerLoader = getReactCompilerLoader(
+      nextConfig.experimental?.reactCompiler,
+      projectPath,
+      /* isServer */ false,
+      /* reactCompilerExclude */ undefined
+    )
+    if (reactCompilerLoader != null) {
       const options: ReactCompilerOptions =
         typeof reactCompilerOptions === 'object' ? reactCompilerOptions : {}
       nextConfig.turbopack = {
@@ -820,15 +825,7 @@ function bindingToApi(
           ...originalNextConfig.turbopack.rules,
           // assumption: there is no collision with this glob key
           '{*.{js,jsx,ts,tsx,cjs,mjs,mts,cts},react-compiler-builtin-rule}': {
-            loaders: [
-              getReactCompilerLoader(
-                reactCompilerOptions,
-                projectPath,
-                nextConfig.dev,
-                /* isServer */ false,
-                /* reactCompilerExclude */ undefined
-              ),
-            ],
+            loaders: [reactCompilerLoader],
             condition: {
               all: [
                 'browser',
