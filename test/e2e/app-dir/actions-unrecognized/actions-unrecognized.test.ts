@@ -164,11 +164,13 @@ describe('unrecognized server actions', () => {
                 'text/html'
               )
             } else {
+              const responseText = await response.text()
+              expect(responseText).toBe('Internal Server Error')
               expect(response.headers()['content-type']).toStartWith(
                 'text/plain'
               )
-              expect(await response.text()).toBe('Internal Server Error')
             }
+
             // In dev, the 500 page doesn't have any SSR'd html, so it won't show anything without JS.
             if (!isNextDev) {
               expect(await browser.elementByCss('body').text()).toContain(

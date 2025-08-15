@@ -3624,7 +3624,7 @@ export default async function build(
                   '_global-error.html'
                 )
                 if (existsSync(orig)) {
-                  const updatedRelativeDest = path.join(
+                  const error500Html = path.join(
                     distDir,
                     'server',
                     'pages',
@@ -3632,12 +3632,14 @@ export default async function build(
                   )
 
                   // if 500.html folder doesn't exist, create it
-                  await fs.mkdir(path.dirname(updatedRelativeDest), {
+                  await fs.mkdir(path.dirname(error500Html), {
                     recursive: true,
                   })
-                  await fs.copyFile(orig, updatedRelativeDest)
+                  await fs.copyFile(orig, error500Html)
 
-                  pagesManifest['/500'] = updatedRelativeDest
+                  pagesManifest['/500'] = path
+                    .join('pages', '500.html')
+                    .replace(/\\/g, '/')
                 }
               })
           }

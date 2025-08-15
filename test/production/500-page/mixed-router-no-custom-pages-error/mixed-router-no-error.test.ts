@@ -19,6 +19,23 @@ describe('500-page - mixed-router-no-custom-pages-error', () => {
     expect(text).toContain('Internal Server Error')
   })
 
+  it('pages manifest should only contain 404 and 500', async () => {
+    const pagesManifest = await fsp.readFile(
+      path.join(next.testDir, '.next', 'server', 'pages-manifest.json'),
+      'utf8'
+    )
+    const pagesManifestJson = JSON.parse(pagesManifest)
+    expect(pagesManifestJson).toMatchInlineSnapshot(`
+     {
+       "/404": "pages/404.html",
+       "/_app": "pages/_app.js",
+       "/_document": "pages/_document.js",
+       "/_error": "pages/_error.js",
+       "/pages-error": "pages/pages-error.js",
+     }
+    `)
+  })
+
   it('should generate 500.html with pages builtin _error', async () => {
     const html = await fsp.readFile(
       path.join(next.testDir, '.next', 'server', 'pages', '500.html'),
