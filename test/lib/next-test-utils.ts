@@ -30,6 +30,8 @@ import { Playwright } from 'next-webdriver'
 
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
+import escapeRegex from 'escape-string-regexp'
+
 // TODO: Create dedicated Jest environment that sets up these matchers
 // Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
 import './add-redbox-matchers'
@@ -1829,4 +1831,35 @@ export function trimEndMultiline(str: string) {
     .split('\n')
     .map((line) => line.trimEnd())
     .join('\n')
+}
+
+/**
+ * Normalizes the manifest by replacing the build id with a placeholder.
+ *
+ * @param manifest - The manifest to normalize.
+ * @param buildID - The build id to replace.
+ * @param buildIDPlaceholder - The placeholder to replace the build id with.
+ * @returns The normalized manifest.
+ */
+export function normalizeManifest<T>(
+  manifest: unknown,
+  buildID: string,
+  buildIDPlaceholder: string = 'BUILD_ID'
+): T {
+  // JSON.stringify the manifest and replace the build id with a
+  // placeholder.
+  const manifestString = JSON.stringify(manifest)
+
+  // Replace the build id with a placeholder.
+  return JSON.parse(
+    manifestString.replace(
+      new RegExp(
+        JSON.stringify(escapeRegex(buildID))
+          // Remove the quotes added by the JSON.stringify call.
+          .replace(/^"(.*)"/, '$1'),
+        'g'
+      ),
+      buildIDPlaceholder
+    )
+  )
 }
