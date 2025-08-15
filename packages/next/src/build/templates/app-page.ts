@@ -90,6 +90,7 @@ export const __next_app__ = {
 
 import * as entryBase from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -1096,8 +1097,26 @@ export async function handler(
       if (isRSCRequest && !isDraftMode) {
         // If this is a dynamic RSC request, then stream the response.
         if (typeof cachedData.rscData === 'undefined') {
-          if (cachedData.postponed) {
-            throw new Error('Invariant: Expected postponed to be undefined')
+          // If the response is not an RSC response, then we can't serve it.
+          if (cachedData.html.contentType !== RSC_CONTENT_TYPE_HEADER) {
+            if (nextConfig.experimental.clientParamParsing) {
+              // If client param parsing is enabled, then we can return a 404.
+              // This was likely an old prefetch request.
+              res.statusCode = 404
+              return sendRenderResult({
+                req,
+                res,
+                generateEtags: nextConfig.generateEtags,
+                poweredByHeader: nextConfig.poweredByHeader,
+                result: RenderResult.EMPTY,
+                cacheControl: cacheEntry.cacheControl,
+              })
+            } else {
+              // Otherwise this case is not expected.
+              throw new InvariantError(
+                `Expected RSC response, got ${cachedData.html.contentType}`
+              )
+            }
           }
 
           return sendRenderResult({
