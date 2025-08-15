@@ -1834,32 +1834,39 @@ export function trimEndMultiline(str: string) {
 }
 
 /**
- * Normalizes the manifest by replacing the build id with a placeholder.
+ * Normalizes the manifest by applying the replacements to the manifest. This
+ * is useful for testing the manifest in a snapshot test.
  *
  * @param manifest - The manifest to normalize.
- * @param buildID - The build id to replace.
- * @param buildIDPlaceholder - The placeholder to replace the build id with.
+ * @param replacements - The replacements to perform on the manifest.
  * @returns The normalized manifest.
  */
 export function normalizeManifest<T>(
   manifest: unknown,
-  buildID: string,
-  buildIDPlaceholder: string = 'BUILD_ID'
+  replacements: [search: string, replace: string][]
 ): T {
-  // JSON.stringify the manifest and replace the build id with a
-  // placeholder.
-  const manifestString = JSON.stringify(manifest)
-
-  // Replace the build id with a placeholder.
   return JSON.parse(
-    manifestString.replace(
-      new RegExp(
-        JSON.stringify(escapeRegex(buildID))
-          // Remove the quotes added by the JSON.stringify call.
-          .replace(/^"(.*)"/, '$1'),
-        'g'
-      ),
-      buildIDPlaceholder
+    replacements.reduce(
+      (acc, [search, replace]) =>
+        acc.replace(
+          new RegExp(
+            // We want to match the literal string, so we need to escape it
+            // again
+            escapeRegex(
+              JSON.stringify(
+                // The output has already been escaped, so we need to escape our
+                // search string.
+                escapeRegex(search)
+              )
+                // Remove the quotes added by the JSON.stringify call.
+                .replace(/^"(.*)"/, '$1')
+            ),
+            'g'
+          ),
+          replace
+        ),
+      // We'll perform the replacements on the JSON stringified manifest.
+      JSON.stringify(manifest)
     )
   )
 }

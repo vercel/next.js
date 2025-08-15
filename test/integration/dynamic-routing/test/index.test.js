@@ -1251,7 +1251,8 @@ function runTests({ dev }) {
       }
 
       // Parse the manifest string back into an object.
-      expect(normalizeManifest(manifest, buildId)).toMatchInlineSnapshot(`
+      expect(normalizeManifest(manifest, [[buildId, 'BUILD_ID']]))
+        .toMatchInlineSnapshot(`
        {
          "basePath": "",
          "caseSensitive": false,
@@ -1470,7 +1471,6 @@ function runTests({ dev }) {
            "fallback": [],
          },
          "rsc": {
-           "clientParamParsing": false,
            "contentTypeHeader": "text/x-component",
            "didPostponeHeader": "x-nextjs-postponed",
            "header": "rsc",
