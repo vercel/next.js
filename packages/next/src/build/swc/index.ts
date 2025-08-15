@@ -803,9 +803,11 @@ function bindingToApi(
    * turbopack's rules if `experimental.reactCompilerOptions` is set.
    */
   function augmentNextConfig(
-    nextConfig: NextConfigComplete,
+    originalNextConfig: NextConfigComplete,
     projectPath: string
   ): Record<string, any> {
+    let nextConfig = { ...(originalNextConfig as NextConfigComplete) }
+
     const reactCompilerOptions = nextConfig.experimental?.reactCompiler
 
     // It is not easy to set the rules inside of rust as resolving, and passing the context identical to the webpack
