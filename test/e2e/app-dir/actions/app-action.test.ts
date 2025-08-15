@@ -553,24 +553,51 @@ describe('app-dir action handling', () => {
     await check(() => browser.url(), `${next.url}/`, true, 2)
   })
 
-  it('should trigger a refresh for a server action that gets discarded due to a navigation', async () => {
-    let browser = await next.browser('/client')
-    const initialRandomNumber = await browser
-      .elementByCss('#random-number')
-      .text()
-
-    await browser.elementByCss('#slow-inc').click()
-
-    // navigate to server
-    await browser.elementByCss('#navigate-server').click()
-
-    // wait for the action to be completed
-    await retry(async () => {
-      const newRandomNumber = await browser
-        .elementByCss('#random-number')
+  describe('action discarding', () => {
+    it('should trigger a refresh for a server action that gets discarded due to a navigation (without revalidation)', async () => {
+      let browser = await next.browser('/client')
+      const initialRandomNumber = await browser
+        .elementByCss('#cached-random')
         .text()
 
-      expect(newRandomNumber).not.toBe(initialRandomNumber)
+      await browser.elementByCss('#slow-inc').click()
+
+      // navigate to server
+      await browser.elementByCss('#navigate-server').click()
+
+      // wait for the 2s action to finish
+      await waitFor(2000)
+
+      await retry(async () => {
+        const newRandomNumber = await browser
+          .elementByCss('#cached-random')
+          .text()
+
+        expect(newRandomNumber).toBe(initialRandomNumber)
+      })
+    })
+
+    it('should trigger a refresh for a server action that gets discarded due to a navigation (with revalidation)', async () => {
+      let browser = await next.browser('/client')
+      const initialRandomNumber = await browser
+        .elementByCss('#cached-random')
+        .text()
+
+      await browser.elementByCss('#slow-inc-revalidate').click()
+
+      // navigate to server
+      await browser.elementByCss('#navigate-server').click()
+
+      // wait for the 2s action to finish
+      await waitFor(2000)
+
+      await retry(async () => {
+        const newRandomNumber = await browser
+          .elementByCss('#cached-random')
+          .text()
+
+        expect(newRandomNumber).not.toBe(initialRandomNumber)
+      })
     })
   })
 

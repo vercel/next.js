@@ -69,6 +69,7 @@ export interface ServerActionAction {
   actionArgs: any[]
   resolve: (value: any) => void
   reject: (reason?: any) => void
+  didRevalidate?: boolean
 }
 
 /**
