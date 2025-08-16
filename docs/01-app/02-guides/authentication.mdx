@@ -1124,6 +1124,45 @@ While Middleware can be useful for initial checks, it should not be your only li
 > - Middleware uses the [Edge Runtime](/docs/app/api-reference/edge), check if your Auth library and session management library are compatible.
 > - You can use the `matcher` property in the Middleware to specify which routes Middleware should run on. Although, for auth, it's recommended Middleware runs on all routes.
 
+#### Middleware Matcher
+
+The matcher pattern excludes specific paths from middleware execution:
+
+```tsx filename="middleware.ts"
+export const config = {
+  matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
+}
+```
+
+The pattern excludes:
+
+- `api` - API routes
+- `_next/static` - Static assets
+- `_next/image` - Image Optimization API
+- `.*\\.png$` - Image files
+
+> **Good to know**: Excluding `_next/image` prevents middleware from interfering with image optimization requests, which can cause images to fail loading on authenticated routes.
+
+For protected images, use a dedicated API route:
+
+```tsx filename="app/api/image/route.ts"
+import { NextRequest, NextResponse } from 'next/server'
+import { verifySession } from '@/app/lib/dal'
+
+export async function GET(request: NextRequest) {
+  const session = await verifySession()
+  if (!session) {
+    return new NextResponse('Unauthorized', { status: 401 })
+  }
+
+  const imageUrl = request.nextUrl.searchParams.get('url')
+  const response = await fetch(imageUrl)
+  return new NextResponse(response.body, {
+    headers: { 'Content-Type': response.headers.get('Content-Type') },
+  })
+}
+```
+
 <AppOnly>
 
 ### Creating a Data Access Layer (DAL)
