@@ -19,9 +19,7 @@ export default function SecondDynamic() {
       <p>This is the second dynamically imported component.</p>
       <p>Component mounted: {mounted ? 'Yes' : 'No'}</p>
       <p>Data: {data || 'Loading...'}</p>
-      <div id="second-unique-content">
-        Second component specific content
-      </div>
+      <div id="second-unique-content">Second component specific content</div>
       <style jsx>{`
         .second-dynamic {
           background-color: #f3e5f5;

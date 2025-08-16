@@ -14,9 +14,7 @@ export default function FirstDynamic() {
       <h2>First Dynamic Component</h2>
       <p>This is the first dynamically imported component.</p>
       <p>Component mounted: {mounted ? 'Yes' : 'No'}</p>
-      <div id="first-unique-content">
-        First component specific content
-      </div>
+      <div id="first-unique-content">First component specific content</div>
       <style jsx>{`
         .first-dynamic {
           background-color: #e3f2fd;
