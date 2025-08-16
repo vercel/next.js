@@ -1162,6 +1162,7 @@ export async function GET(request: NextRequest) {
   }
 
   const response = await fetch(imageUrl)
+
   return new NextResponse(response.body, {
     headers: { 'Content-Type': response.headers.get('Content-Type') },
   })
