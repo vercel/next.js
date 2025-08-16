@@ -93,16 +93,25 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 
 ## Known Behavior differences with webpack
 
+There are a number of non-trivial behavior differences between webpack and Turbopack that are important to be aware of when migrating an application. Generally these are less of a concern for new applications.
+
 ### CSS Module Ordering
 
 Turbopack will follow JS import order to order [CSS modules](/docs/app/getting-started/css#css-modules) which are not otherwise ordered. For example,
 
-```jsx filename="pages/blog/index.js" switcher
-import s1 from './utils.module.css'
-import s2 from './button.module.css'
+```jsx filename="components/BlogPost.jsx"
+import utilStyles from './utils.module.css'
+import buttonStyles from './button.module.css'
+export default function BlogPost() {
+  return (
+    <div className={utilStyles.container}>
+      <button className={buttonStyles.primary}>Click me</button>
+    </div>
+  )
+}
 ```
 
-Given such a module, `utils.module.css` will appear before `button.module.css` in the produced CSS chunk.
+In this example, Turbopack will ensure that `utils.module.css` will appear before `button.module.css` in the produced CSS chunk, following the import order
 
 Webpack generally does this as well, but there are cases where it will ignore JS inferred ordering, for example if it infers the JS file is side-effect-free.
 
@@ -115,10 +124,11 @@ Turbopack does not yet have an equivalent to the [Inner Graph Optimization](http
 ```js filename=large.module.js
 import heavy from 'some-heavy-dependency.js'
 
-export function usesHeavy() {...}
+export function usesHeavy() {
+  return heavy.run()
+}
 
-export const CONSTANT_VALUE = 3;
-
+export const CONSTANT_VALUE = 3
 ```
 
 If an application only uses `CONSTANT_VALUE` Turbopack will detect this and delete the `usesHeavy` export but not the corresponding `import`. However, with the `optimization.innerGraph = true` option enabled, webpack can delete the `import` too.
@@ -129,7 +139,11 @@ We are planning to offer an equivalent to the `innerGraph` optimization in Turbo
 
 Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to speed up builds. We are planning to support an analogous feature in Turbopack but it is not ready yet. On the `next@canary` release you can experiment with our solution by enabling the [`experimental.turbopackPersistentCaching` flag](/docs/app/api-reference/config/next-config-js/turbopackPersistentCaching).
 
-> **Good to know:** For this reason, when comparing webpack and turbopack performance, make sure to delete the `.next` folder between builds to see a fair comparison.
+> **Good to know:** For this reason, when comparing webpack and Turbopack performance, make sure to delete the `.next` folder between builds to see a fair comparison.
+
+### Webpack plugins
+
+Turbopack does not support webpack plugins. This affects third-party tools that rely on webpack's plugin system for integration. We do support [webpack loaders](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders). If you depend on webpack plugins, you'll need to find Turbopack-compatible alternatives or continue using webpack until equivalent functionality is available.
 
 ## Unsupported and unplanned features
 
