@@ -23,9 +23,11 @@ export class TurbopackHmr {
   #startMsSinceEpoch: number | undefined
   #lastUpdateMsSinceEpoch: number | undefined
   #deferredReportHmrStartId: ReturnType<typeof setTimeout> | undefined
+  #reportedHmrStart: boolean
 
   constructor() {
     this.#updatedModules = new Set()
+    this.#reportedHmrStart = false
   }
 
   // HACK: Turbopack tends to generate a lot of irrelevant "BUILDING" actions,
@@ -39,6 +41,7 @@ export class TurbopackHmr {
   #runDeferredReportHmrStart() {
     if (this.#deferredReportHmrStartId != null) {
       console.log('[Fast Refresh] rebuilding')
+      this.#reportedHmrStart = true
       this.#cancelDeferredReportHmrStart()
     }
   }
@@ -102,7 +105,7 @@ export class TurbopackHmr {
     // which can happen during initial page load. Ignore that too!
     const hasUpdates =
       this.#lastUpdateMsSinceEpoch != null && this.#startMsSinceEpoch != null
-    if (!hasUpdates && this.#deferredReportHmrStartId != null) {
+    if (!hasUpdates && !this.#reportedHmrStart) {
       // suppress the update entirely
       this.#cancelDeferredReportHmrStart()
       return null
@@ -116,6 +119,7 @@ export class TurbopackHmr {
       endMsSinceEpoch: this.#lastUpdateMsSinceEpoch ?? Date.now(),
     }
     this.#updatedModules = new Set()
+    this.#reportedHmrStart = false
     return result
   }
 }
