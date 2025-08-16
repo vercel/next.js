@@ -207,8 +207,8 @@ describe.each([['', '/docs']])(
 
         // render 404 page to generate
         // "/_next/static/chunks/pages/_app.js"
-        // we need this because not found static assets
-        // served as plain text 404 instead of HTML.
+        // since we haven't built any paths by this point
+        // causing this chunk to not be written to disk yet
         await next.render('/404')
 
         await retry(async () => {
