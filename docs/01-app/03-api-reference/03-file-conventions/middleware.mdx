@@ -681,7 +681,7 @@ export const config = {
 }
 ```
 
-When middleware runs on image optimization requests, it can interfere with internal request forwarding.
+When middleware runs on image optimization requests, it can interfere with internal request forwarding. For protected images, create a secure API route with domain allowlisting to prevent SSRF attacks.
 
 ### Middleware not running on routes
 

@@ -1148,6 +1148,7 @@ For protected images, use a dedicated API route:
 ```tsx filename="app/api/image/route.ts"
 import { NextRequest, NextResponse } from 'next/server'
 import { verifySession } from '@/app/lib/dal'
+import { isAllowedImageUrl } from '@/app/lib/image-security'
 
 export async function GET(request: NextRequest) {
   const session = await verifySession()
@@ -1156,6 +1157,10 @@ export async function GET(request: NextRequest) {
   }
 
   const imageUrl = request.nextUrl.searchParams.get('url')
+  if (!imageUrl || !isAllowedImageUrl(imageUrl)) {
+    return new NextResponse('Invalid image source', { status: 400 })
+  }
+
   const response = await fetch(imageUrl)
   return new NextResponse(response.body, {
     headers: { 'Content-Type': response.headers.get('Content-Type') },
