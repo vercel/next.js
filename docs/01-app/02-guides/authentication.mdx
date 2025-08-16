@@ -1162,6 +1162,9 @@ export async function GET(request: NextRequest) {
   }
 
   const response = await fetch(imageUrl)
+  if (!response.ok) {
+    return new NextResponse('Failed to fetch image', { status: 404 })
+  }
 
   return new NextResponse(response.body, {
     headers: { 'Content-Type': response.headers.get('Content-Type') },
