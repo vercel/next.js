@@ -1155,8 +1155,13 @@ export async function GET(request: NextRequest) {
     return new NextResponse('Unauthorized', { status: 401 })
   }
 
+
   const imageUrl = request.nextUrl.searchParams.get('url')
+  if (!imageUrl) {
+    return new NextResponse('Missing URL parameter', { status: 400 })
+  }
   const response = await fetch(imageUrl)
+
   return new NextResponse(response.body, {
     headers: { 'Content-Type': response.headers.get('Content-Type') },
   })
