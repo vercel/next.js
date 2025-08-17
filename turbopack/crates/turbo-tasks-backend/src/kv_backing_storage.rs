@@ -410,64 +410,11 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 )?;
             }
             WriteBatch::Serial(batch) => {
-                let mut task_items_result = Ok(Vec::new());
-                turbo_tasks::scope(|s| {
-                    s.spawn(|_| {
-                        task_items_result =
-                            process_task_data(snapshots, None::<&T::ConcurrentWriteBatch<'_>>);
-                    });
-
-                    let mut next_task_id =
-                        get_next_free_task_id::<
-                            T::SerialWriteBatch<'_>,
-                            T::ConcurrentWriteBatch<'_>,
-                        >(&mut WriteBatchRef::serial(batch))?;
-
-                    {
-                        let _span = tracing::trace_span!(
-                            "update task cache",
-                            items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
-                        )
-                        .entered();
-                        let mut task_type_bytes = Vec::new();
-                        for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
-                            let task_id = *task_id;
-                            serialize_task_type(&task_type, &mut task_type_bytes, task_id)?;
-
-                            batch
-                                .put(
-                                    KeySpace::ForwardTaskCache,
-                                    WriteBuffer::Borrowed(&task_type_bytes),
-                                    WriteBuffer::Borrowed(&task_id.to_le_bytes()),
-                                )
-                                .with_context(|| {
-                                    anyhow!("Unable to write task cache {task_type:?} => {task_id}")
-                                })?;
-                            batch
-                                .put(
-                                    KeySpace::ReverseTaskCache,
-                                    WriteBuffer::Borrowed(IntKey::new(task_id).as_ref()),
-                                    WriteBuffer::Borrowed(&task_type_bytes),
-                                )
-                                .with_context(|| {
-                                    anyhow!("Unable to write task cache {task_id} => {task_type:?}")
-                                })?;
-                            next_task_id = next_task_id.max(task_id + 1);
-                        }
-                    }
-
-                    save_infra::<T::SerialWriteBatch<'_>, T::ConcurrentWriteBatch<'_>>(
-                        &mut WriteBatchRef::serial(batch),
-                        next_task_id,
-                        session_id,
-                        operations,
-                    )?;
-                    anyhow::Ok(())
-                })?;
-
                 {
                     let _span = tracing::trace_span!("update tasks").entered();
-                    for (task_id, meta, data) in task_items_result?.into_iter().flatten() {
+                    let task_items =
+                        process_task_data(snapshots, None::<&T::ConcurrentWriteBatch<'_>>)?;
+                    for (task_id, meta, data) in task_items.into_iter().flatten() {
                         let key = IntKey::new(*task_id);
                         let key = key.as_ref();
                         if let Some(meta) = meta {
@@ -485,7 +432,54 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                 })?;
                         }
                     }
+                    batch.flush(KeySpace::TaskMeta)?;
+                    batch.flush(KeySpace::TaskData)?;
                 }
+
+                let mut next_task_id = get_next_free_task_id::<
+                    T::SerialWriteBatch<'_>,
+                    T::ConcurrentWriteBatch<'_>,
+                >(&mut WriteBatchRef::serial(batch))?;
+
+                {
+                    let _span = tracing::trace_span!(
+                        "update task cache",
+                        items = task_cache_updates.iter().map(|m| m.len()).sum::<usize>()
+                    )
+                    .entered();
+                    let mut task_type_bytes = Vec::new();
+                    for (task_type, task_id) in task_cache_updates.into_iter().flatten() {
+                        let task_id = *task_id;
+                        serialize_task_type(&task_type, &mut task_type_bytes, task_id)?;
+
+                        batch
+                            .put(
+                                KeySpace::ForwardTaskCache,
+                                WriteBuffer::Borrowed(&task_type_bytes),
+                                WriteBuffer::Borrowed(&task_id.to_le_bytes()),
+                            )
+                            .with_context(|| {
+                                anyhow!("Unable to write task cache {task_type:?} => {task_id}")
+                            })?;
+                        batch
+                            .put(
+                                KeySpace::ReverseTaskCache,
+                                WriteBuffer::Borrowed(IntKey::new(task_id).as_ref()),
+                                WriteBuffer::Borrowed(&task_type_bytes),
+                            )
+                            .with_context(|| {
+                                anyhow!("Unable to write task cache {task_id} => {task_type:?}")
+                            })?;
+                        next_task_id = next_task_id.max(task_id + 1);
+                    }
+                }
+
+                save_infra::<T::SerialWriteBatch<'_>, T::ConcurrentWriteBatch<'_>>(
+                    &mut WriteBatchRef::serial(batch),
+                    next_task_id,
+                    session_id,
+                    operations,
+                )?;
             }
         }
 
