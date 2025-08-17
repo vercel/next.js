@@ -2,7 +2,6 @@ use std::{cmp::max, path::PathBuf, sync::Arc, thread::available_parallelism, tim
 
 use anyhow::{Ok, Result};
 use parking_lot::Mutex;
-use tokio::{runtime::Handle, task::block_in_place};
 use turbo_persistence::{
     ArcSlice, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
 };
