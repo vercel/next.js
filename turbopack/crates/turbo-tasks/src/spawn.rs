@@ -94,6 +94,9 @@ pub fn spawn_thread(func: impl FnOnce() + Send + 'static) {
     });
 }
 
+/// Blocking waits for a future to complete. This blocks the current thread potentially staling
+/// other concurrent futures (but not other concurrent tasks). Try to avoid this method infavor of
+/// awaiting the future instead.
 pub fn wait_for_future<T: Send>(future: impl Future<Output = T> + Send + 'static) -> T {
     let handle = Handle::current();
     block_in_place(|| {
