@@ -8,7 +8,7 @@ use std::{
 
 use anyhow::Result;
 use futures::{FutureExt, ready};
-use tokio::runtime::Handle;
+use tokio::{runtime::Handle, task::block_in_place};
 use tracing::{Instrument, Span, info_span};
 use turbo_tasks_malloc::{AllocationInfo, TurboMalloc};
 
@@ -21,6 +21,12 @@ use crate::{
 
 pub struct JoinHandle<T> {
     join_handle: tokio::task::JoinHandle<(Result<T, TurboTasksPanic>, Duration, AllocationInfo)>,
+}
+
+impl<T: Send + 'static> JoinHandle<T> {
+    pub fn join(self) -> T {
+        block_for_future(self)
+    }
 }
 
 impl<T> Future for JoinHandle<T> {
@@ -86,4 +92,15 @@ pub fn spawn_thread(func: impl FnOnce() + Send + 'static) {
             func();
         })
     });
+}
+
+/// Blocking waits for a future to complete. This blocks the current thread potentially staling
+/// other concurrent futures (but not other concurrent tasks). Try to avoid this method infavor of
+/// awaiting the future instead.
+pub fn block_for_future<T: Send>(future: impl Future<Output = T> + Send + 'static) -> T {
+    let handle = Handle::current();
+    block_in_place(|| {
+        let _span = info_span!("blocking").entered();
+        handle.block_on(future)
+    })
 }

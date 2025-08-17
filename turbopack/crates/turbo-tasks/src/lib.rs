@@ -118,7 +118,7 @@ use rustc_hash::FxHasher;
 pub use scope::scope;
 pub use serialization_invalidation::SerializationInvalidator;
 pub use shrink_to_fit::ShrinkToFit;
-pub use spawn::{JoinHandle, spawn, spawn_blocking, spawn_thread};
+pub use spawn::{JoinHandle, block_for_future, spawn, spawn_blocking, spawn_thread};
 pub use state::{State, TransientState};
 pub use task::{SharedReference, TypedSharedReference, task_input::TaskInput};
 pub use task_execution_reason::TaskExecutionReason;
