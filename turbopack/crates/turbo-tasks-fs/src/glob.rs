@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use anyhow::Result;
 use regex::bytes::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
@@ -34,6 +36,12 @@ impl PartialEq for Glob {
     }
 }
 impl Eq for Glob {}
+
+impl Display for Glob {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Glob({})", self.glob)
+    }
+}
 
 #[derive(Serialize, Deserialize)]
 #[serde(transparent)]

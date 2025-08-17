@@ -1115,6 +1115,9 @@
             if (null === value) return "";
             if (value instanceof Error) return String(value.message);
             if ("string" === typeof value.url) return value.url;
+            if ("string" === typeof value.href) return value.href;
+            if ("string" === typeof value.src) return value.src;
+            if ("string" === typeof value.currentSrc) return value.currentSrc;
             if ("string" === typeof value.command) return value.command;
             if (
               "object" === typeof value.request &&
@@ -4428,15 +4431,15 @@
       try {
         hook.inject(internals);
       } catch (err) {
-        console.error("React instrumentation encountered an error: %s.", err);
+        console.error("React instrumentation encountered an error: %o.", err);
       }
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-experimental-3958d5d8-20250807",
+      version: "19.2.0-experimental-a96a0f39-20250815",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-experimental-3958d5d8-20250807",
+      reconcilerVersion: "19.2.0-experimental-a96a0f39-20250815",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

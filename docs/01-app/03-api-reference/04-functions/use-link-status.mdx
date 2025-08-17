@@ -194,7 +194,7 @@ export default function Layout({ children }) {
 
 ## Gracefully handling fast navigation
 
-If the navigation to a new route is fast, users may see an unecessary flash of the loading indicator. One way to improve the user experience and only show the loading indicator when the navigation takes time to complete is to add an initial animation delay (e.g. 100ms) and start the animation as invisible (e.g. `opacity: 0`).
+If the navigation to a new route is fast, users may see an unnecessary flash of the loading indicator. One way to improve the user experience and only show the loading indicator when the navigation takes time to complete is to add an initial animation delay (e.g. 100ms) and start the animation as invisible (e.g. `opacity: 0`).
 
 ```css filename="app/styles/global.css"
 .spinner {

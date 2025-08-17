@@ -17,6 +17,7 @@ use turbopack_node::{
 };
 
 use super::ModuleRule;
+use crate::module_options::RuleCondition;
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub struct LoaderRuleItem {
@@ -49,7 +50,8 @@ pub enum ConditionPath {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ConditionItem {
-    pub path: ConditionPath,
+    pub path: Option<ConditionPath>,
+    pub content: Option<ResolvedVc<EsRegex>>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -213,6 +215,11 @@ pub struct CssOptionsContext {
 
     /// Specifies how Source Maps are handled.
     pub source_maps: SourceMapsType,
+
+    /// Override the conditions for module CSS (doesn't have any effect if `enable_raw_css` is
+    /// true). By default (for `None`), it uses
+    /// `Any(ResourcePathEndsWith(".module.css"), ContentTypeStartsWith("text/css+module"))`
+    pub module_css_condition: Option<RuleCondition>,
 
     pub placeholder_for_future_extensions: (),
 }

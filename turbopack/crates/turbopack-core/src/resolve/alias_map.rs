@@ -497,12 +497,12 @@ where
                     }
                     AliasKey::Wildcard { suffix } => {
                         let mut remaining = self.request.clone();
-                        remaining.strip_prefix(prefix.len());
+                        remaining.strip_prefix_len(prefix.len());
                         let remaining_suffix = remaining.constant_suffix();
                         if !remaining_suffix.ends_with(&**suffix) {
                             continue;
                         }
-                        remaining.strip_suffix(suffix.len());
+                        remaining.strip_suffix_len(suffix.len());
 
                         let output = template.replace(&remaining);
                         return Some(AliasMatch::Replaced(output));

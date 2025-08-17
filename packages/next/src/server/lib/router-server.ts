@@ -587,6 +587,36 @@ export async function initialize(opts: {
         'private, no-cache, no-store, max-age=0, must-revalidate'
       )
 
+      let realRequestPathname = parsedUrl.pathname ?? ''
+      if (realRequestPathname) {
+        if (config.basePath) {
+          realRequestPathname = removePathPrefix(
+            realRequestPathname,
+            config.basePath
+          )
+        }
+        if (config.assetPrefix) {
+          realRequestPathname = removePathPrefix(
+            realRequestPathname,
+            config.assetPrefix
+          )
+        }
+        if (config.i18n) {
+          realRequestPathname = removePathPrefix(
+            realRequestPathname,
+            '/' + (getRequestMeta(req, 'locale') ?? '')
+          )
+        }
+      }
+      // For not found static assets, return plain text 404 instead of
+      // full HTML 404 pages to save bandwidth.
+      if (realRequestPathname.startsWith('/_next/static/')) {
+        res.statusCode = 404
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.end('Not Found')
+        return null
+      }
+
       // Short-circuit favicon.ico serving so that the 404 page doesn't get built as favicon is requested by the browser when loading any route.
       if (opts.dev && !matchedOutput && parsedUrl.pathname === '/favicon.ico') {
         res.statusCode = 404

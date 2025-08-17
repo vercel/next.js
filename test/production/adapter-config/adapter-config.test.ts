@@ -87,6 +87,25 @@ describe('adapter-config', () => {
       expect(fs.existsSync(output.filePath)).toBe(true)
     }
 
+    for (const prerenderOutput of prerenderOutputs) {
+      try {
+        expect(prerenderOutput.parentOutputId).toBeTruthy()
+        if (prerenderOutput.fallback) {
+          expect(await fs.existsSync(prerenderOutput.fallback.filePath)).toBe(
+            true
+          )
+          expect(prerenderOutput.fallback.initialRevalidate).toBeDefined()
+        }
+
+        expect(typeof prerenderOutput.config.bypassToken).toBe('string')
+        expect(Array.isArray(prerenderOutput.config.allowHeader)).toBe(true)
+        expect(Array.isArray(prerenderOutput.config.allowQuery)).toBe(true)
+      } catch (err) {
+        require('console').error(`invalid prerender ${prerenderOutput.id}`, err)
+        throw err
+      }
+    }
+
     expect(buildContext.routes).toEqual({
       dynamicRoutes: expect.toBeArray(),
       rewrites: expect.toBeObject(),

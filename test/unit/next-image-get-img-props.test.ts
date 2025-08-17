@@ -401,7 +401,9 @@ describe('getImageProps()', () => {
       width: 100,
       height: 200,
     })
-    expect(warningMessages).toStrictEqual([])
+    expect(warningMessages).toStrictEqual([
+      'Image with src "/test.svg?v=1" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns',
+    ])
     expect(Object.entries(props)).toStrictEqual([
       ['alt', 'a nice desc'],
       ['loading', 'lazy'],

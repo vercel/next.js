@@ -7,7 +7,7 @@ import { getFrameSource, type StackFrame } from '../../../shared/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 import { FileIcon } from '../../icons/file'
 
-export type TerminalProps = { content: string }
+type TerminalProps = { content: string }
 
 function getFile(lines: string[]) {
   const contentFileName = lines.shift()

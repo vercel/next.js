@@ -2430,15 +2430,30 @@
               else return outlineTask(request, task);
             _existingReference = value.props;
             var refProp = _existingReference.ref;
+            refProp = void 0 !== refProp ? refProp : null;
             task.debugOwner = value._owner;
             task.debugStack = value._debugStack;
             task.debugTask = value._debugTask;
+            if (
+              void 0 === value._owner ||
+              void 0 === value._debugStack ||
+              void 0 === value._debugTask
+            ) {
+              var key = "";
+              null !== value.key && (key = ' key="' + value.key + '"');
+              console.error(
+                "Attempted to render <%s%s> without development properties. This is not supported. It can happen if:\n- The element is created with a production version of React but rendered in development.\n- The element was cloned with a custom function instead of `React.cloneElement`.\nThe props of this element may help locate this element: %o",
+                value.type,
+                key,
+                value.props
+              );
+            }
             request = renderElement(
               request,
               task,
               value.type,
               value.key,
-              void 0 !== refProp ? refProp : null,
+              refProp,
               _existingReference,
               value._store.validated
             );

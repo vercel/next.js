@@ -3,6 +3,7 @@ mod counter;
 use std::{
     alloc::{GlobalAlloc, Layout},
     marker::PhantomData,
+    ops::{Add, AddAssign},
 };
 
 use self::counter::{add, flush, get, remove, update};
@@ -16,11 +17,44 @@ pub struct AllocationInfo {
 }
 
 impl AllocationInfo {
+    pub const ZERO: Self = Self {
+        allocations: 0,
+        deallocations: 0,
+        allocation_count: 0,
+        deallocation_count: 0,
+    };
+
     pub fn is_empty(&self) -> bool {
         self.allocations == 0
             && self.deallocations == 0
             && self.allocation_count == 0
             && self.deallocation_count == 0
+    }
+
+    pub fn memory_usage(&self) -> usize {
+        self.allocations.saturating_sub(self.deallocations)
+    }
+}
+
+impl Add<Self> for AllocationInfo {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            allocations: self.allocations + other.allocations,
+            deallocations: self.deallocations + other.deallocations,
+            allocation_count: self.allocation_count + other.allocation_count,
+            deallocation_count: self.deallocation_count + other.deallocation_count,
+        }
+    }
+}
+
+impl AddAssign<Self> for AllocationInfo {
+    fn add_assign(&mut self, other: Self) {
+        self.allocations += other.allocations;
+        self.deallocations += other.deallocations;
+        self.allocation_count += other.allocation_count;
+        self.deallocation_count += other.deallocation_count;
     }
 }
 

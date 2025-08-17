@@ -52,7 +52,9 @@ use swc_core::{
         utils::IsDirective,
         visit::{
             AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithAstPath,
-            fields::{AssignExprField, AssignTargetField, SimpleAssignTargetField},
+            fields::{
+                AssignExprField, AssignTargetField, BindingIdentField, SimpleAssignTargetField,
+            },
         },
     },
 };
@@ -157,7 +159,7 @@ use crate::{
         util::InlineSourceMap,
     },
     runtime_functions::{
-        TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXPORTS,
+        TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXPORTS, TURBOPACK_GLOBAL,
         TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
@@ -1504,7 +1506,8 @@ async fn compile_time_info_for_module_type(
             InputRelativeConstant::FileName,
         ));
 
-    // Compiletime rewrite the nodejs `global` to `globalThis`
+    // Compiletime rewrite the nodejs `global` to `__turbopack_context_.g` which is a shortcut for
+    // `globalThis` that cannot be shadowed by a local variable.
     let global = rcstr!("global");
     free_var_references
         .entry(vec![
@@ -1514,7 +1517,7 @@ async fn compile_time_info_for_module_type(
         .or_insert(rcstr!("object").into());
     free_var_references
         .entry(vec![DefinableNameSegment::Name(global)])
-        .or_insert(FreeVarReference::Ident(rcstr!("globalThis")));
+        .or_insert(TURBOPACK_GLOBAL.into());
 
     free_var_references.extend(TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS.into_iter().map(
         |(name, shortcut)| {
@@ -2485,7 +2488,7 @@ async fn handle_typeof(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
     if let Some(value) = arg.match_free_var_reference(
-        Some(state.var_graph),
+        state.var_graph,
         &*state.free_var_references,
         &DefinableNameSegment::TypeOf,
     ) {
@@ -2533,11 +2536,20 @@ async fn handle_free_var_reference(
     // We don't want to replace assignments as this would lead to invalid code.
     if matches!(
         ast_path,
+        // Matches assignments to members
         [
             ..,
             AstParentKind::AssignExpr(AssignExprField::Left),
             AstParentKind::AssignTarget(AssignTargetField::Simple),
             AstParentKind::SimpleAssignTarget(SimpleAssignTargetField::Member),
+        ] |
+        // Matches assignments to identifiers
+        [
+            ..,
+            AstParentKind::AssignExpr(AssignExprField::Left),
+            AstParentKind::AssignTarget(AssignTargetField::Simple),
+            AstParentKind::SimpleAssignTarget(SimpleAssignTargetField::Ident),
+            AstParentKind::BindingIdent(BindingIdentField::Id),
         ]
     ) {
         return Ok(false);
@@ -2887,7 +2899,7 @@ async fn value_visitor_inner(
         let compile_time_info = compile_time_info.await?;
         if let JsValue::TypeOf(_, arg) = &v
             && let Some(value) = arg.match_free_var_reference(
-                Some(var_graph),
+                var_graph,
                 free_var_references,
                 &DefinableNameSegment::TypeOf,
             )

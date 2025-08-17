@@ -23,7 +23,10 @@ use next_core::{
     pages_structure::{
         PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
-    util::{NextRuntime, get_asset_prefix_from_pathname, parse_config_from_source},
+    util::{
+        NextRuntime, get_asset_prefix_from_pathname, pages_middleware_function_name,
+        parse_config_from_source,
+    },
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -1385,12 +1388,9 @@ impl PageEndpoint {
             PageEndpointType::SsrOnly => self.ssr_chunk(emit_manifests),
         };
 
-        let pathname = &this.pathname;
-        let original_name = &this.original_name;
-
         let client_assets = OutputAssets::new(client_assets).to_resolved().await?;
 
-        let manifest_path_prefix = get_asset_prefix_from_pathname(pathname);
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname);
         let node_root = this.pages_project.project().node_root().owned().await?;
 
         if emit_manifests == EmitManifests::Full {
@@ -1398,9 +1398,9 @@ impl PageEndpoint {
                 this.pages_project.project().client_root().owned().await?,
                 node_root.clone(),
                 this.pages_project.pages_dir().owned().await?,
-                original_name,
+                &this.original_name,
                 &manifest_path_prefix,
-                pathname,
+                &this.pathname,
                 *client_assets,
                 false,
             )
@@ -1416,7 +1416,7 @@ impl PageEndpoint {
         {
             let webpack_stats = generate_webpack_stats(
                 self.client_module_graph(),
-                original_name.to_owned(),
+                this.original_name.clone(),
                 client_assets.await?.iter().copied(),
             )
             .await?;
@@ -1509,10 +1509,10 @@ impl PageEndpoint {
                     let all_assets =
                         get_asset_paths_from_root(&node_root, &all_output_assets).await?;
 
-                    let named_regex = get_named_middleware_regex(pathname).into();
+                    let named_regex = get_named_middleware_regex(&this.pathname).into();
                     let matchers = MiddlewareMatcher {
                         regexp: Some(named_regex),
-                        original_source: pathname.clone(),
+                        original_source: this.pathname.clone(),
                         ..Default::default()
                     };
                     let regions = if let Some(regions) = regions.as_ref() {
@@ -1531,15 +1531,15 @@ impl PageEndpoint {
                         files: file_paths_from_root.into_iter().collect(),
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
-                        name: pathname.clone(),
+                        name: pages_middleware_function_name(&this.original_name).into(),
                         page: this.original_name.clone(),
                         regions,
                         matchers: vec![matchers],
                         env: this.pages_project.project().edge_env().owned().await?,
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
-                        sorted_middleware: vec![pathname.clone()],
-                        functions: [(pathname.clone(), edge_function_definition)]
+                        sorted_middleware: vec![this.pathname.clone()],
+                        functions: [(this.pathname.clone(), edge_function_definition)]
                             .into_iter()
                             .collect(),
                         ..Default::default()

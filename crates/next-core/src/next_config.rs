@@ -577,10 +577,16 @@ impl TryInto<ConditionPath> for ConfigConditionPath {
     fn try_into(self) -> Result<ConditionPath> {
         Ok(match self {
             ConfigConditionPath::Glob(path) => ConditionPath::Glob(path),
-            ConfigConditionPath::Regex(path) => {
-                ConditionPath::Regex(EsRegex::new(&path.source, &path.flags)?.resolved_cell())
-            }
+            ConfigConditionPath::Regex(path) => ConditionPath::Regex(path.try_into()?),
         })
+    }
+
+    type Error = anyhow::Error;
+}
+
+impl TryInto<ResolvedVc<EsRegex>> for RegexComponents {
+    fn try_into(self) -> Result<ResolvedVc<EsRegex>> {
+        Ok(EsRegex::new(&self.source, &self.flags)?.resolved_cell())
     }
 
     type Error = anyhow::Error;
@@ -588,13 +594,15 @@ impl TryInto<ConditionPath> for ConfigConditionPath {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct ConfigConditionItem {
-    pub path: ConfigConditionPath,
+    pub path: Option<ConfigConditionPath>,
+    pub content: Option<RegexComponents>,
 }
 
 impl TryInto<ConditionItem> for ConfigConditionItem {
     fn try_into(self) -> Result<ConditionItem> {
         Ok(ConditionItem {
-            path: self.path.try_into()?,
+            path: self.path.map(|p| p.try_into()).transpose()?,
+            content: self.content.map(|r| r.try_into()).transpose()?,
         })
     }
 
@@ -1701,12 +1709,12 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn client_source_maps(&self, _mode: Vc<NextMode>) -> Result<Vc<bool>> {
-        // Temporarily always enable client source maps as tests regress.
-        // TODO: Respect both `self.experimental.turbopack_source_maps` and
-        //       `self.production_browser_source_maps`
+    pub async fn client_source_maps(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
         let source_maps = self.experimental.turbopack_source_maps;
-        Ok(Vc::cell(source_maps.unwrap_or(true)))
+        Ok(Vc::cell(source_maps.unwrap_or(match &*mode.await? {
+            NextMode::Development => true,
+            NextMode::Build => self.production_browser_source_maps,
+        })))
     }
 
     #[turbo_tasks::function]

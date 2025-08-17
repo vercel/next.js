@@ -129,7 +129,8 @@ const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurbopackRuleConfigItemOrShort
   z.union([z.array(zTurboLoaderItem), zTurboRuleConfigItem])
 
 const zTurboCondition: zod.ZodType<TurbopackRuleCondition> = z.object({
-  path: z.union([z.string(), z.instanceof(RegExp)]),
+  path: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+  content: z.instanceof(RegExp).optional(),
 })
 
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
@@ -385,6 +386,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         imgOptTimeoutInSeconds: z.number().int().optional(),
         imgOptMaxInputPixels: z.number().int().optional(),
         imgOptSequentialRead: z.boolean().optional().nullable(),
+        imgOptSkipMetadata: z.boolean().optional().nullable(),
         isrFlushToDisk: z.boolean().optional(),
         largePageDataBytes: z.number().optional(),
         linkNoTouchStart: z.boolean().optional(),

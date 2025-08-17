@@ -203,6 +203,8 @@ export class TurbopackManifestLoader {
           workers: {},
           layer: {},
         })
+        action.filename = other[key].filename
+        action.exportedName = other[key].exportedName
         Object.assign(action.workers, other[key].workers)
         Object.assign(action.layer, other[key].layer)
       }

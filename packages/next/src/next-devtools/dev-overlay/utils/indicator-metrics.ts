@@ -4,7 +4,7 @@ import type { OverlayState } from '../shared'
 export const BASE_LOGO_SIZE = 36
 const INDICATOR_GAP = 9
 
-export function getIndicatorSquare(state: OverlayState): number {
+function getIndicatorSquare(state: OverlayState): number {
   return BASE_LOGO_SIZE / state.scale
 }
 

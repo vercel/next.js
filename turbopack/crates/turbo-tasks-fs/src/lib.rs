@@ -261,11 +261,7 @@ impl DiskFileSystemInner {
         let invalidator = turbo_tasks::get_invalidator();
         self.invalidator_map
             .insert(path.to_owned(), invalidator, None);
-        if let Some(non_recursive) = &self.watcher.non_recursive_state
-            && let Some(dir) = path.parent()
-        {
-            non_recursive.ensure_watching(&self.watcher, dir, self.root_path())?;
-        }
+        self.watcher.ensure_watched_file(path, self.root_path())?;
         Ok(())
     }
 
@@ -291,11 +287,7 @@ impl DiskFileSystemInner {
             .collect::<Vec<_>>();
         invalidators.insert(invalidator, Some(write_content));
         drop(invalidator_map);
-        if let Some(non_recursive) = &self.watcher.non_recursive_state
-            && let Some(dir) = path.parent()
-        {
-            non_recursive.ensure_watching(&self.watcher, dir, self.root_path())?;
-        }
+        self.watcher.ensure_watched_file(path, self.root_path())?;
         Ok(old_invalidators)
     }
 
@@ -305,9 +297,7 @@ impl DiskFileSystemInner {
         let invalidator = turbo_tasks::get_invalidator();
         self.dir_invalidator_map
             .insert(path.to_owned(), invalidator, None);
-        if let Some(non_recursive) = &self.watcher.non_recursive_state {
-            non_recursive.ensure_watching(&self.watcher, path, self.root_path())?;
-        }
+        self.watcher.ensure_watched_dir(path, self.root_path())?;
         Ok(())
     }
 
@@ -1259,6 +1249,8 @@ impl FileSystemPath {
         Ok(None)
     }
 
+    /// DETERMINISM: Result is in random order. Either sort result or do not depend
+    /// on the order.
     pub fn read_glob(&self, glob: Vc<Glob>) -> Vc<ReadGlobResult> {
         read_glob(self.clone(), glob)
     }

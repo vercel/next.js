@@ -51,6 +51,29 @@ export default async function Page() {
           </ul>
         </li>
       </ul>
+
+      <h2>
+        <code>promise passed to public cache</code>
+      </h2>
+      <ul>
+        <li>
+          root params + dynamic content
+          <ul>
+            <li>
+              <DebugLinkAccordion
+                href={`/with-root-param/${currentLang}/passed-to-public-cache/root-params`}
+                prefetch={true}
+              />
+            </li>
+            <li>
+              <DebugLinkAccordion
+                href={`/with-root-param/${otherLang}/passed-to-public-cache/root-params`}
+                prefetch={true}
+              />
+            </li>
+          </ul>
+        </li>
+      </ul>
     </main>
   )
 }

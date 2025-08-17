@@ -4,6 +4,7 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import contentDisposition from 'next/dist/compiled/content-disposition'
 import imageSizeOf from 'next/dist/compiled/image-size'
+import { detector } from 'next/dist/compiled/image-detector/detector.js'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
 import nodeUrl, { type UrlWithParsedQuery } from 'url'
@@ -157,8 +158,13 @@ async function writeToCacheDir(
  * https://en.wikipedia.org/wiki/List_of_file_signatures
  */
 export async function detectContentType(
-  buffer: Buffer
+  buffer: Buffer,
+  skipMetadata: boolean | null | undefined,
+  concurrency?: number | null | undefined
 ): Promise<string | null> {
+  if (buffer.byteLength === 0) {
+    return null
+  }
   if ([0xff, 0xd8, 0xff].every((b, i) => buffer[i] === b)) {
     return JPEG
   }
@@ -232,11 +238,21 @@ export async function detectContentType(
     return JP2
   }
 
-  const sharp = getSharp(null)
-  const meta = await sharp(buffer)
-    .metadata()
-    .catch((_) => null)
-  switch (meta?.format) {
+  let format:
+    | import('sharp').Metadata['format']
+    | ReturnType<typeof detector>
+    | undefined
+  format = detector(buffer)
+
+  if (!format && !skipMetadata) {
+    const sharp = getSharp(concurrency)
+    const meta = await sharp(buffer)
+      .metadata()
+      .catch((_) => null)
+    format = meta?.format
+  }
+
+  switch (format) {
     case 'avif':
       return AVIF
     case 'webp':
@@ -251,6 +267,7 @@ export async function detectContentType(
     case 'svg':
       return SVG
     case 'jxl':
+    case 'jxl-stream':
       return JXL
     case 'jp2':
       return JP2
@@ -259,6 +276,12 @@ export async function detectContentType(
       return TIFF
     case 'pdf':
       return PDF
+    case 'bmp':
+      return BMP
+    case 'ico':
+      return ICO
+    case 'icns':
+      return ICNS
     case 'dcraw':
     case 'dz':
     case 'exr':
@@ -271,6 +294,13 @@ export async function detectContentType(
     case 'rad':
     case 'raw':
     case 'v':
+    case 'cur':
+    case 'dds':
+    case 'j2c':
+    case 'ktx':
+    case 'pnm':
+    case 'psd':
+    case 'tga':
     case undefined:
     default:
       return null
@@ -751,6 +781,7 @@ export async function imageOptimizer(
       | 'imgOptConcurrency'
       | 'imgOptMaxInputPixels'
       | 'imgOptSequentialRead'
+      | 'imgOptSkipMetadata'
       | 'imgOptTimeoutInSeconds'
     >
     images: Pick<
@@ -778,7 +809,11 @@ export async function imageOptimizer(
     getMaxAge(imageUpstream.cacheControl)
   )
 
-  const upstreamType = await detectContentType(upstreamBuffer)
+  const upstreamType = await detectContentType(
+    upstreamBuffer,
+    nextConfig.experimental.imgOptSkipMetadata,
+    nextConfig.experimental.imgOptConcurrency
+  )
 
   if (
     !upstreamType ||

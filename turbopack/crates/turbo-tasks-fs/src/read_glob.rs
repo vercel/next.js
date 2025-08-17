@@ -4,16 +4,18 @@ use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, ResolvedVc, TryJoinIterExt, Vc};
 
-use crate::{DirectoryContent, DirectoryEntry, FileSystem, FileSystemPath, glob::Glob};
+use crate::{
+    DirectoryContent, DirectoryEntry, FileSystem, FileSystemPath, LinkContent, LinkType, glob::Glob,
+};
 
 #[turbo_tasks::value]
 #[derive(Default, Debug)]
 pub struct ReadGlobResult {
-    pub results: FxHashMap<String, DirectoryEntry>,
-    pub inner: FxHashMap<String, ResolvedVc<ReadGlobResult>>,
+    pub results: FxHashMap<RcStr, DirectoryEntry>,
+    pub inner: FxHashMap<RcStr, ResolvedVc<ReadGlobResult>>,
 }
 
-/// Reads matches of a glob pattern.
+/// Reads matches of a glob pattern. Symlinks are not resolved (and returned as-is)
 ///
 /// DETERMINISM: Result is in random order. Either sort result or do not depend
 /// on the order.
@@ -40,29 +42,64 @@ async fn read_glob_internal(
     let dir = directory.read_dir().await?;
     let mut result = ReadGlobResult::default();
     let glob_value = glob.await?;
+    let handle_file = |result: &mut ReadGlobResult,
+                       entry_path: &RcStr,
+                       segment: &RcStr,
+                       entry: &DirectoryEntry| {
+        if glob_value.matches(entry_path) {
+            result.results.insert(segment.clone(), entry.clone());
+        }
+    };
+    let handle_dir = async |result: &mut ReadGlobResult,
+                            entry_path: RcStr,
+                            segment: &RcStr,
+                            path: &FileSystemPath| {
+        if glob_value.can_match_in_directory(&entry_path) {
+            result.inner.insert(
+                segment.clone(),
+                read_glob_inner(entry_path, path.clone(), glob)
+                    .to_resolved()
+                    .await?,
+            );
+        }
+        anyhow::Ok(())
+    };
+
     match &*dir {
         DirectoryContent::Entries(entries) => {
             for (segment, entry) in entries.iter() {
-                // This is redundant with logic inside of `read_dir` but here we track it separately
-                // so we don't follow symlinks.
                 let entry_path: RcStr = if prefix.is_empty() {
                     segment.clone()
                 } else {
                     format!("{prefix}/{segment}").into()
                 };
-                let entry = resolve_symlink_safely(entry.clone()).await?;
-                if glob_value.matches(&entry_path) {
-                    result.results.insert(entry_path.to_string(), entry.clone());
-                }
-                if let DirectoryEntry::Directory(path) = entry
-                    && glob_value.can_match_in_directory(&entry_path)
-                {
-                    result.inner.insert(
-                        entry_path.to_string(),
-                        read_glob_inner(entry_path, path.clone(), glob)
-                            .to_resolved()
-                            .await?,
-                    );
+
+                match entry {
+                    DirectoryEntry::File(_) => {
+                        handle_file(&mut result, &entry_path, segment, entry);
+                    }
+                    DirectoryEntry::Directory(path) => {
+                        // Add the directory to `results` if it is a whole match of the glob
+                        handle_file(&mut result, &entry_path, segment, entry);
+                        // Recursively handle the directory
+                        handle_dir(&mut result, entry_path, segment, path).await?;
+                    }
+                    DirectoryEntry::Symlink(path) => {
+                        if let LinkContent::Link { link_type, .. } = &*path.read_link().await? {
+                            if link_type.contains(LinkType::DIRECTORY) {
+                                // Ensure that there are no infinite link loops, but don't resolve
+                                resolve_symlink_safely(entry.clone()).await?;
+
+                                // Add the directory to `results` if it is a whole match of the glob
+                                handle_file(&mut result, &entry_path, segment, entry);
+                                // Recursively handle the directory
+                                handle_dir(&mut result, entry_path, segment, path).await?;
+                            } else {
+                                handle_file(&mut result, &entry_path, segment, entry);
+                            }
+                        }
+                    }
+                    DirectoryEntry::Other(_) | DirectoryEntry::Error => continue,
                 }
             }
         }
@@ -71,7 +108,7 @@ async fn read_glob_internal(
     Ok(ReadGlobResult::cell(result))
 }
 
-// Resolve a symlink checking for recursion.
+/// Resolve a symlink checking for recursion.
 async fn resolve_symlink_safely(entry: DirectoryEntry) -> Result<DirectoryEntry> {
     let resolved_entry = entry.clone().resolve_symlink().await?;
     if resolved_entry != entry && matches!(&resolved_entry, DirectoryEntry::Directory(_)) {
@@ -189,8 +226,10 @@ async fn track_glob_internal(
 pub mod tests {
 
     use std::{
+        collections::HashMap,
         fs::{File, create_dir},
         io::prelude::*,
+        os::unix::fs::symlink,
     };
 
     use turbo_rcstr::{RcStr, rcstr};
@@ -224,13 +263,9 @@ pub mod tests {
         ));
         let path: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async {
-            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
-            let read_dir = fs
-                .root()
-                .await?
-                .read_glob(Glob::new(rcstr!("**")))
-                .await
-                .unwrap();
+            let fs = DiskFileSystem::new(rcstr!("temp"), path);
+            let root = fs.root().await?;
+            let read_dir = root.read_glob(Glob::new(rcstr!("**"))).await.unwrap();
             assert_eq!(read_dir.results.len(), 2);
             assert_eq!(
                 read_dir.results.get("foo"),
@@ -244,26 +279,22 @@ pub mod tests {
             let inner = &*read_dir.inner.get("sub").unwrap().await?;
             assert_eq!(inner.results.len(), 1);
             assert_eq!(
-                inner.results.get("sub/bar"),
+                inner.results.get("bar"),
                 Some(&DirectoryEntry::File(fs.root().await?.join("sub/bar")?))
             );
             assert_eq!(inner.inner.len(), 0);
 
             // Now with a more specific pattern
-            let read_dir = fs
-                .root()
-                .await?
-                .read_glob(Glob::new(rcstr!("**/bar")))
-                .await
-                .unwrap();
+            let read_dir = root.read_glob(Glob::new(rcstr!("**/bar"))).await.unwrap();
             assert_eq!(read_dir.results.len(), 0);
             assert_eq!(read_dir.inner.len(), 1);
             let inner = &*read_dir.inner.get("sub").unwrap().await?;
             assert_eq!(inner.results.len(), 1);
             assert_eq!(
-                inner.results.get("sub/bar"),
+                inner.results.get("bar"),
                 Some(&DirectoryEntry::File(fs.root().await?.join("sub/bar")?))
             );
+
             assert_eq!(inner.inner.len(), 0);
 
             anyhow::Ok(())
@@ -278,15 +309,27 @@ pub mod tests {
         crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
-            use std::os::unix::fs::symlink;
-
-            // Create a simple directory with 1 file and a symlink pointing at at a file in a
-            // subdirectory
+            // root.js
+            // sub/foo.js
+            // sub/link-foo.js -> ./foo.js
+            // sub/link-root.js -> ../root.js
             let path = scratch.path();
             create_dir(path.join("sub")).unwrap();
             let foo = path.join("sub/foo.js");
             File::create_new(&foo).unwrap().write_all(b"foo").unwrap();
-            symlink(&foo, path.join("link.js")).unwrap();
+            symlink(&foo, path.join("sub/link-foo.js")).unwrap();
+
+            let root = path.join("root.js");
+            File::create_new(&root).unwrap().write_all(b"root").unwrap();
+            symlink(&root, path.join("sub/link-root.js")).unwrap();
+
+            let dir = path.join("dir");
+            create_dir(&dir).unwrap();
+            File::create_new(dir.join("index.js"))
+                .unwrap()
+                .write_all(b"dir index")
+                .unwrap();
+            symlink(&dir, path.join("sub/dir")).unwrap();
         }
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -294,19 +337,48 @@ pub mod tests {
         ));
         let path: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async {
-            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
-            let read_dir = fs
-                .root()
-                .await?
-                .read_glob(Glob::new(rcstr!("*.js")))
+            let fs = DiskFileSystem::new(rcstr!("temp"), path);
+            let root = fs.root().await?;
+            // Symlinked files
+            let read_dir = root.read_glob(Glob::new(rcstr!("sub/*.js"))).await.unwrap();
+            assert_eq!(read_dir.results.len(), 0);
+            let inner = &*read_dir.inner.get("sub").unwrap().await?;
+            assert_eq!(
+                inner.results,
+                HashMap::from_iter([
+                    (
+                        "link-foo.js".into(),
+                        DirectoryEntry::Symlink(root.join("sub/link-foo.js")?),
+                    ),
+                    (
+                        "link-root.js".into(),
+                        DirectoryEntry::Symlink(root.join("sub/link-root.js")?),
+                    ),
+                    (
+                        "foo.js".into(),
+                        DirectoryEntry::File(root.join("sub/foo.js")?),
+                    ),
+                ])
+            );
+            assert_eq!(inner.inner.len(), 0);
+
+            // A symlinked folder
+            let read_dir = root
+                .read_glob(Glob::new(rcstr!("sub/dir/*")))
                 .await
                 .unwrap();
-            assert_eq!(read_dir.results.len(), 1);
+            assert_eq!(read_dir.results.len(), 0);
+            let inner_sub = &*read_dir.inner.get("sub").unwrap().await?;
+            assert_eq!(inner_sub.results.len(), 0);
+            let inner_sub_dir = &*inner_sub.inner.get("dir").unwrap().await?;
             assert_eq!(
-                read_dir.results.get("link.js"),
-                Some(&DirectoryEntry::File(fs.root().await?.join("sub/foo.js")?))
+                inner_sub_dir.results,
+                HashMap::from_iter([(
+                    "index.js".into(),
+                    DirectoryEntry::File(root.join("sub/dir/index.js")?),
+                )])
             );
-            assert_eq!(read_dir.inner.len(), 0);
+            assert_eq!(inner_sub_dir.inner.len(), 0);
 
             anyhow::Ok(())
         })

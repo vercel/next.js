@@ -114,6 +114,10 @@ export type ResponseLimit = SizeLimit | boolean
  * `Config` type, use it for export const config
  */
 export type PageConfig = {
+  /**
+   * @deprecated built-in amp support will be removed in Next 16
+   * @see [`next/amp`](https://nextjs.org/docs/api-reference/next/amp)
+   */
   amp?: boolean | 'hybrid'
   api?: {
     /**

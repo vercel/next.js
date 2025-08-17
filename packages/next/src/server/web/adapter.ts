@@ -297,7 +297,6 @@ export async function adapter(
                 onClose: closeController.onClose.bind(closeController),
                 onAfterTaskError: undefined,
               },
-              requestEndedState: { ended: false },
               isPrefetchRequest:
                 request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
               buildId: buildId ?? '',

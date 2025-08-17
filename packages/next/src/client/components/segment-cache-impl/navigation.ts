@@ -21,6 +21,7 @@ import {
   readRouteCacheEntry,
   readSegmentCacheEntry,
   waitForSegmentCacheEntry,
+  requestOptimisticRouteCacheEntry,
   type RouteTree,
   type FulfilledRouteCacheEntry,
 } from './cache'
@@ -136,6 +137,39 @@ export function navigate(
       url.hash
     )
   }
+
+  // There was no matching route tree in the cache. Let's see if we can
+  // construct an "optimistic" route tree.
+  const optimisticRoute = requestOptimisticRouteCacheEntry(now, url, nextUrl)
+  if (optimisticRoute !== null) {
+    // We have an optimistic route tree. Proceed with the normal flow.
+    const snapshot = readRenderSnapshotFromCache(
+      now,
+      optimisticRoute,
+      optimisticRoute.tree
+    )
+    const prefetchFlightRouterState = snapshot.flightRouterState
+    const prefetchSeedData = snapshot.seedData
+    const prefetchHead = optimisticRoute.head
+    const isPrefetchHeadPartial = optimisticRoute.isHeadPartial
+    const newCanonicalUrl = optimisticRoute.canonicalUrl
+    return navigateUsingPrefetchedRouteTree(
+      now,
+      url,
+      nextUrl,
+      isSamePageNavigation,
+      currentCacheNode,
+      currentFlightRouterState,
+      prefetchFlightRouterState,
+      prefetchSeedData,
+      prefetchHead,
+      isPrefetchHeadPartial,
+      newCanonicalUrl,
+      shouldScroll,
+      url.hash
+    )
+  }
+
   // There's no matching prefetch for this route in the cache.
   return {
     tag: NavigationResultTag.Async,

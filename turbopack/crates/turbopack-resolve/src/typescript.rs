@@ -426,13 +426,15 @@ pub async fn type_resolve(
         fragment: _,
     } = &*request.await?
     {
-        let m = if let Some(stripped) = m.strip_prefix('@') {
-            stripped.replace('/', "__").into()
+        let mut m = if let Some(mut stripped) = m.strip_prefix("@") {
+            stripped.replace_constants(&|c| Some(Pattern::Constant(c.replace("/", "__").into())));
+            stripped
         } else {
             m.clone()
         };
+        m.push_front(rcstr!("@types/").into());
         Some(Request::module(
-            format!("@types/{m}").into(),
+            m,
             p.clone(),
             RcStr::default(),
             RcStr::default(),

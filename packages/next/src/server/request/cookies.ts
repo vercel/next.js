@@ -15,6 +15,7 @@ import {
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
 import {
+  delayUntilRuntimeStage,
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
@@ -118,7 +119,15 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             workUnitStore
           )
         case 'prerender-runtime':
+          return delayUntilRuntimeStage(
+            workUnitStore,
+            makeUntrackedCookies(workUnitStore.cookies)
+          )
         case 'private-cache':
+          if (process.env.__NEXT_CACHE_COMPONENTS) {
+            return makeUntrackedCookies(workUnitStore.cookies)
+          }
+
           return makeUntrackedExoticCookies(workUnitStore.cookies)
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
@@ -150,6 +159,10 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               workStore?.route
             )
           } else {
+            if (process.env.__NEXT_CACHE_COMPONENTS) {
+              return makeUntrackedCookies(underlyingCookies)
+            }
+
             return makeUntrackedExoticCookies(underlyingCookies)
           }
         default:
@@ -187,6 +200,20 @@ function makeHangingCookies(
     '`cookies()`'
   )
   CachedCookies.set(prerenderStore, promise)
+
+  return promise
+}
+
+function makeUntrackedCookies(
+  underlyingCookies: ReadonlyRequestCookies
+): Promise<ReadonlyRequestCookies> {
+  const cachedCookies = CachedCookies.get(underlyingCookies)
+  if (cachedCookies) {
+    return cachedCookies
+  }
+
+  const promise = Promise.resolve(underlyingCookies)
+  CachedCookies.set(underlyingCookies, promise)
 
   return promise
 }

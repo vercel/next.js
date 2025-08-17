@@ -26,6 +26,7 @@ import type {
   RequestStore,
   PrerenderStoreLegacy,
   PrerenderStoreModern,
+  PrerenderStoreModernRuntime,
 } from '../app-render/work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
@@ -33,14 +34,18 @@ import React from 'react'
 
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import {
+  getRuntimeStagePromise,
+  workUnitAsyncStorage,
+} from './work-unit-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
   OUTLET_BOUNDARY_NAME,
-} from '../../lib/metadata/metadata-constants'
+  ROOT_LAYOUT_BOUNDARY_NAME,
+} from '../../lib/framework/boundary-constants'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -547,12 +552,25 @@ export function createHangingInputAbortSignal(
         })
       } else {
         // Otherwise we're in the final render and we should already have all
-        // our caches filled. We might still be waiting on some microtasks so we
+        // our caches filled.
+        // If the prerender uses stages, we have wait until the runtime stage,
+        // at which point all runtime inputs will be resolved.
+        // (otherwise, a runtime prerender might consider `cookies()` hanging
+        //  even though they'd resolve in the next task.)
+        //
+        // We might still be waiting on some microtasks so we
         // wait one tick before giving up. When we give up, we still want to
         // render the content of this cache as deeply as we can so that we can
         // suspend as deeply as possible in the tree or not at all if we don't
         // end up waiting for the input.
-        scheduleOnNextTick(() => controller.abort())
+        const runtimeStagePromise = getRuntimeStagePromise(workUnitStore)
+        if (runtimeStagePromise) {
+          runtimeStagePromise.then(() =>
+            scheduleOnNextTick(() => controller.abort())
+          )
+        } else {
+          scheduleOnNextTick(() => controller.abort())
+        }
       }
 
       return controller.signal
@@ -637,8 +655,27 @@ export function useDynamicRouteParams(expression: string) {
 }
 
 const hasSuspenseRegex = /\n\s+at Suspense \(<anonymous>\)/
-const hasSuspenseAfterBodyOrHtmlRegex =
-  /\n\s+at (?:body|html) \(<anonymous>\)[\s\S]*?\n\s+at Suspense \(<anonymous>\)/
+
+// Common implicit body tags that React will treat as body when placed directly in html
+const bodyAndImplicitTags =
+  'body|div|main|section|article|aside|header|footer|nav|form|p|span|h1|h2|h3|h4|h5|h6'
+
+// Detects when RootLayoutBoundary (our framework marker component) appears
+// after Suspense in the component stack, indicating the root layout is wrapped
+// within a Suspense boundary. Ensures no body/html/implicit-body components are in between.
+//
+// Example matches:
+//   at Suspense (<anonymous>)
+//   at __next_root_layout_boundary__ (<anonymous>)
+//
+// Or with other components in between (but not body/html/implicit-body):
+//   at Suspense (<anonymous>)
+//   at SomeComponent (<anonymous>)
+//   at __next_root_layout_boundary__ (<anonymous>)
+const hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex = new RegExp(
+  `\\n\\s+at Suspense \\(<anonymous>\\)(?:(?!\\n\\s+at (?:${bodyAndImplicitTags}) \\(<anonymous>\\))[\\s\\S])*?\\n\\s+at ${ROOT_LAYOUT_BOUNDARY_NAME} \\([^\\n]*\\)`
+)
+
 const hasMetadataRegex = new RegExp(
   `\\n\\s+at ${METADATA_BOUNDARY_NAME}[\\n\\s]`
 )
@@ -662,9 +699,14 @@ export function trackAllowedDynamicAccess(
   } else if (hasViewportRegex.test(componentStack)) {
     dynamicValidation.hasDynamicViewport = true
     return
-  } else if (hasSuspenseAfterBodyOrHtmlRegex.test(componentStack)) {
-    // This prerender has a Suspense boundary above the body which
-    // effectively opts the page into allowing 100% dynamic rendering
+  } else if (
+    hasSuspenseBeforeRootLayoutWithoutBodyOrImplicitBodyRegex.test(
+      componentStack
+    )
+  ) {
+    // For Suspense within body, the prelude wouldn't be empty so it wouldn't violate the empty static shells rule.
+    // But if you have Suspense above body, the prelude is empty but we allow that because having Suspense
+    // is an explicit signal from the user that they acknowledge the empty shell and want dynamic rendering.
     dynamicValidation.hasAllowedDynamic = true
     dynamicValidation.hasSuspenseAboveBody = true
     return
@@ -798,4 +840,14 @@ export function throwIfDisallowedDynamic(
       throw new StaticGenBailoutError()
     }
   }
+}
+
+export function delayUntilRuntimeStage<T>(
+  prerenderStore: PrerenderStoreModernRuntime,
+  result: Promise<T>
+): Promise<T> {
+  if (prerenderStore.runtimeStagePromise) {
+    return prerenderStore.runtimeStagePromise.then(() => result)
+  }
+  return result
 }

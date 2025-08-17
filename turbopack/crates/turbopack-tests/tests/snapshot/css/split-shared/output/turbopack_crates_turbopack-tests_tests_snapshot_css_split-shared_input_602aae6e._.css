@@ -1,0 +1,16 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1a.css [test] (css) */
+.b1a {
+  content: "3";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1b.css [test] (css) */
+.b1b {
+  content: "4";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1.css [test] (css) */
+.b1 {
+  content: "5";
+}
+
+/*# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_css_split-shared_input_602aae6e._.css.map*/
