@@ -1,3 +1,4 @@
+// cms-drupal/lib/constants.js
 export const EXAMPLE_PATH = "cms-drupal";
 export const CMS_NAME = "Drupal";
 export const CMS_URL = "https://drupal.org/project/next";

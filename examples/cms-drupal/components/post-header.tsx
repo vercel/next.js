@@ -1,8 +1,8 @@
-import Avatar from "../components/avatar";
-import Date from "../components/date";
-import CoverImage from "../components/cover-image";
-import PostTitle from "../components/post-title";
-import Categories from "../components/categories";
+import Avatar from "./avatar";
+import Date from "./date";
+import CoverImage from "./cover-image";
+import PostTitle from "./post-title";
+import Categories from "./categories";
 
 export default function PostHeader({
   title,
@@ -10,6 +10,7 @@ export default function PostHeader({
   date,
   author,
   categories,
+  slug,
 }) {
   return (
     <>
@@ -18,7 +19,7 @@ export default function PostHeader({
         <Avatar author={author} />
       </div>
       <div className="mb-8 md:mb-16 sm:mx-0">
-        <CoverImage title={title} coverImage={coverImage} />
+        <CoverImage title={title} coverImage={coverImage} slug={slug} />
       </div>
       <div className="max-w-2xl mx-auto">
         <div className="block md:hidden mb-6">

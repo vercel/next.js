@@ -7,7 +7,7 @@ export default function MoreStories({ posts }) {
       <h2 className="mb-8 text-6xl md:text-7xl font-bold tracking-tighter leading-tight">
         More Stories
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 md:gap-16 lg:gap-32 gap-20 md:gap-32 mb-32">
+      <div className="grid grid-cols-1 md:grid-cols-2 md:gap-16 lg:gap-32 gap-20 mb-32">
         {posts.map((node) => (
           <PostPreview
             key={node.id}
@@ -17,7 +17,7 @@ export default function MoreStories({ posts }) {
             }}
             date={node.created}
             author={{
-              name: node.uid.field_name,
+              name: node.uid.display_name,
               avatar: {
                 url: absoluteURL(node.uid.user_picture.uri.url),
               },
