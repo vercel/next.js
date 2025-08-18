@@ -21,7 +21,7 @@ import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
-import type { DebugChannelBrowser } from 'react-server-dom-webpack/client.browser'
+import { createDebugChannel } from './components/router-reducer/debug-channel'
 import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-app'
 
 /// <reference types="react-dom/experimental" />
@@ -55,9 +55,9 @@ declare global {
   // If you're working in a browser environment
   interface Window {
     /**
-     * requestId
+     * request ID, dev-only
      */
-    __next_r: string
+    __next_r?: string
     __next_f: NextFlight
   }
 }
@@ -159,22 +159,9 @@ const readable = new ReadableStream({
   },
 })
 
-// TODO: Also needed for navigation and server action requests.
-let debugChannel: DebugChannelBrowser | undefined = undefined
-
-if (process.env.NODE_ENV !== 'production') {
-  debugChannel = {
-    readable: new ReadableStream({
-      start(controller) {
-        window.__NEXT_REACT_DEBUG_CHUNKS_CONTROLLER = controller
-      },
-    }),
-  }
-}
-
 const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
   readable,
-  { callServer, findSourceMapURL, debugChannel }
+  { callServer, findSourceMapURL, debugChannel: createDebugChannel(undefined) }
 )
 
 function ServerRoot({
@@ -260,12 +247,7 @@ export function hydrate(
       require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
 
     staticIndicatorState = { pathname: null, appIsrManifest: {} }
-
-    webSocket = createWebSocket(
-      assetPrefix,
-      staticIndicatorState,
-      self.__next_r
-    )
+    webSocket = createWebSocket(assetPrefix, staticIndicatorState)
   }
 
   // React overrides `.then` and doesn't return a new promise chain,

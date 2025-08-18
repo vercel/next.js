@@ -62,10 +62,18 @@ declare global {
     __NEXT_DATA__: NEXT_DATA
     __NEXT_P: any[]
 
-    // TODO: There's probably a better way than to store this as a global, we
-    // also need it per request.
     /* dev */
-    __NEXT_REACT_DEBUG_CHUNKS_CONTROLLER: ReadableStreamDefaultController
+    // TODO: There's probably a better way than to store this as a global. This
+    // also leaks memory and we need to figure out when we can clean up the
+    // controllers. This is not trivial, because React keeps the connection
+    // alive, in case a debug model is lazily requested, e.g. when inspecting a
+    // deep object that has been logged by the server, and was replayed by the
+    // browser. Maybe we need to allow this for a while, before timing out and
+    // cleaning up debug channels of previous requests?
+    __NEXT_REACT_DEBUG_CHUNKS_CONTROLLERS_BY_REQUEST_ID?: Map<
+      string,
+      ReadableStreamDefaultController
+    >
   }
 }
 type RenderRouteInfo = PrivateRouteInfo & {

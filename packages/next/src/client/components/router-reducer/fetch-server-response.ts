@@ -20,6 +20,7 @@ import {
   NEXT_HMR_REFRESH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
+  NEXT_REQUEST_ID_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
@@ -32,6 +33,7 @@ import {
 import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
 import { urlToUrlWithoutFlightMarker } from '../../route-params'
+import { createDebugChannel } from './debug-channel'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -62,6 +64,7 @@ export type RequestHeaders = {
   [NEXT_HMR_REFRESH_HEADER]?: '1'
   // A header that is only added in test mode to assert on fetch priority
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
+  [NEXT_REQUEST_ID_HEADER]?: string // dev-only
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
@@ -214,7 +217,8 @@ export async function fetchServerResponse(
       ? createUnclosingPrefetchStream(res.body)
       : res.body
     const response = await (createFromNextReadableStream(
-      flightStream
+      flightStream,
+      res.headers
     ) as Promise<NavigationFlightResponse>)
 
     if (getAppBuildId() !== response.b) {
@@ -281,6 +285,10 @@ export async function createFetch(
 
   if (process.env.NEXT_DEPLOYMENT_ID) {
     headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
+  }
+
+  if (process.env.NODE_ENV !== 'production' && self.__next_r) {
+    headers[NEXT_REQUEST_ID_HEADER] = self.__next_r
   }
 
   const fetchOptions: RequestInit = {
@@ -383,11 +391,15 @@ export async function createFetch(
 }
 
 export function createFromNextReadableStream(
-  flightStream: ReadableStream<Uint8Array>
+  flightStream: ReadableStream<Uint8Array>,
+  responseHeaders: Headers
 ): Promise<unknown> {
+  const debugChannel = createDebugChannel(responseHeaders)
+
   return createFromReadableStream(flightStream, {
     callServer,
     findSourceMapURL,
+    debugChannel,
   })
 }
 

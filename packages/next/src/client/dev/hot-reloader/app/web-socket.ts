@@ -16,11 +16,16 @@ import { InvariantError } from '../../../../shared/lib/invariant-error'
 
 export function createWebSocket(
   assetPrefix: string,
-  staticIndicatorState: StaticIndicatorState,
-  requestId: string
+  staticIndicatorState: StaticIndicatorState
 ) {
+  if (!self.__next_r) {
+    throw new InvariantError(
+      `Expected a request ID to be defined for the document via self.__next_r.`
+    )
+  }
+
   const webSocket = new window.WebSocket(
-    `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${requestId}`
+    `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${self.__next_r}`
   )
 
   if (isTerminalLoggingEnabled) {
