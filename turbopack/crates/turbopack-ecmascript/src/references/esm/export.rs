@@ -40,7 +40,7 @@ use crate::{
 
 /// Models the 'liveness' of an esm export
 /// All ESM exports are technically live but many never change and we can optimize representation to
-/// support that
+/// support that, this enum tracks the actual behavior of the export binding.
 #[derive(
     Copy, Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
 )]
@@ -50,7 +50,8 @@ pub enum Liveness {
     // The binding may change after module evaluation
     Live,
     // The binding needs to be exposed as mutable to callers.  This isn't part of the spec but is
-    // part of our
+    // part of our module-fragments optimization where we split modules into parts and preserve
+    // mutability of variables via mutable exports.
     Mutable,
 }
 
@@ -68,24 +69,6 @@ pub enum EsmExport {
     ImportedNamespace(ResolvedVc<Box<dyn ModuleReference>>),
     /// An error occurred while resolving the export
     Error,
-}
-
-impl EsmExport {
-    pub fn liveness(&self) -> Liveness {
-        match self {
-            EsmExport::LocalBinding(_, liveness) => *liveness,
-            EsmExport::ImportedBinding(_, _, mutable) => {
-                if *mutable {
-                    Liveness::Mutable
-                } else {
-                    // imported bindings are always live
-                    Liveness::Live
-                }
-            }
-            EsmExport::ImportedNamespace(_) => Liveness::Constant,
-            EsmExport::Error => Liveness::Live,
-        }
-    }
 }
 
 #[turbo_tasks::function]

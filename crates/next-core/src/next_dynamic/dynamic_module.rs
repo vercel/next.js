@@ -105,6 +105,7 @@ impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
             .to_resolved()
             .await?,
         );
+
         let mut exports = BTreeMap::new();
         let default = rcstr!("default");
         exports.insert(

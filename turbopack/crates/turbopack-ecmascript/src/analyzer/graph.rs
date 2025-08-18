@@ -1273,6 +1273,7 @@ impl Analyzer<'_> {
     ) {
         let obj_value = Box::new(self.eval_context.eval(&member_expr.obj));
         let prop_value = match &member_expr.prop {
+            // TODO avoid clone
             MemberProp::Ident(i) => Box::new(i.sym.clone().into()),
             MemberProp::PrivateName(_) => {
                 return;
