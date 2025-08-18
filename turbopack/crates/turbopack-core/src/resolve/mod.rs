@@ -2693,7 +2693,7 @@ async fn resolve_into_package(
                 };
 
                 let Some(path) = path.as_constant_string() else {
-                    todo!("pattern into an exports field is not implemented yet");
+                    bail!("pattern into an exports field is not implemented yet");
                 };
 
                 let path = if path == "/" {

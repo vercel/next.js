@@ -17,9 +17,9 @@ export function findRootLockFile(cwd: string) {
   )
 }
 
-export function findRootDir(cwd: string) {
+export function findRootDir(cwd: string): string {
   const lockFile = findRootLockFile(cwd)
-  if (!lockFile) return undefined
+  if (!lockFile) return cwd
 
   const lockFiles = [lockFile]
   while (true) {

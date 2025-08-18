@@ -746,19 +746,28 @@ function assignDefaults(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
-  if (result?.outputFileTracingRoot && !result?.turbopack?.root) {
-    dset(result, ['turbopack', 'root'], result.outputFileTracingRoot)
+  const tracingRoot = result?.outputFileTracingRoot
+  const turbopackRoot = result?.turbopack?.root
+
+  // If both provided, validate they match. If not, use outputFileTracingRoot.
+  if (tracingRoot && turbopackRoot && tracingRoot !== turbopackRoot) {
+    Log.warn(
+      `Both \`outputFileTracingRoot\` and \`turbopack.root\` are set, but they must have the same value.\n` +
+        `Using \`outputFileTracingRoot\` value: ${tracingRoot}.`
+    )
   }
 
-  // use the highest level lockfile as tracing root
-  if (!result?.outputFileTracingRoot && !result?.turbopack?.root) {
-    let rootDir = findRootDir(dir)
+  const rootDir = tracingRoot || turbopackRoot || findRootDir(dir)
 
-    if (rootDir) {
-      result.outputFileTracingRoot = rootDir
-      dset(result, ['turbopack', 'root'], rootDir)
-    }
+  if (!rootDir) {
+    throw new Error(
+      'Failed to find the root directory of the project. This is a bug in Next.js.'
+    )
   }
+
+  // Ensure both properties are set to the same value
+  result.outputFileTracingRoot = rootDir
+  dset(result, ['turbopack', 'root'], rootDir)
 
   setHttpClientAndAgentOptions(result || defaultConfig)
 
