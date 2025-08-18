@@ -104,6 +104,12 @@ declare module 'react-server-dom-webpack/client.browser' {
     findSourceMapURL: FindSourceMapURLCallback | undefined
     replayConsoleLogs?: boolean
     temporaryReferences?: TemporaryReferenceSet
+    debugChannel?: DebugChannelBrowser
+  }
+
+  export interface DebugChannelBrowser {
+    writable?: WritableStream
+    readable?: ReadableStream
   }
 
   export function createFromFetch<T>(
@@ -156,6 +162,7 @@ declare module 'react-server-dom-webpack/server.edge' {
       onError?: (error: unknown) => void
       onPostpone?: (reason: string) => void
       signal?: AbortSignal
+      debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
     }
   ): ReadableStream<Uint8Array>
 
