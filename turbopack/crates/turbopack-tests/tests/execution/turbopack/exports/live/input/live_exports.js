@@ -15,3 +15,5 @@ export function bar() {
 export function setBar(b) {
   bar = b
 }
+
+export { globalThis as g }
