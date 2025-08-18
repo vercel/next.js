@@ -93,11 +93,11 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 
 ## Known gaps with webpack
 
-There are a number of non-trivial behavior differences between webpack and Turbopack that are important to be aware of when migrating an application. Generally these are less of a concern for new applications.
+There are a number of non-trivial behavior differences between webpack and Turbopack that are important to be aware of when migrating an application. Generally, these are less of a concern for new applications.
 
 ### CSS Module Ordering
 
-Turbopack will follow JS import order to order [CSS modules](/docs/app/getting-started/css#css-modules) which are not otherwise ordered. For example,
+Turbopack will follow JS import order to order [CSS modules](/docs/app/getting-started/css#css-modules) which are not otherwise ordered. For example:
 
 ```jsx filename="components/BlogPost.jsx"
 import utilStyles from './utils.module.css'
