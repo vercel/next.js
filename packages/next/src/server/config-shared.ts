@@ -609,7 +609,7 @@ export interface ExperimentalConfig {
 
   /**
    * Enable type checking for Link and Router.push, etc.
-   * @deprecated Use `typedLinks` instead. This is an alias for the `typedLinks` option.
+   * @deprecated Use `typedRoutes` instead — this feature is now stable.
    * @see https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links
    */
   typedRoutes?: boolean
@@ -1006,7 +1006,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [Typed Links documentation](https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links)
    */
-  typedLinks?: boolean
+  typedRoutes?: boolean
 
   /**
    * Headers allow you to set custom HTTP headers for an incoming request path.
@@ -1424,7 +1424,7 @@ export const defaultConfig = Object.freeze({
     ignoreBuildErrors: false,
     tsconfigPath: 'tsconfig.json',
   },
-  typedLinks: false,
+  typedRoutes: false,
   distDir: '.next',
   cleanDistDir: true,
   assetPrefix: '',

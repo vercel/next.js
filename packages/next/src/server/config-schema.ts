@@ -746,7 +746,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         tsconfigPath: z.string().min(1).optional(),
       })
       .optional(),
-    typedLinks: z.boolean().optional(),
+    typedRoutes: z.boolean().optional(),
     useFileSystemPublicRoutes: z.boolean().optional(),
     // The webpack config type is unknown, use z.any() here
     webpack: z.any().nullable().optional(),

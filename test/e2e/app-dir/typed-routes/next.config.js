@@ -2,7 +2,7 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  typedLinks: true,
+  typedRoutes: true,
   async redirects() {
     return [
       {

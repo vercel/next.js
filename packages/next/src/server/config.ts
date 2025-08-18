@@ -252,12 +252,15 @@ function assignDefaults(
     delete userConfig.experimental.dynamicIO
   }
 
-  // Handle migration of experimental.typedRoutes to typedLinks
+  // Handle migration of experimental.typedRoutes to typedRoutes
   if (userConfig.experimental?.typedRoutes !== undefined) {
-    // If typedLinks was not explicitly set by the user, use the typedRoutes value
-    if (userConfig.typedLinks === undefined) {
-      userConfig.typedLinks = userConfig.experimental.typedRoutes
+    // If typedRoutes was not explicitly set by the user, use the typedRoutes value
+    if (userConfig.typedRoutes === undefined) {
+      userConfig.typedRoutes = userConfig.experimental.typedRoutes
     }
+
+    // Remove the deprecated property
+    delete userConfig.experimental.typedRoutes
   }
 
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
