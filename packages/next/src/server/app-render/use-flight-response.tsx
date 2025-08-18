@@ -167,25 +167,23 @@ function writeInitialInstructions(
   formState: unknown | null,
   requestId: string
 ) {
-  if (formState != null) {
-    controller.enqueue(
-      encoder.encode(
-        `${scriptStart}self.__next_r=${JSON.stringify(requestId)};(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-          JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-        )});self.__next_f.push(${htmlEscapeJsonString(
-          JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-        )})</script>`
-      )
-    )
-  } else {
-    controller.enqueue(
-      encoder.encode(
-        `${scriptStart}self.__next_r=${JSON.stringify(requestId)};(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-          JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-        )})</script>`
-      )
-    )
+  let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+    JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+  )})`
+
+  if (process.env.NODE_ENV !== 'production') {
+    // The request ID is only needed in development mode.
+    scriptContents =
+      `self.__next_r=${JSON.stringify(requestId)};` + scriptContents
   }
+
+  if (formState != null) {
+    scriptContents += `self.__next_f.push(${htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+    )})`
+  }
+
+  controller.enqueue(encoder.encode(`${scriptStart}${scriptContents}</script>`))
 }
 
 function writeFlightDataInstruction(
