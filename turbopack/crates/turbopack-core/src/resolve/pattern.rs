@@ -80,6 +80,9 @@ fn longest_common_prefix<'a>(strings: &[&'a str]) -> &'a str {
     if strings.is_empty() {
         return "";
     }
+    if let [single] = strings {
+        return single;
+    }
     let first = strings[0];
     let mut len = first.len();
     for str in &strings[1..] {
@@ -150,6 +153,10 @@ impl Pattern {
         // The normalized pattern is an Alternative of maximally merged
         // Concatenations, so extracting the first/only Concatenation child
         // elements is enough.
+
+        if let Pattern::Constant(c) = self {
+            return c;
+        }
 
         fn collect_constant_prefix<'a: 'b, 'b>(pattern: &'a Pattern, result: &mut Vec<&'b str>) {
             match pattern {
@@ -328,10 +335,10 @@ impl Pattern {
         self.normalize()
     }
 
-    //// Replace all `*`s in `template` with self.
-    ////
-    //// Handle top-level alternatives separately so that multiple star placeholders
-    //// match the same pattern instead of the whole alternative.
+    /// Replace all `*`s in `template` with self.
+    ///
+    /// Handle top-level alternatives separately so that multiple star placeholders
+    /// match the same pattern instead of the whole alternative.
     pub fn spread_into_star(&self, template: &str) -> Pattern {
         if template.contains("*") {
             let alternatives: Box<dyn Iterator<Item = &Pattern>> = match self {
@@ -386,6 +393,12 @@ impl Pattern {
         {
             // Short-circuit to replace empty constants with the appended pattern
             *self = pat;
+            return;
+        }
+        if let Pattern::Constant(pat) = &pat
+            && pat.is_empty()
+        {
+            // Short-circuit to ignore when trying to append an empty string.
             return;
         }
 
