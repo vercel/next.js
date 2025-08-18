@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 module.exports = {
+  typedLinks: true,
   experimental: {
-    typedRoutes: true,
     parallelServerBuildTraces: true,
     webpackBuildWorker: true,
   },

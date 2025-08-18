@@ -3,9 +3,7 @@ import createMdx from '@next/mdx'
 const withMdx = createMdx()
 
 export default withMdx({
-  experimental: {
-    typedRoutes: true,
-  },
+  typedLinks: true,
 
   pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'mdx'],
 
