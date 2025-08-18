@@ -764,7 +764,9 @@ function assignDefaults(
   if (!rootDir) {
     const { rootDir: foundRootDir, lockFiles } = findRootDirAndLockFiles(dir)
     rootDir = foundRootDir
-    warnDuplicatedLockFiles(lockFiles)
+    if (!silent) {
+      warnDuplicatedLockFiles(lockFiles)
+    }
   }
 
   if (!rootDir) {
@@ -1434,7 +1436,7 @@ export default async function loadConfig(
     checkDeprecations(userConfig, configFileName, silent, dir)
 
     // Always validate the config against schema in non minimal mode
-    if (!process.env.NEXT_MINIMAL) {
+    if (!process.env.NEXT_MINIMAL && !silent) {
       validateConfigSchema(userConfig, configFileName, curLog.warn)
     }
 
