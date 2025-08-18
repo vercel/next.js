@@ -2941,13 +2941,8 @@ async fn handle_exports_imports_field(
 
     let req = Pattern::Constant(format!("{path}{query}").into());
 
-    let values = exports_imports_field
-        .lookup(&req)
-        .map(AliasMatch::try_into_self)
-        .collect::<Result<Vec<_>>>()?;
-
-    for value in values.iter() {
-        if value.add_results(
+    for value in exports_imports_field.lookup(&req) {
+        if value.output.add_results(
             conditions,
             unspecified_conditions,
             &mut conditions_state,

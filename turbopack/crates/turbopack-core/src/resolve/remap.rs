@@ -69,44 +69,44 @@ pub enum ReplacedSubpathValue {
 
 impl AliasTemplate for SubpathValue {
     type Output<'a>
-        = Result<ReplacedSubpathValue>
+        = ReplacedSubpathValue
     where
         Self: 'a;
 
-    fn convert(&self) -> Result<ReplacedSubpathValue> {
-        Ok(match self {
+    fn convert(&self) -> ReplacedSubpathValue {
+        match self {
             SubpathValue::Alternatives(list) => ReplacedSubpathValue::Alternatives(
                 list.iter()
                     .map(|value: &SubpathValue| value.convert())
-                    .collect::<Result<Vec<_>>>()?,
+                    .collect::<Vec<_>>(),
             ),
             SubpathValue::Conditional(list) => ReplacedSubpathValue::Conditional(
                 list.iter()
-                    .map(|(condition, value)| Ok((condition.clone(), value.convert()?)))
-                    .collect::<Result<Vec<_>>>()?,
+                    .map(|(condition, value)| (condition.clone(), value.convert()))
+                    .collect::<Vec<_>>(),
             ),
             SubpathValue::Result(value) => ReplacedSubpathValue::Result(value.clone().into()),
             SubpathValue::Excluded => ReplacedSubpathValue::Excluded,
-        })
+        }
     }
 
-    fn replace(&self, capture: &Pattern) -> Result<ReplacedSubpathValue> {
-        Ok(match self {
+    fn replace(&self, capture: &Pattern) -> ReplacedSubpathValue {
+        match self {
             SubpathValue::Alternatives(list) => ReplacedSubpathValue::Alternatives(
                 list.iter()
                     .map(|value: &SubpathValue| value.replace(capture))
-                    .collect::<Result<Vec<_>>>()?,
+                    .collect::<Vec<_>>(),
             ),
             SubpathValue::Conditional(list) => ReplacedSubpathValue::Conditional(
                 list.iter()
-                    .map(|(condition, value)| Ok((condition.clone(), value.replace(capture)?)))
-                    .collect::<Result<Vec<_>>>()?,
+                    .map(|(condition, value)| (condition.clone(), value.replace(capture)))
+                    .collect::<Vec<_>>(),
             ),
             SubpathValue::Result(value) => {
                 ReplacedSubpathValue::Result(capture.spread_into_star(value))
             }
             SubpathValue::Excluded => ReplacedSubpathValue::Excluded,
-        })
+        }
     }
 }
 
