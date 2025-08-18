@@ -1663,7 +1663,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.webpackHotMiddleware!.publish(message)
   }
 
-  public sendReactDebugChunk(_requestId: string, _chunk: Uint8Array): void {
+  public sendReactDebugChunk(
+    _chunk: Uint8Array,
+    _htmlRequestId: string,
+    _requestId: string
+  ): void {
     throw new Error('sendReactDebugChunk is not implemented yet for Webpack')
   }
 

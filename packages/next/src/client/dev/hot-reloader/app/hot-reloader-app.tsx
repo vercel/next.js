@@ -452,9 +452,12 @@ export function processMessage(
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
-      window.__NEXT_REACT_DEBUG_CHUNKS_CONTROLLER.enqueue(
-        Buffer.from(obj.base64EncodedChunk, 'base64')
-      )
+      const { requestId, base64EncodedChunk } = message
+
+      window.__NEXT_REACT_DEBUG_CHUNKS_CONTROLLERS_BY_REQUEST_ID
+        ?.get(requestId)
+        ?.enqueue(Buffer.from(base64EncodedChunk, 'base64'))
+
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:

@@ -94,7 +94,11 @@ export interface RenderOptsPartial {
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
   setIsrStatus?: (key: string, value: boolean) => void
-  sendReactDebugChunk?: (requestId: string, chunk: Uint8Array) => void
+  sendReactDebugChunk?: (
+    chunk: Uint8Array,
+    htmlRequestId: string,
+    requestId: string
+  ) => void
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'

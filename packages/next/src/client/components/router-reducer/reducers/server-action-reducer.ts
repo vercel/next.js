@@ -8,6 +8,7 @@ import {
   ACTION_HEADER,
   NEXT_ACTION_NOT_FOUND_HEADER,
   NEXT_IS_PRERENDER_HEADER,
+  NEXT_REQUEST_ID_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
@@ -56,6 +57,7 @@ import {
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
 import { revalidateEntireCache } from '../../segment-cache'
+import { createDebugChannel } from '../debug-channel'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -89,27 +91,27 @@ async function fetchServerAction(
 
   const body = await encodeReply(usedArgs, { temporaryReferences })
 
-  const res = await fetch(state.canonicalUrl, {
-    method: 'POST',
-    headers: {
-      Accept: RSC_CONTENT_TYPE_HEADER,
-      [ACTION_HEADER]: actionId,
-      [NEXT_ROUTER_STATE_TREE_HEADER]: prepareFlightRouterStateForRequest(
-        state.tree
-      ),
-      ...(process.env.NEXT_DEPLOYMENT_ID
-        ? {
-            'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
-          }
-        : {}),
-      ...(nextUrl
-        ? {
-            [NEXT_URL]: nextUrl,
-          }
-        : {}),
-    },
-    body,
-  })
+  const headers: Record<string, string> = {
+    Accept: RSC_CONTENT_TYPE_HEADER,
+    [ACTION_HEADER]: actionId,
+    [NEXT_ROUTER_STATE_TREE_HEADER]: prepareFlightRouterStateForRequest(
+      state.tree
+    ),
+  }
+
+  if (process.env.NEXT_DEPLOYMENT_ID) {
+    headers['x-deployment-id'] = process.env.NEXT_DEPLOYMENT_ID
+  }
+
+  if (nextUrl) {
+    headers[NEXT_URL] = nextUrl
+  }
+
+  if (process.env.NODE_ENV !== 'production' && self.__next_r) {
+    headers[NEXT_REQUEST_ID_HEADER] = self.__next_r
+  }
+
+  const res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
 
   // Handle server actions that the server didn't recognize.
   const unrecognizedActionHeader = res.headers.get(NEXT_ACTION_NOT_FOUND_HEADER)
@@ -179,7 +181,12 @@ async function fetchServerAction(
   if (isRscResponse) {
     const response: ActionFlightResponse = await createFromFetch(
       Promise.resolve(res),
-      { callServer, findSourceMapURL, temporaryReferences }
+      {
+        callServer,
+        findSourceMapURL,
+        temporaryReferences,
+        debugChannel: createDebugChannel(res.headers),
+      }
     )
 
     // An internal redirect can send an RSC response, but does not have a useful `actionResult`.

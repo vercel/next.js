@@ -946,8 +946,8 @@ export async function createHotReloaderTurbopack(
       }
     },
 
-    sendReactDebugChunk(requestId, chunk) {
-      const client = clientsByRequestId.get(requestId)
+    sendReactDebugChunk(chunk, htmlRequestId, requestId) {
+      const client = clientsByRequestId.get(htmlRequestId)
 
       if (client) {
         // TODO: Send as binary frame, with the action type and request ID as
@@ -957,7 +957,7 @@ export async function createHotReloaderTurbopack(
           requestId,
           base64EncodedChunk: Buffer.from(chunk).toString('base64'),
         })
-      } else {
+      } else if (htmlRequestId === requestId) {
         let initialReactDebugChunks =
           initialReactDebugChunksByRequestId.get(requestId)
 
