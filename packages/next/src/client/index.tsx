@@ -61,6 +61,11 @@ declare global {
     /* prod */
     __NEXT_DATA__: NEXT_DATA
     __NEXT_P: any[]
+
+    // TODO: There's probably a better way than to store this as a global, we
+    // also need it per request.
+    /* dev */
+    __NEXT_REACT_DEBUG_CHUNKS_CONTROLLER: ReadableStreamDefaultController
   }
 }
 type RenderRouteInfo = PrivateRouteInfo & {

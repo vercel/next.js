@@ -106,6 +106,10 @@ export class DevBundlerService {
     })
   }
 
+  public sendReactDebugChunk(requestId: string, chunk: Uint8Array) {
+    this.bundler.hotReloader.sendReactDebugChunk(requestId, chunk)
+  }
+
   public close() {
     this.bundler.hotReloader.close()
   }

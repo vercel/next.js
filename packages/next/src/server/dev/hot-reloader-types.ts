@@ -28,6 +28,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   ISR_MANIFEST = 'isrManifest',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
+  REACT_DEBUG_CHUNK = 'reactDebugChunk',
 }
 
 export interface ServerErrorMessage {
@@ -129,6 +130,12 @@ export interface DevToolsConfigMessage {
   data: DevToolsConfig
 }
 
+export interface ReactDebugChunkMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK
+  requestId: string
+  base64EncodedChunk: string
+}
+
 export type HmrMessageSentToBrowser =
   | TurbopackMessage
   | TurbopackConnectedMessage
@@ -146,6 +153,7 @@ export type HmrMessageSentToBrowser =
   | ServerErrorMessage
   | AppIsrManifestMessage
   | DevToolsConfigMessage
+  | ReactDebugChunkMessage
 
 export type TurbopackMessageSentToBrowser =
   | {
@@ -172,6 +180,7 @@ export interface NextJsHotReloaderInterface {
   clearHmrServerError(): void
   start(): Promise<void>
   send(message: HmrMessageSentToBrowser): void
+  sendReactDebugChunk(requestId: string, chunk: Uint8Array): void
   getCompilationErrors(page: string): Promise<any[]>
   onHMR(
     req: IncomingMessage,

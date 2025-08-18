@@ -1180,6 +1180,7 @@ async function getRSCPayload(
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: <Preloads preloadCallbacks={preloadCallbacks} />,
     b: ctx.sharedContext.buildId,
+    r: ctx.requestId,
     c: prepareInitialCanonicalUrl(url),
     i: !!couldBeIntercepted,
     f: [
@@ -1302,6 +1303,7 @@ async function getErrorRSCPayload(
 
   return {
     b: ctx.sharedContext.buildId,
+    r: ctx.requestId,
     c: prepareInitialCanonicalUrl(url),
     m: undefined,
     i: false,
@@ -1631,10 +1633,6 @@ async function renderToHTMLOrFlightImpl(
 
   const { isStaticGeneration } = workStore
 
-  /**
-   * The metadata items array created in next-app-loader with all relevant information
-   * that we need to resolve the final metadata.
-   */
   let requestId: string
 
   if (isStaticGeneration) {
@@ -2195,6 +2193,7 @@ async function renderToStream(
   )
 
   let reactServerResult: null | ReactServerResult = null
+  // let reactServerDebugStream: null | ReadableStream<Uint8Array> = null
 
   const setHeader = res.setHeader.bind(res)
   const appendHeader = res.appendHeader.bind(res)
@@ -2231,6 +2230,14 @@ async function renderToStream(
           () => {
             requestStore.prerenderPhase = true
 
+            // const debugStream = new TransformStream<Uint8Array, Uint8Array>({
+            //   transform(chunk, controller) {
+            //     controller.enqueue(chunk)
+            //   },
+            // })
+
+            // reactServerDebugStream = debugStream.readable
+
             const stream = ComponentMod.renderToReadableStream(
               RSCPayload,
               clientReferenceManifest.clientModules,
@@ -2239,8 +2246,28 @@ async function renderToStream(
                 environmentName: () =>
                   requestStore.prerenderPhase === true ? 'Prerender' : 'Server',
                 filterStackFrame,
+                // debugChannel: { writable: debugStream.writable },
+                debugChannel: {
+                  writable: new WritableStream<Uint8Array>({
+                    write(chunk) {
+                      renderOpts.sendReactDebugChunk?.(ctx.requestId, chunk)
+                    },
+                  }),
+                },
               }
             )
+
+            // const reactServerDebugStreamReader =
+            //   reactServerDebugStream.getReader()
+
+            // reactServerDebugStreamReader.read().then(function progress({
+            //   done,
+            //   value,
+            // }) {
+            //   if (done) return
+            //   console.log('DEBUG', new TextDecoder().decode(value))
+            //   reactServerDebugStreamReader.read().then(progress)
+            // })
 
             const [stream1, stream2] = stream.tee()
 
@@ -2264,7 +2291,7 @@ async function renderToStream(
               },
             })
 
-            return [stream1, prerenderStream]
+            return [stream1, prerenderStream] as const
           },
           () => {
             requestStore.prerenderPhase = false

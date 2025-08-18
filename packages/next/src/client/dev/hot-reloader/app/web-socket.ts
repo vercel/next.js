@@ -16,10 +16,12 @@ import { InvariantError } from '../../../../shared/lib/invariant-error'
 
 export function createWebSocket(
   assetPrefix: string,
-  staticIndicatorState: StaticIndicatorState
+  staticIndicatorState: StaticIndicatorState,
+  requestId: string
 ) {
-  const url = getSocketUrl(assetPrefix)
-  const webSocket = new window.WebSocket(`${url}/_next/webpack-hmr`)
+  const webSocket = new window.WebSocket(
+    `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${requestId}`
+  )
 
   if (isTerminalLoggingEnabled) {
     webSocket.addEventListener('open', () => {
