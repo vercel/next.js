@@ -21,6 +21,7 @@ import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
 import HotReloaderWebpack from '../../dev/hot-reloader-webpack'
+import HotReloaderRspack from '../../dev/hot-reloader-rspack'
 import { setGlobal } from '../../../trace/shared'
 import type { Telemetry } from '../../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -193,7 +194,25 @@ async function startWatcher(
 
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
     ? await createHotReloaderTurbopack(opts, serverFields, distDir, resetFetch)
-    : new HotReloaderWebpack(opts.dir, {
+    : process.env.NEXT_RSPACK
+      ? new HotReloaderRspack(opts.dir, {
+        isSrcDir: opts.isSrcDir,
+        appDir,
+        pagesDir,
+        distDir,
+        config: opts.nextConfig,
+        buildId: 'development',
+        encryptionKey: await generateEncryptionKeyBase64({
+          isBuild: false,
+          distDir,
+        }),
+        telemetry: opts.telemetry,
+        rewrites: opts.fsChecker.rewrites,
+        previewProps: opts.fsChecker.prerenderManifest.preview,
+        resetFetch,
+        port: opts.port
+      })
+      : new HotReloaderWebpack(opts.dir, {
         isSrcDir: opts.isSrcDir,
         appDir,
         pagesDir,
