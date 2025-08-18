@@ -402,7 +402,11 @@ export default async function Image({ params }) {
 
 #### Using Node.js runtime with local assets
 
-This example uses the Node.js runtime to fetch a local image on the file system and convert it to a Base64 data URL string for the `src` attribute of an `<img>` element. The local asset should be placed relative to the root of your project, rather than the location of the example source file.
+This example reads a local image from the file system and renders it in an Open Graph image.
+
+> **Path note:** Place your asset relative to the **project root** (e.g. `logo.png` next to `app/`). If you keep assets in `public/`, change the path to `join(process.cwd(), 'public', 'logo.png')`.
+
+**A) Base64 (TypeScript-friendly, recommended)**
 
 ```tsx filename="app/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
@@ -410,6 +414,7 @@ import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
 export default async function Image() {
+  // If your file is in /public, use: join(process.cwd(), 'public', 'logo.png')
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
   const logoSrc = `data:image/png;base64,${logoData.toString('base64')}`
 
@@ -435,6 +440,7 @@ import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
 export default async function Image() {
+  // If your file is in /public, use: join(process.cwd(), 'public', 'logo.png')
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
   const logoSrc = `data:image/png;base64,${logoData.toString('base64')}`
 
@@ -454,10 +460,67 @@ export default async function Image() {
 }
 ```
 
+**B) ArrayBuffer / Typed Array (runtime-supported; TS suppression needed)**
+
+```tsx filename="app/opengraph-image.tsx" switcher
+import { ImageResponse } from 'next/og'
+import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
+
+export default async function Image() {
+  // If your file is in /public, use: join(process.cwd(), 'public', 'logo.png')
+  const logoData = await readFile(join(process.cwd(), 'logo.png'))
+  // Satori accepts ArrayBuffer/typed arrays at runtime, but TS doesn't model this yet.
+  const logoSrc = Uint8Array.from(logoData).buffer
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {/* @ts-expect-error Satori accepts ArrayBuffer/typed arrays for <img src> at runtime */}
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
+```jsx filename="app/opengraph-image.js" switcher
+import { ImageResponse } from 'next/og'
+import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
+
+export default async function Image() {
+  // If your file is in /public, use: join(process.cwd(), 'public', 'logo.png')
+  const logoData = await readFile(join(process.cwd(), 'logo.png'))
+  const logoSrc = Uint8Array.from(logoData).buffer
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
+Why two versions? Base64 keeps TypeScript happy without suppressions. The ArrayBuffer/typed array form is supported by Satori at runtime but currently needs a small @ts-expect-error in TypeScript.
+
 ## Version History
 
-| Version   | Changes                                                                                                         |
-| --------- | --------------------------------------------------------------------------------------------------------------- |
-| `v15.x`   | Updated Node.js runtime with local assets example for Next.js 15+ to type-check out of the box with TypeScript. |
-| `v13.3.0` | `opengraph-image` and `twitter-image` introduced.                                                               |
-
+| Version   | Changes                                                                                                    |
+| --------- | ---------------------------------------------------------------------------------------------------------- |
+| `v15.x`   | Added two approaches for Node.js runtime local assets: `Base64` (TS-friendly) and `ArrayBuffer` (runtime). |
+| `v13.3.0` | `opengraph-image` and `twitter-image` introduced.                                                          |
