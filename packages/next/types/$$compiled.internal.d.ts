@@ -162,9 +162,14 @@ declare module 'react-server-dom-webpack/server.edge' {
       onError?: (error: unknown) => void
       onPostpone?: (reason: string) => void
       signal?: AbortSignal
-      debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
+      debugChannel?: DebugChannelServer
     }
   ): ReadableStream<Uint8Array>
+
+  export interface DebugChannelServer {
+    readable?: ReadableStream
+    writable?: WritableStream
+  }
 
   export function createTemporaryReferenceSet(
     ...args: unknown[]

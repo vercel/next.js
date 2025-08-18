@@ -204,6 +204,7 @@ import { getDynamicParam } from '../../shared/lib/router/utils/get-dynamic-param
 import type { ExperimentalConfig } from '../config-shared'
 import type { Params } from '../request/params'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
+import type { DebugChannelServer } from 'react-server-dom-webpack/server.edge'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -611,13 +612,11 @@ async function generateDynamicFlightRenderResult(
       onError,
       temporaryReferences: options?.temporaryReferences,
       filterStackFrame,
-      debugChannel: {
-        writable: new WritableStream<Uint8Array>({
-          write(chunk) {
-            sendReactDebugChunk?.(chunk, htmlRequestId, requestId)
-          },
-        }),
-      },
+      debugChannel: createDebugChannel(
+        sendReactDebugChunk,
+        htmlRequestId,
+        requestId
+      ),
     }
   )
 
@@ -2256,85 +2255,37 @@ async function renderToStream(
       const [resolveValidation, validationOutlet] = createValidationOutlet()
       RSCPayload._validation = validationOutlet
 
-      const [reactServerStream, prerenderValidationStream] =
-        await workUnitAsyncStorage.run(
-          requestStore,
-          scheduleInSequentialTasks,
-          () => {
-            requestStore.prerenderPhase = true
-
-            // const debugStream = new TransformStream<Uint8Array, Uint8Array>({
-            //   transform(chunk, controller) {
-            //     controller.enqueue(chunk)
-            //   },
-            // })
-
-            // reactServerDebugStream = debugStream.readable
-
-            const stream = ComponentMod.renderToReadableStream(
-              RSCPayload,
-              clientReferenceManifest.clientModules,
-              {
-                onError: serverComponentsErrorHandler,
-                environmentName: () =>
-                  requestStore.prerenderPhase === true ? 'Prerender' : 'Server',
-                filterStackFrame,
-                // debugChannel: { writable: debugStream.writable },
-                debugChannel: {
-                  writable: new WritableStream<Uint8Array>({
-                    write(chunk) {
-                      sendReactDebugChunk?.(chunk, htmlRequestId, requestId)
-                    },
-                  }),
-                },
-              }
-            )
-
-            // const reactServerDebugStreamReader =
-            //   reactServerDebugStream.getReader()
-
-            // reactServerDebugStreamReader.read().then(function progress({
-            //   done,
-            //   value,
-            // }) {
-            //   if (done) return
-            //   console.log('DEBUG', new TextDecoder().decode(value))
-            //   reactServerDebugStreamReader.read().then(progress)
-            // })
-
-            const [stream1, stream2] = stream.tee()
-
-            const prerenderStream = new ReadableStream({
-              start(controller) {
-                const reader = stream2.getReader()
-
-                reader.read().then(function progress({ done, value }) {
-                  if (done) {
-                    return controller.close()
-                  }
-
-                  if (!requestStore.prerenderPhase) {
-                    controller.close()
-                    return reader.cancel()
-                  }
-
-                  controller.enqueue(value)
-                  reader.read().then(progress)
-                })
-              },
-            })
-
-            return [stream1, prerenderStream] as const
-          },
-          () => {
-            requestStore.prerenderPhase = false
-          }
-        )
+      const reactServerStream = await workUnitAsyncStorage.run(
+        requestStore,
+        scheduleInSequentialTasks,
+        () => {
+          requestStore.prerenderPhase = true
+          return ComponentMod.renderToReadableStream(
+            RSCPayload,
+            clientReferenceManifest.clientModules,
+            {
+              onError: serverComponentsErrorHandler,
+              environmentName: () =>
+                requestStore.prerenderPhase === true ? 'Prerender' : 'Server',
+              filterStackFrame,
+              debugChannel: createDebugChannel(
+                sendReactDebugChunk,
+                htmlRequestId,
+                requestId
+              ),
+            }
+          )
+        },
+        () => {
+          requestStore.prerenderPhase = false
+        }
+      )
 
       spawnDynamicValidationInDev(
         resolveValidation,
-        prerenderValidationStream,
+        tree,
         ctx,
+        res.statusCode === 404,
         clientReferenceManifest,
         requestStore,
         devValidatingFallbackParams
@@ -2360,13 +2311,11 @@ async function renderToStream(
           {
             filterStackFrame,
             onError: serverComponentsErrorHandler,
-            debugChannel: {
-              writable: new WritableStream<Uint8Array>({
-                write(chunk) {
-                  sendReactDebugChunk?.(chunk, htmlRequestId, requestId)
-                },
-              }),
-            },
+            debugChannel: createDebugChannel(
+              sendReactDebugChunk,
+              htmlRequestId,
+              requestId
+            ),
           }
         )
       )
@@ -2682,6 +2631,26 @@ async function renderToStream(
   }
 }
 
+function createDebugChannel(
+  sendReactDebugChunk:
+    | ((chunk: Uint8Array, htmlRequestId: string, requestId: string) => void)
+    | undefined,
+  htmlRequestId: string,
+  requestId: string
+): DebugChannelServer | undefined {
+  if (process.env.NODE_ENV === 'production' || !sendReactDebugChunk) {
+    return undefined
+  }
+
+  return {
+    writable: new WritableStream<Uint8Array>({
+      write(chunk) {
+        sendReactDebugChunk(chunk, htmlRequestId, requestId)
+      },
+    }),
+  }
+}
+
 function createValidationOutlet() {
   let resolveValidation: (value: React.ReactNode) => void
   let outlet = new Promise<React.ReactNode>((resolve) => {
@@ -2696,7 +2665,7 @@ function createValidationOutlet() {
  * prerender semantics to prerenderToStream and should update it
  * in conjunction with any changes to that function.
  */
-async function _spawnDynamicValidationInDev(
+async function spawnDynamicValidationInDev(
   resolveValidation: (validatingElement: React.ReactNode) => void,
   tree: LoaderTree,
   ctx: AppRenderContext,
@@ -3184,183 +3153,6 @@ async function _spawnDynamicValidationInDev(
             prerender,
             <App
               reactServerStream={reactServerResult.asUnclosingStream()}
-              preinitScripts={preinitScripts}
-              clientReferenceManifest={clientReferenceManifest}
-              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              nonce={nonce}
-            />,
-            {
-              signal: finalClientReactController.signal,
-              onError: (err: unknown, errorInfo: ErrorInfo) => {
-                if (
-                  isPrerenderInterruptedError(err) ||
-                  finalClientReactController.signal.aborted
-                ) {
-                  const componentStack = errorInfo.componentStack
-                  if (typeof componentStack === 'string') {
-                    trackAllowedDynamicAccess(
-                      workStore,
-                      componentStack,
-                      dynamicValidation,
-                      clientDynamicTracking
-                    )
-                  }
-                  return
-                }
-
-                if (isReactLargeShellError(err)) {
-                  // TODO: Aggregate
-                  console.error(err)
-                  return undefined
-                }
-
-                return getDigestForWellKnownError(err)
-              },
-              // We don't need bootstrap scripts in this prerender
-              // bootstrapScripts: [bootstrapScript],
-            }
-          )
-
-          // The listener to abort our own render controller must be added after
-          // React has added its listener, to ensure that pending I/O is not
-          // aborted/rejected too early.
-          finalClientReactController.signal.addEventListener(
-            'abort',
-            () => {
-              finalClientRenderController.abort()
-            },
-            { once: true }
-          )
-
-          return pendingFinalClientResult
-        },
-        () => {
-          finalClientReactController.abort()
-        }
-      )
-
-    const { preludeIsEmpty } = await processPrelude(unprocessedPrelude)
-    resolveValidation(
-      <LogSafely
-        fn={throwIfDisallowedDynamic.bind(
-          null,
-          workStore,
-          preludeIsEmpty ? PreludeState.Empty : PreludeState.Full,
-          dynamicValidation,
-          serverDynamicTracking
-        )}
-      />
-    )
-  } catch (thrownValue) {
-    // Even if the root errors we still want to report any cache components errors
-    // that were discovered before the root errored.
-
-    let loggingFunction = throwIfDisallowedDynamic.bind(
-      null,
-      workStore,
-      PreludeState.Errored,
-      dynamicValidation,
-      serverDynamicTracking
-    )
-
-    if (process.env.NEXT_DEBUG_BUILD || process.env.__NEXT_VERBOSE_LOGGING) {
-      // We don't normally log these errors because we are going to retry anyway but
-      // it can be useful for debugging Next.js itself to get visibility here when needed
-      const originalLoggingFunction = loggingFunction
-      loggingFunction = () => {
-        console.error(
-          'During dynamic validation the root of the page errored. The next logged error is the thrown value. It may be a duplicate of errors reported during the normal development mode render.'
-        )
-        console.error(thrownValue)
-        originalLoggingFunction()
-      }
-    }
-
-    resolveValidation(<LogSafely fn={loggingFunction} />)
-  }
-}
-
-async function spawnDynamicValidationInDev(
-  resolveValidation: (validatingElement: React.ReactNode) => void,
-  reactServerStream: ReadableStream<Uint8Array>,
-  ctx: AppRenderContext,
-  clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
-  requestStore: RequestStore,
-  fallbackRouteParams: FallbackRouteParams | null
-): Promise<void> {
-  const {
-    componentMod: ComponentMod,
-    getDynamicParamFromSegment,
-    implicitTags,
-    nonce,
-    renderOpts,
-    workStore,
-  } = ctx
-
-  const { allowEmptyStaticShell = false } = renderOpts
-
-  // These values are placeholder values for this validating render
-  // that are provided during the actual prerenderToStream.
-  const preinitScripts = () => {}
-  const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
-
-  const rootParams = getRootParams(
-    ComponentMod.tree,
-    getDynamicParamFromSegment
-  )
-
-  const hmrRefreshHash = requestStore.cookies.get(
-    NEXT_HMR_REFRESH_HASH_COOKIE
-  )?.value
-
-  const captureOwnerStackClient = React.captureOwnerStack
-
-  // TODO: Move this to the dev render request store.
-  const serverDynamicTracking = createDynamicTrackingState(
-    false // isDebugDynamicAccesses
-  )
-
-  const clientDynamicTracking = createDynamicTrackingState(
-    false // isDebugDynamicAccesses
-  )
-  const finalClientReactController = new AbortController()
-  const finalClientRenderController = new AbortController()
-
-  const finalClientPrerenderStore: PrerenderStore = {
-    type: 'prerender-client',
-    phase: 'render',
-    rootParams,
-    fallbackRouteParams,
-    implicitTags,
-    renderSignal: finalClientRenderController.signal,
-    controller: finalClientReactController,
-    cacheSignal: null,
-    dynamicTracking: clientDynamicTracking,
-    allowEmptyStaticShell,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [...implicitTags.tags],
-    prerenderResumeDataCache: null,
-    renderResumeDataCache: null,
-    hmrRefreshHash,
-    captureOwnerStack: captureOwnerStackClient,
-  }
-
-  let dynamicValidation = createDynamicValidationState()
-
-  try {
-    const prerender = (
-      require('react-dom/static') as typeof import('react-dom/static')
-    ).prerender
-    let { prelude: unprocessedPrelude } =
-      await prerenderAndAbortInSequentialTasks(
-        () => {
-          const pendingFinalClientResult = workUnitAsyncStorage.run(
-            finalClientPrerenderStore,
-            prerender,
-            <App
-              reactServerStream={reactServerStream}
               preinitScripts={preinitScripts}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
