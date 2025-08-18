@@ -7,7 +7,7 @@ type PageRoutes = "/about" | "/users/[id]"
 type LayoutRoutes = "/" | "/dashboard"
 type RedirectRoutes = "/blog/[category]/[[...slug]]" | "/project/[slug]"
 type RewriteRoutes = "/api-legacy/[version]/[[...endpoint]]" | "/docs-old/[...path]"
-type Routes = AppRoutes | AppRouteHandlerRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes
+type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes | AppRouteHandlerRoutes
 `
 
 describe('typed-routes', () => {
