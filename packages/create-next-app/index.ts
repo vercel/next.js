@@ -362,7 +362,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'turbopack',
-          message: `Would you like to use ${styledTurbo} for \`next dev\`?`,
+          message: `Would you like to use ${styledTurbo}? (recommended)`,
           initial: getPrefOrDefault('turbopack'),
           active: 'Yes',
           inactive: 'No',

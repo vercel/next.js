@@ -189,7 +189,7 @@ export const installTemplate = async ({
     private: true,
     scripts: {
       dev: `next dev${turbopack ? " --turbopack" : ""}`,
-      build: "next build",
+      build: `next build${turbopack ? " --turbopack" : ""}`,
       start: "next start",
       lint: "next lint",
     },
