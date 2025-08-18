@@ -42,6 +42,7 @@ use crate::{
     raw_module::RawModule,
     reference_type::ReferenceType,
     resolve::{
+        alias_map::AliasKey,
         node::{node_cjs_resolve_options, node_esm_resolve_options},
         parse::stringify_data_uri,
         pattern::{PatternMatch, read_matches},
@@ -2939,6 +2940,8 @@ async fn handle_exports_imports_field(
     let values = exports_imports_field.lookup(&req).collect::<Vec<_>>();
     for value in values.clone() {
         if value.output.add_results(
+            value.prefix,
+            value.key,
             conditions,
             unspecified_conditions,
             &mut conditions_state,
@@ -2957,9 +2960,8 @@ async fn handle_exports_imports_field(
         exports_imports_field,
     );
 
-    let original_req = Pattern::new(req);
     let mut resolved_results = Vec::new();
-    for (result_path, conditions) in results {
+    for (result_path, conditions, prefix, key) in results {
         if let Some(result_path) = result_path.with_normalized_path() {
             let request = Request::parse(Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!("./")),
@@ -2974,23 +2976,33 @@ async fn handle_exports_imports_field(
                 options,
             ))
             .await?;
-            if conditions.is_empty() {
-                println!(
-                    "resolve_result {:?} {:?} {:?} {:?}",
-                    resolve_result.await?.primary,
-                    request.request_pattern().await?,
-                    original_req.await?,
-                    resolve_result
-                        .with_replaced_request_key_pattern(request.request_pattern(), original_req)
-                        .await?
-                        .primary
-                );
-                resolved_results.push(resolve_result /* .with_request(path.clone()) */);
+
+            let resolve_result = if let Some(req) = req.as_constant_string() {
+                resolve_result.with_request(req.clone())
             } else {
-                let mut resolve_result = resolve_result.owned().await?/* .with_request_ref(path.clone()) */;
+                match key {
+                    AliasKey::Exact => resolve_result.with_request(prefix.clone().into()),
+                    AliasKey::Wildcard { suffix } => {
+                        // Because of the assertion in AliasMapLookupIterator, `req` is of the form:
+                        // - "prefix...<dynamic>" or
+                        // - "prefix...<dynamic>...suffix"
+                        bail!(
+                            "unimplemented pattern {} into wildcard exports field \
+                             '{prefix}*{suffix}'",
+                            req.describe_as_string()
+                        )
+                    }
+                }
+            };
+
+            let resolve_result = if !conditions.is_empty() {
+                let mut resolve_result = resolve_result.owned().await?;
                 resolve_result.add_conditions(conditions);
-                resolved_results.push(resolve_result.cell());
-            }
+                resolve_result.cell()
+            } else {
+                resolve_result
+            };
+            resolved_results.push(resolve_result);
         }
     }
 
