@@ -790,7 +790,7 @@ impl ResolveResult {
         }
     }
 
-    pub fn add_conditions<'a>(&mut self, conditions: impl IntoIterator<Item = (&'a str, bool)>) {
+    pub fn add_conditions(&mut self, conditions: impl IntoIterator<Item = (RcStr, bool)>) {
         let mut primary = std::mem::take(&mut self.primary);
         for (k, v) in conditions {
             for (key, _) in primary.iter_mut() {
@@ -2948,6 +2948,7 @@ async fn handle_exports_imports_field(
             &mut conditions_state,
             &mut results,
         ) {
+            // Match found, stop (leveraging the lazy `lookup` iterator).
             break;
         }
     }

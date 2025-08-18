@@ -1,7 +1,6 @@
 use std::{
     collections::BTreeMap,
     fmt::{Debug, Formatter},
-    future::Future,
 };
 
 use patricia_tree::PatriciaMap;
@@ -492,7 +491,10 @@ where
                 match key {
                     AliasKey::Exact => {
                         if self.request.is_match(prefix) {
-                            return Some(AliasMatch::Exact(template.convert()));
+                            return Some(AliasMatch {
+                                key,
+                                output: template.convert(),
+                            });
                         }
                     }
                     AliasKey::Wildcard { suffix } => {
@@ -505,7 +507,7 @@ where
                         remaining.strip_suffix_len(suffix.len());
 
                         let output = template.replace(&remaining);
-                        return Some(AliasMatch::Replaced(output));
+                        return Some(AliasMatch { key, output });
                     }
                 }
             }
@@ -575,87 +577,19 @@ impl AliasPattern {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
-enum AliasKey {
+pub enum AliasKey {
     Exact,
     Wildcard { suffix: RcStr },
 }
 
 /// Result of a lookup in the alias map.
 #[derive(Debug, PartialEq)]
-pub enum AliasMatch<'a, T>
+pub struct AliasMatch<'a, T>
 where
     T: AliasTemplate + 'a,
 {
-    /// The request matched an exact alias.
-    Exact(T::Output<'a>),
-    /// The request matched a wildcard alias.
-    Replaced(T::Output<'a>),
-}
-
-impl<'a, T> AliasMatch<'a, T>
-where
-    T: AliasTemplate,
-{
-    /// Returns the exact match, if any.
-    pub fn as_exact(&self) -> Option<&T::Output<'a>> {
-        if let Self::Exact(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    /// Returns the replaced match, if any.
-    pub fn as_replaced(&self) -> Option<&T::Output<'a>> {
-        if let Self::Replaced(v) = self {
-            Some(v)
-        } else {
-            None
-        }
-    }
-
-    /// Returns the wrapped value.
-    pub fn as_self(&self) -> &T::Output<'a> {
-        match self {
-            Self::Exact(v) => v,
-            Self::Replaced(v) => v,
-        }
-    }
-}
-
-impl<'a, T, R, E> AliasMatch<'a, T>
-where
-    T: AliasTemplate<Output<'a> = Result<R, E>> + Clone,
-{
-    /// Returns the wrapped value.
-    ///
-    /// Consumes the match.
-    ///
-    /// Only implemented when `T::Output` is some `Result<_, _>`.
-    pub fn try_into_self(self) -> Result<R, E> {
-        Ok(match self {
-            Self::Exact(v) => v?,
-            Self::Replaced(v) => v?,
-        })
-    }
-}
-
-impl<'a, T, R, E, F> AliasMatch<'a, T>
-where
-    F: Future<Output = Result<R, E>>,
-    T: AliasTemplate<Output<'a> = F> + Clone,
-{
-    /// Returns the wrapped value.
-    ///
-    /// Consumes the match.
-    ///
-    /// Only implemented when `T::Output` is some `impl Future<Result<_, _>>`
-    pub async fn try_join_into_self(self) -> Result<R, E> {
-        Ok(match self {
-            Self::Exact(v) => v.await?,
-            Self::Replaced(v) => v.await?,
-        })
-    }
+    pub key: &'a AliasKey,
+    pub output: T::Output<'a>,
 }
 
 impl PartialOrd for AliasKey {
@@ -722,7 +656,7 @@ mod test {
 
         (@next $lookup:ident, exact($pattern:expr)$(, $($tail:tt)*)?) => {
             match $lookup.next().unwrap() {
-                super::AliasMatch::Exact(Pattern::Constant(c)) if c == $pattern => {}
+                super::AliasMatch{key: super::AliasKey::Exact, output: Pattern::Constant(c), ..} if c == $pattern => {}
                 m => panic!("unexpected match {:?}", m),
             }
             $(assert_alias_matches!(@next $lookup, $($tail)*);)?
@@ -730,7 +664,7 @@ mod test {
 
         (@next $lookup:ident, replaced($pattern:expr)$(, $($tail:tt)*)?) => {
             match $lookup.next().unwrap() {
-                super::AliasMatch::Replaced(Pattern::Constant(c)) if c == $pattern => {}
+                super::AliasMatch{key: super::AliasKey::Wildcard{..}, output: Pattern::Constant(c), ..} if c == $pattern => {}
                 m => panic!("unexpected match {:?}", m),
             }
             $(assert_alias_matches!(@next $lookup, $($tail)*);)?
@@ -738,7 +672,7 @@ mod test {
 
         (@next $lookup:ident, replaced_owned($value:expr)$(, $($tail:tt)*)?) => {
             match $lookup.next().unwrap() {
-                super::AliasMatch::Replaced(Pattern::Constant(c)) if c == $value => {}
+                super::AliasMatch{key: super::AliasKey::Wildcard{..}, output: Pattern::Constant(c), ..} if c == $value => {}
                 m => panic!("unexpected match {:?}", m),
             }
             $(assert_alias_matches!(@next $lookup, $($tail)*);)?
@@ -922,10 +856,13 @@ mod test {
                 Pattern::Dynamic
             ]))
             .collect::<Vec<_>>(),
-            vec![super::AliasMatch::Replaced(Pattern::Concatenation(vec![
-                Pattern::Constant(rcstr!("src/cards/")),
-                Pattern::Dynamic
-            ]))]
+            vec![super::AliasMatch {
+                key: &super::AliasKey::Wildcard { suffix: rcstr!("") },
+                output: Pattern::Concatenation(vec![
+                    Pattern::Constant(rcstr!("src/cards/")),
+                    Pattern::Dynamic
+                ]),
+            }]
         );
         assert_eq!(
             map.lookup(&Pattern::Concatenation(vec![
@@ -934,11 +871,16 @@ mod test {
                 Pattern::Constant(rcstr!("/x")),
             ]))
             .collect::<Vec<_>>(),
-            vec![super::AliasMatch::Replaced(Pattern::Concatenation(vec![
-                Pattern::Constant(rcstr!("src/comps/")),
-                Pattern::Dynamic,
-                Pattern::Constant(rcstr!("/x")),
-            ]))]
+            vec![super::AliasMatch {
+                key: &super::AliasKey::Wildcard {
+                    suffix: rcstr!("/x")
+                },
+                output: Pattern::Concatenation(vec![
+                    Pattern::Constant(rcstr!("src/comps/")),
+                    Pattern::Dynamic,
+                    Pattern::Constant(rcstr!("/x")),
+                ]),
+            }]
         );
         assert_eq!(
             map.lookup(&Pattern::Concatenation(vec![
@@ -947,10 +889,15 @@ mod test {
                 Pattern::Constant(rcstr!("/x")),
             ]))
             .collect::<Vec<_>>(),
-            vec![super::AliasMatch::Replaced(Pattern::Concatenation(vec![
-                Pattern::Constant(rcstr!("src/heads/")),
-                Pattern::Dynamic,
-            ]))]
+            vec![super::AliasMatch {
+                key: &super::AliasKey::Wildcard {
+                    suffix: rcstr!("/x")
+                },
+                output: Pattern::Concatenation(vec![
+                    Pattern::Constant(rcstr!("src/heads/")),
+                    Pattern::Dynamic,
+                ]),
+            }]
         );
     }
 }

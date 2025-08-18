@@ -235,12 +235,12 @@ impl ReplacedSubpathValue {
     /// vector. It uses the `conditions` to skip or enter conditional
     /// results. The state of conditions is stored within
     /// `condition_overrides`, which is also exposed to the consumer.
-    pub fn add_results<'a>(
-        &'a self,
+    pub fn add_results(
+        self,
         conditions: &BTreeMap<RcStr, ConditionValue>,
         unspecified_condition: &ConditionValue,
-        condition_overrides: &mut FxHashMap<&'a str, ConditionValue>,
-        target: &mut Vec<(&'a Pattern, Vec<(&'a str, bool)>)>,
+        condition_overrides: &mut FxHashMap<RcStr, ConditionValue>,
+        target: &mut Vec<(Pattern, Vec<(RcStr, bool)>)>,
     ) -> bool {
         match self {
             ReplacedSubpathValue::Alternatives(list) => {
@@ -263,7 +263,7 @@ impl ReplacedSubpathValue {
                     } else {
                         condition_overrides
                             .get(condition.as_str())
-                            .or_else(|| conditions.get(condition))
+                            .or_else(|| conditions.get(&condition))
                             .unwrap_or(unspecified_condition)
                     };
                     match condition_value {
@@ -279,7 +279,7 @@ impl ReplacedSubpathValue {
                         }
                         ConditionValue::Unset => {}
                         ConditionValue::Unknown => {
-                            condition_overrides.insert(condition, ConditionValue::Set);
+                            condition_overrides.insert(condition.clone(), ConditionValue::Set);
                             if value.add_results(
                                 conditions,
                                 unspecified_condition,
@@ -301,8 +301,8 @@ impl ReplacedSubpathValue {
                     condition_overrides
                         .iter()
                         .filter_map(|(k, v)| match v {
-                            ConditionValue::Set => Some((*k, true)),
-                            ConditionValue::Unset => Some((*k, false)),
+                            ConditionValue::Set => Some((k.clone(), true)),
+                            ConditionValue::Unset => Some((k.clone(), false)),
                             ConditionValue::Unknown => None,
                         })
                         .collect(),
