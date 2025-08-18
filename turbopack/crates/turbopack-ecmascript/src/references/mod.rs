@@ -132,7 +132,9 @@ use crate::{
         esm::{
             EsmAssetReference, EsmAsyncAssetReference, EsmBinding, EsmExports, EsmModuleItem,
             ImportMetaBinding, ImportMetaRef, UrlAssetReference, UrlRewriteBehavior,
-            base::EsmAssetReferences, export::EsmExport, module_id::EsmModuleIdAssetReference,
+            base::{EsmAssetReferences, EsmPart},
+            export::EsmExport,
+            module_id::EsmModuleIdAssetReference,
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         ident::IdentReplacement,
@@ -815,9 +817,9 @@ async fn analyze_ecmascript_module_internal(
                 match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
                         should_add_evaluation = true;
-                        Some(ModulePart::evaluation())
+                        EsmPart::Evaluation
                     }
-                    ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
+                    ImportedSymbol::Symbol(name) => EsmPart::Export((&**name).into()),
                     ImportedSymbol::PartEvaluation(part_id) | ImportedSymbol::Part(part_id) => {
                         if !matches!(
                             options.tree_shaking_mode,
@@ -833,13 +835,9 @@ async fn analyze_ecmascript_module_internal(
                         if matches!(&r.imported_symbol, ImportedSymbol::PartEvaluation(_)) {
                             should_add_evaluation = true;
                         }
-                        Some(ModulePart::internal(*part_id))
+                        EsmPart::Internal(*part_id)
                     }
-                    ImportedSymbol::Exports => matches!(
-                        options.tree_shaking_mode,
-                        Some(TreeShakingMode::ModuleFragments)
-                    )
-                    .then(ModulePart::exports),
+                    ImportedSymbol::Exports => EsmPart::Namespace,
                 },
                 import_usage.get(&i).cloned().unwrap_or_default(),
                 import_externals,
@@ -1484,8 +1482,7 @@ async fn analyze_ecmascript_module_internal(
                             // TODO move this logic into Effect creation itself and don't create new
                             // references after the fact here.
                             let original_reference = r.await?;
-                            if original_reference.export_name.is_none()
-                                && export.is_some()
+                            if matches!(original_reference.esm_part, EsmPart::Namespace)
                                 && let Some(export) = export
                             {
                                 // Rewrite `import * as ns from 'foo'; foo.bar()` to behave like
@@ -1501,7 +1498,7 @@ async fn analyze_ecmascript_module_internal(
                                                 original_reference.request.clone(),
                                                 original_reference.issue_source,
                                                 original_reference.annotations.clone(),
-                                                Some(ModulePart::export(export.clone())),
+                                                EsmPart::Export(export.clone()),
                                                 // TODO this is correct, but an overapproximation.
                                                 // We should have individual import_usage data for
                                                 // each export. This would be fixed by moving this
@@ -2959,7 +2956,10 @@ async fn handle_free_var_reference(
                             span.hi.to_u32(),
                         ),
                         Default::default(),
-                        export.clone().map(ModulePart::export),
+                        match export {
+                            Some(name) => EsmPart::Export(name.clone()),
+                            None => EsmPart::Namespace,
+                        },
                         ImportUsage::TopLevel,
                         state.import_externals,
                         state.tree_shaking_mode,

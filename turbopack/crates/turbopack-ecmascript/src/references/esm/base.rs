@@ -1,4 +1,5 @@
 use anyhow::{Result, anyhow, bail};
+use bincode::{Decode, Encode};
 use either::Either;
 use strsim::jaro;
 use swc_core::{
@@ -10,7 +11,9 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
@@ -318,6 +321,38 @@ impl EsmAssetReferences {
     }
 }
 
+#[derive(
+    Hash, PartialEq, Eq, Clone, Debug, ValueDebugFormat, TraceRawVcs, Encode, Decode, NonLocalValue,
+)]
+pub enum EsmPart {
+    Namespace,
+    Evaluation,
+    Export(RcStr),
+    Internal(u32),
+}
+
+impl Into<Option<ModulePart>> for EsmPart {
+    fn into(self) -> Option<ModulePart> {
+        match self {
+            EsmPart::Evaluation => Some(ModulePart::evaluation()),
+            EsmPart::Namespace => None,
+            EsmPart::Export(name) => Some(ModulePart::export(name)),
+            EsmPart::Internal(id) => Some(ModulePart::internal(id)),
+        }
+    }
+}
+
+impl Into<ExportUsage> for EsmPart {
+    fn into(self) -> ExportUsage {
+        match self {
+            EsmPart::Export(name) => ExportUsage::Named(name),
+            EsmPart::Namespace => ExportUsage::All,
+            EsmPart::Internal(_) => ExportUsage::All,
+            EsmPart::Evaluation => ExportUsage::Evaluation,
+        }
+    }
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmAssetReference {
@@ -327,7 +362,7 @@ pub struct EsmAssetReference {
     pub request: RcStr,
     pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
-    pub export_name: Option<ModulePart>,
+    pub esm_part: EsmPart,
     pub import_usage: ImportUsage,
     pub import_externals: bool,
     pub tree_shaking_mode: Option<TreeShakingMode>,
@@ -351,7 +386,7 @@ impl EsmAssetReference {
         request: RcStr,
         issue_source: IssueSource,
         annotations: ImportAnnotations,
-        export_name: Option<ModulePart>,
+        export_name: EsmPart,
         import_usage: ImportUsage,
         import_externals: bool,
         tree_shaking_mode: Option<TreeShakingMode>,
@@ -362,7 +397,7 @@ impl EsmAssetReference {
             request,
             issue_source,
             annotations,
-            export_name,
+            esm_part: export_name,
             import_usage,
             import_externals,
             tree_shaking_mode,
@@ -376,7 +411,7 @@ impl EsmAssetReference {
         request: RcStr,
         issue_source: IssueSource,
         annotations: ImportAnnotations,
-        export_name: Option<ModulePart>,
+        export_name: EsmPart,
         import_usage: ImportUsage,
         import_externals: bool,
         tree_shaking_mode: Option<TreeShakingMode>,
@@ -387,7 +422,7 @@ impl EsmAssetReference {
             request,
             issue_source,
             annotations,
-            export_name,
+            esm_part: export_name,
             import_usage,
             import_externals,
             tree_shaking_mode,
@@ -408,20 +443,10 @@ impl EsmAssetReference {
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let ty = if let Some(module_type) = self.annotations.module_type() {
-            EcmaScriptModulesReferenceSubType::ImportWithType(RcStr::from(
-                &*module_type.to_string_lossy(),
-            ))
-        } else if let Some(part) = &self.export_name {
-            EcmaScriptModulesReferenceSubType::ImportPart(part.clone())
-        } else {
-            EcmaScriptModulesReferenceSubType::Import
-        };
-
         let request = Request::parse(self.request.clone().into());
 
         if let Some(TreeShakingMode::ModuleFragments) = self.tree_shaking_mode {
-            if let Some(ModulePart::Evaluation) = &self.export_name
+            if matches!(self.esm_part, EsmPart::Evaluation)
                 && *self.module.side_effects().await? == ModuleSideEffects::SideEffectFree
             {
                 return Ok(ModuleResolveResult {
@@ -434,20 +459,27 @@ impl ModuleReference for EsmAssetReference {
             if let Request::Module { module, .. } = &*request.await?
                 && module.is_match(TURBOPACK_PART_IMPORT_SOURCE)
             {
-                if let Some(part) = &self.export_name {
-                    let ProcessResult::Module(module_part) =
-                        *EcmascriptModulePartAsset::select_part(*self.module, part.clone()).await?
-                    else {
-                        bail!(
-                            "ModulePart::Internal should always return a module part in \
-                             select_part"
-                        );
-                    };
-                    return Ok(*ModuleResolveResult::module(module_part));
-                }
-                bail!("export_name is required for part import")
+                let module_part: Option<ModulePart> = self.esm_part.clone().into();
+                let module_part = module_part.unwrap_or(ModulePart::exports());
+                let ProcessResult::Module(module_part) =
+                    *EcmascriptModulePartAsset::select_part(*self.module, module_part.clone())
+                        .await?
+                else {
+                    bail!("ModulePart::Internal should always return a module part in select_part");
+                };
+                return Ok(*ModuleResolveResult::module(module_part));
             }
         }
+
+        let ty = if let Some(module_type) = self.annotations.module_type() {
+            EcmaScriptModulesReferenceSubType::ImportWithType(RcStr::from(
+                &*module_type.to_string_lossy(),
+            ))
+        } else if let Some(part) = self.esm_part.clone().into() {
+            EcmaScriptModulesReferenceSubType::ImportPart(part)
+        } else {
+            EcmaScriptModulesReferenceSubType::Import
+        };
 
         let result = esm_resolve(
             self.get_origin(),
@@ -457,8 +489,7 @@ impl ModuleReference for EsmAssetReference {
             Some(self.issue_source),
         )
         .await?;
-
-        if let Some(ModulePart::Export(export_name)) = &self.export_name {
+        if let EsmPart::Export(export_name) = &self.esm_part {
             for &module in result.primary_modules().await? {
                 if let Some(module) = ResolvedVc::try_downcast(module)
                     && *is_export_missing(*module, export_name.clone()).await?
@@ -507,11 +538,7 @@ impl ModuleReference for EsmAssetReference {
     fn binding_usage(&self) -> Vc<BindingUsage> {
         BindingUsage {
             import: self.import_usage.clone(),
-            export: match &self.export_name {
-                Some(ModulePart::Export(export_name)) => ExportUsage::Named(export_name.clone()),
-                Some(ModulePart::Evaluation) => ExportUsage::Evaluation,
-                _ => ExportUsage::All,
-            },
+            export: self.esm_part.clone().into(),
         }
         .cell()
     }
@@ -582,9 +609,7 @@ impl EsmAssetReference {
                         ));
                     }
 
-                    if merged_index.is_some()
-                        && matches!(this.export_name, Some(ModulePart::Evaluation))
-                    {
+                    if merged_index.is_some() && matches!(this.esm_part, EsmPart::Evaluation) {
                         // No need to import, the module was already executed and is available in
                         // the same scope hoisting group (unless it's a
                         // namespace import)
@@ -592,10 +617,10 @@ impl EsmAssetReference {
                         let ident = referenced_asset
                             .get_ident(
                                 chunking_context,
-                                this.export_name.as_ref().and_then(|e| match e {
-                                    ModulePart::Export(export_name) => Some(export_name.clone()),
+                                match &this.esm_part {
+                                    EsmPart::Export(export_name) => Some(export_name.clone()),
                                     _ => None,
-                                }),
+                                },
                                 scope_hoisting_context,
                             )
                             .await?;
