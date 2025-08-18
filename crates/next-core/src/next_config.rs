@@ -1,3 +1,5 @@
+use std::{collections::BTreeSet, str::FromStr};
+
 use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -27,8 +29,11 @@ use turbopack_ecmascript_plugins::transform::{
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems};
 
 use crate::{
-    mode::NextMode, next_import_map::mdx_import_source_file,
-    next_shared::transforms::ModularizeImportPackageConfig,
+    mode::NextMode,
+    next_import_map::mdx_import_source_file,
+    next_shared::{
+        transforms::ModularizeImportPackageConfig, webpack_rules::WebpackBuiltinCondition,
+    },
 };
 
 #[turbo_tasks::value]
@@ -1280,7 +1285,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn webpack_rules(
         &self,
-        active_conditions: Vec<RcStr>,
+        active_conditions: BTreeSet<WebpackBuiltinCondition>,
         project_path: FileSystemPath,
     ) -> Result<Vc<OptionWebpackRules>> {
         let Some(turbo_rules) = self.turbopack.as_ref().and_then(|t| t.rules.as_ref()) else {
@@ -1289,7 +1294,6 @@ impl NextConfig {
         if turbo_rules.is_empty() {
             return Ok(Vc::cell(None));
         }
-        let active_conditions = active_conditions.into_iter().collect::<FxHashSet<_>>();
         let mut rules = FxIndexMap::default();
         for (ext, rule) in turbo_rules.iter() {
             fn transform_loaders(loaders: &[LoaderItem]) -> ResolvedVc<WebpackLoaderItems> {
@@ -1313,13 +1317,17 @@ impl NextConfig {
             }
             fn find_rule<'a>(
                 rule: &'a RuleConfigItem,
-                active_conditions: &FxHashSet<RcStr>,
+                active_conditions: &BTreeSet<WebpackBuiltinCondition>,
             ) -> FindRuleResult<'a> {
                 match rule {
                     RuleConfigItem::Options(rule) => FindRuleResult::Found(rule),
                     RuleConfigItem::Conditional(map) => {
                         for (condition, rule) in map.iter() {
-                            if condition == "default" || active_conditions.contains(condition) {
+                            let condition = WebpackBuiltinCondition::from_str(condition);
+                            if let Ok(condition) = condition
+                                && (condition == WebpackBuiltinCondition::Default
+                                    || active_conditions.contains(&condition))
+                            {
                                 match find_rule(rule, active_conditions) {
                                     FindRuleResult::Found(rule) => {
                                         return FindRuleResult::Found(rule);

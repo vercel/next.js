@@ -261,6 +261,15 @@ export type TurbopackLoaderItem =
       options: Record<string, JSONValue>
     }
 
+export type TurbopackRuleBuiltinCondition =
+  | 'default'
+  | 'browser'
+  | 'foreign'
+  | 'development'
+  | 'production'
+  | 'node'
+  | 'edge-light'
+
 export type TurbopackRuleCondition = {
   path?: string | RegExp
   content?: RegExp
@@ -277,7 +286,7 @@ export type TurbopackRuleConfigItemOptions = {
 
 export type TurbopackRuleConfigItem =
   | TurbopackRuleConfigItemOptions
-  | { [condition: string]: TurbopackRuleConfigItem }
+  | { [condition in TurbopackRuleBuiltinCondition]?: TurbopackRuleConfigItem }
   | false
 
 export interface TurbopackOptions {
