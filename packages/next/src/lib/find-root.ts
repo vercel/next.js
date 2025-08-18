@@ -17,9 +17,16 @@ export function findRootLockFile(cwd: string) {
   )
 }
 
-export function findRootDir(cwd: string): string {
+export function findRootDirAndLockFiles(cwd: string): {
+  lockFiles: string[]
+  rootDir: string
+} {
   const lockFile = findRootLockFile(cwd)
-  if (!lockFile) return cwd
+  if (!lockFile)
+    return {
+      lockFiles: [],
+      rootDir: cwd,
+    }
 
   const lockFiles = [lockFile]
   while (true) {
@@ -37,8 +44,14 @@ export function findRootDir(cwd: string): string {
     lockFiles.push(newLockFile)
   }
 
-  // Only warn if not in a build worker to avoid duplicate warnings
-  if (typeof process.send !== 'function' && lockFiles.length > 1) {
+  return {
+    lockFiles,
+    rootDir: dirname(lockFiles[lockFiles.length - 1]),
+  }
+}
+
+export function warnDuplicatedLockFiles(lockFiles: string[]) {
+  if (lockFiles.length > 1) {
     const additionalLockFiles = lockFiles
       .slice(0, -1)
       .map((str) => `\n   * ${str}`)
@@ -64,6 +77,4 @@ export function findRootDir(cwd: string): string {
       )
     }
   }
-
-  return dirname(lockFiles[lockFiles.length - 1])
 }

@@ -56,6 +56,7 @@ type PortSource = 'cli' | 'default' | 'env'
 
 let dir: string
 let child: undefined | ChildProcess
+// The config in next-dev is only used to access config.distDir for telemetry and trace.
 let config: NextConfigComplete
 let isTurboSession = false
 let traceUploadUrl: string
@@ -95,18 +96,6 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     const { eventCliSessionStopped } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    config =
-      config ||
-      (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, { silent: true }))
-
-    let telemetry =
-      (traceGlobals.get('telemetry') as InstanceType<
-        typeof import('../telemetry/storage').Telemetry
-      >) ||
-      new Telemetry({
-        distDir: path.join(dir, config.distDir),
-      })
-
     let pagesDir: boolean = !!traceGlobals.get('pagesDir')
     let appDir: boolean = !!traceGlobals.get('appDir')
 
@@ -118,6 +107,18 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       appDir = !!pagesResult.appDir
       pagesDir = !!pagesResult.pagesDir
     }
+
+    config =
+      config ||
+      (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, { silent: true }))
+
+    let telemetry =
+      (traceGlobals.get('telemetry') as InstanceType<
+        typeof import('../telemetry/storage').Telemetry
+      >) ||
+      new Telemetry({
+        distDir: path.join(dir, config.distDir),
+      })
 
     telemetry.record(
       eventCliSessionStopped({
@@ -316,9 +317,6 @@ const nextDev = async (
       })
 
       child.on('exit', async (code, signal) => {
-        config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-          silent: true,
-        })
         if (sessionStopHandled || signal) {
           return
         }
@@ -327,6 +325,13 @@ const nextDev = async (
           // must upload the existing contents before restarting the server to
           // preserve the metrics.
           if (traceUploadUrl) {
+            // Postpone loading next config when we need to get
+            //  config.distDir for upload trace.
+            config =
+              config ||
+              (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+                silent: true,
+              }))
             uploadTrace({
               traceUploadUrl,
               mode: 'dev',
