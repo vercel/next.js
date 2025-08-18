@@ -376,7 +376,7 @@ export function launchEditor(fileName: string, line1: number, column1: number) {
       'When running on Windows, file names are checked against an access list ' +
         'to protect against remote code execution attacks. File names may ' +
         'consist only of alphanumeric characters (all languages), periods, ' +
-        'dashes, slashes, and underscores.'
+        'dashes, slashes, underscores, and parentheses.'
     )
     console.log()
     return
