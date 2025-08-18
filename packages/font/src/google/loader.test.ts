@@ -124,6 +124,7 @@ describe('next/font/google loader', () => {
         mockFetchResource.mockResolvedValue(Buffer.from('OK'))
         const { css } = await nextFontGoogleFontLoader({
           functionName,
+          deploymentId: undefined,
           data: [
             {
               adjustFontFallback: false,

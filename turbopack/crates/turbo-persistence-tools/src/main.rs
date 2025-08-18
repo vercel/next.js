@@ -31,8 +31,8 @@ fn main() -> Result<()> {
             sequence_number,
             min_hash,
             max_hash,
-            aqmf_size,
-            aqmf_entries,
+            amqf_size,
+            amqf_entries,
             sst_size,
             key_compression_dictionary_size,
             value_compression_dictionary_size,
@@ -43,7 +43,7 @@ fn main() -> Result<()> {
                 "  SST {sequence_number:08}.sst: {min_hash:016x} - {max_hash:016x} (p = 1/{})",
                 u64::MAX / (max_hash - min_hash + 1)
             );
-            println!("    AQMF {aqmf_entries} entries = {} KiB", aqmf_size / 1024);
+            println!("    AMQF {amqf_entries} entries = {} KiB", amqf_size / 1024);
             println!(
                 "    {} KiB = {} kiB key compression dict + {} KiB value compression dict + \
                  {block_count} blocks (avg {} bytes/block)",

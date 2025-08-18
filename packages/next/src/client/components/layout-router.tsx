@@ -488,10 +488,6 @@ function LoadingBoundary({
   return <>{children}</>
 }
 
-function RenderChildren({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
-}
-
 /**
  * OuterLayoutRouter handles the current segment as well as <Offscreen> rendering of other segments.
  * It can be rendered next to each other with a different `parallelRouterKey`, allowing for Parallel routes.
@@ -507,7 +503,6 @@ export default function OuterLayoutRouter({
   notFound,
   forbidden,
   unauthorized,
-  gracefullyDegrade,
   segmentViewBoundaries,
 }: {
   parallelRouterKey: string
@@ -520,7 +515,6 @@ export default function OuterLayoutRouter({
   notFound: React.ReactNode | undefined
   forbidden: React.ReactNode | undefined
   unauthorized: React.ReactNode | undefined
-  gracefullyDegrade?: boolean
   segmentViewBoundaries?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
@@ -612,10 +606,6 @@ export default function OuterLayoutRouter({
       - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
   */
 
-    const ErrorBoundaryComponent = gracefullyDegrade
-      ? RenderChildren
-      : ErrorBoundary
-
     let segmentBoundaryTriggerNode: React.ReactNode = null
     let segmentViewStateNode: React.ReactNode = null
     if (
@@ -651,7 +641,7 @@ export default function OuterLayoutRouter({
         key={stateKey}
         value={
           <ScrollAndFocusHandler segmentPath={segmentPath}>
-            <ErrorBoundaryComponent
+            <ErrorBoundary
               errorComponent={error}
               errorStyles={errorStyles}
               errorScripts={errorScripts}
@@ -673,7 +663,7 @@ export default function OuterLayoutRouter({
                   </RedirectBoundary>
                 </HTTPAccessFallbackBoundary>
               </LoadingBoundary>
-            </ErrorBoundaryComponent>
+            </ErrorBoundary>
             {segmentViewStateNode}
           </ScrollAndFocusHandler>
         }

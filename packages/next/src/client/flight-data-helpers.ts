@@ -75,7 +75,9 @@ export function normalizeFlightData(
     return flightData
   }
 
-  return flightData.map(getFlightDataPartsFromPath)
+  return flightData.map((flightDataPath) =>
+    getFlightDataPartsFromPath(flightDataPath)
+  )
 }
 
 /**

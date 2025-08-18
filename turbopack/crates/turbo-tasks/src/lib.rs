@@ -73,6 +73,7 @@ pub mod registry;
 mod scope;
 mod serialization_invalidation;
 pub mod small_duration;
+mod spawn;
 mod state;
 pub mod task;
 mod task_execution_reason;
@@ -107,8 +108,7 @@ pub use manager::{
     CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
     TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
     dynamic_call, emit, mark_finished, mark_root, mark_session_dependent, mark_stateful,
-    prevent_gc, run_once, run_once_with_reason, spawn_blocking, spawn_thread, trait_call,
-    turbo_tasks, turbo_tasks_scope,
+    prevent_gc, run_once, run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope,
 };
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
@@ -118,6 +118,7 @@ use rustc_hash::FxHasher;
 pub use scope::scope;
 pub use serialization_invalidation::SerializationInvalidator;
 pub use shrink_to_fit::ShrinkToFit;
+pub use spawn::{JoinHandle, block_for_future, spawn, spawn_blocking, spawn_thread};
 pub use state::{State, TransientState};
 pub use task::{SharedReference, TypedSharedReference, task_input::TaskInput};
 pub use task_execution_reason::TaskExecutionReason;

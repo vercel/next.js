@@ -39,6 +39,7 @@ describe('async imports in cacheComponents', () => {
 
       expect(prerenderedRoutes).toMatchInlineSnapshot(`
        [
+         "/_not-found",
          "/inside-render/client/async-module",
          "/inside-render/client/sync-module",
          "/inside-render/route-handler/async-module",

@@ -40,6 +40,18 @@ describe('app-dir static/dynamic handling', () => {
     }
   })
 
+  if (!process.env.__NEXT_EXPERIMENTAL_PPR) {
+    it('should respond correctly for dynamic route with dynamicParams false in layout', async () => {
+      const res = await next.fetch('/partial-params-false/en/another')
+      expect(res.status).toBe(200)
+    })
+
+    it('should respond correctly for partially dynamic route with dynamicParams false in layout', async () => {
+      const res = await next.fetch('/partial-params-false/en/static')
+      expect(res.status).toBe(200)
+    })
+  }
+
   it('should use auto no cache when no fetch config', async () => {
     const res = await next.fetch('/no-config-fetch')
     expect(res.status).toBe(200)
@@ -877,6 +889,10 @@ describe('app-dir static/dynamic handling', () => {
          "partial-gen-params-no-additional-slug/fr/first.rsc",
          "partial-gen-params-no-additional-slug/fr/second.html",
          "partial-gen-params-no-additional-slug/fr/second.rsc",
+         "partial-params-false/en/static.html",
+         "partial-params-false/en/static.rsc",
+         "partial-params-false/fr/static.html",
+         "partial-params-false/fr/static.rsc",
          "prerendered-not-found/first.html",
          "prerendered-not-found/first.rsc",
          "prerendered-not-found/second.html",
@@ -959,7 +975,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/index.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -970,6 +986,31 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialRevalidateSeconds": false,
            "srcRoute": "/",
+         },
+         "/_not-found": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/_not-found.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "initialStatus": 404,
+           "srcRoute": "/_not-found",
          },
          "/api/large-data": {
            "allowHeader": [
@@ -983,7 +1024,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": null,
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1011,7 +1052,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/articles/works.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1036,7 +1077,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/seb.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1061,7 +1102,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/seb/second-post.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1085,7 +1126,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/styfle.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1110,7 +1151,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/styfle/first-post.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1134,7 +1175,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/styfle/second-post.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1158,7 +1199,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/tim.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1183,7 +1224,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/blog/tim/first-post.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1207,7 +1248,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/default-config-fetch.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1231,7 +1272,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/force-cache.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1256,7 +1297,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/force-static-fetch-no-store.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1280,7 +1321,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/force-static/first.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1304,7 +1345,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/force-static/second.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1328,7 +1369,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/gen-params-catch-all-unique/foo/bar.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1352,7 +1393,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/gen-params-catch-all-unique/foo/foo.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1376,7 +1417,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/gen-params-dynamic-revalidate/one.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1401,7 +1442,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/hooks/use-pathname/slug.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1425,7 +1466,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/hooks/use-search-params/force-static.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1449,7 +1490,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/hooks/use-search-params/with-suspense.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1473,7 +1514,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/isr-error-handling.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1498,7 +1539,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/no-config-fetch.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1522,7 +1563,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/no-store/static.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1546,7 +1587,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-lang/en/RAND.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1570,7 +1611,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-lang/en/first.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1594,7 +1635,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-lang/en/second.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1618,7 +1659,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-lang/fr/RAND.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1642,7 +1683,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-lang/fr/first.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1666,7 +1707,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-lang/fr/second.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1690,7 +1731,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-slug/en/RAND.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1714,7 +1755,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-slug/en/first.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1738,7 +1779,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-slug/en/second.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1762,7 +1803,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-slug/fr/RAND.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1786,7 +1827,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-slug/fr/first.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1810,7 +1851,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/partial-gen-params-no-additional-slug/fr/second.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1821,6 +1862,54 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialRevalidateSeconds": false,
            "srcRoute": "/partial-gen-params-no-additional-slug/[lang]/[slug]",
+         },
+         "/partial-params-false/en/static": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/partial-params-false/en/static.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/partial-params-false/[locale]/static",
+         },
+         "/partial-params-false/fr/static": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/partial-params-false/fr/static.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "srcRoute": "/partial-params-false/[locale]/static",
          },
          "/prerendered-not-found/first": {
            "allowHeader": [
@@ -1834,7 +1923,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/prerendered-not-found/first.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1858,7 +1947,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/prerendered-not-found/second.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1882,7 +1971,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/prerendered-not-found/segment-revalidate.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1907,7 +1996,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": null,
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1936,7 +2025,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": null,
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1965,7 +2054,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": null,
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -1993,7 +2082,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/ssg-draft-mode.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2017,7 +2106,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/ssg-draft-mode/test.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2041,7 +2130,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/ssg-draft-mode/test-2.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2065,7 +2154,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/strip-w3c-trace-context-headers.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2090,7 +2179,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/unstable-cache/fetch/no-cache.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2114,7 +2203,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/unstable-cache/fetch/no-store.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2138,7 +2227,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-config-revalidate/revalidate-3.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2163,7 +2252,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate-stable/revalidate-3.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2188,7 +2277,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate/authorization.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2213,7 +2302,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate/cookie.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2238,7 +2327,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate/encoding.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2263,7 +2352,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate/headers-instance.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2288,7 +2377,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate/revalidate-3.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2313,7 +2402,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRoute": "/variable-revalidate/revalidate-360-isr.rsc",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2343,7 +2432,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/articles\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2368,7 +2457,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2393,7 +2482,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2418,7 +2507,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/dynamic\\-error\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2443,7 +2532,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/force\\-static\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2468,7 +2557,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/gen\\-params\\-catch\\-all\\-unique\\/(.+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2493,7 +2582,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/gen\\-params\\-dynamic\\-revalidate\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2518,7 +2607,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/hooks\\/use\\-pathname\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2543,7 +2632,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-lang\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2568,7 +2657,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2579,6 +2668,31 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "fallback": false,
            "routeRegex": "^\\/partial\\-gen\\-params\\-no\\-additional\\-slug\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+         },
+         "/partial-params-false/[locale]/static": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/partial-params-false/[locale]/static.rsc",
+           "dataRouteRegex": "^\\/partial\\-params\\-false\\/([^\\/]+?)\\/static\\.rsc$",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "fallback": false,
+           "routeRegex": "^\\/partial\\-params\\-false\\/([^\\/]+?)\\/static(?:\\/)?$",
          },
          "/prerendered-not-found/[slug]": {
            "allowHeader": [
@@ -2593,7 +2707,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/prerendered\\-not\\-found\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2618,7 +2732,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/ssg\\-draft\\-mode(?:\\/(.+?))?\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {
@@ -2643,7 +2757,7 @@ describe('app-dir static/dynamic handling', () => {
            "dataRouteRegex": "^\\/static\\-to\\-dynamic\\-error\\-forced\\/([^\\/]+?)\\.rsc$",
            "experimentalBypassFor": [
              {
-               "key": "Next-Action",
+               "key": "next-action",
                "type": "header",
              },
              {

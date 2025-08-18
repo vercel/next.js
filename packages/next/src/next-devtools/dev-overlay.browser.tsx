@@ -28,6 +28,7 @@ import {
   startTransition,
   useContext,
   useInsertionEffect,
+  useLayoutEffect,
   type ActionDispatch,
 } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -185,24 +186,37 @@ function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {
 }
 
 function DevOverlayRoot({
-  getComponentStack,
   getOwnerStack,
   getSquashedHydrationErrorDetails,
   isRecoverableError,
   routerType,
+  shadowRoot,
 }: {
-  getComponentStack: (error: Error) => string | undefined
   getOwnerStack: (error: Error) => string | null | undefined
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   isRecoverableError: (error: Error) => boolean
   routerType: 'app' | 'pages'
+  shadowRoot: ShadowRoot
 }) {
   const [state, dispatch] = useErrorOverlayReducer(
     routerType,
-    getComponentStack,
     getOwnerStack,
     isRecoverableError
   )
+
+  useLayoutEffect(() => {
+    const portalNode = shadowRoot.host
+    if (state.theme === 'dark') {
+      portalNode.classList.add('dark')
+      portalNode.classList.remove('light')
+    } else if (state.theme === 'light') {
+      portalNode.classList.add('light')
+      portalNode.classList.remove('dark')
+    } else {
+      portalNode.classList.remove('dark')
+      portalNode.classList.remove('light')
+    }
+  }, [shadowRoot, state.theme])
 
   useInsertionEffect(() => {
     maybeDispatch = dispatch
@@ -228,6 +242,7 @@ function DevOverlayRoot({
         value={{
           dispatch,
           getSquashedHydrationErrorDetails,
+          shadowRoot,
           state,
         }}
       >
@@ -237,6 +252,7 @@ function DevOverlayRoot({
   )
 }
 export const DevOverlayContext = createContext<{
+  shadowRoot: ShadowRoot
   state: OverlayState & {
     routerType: 'pages' | 'app'
   }
@@ -254,7 +270,6 @@ function getSquashedHydrationErrorDetailsApp() {
 }
 
 export function renderAppDevOverlay(
-  getComponentStack: (error: Error) => string | undefined,
   getOwnerStack: (error: Error) => string | null | undefined,
   isRecoverableError: (error: Error) => boolean
 ): void {
@@ -288,16 +303,18 @@ export function renderAppDevOverlay(
       identifierPrefix: 'ndt-',
     })
 
+    const shadowRoot = container.attachShadow({ mode: 'open' })
+
     startTransition(() => {
       // TODO: Dedicated error boundary or root error callbacks?
       // At least it won't unmount any user code if it errors.
       root.render(
         <DevOverlayRoot
-          getComponentStack={getComponentStack}
           getOwnerStack={getOwnerStack}
           getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetailsApp}
           isRecoverableError={isRecoverableError}
           routerType="app"
+          shadowRoot={shadowRoot}
         />
       )
     })
@@ -307,7 +324,6 @@ export function renderAppDevOverlay(
 }
 
 export function renderPagesDevOverlay(
-  getComponentStack: (error: Error) => string | undefined,
   getOwnerStack: (error: Error) => string | null | undefined,
   getSquashedHydrationErrorDetails: (
     error: Error
@@ -350,18 +366,20 @@ export function renderPagesDevOverlay(
     })
     document.body.appendChild(container)
 
-    const root = createRoot(container)
+    const root = createRoot(container, { identifierPrefix: 'ndt-' })
+
+    const shadowRoot = container.attachShadow({ mode: 'open' })
 
     startTransition(() => {
       // TODO: Dedicated error boundary or root error callbacks?
       // At least it won't unmount any user code if it errors.
       root.render(
         <DevOverlayRoot
-          getComponentStack={getComponentStack}
           getOwnerStack={getOwnerStack}
           getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
           isRecoverableError={isRecoverableError}
           routerType="pages"
+          shadowRoot={shadowRoot}
         />
       )
     })

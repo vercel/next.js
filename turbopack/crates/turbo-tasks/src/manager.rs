@@ -8,7 +8,6 @@ use std::{
         Arc, Mutex, RwLock, Weak,
         atomic::{AtomicBool, AtomicUsize, Ordering},
     },
-    thread,
     time::{Duration, Instant},
 };
 
@@ -17,10 +16,9 @@ use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use tokio::{runtime::Handle, select, sync::mpsc::Receiver, task_local};
+use tokio::{select, sync::mpsc::Receiver, task_local};
 use tokio_util::task::TaskTracker;
-use tracing::{Instrument, Level, Span, info_span, instrument, trace_span};
-use turbo_tasks_malloc::TurboMalloc;
+use tracing::{Instrument, Level, instrument, trace_span};
 
 use crate::{
     Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
@@ -30,7 +28,7 @@ use crate::{
         Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent,
     },
-    capture_future::{self, CaptureFuture},
+    capture_future::CaptureFuture,
     event::{Event, EventListener},
     id::{BackendJobId, ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TraitTypeId},
     id_factory::IdFactoryWithReuse,
@@ -718,7 +716,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     };
 
                     async {
-                        let (result, duration, memory_usage) = CaptureFuture::new(future).await;
+                        let (result, duration, alloc_info) = CaptureFuture::new(future).await;
 
                         // wait for all spawned local tasks using `local` to finish
                         let ltt = CURRENT_TASK_STATE
@@ -742,7 +740,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                         let schedule_again = this.backend.task_execution_completed(
                             task_id,
                             duration,
-                            memory_usage,
+                            alloc_info.memory_usage(),
                             &cell_counters,
                             stateful,
                             has_invalidator,
@@ -810,7 +808,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let description = format!(
             "[local] (parent: {}) {}",
             self.backend.get_task_description(parent_task_id),
-            ty,
+            ty.task_type,
         );
         #[cfg(not(feature = "tokio_tracing"))]
         let _ = parent_task_id; // suppress unused variable warning
@@ -1060,27 +1058,30 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub async fn stop_and_wait(&self) {
-        self.backend.stopping(self);
-        self.stopped.store(true, Ordering::Release);
-        {
-            let listener = self
-                .event
-                .listen_with_note(|| || "wait for stop".to_string());
-            if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
-                listener.await;
-            }
-        }
-        {
-            let listener = self.event_background.listen();
-            if self
-                .currently_scheduled_background_jobs
-                .load(Ordering::Acquire)
-                != 0
+        turbo_tasks_future_scope(self.pin(), async move {
+            self.backend.stopping(self);
+            self.stopped.store(true, Ordering::Release);
             {
-                listener.await;
+                let listener = self
+                    .event
+                    .listen_with_note(|| || "wait for stop".to_string());
+                if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+                    listener.await;
+                }
             }
-        }
-        self.backend.stop(self);
+            {
+                let listener = self.event_background.listen();
+                if self
+                    .currently_scheduled_background_jobs
+                    .load(Ordering::Acquire)
+                    != 0
+                {
+                    listener.await;
+                }
+            }
+            self.backend.stop(self);
+        })
+        .await;
     }
 
     #[track_caller]
@@ -1785,35 +1786,6 @@ pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
         let raw_vc = collectible.node.node;
         tt.emit_collectible(T::get_trait_type_id(), raw_vc)
     })
-}
-
-pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {
-    let turbo_tasks = turbo_tasks();
-    let span = Span::current();
-    let (result, duration, alloc_info) = tokio::task::spawn_blocking(|| {
-        let _guard = span.entered();
-        let start = Instant::now();
-        let start_allocations = TurboMalloc::allocation_counters();
-        let r = turbo_tasks_scope(turbo_tasks, func);
-        (r, start.elapsed(), start_allocations.until_now())
-    })
-    .await
-    .unwrap();
-    capture_future::add_duration(duration);
-    capture_future::add_allocation_info(alloc_info);
-    result
-}
-
-pub fn spawn_thread(func: impl FnOnce() + Send + 'static) {
-    let handle = Handle::current();
-    let span = info_span!("thread").or_current();
-    thread::spawn(move || {
-        let span = span.entered();
-        let guard = handle.enter();
-        func();
-        drop(guard);
-        drop(span);
-    });
 }
 
 pub(crate) async fn read_task_output(

@@ -39,6 +39,7 @@ import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot
 import { findDir } from '../lib/find-pages-dir'
 import { CanaryOnlyError, isStableBuild } from '../shared/lib/canary-only'
 import { interopDefault } from '../lib/interop-default'
+import { djb2Hash } from '../shared/lib/hash'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -86,6 +87,84 @@ export function warnOptionHasBeenDeprecated(
     }
   }
   return hasWarned
+}
+
+function checkDeprecations(
+  userConfig: NextConfig,
+  configFileName: string,
+  silent: boolean,
+  dir: string
+) {
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'amp',
+    `Built-in amp support is deprecated and the \`amp\` configuration option will be removed in Next.js 16.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.amp',
+    `Built-in amp support is deprecated and the \`experimental.amp\` configuration option will be removed in Next.js 16.`,
+    silent
+  )
+
+  if (userConfig.experimental?.dynamicIO !== undefined) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'experimental.dynamicIO',
+      `\`experimental.dynamicIO\` has been renamed to \`experimental.cacheComponents\`. Please update your ${configFileName} file accordingly.`,
+      silent
+    )
+  }
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.instrumentationHook',
+    `\`experimental.instrumentationHook\` is no longer needed, because \`instrumentation.js\` is available by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.after',
+    `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'devIndicators.appIsrStatus',
+    `\`devIndicators.appIsrStatus\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'devIndicators.buildActivity',
+    `\`devIndicators.buildActivity\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'devIndicators.buildActivityPosition',
+    `\`devIndicators.buildActivityPosition\` has been renamed to \`devIndicators.position\`. Please update your ${configFileName} file accordingly.`,
+    silent
+  )
+
+  // i18n deprecation for App Router
+  if (userConfig.i18n) {
+    const hasAppDir = Boolean(findDir(dir, 'app'))
+    if (hasAppDir) {
+      warnOptionHasBeenDeprecated(
+        userConfig,
+        'i18n',
+        `i18n configuration in ${configFileName} is unsupported in App Router.\nLearn more about internationalization in App Router: https://nextjs.org/docs/app/building-your-application/routing/internationalization`,
+        silent
+      )
+    }
+  }
 }
 
 export function warnOptionHasBeenMovedOutOfExperimental(
@@ -160,15 +239,8 @@ function assignDefaults(
     delete userConfig.exportTrailingSlash
   }
 
-  // Handle deprecation of experimental.dynamicIO and migrate to experimental.cacheComponents
+  // Handle migration of experimental.dynamicIO to experimental.cacheComponents
   if (userConfig.experimental?.dynamicIO !== undefined) {
-    warnOptionHasBeenDeprecated(
-      userConfig,
-      'experimental.dynamicIO',
-      `\`experimental.dynamicIO\` has been renamed to \`experimental.cacheComponents\`. Please update your ${configFileName} file accordingly.`,
-      silent
-    )
-
     // If cacheComponents was not explicitly set by the user (i.e., it's still the default value),
     // use the dynamicIO value. We check against the user config, not the merged result.
     if (userConfig.experimental?.cacheComponents === undefined) {
@@ -511,49 +583,18 @@ function assignDefaults(
     silent
   )
 
-  warnOptionHasBeenDeprecated(
-    result,
-    'experimental.instrumentationHook',
-    `\`experimental.instrumentationHook\` is no longer needed, because \`instrumentation.js\` is available by default. You can remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    result,
-    'experimental.after',
-    `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    result,
-    'devIndicators.appIsrStatus',
-    `\`devIndicators.appIsrStatus\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    result,
-    'devIndicators.buildActivity',
-    `\`devIndicators.buildActivity\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
-    silent
-  )
-
-  const hasWarnedBuildActivityPosition = warnOptionHasBeenDeprecated(
-    result,
-    'devIndicators.buildActivityPosition',
-    `\`devIndicators.buildActivityPosition\` has been renamed to \`devIndicators.position\`. Please update your ${configFileName} file accordingly.`,
-    silent
-  )
+  // Handle buildActivityPosition migration (needs to be done after merging with defaults)
   if (
-    hasWarnedBuildActivityPosition &&
-    result.devIndicators !== false &&
+    result.devIndicators &&
+    typeof result.devIndicators === 'object' &&
     'buildActivityPosition' in result.devIndicators &&
     result.devIndicators.buildActivityPosition !== result.devIndicators.position
   ) {
-    Log.warnOnce(
-      `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") for backward compatibility.`
-    )
+    if (!silent) {
+      Log.warnOnce(
+        `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") for backward compatibility.`
+      )
+    }
     result.devIndicators.position = result.devIndicators.buildActivityPosition
   }
 
@@ -705,39 +746,32 @@ function assignDefaults(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
-  if (result?.outputFileTracingRoot && !result?.turbopack?.root) {
-    dset(result, ['turbopack', 'root'], result.outputFileTracingRoot)
+  const tracingRoot = result?.outputFileTracingRoot
+  const turbopackRoot = result?.turbopack?.root
+
+  // If both provided, validate they match. If not, use outputFileTracingRoot.
+  if (tracingRoot && turbopackRoot && tracingRoot !== turbopackRoot) {
+    Log.warn(
+      `Both \`outputFileTracingRoot\` and \`turbopack.root\` are set, but they must have the same value.\n` +
+        `Using \`outputFileTracingRoot\` value: ${tracingRoot}.`
+    )
   }
 
-  // use the highest level lockfile as tracing root
-  if (!result?.outputFileTracingRoot || !result?.turbopack?.root) {
-    let rootDir = findRootDir(dir)
+  const rootDir = tracingRoot || turbopackRoot || findRootDir(dir)
 
-    if (rootDir) {
-      if (!result?.outputFileTracingRoot) {
-        result.outputFileTracingRoot = rootDir
-      }
-
-      if (!result?.turbopack?.root) {
-        dset(result, ['turbopack', 'root'], rootDir)
-      }
-    }
+  if (!rootDir) {
+    throw new Error(
+      'Failed to find the root directory of the project. This is a bug in Next.js.'
+    )
   }
+
+  // Ensure both properties are set to the same value
+  result.outputFileTracingRoot = rootDir
+  dset(result, ['turbopack', 'root'], rootDir)
 
   setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
-    const hasAppDir = Boolean(findDir(dir, 'app'))
-
-    if (hasAppDir) {
-      warnOptionHasBeenDeprecated(
-        result,
-        'i18n',
-        `i18n configuration in ${configFileName} is unsupported in App Router.\nLearn more about internationalization in App Router: https://nextjs.org/docs/app/building-your-application/routing/internationalization`,
-        silent
-      )
-    }
-
     const { i18n } = result
     const i18nType = typeof i18n
 
@@ -946,18 +980,6 @@ function assignDefaults(
           result.expireTime ?? defaultDefault.expire
       }
     }
-    // This is the most dynamic cache life profile.
-    const secondsCacheLifeProfile = result.experimental.cacheLife['seconds']
-    if (
-      secondsCacheLifeProfile &&
-      secondsCacheLifeProfile.stale === undefined
-    ) {
-      // We default this to whatever stale time you had configured for dynamic content.
-      // Since this is basically a dynamic cache life profile.
-      const dynamicStaleTime = result.experimental.staleTimes?.dynamic
-      secondsCacheLifeProfile.stale =
-        dynamicStaleTime ?? defaultConfig.experimental?.staleTimes?.dynamic
-    }
   }
 
   if (result.experimental?.cacheHandlers) {
@@ -1164,6 +1186,38 @@ async function applyModifyConfig(
   return config
 }
 
+// Cache config with keys to handle multiple configurations (e.g., multi-zone)
+const configCache = new Map<
+  string,
+  {
+    rawConfig: any
+    config: NextConfigComplete
+    configuredExperimentalFeatures: ConfiguredExperimentalFeature[]
+  }
+>()
+
+// Generate cache key based on parameters that affect config output
+// We need a unique key for cache because there can be multiple values
+function getCacheKey(
+  phase: string,
+  dir: string,
+  customConfig?: object | null,
+  reactProductionProfiling?: boolean,
+  debugPrerender?: boolean
+): string {
+  // The next.config.js is unique per project, so we can use the dir as the major key
+  // to generate the unique config key.
+  const keyData = JSON.stringify({
+    dir,
+    phase,
+    hasCustomConfig: Boolean(customConfig),
+    reactProductionProfiling: Boolean(reactProductionProfiling),
+    debugPrerender: Boolean(debugPrerender),
+  })
+
+  return djb2Hash(keyData).toString(36)
+}
+
 export default async function loadConfig(
   phase: string,
   dir: string,
@@ -1185,6 +1239,32 @@ export default async function loadConfig(
     debugPrerender?: boolean
   } = {}
 ): Promise<NextConfigComplete> {
+  // Generate cache key based on parameters that affect config output
+  const cacheKey = getCacheKey(
+    phase,
+    dir,
+    customConfig,
+    reactProductionProfiling,
+    debugPrerender
+  )
+
+  // Check if we have a cached result
+  const cachedResult = configCache.get(cacheKey)
+  if (cachedResult) {
+    // Call the experimental features callback if provided
+    if (reportExperimentalFeatures) {
+      reportExperimentalFeatures(cachedResult.configuredExperimentalFeatures)
+    }
+
+    // Return raw config if requested and available
+    if (rawConfig && cachedResult.rawConfig) {
+      return cachedResult.rawConfig
+    }
+
+    return cachedResult.config
+  }
+
+  // Original implementation continues below...
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
       loadWebpackHook()
@@ -1200,7 +1280,18 @@ export default async function loadConfig(
   if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
     // we don't apply assignDefaults or modifyConfig here as it
     // has already been applied
-    return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
+    const standaloneConfig = JSON.parse(
+      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
+    )
+
+    // Cache the standalone config
+    configCache.set(cacheKey, {
+      config: standaloneConfig,
+      rawConfig: standaloneConfig,
+      configuredExperimentalFeatures: [],
+    })
+
+    return standaloneConfig
   }
 
   const curLog = silent
@@ -1214,9 +1305,13 @@ export default async function loadConfig(
   loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
 
   let configFileName = 'next.config.js'
+  const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
 
   if (customConfig) {
-    return await applyModifyConfig(
+    // Check deprecation warnings on the custom config before merging with defaults
+    checkDeprecations(customConfig as NextConfig, configFileName, silent, dir)
+
+    const config = await applyModifyConfig(
       assignDefaults(
         dir,
         {
@@ -1229,10 +1324,20 @@ export default async function loadConfig(
       phase,
       silent
     )
+
+    // Cache the custom config result
+    configCache.set(cacheKey, {
+      config,
+      rawConfig: customConfig,
+      configuredExperimentalFeatures,
+    })
+
+    reportExperimentalFeatures?.(configuredExperimentalFeatures)
+
+    return config
   }
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
-  const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
 
   // If config file was found
   if (path?.length) {
@@ -1269,6 +1374,15 @@ export default async function loadConfig(
       updateInitialEnv(newEnv)
 
       if (rawConfig) {
+        // Cache the raw config
+        configCache.set(cacheKey, {
+          config: userConfigModule as NextConfigComplete,
+          rawConfig: userConfigModule,
+          configuredExperimentalFeatures,
+        })
+
+        reportExperimentalFeatures?.(configuredExperimentalFeatures)
+
         return userConfigModule
       }
     } catch (err) {
@@ -1286,7 +1400,7 @@ export default async function loadConfig(
       )) as NextConfig
     )
 
-    if (reportExperimentalFeatures && loadedConfig.experimental) {
+    if (loadedConfig.experimental) {
       for (const name of Object.keys(
         loadedConfig.experimental
       ) as (keyof ExperimentalConfig)[]) {
@@ -1308,13 +1422,19 @@ export default async function loadConfig(
     // Clone a new userConfig each time to avoid mutating the original
     const userConfig = cloneObject(loadedConfig) as NextConfig
 
-    if (!process.env.NEXT_MINIMAL) {
+    // Check deprecation warnings on the actual user config before merging with defaults
+    checkDeprecations(userConfig, configFileName, silent, dir)
+
+    // Always validate the config against schema in non minimal mode.
+    // Only validate once in the root Next.js process, not in forked processes.
+    const isRootProcess = typeof process.send !== 'function'
+    if (!process.env.NEXT_MINIMAL && isRootProcess) {
       // We only validate the config against schema in non minimal mode
       const { configSchema } =
         require('./config-schema') as typeof import('./config-schema')
       const state = configSchema.safeParse(userConfig)
 
-      if (state.success === false) {
+      if (!state.success) {
         // error message header
         const messages = [`Invalid ${configFileName} options detected: `]
 
@@ -1387,7 +1507,7 @@ export default async function loadConfig(
 
     if (userConfig.experimental?.turbo) {
       curLog.warn(
-        'The config property `experimental.turbo` is deprecated. Move this setting to `config.turbopack` as Turbopack is now stable.'
+        'The config property `experimental.turbo` is deprecated. Move this setting to `config.turbopack` or run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .`'
       )
 
       // Merge the two configs, preferring values in `config.turbopack`.
@@ -1426,9 +1546,7 @@ export default async function loadConfig(
 
     enforceExperimentalFeatures(userConfig, {
       isDefaultConfig: false,
-      configuredExperimentalFeatures: reportExperimentalFeatures
-        ? configuredExperimentalFeatures
-        : undefined,
+      configuredExperimentalFeatures,
       debugPrerender,
       phase,
     })
@@ -1444,11 +1562,20 @@ export default async function loadConfig(
       silent
     ) as NextConfigComplete
 
+    const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
+
+    // Cache the final result
+    configCache.set(cacheKey, {
+      config: finalConfig,
+      rawConfig: userConfigModule, // Store the original user config module
+      configuredExperimentalFeatures,
+    })
+
     if (reportExperimentalFeatures) {
       reportExperimentalFeatures(configuredExperimentalFeatures)
     }
 
-    return await applyModifyConfig(completeConfig, phase, silent)
+    return finalConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const unsupportedConfig = findUp.sync(
@@ -1475,9 +1602,7 @@ export default async function loadConfig(
 
   enforceExperimentalFeatures(clonedDefaultConfig, {
     isDefaultConfig: true,
-    configuredExperimentalFeatures: reportExperimentalFeatures
-      ? configuredExperimentalFeatures
-      : undefined,
+    configuredExperimentalFeatures,
     debugPrerender,
     phase,
   })
@@ -1492,11 +1617,20 @@ export default async function loadConfig(
 
   setHttpClientAndAgentOptions(completeConfig)
 
+  const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
+
+  // Cache the default config result
+  configCache.set(cacheKey, {
+    config: finalConfig,
+    rawConfig: clonedDefaultConfig,
+    configuredExperimentalFeatures,
+  })
+
   if (reportExperimentalFeatures) {
     reportExperimentalFeatures(configuredExperimentalFeatures)
   }
 
-  return await applyModifyConfig(completeConfig, phase, silent)
+  return finalConfig
 }
 
 export type ConfiguredExperimentalFeature = {
@@ -1607,6 +1741,25 @@ function enforceExperimentalFeatures(
       addConfiguredExperimentalFeature(
         configuredExperimentalFeatures,
         'clientSegmentCache',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made Client Param Parsing the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.clientParamParsing === undefined ||
+      (isDefaultConfig && !config.experimental.clientParamParsing))
+  ) {
+    config.experimental.clientParamParsing = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'clientParamParsing',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_PPR`'
       )

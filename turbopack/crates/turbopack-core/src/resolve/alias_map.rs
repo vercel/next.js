@@ -497,12 +497,12 @@ where
                     }
                     AliasKey::Wildcard { suffix } => {
                         let mut remaining = self.request.clone();
-                        remaining.strip_prefix(prefix.len());
+                        remaining.strip_prefix_len(prefix.len());
                         let remaining_suffix = remaining.constant_suffix();
                         if !remaining_suffix.ends_with(&**suffix) {
                             continue;
                         }
-                        remaining.strip_suffix(suffix.len());
+                        remaining.strip_suffix_len(suffix.len());
 
                         let output = template.replace(&remaining);
                         return Some(AliasMatch::Replaced(output));
@@ -701,6 +701,8 @@ pub trait AliasTemplate {
 #[cfg(test)]
 mod test {
     use std::assert_matches::assert_matches;
+
+    use turbo_rcstr::rcstr;
 
     use super::{AliasMap, AliasPattern, AliasTemplate};
     use crate::resolve::pattern::Pattern;
@@ -916,37 +918,37 @@ mod test {
 
         assert_eq!(
             map.lookup(&Pattern::Concatenation(vec![
-                Pattern::Constant("card/".into()),
+                Pattern::Constant(rcstr!("card/")),
                 Pattern::Dynamic
             ]))
             .collect::<Vec<_>>(),
             vec![super::AliasMatch::Replaced(Pattern::Concatenation(vec![
-                Pattern::Constant("src/cards/".into()),
+                Pattern::Constant(rcstr!("src/cards/")),
                 Pattern::Dynamic
             ]))]
         );
         assert_eq!(
             map.lookup(&Pattern::Concatenation(vec![
-                Pattern::Constant("comp/".into()),
+                Pattern::Constant(rcstr!("comp/")),
                 Pattern::Dynamic,
-                Pattern::Constant("/x".into()),
+                Pattern::Constant(rcstr!("/x")),
             ]))
             .collect::<Vec<_>>(),
             vec![super::AliasMatch::Replaced(Pattern::Concatenation(vec![
-                Pattern::Constant("src/comps/".into()),
+                Pattern::Constant(rcstr!("src/comps/")),
                 Pattern::Dynamic,
-                Pattern::Constant("/x".into()),
+                Pattern::Constant(rcstr!("/x")),
             ]))]
         );
         assert_eq!(
             map.lookup(&Pattern::Concatenation(vec![
-                Pattern::Constant("head/".into()),
+                Pattern::Constant(rcstr!("head/")),
                 Pattern::Dynamic,
-                Pattern::Constant("/x".into()),
+                Pattern::Constant(rcstr!("/x")),
             ]))
             .collect::<Vec<_>>(),
             vec![super::AliasMatch::Replaced(Pattern::Concatenation(vec![
-                Pattern::Constant("src/heads/".into()),
+                Pattern::Constant(rcstr!("src/heads/")),
                 Pattern::Dynamic,
             ]))]
         );

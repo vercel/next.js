@@ -7,14 +7,15 @@ import {
   trackDynamicDataInDynamicRender,
   annotateDynamicAccess,
   trackSynchronousRequestDataAccessInDev,
+  delayUntilRuntimeStage,
 } from '../app-render/dynamic-rendering'
 
 import {
   workUnitAsyncStorage,
-  type PrerenderStore,
   type PrerenderStoreLegacy,
   type PrerenderStorePPR,
   type PrerenderStoreModern,
+  type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
@@ -72,6 +73,10 @@ export function createSearchParamsFromClient(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createPrerenderSearchParams(workStore, workUnitStore)
+      case 'prerender-runtime':
+        throw new InvariantError(
+          'createSearchParamsFromClient should not be called in a runtime prerender.'
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -109,6 +114,11 @@ export function createServerSearchParamsForServerPage(
         throw new InvariantError(
           'createServerSearchParamsForServerPage should not be called in cache contexts.'
         )
+      case 'prerender-runtime':
+        return delayUntilRuntimeStage(
+          workUnitStore,
+          createRenderSearchParams(underlyingSearchParams, workStore)
+        )
       case 'request':
         break
       default:
@@ -134,7 +144,15 @@ export function createPrerenderSearchParamsForClientPage(
       case 'prerender-client':
         // We're prerendering in a mode that aborts (cacheComponents) and should stall
         // the promise to ensure the RSC side is considered dynamic
-        return makeHangingPromise(workUnitStore.renderSignal, '`searchParams`')
+        return makeHangingPromise(
+          workUnitStore.renderSignal,
+          workStore.route,
+          '`searchParams`'
+        )
+      case 'prerender-runtime':
+        throw new InvariantError(
+          'createPrerenderSearchParamsForClientPage should not be called in a runtime prerender.'
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -157,7 +175,7 @@ export function createPrerenderSearchParamsForClientPage(
 
 function createPrerenderSearchParams(
   workStore: WorkStore,
-  prerenderStore: PrerenderStore
+  prerenderStore: StaticPrerenderStore
 ): Promise<SearchParams> {
   if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
@@ -169,7 +187,7 @@ function createPrerenderSearchParams(
     case 'prerender':
     case 'prerender-client':
       // We are in a cacheComponents (PPR or otherwise) prerender
-      return makeHangingSearchParams(prerenderStore)
+      return makeHangingSearchParams(workStore, prerenderStore)
     case 'prerender-ppr':
     case 'prerender-legacy':
       // We are in a legacy static generation and need to interrupt the
@@ -223,6 +241,7 @@ const CachedSearchParamsForUseCache = new WeakMap<
 >()
 
 function makeHangingSearchParams(
+  workStore: WorkStore,
   prerenderStore: PrerenderStoreModern
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParams.get(prerenderStore)
@@ -232,6 +251,7 @@ function makeHangingSearchParams(
 
   const promise = makeHangingPromise<SearchParams>(
     prerenderStore.renderSignal,
+    workStore.route,
     '`searchParams`'
   )
 
@@ -440,7 +460,7 @@ function makeErroringExoticSearchParams(
  * error on access, because accessing searchParams inside of `"use cache"` is
  * not allowed.
  */
-export function makeErroringExoticSearchParamsForUseCache(
+export function makeErroringSearchParamsForUseCache(
   workStore: WorkStore
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParamsForUseCache.get(workStore)
@@ -803,6 +823,7 @@ function syncIODev(
         break
       case 'prerender':
       case 'prerender-client':
+      case 'prerender-runtime':
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'cache':

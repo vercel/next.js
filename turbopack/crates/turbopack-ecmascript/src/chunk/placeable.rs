@@ -230,7 +230,7 @@ pub enum EcmascriptExports {
 #[turbo_tasks::value_impl]
 impl EcmascriptExports {
     #[turbo_tasks::function]
-    pub async fn needs_facade(&self) -> Result<Vc<bool>> {
+    pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
         Ok(match self {
             EcmascriptExports::EsmExports(exports) => {
                 let exports = exports.await?;

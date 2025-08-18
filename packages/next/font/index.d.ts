@@ -19,6 +19,7 @@ export type FontLoader = (options: {
   resolve: (src: string) => string
   isDev: boolean
   isServer: boolean
+  deploymentId: string | undefined
   loaderContext: any
 }) => Promise<{
   css: string

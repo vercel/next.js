@@ -1,6 +1,5 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -61,18 +60,20 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
 }
 
 #[turbo_tasks::function]
-fn unsupported_module_source(root_path: FileSystemPath, module: RcStr) -> Vc<VirtualSource> {
+fn unsupported_module_source(root_path: FileSystemPath, module: Pattern) -> Vc<VirtualSource> {
     // packages/next/src/server/web/globals.ts augments global with
     // `__import_unsupported` and necessary functions.
     let code = formatdoc! {
         r#"
         {TURBOPACK_EXPORT_NAMESPACE}(__import_unsupported(`{module}`));
-        "#
+        "#,
+        module = module.as_constant_string().map(ToString::to_string).unwrap_or_else(|| module.describe_as_string()),
     };
     let content = AssetContent::file(File::from(code).into());
     VirtualSource::new_with_ident(
-        AssetIdent::from_path(root_path)
-            .with_modifier(format!("unsupported edge import {module}").into()),
+        AssetIdent::from_path(root_path).with_modifier(
+            format!("unsupported edge import {}", module.describe_as_string()).into(),
+        ),
         content,
     )
 }

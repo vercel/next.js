@@ -62,8 +62,13 @@ const PLUGIN_NAME = 'FlightClientEntryPlugin'
 
 type Actions = {
   [actionId: string]: {
+    exportedName?: string
+    filename?: string
     workers: {
-      [name: string]: { moduleId: string | number; async: boolean }
+      [name: string]: {
+        moduleId: string | number
+        async: boolean
+      }
     }
     // Record which layer the action is in (rsc or sc_action), in the specific entry.
     layer: {
@@ -72,7 +77,7 @@ type Actions = {
   }
 }
 
-type ActionIdNamePair = { id: string; exportedName: string }
+type ActionIdNamePair = { id: string; exportedName?: string; filename?: string }
 
 export type ActionManifest = {
   // Assign a unique encryption key during production build.
@@ -92,11 +97,17 @@ const pluginState = getProxiedPluginState({
   edgeServerActions: {} as ActionManifest['edge'],
 
   serverActionModules: {} as {
-    [workerName: string]: { server?: ModuleInfo; client?: ModuleInfo }
+    [workerName: string]: {
+      server?: ModuleInfo
+      client?: ModuleInfo
+    }
   },
 
   edgeServerActionModules: {} as {
-    [workerName: string]: { server?: ModuleInfo; client?: ModuleInfo }
+    [workerName: string]: {
+      server?: ModuleInfo
+      client?: ModuleInfo
+    }
   },
 
   ssrModules: {} as { [ssrModuleId: string]: ModuleInfo },
@@ -183,6 +194,7 @@ function deduplicateCSSImportsForEntry(mergedCSSimports: CssImports) {
 export class FlightClientEntryPlugin {
   dev: boolean
   appDir: string
+  projectDir: string
   encryptionKey: string
   isEdgeServer: boolean
   assetPrefix: string
@@ -191,6 +203,7 @@ export class FlightClientEntryPlugin {
   constructor(options: Options) {
     this.dev = options.dev
     this.appDir = options.appDir
+    this.projectDir = path.join(options.appDir, '..')
     this.isEdgeServer = options.isEdgeServer
     this.assetPrefix = !this.dev && !this.isEdgeServer ? '../' : ''
     this.encryptionKey = options.encryptionKey
@@ -628,6 +641,7 @@ export class FlightClientEntryPlugin {
             Object.entries(actionIds).map(([id, exportedName]) => ({
               id,
               exportedName,
+              filename: path.posix.relative(this.projectDir, modResource),
             }))
           )
         }
@@ -728,6 +742,7 @@ export class FlightClientEntryPlugin {
           Object.entries(actionIds).map(([id, exportedName]) => ({
             id,
             exportedName,
+            filename: path.posix.relative(this.projectDir, modResource),
           })),
         ])
       }
@@ -949,11 +964,13 @@ export class FlightClientEntryPlugin {
       : pluginState.serverActions
 
     for (const [, actionsFromModule] of actionsArray) {
-      for (const { id } of actionsFromModule) {
+      for (const { id, exportedName, filename } of actionsFromModule) {
         if (typeof currentCompilerServerActions[id] === 'undefined') {
           currentCompilerServerActions[id] = {
             workers: {},
             layer: {},
+            filename,
+            exportedName,
           }
         }
         currentCompilerServerActions[id].workers[bundlePath] = {
@@ -1060,6 +1077,7 @@ export class FlightClientEntryPlugin {
         if (!mapping[chunkGroup.name]) {
           mapping[chunkGroup.name] = {}
         }
+
         mapping[chunkGroup.name][fromClient ? 'client' : 'server'] = {
           moduleId: modId,
           async: compilation.moduleGraph.isAsync(mod),

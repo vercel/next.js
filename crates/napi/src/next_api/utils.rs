@@ -4,7 +4,7 @@ use anyhow::{Context, Result, anyhow};
 use futures_util::TryFutureExt;
 use napi::{
     JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
-    bindgen_prelude::{External, ToNapiValue},
+    bindgen_prelude::{Buffer, External, ToNapiValue},
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use rustc_hash::FxHashMap;
@@ -379,4 +379,26 @@ pub async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
     };
 
     Ok((result, issues, diagnostics, effects))
+}
+
+#[napi]
+pub fn expand_next_js_template(
+    content: Buffer,
+    template_path: String,
+    next_package_dir_path: String,
+    #[napi(ts_arg_type = "Record<string, string>")] replacements: FxHashMap<String, String>,
+    #[napi(ts_arg_type = "Record<string, string>")] injections: FxHashMap<String, String>,
+    #[napi(ts_arg_type = "Record<string, string | null>")] imports: FxHashMap<
+        String,
+        Option<String>,
+    >,
+) -> napi::Result<String> {
+    Ok(next_taskless::expand_next_js_template(
+        str::from_utf8(&content).context("template content must be valid utf-8")?,
+        &template_path,
+        &next_package_dir_path,
+        replacements.iter().map(|(k, v)| (&**k, &**v)),
+        injections.iter().map(|(k, v)| (&**k, &**v)),
+        imports.iter().map(|(k, v)| (&**k, v.as_deref())),
+    )?)
 }

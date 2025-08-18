@@ -93,12 +93,12 @@ describe('ReactRefreshLogBox app', () => {
          "description": "no",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (3:7) @ [project]/index.js [app-client] (ecmascript)
+         "source": "index.js (3:7) @ {module evaluation}
        > 3 | throw new Error('no')
            |       ^",
          "stack": [
-           "[project]/index.js [app-client] (ecmascript) index.js (3:7)",
-           "[project]/app/page.js [app-client] (ecmascript) app/page.js (2:1)",
+           "{module evaluation} index.js (3:7)",
+           "{module evaluation} app/page.js (2:1)",
          ],
        }
       `)
@@ -415,13 +415,13 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing css source code failed",
+         "description": "Parsing CSS source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.module.css (1:9)
-       Parsing css source code failed
+         "source": "./index.module.css (1:8)
+       Parsing CSS source code failed
        > 1 | .button
-           |         ^",
+           |        ^",
          "stack": [],
        }
       `)
@@ -447,11 +447,11 @@ describe('ReactRefreshLogBox app', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing css source code failed",
+         "description": "Transforming CSS failed",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css
-       Parsing css source code failed
+       Transforming CSS failed
        Selector "button" is not pure. Pure selectors must contain at least one local class or id.
        Import traces:
          Client Component Browser:
@@ -938,8 +938,7 @@ describe('ReactRefreshLogBox app', () => {
          "description": "test",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "index.js (3:11) @
-       {default export}
+         "source": "index.js (3:11) @ {default export}
        > 3 |     throw new Error('test')
            |           ^",
          "stack": [
@@ -1570,12 +1569,12 @@ export default function Home() {
          "description": "utils error",
          "environmentLabel": null,
          "label": "Runtime Error",
-         "source": "app/utils.ts (1:7) @ [project]/app/utils.ts [app-client] (ecmascript)
+         "source": "app/utils.ts (1:7) @ {module evaluation}
        > 1 | throw new Error('utils error')
            |       ^",
          "stack": [
-           "[project]/app/utils.ts [app-client] (ecmascript) app/utils.ts (1:7)",
-           "[project]/app/page.js [app-client] (ecmascript) app/page.js (2:1)",
+           "{module evaluation} app/utils.ts (1:7)",
+           "{module evaluation} app/page.js (2:1)",
          ],
        }
       `)

@@ -571,7 +571,7 @@ impl ChunkingContext for BrowserChunkingContext {
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = tracing::info_span!("chunking", ident = ident.to_string().await?.to_string());
+        let span = tracing::info_span!("chunking", name = ident.to_string().await?.to_string());
         async move {
             let this = self.await?;
             let modules = chunk_group.entries();

@@ -636,6 +636,18 @@ export default function myImageLoader({ src, width, quality }) {
 
 > Alternatively, you can use the [`loader` prop](#loader) to configure each instance of `next/image`.
 
+#### `path`
+
+If you want to change or prefix the default path for the Image Optimization API, you can do so with the `path` property. The default value for `path` is `/_next/image`.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    path: '/my-prefix/_next/image',
+  },
+}
+```
+
 #### `deviceSizes`
 
 `deviceSizes` allows you to specify a list of device width breakpoints. These widths are used when the `next/image` component uses [`sizes`](#sizes) prop to ensure the correct image is served for the user's device.
@@ -727,7 +739,7 @@ module.exports = {
 }
 ```
 
-You can increase the TTL to reduce the number of revalidations and potentionally lower cost:
+You can increase the TTL to reduce the number of revalidations and potentially lower cost:
 
 ```js filename="next.config.js"
 module.exports = {

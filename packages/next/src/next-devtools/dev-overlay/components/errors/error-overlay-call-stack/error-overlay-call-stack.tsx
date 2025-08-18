@@ -3,7 +3,7 @@ import { useMemo, useState, useRef } from 'react'
 import { CallStack } from '../../call-stack/call-stack'
 
 interface CallStackProps {
-  frames: OriginalStackFrame[]
+  frames: readonly OriginalStackFrame[]
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 
@@ -36,6 +36,7 @@ export function ErrorOverlayCallStack({
         dialog.removeEventListener('transitionend', onTransitionEnd)
         setIsIgnoreListOpen(false)
       }
+      // eslint-disable-next-line react-hooks/react-compiler -- Bug in react-hooks/react-compiler
       dialog.style.height = `${initialDialogHeight.current}px`
       dialog.addEventListener('transitionend', onTransitionEnd)
     } else {

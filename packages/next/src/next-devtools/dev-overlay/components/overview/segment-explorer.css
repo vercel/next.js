@@ -3,7 +3,6 @@
   padding: 0 8px;
   width: 100%;
   height: 100%;
-  overflow-y: hidden;
 }
 
 .segment-explorer-page-route-bar {
@@ -31,13 +30,16 @@
 .segment-explorer-item:nth-child(even) {
   background-color: var(--color-background-200);
 }
-
 .segment-explorer-item-row {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   padding-top: 10px;
   padding-bottom: 10px;
   padding-right: 4px;
+}
+.segment-explorer-item-row-main {
+  display: flex;
+  align-items: center;
   white-space: pre;
   cursor: default;
   color: var(--color-gray-1000);
@@ -56,9 +58,8 @@
 .segment-explorer-filename select {
   margin-left: auto;
 }
-
 .segment-explorer-filename--path {
-  margin-right: auto;
+  margin-right: 8px;
 }
 .segment-explorer-filename--path small {
   display: inline-block;
@@ -83,7 +84,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 6px;
+  padding: 0 6px;
+  height: 20px;
   border-radius: 16px;
   line-height: 16px;
   font-size: var(--size-12);
@@ -92,6 +94,10 @@
   cursor: pointer;
   background-color: var(--color-gray-300);
   color: var(--color-gray-1000);
+}
+.segment-explorer-file-label-text {
+  display: inline-flex;
+  align-items: center;
 }
 
 .segment-explorer-file-label--overridden {
@@ -184,4 +190,13 @@
 
 .segment-explorer-file-label-tooltip--lg {
   min-width: 200px;
+}
+
+.segment-explorer-suggestions {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.segment-explorer-suggestions-tooltip {
+  width: 200px;
 }

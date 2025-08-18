@@ -1,19 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { NextLogo } from './next-logo'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
-// TODO: NEXT-4642
-const StoryBookNextLogo = (
-  _: {
-    issueCount: number
-    isDevBuilding: boolean
-    isDevRendering: boolean
-  } & Record<string, unknown>
-) => {
-  return <NextLogo onTriggerClick={() => {}} />
-}
+import { withDevOverlayContexts } from '../../storybook/with-dev-overlay-contexts'
 
-const meta: Meta<typeof StoryBookNextLogo> = {
-  component: StoryBookNextLogo,
+const meta: Meta<typeof NextLogo> = {
+  component: NextLogo,
   parameters: {
     layout: 'centered',
   },
@@ -24,68 +15,100 @@ const meta: Meta<typeof StoryBookNextLogo> = {
 }
 
 export default meta
-type Story = StoryObj<typeof StoryBookNextLogo>
+type Story = StoryObj<typeof NextLogo>
 
 export const NoIssues: Story = {
-  args: {
-    issueCount: 0,
-    isDevBuilding: false,
-    isDevRendering: false,
-  },
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 0,
+      state: {
+        buildingIndicator: false,
+        renderingIndicator: false,
+      },
+    }),
+  ],
 }
 
 export const SingleIssue: Story = {
-  args: {
-    issueCount: 1,
-    isDevBuilding: false,
-    isDevRendering: false,
-  },
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 1,
+      state: {
+        buildingIndicator: false,
+        renderingIndicator: false,
+      },
+    }),
+  ],
 }
 
 export const MultipleIssues: Story = {
-  args: {
-    issueCount: 5,
-    isDevBuilding: false,
-    isDevRendering: false,
-  },
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 5,
+      state: {
+        buildingIndicator: false,
+        renderingIndicator: false,
+      },
+    }),
+  ],
 }
 
 export const ManyIssues: Story = {
-  args: {
-    issueCount: 99,
-    isDevBuilding: false,
-    isDevRendering: false,
-  },
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 99,
+      state: {
+        buildingIndicator: false,
+        renderingIndicator: false,
+      },
+    }),
+  ],
 }
 
 export const Building: Story = {
-  args: {
-    issueCount: 0,
-    isDevBuilding: true,
-    isDevRendering: false,
-  },
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 0,
+      state: {
+        buildingIndicator: true,
+        renderingIndicator: false,
+      },
+    }),
+  ],
 }
 
 export const BuildingWithError: Story = {
-  args: {
-    issueCount: 1,
-    isDevBuilding: true,
-    isDevRendering: false,
-  },
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 1,
+      state: {
+        buildingIndicator: true,
+        renderingIndicator: false,
+      },
+    }),
+  ],
 }
 
 export const Rendering: Story = {
-  args: {
-    issueCount: 0,
-    isDevBuilding: false,
-    isDevRendering: true,
-  },
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 0,
+      state: {
+        buildingIndicator: false,
+        renderingIndicator: true,
+      },
+    }),
+  ],
 }
 
 export const RenderingWithError: Story = {
-  args: {
-    issueCount: 1,
-    isDevBuilding: false,
-    isDevRendering: true,
-  },
+  decorators: [
+    withDevOverlayContexts({
+      totalErrorCount: 1,
+      state: {
+        buildingIndicator: false,
+        renderingIndicator: true,
+      },
+    }),
+  ],
 }

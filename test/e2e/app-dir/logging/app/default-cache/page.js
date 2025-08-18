@@ -1,3 +1,5 @@
+import { revalidateTag } from 'next/cache'
+
 export const fetchCache = 'default-cache'
 
 async function AnotherRsc() {
@@ -55,7 +57,8 @@ async function FirstRsc() {
   ).then((res) => res.text())
 
   const dataAutoCache = await fetch(
-    'https://next-data-api-endpoint.vercel.app/api/random?auto-cache'
+    'https://next-data-api-endpoint.vercel.app/api/random?auto-cache',
+    { next: { tags: ['test-tag'] } }
   ).then((res) => res.text())
 
   return (
@@ -72,12 +75,26 @@ async function FirstRsc() {
   )
 }
 
+function RevalidateForm() {
+  return (
+    <form
+      action={async () => {
+        'use server'
+        revalidateTag('test-tag')
+      }}
+    >
+      <button id="revalidate-button">Revalidate</button>
+    </form>
+  )
+}
+
 export default async function Page() {
   return (
     <>
       <h1>Default Cache</h1>
       <FirstRsc />
       <AnotherRsc />
+      <RevalidateForm />
     </>
   )
 }

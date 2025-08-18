@@ -4,10 +4,7 @@ import './app-webpack'
 
 import { renderAppDevOverlay } from 'next/dist/compiled/next-devtools'
 import { appBootstrap } from './app-bootstrap'
-import {
-  getComponentStack,
-  getOwnerStack,
-} from '../next-devtools/userspace/app/errors/stitched-error'
+import { getOwnerStack } from '../next-devtools/userspace/app/errors/stitched-error'
 import { isRecoverableError } from './react-client-callbacks/on-recoverable-error'
 
 // eslint-disable-next-line @next/internal/typechecked-require
@@ -18,6 +15,6 @@ appBootstrap(() => {
   try {
     hydrate(instrumentationHooks)
   } finally {
-    renderAppDevOverlay(getComponentStack, getOwnerStack, isRecoverableError)
+    renderAppDevOverlay(getOwnerStack, isRecoverableError)
   }
 })

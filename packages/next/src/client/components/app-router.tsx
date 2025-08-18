@@ -22,8 +22,6 @@ import {
   PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
-import { ErrorBoundary } from './error-boundary'
-import DefaultGlobalError from './builtin/global-error'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -44,7 +42,9 @@ import {
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
 import { pingVisibleLinks } from './links'
-import GracefulDegradeBoundary from './errors/graceful-degrade-boundary'
+import RootErrorBoundary from './errors/root-error-boundary'
+import DefaultGlobalError from './builtin/global-error'
+import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -196,12 +196,10 @@ function Router({
   actionQueue,
   assetPrefix,
   globalError,
-  gracefullyDegrade,
 }: {
   actionQueue: AppRouterActionQueue
   assetPrefix: string
   globalError: GlobalErrorState
-  gracefullyDegrade: boolean
 }) {
   const state = useActionQueue(actionQueue)
   const { canonicalUrl } = state
@@ -476,8 +474,17 @@ function Router({
     //
     // The `key` is used to remount the component whenever the head moves to
     // a different segment.
-    const [headCacheNode, headKey] = matchingHead
-    head = <Head key={headKey} headCacheNode={headCacheNode} />
+    const [headCacheNode, headKey, headKeyWithoutSearchParams] = matchingHead
+
+    head = (
+      <Head
+        key={
+          // Necessary for PPR: omit search params from the key to match prerendered keys
+          typeof window === 'undefined' ? headKeyWithoutSearchParams : headKey
+        }
+        headCacheNode={headCacheNode}
+      />
+    )
   } else {
     head = null
   }
@@ -485,7 +492,10 @@ function Router({
   let content = (
     <RedirectBoundary>
       {head}
-      {cache.rsc}
+      {/* RootLayoutBoundary enables detection of Suspense boundaries around the root layout.
+          When users wrap their layout in <Suspense>, this creates the component stack pattern
+          "Suspense -> RootLayoutBoundary" which dynamic-rendering.ts uses to allow dynamic rendering. */}
+      <RootLayoutBoundary>{cache.rsc}</RootLayoutBoundary>
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
   )
@@ -517,20 +527,14 @@ function Router({
       </HotReloader>
     )
   } else {
-    // If gracefully degrading is applied in production,
-    // leave the app as it is rather than caught by GlobalError boundary.
-    if (gracefullyDegrade) {
-      content = <GracefulDegradeBoundary>{content}</GracefulDegradeBoundary>
-    } else {
-      content = (
-        <ErrorBoundary
-          errorComponent={globalError[0]}
-          errorStyles={globalError[1]}
-        >
-          {content}
-        </ErrorBoundary>
-      )
-    }
+    content = (
+      <RootErrorBoundary
+        errorComponent={globalError[0]}
+        errorStyles={globalError[1]}
+      >
+        {content}
+      </RootErrorBoundary>
+    )
   }
 
   return (
@@ -565,12 +569,10 @@ export default function AppRouter({
   actionQueue,
   globalErrorState,
   assetPrefix,
-  gracefullyDegrade,
 }: {
   actionQueue: AppRouterActionQueue
   globalErrorState: GlobalErrorState
   assetPrefix: string
-  gracefullyDegrade: boolean
 }) {
   useNavFailureHandler()
 
@@ -579,23 +581,16 @@ export default function AppRouter({
       actionQueue={actionQueue}
       assetPrefix={assetPrefix}
       globalError={globalErrorState}
-      gracefullyDegrade={gracefullyDegrade}
     />
   )
 
-  if (gracefullyDegrade) {
-    return router
-  } else {
-    return (
-      <ErrorBoundary
-        // At the very top level, use the default GlobalError component as the final fallback.
-        // When the app router itself fails, which means the framework itself fails, we show the default error.
-        errorComponent={DefaultGlobalError}
-      >
-        {router}
-      </ErrorBoundary>
-    )
-  }
+  // At the very top level, use the default GlobalError component as the final fallback.
+  // When the app router itself fails, which means the framework itself fails, we show the default error.
+  return (
+    <RootErrorBoundary errorComponent={DefaultGlobalError}>
+      {router}
+    </RootErrorBoundary>
+  )
 }
 
 const runtimeStyles = new Set<string>()

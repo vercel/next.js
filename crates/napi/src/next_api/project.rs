@@ -39,9 +39,9 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, get_relative_path_to,
-    util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, util::uri_from_file,
 };
+use turbo_unix_path::get_relative_path_to;
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     diagnostics::PlainDiagnostic,
@@ -253,6 +253,8 @@ pub struct NapiTurboEngineOptions {
     pub dependency_tracking: Option<bool>,
     /// Whether the project is running in a CI environment.
     pub is_ci: Option<bool>,
+    /// Whether the project is running in a short session.
+    pub is_short_session: Option<bool>,
 }
 
 impl From<NapiWatchOptions> for WatchOptions {
@@ -434,12 +436,14 @@ pub fn project_new(
         let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
         let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
         let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
+        let is_short_session = turbo_engine_options.is_short_session.unwrap_or(false);
         let turbo_tasks = create_turbo_tasks(
             PathBuf::from(&options.dist_dir),
             persistent_caching,
             memory_limit,
             dependency_tracking,
             is_ci,
+            is_short_session,
         )?;
         let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 
@@ -537,7 +541,7 @@ async fn benchmark_file_io(
         ))?
         .await?;
 
-    let directory = fs.to_sys_path(directory).await?;
+    let directory = fs.to_sys_path(directory)?;
     let temp_path = directory.join(format!(
         "tmp_file_io_benchmark_{:x}",
         rand::random::<u128>()
@@ -568,14 +572,6 @@ async fn benchmark_file_io(
 
     let duration = Instant::now().duration_since(start);
     if duration > SLOW_FILESYSTEM_THRESHOLD {
-        println!(
-            "Slow filesystem detected. The benchmark took {}ms. If {} is a network drive, \
-             consider moving it to a local folder. If you have an antivirus enabled, consider \
-             excluding your project directory.",
-            duration.as_millis(),
-            directory.to_string_lossy(),
-        );
-
         turbo_tasks.send_compilation_event(Arc::new(SlowFilesystemEvent {
             directory: directory.to_string_lossy().into(),
             duration_ms: duration.as_millis(),

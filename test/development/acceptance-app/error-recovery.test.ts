@@ -142,10 +142,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/server/page.js (2:27)
+         "source": "./app/server/page.js (2:28)
        Parsing ecmascript source code failed
        > 2 |   return <p>Hello world</p>
-           |                           ^",
+           |                            ^",
          "stack": [],
        }
       `)
@@ -160,7 +160,6 @@ describe('Error recovery app', () => {
           ,-[2:1]
         1 | export default function Page() {
         2 |   return <p>Hello world</p>
-          :                           ^
           \`----
        Caused by:
            Syntax Error
@@ -206,10 +205,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/client/page.js (2:27)
+         "source": "./app/client/page.js (2:28)
        Parsing ecmascript source code failed
        > 2 |   return <p>Hello world</p>
-           |                           ^",
+           |                            ^",
          "stack": [],
        }
       `)
@@ -224,7 +223,6 @@ describe('Error recovery app', () => {
           ,-[2:1]
         1 | export default function Page() {
         2 |   return <p>Hello world</p>
-          :                           ^
           \`----
        Caused by:
            Syntax Error
@@ -286,6 +284,10 @@ describe('Error recovery app', () => {
 
     if (isTurbopack) {
       // TODO(veil): Location of Page should be app/page.js
+      // TODO(sokra): The location is wrong because of an bug with HMR and source maps.
+      // When the code `index.js` changes, this also moves the locations of `app/page.js` in the bundled file.
+      // So the SourceMap is updated to reflect that. But the browser still has the old bundled file loaded.
+      // So we look up locations from the old bundle in the new source maps, which leads to mismatched locations.
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "description": "oops",
@@ -298,7 +300,7 @@ describe('Error recovery app', () => {
            "Index.useCallback[increment] index.js (7:11)",
            "button <anonymous>",
            "Index index.js (12:7)",
-           "Page index.js (10:6)",
+           "Page index.js (10:5)",
          ],
        }
       `)
@@ -619,10 +621,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (10:41)
+         "source": "./index.js (10:42)
        Parsing ecmascript source code failed
        > 10 | export default function FunctionNamed() {
-            |                                         ^",
+            |                                          ^",
          "stack": [],
        }
       `)
@@ -636,7 +638,6 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
            ,-[10:1]
         10 | export default function FunctionNamed() {
-           :                                         ^
            \`----
        Caused by:
            Syntax Error
@@ -656,10 +657,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./index.js (10:41)
+         "source": "./index.js (10:42)
        Parsing ecmascript source code failed
        > 10 | export default function FunctionNamed() {
-            |                                         ^",
+            |                                          ^",
          "stack": [],
        }
       `)
@@ -673,7 +674,6 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
            ,-[10:1]
         10 | export default function FunctionNamed() {
-           :                                         ^
            \`----
        Caused by:
            Syntax Error
@@ -1012,10 +1012,10 @@ describe('Error recovery app', () => {
          "description": "Parsing ecmascript source code failed",
          "environmentLabel": null,
          "label": "Build Error",
-         "source": "./app/page.js (1:3)
+         "source": "./app/page.js (1:4)
        Parsing ecmascript source code failed
        > 1 | {{{
-           |   ^",
+           |    ^",
          "stack": [],
        }
       `)
@@ -1029,7 +1029,6 @@ describe('Error recovery app', () => {
        Error:   x Expected '}', got '<eof>'
           ,----
         1 | {{{
-          :   ^
           \`----
        Caused by:
            Syntax Error",

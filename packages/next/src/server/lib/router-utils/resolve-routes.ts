@@ -18,7 +18,10 @@ import { formatHostname } from '../format-hostname'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { isAbortError } from '../../pipe-readable'
 import { getHostname } from '../../../shared/lib/get-hostname'
-import { getRedirectStatus } from '../../../lib/redirect-status'
+import {
+  getRedirectStatus,
+  allowedStatusCodes,
+} from '../../../lib/redirect-status'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
 import { getRelativeURL } from '../../../shared/lib/router/utils/relativize-url'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
@@ -33,7 +36,6 @@ import { addRequestMeta } from '../../request-meta'
 import {
   compileNonPath,
   matchHas,
-  parseDestination,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
 import type { TLSSocket } from 'tls'
@@ -324,7 +326,7 @@ export function getResolveRoutes(
     }
 
     async function handleRoute(
-      route: (typeof routes)[0]
+      route: Route
     ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
       let curPathname = parsedUrl.pathname || '/'
 
@@ -660,15 +662,36 @@ export function getResolveRoutes(
 
             if (middlewareHeaders['location']) {
               const value = middlewareHeaders['location'] as string
-              const rel = getRelativeURL(value, initUrl)
-              resHeaders['location'] = rel
-              parsedUrl = url.parse(rel, true)
 
-              return {
-                parsedUrl,
-                resHeaders,
-                finished: true,
-                statusCode: middlewareRes.status,
+              // Only process Location header as a redirect if it has a proper redirect status
+              // This prevents a Location header with non-redirect status from being treated as a redirect
+              const isRedirectStatus = allowedStatusCodes.has(
+                middlewareRes.status
+              )
+
+              if (isRedirectStatus) {
+                // Process as redirect: update parsedUrl and convert to relative URL
+                const rel = getRelativeURL(value, initUrl)
+                resHeaders['location'] = rel
+                parsedUrl = url.parse(rel, true)
+
+                return {
+                  parsedUrl,
+                  resHeaders,
+                  finished: true,
+                  statusCode: middlewareRes.status,
+                }
+              } else {
+                // Not a redirect: just pass through the Location header
+                resHeaders['location'] = value
+
+                return {
+                  parsedUrl,
+                  resHeaders,
+                  finished: true,
+                  bodyStream,
+                  statusCode: middlewareRes.status,
+                }
               }
             }
 
@@ -744,8 +767,7 @@ export function getResolveRoutes(
             // is currently on, which wouldn't be extractable from the matched route params.
             // This attempts to extract the dynamic params from the provided router state.
             if (isInterceptionRouteRewrite(route as Rewrite)) {
-              const stateHeader =
-                req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
+              const stateHeader = req.headers[NEXT_ROUTER_STATE_TREE_HEADER]
 
               if (stateHeader) {
                 rewriteParams = {
@@ -760,16 +782,6 @@ export function getResolveRoutes(
             // this is a no-op -- we couldn't extract dynamic params from the provided router state,
             // so we'll just use the params from the route matcher
           }
-
-          // We extract the search params of the destination so we can set it on
-          // the response headers. We don't want to use the following
-          // `parsedDestination` as the query object is mutated.
-          const { search: destinationSearch, pathname: destinationPathname } =
-            parseDestination({
-              destination: route.destination,
-              params: rewriteParams,
-              query: parsedUrl.query,
-            })
 
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: true,
@@ -787,17 +799,20 @@ export function getResolveRoutes(
           }
 
           // Set the rewrite headers only if this is a RSC request.
-          if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+          if (req.headers[RSC_HEADER] === '1') {
             // We set the rewritten path and query headers on the response now
             // that we know that the it's not an external rewrite.
-            if (parsedUrl.pathname !== destinationPathname) {
-              res.setHeader(NEXT_REWRITTEN_PATH_HEADER, destinationPathname)
+            if (parsedUrl.pathname !== parsedDestination.pathname) {
+              res.setHeader(
+                NEXT_REWRITTEN_PATH_HEADER,
+                parsedDestination.pathname
+              )
             }
-            if (destinationSearch) {
+            if (parsedUrl.search !== parsedDestination.search) {
               res.setHeader(
                 NEXT_REWRITTEN_QUERY_HEADER,
                 // remove the leading ? from the search
-                destinationSearch.slice(1)
+                parsedDestination.search.slice(1)
               )
             }
           }

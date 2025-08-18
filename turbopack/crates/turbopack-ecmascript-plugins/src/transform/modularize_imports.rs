@@ -40,6 +40,7 @@ impl ModularizeImportsTransformer {
                                 skip_default_conversion: v.skip_default_conversion,
                                 handle_default_import: false,
                                 handle_namespace_import: false,
+                                style: None,
                             }),
                         )
                     })

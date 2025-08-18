@@ -10,7 +10,7 @@ export interface IgnorableStackFrame extends StackFrame {
 }
 
 export interface OriginalStackFramesRequest {
-  frames: StackFrame[]
+  frames: readonly StackFrame[]
   isServer: boolean
   isEdgeServer: boolean
   isAppDirectory: boolean

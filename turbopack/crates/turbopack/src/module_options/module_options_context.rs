@@ -6,8 +6,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::SourceMapsType, condition::ContextCondition, environment::Environment,
-    resolve::options::ImportMapping,
+    chunk::SourceMapsType, compile_time_info::CompileTimeInfo, condition::ContextCondition,
+    environment::Environment, resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{TreeShakingMode, references::esm::UrlRewriteBehavior};
 pub use turbopack_mdx::MdxTransformOptions;
@@ -17,6 +17,7 @@ use turbopack_node::{
 };
 
 use super::ModuleRule;
+use crate::module_options::RuleCondition;
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub struct LoaderRuleItem {
@@ -49,7 +50,8 @@ pub enum ConditionPath {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ConditionItem {
-    pub path: ConditionPath,
+    pub path: Option<ConditionPath>,
+    pub content: Option<ResolvedVc<EsRegex>>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -121,7 +123,6 @@ impl ValueDefault for TypescriptTransformOptions {
     }
 }
 
-// [TODO]: should enabled_react_refresh belong to this options?
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 pub struct JsxTransformOptions {
@@ -129,6 +130,14 @@ pub struct JsxTransformOptions {
     pub react_refresh: bool,
     pub import_source: Option<RcStr>,
     pub runtime: Option<RcStr>,
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+pub struct ExternalsTracingOptions {
+    /// The directory from which the bundled files will require the externals at runtime.
+    pub tracing_root: FileSystemPath,
+    pub compile_time_info: ResolvedVc<CompileTimeInfo>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -152,10 +161,7 @@ pub struct ModuleOptionsContext {
 
     /// Generate (non-emitted) output assets for static assets and externals, to facilitate
     /// generating a list of all non-bundled files that will be required at runtime.
-    ///
-    /// The filepath is the directory from which the bundled files will require the externals at
-    /// runtime.
-    pub enable_externals_tracing: Option<FileSystemPath>,
+    pub enable_externals_tracing: Option<ResolvedVc<ExternalsTracingOptions>>,
 
     /// If true, it stores the last successful parse result in state and keeps using it when
     /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
@@ -209,6 +215,11 @@ pub struct CssOptionsContext {
 
     /// Specifies how Source Maps are handled.
     pub source_maps: SourceMapsType,
+
+    /// Override the conditions for module CSS (doesn't have any effect if `enable_raw_css` is
+    /// true). By default (for `None`), it uses
+    /// `Any(ResourcePathEndsWith(".module.css"), ContentTypeStartsWith("text/css+module"))`
+    pub module_css_condition: Option<RuleCondition>,
 
     pub placeholder_for_future_extensions: (),
 }

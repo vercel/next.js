@@ -1,9 +1,7 @@
 import type { Rewrite, Redirect } from '../../../../lib/load-custom-routes'
-import type { Token } from 'next/dist/compiled/path-to-regexp'
 
 import fs from 'fs/promises'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
-import { parse } from 'next/dist/compiled/path-to-regexp'
 import path from 'path'
 
 import { WEBPACK_LAYERS } from '../../../../lib/constants'
@@ -15,7 +13,6 @@ import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import { getPageFromPath } from '../../../entries'
 import type { PageExtensions } from '../../../page-extensions-type'
-import { devPageFiles } from './shared'
 import { getProxiedPluginState } from '../../../build-context'
 import type { CacheLife } from '../../../../server/use-cache/cache-life'
 
@@ -34,7 +31,6 @@ interface Options {
   dev: boolean
   isEdgeServer: boolean
   pageExtensions: PageExtensions
-  typedRoutes: boolean
   cacheLifeConfig: undefined | { [profile: string]: CacheLife }
   originalRewrites: Rewrites | undefined
   originalRedirects: Redirect[] | undefined
@@ -283,266 +279,6 @@ function formatRouteToRouteType(route: string) {
     isDynamic,
     routeType: route,
   }
-}
-
-// Whether redirects and rewrites have been converted into routeTypes or not.
-let redirectsRewritesTypesProcessed = false
-
-// Convert redirects and rewrites into routeTypes.
-function addRedirectsRewritesRouteTypes(
-  rewrites: Rewrites | undefined,
-  redirects: Redirect[] | undefined
-) {
-  function addExtraRoute(source: string) {
-    let tokens: Token[] | undefined
-    try {
-      tokens = parse(source)
-    } catch {
-      // Ignore invalid routes - they will be handled by other checks.
-    }
-
-    if (Array.isArray(tokens)) {
-      const possibleNormalizedRoutes = ['']
-      let slugCnt = 1
-
-      function append(suffix: string) {
-        for (let i = 0; i < possibleNormalizedRoutes.length; i++) {
-          possibleNormalizedRoutes[i] += suffix
-        }
-      }
-
-      function fork(suffix: string) {
-        const currentLength = possibleNormalizedRoutes.length
-        for (let i = 0; i < currentLength; i++) {
-          possibleNormalizedRoutes.push(possibleNormalizedRoutes[i] + suffix)
-        }
-      }
-
-      for (const token of tokens) {
-        if (typeof token === 'object') {
-          // Make sure the slug is always named.
-          const slug =
-            token.name || (slugCnt++ === 1 ? 'slug' : `slug${slugCnt}`)
-
-          if (token.modifier === '*') {
-            append(`${token.prefix}[[...${slug}]]`)
-          } else if (token.modifier === '+') {
-            append(`${token.prefix}[...${slug}]`)
-          } else if (token.modifier === '') {
-            if (token.pattern === '[^\\/#\\?]+?') {
-              // A safe slug
-              append(`${token.prefix}[${slug}]`)
-            } else if (token.pattern === '.*') {
-              // An optional catch-all slug
-              append(`${token.prefix}[[...${slug}]]`)
-            } else if (token.pattern === '.+') {
-              // A catch-all slug
-              append(`${token.prefix}[...${slug}]`)
-            } else {
-              // Other regex patterns are not supported. Skip this route.
-              return
-            }
-          } else if (token.modifier === '?') {
-            if (/^[a-zA-Z0-9_/]*$/.test(token.pattern)) {
-              // An optional slug with plain text only, fork the route.
-              append(token.prefix)
-              fork(token.pattern)
-            } else {
-              // Optional modifier `?` and regex patterns are not supported.
-              return
-            }
-          }
-        } else if (typeof token === 'string') {
-          append(token)
-        }
-      }
-
-      for (const normalizedRoute of possibleNormalizedRoutes) {
-        const { isDynamic, routeType } = formatRouteToRouteType(normalizedRoute)
-        pluginState.routeTypes.extra[isDynamic ? 'dynamic' : 'static'].push(
-          routeType
-        )
-      }
-    }
-  }
-
-  if (rewrites) {
-    for (const rewrite of rewrites.beforeFiles) {
-      addExtraRoute(rewrite.source)
-    }
-    for (const rewrite of rewrites.afterFiles) {
-      addExtraRoute(rewrite.source)
-    }
-    for (const rewrite of rewrites.fallback) {
-      addExtraRoute(rewrite.source)
-    }
-  }
-
-  if (redirects) {
-    for (const redirect of redirects) {
-      // Skip internal redirects
-      // https://github.com/vercel/next.js/blob/8ff3d7ff57836c24088474175d595b4d50b3f857/packages/next/src/lib/load-custom-routes.ts#L704-L710
-      if (!('internal' in redirect)) {
-        addExtraRoute(redirect.source)
-      }
-    }
-  }
-}
-
-function serializeRouteTypes(routeTypes: string[]) {
-  // route collection is not deterministic, this makes the output of the file deterministic
-  return routeTypes
-    .sort()
-    .map((route) => `\n    | \`${route}\``)
-    .join('')
-}
-
-function createRouteDefinitions() {
-  let staticRouteTypes = []
-  let dynamicRouteTypes = []
-
-  for (const type of ['edge', 'node', 'extra'] as const) {
-    staticRouteTypes.push(...pluginState.routeTypes[type].static)
-    dynamicRouteTypes.push(...pluginState.routeTypes[type].dynamic)
-  }
-
-  const serializedStaticRouteTypes = serializeRouteTypes(staticRouteTypes)
-  const serializedDynamicRouteTypes = serializeRouteTypes(dynamicRouteTypes)
-
-  // If both StaticRoutes and DynamicRoutes are empty, fallback to type 'string & {}'.
-  const routeTypesFallback =
-    !serializedStaticRouteTypes && !serializedDynamicRouteTypes
-      ? 'string & {}'
-      : ''
-
-  return `// Type definitions for Next.js routes
-
-/**
- * Internal types used by the Next.js router and Link component.
- * These types are not meant to be used directly.
- * @internal
- */
-declare namespace __next_route_internal_types__ {
-  type SearchOrHash = \`?\${string}\` | \`#\${string}\`
-  type WithProtocol = \`\${string}:\${string}\`
-
-  type Suffix = '' | SearchOrHash
-
-  type SafeSlug<S extends string> = S extends \`\${string}/\${string}\`
-    ? never
-    : S extends \`\${string}\${SearchOrHash}\`
-    ? never
-    : S extends ''
-    ? never
-    : S
-
-  type CatchAllSlug<S extends string> = S extends \`\${string}\${SearchOrHash}\`
-    ? never
-    : S extends ''
-    ? never
-    : S
-
-  type OptionalCatchAllSlug<S extends string> =
-    S extends \`\${string}\${SearchOrHash}\` ? never : S
-
-  type StaticRoutes = ${serializedStaticRouteTypes || 'never'}
-  type DynamicRoutes<T extends string = string> = ${
-    serializedDynamicRouteTypes || 'never'
-  }
-
-  type RouteImpl<T> = ${
-    routeTypesFallback ||
-    `
-    ${
-      // This keeps autocompletion working for static routes.
-      '| StaticRoutes'
-    }
-    | SearchOrHash
-    | WithProtocol
-    | \`\${StaticRoutes}\${SearchOrHash}\`
-    | (T extends \`\${DynamicRoutes<infer _>}\${Suffix}\` ? T : never)
-    `
-  }
-}
-
-declare module 'next' {
-  export { default } from 'next/types.js'
-  export * from 'next/types.js'
-
-  export type Route<T extends string = string> =
-    __next_route_internal_types__.RouteImpl<T>
-}
-
-declare module 'next/link' {
-  import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link.js'
-  import type { AnchorHTMLAttributes, DetailedHTMLProps } from 'react'
-  import type { UrlObject } from 'url'
-
-  type LinkRestProps = Omit<
-    Omit<
-      DetailedHTMLProps<
-        AnchorHTMLAttributes<HTMLAnchorElement>,
-        HTMLAnchorElement
-      >,
-      keyof OriginalLinkProps
-    > &
-      OriginalLinkProps,
-    'href'
-  >
-
-  export type LinkProps<RouteInferType> = LinkRestProps & {
-    /**
-     * The path or URL to navigate to. This is the only required prop. It can also be an object.
-     * @see https://nextjs.org/docs/api-reference/next/link
-     */
-    href: __next_route_internal_types__.RouteImpl<RouteInferType> | UrlObject
-  }
-
-  export default function Link<RouteType>(props: LinkProps<RouteType>): JSX.Element
-}
-
-declare module 'next/navigation' {
-  export * from 'next/dist/client/components/navigation.js'
-
-  import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime.js'
-  interface AppRouterInstance extends OriginalAppRouterInstance {
-    /**
-     * Navigate to the provided href.
-     * Pushes a new history entry.
-     */
-    push<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>, options?: NavigateOptions): void
-    /**
-     * Navigate to the provided href.
-     * Replaces the current history entry.
-     */
-    replace<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>, options?: NavigateOptions): void
-    /**
-     * Prefetch the provided href.
-     */
-    prefetch<RouteType>(href: __next_route_internal_types__.RouteImpl<RouteType>): void
-  }
-
-  export function useRouter(): AppRouterInstance;
-}
-
-declare module 'next/form' {
-  import type { FormProps as OriginalFormProps } from 'next/dist/client/form.js'
-
-  type FormRestProps = Omit<OriginalFormProps, 'action'>
-
-  export type FormProps<RouteInferType> = {
-    /**
-     * \`action\` can be either a \`string\` or a function.
-     * - If \`action\` is a string, it will be interpreted as a path or URL to navigate to when the form is submitted.
-     *   The path will be prefetched when the form becomes visible.
-     * - If \`action\` is a function, it will be called when the form is submitted. See the [React docs](https://react.dev/reference/react-dom/components/form#props) for more.
-     */
-    action: __next_route_internal_types__.RouteImpl<RouteInferType> | ((formData: FormData) => void)
-  } & FormRestProps
-
-  export default function Form<RouteType>(props: FormProps<RouteType>): JSX.Element
-}
-`
 }
 
 function formatTimespan(seconds: number): string {
@@ -826,7 +562,6 @@ export class NextTypesPlugin {
   isEdgeServer: boolean
   pageExtensions: string[]
   pagesDir: string
-  typedRoutes: boolean
   cacheLifeConfig: undefined | { [profile: string]: CacheLife }
   distDirAbsolutePath: string
 
@@ -838,16 +573,8 @@ export class NextTypesPlugin {
     this.isEdgeServer = options.isEdgeServer
     this.pageExtensions = options.pageExtensions
     this.pagesDir = path.join(this.appDir, '..', 'pages')
-    this.typedRoutes = options.typedRoutes
     this.cacheLifeConfig = options.cacheLifeConfig
     this.distDirAbsolutePath = path.join(this.dir, this.distDir)
-    if (this.typedRoutes && !redirectsRewritesTypesProcessed) {
-      redirectsRewritesTypesProcessed = true
-      addRedirectsRewritesRouteTypes(
-        options.originalRewrites,
-        options.originalRedirects
-      )
-    }
   }
 
   getRelativePathFromAppTypesDir(moduleRelativePathToAppDir: string) {
@@ -869,8 +596,6 @@ export class NextTypesPlugin {
   }
 
   collectPage(filePath: string) {
-    if (!this.typedRoutes) return
-
     const isApp = filePath.startsWith(this.appDir + path.sep)
     const isPages = !isApp && filePath.startsWith(this.pagesDir + path.sep)
 
@@ -1108,23 +833,6 @@ export class NextTypesPlugin {
               '{"type": "module"}'
             ) as unknown as webpack.sources.RawSource
           )
-
-          if (this.typedRoutes) {
-            if (this.dev && !this.isEdgeServer) {
-              devPageFiles.forEach((file) => {
-                this.collectPage(file)
-              })
-            }
-
-            const linkAssetPath = path.join(assetDirRelative, 'types/link.d.ts')
-
-            compilation.emitAsset(
-              linkAssetPath,
-              new sources.RawSource(
-                createRouteDefinitions()
-              ) as unknown as webpack.sources.RawSource
-            )
-          }
 
           if (this.cacheLifeConfig) {
             const cacheLifeAssetPath = path.join(

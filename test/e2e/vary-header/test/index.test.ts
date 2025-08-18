@@ -21,9 +21,9 @@ describe('Vary Header Tests', () => {
     expect(res.headers.get('cache-control')).toBe('s-maxage=3600')
 
     // Next.js internal headers are appended
-    expect(varyHeader).toContain('RSC')
-    expect(varyHeader).toContain('Next-Router-State-Tree')
-    expect(varyHeader).toContain('Next-Router-Prefetch')
+    expect(varyHeader).toContain('rsc')
+    expect(varyHeader).toContain('next-router-state-tree')
+    expect(varyHeader).toContain('next-router-prefetch')
   })
 
   it('should preserve middleware vary header in combination with route handlers', async () => {
@@ -39,8 +39,8 @@ describe('Vary Header Tests', () => {
     expect(varyHeader).toContain('User-Agent')
 
     // Next.js internal headers are still present
-    expect(varyHeader).toContain('RSC')
-    expect(varyHeader).toContain('Next-Router-State-Tree')
-    expect(varyHeader).toContain('Next-Router-Prefetch')
+    expect(varyHeader).toContain('rsc')
+    expect(varyHeader).toContain('next-router-state-tree')
+    expect(varyHeader).toContain('next-router-prefetch')
   })
 })

@@ -10,6 +10,7 @@ import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type {
   NextConfigComplete,
+  ReactCompilerOptions,
   TurbopackLoaderItem,
   TurbopackRuleConfigItem,
   TurbopackRuleConfigItemOptions,
@@ -805,42 +806,54 @@ function bindingToApi(
     originalNextConfig: NextConfigComplete,
     projectPath: string
   ): Record<string, any> {
-    let nextConfig = { ...(originalNextConfig as any) }
+    let nextConfig = { ...(originalNextConfig as NextConfigComplete) }
 
     const reactCompilerOptions = nextConfig.experimental?.reactCompiler
 
     // It is not easy to set the rules inside of rust as resolving, and passing the context identical to the webpack
     // config is bit hard, also we can reuse same codes between webpack config in here.
     if (reactCompilerOptions) {
+      const options: ReactCompilerOptions =
+        typeof reactCompilerOptions === 'object' ? reactCompilerOptions : {}
       const ruleKeys = ['*.ts', '*.js', '*.jsx', '*.tsx']
       if (
-        Object.keys(nextConfig?.turbopack?.rules ?? []).some((key) =>
+        Object.keys(nextConfig?.turbopack?.rules ?? {}).some((key) =>
           ruleKeys.includes(key)
         )
       ) {
         Log.warn(
-          `The React Compiler cannot be enabled automatically because 'turbopack.rules' contains a rule for '*.ts', '*.js', '*.jsx', and '*.tsx'. Remove this rule, or add 'babel-loader' and 'babel-plugin-react-compiler' to the Turbopack configuration manually.`
+          "The React Compiler cannot be enabled automatically because 'turbopack.rules' contains " +
+            "a rule for '*.ts', '*.js', '*.jsx', and '*.tsx'. Remove this rule, or add " +
+            "'babel-loader' and 'babel-plugin-react-compiler' to the Turbopack configuration " +
+            'manually.'
         )
       } else {
-        if (!nextConfig.turbopack) {
-          nextConfig.turbopack = {}
-        }
+        nextConfig.turbopack ??= {}
+        nextConfig.turbopack.conditions ??= {}
+        nextConfig.turbopack.rules ??= {}
 
-        if (!nextConfig.turbopack.rules) {
-          nextConfig.turbopack.rules = {}
-        }
-
-        for (const key of ['*.ts', '*.js', '*.jsx', '*.tsx']) {
-          nextConfig.turbopack.rules[key] = {
+        for (const key of ruleKeys) {
+          nextConfig.turbopack.conditions[`#reactCompiler/${key}`] = {
+            path: key,
+            content:
+              options.compilationMode === 'annotation'
+                ? /['"]use memo['"]/
+                : !options.compilationMode ||
+                    options.compilationMode === 'infer'
+                  ? // Matches declaration or useXXX or </ (closing jsx) or /> (self closing jsx)
+                    /['"]use memo['"]|\Wuse[A-Z]|<\/|\/>/
+                  : undefined,
+          }
+          nextConfig.turbopack.rules[`#reactCompiler/${key}`] = {
             browser: {
               foreign: false,
               loaders: [
                 getReactCompilerLoader(
-                  originalNextConfig.experimental.reactCompiler,
+                  reactCompilerOptions,
                   projectPath,
                   nextConfig.dev,
-                  false,
-                  undefined
+                  /* isServer */ false,
+                  /* reactCompilerExclude */ undefined
                 ),
               ],
             },
@@ -907,9 +920,20 @@ function bindingToApi(
     if (conditions) {
       type SerializedConditions = {
         [key: string]: {
-          path:
+          path?:
             | { type: 'regex'; value: { source: string; flags: string } }
             | { type: 'glob'; value: string }
+          content?: { source: string; flags: string }
+        }
+      }
+
+      function regexComponents(regex: RegExp): {
+        source: string
+        flags: string
+      } {
+        return {
+          source: regex.source,
+          flags: regex.flags,
         }
       }
 
@@ -917,13 +941,15 @@ function bindingToApi(
       for (const [key, value] of Object.entries(conditions)) {
         serializedConditions[key] = {
           ...value,
-          path:
-            value.path instanceof RegExp
+          path: !value.path
+            ? undefined
+            : value.path instanceof RegExp
               ? {
                   type: 'regex',
-                  value: { source: value.path.source, flags: value.path.flags },
+                  value: regexComponents(value.path),
                 }
               : { type: 'glob', value: value.path },
+          content: !value.content ? undefined : regexComponents(value.content),
         }
       }
       nextConfigSerializable.turbopack.conditions = serializedConditions
@@ -1238,6 +1264,23 @@ async function loadWasm(importPath = '') {
         )
       },
     },
+    expandNextJsTemplate(
+      content: Buffer,
+      templatePath: string,
+      nextPackageDirPath: string,
+      replacements: Record<`VAR_${string}`, string>,
+      injections: Record<string, string>,
+      imports: Record<string, string | null>
+    ): string {
+      return rawBindings.expandNextJsTemplate(
+        content,
+        templatePath,
+        nextPackageDirPath,
+        replacements,
+        injections,
+        imports
+      )
+    },
   }
   return wasmBindings
 }
@@ -1420,6 +1463,23 @@ function loadNative(importPath?: string) {
           return bindings.warnForEdgeRuntime(source, isProduction)
         },
       },
+      expandNextJsTemplate(
+        content: Buffer,
+        templatePath: string,
+        nextPackageDirPath: string,
+        replacements: Record<`VAR_${string}`, string>,
+        injections: Record<string, string>,
+        imports: Record<string, string | null>
+      ): string {
+        return bindings.expandNextJsTemplate(
+          content,
+          templatePath,
+          nextPackageDirPath,
+          replacements,
+          injections,
+          imports
+        )
+      },
     }
     return nativeBindings
   }
@@ -1498,7 +1558,7 @@ export function getBinaryMetadata() {
  *
  */
 export function initCustomTraceSubscriber(traceFileName?: string) {
-  if (swcTraceFlushGuard) {
+  if (!swcTraceFlushGuard) {
     // Wasm binary doesn't support trace emission
     let bindings = loadNative()
     swcTraceFlushGuard = bindings.initCustomTraceSubscriber?.(traceFileName)

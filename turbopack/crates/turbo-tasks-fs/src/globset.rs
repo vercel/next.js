@@ -2,18 +2,17 @@
 /// After discussing upstreaming our usecase with the authors of `globset`, we decided that a
 /// fork was appropriate given our divergent usecases. See discussion https://github.com/BurntSushi/ripgrep/issues/3049
 /// The original code had the following license:
-/// ```
-/// The MIT License (MIT)
 ///
-/// Copyright (c) 2015 Andrew Gallant
-///
-/// Permission is hereby granted, free of charge, to any person obtaining a copy
-/// of this software and associated documentation files (the "Software"), to deal
-/// in the Software without restriction, including without limitation the rights
-/// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-/// copies of the Software, and to permit persons to whom the Software is
-/// furnished to do so, subject to the following conditions:
-/// ```
+/// > The MIT License (MIT)
+/// >
+/// > Copyright (c) 2015 Andrew Gallant
+/// >
+/// > Permission is hereby granted, free of charge, to any person obtaining a copy
+/// > of this software and associated documentation files (the "Software"), to deal
+/// > in the Software without restriction, including without limitation the rights
+/// > to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+/// > copies of the Software, and to permit persons to whom the Software is
+/// > furnished to do so, subject to the following conditions:
 ///
 /// Here it has been heavily modified to:
 /// - Eliminate various configuration options we don't need
@@ -254,10 +253,13 @@ impl Tokens {
 
 fn build_alternates(re: &mut String, patterns: &Vec<Tokens>, branch_fn: fn(&[Token], &mut String)) {
     let mut parts = Vec::with_capacity(patterns.len());
+    let mut has_empty_part = false;
     for pat in patterns {
         let mut altre = String::new();
         branch_fn(pat, &mut altre);
-        if !altre.is_empty() {
+        if altre.is_empty() {
+            has_empty_part = true;
+        } else {
             parts.push(altre);
         }
     }
@@ -266,6 +268,9 @@ fn build_alternates(re: &mut String, patterns: &Vec<Tokens>, branch_fn: fn(&[Tok
     // resulting alternation '()' would be an error.
     if !parts.is_empty() {
         re.push_str("(?:");
+        if has_empty_part {
+            re.push('|');
+        }
         re.push_str(&parts.join("|"));
         re.push(')');
     }

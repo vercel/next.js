@@ -71,7 +71,7 @@ impl BeforeResolvePluginCondition {
             },
             BeforeResolvePluginCondition::Modules(modules) => {
                 if let Request::Module { module, .. } = &*request.await? {
-                    modules.contains(module)
+                    modules.iter().any(|m| module.is_match(m))
                 } else {
                     false
                 }

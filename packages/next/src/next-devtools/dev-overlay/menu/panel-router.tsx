@@ -10,7 +10,6 @@ import { TurbopackInfoBody } from '../components/errors/dev-tools-indicator/dev-
 import { DevToolsHeader } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-header'
 import { useDelayedRender } from '../hooks/use-delayed-render'
 import {
-  getShadowRoot,
   MENU_CURVE,
   MENU_DURATION_MS,
 } from '../components/errors/dev-tools-indicator/utils'
@@ -110,29 +109,27 @@ const MenuPanel = () => {
 
 // a little hacky but it does the trick
 const useToggleDevtoolsVisibility = () => {
-  const { state, dispatch } = useDevOverlayContext()
+  const { state, dispatch, shadowRoot } = useDevOverlayContext()
   return () => {
     dispatch({
       type: ACTION_DEV_INDICATOR_SET,
       disabled: !state.disableDevIndicator,
     })
-    const portal = getShadowRoot()
-    if (portal) {
-      const menuElement = portal.getElementById('panel-route') as HTMLElement
-      const indicatorElement = portal.getElementById(
-        'data-devtools-indicator'
-      ) as HTMLElement
 
-      if (menuElement && menuElement.firstElementChild) {
-        const firstChild = menuElement.firstElementChild as HTMLElement
-        const isCurrentlyHidden = firstChild.style.display === 'none'
-        firstChild.style.display = isCurrentlyHidden ? '' : 'none'
-      }
+    const menuElement = shadowRoot.getElementById('panel-route') as HTMLElement
+    const indicatorElement = shadowRoot.getElementById(
+      'data-devtools-indicator'
+    ) as HTMLElement
 
-      if (indicatorElement) {
-        const isCurrentlyHidden = indicatorElement.style.display === 'none'
-        indicatorElement.style.display = isCurrentlyHidden ? '' : 'none'
-      }
+    if (menuElement && menuElement.firstElementChild) {
+      const firstChild = menuElement.firstElementChild as HTMLElement
+      const isCurrentlyHidden = firstChild.style.display === 'none'
+      firstChild.style.display = isCurrentlyHidden ? '' : 'none'
+    }
+
+    if (indicatorElement) {
+      const isCurrentlyHidden = indicatorElement.style.display === 'none'
+      indicatorElement.style.display = isCurrentlyHidden ? '' : 'none'
     }
   }
 }
@@ -309,7 +306,7 @@ const UserPreferencesWrapper = () => {
 }
 
 export const usePanelContext = () => useContext(PanelContext)
-export const PanelContext = createContext<{
+const PanelContext = createContext<{
   name: PanelStateKind
   mounted: boolean
 }>(null!)

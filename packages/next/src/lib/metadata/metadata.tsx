@@ -37,7 +37,7 @@ import type { WorkStore } from '../../server/app-render/work-async-storage.exter
 import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
-} from './metadata-constants'
+} from '../framework/boundary-constants'
 import { AsyncMetadataOutlet } from '../../client/components/metadata/async-metadata'
 import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'

@@ -193,12 +193,18 @@ export function parseDestination(args: {
     hash = unescapeSegments(hash)
   }
 
+  let search = parsed.search
+  if (search) {
+    search = unescapeSegments(search)
+  }
+
   return {
     ...parsed,
     pathname,
     hostname,
     href,
     hash,
+    search,
   }
 }
 
@@ -210,7 +216,11 @@ export function prepareDestination(args: {
 }) {
   const parsedDestination = parseDestination(args)
 
-  const { hostname: destHostname, query: destQuery } = parsedDestination
+  const {
+    hostname: destHostname,
+    query: destQuery,
+    search: destSearch,
+  } = parsedDestination
 
   // The following code assumes that the pathname here includes the hash if it's
   // present.
@@ -311,7 +321,9 @@ export function prepareDestination(args: {
     }
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`
-    delete (parsedDestination as any).search
+    parsedDestination.search = destSearch
+      ? compileNonPath(destSearch, args.params)
+      : ''
   } catch (err: any) {
     if (err.message.match(/Expected .*? to not repeat, but got an array/)) {
       throw new Error(

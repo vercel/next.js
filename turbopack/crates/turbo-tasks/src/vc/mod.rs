@@ -357,7 +357,7 @@ where
     T: ?Sized,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Vc").field("node", &self.node).finish()
+        f.debug_tuple("Vc").field(&self.node).finish()
     }
 }
 

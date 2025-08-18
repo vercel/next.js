@@ -98,6 +98,8 @@ import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 import type { NextBuildContext } from './build-context'
+import type { RootParamsLoaderOpts } from './webpack/loaders/next-root-params-loader'
+import type { InvalidImportLoaderOpts } from './webpack/loaders/next-invalid-import-error-loader'
 
 type ExcludesFalse = <T>(x: T | false) => x is T
 type ClientEntries = {
@@ -387,7 +389,6 @@ export default async function getBaseWebpackConfig(
 
   const hasAppDir = !!appDir
   const disableOptimizedLoading = true
-  const enableTypedRoutes = !!config.experimental.typedRoutes && hasAppDir
   const bundledReactChannel = needsExperimentalReact(config)
     ? '-experimental'
     : ''
@@ -911,6 +912,15 @@ export default async function getBaseWebpackConfig(
   const builtinModules = (require('module') as typeof import('module'))
     .builtinModules
 
+  const bunExternals = [
+    'bun:ffi',
+    'bun:jsc',
+    'bun:sqlite',
+    'bun:test',
+    'bun:wrap',
+    'bun',
+  ]
+
   const shouldEnableSlowModuleDetection =
     !!config.experimental.slowModuleDetection && dev
 
@@ -984,6 +994,7 @@ export default async function getBaseWebpackConfig(
           ]
         : [
             ...builtinModules,
+            ...bunExternals,
             ({
               context,
               request,
@@ -1364,6 +1375,7 @@ export default async function getBaseWebpackConfig(
         'modularize-import-loader',
         'next-barrel-loader',
         'next-error-browser-binary-loader',
+        'next-root-params-loader',
       ].reduce(
         (alias, loader) => {
           // using multiple aliases to replace `resolveLoader.modules`
@@ -1543,6 +1555,18 @@ export default async function getBaseWebpackConfig(
               },
             ]
           : []),
+
+        ...getNextRootParamsRules({
+          isRootParamsEnabled:
+            config.experimental.rootParams ??
+            // `experimental.dynamicIO` implies `experimental.rootParams`.
+            config.experimental.cacheComponents ??
+            false,
+          isClient,
+          appDir,
+          pageExtensions,
+        }),
+
         // TODO: FIXME: do NOT webpack 5 support with this
         // x-ref: https://github.com/webpack/webpack/issues/11467
         ...(!config.experimental.fullySpecified
@@ -2021,7 +2045,6 @@ export default async function getBaseWebpackConfig(
             appDirEnabled: hasAppDir,
             traceIgnores: [],
             compilerType,
-            swcLoaderConfig: swcDefaultLoader,
           }
         ),
       // Moment.js is an extremely popular library that bundles large locale files
@@ -2128,7 +2151,6 @@ export default async function getBaseWebpackConfig(
           dev,
           isEdgeServer,
           pageExtensions: config.pageExtensions,
-          typedRoutes: enableTypedRoutes,
           cacheLifeConfig: config.experimental.cacheLife,
           originalRewrites,
           originalRedirects,
@@ -2430,6 +2452,7 @@ export default async function getBaseWebpackConfig(
     isEdgeRuntime: isEdgeServer,
     targetWeb: isClient || isEdgeServer,
     assetPrefix: config.assetPrefix || '',
+    deploymentId: config.deploymentId,
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
     future: config.future,
@@ -2753,4 +2776,79 @@ export default async function getBaseWebpackConfig(
   }
 
   return webpackConfig
+}
+
+function getNextRootParamsRules({
+  isRootParamsEnabled,
+  isClient,
+  appDir,
+  pageExtensions,
+}: {
+  isRootParamsEnabled: boolean
+  isClient: boolean
+  appDir: string | undefined
+  pageExtensions: string[]
+}): webpack.RuleSetRule[] {
+  // Match resolved import of 'next/root-params'
+  const nextRootParamsModule = path.join(NEXT_PROJECT_ROOT, 'root-params.js')
+
+  const createInvalidImportRule = (message: string) => {
+    return {
+      resource: nextRootParamsModule,
+      loader: 'next-invalid-import-error-loader',
+      options: {
+        message,
+      } satisfies InvalidImportLoaderOpts,
+    } satisfies webpack.RuleSetRule
+  }
+
+  // Hard-error if the flag is not enabled, regardless of if we're on the server or on the client.
+  if (!isRootParamsEnabled) {
+    return [
+      createInvalidImportRule(
+        "'next/root-params' can only be imported when `experimental.rootParams` is enabled."
+      ),
+    ]
+  }
+
+  // If there's no app-dir (and thus no layouts), there's no sensible way to use 'next/root-params',
+  // because we wouldn't generate any getters.
+  if (!appDir) {
+    return [
+      createInvalidImportRule(
+        "'next/root-params' can only be used with the App Directory."
+      ),
+    ]
+  }
+
+  // In general, the compiler should prevent importing 'next/root-params' from client modules, but it doesn't catch everything.
+  // If an import slips through our validation, make it error.
+  const invalidClientImportRule = createInvalidImportRule(
+    "'next/root-params' cannot be imported from a Client Component module. It should only be used from a Server Component."
+  )
+
+  // in the browser compilation we can skip the server rules, because we know all imports will be invalid.
+  if (isClient) {
+    return [invalidClientImportRule]
+  }
+
+  return [
+    {
+      oneOf: [
+        {
+          resource: nextRootParamsModule,
+          issuerLayer: shouldUseReactServerCondition as (
+            layer: string
+          ) => boolean,
+          loader: 'next-root-params-loader',
+          options: {
+            appDir,
+            pageExtensions,
+          } satisfies RootParamsLoaderOpts,
+        },
+        // if the rule above didn't match, we're in the SSR layer (or something else that isn't server-only).
+        invalidClientImportRule,
+      ],
+    },
+  ]
 }

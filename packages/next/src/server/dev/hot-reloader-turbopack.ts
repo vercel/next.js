@@ -254,10 +254,11 @@ export async function createHotReloaderTurbopack(
     {
       persistentCaching: isPersistentCachingEnabled(opts.nextConfig),
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
+      isShortSession: false,
     }
   )
   backgroundLogCompilationEvents(project, {
-    eventTypes: ['StartupCacheInvalidationEvent'],
+    eventTypes: ['StartupCacheInvalidationEvent', 'TimingEvent'],
   })
   setBundlerFindSourceMapImplementation(
     getSourceMapFromTurbopack.bind(null, project, projectPath)

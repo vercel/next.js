@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use serde_json::json;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    ReadRef, ResolvedVc, TryFlatJoinIterExt, Vc,
+    FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     graph::{AdjacencyMap, GraphTraversal},
 };
 use turbo_tasks_fs::{DirectoryEntry, File, FileSystem, FileSystemPath, glob::Glob};
@@ -102,7 +102,9 @@ async fn apply_includes(
     glob: Vc<Glob>,
     ident_folder: &FileSystemPath,
 ) -> Result<BTreeSet<RcStr>> {
+    debug_assert_eq!(project_root_path.fs, ident_folder.fs);
     // Read files matching the glob pattern from the project root
+    // This result itself has random order, but the BTreeSet will ensure a deterministic ordering.
     let glob_result = project_root_path.read_glob(glob).await?;
 
     // Walk the full glob_result using an explicit stack to avoid async recursion overheads.
@@ -112,15 +114,16 @@ async fn apply_includes(
     while let Some(glob_result) = stack.pop_back() {
         // Process direct results (files and directories at this level)
         for entry in glob_result.results.values() {
-            let DirectoryEntry::File(file_path) = entry else {
+            let (DirectoryEntry::File(file_path) | DirectoryEntry::Symlink(file_path)) = entry
+            else {
                 continue;
             };
 
-            let file_path_ref = file_path;
             // Convert to relative path from ident_folder to the file
-            if let Some(relative_path) = ident_folder.get_relative_path_to(file_path_ref) {
-                result.insert(relative_path);
-            }
+            // unwrap is safe because project_root_path and ident_folder have the same filesystem
+            // and paths produced by read_glob stay in the filesystem
+            let relative_path = ident_folder.get_relative_path_to(file_path).unwrap();
+            result.insert(relative_path);
         }
 
         for nested_result in glob_result.inner.values() {
@@ -163,9 +166,8 @@ impl Asset for NftJsonAsset {
             .chain(std::iter::once(chunk))
             .collect();
 
+        let project_path = this.project.project_path().owned().await?;
         let exclude_glob = if let Some(route) = &this.page_name {
-            let project_path = this.project.project_path().await?;
-
             if let Some(excludes_config) = output_file_tracing_excludes {
                 let mut combined_excludes = BTreeSet::new();
 
@@ -178,26 +180,37 @@ impl Asset for NftJsonAsset {
                         {
                             for pattern in patterns {
                                 if let Some(pattern_str) = pattern.as_str() {
-                                    combined_excludes.insert(pattern_str);
+                                    let (glob, root) =
+                                        relativize_glob(pattern_str, project_path.clone())?;
+                                    let glob = if root.path.is_empty() {
+                                        glob.to_string()
+                                    } else {
+                                        format!("{root}/{glob}")
+                                    };
+                                    combined_excludes.insert(glob);
                                 }
                             }
                         }
                     }
                 }
 
-                let glob = Glob::new(
-                    format!(
-                        "{project_path}/{{{}}}",
-                        combined_excludes
-                            .iter()
-                            .copied()
-                            .collect::<Vec<_>>()
-                            .join(",")
-                    )
-                    .into(),
-                );
+                if combined_excludes.is_empty() {
+                    None
+                } else {
+                    let glob = Glob::new(
+                        format!(
+                            "{{{}}}",
+                            combined_excludes
+                                .iter()
+                                .map(|s| s.as_str())
+                                .collect::<Vec<_>>()
+                                .join(",")
+                        )
+                        .into(),
+                    );
 
-                Some(glob)
+                    Some(glob)
+                }
             } else {
                 None
             }
@@ -234,8 +247,8 @@ impl Asset for NftJsonAsset {
         // Apply outputFileTracingIncludes and outputFileTracingExcludes
         // Extract route from chunk path for pattern matching
         if let Some(route) = &this.page_name {
-            let project_path = this.project.project_path().owned().await?;
-            let mut combined_includes = BTreeSet::new();
+            let mut combined_includes_by_root: FxIndexMap<FileSystemPath, Vec<&str>> =
+                FxIndexMap::default();
 
             // Process includes
             if let Some(includes_config) = output_file_tracing_includes
@@ -249,7 +262,12 @@ impl Asset for NftJsonAsset {
                     {
                         for pattern in patterns {
                             if let Some(pattern_str) = pattern.as_str() {
-                                combined_includes.insert(pattern_str);
+                                let (glob, root) =
+                                    relativize_glob(pattern_str, project_path.clone())?;
+                                combined_includes_by_root
+                                    .entry(root)
+                                    .or_default()
+                                    .push(glob);
                             }
                         }
                     }
@@ -257,22 +275,16 @@ impl Asset for NftJsonAsset {
             }
 
             // Apply includes - find additional files that match the include patterns
-            if !combined_includes.is_empty() {
-                let glob = Glob::new(
-                    format!(
-                        "{{{}}}",
-                        combined_includes
-                            .iter()
-                            .copied()
-                            .collect::<Vec<_>>()
-                            .join(",")
-                    )
-                    .into(),
-                );
-                let additional_files =
-                    apply_includes(project_path, glob, &ident_folder_in_project_fs).await?;
-                result.extend(additional_files);
-            }
+            let includes = combined_includes_by_root
+                .into_iter()
+                .map(|(root, globs)| {
+                    let glob = Glob::new(format!("{{{}}}", globs.join(",")).into());
+                    apply_includes(root, glob, &ident_folder_in_project_fs)
+                })
+                .try_join()
+                .await?;
+
+            result.extend(includes.into_iter().flatten());
         }
 
         let json = json!({
@@ -282,6 +294,33 @@ impl Asset for NftJsonAsset {
 
         Ok(AssetContent::file(File::from(json.to_string()).into()))
     }
+}
+
+/// The globs defined in the next.config.mjs are relative to the project root.
+/// The glob walker in turbopack is somewhat naive so we handle relative path directives first so
+/// traversal doesn't need to consider them and can just traverse 'down' the tree.
+/// The main alternative is to merge glob evaluation with directory traversal which is what the npm
+/// `glob` package does, but this would be a substantial rewrite.`
+fn relativize_glob(glob: &str, relative_to: FileSystemPath) -> Result<(&str, FileSystemPath)> {
+    let mut relative_to = relative_to;
+    let mut processed_glob = glob;
+    loop {
+        if let Some(stripped) = processed_glob.strip_prefix("../") {
+            if relative_to.path.is_empty() {
+                bail!(
+                    "glob '{glob}' is invalid, it has a prefix that navigates out of the project \
+                     root"
+                );
+            }
+            relative_to = relative_to.parent();
+            processed_glob = stripped;
+        } else if let Some(stripped) = processed_glob.strip_prefix("./") {
+            processed_glob = stripped;
+        } else {
+            break;
+        }
+    }
+    Ok((processed_glob, relative_to))
 }
 
 /// Walks the asset graph from multiple assets and collect all referenced
@@ -340,4 +379,183 @@ async fn get_referenced_server_assets(
         })
         .try_flat_join()
         .await
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_tasks::ResolvedVc;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{FileSystemPath, NullFileSystem};
+
+    use super::*;
+
+    fn create_test_fs_path(path: &str) -> FileSystemPath {
+        crate::register();
+
+        FileSystemPath {
+            fs: ResolvedVc::upcast(NullFileSystem {}.resolved_cell()),
+            path: path.into(),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_relativize_glob_normal_patterns() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            // Test normal glob patterns without relative prefixes
+            let base_path = create_test_fs_path("project/src");
+
+            let (glob, path) = relativize_glob("*.js", base_path.clone()).unwrap();
+            assert_eq!(glob, "*.js");
+            assert_eq!(path.path.as_str(), "project/src");
+
+            let (glob, path) = relativize_glob("components/**/*.tsx", base_path.clone()).unwrap();
+            assert_eq!(glob, "components/**/*.tsx");
+            assert_eq!(path.path.as_str(), "project/src");
+
+            let (glob, path) = relativize_glob("lib/utils.ts", base_path.clone()).unwrap();
+            assert_eq!(glob, "lib/utils.ts");
+            assert_eq!(path.path.as_str(), "project/src");
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_relativize_glob_current_directory_prefix() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            let base_path = create_test_fs_path("project/src");
+
+            // Single ./ prefix
+            let (glob, path) = relativize_glob("./components/*.tsx", base_path.clone()).unwrap();
+            assert_eq!(glob, "components/*.tsx");
+            assert_eq!(path.path.as_str(), "project/src");
+
+            // Multiple ./ prefixes
+            let (glob, path) = relativize_glob("././utils.js", base_path.clone()).unwrap();
+            assert_eq!(glob, "utils.js");
+            assert_eq!(path.path.as_str(), "project/src");
+
+            // ./ with complex glob
+            let (glob, path) = relativize_glob("./lib/**/*.{js,ts}", base_path.clone()).unwrap();
+            assert_eq!(glob, "lib/**/*.{js,ts}");
+            assert_eq!(path.path.as_str(), "project/src");
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_relativize_glob_parent_directory_navigation() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            let base_path = create_test_fs_path("project/src/components");
+
+            // Single ../ prefix
+            let (glob, path) = relativize_glob("../utils/*.js", base_path.clone()).unwrap();
+            assert_eq!(glob, "utils/*.js");
+            assert_eq!(path.path.as_str(), "project/src");
+
+            // Multiple ../ prefixes
+            let (glob, path) = relativize_glob("../../lib/*.ts", base_path.clone()).unwrap();
+            assert_eq!(glob, "lib/*.ts");
+            assert_eq!(path.path.as_str(), "project");
+
+            // Complex navigation with glob
+            let (glob, path) =
+                relativize_glob("../../../external/**/*.json", base_path.clone()).unwrap();
+            assert_eq!(glob, "external/**/*.json");
+            assert_eq!(path.path.as_str(), "");
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_relativize_glob_mixed_prefixes() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            let base_path = create_test_fs_path("project/src/components");
+
+            // ../ followed by ./
+            let (glob, path) = relativize_glob(".././utils/*.js", base_path.clone()).unwrap();
+            assert_eq!(glob, "utils/*.js");
+            assert_eq!(path.path.as_str(), "project/src");
+
+            // ./ followed by ../
+            let (glob, path) = relativize_glob("./../lib/*.ts", base_path.clone()).unwrap();
+            assert_eq!(glob, "lib/*.ts");
+            assert_eq!(path.path.as_str(), "project/src");
+
+            // Multiple mixed prefixes
+            let (glob, path) =
+                relativize_glob("././../.././external/*.json", base_path.clone()).unwrap();
+            assert_eq!(glob, "external/*.json");
+            assert_eq!(path.path.as_str(), "project");
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_relativize_glob_error_navigation_out_of_root() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            // Test navigating out of project root with empty path
+            let empty_path = create_test_fs_path("");
+            let result = relativize_glob("../outside.js", empty_path);
+            assert!(result.is_err());
+            assert!(
+                result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("navigates out of the project root")
+            );
+
+            // Test navigating too far up from a shallow path
+            let shallow_path = create_test_fs_path("project");
+            let result = relativize_glob("../../outside.js", shallow_path);
+            assert!(result.is_err());
+            assert!(
+                result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("navigates out of the project root")
+            );
+
+            // Test multiple ../ that would go out of root
+            let base_path = create_test_fs_path("a/b");
+            let result = relativize_glob("../../../outside.js", base_path);
+            assert!(result.is_err());
+            assert!(
+                result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("navigates out of the project root")
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
 }

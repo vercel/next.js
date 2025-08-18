@@ -86,11 +86,10 @@ impl EcmascriptBuildNodeEntryChunk {
         writedoc!(
             code,
             r#"
-                const CHUNK_PUBLIC_PATH = {};
-                const runtime = require({});
+                var R=require({})({})
             "#,
+            StringifyJs(&*runtime_relative_path),
             StringifyJs(chunk_public_path),
-            StringifyJs(&*runtime_relative_path)
         )?;
 
         let other_chunks = this.other_chunks.await?;
@@ -102,7 +101,7 @@ impl EcmascriptBuildNodeEntryChunk {
                     // TODO(WEB-1112) This should call `require()` directly, perhaps as an argument
                     // to `loadChunk`.
                     r#"
-                        runtime.loadChunk({});
+                        R.c({})
                     "#,
                     StringifyJs(&other_chunk_public_path)
                 )?;
@@ -121,7 +120,7 @@ impl EcmascriptBuildNodeEntryChunk {
                 writedoc!(
                     code,
                     r#"
-                        runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH);
+                        R.m({})
                     "#,
                     StringifyJs(&*runtime_module_id),
                 )?;
@@ -136,8 +135,8 @@ impl EcmascriptBuildNodeEntryChunk {
         writedoc!(
             code,
             r#"
-                    module.exports = runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH).exports;
-                "#,
+                module.exports=R.m({}).exports
+            "#,
             StringifyJs(&*runtime_module_id),
         )?;
 

@@ -52,6 +52,14 @@ export interface Binding {
       isProduction: boolean
     ): Promise<NapiSourceDiagnostic[]>
   }
+  expandNextJsTemplate(
+    content: Buffer,
+    templatePath: string,
+    nextPackageDirPath: string,
+    replacements: Record<`VAR_${string}`, string>,
+    injections: Record<string, string>,
+    imports: Record<string, string | null>
+  ): string
 }
 
 export type StyledString =

@@ -178,7 +178,6 @@ pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
-    pub refresh: bool,
     /// variant of tree shaking to use
     pub tree_shaking_mode: Option<TreeShakingMode>,
     /// module is forced to a specific type (happens e. g. for .cjs and .mjs)
@@ -810,7 +809,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let span = tracing::info_span!(
             "code generation",
-            module = self.asset_ident().to_string().await?.to_string()
+            name = self.asset_ident().to_string().await?.to_string()
         );
         async {
             let this = self.await?;
@@ -824,14 +823,9 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 .module
                 .module_content(*this.chunking_context, async_module_info);
 
-            EcmascriptChunkItemContent::new(
-                content,
-                *this.chunking_context,
-                this.module.options(),
-                async_module_options,
-            )
-            .resolve()
-            .await
+            EcmascriptChunkItemContent::new(content, *this.chunking_context, async_module_options)
+                .resolve()
+                .await
         }
         .instrument(span)
         .await
@@ -856,8 +850,8 @@ pub struct EcmascriptModuleContentOptions {
     specified_module_type: SpecifiedModuleType,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     references: ResolvedVc<ModuleReferences>,
-    esm_references: ResolvedVc<EsmAssetReferences>,
     part_references: Vec<ResolvedVc<EcmascriptModulePartReference>>,
+    esm_references: ResolvedVc<EsmAssetReferences>,
     code_generation: ResolvedVc<CodeGens>,
     async_module: ResolvedVc<OptionAsyncModule>,
     generate_source_map: bool,
@@ -878,8 +872,8 @@ impl EcmascriptModuleContentOptions {
             module,
             chunking_context,
             references,
-            esm_references,
             part_references,
+            esm_references,
             code_generation,
             async_module,
             exports,
@@ -918,14 +912,14 @@ impl EcmascriptModuleContentOptions {
                 },
             ];
 
-            let esm_code_gens = esm_references
-                .await?
+            let part_code_gens = part_references
                 .iter()
                 .map(|r| r.code_generation(**chunking_context, scope_hoisting_context))
                 .try_join()
                 .await?;
 
-            let part_code_gens = part_references
+            let esm_code_gens = esm_references
+                .await?
                 .iter()
                 .map(|r| r.code_generation(**chunking_context, scope_hoisting_context))
                 .try_join()
@@ -939,9 +933,9 @@ impl EcmascriptModuleContentOptions {
                 .await?;
 
             anyhow::Ok(
-                esm_code_gens
+                part_code_gens
                     .into_iter()
-                    .chain(part_code_gens.into_iter())
+                    .chain(esm_code_gens.into_iter())
                     .chain(additional_code_gens.into_iter().flatten())
                     .chain(code_gens.into_iter())
                     .collect(),
@@ -2062,6 +2056,8 @@ fn hygiene_rename_only(
     }
     // Copied from `hygiene_with_config`'s HygieneRenamer, but added an `preserved_exports`
     impl swc_core::ecma::transforms::base::rename::Renamer for HygieneRenamer<'_> {
+        type Target = Id;
+
         const MANGLE: bool = false;
         const RESET_N: bool = true;
 
@@ -2079,7 +2075,7 @@ fn hygiene_rename_only(
             self.preserved_exports.contains(orig) || orig.1.has_mark(self.is_import_mark)
         }
     }
-    swc_core::ecma::transforms::base::rename::renamer(
+    swc_core::ecma::transforms::base::rename::renamer_keep_contexts(
         swc_core::ecma::transforms::base::hygiene::Config {
             top_level_mark: top_level_mark.unwrap_or_default(),
             ..Default::default()

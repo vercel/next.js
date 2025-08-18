@@ -5,13 +5,17 @@ import {
   RequestCookiesAdapter,
 } from '../web/spec-extension/adapters/request-cookies'
 import { RequestCookies } from '../web/spec-extension/cookies'
-import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
 import {
   throwForMissingRequestStore,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
 import {
+  delayUntilRuntimeStage,
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
@@ -92,7 +96,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             `Route ${workStore.route} used "cookies" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
           )
         case 'prerender':
-          return makeHangingCookies(workUnitStore)
+          return makeHangingCookies(workStore, workUnitStore)
         case 'prerender-client':
           const exportName = '`cookies`'
           throw new InvariantError(
@@ -114,7 +118,16 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             workStore,
             workUnitStore
           )
+        case 'prerender-runtime':
+          return delayUntilRuntimeStage(
+            workUnitStore,
+            makeUntrackedCookies(workUnitStore.cookies)
+          )
         case 'private-cache':
+          if (process.env.__NEXT_CACHE_COMPONENTS) {
+            return makeUntrackedCookies(workUnitStore.cookies)
+          }
+
           return makeUntrackedExoticCookies(workUnitStore.cookies)
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
@@ -146,6 +159,10 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               workStore?.route
             )
           } else {
+            if (process.env.__NEXT_CACHE_COMPONENTS) {
+              return makeUntrackedCookies(underlyingCookies)
+            }
+
             return makeUntrackedExoticCookies(underlyingCookies)
           }
         default:
@@ -169,6 +186,7 @@ const CachedCookies = new WeakMap<
 >()
 
 function makeHangingCookies(
+  workStore: WorkStore,
   prerenderStore: PrerenderStoreModern
 ): Promise<ReadonlyRequestCookies> {
   const cachedPromise = CachedCookies.get(prerenderStore)
@@ -178,9 +196,24 @@ function makeHangingCookies(
 
   const promise = makeHangingPromise<ReadonlyRequestCookies>(
     prerenderStore.renderSignal,
+    workStore.route,
     '`cookies()`'
   )
   CachedCookies.set(prerenderStore, promise)
+
+  return promise
+}
+
+function makeUntrackedCookies(
+  underlyingCookies: ReadonlyRequestCookies
+): Promise<ReadonlyRequestCookies> {
+  const cachedCookies = CachedCookies.get(underlyingCookies)
+  if (cachedCookies) {
+    return cachedCookies
+  }
+
+  const promise = Promise.resolve(underlyingCookies)
+  CachedCookies.set(underlyingCookies, promise)
 
   return promise
 }
@@ -470,6 +503,7 @@ function syncIODev(route: string | undefined, expression: string) {
         break
       case 'prerender':
       case 'prerender-client':
+      case 'prerender-runtime':
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'cache':

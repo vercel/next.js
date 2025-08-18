@@ -101,8 +101,8 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
 
         let mut exports = BTreeMap::new();
         exports.insert(
-            "default".into(),
-            EsmExport::ImportedBinding(module_reference, "default".into(), false),
+            rcstr!("default"),
+            EsmExport::ImportedBinding(module_reference, rcstr!("default"), false),
         );
 
         Ok(EcmascriptExports::EsmExports(

@@ -4,8 +4,10 @@ export function generateStaticParams() {
   return [{ rootParam: 'foo' }, { rootParam: 'bar' }]
 }
 
-export default async function Page({ params }) {
-  const { rootParam } = params
+export default async function Page(props: {
+  params: Promise<{ rootParam: string }>
+}) {
+  const { rootParam } = await props.params
   const otherRootParam = rootParam === 'foo' ? 'bar' : 'foo'
   return (
     <>

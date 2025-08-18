@@ -1,7 +1,11 @@
 import './segment-boundary-trigger.css'
 import { useCallback, useState, useRef, useMemo } from 'react'
 import { Menu } from '@base-ui-components/react/menu'
-import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-node'
+import { useDevOverlayContext } from '../../../dev-overlay.browser'
+import type {
+  SegmentBoundaryType,
+  SegmentNodeState,
+} from '../../../userspace/app/segment-explorer-node'
 import { normalizeBoundaryFilename } from '../../../../server/app-render/segment-explorer-path'
 import { useClickOutsideAndEscape } from '../errors/dev-tools-indicator/utils'
 
@@ -22,19 +26,13 @@ export function SegmentBoundaryTrigger({
   boundaries,
 }: {
   nodeState: SegmentNodeState
-  boundaries: Record<'not-found' | 'loading' | 'error', string | null>
+  boundaries: Record<SegmentBoundaryType, string | null>
 }) {
   const currNode = nodeState
   const { pagePath, boundaryType, setBoundaryType: onSelectBoundary } = currNode
 
   const [isOpen, setIsOpen] = useState(false)
-  // TODO: move this shadowRoot ref util to a shared hook or into context
-  const [shadowRoot] = useState<ShadowRoot>(() => {
-    const ownerDocument = document
-    const portalNode = ownerDocument.querySelector('nextjs-portal')!
-    return portalNode.shadowRoot! as ShadowRoot
-  })
-  const shadowRootRef = useRef<ShadowRoot>(shadowRoot)
+  const { shadowRoot } = useDevOverlayContext()
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popupRef = useRef<HTMLDivElement>(null)
 
@@ -46,13 +44,13 @@ export function SegmentBoundaryTrigger({
     () => {
       setIsOpen(false)
     },
+    // eslint-disable-next-line react-hooks/react-compiler -- TODO
     triggerRef.current?.ownerDocument
   )
 
   const firstDefinedBoundary = Object.values(boundaries).find((v) => v !== null)
-  const possibleExtension = firstDefinedBoundary
-    ? firstDefinedBoundary.split('.')?.pop()
-    : 'js'
+  const possibleExtension =
+    (firstDefinedBoundary || '').split('.').pop() || 'js'
 
   const fileNames = useMemo(() => {
     return Object.fromEntries(
@@ -162,8 +160,7 @@ export function SegmentBoundaryTrigger({
         disabled={!hasBoundary}
       />
 
-      {/* @ts-expect-error remove this expect-error once shadowRoot is supported as container */}
-      <Menu.Portal container={shadowRootRef}>
+      <Menu.Portal container={shadowRoot}>
         <Menu.Positioner
           className="segment-boundary-dropdown-positioner"
           side="bottom"

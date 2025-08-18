@@ -77,7 +77,7 @@ const FILE_TYPES = {
 const GLOBAL_ERROR_FILE_TYPE = 'global-error'
 const GLOBAL_NOT_FOUND_FILE_TYPE = 'global-not-found'
 const PAGE_SEGMENT = 'page$'
-const PARALLEL_CHILDREN_SEGMENT = 'children$'
+const PARALLEL_VIRTUAL_SEGMENT = 'slot$'
 
 const defaultGlobalErrorPath =
   'next/dist/client/components/builtin/global-error.js'
@@ -275,7 +275,7 @@ async function createTreeCodeFromPath(
 
       if (
         normalizedParallelSegment !== PAGE_SEGMENT &&
-        normalizedParallelSegment !== PARALLEL_CHILDREN_SEGMENT
+        normalizedParallelSegment !== PARALLEL_VIRTUAL_SEGMENT
       ) {
         // If we don't have a page segment, nor a special $children marker, it means we need to traverse the next directory
         // (ie, `normalizedParallelSegment` would correspond with the folder that contains the next level of pages/layout/etc)
@@ -287,7 +287,7 @@ async function createTreeCodeFromPath(
 
       // Fill in the loader tree for all of the special files types (layout, default, etc) at this level
       // `page` is not included here as it's added above.
-      const filePaths = await Promise.all(
+      const filePathEntries = await Promise.all(
         Object.values(FILE_TYPES).map(async (file) => {
           return [
             file,
@@ -302,6 +302,9 @@ async function createTreeCodeFromPath(
           ] as const
         })
       )
+      const filePaths = new Map<ValueOf<typeof FILE_TYPES>, string | undefined>(
+        filePathEntries
+      )
 
       // Only resolve global-* convention files at the root layer
       if (isRootLayer) {
@@ -313,7 +316,7 @@ async function createTreeCodeFromPath(
         }
         // Add global-error to root layer's filePaths, so that it's always available,
         // by default it's the built-in global-error.js
-        filePaths.push([GLOBAL_ERROR_FILE_TYPE, globalError])
+        filePaths.set(GLOBAL_ERROR_FILE_TYPE, globalError)
 
         // TODO(global-not-found): remove this flag assertion condition
         //  once global-not-found is stable
@@ -326,11 +329,11 @@ async function createTreeCodeFromPath(
           }
           // Add global-not-found to root layer's filePaths, so that it's always available,
           // by default it's the built-in global-not-found.js
-          filePaths.push([GLOBAL_NOT_FOUND_FILE_TYPE, globalNotFound])
+          filePaths.set(GLOBAL_NOT_FOUND_FILE_TYPE, globalNotFound)
         }
       }
 
-      let definedFilePaths = filePaths.filter(
+      let definedFilePaths = Array.from(filePaths.entries()).filter(
         ([, filePath]) => filePath !== undefined
       ) as [ValueOf<typeof FILE_TYPES>, string][]
 
@@ -396,14 +399,14 @@ async function createTreeCodeFromPath(
       // earlier logic (such as children$ and page$). These should never appear in the loader tree, and
       // should instead be the corresponding segment keys (ie `__PAGE__`) or the `children` parallel route.
       parallelSegmentKey =
-        parallelSegmentKey === PARALLEL_CHILDREN_SEGMENT
-          ? 'children'
+        parallelSegmentKey === PARALLEL_VIRTUAL_SEGMENT
+          ? '(slot)'
           : parallelSegmentKey === PAGE_SEGMENT
             ? PAGE_SEGMENT_KEY
             : parallelSegmentKey
 
       const normalizedParallelKey = normalizeParallelKey(parallelKey)
-      let subtreeCode
+      let subtreeCode: string | undefined
       // If it's root not found page, set not-found boundary as children page
       if (isNotFoundRoute) {
         if (normalizedParallelKey === 'children') {
@@ -624,7 +627,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
           // If it was a parallel route but we weren't able to find the page segment (ie, maybe the page is nested further)
           // we first insert a special marker to ensure that we still process layout/default/etc at the slot level prior to continuing
           // on to the page segment.
-          matched[rest[0]] = [PARALLEL_CHILDREN_SEGMENT, ...rest.slice(1)]
+          matched[rest[0]] = [PARALLEL_VIRTUAL_SEGMENT, ...rest.slice(1)]
           continue
         }
 

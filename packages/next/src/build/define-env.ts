@@ -199,6 +199,9 @@ export function getDefineEnv({
     'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
       config.experimental.clientSegmentCache
     ),
+    'process.env.__NEXT_CLIENT_PARAM_PARSING': Boolean(
+      config.experimental.clientParamParsing
+    ),
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
     ),
@@ -294,15 +297,12 @@ export function getDefineEnv({
         }
       : undefined),
 
-    'process.env.__NEXT_MULTI_ZONE_DRAFT_MODE': JSON.stringify(
-      config.experimental.multiZoneDraftMode
-    ),
-    'process.env.__NEXT_TRUST_HOST_HEADER': JSON.stringify(
-      config.experimental.trustHostHeader
-    ),
-    'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS': JSON.stringify(
-      config.experimental.allowedRevalidateHeaderKeys
-    ),
+    'process.env.__NEXT_MULTI_ZONE_DRAFT_MODE':
+      config.experimental.multiZoneDraftMode ?? false,
+    'process.env.__NEXT_TRUST_HOST_HEADER':
+      config.experimental.trustHostHeader ?? false,
+    'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS':
+      config.experimental.allowedRevalidateHeaderKeys ?? [],
     ...(isNodeServer
       ? {
           'process.env.__NEXT_RELATIVE_DIST_DIR': config.distDir,

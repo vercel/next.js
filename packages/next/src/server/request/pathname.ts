@@ -1,13 +1,14 @@
 import type { WorkStore } from '../app-render/work-async-storage.external'
 
 import {
+  delayUntilRuntimeStage,
   postponeWithTracking,
   type DynamicTrackingState,
 } from '../app-render/dynamic-rendering'
 
 import {
   workUnitAsyncStorage,
-  type PrerenderStore,
+  type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -35,6 +36,12 @@ export function createServerPathnameForMetadata(
         throw new InvariantError(
           'createServerPathnameForMetadata should not be called in cache contexts.'
         )
+
+      case 'prerender-runtime':
+        return delayUntilRuntimeStage(
+          workUnitStore,
+          createRenderPathname(underlyingPathname)
+        )
       case 'request':
         break
       default:
@@ -47,27 +54,35 @@ export function createServerPathnameForMetadata(
 function createPrerenderPathname(
   underlyingPathname: string,
   workStore: WorkStore,
-  prerenderStore: PrerenderStore
+  prerenderStore: StaticPrerenderStore
 ): Promise<string> {
-  const fallbackParams = workStore.fallbackRouteParams
-  if (fallbackParams && fallbackParams.size > 0) {
-    switch (prerenderStore.type) {
-      case 'prerender':
+  switch (prerenderStore.type) {
+    case 'prerender-client':
+      throw new InvariantError(
+        'createPrerenderPathname was called inside a client component scope.'
+      )
+    case 'prerender': {
+      const fallbackParams = prerenderStore.fallbackRouteParams
+      if (fallbackParams && fallbackParams.size > 0) {
         return makeHangingPromise<string>(
           prerenderStore.renderSignal,
+          workStore.route,
           '`pathname`'
         )
-      case 'prerender-client':
-        throw new InvariantError(
-          'createPrerenderPathname was called inside a client component scope.'
-        )
-      case 'prerender-ppr':
-        return makeErroringPathname(workStore, prerenderStore.dynamicTracking)
-      case 'prerender-legacy':
-        return makeErroringPathname(workStore, null)
-      default:
-        prerenderStore satisfies never
+      }
+      break
     }
+    case 'prerender-ppr': {
+      const fallbackParams = prerenderStore.fallbackRouteParams
+      if (fallbackParams && fallbackParams.size > 0) {
+        return makeErroringPathname(workStore, prerenderStore.dynamicTracking)
+      }
+      break
+    }
+    case 'prerender-legacy':
+      break
+    default:
+      prerenderStore satisfies never
   }
 
   // We don't have any fallback params so we have an entirely static safe params object

@@ -17,15 +17,17 @@ plugin = ["swc_core/plugin_transform_host_js"]
 workspace = true
 
 [dependencies]
-anyhow = "1.0.66"
+anyhow = { workspace = true }
 console_error_panic_hook = "0.1.6"
+getrandom = { version = "0.3", default-features = false, features = ["wasm_js"] }
+js-sys = "0.3.59"
 next-custom-transforms = { workspace = true }
+next-taskless = { workspace = true }
+rustc-hash = { workspace = true }
+serde-wasm-bindgen = "0.4.3"
 serde_json = "1"
 wasm-bindgen = { version = "0.2", features = ["enable-interning"] }
 wasm-bindgen-futures = "0.4.8"
-getrandom = { version = "0.3", default-features = false, features = ["wasm_js"] }
-js-sys = "0.3.59"
-serde-wasm-bindgen = "0.4.3"
 
 swc_core = { workspace = true, features = [
   "common",
