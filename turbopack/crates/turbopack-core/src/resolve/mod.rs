@@ -2694,6 +2694,8 @@ async fn resolve_into_package(
     let is_root_match = path.is_match("") || path.is_match("/");
     let could_match_others = path.could_match_others("");
 
+    let mut export_path_request = path.clone();
+    export_path_request.push_front(rcstr!(".").into());
     for resolve_into_package in options_value.into_package.iter() {
         match resolve_into_package {
             // handled by the `resolve_into_folder` call below
@@ -2709,23 +2711,13 @@ async fn resolve_into_package(
                     continue;
                 };
 
-                let Some(path) = path.as_constant_string() else {
-                    bail!("pattern into an exports field is not implemented yet");
-                };
-
-                let path = if path == "/" {
-                    rcstr!(".")
-                } else {
-                    format!(".{path}").into()
-                };
-
                 results.push(
                     handle_exports_imports_field(
                         package_path.clone(),
                         package_json_path,
                         *options,
                         exports_field,
-                        &path,
+                        export_path_request.clone(),
                         conditions,
                         unspecified_conditions,
                         query,
@@ -2931,7 +2923,7 @@ async fn handle_exports_imports_field(
     package_json_path: FileSystemPath,
     options: Vc<ResolveOptions>,
     exports_imports_field: &AliasMap<SubpathValue>,
-    path: &str,
+    mut path: Pattern,
     conditions: &BTreeMap<RcStr, ConditionValue>,
     unspecified_conditions: &ConditionValue,
     query: RcStr,
@@ -2939,9 +2931,13 @@ async fn handle_exports_imports_field(
     let mut results = Vec::new();
     let mut conditions_state = FxHashMap::default();
 
-    let req = Pattern::Constant(format!("{path}{query}").into());
+    if !query.is_empty() {
+        path.push(query.into());
+    }
+    let req = path;
 
-    for value in exports_imports_field.lookup(&req) {
+    let values = exports_imports_field.lookup(&req).collect::<Vec<_>>();
+    for value in values.clone() {
         if value.output.add_results(
             conditions,
             unspecified_conditions,
@@ -2953,6 +2949,15 @@ async fn handle_exports_imports_field(
         }
     }
 
+    println!(
+        "{} {:#?} {:#?} {:#?}",
+        req.describe_as_string(),
+        values,
+        results,
+        exports_imports_field,
+    );
+
+    let original_req = Pattern::new(req);
     let mut resolved_results = Vec::new();
     for (result_path, conditions) in results {
         if let Some(result_path) = result_path.with_normalized_path() {
@@ -2970,9 +2975,19 @@ async fn handle_exports_imports_field(
             ))
             .await?;
             if conditions.is_empty() {
-                resolved_results.push(resolve_result.with_request(path.into()));
+                println!(
+                    "resolve_result {:?} {:?} {:?} {:?}",
+                    resolve_result.await?.primary,
+                    request.request_pattern().await?,
+                    original_req.await?,
+                    resolve_result
+                        .with_replaced_request_key_pattern(request.request_pattern(), original_req)
+                        .await?
+                        .primary
+                );
+                resolved_results.push(resolve_result /* .with_request(path.clone()) */);
             } else {
-                let mut resolve_result = resolve_result.await?.with_request_ref(path.into());
+                let mut resolve_result = resolve_result.owned().await?/* .with_request_ref(path.clone()) */;
                 resolve_result.add_conditions(conditions);
                 resolved_results.push(resolve_result.cell());
             }
@@ -3030,7 +3045,7 @@ async fn resolve_package_internal_with_imports_field(
         package_json_path.clone(),
         resolve_options,
         imports,
-        specifier,
+        Pattern::Constant(specifier.clone()),
         conditions,
         unspecified_conditions,
         RcStr::default(),

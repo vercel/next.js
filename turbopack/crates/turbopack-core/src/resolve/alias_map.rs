@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::BTreeMap,
     fmt::{Debug, Formatter},
 };
@@ -201,6 +202,7 @@ impl<T> AliasMap<T> {
     where
         T: Debug,
     {
+        println!("lookup {request:?}",);
         if matches!(request, Pattern::Alternatives(_)) {
             panic!("AliasMap::lookup must not be called on alternatives, received {request:?}");
         }
@@ -208,18 +210,43 @@ impl<T> AliasMap<T> {
         // Invariant: prefixes should be sorted by increasing length (base lengths),
         // according to PATTERN_KEY_COMPARE. Since we're using a prefix tree, this is
         // the default behavior of the common prefix iterator.
-        let common_prefixes = self
-            .map
-            .common_prefixes(request.constant_prefix().as_bytes());
-        let mut prefixes_stack = common_prefixes
-            .map(|(p, tree)| {
-                let s = match std::str::from_utf8(p) {
-                    Ok(s) => s,
-                    Err(e) => std::str::from_utf8(&p[..e.valid_up_to()]).unwrap(),
-                };
-                (s, tree)
-            })
-            .collect::<Vec<_>>();
+        let mut prefixes_stack = if let Some(request) = request.as_constant_string() {
+            // Fast path: the request is a singular constant string
+            let common_prefixes = self.map.common_prefixes(request.as_bytes());
+            common_prefixes
+                .map(|(p, tree)| {
+                    let s = match std::str::from_utf8(p) {
+                        Ok(s) => s,
+                        Err(e) => std::str::from_utf8(&p[..e.valid_up_to()]).unwrap(),
+                    };
+                    (Cow::Borrowed(s), tree)
+                })
+                .collect::<Vec<_>>()
+        } else {
+            // Slow path: the pattern isn't constant, so we have to check every entry.
+            // With a dynamic pattern, we cannot use common_prefixes at all because matching
+            // Concatenation([Constant("./explicit-"), Dynamic]) results in the constant prefix
+            // "./explicit-" would not match the exact map entry "./explicit-a" (it's not a prefix).
+            self.map
+                .iter()
+                .map(|(p, tree)| {
+                    let s = match String::from_utf8(p) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            let valid_up_to = e.utf8_error().valid_up_to();
+                            let mut p = e.into_bytes();
+                            p.drain(valid_up_to..);
+                            String::from_utf8(p).unwrap()
+                        }
+                    };
+                    (Cow::Owned(s), tree)
+                })
+                .collect::<Vec<_>>()
+        };
+
+        // `prefixes_stack` is now a prefiltered list of potential matches. `AliasMapLookupIterator`
+        // internally will perform a final check if an entry matches or not
+
         AliasMapLookupIterator {
             request,
             current_prefix_iterator: prefixes_stack
@@ -241,25 +268,58 @@ impl<T> AliasMap<T> {
     where
         T: Debug,
     {
+        if matches!(request, Pattern::Alternatives(_)) {
+            panic!("AliasMap::lookup must not be called on alternatives, received {request:?}");
+        }
+
         // Invariant: prefixes should be sorted by increasing length (base lengths),
         // according to PATTERN_KEY_COMPARE. Since we're using a prefix tree, this is
         // the default behavior of the common prefix iterator.
-        let common_prefixes = self
-            .map
-            .common_prefixes(request.constant_prefix().as_bytes());
-        let mut prefixes_stack = common_prefixes
-            .filter_map(|(p, tree)| {
-                let s = match std::str::from_utf8(p) {
-                    Ok(s) => s,
-                    Err(e) => std::str::from_utf8(&p[..e.valid_up_to()]).unwrap(),
-                };
-                if prefix_predicate(s) {
-                    Some((s, tree))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
+        let mut prefixes_stack = if let Some(request) = request.as_constant_string() {
+            // Fast path: the request is a singular constant string
+            let common_prefixes = self.map.common_prefixes(request.as_bytes());
+            common_prefixes
+                .filter_map(|(p, tree)| {
+                    let s = match std::str::from_utf8(p) {
+                        Ok(s) => s,
+                        Err(e) => std::str::from_utf8(&p[..e.valid_up_to()]).unwrap(),
+                    };
+                    if prefix_predicate(s) {
+                        Some((Cow::Borrowed(s), tree))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+        } else {
+            // Slow path: the pattern isn't constant, so we have to check every entry
+            // With a dynamic pattern, we cannot use common_prefixes at all because matching
+            // Concatenation([Constant("./explicit-"), Dynamic]) results in the constant prefix
+            // "./explicit-" would not match the exact map entry "./explicit-a" (it's not a prefix).
+            self.map
+                .iter()
+                .filter_map(|(p, tree)| {
+                    let s = match String::from_utf8(p) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            let valid_up_to = e.utf8_error().valid_up_to();
+                            let mut p = e.into_bytes();
+                            p.drain(valid_up_to..);
+                            String::from_utf8(p).unwrap()
+                        }
+                    };
+                    if prefix_predicate(&s) {
+                        Some((Cow::Owned(s), tree))
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+        };
+
+        // `prefixes_stack` is now a prefiltered list of potential matches. `AliasMapLookupIterator`
+        // internally will perform a final check if an entry matches or not
+
         AliasMapLookupIterator {
             request,
             current_prefix_iterator: prefixes_stack
@@ -473,13 +533,16 @@ impl<T> Extend<(AliasPattern, T)> for AliasMap<T> {
 /// [PATTERN_KEY_COMPARE]: https://nodejs.org/api/esm.html#resolution-algorithm-specification
 pub struct AliasMapLookupIterator<'a, T> {
     request: &'a Pattern,
-    prefixes_stack: Vec<(&'a str, &'a BTreeMap<AliasKey, T>)>,
-    current_prefix_iterator: Option<(&'a str, std::collections::btree_map::Iter<'a, AliasKey, T>)>,
+    prefixes_stack: Vec<(Cow<'a, str>, &'a BTreeMap<AliasKey, T>)>,
+    current_prefix_iterator: Option<(
+        Cow<'a, str>,
+        std::collections::btree_map::Iter<'a, AliasKey, T>,
+    )>,
 }
 
 impl<'a, T> Iterator for AliasMapLookupIterator<'a, T>
 where
-    T: AliasTemplate,
+    T: AliasTemplate + Clone,
 {
     type Item = AliasMatch<'a, T>;
 
@@ -490,6 +553,12 @@ where
             for (key, template) in &mut *current_prefix_iterator {
                 match key {
                     AliasKey::Exact => {
+                        println!(
+                            "patterns into exact exports fields: {:?} into '{}' {:?}",
+                            self.request,
+                            prefix,
+                            self.request.is_match(prefix)
+                        );
                         if self.request.is_match(prefix) {
                             return Some(AliasMatch {
                                 key,
@@ -498,16 +567,57 @@ where
                         }
                     }
                     AliasKey::Wildcard { suffix } => {
-                        let mut remaining = self.request.clone();
-                        remaining.strip_prefix_len(prefix.len());
-                        let remaining_suffix = remaining.constant_suffix();
-                        if !remaining_suffix.ends_with(&**suffix) {
-                            continue;
-                        }
-                        remaining.strip_suffix_len(suffix.len());
+                        let is_match = if let Some(request) = self.request.as_constant_string() {
+                            // The request is a constant string, so the PatriciaMap lookup already
+                            // ensured that the prefix is matching the request.
+                            let remaining = &request[prefix.len()..];
+                            remaining.ends_with(&**suffix)
+                        } else if let Pattern::Concatenation(req) = self.request
+                            && let [
+                                Pattern::Constant(req_prefix),
+                                Pattern::Dynamic | Pattern::DynamicNoSlash,
+                            ] = req.as_slice()
+                        {
+                            // This and the following special case for commonly used subdir aliases
+                            // correspond to what Pattern::match_apply_template can achieve as well.
 
-                        let output = template.replace(&remaining);
-                        return Some(AliasMatch { key, output });
+                            // The request might be more specific than the mapping, e.g. for
+                            // `require('@/foo/' + dyn)` into a `@/*` mapping
+                            req_prefix.starts_with(&**prefix)
+                        } else if let Pattern::Concatenation(req) = self.request
+                            && let [
+                                Pattern::Constant(req_prefix),
+                                Pattern::Dynamic | Pattern::DynamicNoSlash,
+                                Pattern::Constant(req_suffix),
+                            ] = req.as_slice()
+                        {
+                            req_prefix.starts_with(&**prefix) && req_suffix.ends_with(&**suffix)
+                        } else {
+                            panic!(
+                                "complex patterns into wildcard exports fields are not \
+                                 implemented yet: '{}' into '{}*{}'",
+                                self.request.describe_as_string(),
+                                prefix,
+                                suffix,
+                            );
+                        };
+
+                        println!(
+                            "patterns into wildcard exports '{}' into '{}*{}' {:?}",
+                            self.request.describe_as_string(),
+                            prefix,
+                            suffix,
+                            is_match
+                        );
+
+                        if is_match {
+                            let mut remaining = self.request.clone();
+                            remaining.strip_prefix_len(prefix.len());
+                            remaining.strip_suffix_len(suffix.len());
+
+                            let output = template.replace(&remaining);
+                            return Some(AliasMatch { key, output });
+                        }
                     }
                 }
             }
@@ -583,10 +693,10 @@ pub enum AliasKey {
 }
 
 /// Result of a lookup in the alias map.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct AliasMatch<'a, T>
 where
-    T: AliasTemplate + 'a,
+    T: AliasTemplate + Clone + 'a,
 {
     pub key: &'a AliasKey,
     pub output: T::Output<'a>,
@@ -639,7 +749,7 @@ mod test {
     use turbo_rcstr::rcstr;
 
     use super::{AliasMap, AliasPattern, AliasTemplate};
-    use crate::resolve::pattern::Pattern;
+    use crate::resolve::{alias_map::AliasKey, pattern::Pattern};
 
     /// Asserts that an [`AliasMap`] lookup yields the expected results. The
     /// order of the results is important.
@@ -898,6 +1008,61 @@ mod test {
                     Pattern::Dynamic,
                 ]),
             }]
+        );
+    }
+
+    #[test]
+    fn test_pattern_very_dynamic() {
+        let mut map = AliasMap::new();
+        // map.insert(AliasPattern::parse("foo-*"), "src/foo/*");
+        map.insert(AliasPattern::parse("bar-a"), "src/bar/a");
+        map.insert(AliasPattern::parse("bar-b"), "src/bar/b");
+
+        // TODO requesting `<dynamic>bar-a` from an exports map containing a wildcard is not
+        // implemented currently
+        // assert_eq!(
+        //     map.lookup(&Pattern::Concatenation(vec![
+        //         Pattern::Constant(rcstr!("foo-")),
+        //         Pattern::Dynamic,
+        //     ]))
+        //     .collect::<Vec<_>>(),
+        //     vec![super::AliasMatch {
+        //         prefix: "foo-".into(),
+        //         key: &super::AliasKey::Wildcard { suffix: rcstr!("") },
+        //         output: Pattern::Concatenation(vec![
+        //             Pattern::Constant(rcstr!("src/foo/")),
+        //             Pattern::Dynamic,
+        //         ]),
+        //     }]
+        // );
+
+        assert_eq!(
+            map.lookup(&Pattern::Concatenation(vec![
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!("bar-a")),
+            ]))
+            .collect::<Vec<_>>(),
+            vec![super::AliasMatch {
+                key: &AliasKey::Exact,
+                output: Pattern::Constant(rcstr!("src/bar/a"))
+            }]
+        );
+        assert_eq!(
+            map.lookup(&Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("bar-")),
+                Pattern::Dynamic,
+            ]))
+            .collect::<Vec<_>>(),
+            vec![
+                super::AliasMatch {
+                    key: &AliasKey::Exact,
+                    output: Pattern::Constant(rcstr!("src/bar/b"))
+                },
+                super::AliasMatch {
+                    key: &AliasKey::Exact,
+                    output: Pattern::Constant(rcstr!("src/bar/a"))
+                }
+            ]
         );
     }
 }
