@@ -54,6 +54,10 @@ type NextFlight = Omit<Array<FlightSegment>, 'push'> & {
 declare global {
   // If you're working in a browser environment
   interface Window {
+    /**
+     * requestId
+     */
+    __next_r: string
     __next_f: NextFlight
   }
 }
@@ -256,10 +260,11 @@ export function hydrate(
       require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
 
     staticIndicatorState = { pathname: null, appIsrManifest: {} }
+
     webSocket = createWebSocket(
       assetPrefix,
       staticIndicatorState,
-      'TODO: remove this'
+      self.__next_r
     )
   }
 
