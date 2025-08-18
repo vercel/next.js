@@ -101,7 +101,8 @@ export function useFlightStream<T>(
 export function createInlinedDataReadableStream(
   flightStream: ReadableStream<Uint8Array>,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  requestId: string
 ): ReadableStream<Uint8Array> {
   const startScriptTag = nonce
     ? `<script nonce=${JSON.stringify(nonce)}>`
@@ -114,7 +115,12 @@ export function createInlinedDataReadableStream(
     type: 'bytes',
     start(controller) {
       try {
-        writeInitialInstructions(controller, startScriptTag, formState)
+        writeInitialInstructions(
+          controller,
+          startScriptTag,
+          formState,
+          requestId
+        )
       } catch (error) {
         // during encoding or enqueueing forward the error downstream
         controller.error(error)
@@ -158,12 +164,13 @@ export function createInlinedDataReadableStream(
 function writeInitialInstructions(
   controller: ReadableStreamDefaultController,
   scriptStart: string,
-  formState: unknown | null
+  formState: unknown | null,
+  requestId: string
 ) {
   if (formState != null) {
     controller.enqueue(
       encoder.encode(
-        `${scriptStart}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+        `${scriptStart}self.__next_r=${JSON.stringify(requestId)};(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
           JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
         )});self.__next_f.push(${htmlEscapeJsonString(
           JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
@@ -173,7 +180,7 @@ function writeInitialInstructions(
   } else {
     controller.enqueue(
       encoder.encode(
-        `${scriptStart}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+        `${scriptStart}self.__next_r=${JSON.stringify(requestId)};(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
           JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
         )})</script>`
       )
