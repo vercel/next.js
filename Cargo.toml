@@ -426,7 +426,7 @@ smallvec = { version = "1.13.1", features = [
   "union",
   "const_new",
 ] }
-swc_sourcemap = "9.3.3"
+swc_sourcemap = "9.3.4"
 strsim = "0.11.1"
 shrink-to-fit = "0.2.10"
 syn = "2.0.100"
@@ -450,4 +450,3 @@ hyper = { git = "https://github.com/bgw/hyper-rs.git", branch = "v1.6.0-with-mac
 mdxjs = { git = "https://github.com/mischnic/mdxjs-rs.git", branch = "swc-core-32" }
 lightningcss = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
 parcel_selectors = { git = "https://github.com/parcel-bundler/lightningcss.git", branch = "mischnic/bump-browserslist" }
-swc_sourcemap = { git = "https://github.com/mischnic/rust-sourcemap.git", branch = "mischnic/source-content-mixup" }

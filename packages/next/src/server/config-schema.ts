@@ -129,7 +129,8 @@ const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurbopackRuleConfigItemOrShort
   z.union([z.array(zTurboLoaderItem), zTurboRuleConfigItem])
 
 const zTurboCondition: zod.ZodType<TurbopackRuleCondition> = z.object({
-  path: z.union([z.string(), z.instanceof(RegExp)]),
+  path: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+  content: z.instanceof(RegExp).optional(),
 })
 
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({

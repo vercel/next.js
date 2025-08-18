@@ -3955,6 +3955,7 @@ export default async function build(
           prerenderManifest,
           middlewareManifest,
           functionsConfigManifest,
+          hasStatic404: useStaticPages404,
           requiredServerFiles: requiredServerFilesManifest.files,
         })
       }

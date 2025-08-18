@@ -10,6 +10,7 @@ import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type {
   NextConfigComplete,
+  ReactCompilerOptions,
   TurbopackLoaderItem,
   TurbopackRuleConfigItem,
   TurbopackRuleConfigItemOptions,
@@ -805,13 +806,15 @@ function bindingToApi(
     originalNextConfig: NextConfigComplete,
     projectPath: string
   ): Record<string, any> {
-    let nextConfig = { ...(originalNextConfig as any) }
+    let nextConfig = { ...(originalNextConfig as NextConfigComplete) }
 
     const reactCompilerOptions = nextConfig.experimental?.reactCompiler
 
     // It is not easy to set the rules inside of rust as resolving, and passing the context identical to the webpack
     // config is bit hard, also we can reuse same codes between webpack config in here.
     if (reactCompilerOptions) {
+      const options: ReactCompilerOptions =
+        typeof reactCompilerOptions === 'object' ? reactCompilerOptions : {}
       const ruleKeys = ['*.ts', '*.js', '*.jsx', '*.tsx']
       if (
         Object.keys(nextConfig?.turbopack?.rules ?? {}).some((key) =>
@@ -826,15 +829,27 @@ function bindingToApi(
         )
       } else {
         nextConfig.turbopack ??= {}
+        nextConfig.turbopack.conditions ??= {}
         nextConfig.turbopack.rules ??= {}
 
         for (const key of ruleKeys) {
-          nextConfig.turbopack.rules[key] = {
+          nextConfig.turbopack.conditions[`#reactCompiler/${key}`] = {
+            path: key,
+            content:
+              options.compilationMode === 'annotation'
+                ? /['"]use memo['"]/
+                : !options.compilationMode ||
+                    options.compilationMode === 'infer'
+                  ? // Matches declaration or useXXX or </ (closing jsx) or /> (self closing jsx)
+                    /['"]use memo['"]|\Wuse[A-Z]|<\/|\/>/
+                  : undefined,
+          }
+          nextConfig.turbopack.rules[`#reactCompiler/${key}`] = {
             browser: {
               foreign: false,
               loaders: [
                 getReactCompilerLoader(
-                  originalNextConfig.experimental.reactCompiler,
+                  reactCompilerOptions,
                   projectPath,
                   nextConfig.dev,
                   /* isServer */ false,
@@ -905,9 +920,20 @@ function bindingToApi(
     if (conditions) {
       type SerializedConditions = {
         [key: string]: {
-          path:
+          path?:
             | { type: 'regex'; value: { source: string; flags: string } }
             | { type: 'glob'; value: string }
+          content?: { source: string; flags: string }
+        }
+      }
+
+      function regexComponents(regex: RegExp): {
+        source: string
+        flags: string
+      } {
+        return {
+          source: regex.source,
+          flags: regex.flags,
         }
       }
 
@@ -915,13 +941,15 @@ function bindingToApi(
       for (const [key, value] of Object.entries(conditions)) {
         serializedConditions[key] = {
           ...value,
-          path:
-            value.path instanceof RegExp
+          path: !value.path
+            ? undefined
+            : value.path instanceof RegExp
               ? {
                   type: 'regex',
-                  value: { source: value.path.source, flags: value.path.flags },
+                  value: regexComponents(value.path),
                 }
               : { type: 'glob', value: value.path },
+          content: !value.content ? undefined : regexComponents(value.content),
         }
       }
       nextConfigSerializable.turbopack.conditions = serializedConditions
