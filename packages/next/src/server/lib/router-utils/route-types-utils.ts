@@ -179,29 +179,50 @@ export async function createRouteTypesManifest({
     appRouteHandlerRoutes: {},
     redirectRoutes: {},
     rewriteRoutes: {},
-    appRouteHandlers: new Set(appRouteHandlers.map(({ filePath }) => filePath)),
-    pageApiRoutes: new Set(pageApiRoutes.map(({ filePath }) => filePath)),
-    appPagePaths: new Set(appRoutes.map(({ filePath }) => filePath)),
-    pagesRouterPagePaths: new Set(pageRoutes.map(({ filePath }) => filePath)),
-    layoutPaths: new Set(layoutRoutes.map(({ filePath }) => filePath)),
+    appRouteHandlers: new Set(
+      appRouteHandlers.map(({ filePath }) => getRelativePath(filePath))
+    ),
+    pageApiRoutes: new Set(
+      pageApiRoutes.map(({ filePath }) => getRelativePath(filePath))
+    ),
+    appPagePaths: new Set(
+      appRoutes.map(({ filePath }) => getRelativePath(filePath))
+    ),
+    pagesRouterPagePaths: new Set(
+      pageRoutes.map(({ filePath }) => getRelativePath(filePath))
+    ),
+    layoutPaths: new Set(
+      layoutRoutes.map(({ filePath }) => getRelativePath(filePath))
+    ),
     filePathToRoute: new Map([
       ...appRoutes.map(
         ({ route, filePath }) =>
-          [filePath, resolveInterceptingRoute(route)] as [string, string]
+          [getRelativePath(filePath), resolveInterceptingRoute(route)] as [
+            string,
+            string,
+          ]
       ),
       ...layoutRoutes.map(
         ({ route, filePath }) =>
-          [filePath, resolveInterceptingRoute(route)] as [string, string]
+          [getRelativePath(filePath), resolveInterceptingRoute(route)] as [
+            string,
+            string,
+          ]
       ),
       ...appRouteHandlers.map(
         ({ route, filePath }) =>
-          [filePath, resolveInterceptingRoute(route)] as [string, string]
+          [getRelativePath(filePath), resolveInterceptingRoute(route)] as [
+            string,
+            string,
+          ]
       ),
       ...pageRoutes.map(
-        ({ route, filePath }) => [filePath, route] as [string, string]
+        ({ route, filePath }) =>
+          [getRelativePath(filePath), route] as [string, string]
       ),
       ...pageApiRoutes.map(
-        ({ route, filePath }) => [filePath, route] as [string, string]
+        ({ route, filePath }) =>
+          [getRelativePath(filePath), route] as [string, string]
       ),
     ]),
   }
