@@ -593,8 +593,7 @@ export function generateRouteTypesFile(
     routeExports.push('AppRouteHandlerRoutes')
   }
 
-  const exportStatement =
-    routeExports.length > 0 ? `export type { ${routeExports.join(', ')} }` : ''
+  const exportStatement = `export type { ${routeExports.join(', ')} }`
 
   const routeContextInterface = hasAppRouteHandlers
     ? `
