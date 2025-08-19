@@ -412,7 +412,6 @@ import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
 export default async function Image() {
-  // If your file is in /public, use: join(process.cwd(), 'public', 'logo.png')
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
   const logoSrc = `data:image/png;base64,${logoData.toString('base64')}`
 
