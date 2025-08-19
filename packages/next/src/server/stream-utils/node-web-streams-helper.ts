@@ -636,7 +636,7 @@ export function createRootLayoutValidatorStream(): TransformStream<
                 .map((c) => `<${c}>`)
                 .join(
                   missingTags.length > 1 ? ' and ' : ''
-                )} tags in the root layout.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags""
+                )} tags in the root layout.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags"
               data-next-error-digest="${MISSING_ROOT_TAGS_ERROR}"
               data-next-error-stack=""
             ></template>

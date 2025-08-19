@@ -1,3 +1,5 @@
 export const RuntimeErrorHandler = {
-  hadRuntimeError: false,
+  hadRuntimeError:
+    typeof document !== 'undefined' &&
+    document.documentElement.id === '__next_error__',
 }
