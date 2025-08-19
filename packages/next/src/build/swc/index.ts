@@ -885,26 +885,25 @@ function bindingToApi(
       )
     }
 
-    nextConfigSerializable.modularizeImports =
-      nextConfigSerializable.modularizeImports
-        ? Object.fromEntries(
-            Object.entries<any>(nextConfigSerializable.modularizeImports).map(
-              ([mod, config]) => [
-                mod,
-                {
-                  ...config,
-                  transform:
-                    typeof config.transform === 'string'
-                      ? config.transform
-                      : Object.entries(config.transform).map(([key, value]) => [
-                          key,
-                          value,
-                        ]),
-                },
-              ]
-            )
-          )
-        : undefined
+    if (nextConfigSerializable.modularizeImports) {
+      nextConfigSerializable.modularizeImports = Object.fromEntries(
+        Object.entries<any>(nextConfigSerializable.modularizeImports).map(
+          ([mod, config]) => [
+            mod,
+            {
+              ...config,
+              transform:
+                typeof config.transform === 'string'
+                  ? config.transform
+                  : Object.entries(config.transform).map(([key, value]) => [
+                      key,
+                      value,
+                    ]),
+            },
+          ]
+        )
+      )
+    }
 
     // loaderFile is an absolute path, we need it to be relative for turbopack.
     if (nextConfigSerializable.images.loaderFile) {
@@ -923,13 +922,16 @@ function bindingToApi(
 
     // cacheHandler can be an absolute path, we need it to be relative for turbopack.
     if (nextConfigSerializable.experimental?.cacheHandlers) {
-      nextConfigSerializable.experimental.cacheHandlers = Object.fromEntries(
-        Object.entries(
-          nextConfig.experimental.cacheHandlers as Record<string, string>
-        )
-          .filter(([_, value]) => value != null)
-          .map(([key, value]) => [key, path.relative(projectPath, value)])
-      )
+      nextConfigSerializable.experimental = {
+        ...nextConfigSerializable.experimental,
+        cacheHandlers: Object.fromEntries(
+          Object.entries(
+            nextConfig.experimental.cacheHandlers as Record<string, string>
+          )
+            .filter(([_, value]) => value != null)
+            .map(([key, value]) => [key, path.relative(projectPath, value)])
+        ),
+      }
     }
 
     const conditions: (typeof nextConfig)['turbopack']['conditions'] =
