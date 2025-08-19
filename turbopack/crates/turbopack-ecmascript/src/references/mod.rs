@@ -120,7 +120,6 @@ use super::{
     },
     errors,
     parse::ParseResult,
-    special_cases::special_cases,
     utils::js_value_to_pattern,
     webpack::{
         WebpackChunkAssetReference, WebpackEntryAssetReference, WebpackRuntimeAssetReference,
@@ -516,7 +515,7 @@ pub async fn analyse_ecmascript_module_internal(
     let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
 
     let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new(is_tracing);
-    let path = origin.origin_path().owned().await?;
+    let path = &*origin.origin_path().await?;
 
     // Is this a typescript file that requires analyzing type references?
     let analyze_types = match &ty {
@@ -525,6 +524,7 @@ pub async fn analyse_ecmascript_module_internal(
         EcmascriptModuleAssetType::Ecmascript => false,
     };
 
+    // Split out our module part if we have one.
     let parsed = if let Some(part) = part {
         let split_data = split_module(*module);
         part_of_module(split_data, part)
@@ -569,8 +569,6 @@ pub async fn analyse_ecmascript_module_internal(
         .instrument(span)
         .await?;
     }
-
-    special_cases(&path.path, &mut analysis);
 
     let parsed = parsed.await?;
 
@@ -919,6 +917,7 @@ pub async fn analyse_ecmascript_module_internal(
         .instrument(span)
         .await?;
     }
+    // TODO: we can do this when constructing the var graph
     let span = tracing::info_span!("async module handling");
     async {
         let top_level_await_span =
