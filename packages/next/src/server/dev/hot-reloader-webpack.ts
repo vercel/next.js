@@ -448,12 +448,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         ? new URL(req.url, 'http://n').searchParams.get('id')
         : null
 
-      if (requestId === null) {
-        throw new InvariantError(
-          'Expected the WebSocket request to contain an `id` parameter.'
-        )
-      }
-
       if (!this.webpackHotMiddleware) {
         throw new InvariantError('Did not start HotReloaderWebpack.')
       }
@@ -626,24 +620,26 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         }
       })
 
-      const initialReactDebugChunks =
-        this.initialReactDebugChunksByRequestId.get(requestId)
+      if (requestId) {
+        const initialReactDebugChunks =
+          this.initialReactDebugChunksByRequestId.get(requestId)
 
-      if (initialReactDebugChunks) {
-        for (const chunk of initialReactDebugChunks) {
-          this.webpackHotMiddleware.publish(
-            {
-              // TODO: Send as binary frame, with the action type and request ID
-              // as header bytes.
-              type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
-              requestId,
-              base64EncodedChunk: Buffer.from(chunk).toString('base64'),
-            },
-            requestId
-          )
+        if (initialReactDebugChunks) {
+          for (const chunk of initialReactDebugChunks) {
+            this.webpackHotMiddleware.publish(
+              {
+                // TODO: Send as binary frame, with the action type and request ID
+                // as header bytes.
+                type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+                requestId,
+                base64EncodedChunk: Buffer.from(chunk).toString('base64'),
+              },
+              requestId
+            )
+          }
+
+          this.initialReactDebugChunksByRequestId.set(requestId, null)
         }
-
-        this.initialReactDebugChunksByRequestId.set(requestId, null)
       }
     })
   }

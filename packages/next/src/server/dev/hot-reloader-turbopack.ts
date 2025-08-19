@@ -104,7 +104,6 @@ import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
-import { InvariantError } from '../../shared/lib/invariant-error'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -413,6 +412,7 @@ export async function createHotReloaderTurbopack(
   let hmrEventHappened = false
   let hmrHash = 0
 
+  const clients = new Set<ws>()
   const clientsByRequestId = new Map<string, ws>()
   const clientStates = new WeakMap<ws, ClientState>()
 
@@ -436,7 +436,7 @@ export async function createHotReloaderTurbopack(
       }
     }
 
-    for (const client of clientsByRequestId.values()) {
+    for (const client of clients) {
       const state = clientStates.get(client)
       if (!state) {
         continue
@@ -469,7 +469,7 @@ export async function createHotReloaderTurbopack(
   const sendEnqueuedMessagesDebounce = debounce(sendEnqueuedMessages, 2)
 
   const sendHmr: SendHmr = (id: string, message: HmrMessageSentToBrowser) => {
-    for (const client of clientsByRequestId.values()) {
+    for (const client of clients) {
       clientStates.get(client)?.messages.set(id, message)
     }
 
@@ -484,7 +484,7 @@ export async function createHotReloaderTurbopack(
     payload.diagnostics = []
     payload.issues = []
 
-    for (const client of clientsByRequestId.values()) {
+    for (const client of clients) {
       clientStates.get(client)?.turbopackUpdates.push(payload)
     }
 
@@ -622,7 +622,7 @@ export async function createHotReloaderTurbopack(
         dev: {
           assetMapper,
           changeSubscriptions,
-          clientsByRequestId,
+          clients,
           clientStates,
           serverFields,
 
@@ -754,17 +754,16 @@ export async function createHotReloaderTurbopack(
         const clientIssues: EntryIssuesMap = new Map()
         const subscriptions: Map<string, AsyncIterator<any>> = new Map()
 
+        clients.add(client)
+
         const requestId = req.url
           ? new URL(req.url, 'http://n').searchParams.get('id')
           : null
 
-        if (requestId === null) {
-          throw new InvariantError(
-            'Expected the WebSocket request to contain an `id` parameter.'
-          )
+        if (requestId) {
+          clientsByRequestId.set(requestId, client)
         }
 
-        clientsByRequestId.set(requestId, client)
         clientStates.set(client, {
           clientIssues,
           messages: new Map(),
@@ -778,7 +777,11 @@ export async function createHotReloaderTurbopack(
             subscription.return?.()
           }
           clientStates.delete(client)
-          clientsByRequestId.delete(requestId)
+          clients.delete(client)
+
+          if (requestId) {
+            clientsByRequestId.delete(requestId)
+          }
         })
 
         client.addEventListener('message', async ({ data }) => {
@@ -918,21 +921,23 @@ export async function createHotReloaderTurbopack(
 
           sendToClient(client, syncMessage)
 
-          const initialReactDebugChunks =
-            initialReactDebugChunksByRequestId.get(requestId)
+          if (requestId) {
+            const initialReactDebugChunks =
+              initialReactDebugChunksByRequestId.get(requestId)
 
-          if (initialReactDebugChunks) {
-            for (const chunk of initialReactDebugChunks) {
-              sendToClient(client, {
-                // TODO: Send as binary frame, with the action type and request ID
-                // as header bytes.
-                type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
-                requestId,
-                base64EncodedChunk: Buffer.from(chunk).toString('base64'),
-              })
+            if (initialReactDebugChunks) {
+              for (const chunk of initialReactDebugChunks) {
+                sendToClient(client, {
+                  // TODO: Send as binary frame, with the action type and request ID
+                  // as header bytes.
+                  type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+                  requestId,
+                  base64EncodedChunk: Buffer.from(chunk).toString('base64'),
+                })
+              }
+
+              initialReactDebugChunksByRequestId.set(requestId, null)
             }
-
-            initialReactDebugChunksByRequestId.set(requestId, null)
           }
         })()
       })
@@ -941,7 +946,7 @@ export async function createHotReloaderTurbopack(
     send(action) {
       const payload = JSON.stringify(action)
 
-      for (const client of clientsByRequestId.values()) {
+      for (const client of clients) {
         client.send(payload)
       }
     },
@@ -1207,10 +1212,11 @@ export async function createHotReloaderTurbopack(
         })
     },
     close() {
-      for (const wsClient of clientsByRequestId.values()) {
+      for (const wsClient of clients) {
         // it's okay to not cleanly close these websocket connections, this is dev
         wsClient.terminate()
       }
+      clients.clear()
       clientsByRequestId.clear()
     },
   }
@@ -1262,7 +1268,7 @@ export async function createHotReloaderTurbopack(
           const errors = new Map<string, CompilationError>()
           addErrors(errors, currentEntryIssues)
 
-          for (const client of clientsByRequestId.values()) {
+          for (const client of clients) {
             const state = clientStates.get(client)
             if (!state) {
               continue

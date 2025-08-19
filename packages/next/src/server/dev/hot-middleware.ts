@@ -69,20 +69,31 @@ function getStatsForSyncEvent(
 }
 
 class EventStream {
+  clients = new Set<ws>()
   clientsByRequestId: Map<string, ws> = new Map()
 
   close() {
-    for (const wsClient of this.clientsByRequestId.values()) {
+    for (const wsClient of this.clients) {
       // it's okay to not cleanly close these websocket connections, this is dev
       wsClient.terminate()
     }
+    this.clients.clear()
     this.clientsByRequestId.clear()
   }
 
-  handler(client: ws, requestId: string) {
-    this.clientsByRequestId.set(requestId, client)
+  handler(client: ws, requestId: string | null) {
+    this.clients.add(client)
+
+    if (requestId) {
+      this.clientsByRequestId.set(requestId, client)
+    }
+
     client.addEventListener('close', () => {
-      this.clientsByRequestId.delete(requestId)
+      this.clients.delete(client)
+
+      if (requestId) {
+        this.clientsByRequestId.delete(requestId)
+      }
     })
   }
 
@@ -102,7 +113,7 @@ class EventStream {
       return
     }
 
-    for (const wsClient of this.clientsByRequestId.values()) {
+    for (const wsClient of this.clients) {
       wsClient.send(JSON.stringify(message))
     }
   }
@@ -210,7 +221,7 @@ export class WebpackHotMiddleware {
    * and we still want to show the client overlay with the error while
    * the error page should be rendered just fine.
    */
-  onHMR = (client: ws, requestId: string) => {
+  onHMR = (client: ws, requestId: string | null) => {
     if (this.closed) return
     this.eventStream.handler(client, requestId)
 
