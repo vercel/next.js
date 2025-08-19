@@ -418,7 +418,10 @@ async fn import_mapping_to_result(
             } else if let Some(request) = request.await?.request() {
                 request
             } else {
-                bail!("Cannot resolve external reference without request")
+                bail!(
+                    "Cannot resolve external reference with dynamic request {:?}",
+                    request.request_pattern().await?.describe_as_string()
+                )
             },
             *ty,
             *traced,
@@ -434,7 +437,10 @@ async fn import_mapping_to_result(
             } else if let Some(request) = request.await?.request() {
                 request
             } else {
-                bail!("Cannot resolve external reference without request")
+                bail!(
+                    "Cannot resolve external reference with dynamic request {:?}",
+                    request.request_pattern().await?.describe_as_string()
+                )
             },
             ty: *ty,
             traced: *traced,
