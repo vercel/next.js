@@ -2952,14 +2952,6 @@ async fn handle_exports_imports_field(
         }
     }
 
-    println!(
-        "{} {:#?} {:#?} {:#?}",
-        req.describe_as_string(),
-        values,
-        results,
-        exports_imports_field,
-    );
-
     let mut resolved_results = Vec::new();
     for (result_path, conditions, prefix, key) in results {
         if let Some(result_path) = result_path.with_normalized_path() {

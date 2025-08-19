@@ -202,7 +202,6 @@ impl<T> AliasMap<T> {
     where
         T: Debug,
     {
-        println!("lookup {request:?}",);
         if matches!(request, Pattern::Alternatives(_)) {
             panic!("AliasMap::lookup must not be called on alternatives, received {request:?}");
         }
@@ -553,12 +552,6 @@ where
             for (key, template) in &mut *current_prefix_iterator {
                 match key {
                     AliasKey::Exact => {
-                        println!(
-                            "patterns into exact exports fields: {:?} into '{}' {:?}",
-                            self.request,
-                            prefix,
-                            self.request.is_match(prefix)
-                        );
                         if self.request.is_match(prefix) {
                             return Some(AliasMatch {
                                 prefix: prefix.clone(),
@@ -602,14 +595,6 @@ where
                                 suffix,
                             );
                         };
-
-                        println!(
-                            "patterns into wildcard exports '{}' into '{}*{}' {:?}",
-                            self.request.describe_as_string(),
-                            prefix,
-                            suffix,
-                            is_match
-                        );
 
                         if is_match {
                             let mut remaining = self.request.clone();
