@@ -3422,8 +3422,12 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                             .as_ref()
                             .map(|i| i.sym.as_str().into())
                             .unwrap_or_else(|| magic_identifier::mangle("default export").into()),
-                        // Default export expressions cannot be mutated
-                        Liveness::Constant,
+                        // Default export declarations can only be mutated if they have a name.
+                        if ident.is_some() {
+                            Liveness::Live
+                        } else {
+                            Liveness::Constant
+                        },
                     ),
                 );
             }
