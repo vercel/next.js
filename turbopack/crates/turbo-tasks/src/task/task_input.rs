@@ -1,5 +1,10 @@
 use std::{
-    collections::BTreeMap, fmt::Debug, future::Future, hash::Hash, sync::Arc, time::Duration,
+    collections::{BTreeMap, BTreeSet},
+    fmt::Debug,
+    future::Future,
+    hash::Hash,
+    sync::Arc,
+    time::Duration,
 };
 
 use anyhow::Result;
@@ -278,7 +283,7 @@ where
 
     fn is_resolved(&self) -> bool {
         self.iter()
-            .all(|(k, v)| TaskInput::is_resolved(k) || TaskInput::is_resolved(v))
+            .all(|(k, v)| TaskInput::is_resolved(k) && TaskInput::is_resolved(v))
     }
 
     fn is_transient(&self) -> bool {
@@ -286,6 +291,28 @@ where
             .any(|(k, v)| TaskInput::is_transient(k) || TaskInput::is_transient(v))
     }
 }
+
+impl<T> TaskInput for BTreeSet<T>
+where
+    T: TaskInput + Ord,
+{
+    async fn resolve_input(&self) -> Result<Self> {
+        let mut new_map = BTreeSet::new();
+        for value in self {
+            new_map.insert(TaskInput::resolve_input(value).await?);
+        }
+        Ok(new_map)
+    }
+
+    fn is_resolved(&self) -> bool {
+        self.iter().all(TaskInput::is_resolved)
+    }
+
+    fn is_transient(&self) -> bool {
+        self.iter().any(TaskInput::is_transient)
+    }
+}
+
 macro_rules! tuple_impls {
     ( $( $name:ident )+ ) => {
         impl<$($name: TaskInput),+> TaskInput for ($($name,)+)

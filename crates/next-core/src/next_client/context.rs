@@ -1,4 +1,4 @@
-use std::iter::once;
+use std::collections::BTreeSet;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -58,7 +58,7 @@ use crate::{
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
         },
-        webpack_rules::webpack_loader_options,
+        webpack_rules::{WebpackLoaderBuiltinCondition, webpack_loader_options},
     },
     transform_options::{
         get_decorators_transform_options, get_jsx_transform_options,
@@ -150,7 +150,7 @@ pub async fn get_client_resolve_options_context(
         get_next_client_resolved_map(project_path.clone(), project_path.clone(), *mode.await?)
             .to_resolved()
             .await?;
-    let custom_conditions = vec![mode.await?.condition().into()];
+    let custom_conditions = mode.await?.custom_resolve_conditions().collect();
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().owned().await?),
         custom_conditions,
@@ -238,26 +238,21 @@ pub async fn get_client_module_options_context(
     .to_resolved()
     .await?;
 
-    // A separate webpack rules will be applied to codes matching
-    // foreign_code_context_condition. This allows to import codes from
-    // node_modules that requires webpack loaders, which next-dev implicitly
-    // does by default.
-    let conditions = vec![rcstr!("browser"), mode.await?.condition().into()];
-    let foreign_enable_webpack_loaders = webpack_loader_options(
-        project_path.clone(),
-        next_config,
-        true,
-        conditions
-            .iter()
-            .cloned()
-            .chain(once(rcstr!("foreign")))
-            .collect(),
-    )
-    .await?;
+    let mut loader_conditions = BTreeSet::new();
+    loader_conditions.insert(WebpackLoaderBuiltinCondition::Browser);
+    loader_conditions.extend(mode.await?.webpack_loader_conditions());
 
-    // Now creates a webpack rules that applies to all codes.
+    // A separate webpack rules will be applied to codes matching foreign_code_context_condition.
+    // This allows to import codes from node_modules that requires webpack loaders, which next-dev
+    // implicitly does by default.
+    let mut foreign_conditions = loader_conditions.clone();
+    foreign_conditions.insert(WebpackLoaderBuiltinCondition::Foreign);
+    let foreign_enable_webpack_loaders =
+        webpack_loader_options(project_path.clone(), next_config, true, foreign_conditions).await?;
+
+    // Now creates a webpack rules that applies to all code.
     let enable_webpack_loaders =
-        webpack_loader_options(project_path.clone(), next_config, false, conditions).await?;
+        webpack_loader_options(project_path.clone(), next_config, false, loader_conditions).await?;
 
     let tree_shaking_mode_for_user_code = *next_config
         .tree_shaking_mode_for_user_code(next_mode.is_development())

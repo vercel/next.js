@@ -40,6 +40,7 @@ export const installTemplate = async ({
   mode,
   tailwind,
   eslint,
+  biome,
   srcDir,
   importAlias,
   skipInstall,
@@ -56,6 +57,7 @@ export const installTemplate = async ({
   const templatePath = path.join(__dirname, template, mode);
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslint.config.mjs");
+  if (!biome) copySource.push("!biome.json");
   if (!tailwind) copySource.push("!postcss.config.mjs");
 
   await copy(copySource, root, {
@@ -191,7 +193,8 @@ export const installTemplate = async ({
       dev: `next dev${turbopack ? " --turbopack" : ""}`,
       build: `next build${turbopack ? " --turbopack" : ""}`,
       start: "next start",
-      lint: "next lint",
+      ...(eslint && { lint: "eslint" }),
+      ...(biome && { lint: "biome check", format: "biome format --write" }),
     },
     /**
      * Default dependencies.
@@ -252,6 +255,14 @@ export const installTemplate = async ({
     };
   }
 
+  /* Biome dependencies. */
+  if (biome) {
+    packageJson.devDependencies = {
+      ...packageJson.devDependencies,
+      "@biomejs/biome": "2.2.0",
+    };
+  }
+
   if (isApi) {
     delete packageJson.dependencies.react;
     delete packageJson.dependencies["react-dom"];
@@ -263,7 +274,9 @@ export const installTemplate = async ({
     // if a type error was thrown at `distDir/types/app/page.ts`.
     delete packageJson.devDependencies["@types/react-dom"];
 
+    // Remove linting scripts for API-only templates
     delete packageJson.scripts.lint;
+    delete packageJson.scripts.format;
   }
 
   const devDeps = Object.keys(packageJson.devDependencies).length;

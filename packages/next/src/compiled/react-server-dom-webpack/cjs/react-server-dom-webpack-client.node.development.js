@@ -1317,7 +1317,10 @@
         var rejectListeners = chunk.reason;
         chunk.status = "resolved_module";
         chunk.value = value;
-        chunk._debugInfo = null;
+        value = [];
+        null !== value && null != chunk._debugInfo
+          ? chunk._debugInfo.push.apply(chunk._debugInfo, value)
+          : (chunk._debugInfo = value);
         null !== response &&
           (initializeModuleChunk(chunk),
           wakeChunkIfInitialized(chunk, response, rejectListeners));

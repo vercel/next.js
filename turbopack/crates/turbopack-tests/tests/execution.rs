@@ -392,6 +392,17 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             .resolved_cell(),
     );
 
+    let mut fallback_import_map = ImportMap::empty();
+    fallback_import_map.insert_exact_alias(
+        rcstr!("fallback"),
+        ImportMapping::External(
+            None,
+            ExternalType::EcmaScriptModule,
+            ExternalTraced::Untraced,
+        )
+        .resolved_cell(),
+    );
+
     let remove_unused_exports = options.remove_unused_exports.unwrap_or(true);
 
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
@@ -435,6 +446,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             browser: true,
             module: true,
             import_map: Some(import_map.resolved_cell()),
+            fallback_import_map: Some(fallback_import_map.resolved_cell()),
             ..Default::default()
         }
         .cell(),

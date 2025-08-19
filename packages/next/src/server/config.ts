@@ -656,6 +656,13 @@ function assignDefaults(
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
+    'typedRoutes',
+    'typedRoutes',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
     'outputFileTracingRoot',
     'outputFileTracingRoot',
     configFileName,

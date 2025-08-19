@@ -19623,6 +19623,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/types-gen-nounuselocal/types-gen-nounuselocal.test.ts": {
+    "passed": [
+      "types-gen-nounuselocal should build successfully",
+      "types-gen-nounuselocal should generate route types successfully"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/unexpected-error/unexpected-error.test.ts": {
     "passed": [
       "unexpected-error cannot change response status when streaming has started",
@@ -20280,11 +20290,10 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm"
-    ],
-    "failed": [
+      "pnpm support should build with dependencies installed via pnpm",
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
