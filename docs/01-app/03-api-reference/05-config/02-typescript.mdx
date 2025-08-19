@@ -164,12 +164,10 @@ export function middleware(request: NextRequest) {
 ```
 
 ```tsx filename="app/some/page.tsx"
-import type { Route } from 'next';
+import type { Route } from 'next'
 
 export default function Page() {
-  return (
-    <Link href={"/middleware-redirect" as Route}>
-  )
+  return <Link href={'/middleware-redirect' as Route}>Link Text</Link>
 }
 ```
 
