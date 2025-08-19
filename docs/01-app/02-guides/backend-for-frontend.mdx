@@ -403,6 +403,10 @@ Both provide methods for reading and manipulating cookies.
 
 You can pass `NextRequest` to any function expecting `Request`. Likewise, you can return `NextResponse` where a `Response` is expected.
 
+It is possible to set headers on a `Response` or `NextResponse` using `new Response(..., { headers })` or `NextResponse.json(..., { headers })`.
+
+Avoid echoing incoming request headers in responses. Middleware or libraries may append headers to incoming requests, and echoing these can leak sensitive information.
+
 ```ts filename="/app/echo-pathname/route.ts" switcher
 import { type NextRequest, NextResponse } from 'next/server'
 
@@ -646,6 +650,15 @@ export function middleware(request) {
 ```
 
 ## Security
+
+### Working with headers
+
+Be deliberate about where headers go, and avoid directly passing incoming request headers to the outgoing response.
+
+- **Upstream request headers**: In Middleware, `NextResponse.next({ request: { headers } })` modifies the headers your server receives and does not expose them to the client.
+- **Response headers**: `new Response(..., { headers })`, `NextResponse.json(..., { headers })`, `NextResponse.next({ headers })`, or `response.headers.set(...)` send headers back to the client. If sensitive values were appended to these headers, they will be visible to clients.
+
+Learn more in [NextResponse headers in Middleware](/docs/app/api-reference/functions/next-response#nextresponse-headers-in-middleware).
 
 ### Rate limiting
 
