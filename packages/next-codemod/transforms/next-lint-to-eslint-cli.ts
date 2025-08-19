@@ -484,9 +484,10 @@ function updateExistingFlatConfig(
     exportedArray.value.elements.splice(insertIndex, 0, ignoresConfig)
   } else {
     // Merge with existing ignores
-    const existingIgnoresObj =
-      exportedArray.value.elements[existingIgnoresIndex]
-    const ignoresProp = existingIgnoresObj.properties.find(
+    const existingIgnoresArr =
+      exportedArray.value.elements[existingIgnoresIndex]?.properties ?? []
+
+    const ignoresProp = existingIgnoresArr.find(
       (prop) =>
         prop.type === 'Property' &&
         prop.key &&
