@@ -929,7 +929,10 @@ function bindingToApi(
             nextConfig.experimental.cacheHandlers as Record<string, string>
           )
             .filter(([_, value]) => value != null)
-            .map(([key, value]) => [key, path.relative(projectPath, value)])
+            .map(([key, value]) => [
+              key,
+              './' + path.relative(projectPath, value),
+            ])
         ),
       }
     }
