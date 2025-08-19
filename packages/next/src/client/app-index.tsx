@@ -276,11 +276,13 @@ export function hydrate(
     let element = reactEl
     // Server rendering failed, fall back to client-side rendering
     if (process.env.NODE_ENV !== 'production') {
-      const { createRootLevelDevOverlayElement } =
+      const { RootLevelDevOverlayElement } =
         require('../next-devtools/userspace/app/client-entry') as typeof import('../next-devtools/userspace/app/client-entry')
 
       // Note this won't cause hydration mismatch because we are doing CSR w/o hydration
-      element = createRootLevelDevOverlayElement(element)
+      element = (
+        <RootLevelDevOverlayElement>{element}</RootLevelDevOverlayElement>
+      )
     }
 
     ReactDOMClient.createRoot(appElement, reactRootOptions).render(element)
