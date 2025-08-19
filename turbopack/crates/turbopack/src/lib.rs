@@ -57,7 +57,7 @@ use turbopack_ecmascript::{
     side_effect_optimization::{
         facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
     },
-    tree_shake::asset::EcmascriptModulePartAsset,
+    tree_shake::part::module::EcmascriptModulePartAsset,
 };
 use turbopack_json::JsonModuleAsset;
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
