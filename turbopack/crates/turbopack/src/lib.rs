@@ -51,6 +51,7 @@ use turbopack_ecmascript::{
         external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
         follow_reexports,
     },
+    rename::module::EcmascriptModuleRenameModule,
     side_effect_optimization::{
         facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
     },
@@ -202,10 +203,9 @@ async fn apply_module_type(
                                     ModulePart::Export(_) => {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(
-                                                EcmascriptModuleFacadeModule::new(
-                                                    Vc::upcast(*module),
-                                                    ModulePart::facade(),
-                                                )
+                                                EcmascriptModuleFacadeModule::new(Vc::upcast(
+                                                    *module,
+                                                ))
                                                 .resolve()
                                                 .await?,
                                             ),
@@ -220,10 +220,7 @@ async fn apply_module_type(
                                     ),
                                 }
                             } else {
-                                Vc::upcast(EcmascriptModuleFacadeModule::new(
-                                    Vc::upcast(*module),
-                                    ModulePart::facade(),
-                                ))
+                                Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
                             }
                         } else {
                             Vc::upcast(*module)
@@ -308,13 +305,13 @@ async fn apply_reexport_tree_shaking(
             if *new_export == *export {
                 Vc::upcast(**final_module)
             } else {
-                Vc::upcast(EcmascriptModuleFacadeModule::new(
+                Vc::upcast(EcmascriptModuleRenameModule::new(
                     **final_module,
                     ModulePart::renamed_export(new_export.clone(), export.clone()),
                 ))
             }
         } else {
-            Vc::upcast(EcmascriptModuleFacadeModule::new(
+            Vc::upcast(EcmascriptModuleRenameModule::new(
                 **final_module,
                 ModulePart::renamed_namespace(export.clone()),
             ))
