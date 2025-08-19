@@ -1570,7 +1570,6 @@ export const defaultConfig = Object.freeze({
     amp: undefined,
     urlImports: undefined,
     turbo: undefined,
-    typedRoutes: false,
     typedEnv: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,

@@ -252,17 +252,6 @@ function assignDefaults(
     delete userConfig.experimental.dynamicIO
   }
 
-  // Handle migration of experimental.typedRoutes to typedRoutes
-  if (userConfig.experimental?.typedRoutes !== undefined) {
-    // If typedRoutes was not explicitly set by the user, use the typedRoutes value
-    if (userConfig.typedRoutes === undefined) {
-      userConfig.typedRoutes = userConfig.experimental.typedRoutes
-    }
-
-    // Remove the deprecated property
-    delete userConfig.experimental.typedRoutes
-  }
-
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
       const value = userConfig[key]
@@ -662,6 +651,13 @@ function assignDefaults(
     result,
     'swrDelta',
     'expireTime',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'typedRoutes',
+    'typedRoutes',
     configFileName,
     silent
   )
