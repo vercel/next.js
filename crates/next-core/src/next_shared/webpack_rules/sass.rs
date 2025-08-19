@@ -87,6 +87,7 @@ pub async fn maybe_add_sass_loader(
                 LoaderRuleItem {
                     loaders: ResolvedVc::cell(vec![resolve_url_loader, sass_loader]),
                     rename_as: Some(format!("*{rename}").into()),
+                    condition: None,
                 },
             );
         }

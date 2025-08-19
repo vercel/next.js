@@ -248,11 +248,11 @@ pub async fn get_client_module_options_context(
     let mut foreign_conditions = loader_conditions.clone();
     foreign_conditions.insert(WebpackLoaderBuiltinCondition::Foreign);
     let foreign_enable_webpack_loaders =
-        webpack_loader_options(project_path.clone(), next_config, true, foreign_conditions).await?;
+        webpack_loader_options(project_path.clone(), next_config, foreign_conditions).await?;
 
     // Now creates a webpack rules that applies to all code.
     let enable_webpack_loaders =
-        webpack_loader_options(project_path.clone(), next_config, false, loader_conditions).await?;
+        webpack_loader_options(project_path.clone(), next_config, loader_conditions).await?;
 
     let tree_shaking_mode_for_user_code = *next_config
         .tree_shaking_mode_for_user_code(next_mode.is_development())

@@ -106,18 +106,12 @@ const zHeader: zod.ZodType<Header> = z.object({
 
 const zTurbopackLoaderItem: zod.ZodType<TurbopackLoaderItem> = z.union([
   z.string(),
-  z.object({
+  z.strictObject({
     loader: z.string(),
     // Any JSON value can be used as turbo loader options, so use z.any() here
-    options: z.record(z.string(), z.any()),
+    options: z.record(z.string(), z.any()).optional(),
   }),
 ])
-
-const zTurbopackRuleConfigItemOptions: zod.ZodType<TurbopackRuleConfigItemOptions> =
-  z.object({
-    loaders: z.array(zTurbopackLoaderItem),
-    as: z.string().optional(),
-  })
 
 const zTurbopackLoaderBuiltinCondition: zod.ZodType<TurbopackLoaderBuiltinCondition> =
   z.union([
@@ -130,6 +124,24 @@ const zTurbopackLoaderBuiltinCondition: zod.ZodType<TurbopackLoaderBuiltinCondit
     z.literal('edge-light'),
   ])
 
+const zTurbopackCondition: zod.ZodType<TurbopackRuleCondition> = z.union([
+  z.strictObject({ all: z.lazy(() => z.array(zTurbopackCondition)) }),
+  z.strictObject({ any: z.lazy(() => z.array(zTurbopackCondition)) }),
+  z.strictObject({ not: z.lazy(() => zTurbopackCondition) }),
+  zTurbopackLoaderBuiltinCondition,
+  z.strictObject({
+    path: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+    content: z.instanceof(RegExp).optional(),
+  }),
+])
+
+const zTurbopackRuleConfigItemOptions: zod.ZodType<TurbopackRuleConfigItemOptions> =
+  z.strictObject({
+    loaders: z.array(zTurbopackLoaderItem),
+    as: z.string().optional(),
+    condition: zTurbopackCondition.optional(),
+  })
+
 const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> = z.union([
   z.literal(false),
   z.record(
@@ -138,13 +150,9 @@ const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> = z.union([
   ),
   zTurbopackRuleConfigItemOptions,
 ])
+
 const zTurbopackRuleConfigItemOrShortcut: zod.ZodType<TurbopackRuleConfigItemOrShortcut> =
   z.union([z.array(zTurbopackLoaderItem), zTurbopackRuleConfigItem])
-
-const zTurbopackCondition: zod.ZodType<TurbopackRuleCondition> = z.object({
-  path: z.union([z.string(), z.instanceof(RegExp)]).optional(),
-  content: z.instanceof(RegExp).optional(),
-})
 
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   rules: z.record(z.string(), zTurbopackRuleConfigItemOrShortcut).optional(),

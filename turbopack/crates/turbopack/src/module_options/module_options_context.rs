@@ -23,6 +23,7 @@ use crate::module_options::RuleCondition;
 pub struct LoaderRuleItem {
     pub loaders: ResolvedVc<WebpackLoaderItems>,
     pub rename_as: Option<RcStr>,
+    pub condition: Option<ConditionItem>,
 }
 
 #[derive(Default)]
@@ -49,9 +50,15 @@ pub enum ConditionPath {
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
-pub struct ConditionItem {
-    pub path: Option<ConditionPath>,
-    pub content: Option<ResolvedVc<EsRegex>>,
+pub enum ConditionItem {
+    All(Box<[ConditionItem]>),
+    Any(Box<[ConditionItem]>),
+    Not(Box<ConditionItem>),
+    Builtin(RcStr),
+    Base {
+        path: Option<ConditionPath>,
+        content: Option<ResolvedVc<EsRegex>>,
+    },
 }
 
 #[turbo_tasks::value(shared)]
@@ -59,7 +66,46 @@ pub struct ConditionItem {
 pub struct WebpackLoadersOptions {
     pub rules: ResolvedVc<WebpackRules>,
     pub conditions: ResolvedVc<OptionWebpackConditions>,
+    pub builtin_conditions: ResolvedVc<Box<dyn WebpackLoaderBuiltinConditionSet>>,
     pub loader_runner_package: Option<ResolvedVc<ImportMapping>>,
+}
+
+pub enum WebpackLoaderBuiltinConditionSetMatch {
+    Matched,
+    Unmatched,
+    /// The given condition is not supported by the framework.
+    Invalid,
+}
+
+/// A collection of framework-provided conditions for user (or framework) specified loader rules
+/// ([`WebpackRules`]) to match against.
+#[turbo_tasks::value_trait]
+pub trait WebpackLoaderBuiltinConditionSet {
+    /// Determines if the string representation of this condition is in the set. If it's not valid,
+    /// an issue will be emitted as a collectible.
+    fn match_condition(&self, condition: &str) -> WebpackLoaderBuiltinConditionSetMatch;
+}
+
+/// A no-op implementation of `WebpackLoaderBuiltinConditionSet` that always returns
+/// `WebpackLoaderBuiltinConditionSetMatch::Invalid`.
+#[turbo_tasks::value]
+pub struct EmptyWebpackLoaderBuiltinConditionSet;
+
+#[turbo_tasks::value_impl]
+impl EmptyWebpackLoaderBuiltinConditionSet {
+    #[turbo_tasks::function]
+    fn new() -> Vc<Box<dyn WebpackLoaderBuiltinConditionSet>> {
+        Vc::upcast::<Box<dyn WebpackLoaderBuiltinConditionSet>>(
+            EmptyWebpackLoaderBuiltinConditionSet.cell(),
+        )
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl WebpackLoaderBuiltinConditionSet for EmptyWebpackLoaderBuiltinConditionSet {
+    fn match_condition(&self, _condition: &str) -> WebpackLoaderBuiltinConditionSetMatch {
+        WebpackLoaderBuiltinConditionSetMatch::Invalid
+    }
 }
 
 /// The kind of decorators transform to use.

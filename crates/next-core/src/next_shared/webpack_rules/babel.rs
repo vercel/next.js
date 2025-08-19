@@ -97,6 +97,7 @@ pub async fn maybe_add_babel_loader(
                         LoaderRuleItem {
                             loaders: ResolvedVc::cell(vec![loader]),
                             rename_as: Some(rcstr!("*")),
+                            condition: None,
                         },
                     );
                 }
