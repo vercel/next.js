@@ -404,8 +404,6 @@ export default async function Image({ params }) {
 
 These examples use the Node.js runtime to fetch a local image from the file system and pass it to the `<img>` `src` attribute, either as a base64 string or an `ArrayBuffer`. Place the local asset relative to the project root, not the example source file.
 
-
-
 ```tsx filename="app/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
 import { join } from 'node:path'
@@ -464,7 +462,6 @@ import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
 export default async function Image() {
-  // If your file is in /public, use: join(process.cwd(), 'public', 'logo.png')
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
   // Satori accepts ArrayBuffer/typed arrays at runtime, but TS doesn't model this yet.
   const logoSrc = Uint8Array.from(logoData).buffer
@@ -492,7 +489,6 @@ import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
 export default async function Image() {
-  // If your file is in /public, use: join(process.cwd(), 'public', 'logo.png')
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
   const logoSrc = Uint8Array.from(logoData).buffer
 
