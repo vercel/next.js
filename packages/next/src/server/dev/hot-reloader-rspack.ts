@@ -109,7 +109,7 @@ async function createEntries(
             const entryKey = getEntryKey(COMPILER_NAMES.client, pagesType, page)
             result[entryKey] = {
               type: EntryTypes.ENTRY,
-              appPaths: null,
+              appPaths: [page],
               absolutePagePath,
               request: absolutePagePath,
               bundlePath: serverBundlePath,
@@ -124,7 +124,7 @@ async function createEntries(
           if (isInstrumentation || isMiddlewareFile(page)) {
             result[entryKey] = {
               type: EntryTypes.ENTRY,
-              appPaths: null,
+              appPaths: [page],
               absolutePagePath,
               request: absolutePagePath,
               bundlePath: serverBundlePath.replace('src/', ''),
@@ -135,7 +135,7 @@ async function createEntries(
           } else {
             result[entryKey] = {
               type: EntryTypes.ENTRY,
-              appPaths: null,
+              appPaths: [page],
               absolutePagePath,
               request: absolutePagePath,
               bundlePath: serverBundlePath,
@@ -150,7 +150,7 @@ async function createEntries(
           if (isInstrumentation) {
             result[entryKey] = {
               type: EntryTypes.ENTRY,
-              appPaths: null,
+              appPaths: [page],
               absolutePagePath,
               request: absolutePagePath,
               bundlePath: serverBundlePath.replace('src/', ''),
@@ -161,7 +161,7 @@ async function createEntries(
           } else {
             result[entryKey] = {
               type: EntryTypes.ENTRY,
-              appPaths: null,
+              appPaths: [page],
               absolutePagePath,
               request: absolutePagePath,
               bundlePath: serverBundlePath,
@@ -356,6 +356,6 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       )
     );
 
-    super.start()
+    await super.start()
   }
 }
