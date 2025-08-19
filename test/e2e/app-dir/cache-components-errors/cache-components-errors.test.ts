@@ -1275,7 +1275,7 @@ describe('Cache Components Errors', () => {
                [
                  {
                    "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-cookies-runtime/page.tsx (24:25) @ CookiesReadingComponent
                > 24 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
@@ -1287,7 +1287,7 @@ describe('Cache Components Errors', () => {
                  },
                  {
                    "description": "(0 , <turbopack-module-id>.cookies)(...).get is not a function",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies-runtime/page.tsx (24:66) @ CookiesReadingComponent
                > 24 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
@@ -1303,7 +1303,7 @@ describe('Cache Components Errors', () => {
                [
                  {
                    "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-cookies-runtime/page.tsx (24:17) @ CookiesReadingComponent
                > 24 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
@@ -1315,7 +1315,7 @@ describe('Cache Components Errors', () => {
                  },
                  {
                    "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies-runtime/page.tsx (24:66) @ CookiesReadingComponent
                > 24 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
@@ -1592,7 +1592,7 @@ describe('Cache Components Errors', () => {
                [
                  {
                    "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-headers-runtime/page.tsx (24:29) @ HeadersReadingComponent
                > 24 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
@@ -1604,7 +1604,7 @@ describe('Cache Components Errors', () => {
                  },
                  {
                    "description": "(0 , <turbopack-module-id>.headers)(...).get is not a function",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers-runtime/page.tsx (24:70) @ HeadersReadingComponent
                > 24 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
@@ -1620,7 +1620,7 @@ describe('Cache Components Errors', () => {
                [
                  {
                    "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-headers-runtime/page.tsx (24:21) @ HeadersReadingComponent
                > 24 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
@@ -1632,7 +1632,7 @@ describe('Cache Components Errors', () => {
                  },
                  {
                    "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
-                   "environmentLabel": "Prerender",
+                   "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers-runtime/page.tsx (24:70) @ HeadersReadingComponent
                > 24 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(

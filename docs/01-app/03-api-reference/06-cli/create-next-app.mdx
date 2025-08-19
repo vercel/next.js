@@ -21,11 +21,13 @@ The following options are available:
 | --------------------------------------- | --------------------------------------------------------------- |
 | `-h` or `--help`                        | Show all available options                                      |
 | `-v` or `--version`                     | Output the version number                                       |
-| `--no-*`                                | Negate default options. E.g. `--no-eslint`                      |
+| `--no-*`                                | Negate default options. E.g. `--no-ts`                          |
 | `--ts` or `--typescript`                | Initialize as a TypeScript project (default)                    |
 | `--js` or `--javascript`                | Initialize as a JavaScript project                              |
 | `--tailwind`                            | Initialize with Tailwind CSS config (default)                   |
 | `--eslint`                              | Initialize with ESLint config                                   |
+| `--biome`                               | Initialize with Biome config                                    |
+| `--no-linter`                           | Skip linter configuration                                       |
 | `--app`                                 | Initialize as an App Router project                             |
 | `--api`                                 | Initialize a project with only route handlers                   |
 | `--src-dir`                             | Initialize inside a `src/` directory                            |
@@ -58,13 +60,23 @@ You will then be asked the following prompts:
 ```txt filename="Terminal"
 What is your project named?  my-app
 Would you like to use TypeScript?  No / Yes
-Would you like to use ESLint?  No / Yes
+Which linter would you like to use?  ESLint / Biome / None
 Would you like to use Tailwind CSS?  No / Yes
 Would you like your code inside a `src/` directory?  No / Yes
 Would you like to use App Router? (recommended)  No / Yes
-Would you like to use Turbopack for `next dev`?  No / Yes
+Would you like to use Turbopack? (recommended)  No / Yes
 Would you like to customize the import alias (`@/*` by default)?  No / Yes
 ```
+
+### Linter Options
+
+**ESLint**: The traditional and most popular JavaScript linter. Includes Next.js-specific rules from `eslint-plugin-next`.
+
+**Biome**: A fast, modern linter and formatter that combines the functionality of ESLint and Prettier. Includes built-in Next.js and React domain support for optimal performance.
+
+**None**: Skip linter configuration entirely. You can always add a linter later.
+
+> **Note**: `next lint` command will be deprecated in Next.js 16. New projects should use the chosen linter directly (e.g., `biome check` or `eslint`).
 
 Once you've answered the prompts, a new project will be created with your chosen configuration.
 

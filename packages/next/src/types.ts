@@ -55,7 +55,7 @@ export type { Instrumentation } from './server/instrumentation/types'
  */
 
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
-// isn't generated yet. It will be replaced when the webpack plugin runs.
+// isn't generated yet. It will be replaced when type generation runs.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type Route<RouteInferType = any> = string & {}
 

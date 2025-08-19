@@ -91,6 +91,60 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 | **Fast Refresh**         | **Supported** | Updates JavaScript, TypeScript, and CSS without a full refresh.                          |
 | **Incremental Bundling** | **Supported** | Turbopack lazily builds only what’s requested by the dev server, speeding up large apps. |
 
+## Known gaps with webpack
+
+There are a number of non-trivial behavior differences between webpack and Turbopack that are important to be aware of when migrating an application. Generally, these are less of a concern for new applications.
+
+### CSS Module Ordering
+
+Turbopack will follow JS import order to order [CSS modules](/docs/app/getting-started/css#css-modules) which are not otherwise ordered. For example:
+
+```jsx filename="components/BlogPost.jsx"
+import utilStyles from './utils.module.css'
+import buttonStyles from './button.module.css'
+export default function BlogPost() {
+  return (
+    <div className={utilStyles.container}>
+      <button className={buttonStyles.primary}>Click me</button>
+    </div>
+  )
+}
+```
+
+In this example, Turbopack will ensure that `utils.module.css` will appear before `button.module.css` in the produced CSS chunk, following the import order
+
+Webpack generally does this as well, but there are cases where it will ignore JS inferred ordering, for example if it infers the JS file is side-effect-free.
+
+This can lead to subtle rendering changes when adopting Turbopack, if applications have come to rely on an arbitrary ordering. Generally, the solution is easy, e.g. have `button.module.css` `@import utils.module.css` to force the ordering, or identify the conflicting rules and change them to not target the same properties.
+
+### Bundle Sizes
+
+Turbopack does not yet have an equivalent to the [Inner Graph Optimization](https://webpack.js.org/configuration/optimization/#optimizationinnergraph) in webpack. This optimization is useful to tree shake large modules. For example:
+
+```js filename=large.module.js
+import heavy from 'some-heavy-dependency.js'
+
+export function usesHeavy() {
+  return heavy.run()
+}
+
+export const CONSTANT_VALUE = 3
+```
+
+If an application only uses `CONSTANT_VALUE` Turbopack will detect this and delete the `usesHeavy` export but not the corresponding `import`. However, with the `optimization.innerGraph = true` option enabled, webpack can delete the `import` too.
+
+We are planning to offer an equivalent to the `innerGraph` optimization in Turbopack but it is still under development. If you are affected by this gap, consider manually splitting these modules.
+
+### Build Caching
+
+Webpack supports [disk build caching](https://webpack.js.org/configuration/cache/#cache) to speed up builds. We are planning to support an analogous feature in Turbopack but it is not ready yet. On the `next@canary` release you can experiment with our solution by enabling the [`experimental.turbopackPersistentCaching` flag](/docs/app/api-reference/config/next-config-js/turbopackPersistentCaching).
+
+> **Good to know:** For this reason, when comparing webpack and Turbopack performance, make sure to delete the `.next` folder between builds to see a fair comparison.
+
+### Webpack plugins
+
+Turbopack does not support webpack plugins. This affects third-party tools that rely on webpack's plugin system for integration. We do support [webpack loaders](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders). If you depend on webpack plugins, you'll need to find Turbopack-compatible alternatives or continue using webpack until equivalent functionality is available.
+
 ## Unsupported and unplanned features
 
 Some features are not yet implemented or not planned:
@@ -112,7 +166,6 @@ Some features are not yet implemented or not planned:
 - **`experimental.esmExternals`**
   Not planned. Turbopack does not support the legacy `esmExternals` configuration in Next.js.
 - **Some Next.js Experimental Flags**
-  - `experimental.typedRoutes`
   - `experimental.nextScriptWorkers`
   - `experimental.sri.algorithm`
   - `experimental.fallbackNodePolyfills`
@@ -167,7 +220,8 @@ Stay tuned for more updates as we continue to improve Turbopack and add producti
 
 ## Version Changes
 
-| Version   | Changes                          |
-| --------- | -------------------------------- |
-| `v15.3.0` | Experimental support for `build` |
-| `v15.0.0` | Turbopack for `dev` stable       |
+| Version   | Changes                            |
+| --------- | ---------------------------------- |
+| `v15.5.0` | Turbopack support for `build` beta |
+| `v15.3.0` | Experimental support for `build`   |
+| `v15.0.0` | Turbopack for `dev` stable         |

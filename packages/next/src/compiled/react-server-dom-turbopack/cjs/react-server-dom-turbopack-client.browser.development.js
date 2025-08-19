@@ -1100,7 +1100,65 @@
         var rejectListeners = chunk.reason;
         chunk.status = "resolved_module";
         chunk.value = value;
-        chunk._debugInfo = null;
+        value = value[1];
+        for (var debugInfo = [], i = 0; i < value.length; ) {
+          var chunkFilename = value[i++],
+            href = void 0,
+            target = debugInfo,
+            ioInfo = chunkIOInfoCache.get(chunkFilename);
+          if (void 0 === ioInfo) {
+            try {
+              href = new URL(chunkFilename, document.baseURI).href;
+            } catch (_) {
+              href = chunkFilename;
+            }
+            var end = (ioInfo = -1),
+              byteSize = 0;
+            if ("function" === typeof performance.getEntriesByType)
+              for (
+                var resourceEntries = performance.getEntriesByType("resource"),
+                  i$jscomp$0 = 0;
+                i$jscomp$0 < resourceEntries.length;
+                i$jscomp$0++
+              ) {
+                var resourceEntry = resourceEntries[i$jscomp$0];
+                resourceEntry.name === href &&
+                  ((ioInfo = resourceEntry.startTime),
+                  (end = ioInfo + resourceEntry.duration),
+                  (byteSize = resourceEntry.transferSize || 0));
+              }
+            resourceEntries = Promise.resolve(href);
+            resourceEntries.status = "fulfilled";
+            resourceEntries.value = href;
+            i$jscomp$0 = Error("react-stack-top-frame");
+            i$jscomp$0.stack.startsWith("Error: react-stack-top-frame")
+              ? (i$jscomp$0.stack =
+                  "Error: react-stack-top-frame\n    at Client Component Bundle (" +
+                  href +
+                  ":1:1)\n    at Client Component Bundle (" +
+                  href +
+                  ":1:1)")
+              : (i$jscomp$0.stack =
+                  "Client Component Bundle@" +
+                  href +
+                  ":1:1\nClient Component Bundle@" +
+                  href +
+                  ":1:1");
+            ioInfo = {
+              name: "script",
+              start: ioInfo,
+              end: end,
+              value: resourceEntries,
+              debugStack: i$jscomp$0
+            };
+            0 < byteSize && (ioInfo.byteSize = byteSize);
+            chunkIOInfoCache.set(chunkFilename, ioInfo);
+          }
+          target.push({ awaited: ioInfo });
+        }
+        null !== debugInfo && null != chunk._debugInfo
+          ? chunk._debugInfo.push.apply(chunk._debugInfo, debugInfo)
+          : (chunk._debugInfo = debugInfo);
         null !== response &&
           (initializeModuleChunk(chunk),
           wakeChunkIfInitialized(chunk, response, rejectListeners));
@@ -3178,6 +3236,7 @@
       bind = Function.prototype.bind,
       instrumentedChunks = new WeakSet(),
       loadedChunks = new WeakSet(),
+      chunkIOInfoCache = new Map(),
       ReactDOMSharedInternals =
         ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
@@ -3371,10 +3430,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-a96a0f39-20250815",
+      version: "19.2.0-canary-0bdb9206-20250818",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-a96a0f39-20250815",
+      reconcilerVersion: "19.2.0-canary-0bdb9206-20250818",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

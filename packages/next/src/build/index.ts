@@ -4022,10 +4022,6 @@ export default async function build(
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur
 
-    if (isTurbopack && !process.env.__NEXT_TEST_MODE) {
-      warnAboutTurbopackBuilds()
-    }
-
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
     teardownTraceSubscriber()
@@ -4048,14 +4044,6 @@ function errorFromUnsupportedSegmentConfig(): never {
     `Invalid segment configuration export detected. This can cause unexpected behavior from the configs not being applied. You should see the relevant failures in the logs above. Please fix them to continue.`
   )
   process.exit(1)
-}
-
-function warnAboutTurbopackBuilds() {
-  Log.ready(
-    `Turbopack builds are ${bold('beta')}.\n\n` +
-      '   Please see our docs https://nextjs.org/docs/app/api-reference/turbopack for information on known differences with webpack builds.\n\n' +
-      '   Provide feedback for Turbopack builds at https://github.com/vercel/next.js/discussions/77721'
-  )
 }
 
 function getBundlerForTelemetry(isTurbopack: boolean) {

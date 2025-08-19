@@ -109,15 +109,13 @@ module.exports = nextConfig
 
 Next.js can statically type links to prevent typos and other errors when using `next/link`, improving type safety when navigating between pages.
 
-To opt-into this feature, `experimental.typedRoutes` need to be enabled and the project needs to be using TypeScript.
+To opt-into this feature, `typedRoutes` need to be enabled and the project needs to be using TypeScript.
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    typedRoutes: true,
-  },
+  typedRoutes: true,
 }
 
 export default nextConfig

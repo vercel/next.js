@@ -29,7 +29,7 @@ Would you like to use ESLint? No / Yes
 Would you like to use Tailwind CSS? No / Yes
 Would you like your code inside a `src/` directory? No / Yes
 Would you like to use App Router? (recommended) No / Yes
-Would you like to use Turbopack for `next dev`?  No / Yes
+Would you like to use Turbopack? (recommended) No / Yes
 Would you like to customize the import alias (`@/*` by default)? No / Yes
 What import alias would you like configured? @/*
 ```
@@ -66,7 +66,7 @@ Then, add the following scripts to your `package.json` file:
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint"
   }
 }
 ```
@@ -76,7 +76,7 @@ These scripts refer to the different stages of developing an application:
 - `next dev`: Starts the development server.
 - `next build`: Builds the application for production.
 - `next start`: Starts the production server.
-- `next lint`: Runs ESLint.
+- `eslint`: Runs ESLint.
 
 <AppOnly>
 
