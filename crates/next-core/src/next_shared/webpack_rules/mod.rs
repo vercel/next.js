@@ -40,7 +40,7 @@ pub(crate) mod sass;
     TraceRawVcs,
     NonLocalValue,
 )]
-pub enum WebpackBuiltinCondition {
+pub enum WebpackLoaderBuiltinCondition {
     /// Treated as always-present.
     Default,
     /// Client-side code.
@@ -59,7 +59,7 @@ pub enum WebpackBuiltinCondition {
     EdgeLight,
 }
 
-impl WebpackBuiltinCondition {
+impl WebpackLoaderBuiltinCondition {
     fn as_str(self) -> &'static str {
         match self {
             Self::Default => "default",
@@ -73,7 +73,7 @@ impl WebpackBuiltinCondition {
     }
 }
 
-impl FromStr for WebpackBuiltinCondition {
+impl FromStr for WebpackLoaderBuiltinCondition {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -90,8 +90,8 @@ impl FromStr for WebpackBuiltinCondition {
     }
 }
 
-impl PartialEq<WebpackBuiltinCondition> for &str {
-    fn eq(&self, other: &WebpackBuiltinCondition) -> bool {
+impl PartialEq<WebpackLoaderBuiltinCondition> for &str {
+    fn eq(&self, other: &WebpackLoaderBuiltinCondition) -> bool {
         *self == other.as_str()
     }
 }
@@ -100,7 +100,7 @@ pub async fn webpack_loader_options(
     project_path: FileSystemPath,
     next_config: Vc<NextConfig>,
     foreign: bool,
-    loader_conditions: BTreeSet<WebpackBuiltinCondition>,
+    loader_conditions: BTreeSet<WebpackLoaderBuiltinCondition>,
 ) -> Result<Option<ResolvedVc<WebpackLoadersOptions>>> {
     let rules = *next_config
         .webpack_rules(loader_conditions, project_path.clone())

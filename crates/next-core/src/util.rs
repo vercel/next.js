@@ -40,7 +40,7 @@ use crate::{
     next_config::{NextConfig, RouteHas},
     next_import_map::get_next_package,
     next_manifests::MiddlewareMatcher,
-    next_shared::webpack_rules::WebpackBuiltinCondition,
+    next_shared::webpack_rules::WebpackLoaderBuiltinCondition,
 };
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
@@ -231,10 +231,10 @@ pub enum NextRuntime {
 impl NextRuntime {
     /// Returns conditions that can be used in the Next.js config's turbopack "rules" section for
     /// defining webpack loader configuration.
-    pub fn webpack_loader_conditions(&self) -> impl Iterator<Item = WebpackBuiltinCondition> {
+    pub fn webpack_loader_conditions(&self) -> impl Iterator<Item = WebpackLoaderBuiltinCondition> {
         match self {
-            NextRuntime::NodeJs => [WebpackBuiltinCondition::Node],
-            NextRuntime::Edge => [WebpackBuiltinCondition::EdgeLight],
+            NextRuntime::NodeJs => [WebpackLoaderBuiltinCondition::Node],
+            NextRuntime::Edge => [WebpackLoaderBuiltinCondition::EdgeLight],
         }
         .into_iter()
     }

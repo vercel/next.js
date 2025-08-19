@@ -261,7 +261,7 @@ export type TurbopackLoaderItem =
       options: Record<string, JSONValue>
     }
 
-export type TurbopackRuleBuiltinCondition =
+export type TurbopackLoaderBuiltinCondition =
   | 'default'
   | 'browser'
   | 'foreign'
@@ -286,7 +286,7 @@ export type TurbopackRuleConfigItemOptions = {
 
 export type TurbopackRuleConfigItem =
   | TurbopackRuleConfigItemOptions
-  | { [condition in TurbopackRuleBuiltinCondition]?: TurbopackRuleConfigItem }
+  | { [condition in TurbopackLoaderBuiltinCondition]?: TurbopackRuleConfigItem }
   | false
 
 export interface TurbopackOptions {

@@ -14,7 +14,7 @@ import type {
   TurbopackRuleConfigItemOptions,
   TurbopackRuleConfigItemOrShortcut,
   TurbopackRuleCondition,
-  TurbopackRuleBuiltinCondition,
+  TurbopackLoaderBuiltinCondition,
 } from './config-shared'
 import type {
   Header,
@@ -118,7 +118,7 @@ const zTurbopackRuleConfigItemOptions: zod.ZodType<TurbopackRuleConfigItemOption
     as: z.string().optional(),
   })
 
-const zTurbopackBuiltinCondition: zod.ZodType<TurbopackRuleBuiltinCondition> =
+const zTurbopackLoaderBuiltinCondition: zod.ZodType<TurbopackLoaderBuiltinCondition> =
   z.union([
     z.literal('default'),
     z.literal('browser'),
@@ -132,7 +132,7 @@ const zTurbopackBuiltinCondition: zod.ZodType<TurbopackRuleBuiltinCondition> =
 const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> = z.union([
   z.literal(false),
   z.record(
-    zTurbopackBuiltinCondition,
+    zTurbopackLoaderBuiltinCondition,
     z.lazy(() => zTurbopackRuleConfigItem)
   ),
   zTurbopackRuleConfigItemOptions,

@@ -2,7 +2,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::TaskInput;
 use turbopack_ecmascript_runtime::RuntimeType;
 
-use crate::next_shared::webpack_rules::WebpackBuiltinCondition;
+use crate::next_shared::webpack_rules::WebpackLoaderBuiltinCondition;
 
 /// The mode in which Next.js is running.
 #[turbo_tasks::value(shared)]
@@ -25,10 +25,10 @@ impl NextMode {
 
     /// Returns conditions that can be used in the Next.js config's turbopack "rules" section for
     /// defining webpack loader configuration.
-    pub fn webpack_loader_conditions(&self) -> impl Iterator<Item = WebpackBuiltinCondition> {
+    pub fn webpack_loader_conditions(&self) -> impl Iterator<Item = WebpackLoaderBuiltinCondition> {
         match self {
-            NextMode::Development => [WebpackBuiltinCondition::Development],
-            NextMode::Build => [WebpackBuiltinCondition::Production],
+            NextMode::Development => [WebpackLoaderBuiltinCondition::Development],
+            NextMode::Build => [WebpackLoaderBuiltinCondition::Production],
         }
         .into_iter()
     }

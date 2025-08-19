@@ -32,7 +32,7 @@ use crate::{
     mode::NextMode,
     next_import_map::mdx_import_source_file,
     next_shared::{
-        transforms::ModularizeImportPackageConfig, webpack_rules::WebpackBuiltinCondition,
+        transforms::ModularizeImportPackageConfig, webpack_rules::WebpackLoaderBuiltinCondition,
     },
 };
 
@@ -1285,7 +1285,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn webpack_rules(
         &self,
-        active_conditions: BTreeSet<WebpackBuiltinCondition>,
+        active_conditions: BTreeSet<WebpackLoaderBuiltinCondition>,
         project_path: FileSystemPath,
     ) -> Result<Vc<OptionWebpackRules>> {
         let Some(turbo_rules) = self.turbopack.as_ref().and_then(|t| t.rules.as_ref()) else {
@@ -1317,15 +1317,15 @@ impl NextConfig {
             }
             fn find_rule<'a>(
                 rule: &'a RuleConfigItem,
-                active_conditions: &BTreeSet<WebpackBuiltinCondition>,
+                active_conditions: &BTreeSet<WebpackLoaderBuiltinCondition>,
             ) -> FindRuleResult<'a> {
                 match rule {
                     RuleConfigItem::Options(rule) => FindRuleResult::Found(rule),
                     RuleConfigItem::Conditional(map) => {
                         for (condition, rule) in map.iter() {
-                            let condition = WebpackBuiltinCondition::from_str(condition);
+                            let condition = WebpackLoaderBuiltinCondition::from_str(condition);
                             if let Ok(condition) = condition
-                                && (condition == WebpackBuiltinCondition::Default
+                                && (condition == WebpackLoaderBuiltinCondition::Default
                                     || active_conditions.contains(&condition))
                             {
                                 match find_rule(rule, active_conditions) {
