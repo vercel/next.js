@@ -189,6 +189,16 @@ Learn more about [Telemetry](/telemetry).
 
 `next typegen` generates TypeScript definitions for your application's routes without performing a full build. This is useful for IDE autocomplete and CI type-checking of route usage.
 
+Previously, route types were only generated during `next dev` or `next build`, which meant running `tsc --noEmit` directly wouldn't validate your route types. Now you can generate types independently and validate them externally:
+
+```bash filename="Terminal"
+# Generate route types first, then validate with TypeScript
+next typegen && tsc --noEmit
+
+# Or in CI workflows for type checking without building
+next typegen && npm run type-check
+```
+
 The following options are available for the `next typegen` command:
 
 | Option        | Description                                                                                  |
