@@ -1,666 +1,344 @@
-import type { NextConfigComplete } from '../config-shared'
-import type { CustomRoutes } from '../../lib/load-custom-routes'
-import type { Duplex } from 'stream'
-import type { Telemetry } from '../../telemetry/storage'
-import type { IncomingMessage, ServerResponse } from 'http'
-import type { UrlObject } from 'url'
-import type { RouteDefinition } from '../route-definitions/route-definition'
-import * as path from "path";
-
-import { type webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
-import {
-  getOverlayMiddleware,
-  getSourceMapMiddleware,
-} from './middleware-webpack'
-import { WebpackHotMiddleware } from './hot-middleware'
-import { join } from 'path'
-import {
-  createEntrypoints,
-  createPagesMapping,
-  collectPagesFiles,
-  collectAppFiles,
-  sortByPageExts,
-} from '../../build/entries'
-import { watchCompilers } from '../../build/output'
-import * as Log from '../../build/output/log'
-import getBaseWebpackConfig, {
-  getCacheDirectories,
-  loadProjectInfo,
-} from '../../build/webpack-config'
-import { INSTRUMENTATION_HOOK_FILENAME, MIDDLEWARE_FILENAME, WEBPACK_LAYERS } from '../../lib/constants'
-import { recursiveDelete } from '../../lib/recursive-delete'
-import { COMPILER_NAMES } from '../../shared/lib/constants'
-import type { __ApiPreviewProps } from '../api-utils'
-import { getPathMatch } from '../../shared/lib/router/utils/path-match'
-import { createValidFileMatcher } from '../lib/find-page-file'
-import {
-  getInvalidator,
-  onDemandEntryHandler,
-} from './on-demand-entry-handler'
-import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
-import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
-import getRouteFromEntrypoint from '../get-route-from-entrypoint'
-import {
-  difference,
-  isMiddlewareFilename,
-} from '../../build/utils'
-import { type Span, trace } from '../../trace'
-import ws from 'next/dist/compiled/ws'
-import { promises as fs } from 'fs'
-import type { UnwrapPromise } from '../../lib/coalesced-function'
-import { parseVersionInfo } from './parse-version-info'
-import type { VersionInfo } from './parse-version-info'
-import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  type NextJsHotReloaderInterface,
-} from './hot-reloader-types'
-import type { HMR_ACTION_TYPES } from './hot-reloader-types'
-import type { WebpackError } from 'webpack'
-import { PAGE_TYPES } from '../../lib/page-types'
-import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
-import { getNodeDebugType } from '../lib/utils'
-import { getNextErrorFeedbackMiddleware } from '../../next-devtools/server/get-next-error-feedback-middleware'
-import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
-import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
-import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
-import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
-import { checkPersistentCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
-import { receiveBrowserLogsWebpack } from './browser-logs/receive-logs'
-import {
-  devToolsConfigMiddleware,
-  getDevToolsConfig,
-} from '../../next-devtools/server/devtools-config-middleware'
-import { findPagesDir } from '../../lib/find-pages-dir'
+import path, { posix } from 'path'
+import type { PageStaticInfo } from '../../build/analysis/get-page-static-info'
 import type { MappedPages } from '../../build/build-context'
+import { collectAppFiles, collectPagesFiles, createPagesMapping, getPageFilePath, getPageFromPath, getStaticInfoIncludingLayouts, runDependingOnPageType, sortByPageExts, type CreateEntrypointsParams } from '../../build/entries'
+import { normalizeCatchAllRoutes } from '../../build/normalize-catchall-routes'
+import { APP_DIR_ALIAS, INSTRUMENTATION_HOOK_FILENAME, MIDDLEWARE_FILENAME, PAGES_DIR_ALIAS, ROOT_DIR_ALIAS } from '../../lib/constants'
+import { PAGE_TYPES } from '../../lib/page-types'
+import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { createValidFileMatcher } from '../lib/find-page-file'
+import HotReloaderWebpack from './hot-reloader-webpack'
+import { ADDED, EntryTypes, getEntries, getEntryKey } from './on-demand-entry-handler'
+import { isInstrumentationHookFile, isMiddlewareFile } from '../../build/utils'
 import { getFilesInDir } from '../../lib/get-files-in-dir'
-import type HotReloaderWebpack from './hot-reloader-webpack'
-import { getRspackCore } from '../../shared/lib/get-rspack'
+import { COMPILER_NAMES, RSC_MODULE_TYPES } from '../../shared/lib/constants'
+import type { PageExtensions } from '../../build/page-extensions-type'
 
-const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
+async function createEntries(
+  params: CreateEntrypointsParams
+): Promise<ReturnType<typeof getEntries>> {
+  const {
+    config,
+    pages,
+    pagesDir,
+    isDev,
+    rootDir,
+    rootPaths,
+    appDir,
+    appPaths,
+    pageExtensions,
+  } = params
+  const result: ReturnType<typeof getEntries> = {}
 
-function diff(a: Set<any>, b: Set<any>) {
-  return new Set([...a].filter((v) => !b.has(v)))
-}
+  let appPathsPerRoute: Record<string, string[]> = {}
+  if (appDir && appPaths) {
+    for (const pathname in appPaths) {
+      const normalizedPath = normalizeAppPath(pathname)
+      const actualPath = appPaths[pathname]
+      if (!appPathsPerRoute[normalizedPath]) {
+        appPathsPerRoute[normalizedPath] = []
+      }
+      appPathsPerRoute[normalizedPath].push(
+        // TODO-APP: refactor to pass the page path from createPagesMapping instead.
+        getPageFromPath(actualPath, pageExtensions).replace(APP_DIR_ALIAS, '')
+      )
+    }
 
-const wsServer = new ws.Server({ noServer: true })
+    // TODO: find a better place to do this
+    normalizeCatchAllRoutes(appPathsPerRoute)
 
-export async function renderScriptError(
-  res: ServerResponse,
-  error: Error,
-  { verbose = true } = {}
-): Promise<{ finished: true | undefined }> {
-  // Asks CDNs and others to not to cache the errored page
-  res.setHeader(
-    'Cache-Control',
-    'no-cache, no-store, max-age=0, must-revalidate'
-  )
-
-  if ((error as any).code === 'ENOENT') {
-    return { finished: undefined }
-  }
-
-  if (verbose) {
-    console.error(error.stack)
-  }
-  res.statusCode = 500
-  res.end('500 - Internal Error')
-  return { finished: true }
-}
-
-function addCorsSupport(req: IncomingMessage, res: ServerResponse) {
-  // Only rewrite CORS handling when URL matches a hot-reloader middleware
-  if (!req.url!.startsWith('/__next')) {
-    return { preflight: false }
-  }
-
-  if (!req.headers.origin) {
-    return { preflight: false }
-  }
-
-  res.setHeader('Access-Control-Allow-Origin', req.headers.origin)
-  res.setHeader('Access-Control-Allow-Methods', 'OPTIONS, GET')
-  // Based on https://github.com/primus/access-control/blob/4cf1bc0e54b086c91e6aa44fb14966fa5ef7549c/index.js#L158
-  if (req.headers['access-control-request-headers']) {
-    res.setHeader(
-      'Access-Control-Allow-Headers',
-      req.headers['access-control-request-headers'] as string
+    // Make sure to sort parallel routes to make the result deterministic.
+    appPathsPerRoute = Object.fromEntries(
+      Object.entries(appPathsPerRoute).map(([k, v]) => [k, v.sort()])
     )
   }
 
-  if (req.method === 'OPTIONS') {
-    res.writeHead(200)
-    res.end()
-    return { preflight: true }
-  }
+  const getEntryHandler =
+    (mappings: MappedPages, pagesType: PAGE_TYPES): ((page: string) => void) =>
+    async (page) => {
+      const bundleFile = normalizePagePath(page)
+      const serverBundlePath =
+        pagesType === PAGE_TYPES.PAGES
+          ? posix.join('pages', bundleFile)
+          : pagesType === PAGE_TYPES.APP
+            ? posix.join('app', bundleFile)
+            : bundleFile.slice(1)
 
-  return { preflight: false }
-}
+      const absolutePagePath = mappings[page]
 
-export const matchNextPageBundleRequest = getPathMatch(
-  '/_next/static/chunks/pages/:path*.js(\\.map|)'
-)
-
-// Iteratively look up the issuer till it ends up at the root
-function findEntryModule(
-  module: webpack.Module,
-  compilation: webpack.Compilation
-): any {
-  for (;;) {
-    const issuer = compilation.moduleGraph.getIssuer(module)
-    if (!issuer) return module
-    module = issuer
-  }
-}
-
-function erroredPages(compilation: webpack.Compilation) {
-  const failedPages: { [page: string]: WebpackError[] } = {}
-  for (const error of compilation.errors) {
-    if (!error.module) {
-      continue
-    }
-
-    const entryModule = findEntryModule(error.module, compilation)
-    const { name } = entryModule
-    if (!name) {
-      continue
-    }
-
-    // Only pages have to be reloaded
-    const enhancedName = getRouteFromEntrypoint(name)
-
-    if (!enhancedName) {
-      continue
-    }
-
-    if (!failedPages[enhancedName]) {
-      failedPages[enhancedName] = []
-    }
-
-    failedPages[enhancedName].push(error)
-  }
-
-  return failedPages
-}
-
-export async function getVersionInfo(): Promise<VersionInfo> {
-  let installed = '0.0.0'
-
-  try {
-    installed = require('next/package.json').version
-
-    let res
-
-    try {
-      // use NPM registry regardless user using Yarn
-      res = await fetch('https://registry.npmjs.org/-/package/next/dist-tags')
-    } catch {
-      // ignore fetch errors
-    }
-
-    if (!res || !res.ok) return { installed, staleness: 'unknown' }
-
-    const { latest, canary } = await res.json()
-
-    return parseVersionInfo({ installed, latest, canary })
-  } catch (e: any) {
-    console.error(e)
-    return { installed, staleness: 'unknown' }
-  }
-}
-
-export default class HotReloaderRspack implements NextJsHotReloaderInterface {
-  private dir: string
-  private buildId: string
-  private encryptionKey: string
-  private middlewares: ((
-    req: IncomingMessage,
-    res: ServerResponse,
-    next: () => void
-  ) => Promise<void>)[]
-  private pagesDir?: string
-  private distDir: string
-  private webpackHotMiddleware?: WebpackHotMiddleware
-  private config: NextConfigComplete
-  private clientStats: webpack.Stats | null
-  private clientError: Error | null = null
-  private serverError: Error | null = null
-  private hmrServerError: Error | null = null
-  private serverPrevDocumentHash: string | null
-  private serverChunkNames?: Set<string>
-  private prevChunkNames?: Set<any>
-  private onDemandEntries?: ReturnType<typeof onDemandEntryHandler>
-  private previewProps: __ApiPreviewProps
-  private watcher: any
-  private rewrites: CustomRoutes['rewrites']
-  private fallbackWatcher: any
-  private hotReloaderSpan: Span
-  private appDir?: string
-  private telemetry: Telemetry
-  private resetFetch: () => void
-  private versionInfo: VersionInfo = {
-    staleness: 'unknown',
-    installed: '0.0.0',
-  }
-  private devtoolsFrontendUrl: string | undefined
-  private reloadAfterInvalidation: boolean = false
-  private isSrcDir: boolean
-  private port: number
-
-  public serverStats: webpack.Stats | null
-  public edgeServerStats: webpack.Stats | null
-  public multiCompiler?: webpack.MultiCompiler
-  public activeWebpackConfigs?: Array<
-    UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
-  >
-
-  constructor(
-    dir: string,
-    {
-      config,
-      isSrcDir,
-      pagesDir,
-      distDir,
-      buildId,
-      encryptionKey,
-      previewProps,
-      rewrites,
-      appDir,
-      telemetry,
-      resetFetch,
-      port
-    }: {
-      config: NextConfigComplete
-      isSrcDir: boolean
-      pagesDir?: string
-      distDir: string
-      buildId: string
-      encryptionKey: string
-      previewProps: __ApiPreviewProps
-      rewrites: CustomRoutes['rewrites']
-      appDir?: string
-      telemetry: Telemetry
-      resetFetch: () => void
-      port: number
-    }
-  ) {
-    this.buildId = buildId
-    this.encryptionKey = encryptionKey
-    this.dir = dir
-    this.isSrcDir = isSrcDir
-    this.middlewares = []
-    this.pagesDir = pagesDir
-    this.appDir = appDir
-    this.distDir = distDir
-    this.clientStats = null
-    this.serverStats = null
-    this.edgeServerStats = null
-    this.serverPrevDocumentHash = null
-    this.telemetry = telemetry
-    this.resetFetch = resetFetch
-    this.port = port
-
-    this.config = config
-    this.previewProps = previewProps
-    this.rewrites = rewrites
-    this.hotReloaderSpan = trace('hot-reloader', undefined, {
-      version: process.env.__NEXT_VERSION as string,
-    })
-    // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
-    // of the current `next dev` invocation.
-    this.hotReloaderSpan.stop()
-  }
-
-  public async run(
-    req: IncomingMessage,
-    res: ServerResponse,
-    _parsedUrl: UrlObject
-  ): Promise<{ finished?: true }> {
-    console.log("---------- run ---------");
-    // Usually CORS support is not needed for the hot-reloader (this is dev only feature)
-    // With when the app runs for multi-zones support behind a proxy,
-    // the current page is trying to access this URL via assetPrefix.
-    // That's when the CORS support is needed.
-    const { preflight } = addCorsSupport(req, res)
-    if (preflight) {
-      return {}
-    }
-
-    for (const middleware of this.middlewares) {
-      let calledNext = false
-
-      await middleware(req, res, () => {
-        calledNext = true
+      // Handle paths that have aliases
+      const pageFilePath = getPageFilePath({
+        absolutePagePath,
+        pagesDir,
+        appDir,
+        rootDir,
       })
 
-      if (!calledNext) {
-        return { finished: true }
-      }
-    }
+      const isInsideAppDir =
+        !!appDir &&
+        (absolutePagePath.startsWith(APP_DIR_ALIAS) ||
+          absolutePagePath.startsWith(appDir))
 
-    console.log("---------- done ---------");
-    return {}
-  }
-
-  public setHmrServerError(error: Error | null): void {
-    this.hmrServerError = error
-  }
-
-  public clearHmrServerError(): void {
-    if (this.hmrServerError) {
-      this.setHmrServerError(null)
-      this.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
-        data: 'clear hmr server error',
+      const staticInfo: PageStaticInfo = await getStaticInfoIncludingLayouts({
+        isInsideAppDir,
+        pageExtensions,
+        pageFilePath,
+        appDir,
+        config,
+        isDev,
+        page,
       })
-    }
-  }
 
-  protected async refreshServerComponents(hash: string): Promise<void> {
-    this.send({
-      action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-      hash,
-      // TODO: granular reloading of changes
-      // entrypoints: serverComponentChanges,
-    })
-  }
+      // TODO(timneutkens): remove this
+      const isServerComponent =
+        isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
-  public onHMR(
-    req: IncomingMessage,
-    _socket: Duplex,
-    head: Buffer,
-    callback: (client: ws.WebSocket) => void
-  ) {
-    wsServer.handleUpgrade(req, req.socket, head, (client) => {
-      this.webpackHotMiddleware?.onHMR(client)
-      this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
-      callback(client)
+      const isInstrumentation =
+        isInstrumentationHookFile(page) && pagesType === PAGE_TYPES.ROOT
 
-      client.addEventListener('message', async ({ data }) => {
-        data = typeof data !== 'string' ? data.toString() : data
-
-        try {
-          const payload = JSON.parse(data)
-
-          let traceChild:
-            | {
-                name: string
-                startTime?: bigint
-                endTime?: bigint
-                attrs?: Record<string, number | string | undefined | string[]>
-              }
-            | undefined
-
-          switch (payload.event) {
-            case 'span-end': {
-              traceChild = {
-                name: payload.spanName,
-                startTime:
-                  BigInt(Math.floor(payload.startTime)) *
-                  MILLISECONDS_IN_NANOSECOND,
-                attrs: payload.attributes,
-                endTime:
-                  BigInt(Math.floor(payload.endTime)) *
-                  MILLISECONDS_IN_NANOSECOND,
-              }
-              break
-            }
-            case 'client-hmr-latency': {
-              traceChild = {
-                name: payload.event,
-                startTime:
-                  BigInt(payload.startTime) * MILLISECONDS_IN_NANOSECOND,
-                endTime: BigInt(payload.endTime) * MILLISECONDS_IN_NANOSECOND,
-                attrs: {
-                  updatedModules: payload.updatedModules.map((m: string) =>
-                    m
-                      .replace(`(${WEBPACK_LAYERS.appPagesBrowser})/`, '')
-                      .replace(/^\.\//, '[project]/')
-                  ),
-                  page: payload.page,
-                  isPageHidden: payload.isPageHidden,
-                },
-              }
-              break
-            }
-            case 'client-reload-page':
-            case 'client-success': {
-              traceChild = {
-                name: payload.event,
-              }
-              break
-            }
-            case 'client-error': {
-              traceChild = {
-                name: payload.event,
-                attrs: { errorCount: payload.errorCount },
-              }
-              break
-            }
-            case 'client-warning': {
-              traceChild = {
-                name: payload.event,
-                attrs: { warningCount: payload.warningCount },
-              }
-              break
-            }
-            case 'client-removed-page':
-            case 'client-added-page': {
-              traceChild = {
-                name: payload.event,
-                attrs: { page: payload.page || '' },
-              }
-              break
-            }
-            case 'client-full-reload': {
-              const { event, stackTrace, hadRuntimeError } = payload
-
-              traceChild = {
-                name: event,
-                attrs: { stackTrace: stackTrace ?? '' },
-              }
-
-              if (hadRuntimeError) {
-                Log.warn(FAST_REFRESH_RUNTIME_RELOAD)
-                break
-              }
-
-              let fileMessage = ''
-              if (stackTrace) {
-                const file = /Aborted because (.+) is not accepted/.exec(
-                  stackTrace
-                )?.[1]
-                if (file) {
-                  // `file` is filepath in `pages/` but it can be a webpack url.
-                  // If it's a webpack loader URL, it will include the app-pages layer
-                  if (file.startsWith(`(${WEBPACK_LAYERS.appPagesBrowser})/`)) {
-                    const fileUrl = new URL(file, 'file://')
-                    const cwd = process.cwd()
-                    const modules = fileUrl.searchParams
-                      .getAll('modules')
-                      .map((filepath) => filepath.slice(cwd.length + 1))
-                      .filter(
-                        (filepath) => !filepath.startsWith('node_modules')
-                      )
-
-                    if (modules.length > 0) {
-                      fileMessage = ` when ${modules.join(', ')} changed`
-                    }
-                  } else if (
-                    // Handle known webpack layers
-                    file.startsWith(`(${WEBPACK_LAYERS.pagesDirBrowser})/`)
-                  ) {
-                    const cleanedFilePath = file.slice(
-                      `(${WEBPACK_LAYERS.pagesDirBrowser})/`.length
-                    )
-
-                    fileMessage = ` when ${cleanedFilePath} changed`
-                  } else {
-                    fileMessage = ` when ${file} changed`
-                  }
-                }
-              }
-
-              Log.warn(
-                `Fast Refresh had to perform a full reload${fileMessage}. Read more: https://nextjs.org/docs/messages/fast-refresh-reload`
-              )
-              break
-            }
-            case 'browser-logs': {
-              if (this.config.experimental.browserDebugInfoInTerminal) {
-                await receiveBrowserLogsWebpack({
-                  entries: payload.entries,
-                  router: payload.router,
-                  sourceType: payload.sourceType,
-                  clientStats: () => this.clientStats,
-                  serverStats: () => this.serverStats,
-                  edgeServerStats: () => this.edgeServerStats,
-                  rootDirectory: this.dir,
-                  distDir: this.distDir,
-                  config: this.config.experimental.browserDebugInfoInTerminal,
-                })
-              }
-              break
-            }
-            default: {
-              break
+      runDependingOnPageType({
+        page,
+        pageRuntime: staticInfo.runtime,
+        pageType: pagesType,
+        onClient: () => {
+          if (isServerComponent || isInsideAppDir) {
+            // We skip the initial entries for server component pages and let the
+            // server compiler inject them instead.
+          } else {
+            const entryKey = getEntryKey(COMPILER_NAMES.client, pagesType, page)
+            result[entryKey] = {
+              type: EntryTypes.ENTRY,
+              appPaths: null,
+              absolutePagePath,
+              request: absolutePagePath,
+              bundlePath: serverBundlePath,
+              dispose: false,
+              lastActiveTime: Date.now(),
+              status: ADDED,
             }
           }
-
-          if (traceChild) {
-            this.hotReloaderSpan.manualTraceChild(
-              traceChild.name,
-              traceChild.startTime,
-              traceChild.endTime,
-              { ...traceChild.attrs, clientId: payload.id }
-            )
+        },
+        onServer: () => {
+          const entryKey = getEntryKey(COMPILER_NAMES.server, pagesType, page)
+          if (isInstrumentation || isMiddlewareFile(page)) {
+            result[entryKey] = {
+              type: EntryTypes.ENTRY,
+              appPaths: null,
+              absolutePagePath,
+              request: absolutePagePath,
+              bundlePath: serverBundlePath.replace('src/', ''),
+              dispose: false,
+              lastActiveTime: Date.now(),
+              status: ADDED,
+            }
+          } else {
+            result[entryKey] = {
+              type: EntryTypes.ENTRY,
+              appPaths: null,
+              absolutePagePath,
+              request: absolutePagePath,
+              bundlePath: serverBundlePath,
+              dispose: false,
+              lastActiveTime: Date.now(),
+              status: ADDED,
+            }
           }
-        } catch (_) {
-          // invalid WebSocket message
-        }
+        },
+        onEdgeServer: () => {
+          const entryKey = getEntryKey(COMPILER_NAMES.server, pagesType, page)
+          if (isInstrumentation) {
+            result[entryKey] = {
+              type: EntryTypes.ENTRY,
+              appPaths: null,
+              absolutePagePath,
+              request: absolutePagePath,
+              bundlePath: serverBundlePath.replace('src/', ''),
+              dispose: false,
+              lastActiveTime: Date.now(),
+              status: ADDED,
+            }
+          } else {
+            result[entryKey] = {
+              type: EntryTypes.ENTRY,
+              appPaths: null,
+              absolutePagePath,
+              request: absolutePagePath,
+              bundlePath: serverBundlePath,
+              dispose: false,
+              lastActiveTime: Date.now(),
+              status: ADDED,
+            }
+          }
+        },
       })
-    })
-  }
+    }
 
-  private async clean(span: Span): Promise<void> {
-    return span
-      .traceChild('clean')
-      .traceAsyncFn(() =>
-        recursiveDelete(join(this.dir, this.config.distDir), /^cache/)
+  const promises: Promise<void[]>[] = []
+
+  if (appPaths) {
+    const entryHandler = getEntryHandler(appPaths, PAGE_TYPES.APP)
+    promises.push(Promise.all(Object.keys(appPaths).map(entryHandler)))
+  }
+  if (rootPaths) {
+    promises.push(
+      Promise.all(
+        Object.keys(rootPaths).map(getEntryHandler(rootPaths, PAGE_TYPES.ROOT))
       )
+    )
   }
+  promises.push(
+    Promise.all(
+      Object.keys(pages).map(getEntryHandler(pages, PAGE_TYPES.PAGES))
+    )
+  )
 
-  private async getWebpackConfig(span: Span) {
-    const webpackConfigSpan = span.traceChild('get-webpack-config')
+  await Promise.all(promises)
+
+  return result
+}
+
+async function createPagesAbsolutePathMapping({
+  isDev,
+  pageExtensions,
+  pagePaths,
+  pagesType,
+  pagesDir,
+  appDir,
+  rootDir,
+}: {
+  isDev: boolean
+  pageExtensions: PageExtensions
+  pagePaths: string[]
+  pagesType: PAGE_TYPES
+  pagesDir: string | undefined
+  appDir: string | undefined
+  rootDir: string | undefined
+}) {
+  const mappedPages = await createPagesMapping({
+    isDev,
+    pageExtensions,
+    pagesType,
+    pagePaths,
+    pagesDir,
+    appDir,
+  })
+  for (const route in mappedPages) {
+    mappedPages[route] = mappedPages[route].replace(PAGES_DIR_ALIAS, pagesDir || '');
+    mappedPages[route] = mappedPages[route].replace(APP_DIR_ALIAS, appDir || '');
+    mappedPages[route] = mappedPages[route].replace(ROOT_DIR_ALIAS, rootDir || '');
+  }
+  return mappedPages;
+}
+
+export default class HotReloaderRspack extends HotReloaderWebpack {
+  public async start(): Promise<void> {
+    const rspackStartSpan = this.hotReloaderSpan.traceChild('rspack-start')
+
+    const outputPath = path.join(this.dir, this.config.distDir);
+    const curEntries = getEntries(outputPath)
 
     const pageExtensions = this.config.pageExtensions
 
-    return webpackConfigSpan.traceAsyncFn(async () => {
-      const { pagesDir, appDir } = findPagesDir(this.dir)
-      this.appDir = appDir;
+    const validFileMatcher = createValidFileMatcher(pageExtensions, this.appDir)
 
-      const validFileMatcher = createValidFileMatcher(
-        pageExtensions,
-        appDir
+    const pagesPaths = this.pagesDir
+      ? await rspackStartSpan
+          .traceChild('collect-pages')
+          .traceAsyncFn(() => collectPagesFiles(this.pagesDir!, validFileMatcher))
+      : []
+
+    const middlewareDetectionRegExp = new RegExp(
+      `^${MIDDLEWARE_FILENAME}\\.(?:${pageExtensions.join('|')})$`
+    )
+
+    const instrumentationHookDetectionRegExp = new RegExp(
+      `^${INSTRUMENTATION_HOOK_FILENAME}\\.(?:${pageExtensions.join(
+        '|'
+      )})$`
+    )
+
+    const rootDir = path.join((this.pagesDir || this.appDir)!, '..')
+    const includes = [
+      middlewareDetectionRegExp,
+      instrumentationHookDetectionRegExp,
+    ]
+
+    const rootPaths = Array.from(await getFilesInDir(rootDir))
+      .filter((file) => includes.some((include) => include.test(file)))
+      .sort(sortByPageExts(pageExtensions))
+      .map((file) => path.join(rootDir, file).replace(this.dir, ''))
+    
+    const hasInstrumentationHook = rootPaths.some((p) =>
+      p.includes(INSTRUMENTATION_HOOK_FILENAME)
+    )
+
+    const mappedPages = await rspackStartSpan
+      .traceChild('create-pages-mapping')
+      .traceAsyncFn(() =>
+        createPagesAbsolutePathMapping({
+          isDev: true,
+          pageExtensions,
+          pagesType: PAGE_TYPES.PAGES,
+          pagePaths: pagesPaths,
+          pagesDir: this.pagesDir,
+          appDir: this.appDir,
+          rootDir: this.dir,
+        })
       )
 
-      const providedPagePaths: string[] = JSON.parse(
-        process.env.NEXT_PRIVATE_PAGE_PATHS || '[]'
+    let mappedAppPages: MappedPages | undefined
+
+    if (this.appDir) {
+      const providedAppPaths: string[] = JSON.parse(
+        process.env.NEXT_PRIVATE_APP_PATHS || '[]'
       )
 
-      const pagesPaths = Boolean(process.env.NEXT_PRIVATE_PAGE_PATHS)
-        ? providedPagePaths
-        : pagesDir
-          ? await webpackConfigSpan
-              .traceChild('collect-pages')
-              .traceAsyncFn(() => collectPagesFiles(pagesDir, validFileMatcher))
-          : []
+      let appPaths: string[]
 
-      const middlewareDetectionRegExp = new RegExp(
-        `^${MIDDLEWARE_FILENAME}\\.(?:${pageExtensions.join('|')})$`
-      )
+      if (Boolean(process.env.NEXT_PRIVATE_APP_PATHS)) {
+        // used for testing?
+        appPaths = providedAppPaths
+      } else {
+        // Collect app pages, layouts, and default files in a single directory traversal
+        const result = await rspackStartSpan
+          .traceChild('collect-app-files')
+          .traceAsyncFn(() => collectAppFiles(this.appDir!, validFileMatcher))
 
-      const instrumentationHookDetectionRegExp = new RegExp(
-        `^${INSTRUMENTATION_HOOK_FILENAME}\\.(?:${pageExtensions.join(
-          '|'
-        )})$`
-      )
-
-      const rootDir = path.join((pagesDir || appDir)!, '..')
-      const includes = [
-        middlewareDetectionRegExp,
-        instrumentationHookDetectionRegExp,
-      ]
-
-      const rootPaths = Array.from(await getFilesInDir(rootDir))
-        .filter((file) => includes.some((include) => include.test(file)))
-        .sort(sortByPageExts(pageExtensions))
-        .map((file) => path.join(rootDir, file).replace(this.dir, ''))
-      
-      const hasInstrumentationHook = rootPaths.some((p) =>
-        p.includes(INSTRUMENTATION_HOOK_FILENAME)
-      )
-
-      const mappedPages = await webpackConfigSpan
-        .traceChild('create-pages-mapping')
-        .traceAsyncFn(() =>
-          createPagesMapping({
-            isDev: false,
-            pageExtensions,
-            pagesType: PAGE_TYPES.PAGES,
-            pagePaths: pagesPaths,
-            pagesDir,
-            appDir,
-          })
-        )
-
-      let mappedAppPages: MappedPages | undefined
-
-      if (appDir) {
-        const providedAppPaths: string[] = JSON.parse(
-          process.env.NEXT_PRIVATE_APP_PATHS || '[]'
-        )
-
-        let appPaths: string[]
-
-        if (Boolean(process.env.NEXT_PRIVATE_APP_PATHS)) {
-          // used for testing?
-          appPaths = providedAppPaths
-        } else {
-          // Collect app pages, layouts, and default files in a single directory traversal
-          const result = await webpackConfigSpan
-            .traceChild('collect-app-files')
-            .traceAsyncFn(() => collectAppFiles(appDir, validFileMatcher))
-
-          appPaths = result.appPaths
-        }
-
-        mappedAppPages = await webpackConfigSpan
-          .traceChild('create-app-mapping')
-          .traceAsyncFn(() =>
-            createPagesMapping({
-              pagePaths: appPaths,
-              isDev: false,
-              pagesType: PAGE_TYPES.APP,
-              pageExtensions,
-              pagesDir,
-              appDir,
-            })
-          )
+        appPaths = result.appPaths
       }
 
-      const mappedRootPaths = await createPagesMapping({
-        isDev: false,
-        pageExtensions,
-        pagePaths: rootPaths,
-        pagesType: PAGE_TYPES.ROOT,
-        pagesDir: pagesDir,
-        appDir,
-      })
-
-      const entrypoints = await webpackConfigSpan
-        .traceChild('create-entrypoints')
+      mappedAppPages = await rspackStartSpan
+        .traceChild('create-app-mapping')
         .traceAsyncFn(() =>
-          createEntrypoints({
+          createPagesAbsolutePathMapping({
+            pagePaths: appPaths,
+            isDev: true,
+            pagesType: PAGE_TYPES.APP,
+            pageExtensions,
+            pagesDir: this.pagesDir,
+            appDir: this.appDir,
+            rootDir: this.dir,
+          })
+        )
+    }
+
+    const mappedRootPaths = await createPagesAbsolutePathMapping({
+      isDev: true,
+      pageExtensions,
+      pagePaths: rootPaths,
+      pagesType: PAGE_TYPES.ROOT,
+      pagesDir: this.pagesDir,
+      appDir: this.appDir,
+      rootDir: this.dir,
+    })
+
+    Object.assign(
+      curEntries,
+      await rspackStartSpan
+        .traceChild('create-entries')
+        .traceAsyncFn(() =>
+          createEntries({
             appDir: this.appDir,
             buildId: this.buildId,
             config: this.config,
@@ -675,687 +353,9 @@ export default class HotReloaderRspack implements NextJsHotReloaderInterface {
             rootPaths: mappedRootPaths,
             hasInstrumentationHook
           })
-        )
-
-      console.log(entrypoints)
-      const commonWebpackOptions = {
-        dev: true,
-        buildId: this.buildId,
-        encryptionKey: this.encryptionKey,
-        config: this.config,
-        pagesDir: this.pagesDir,
-        rewrites: this.rewrites,
-        originalRewrites: this.config._originalRewrites,
-        originalRedirects: this.config._originalRedirects,
-        runWebpackSpan: this.hotReloaderSpan,
-        appDir: this.appDir,
-        previewProps: this.previewProps,
-      }
-
-      return webpackConfigSpan
-        .traceChild('generate-webpack-config')
-        .traceAsyncFn(async () => {
-          const info = await loadProjectInfo({
-            dir: this.dir,
-            config: commonWebpackOptions.config,
-            dev: true,
-          })
-          return Promise.all([
-            // order is important here
-            getBaseWebpackConfig(this.dir, {
-              ...commonWebpackOptions,
-              compilerType: COMPILER_NAMES.client,
-              entrypoints: entrypoints.client,
-              ...info,
-            }),
-            getBaseWebpackConfig(this.dir, {
-              ...commonWebpackOptions,
-              compilerType: COMPILER_NAMES.server,
-              entrypoints: entrypoints.server,
-              ...info,
-            }),
-            getBaseWebpackConfig(this.dir, {
-              ...commonWebpackOptions,
-              compilerType: COMPILER_NAMES.edgeServer,
-              entrypoints: entrypoints.edgeServer,
-              ...info,
-            }),
-          ])
-        })
-    })
-  }
-
-  public async buildFallbackError(): Promise<void> {
-    if (this.fallbackWatcher) return
-
-    const info = await loadProjectInfo({
-      dir: this.dir,
-      config: this.config,
-      dev: true,
-    })
-    const fallbackConfig = await getBaseWebpackConfig(this.dir, {
-      previewProps: this.previewProps,
-      runWebpackSpan: this.hotReloaderSpan,
-      dev: true,
-      compilerType: COMPILER_NAMES.client,
-      config: this.config,
-      buildId: this.buildId,
-      encryptionKey: this.encryptionKey,
-      appDir: this.appDir,
-      pagesDir: this.pagesDir,
-      rewrites: {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      },
-      originalRewrites: {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      },
-      originalRedirects: [],
-      isDevFallback: true,
-      entrypoints: (
-        await createEntrypoints({
-          appDir: this.appDir,
-          buildId: this.buildId,
-          config: this.config,
-          envFiles: [],
-          isDev: true,
-          pages: {
-            '/_app': 'next/dist/pages/_app',
-            '/_error': 'next/dist/pages/_error',
-          },
-          pagesDir: this.pagesDir,
-          previewMode: this.previewProps,
-          rootDir: this.dir,
-          pageExtensions: this.config.pageExtensions,
-        })
-      ).client,
-      ...info,
-    })
-
-    const fallbackCompiler = getWebpackBundler()(fallbackConfig)
-
-    this.fallbackWatcher = await new Promise((resolve) => {
-      let bootedFallbackCompiler = false
-      fallbackCompiler.watch(
-        // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
-        fallbackConfig.watchOptions,
-        // Errors are handled separately
-        (_err: any) => {
-          if (!bootedFallbackCompiler) {
-            bootedFallbackCompiler = true
-            resolve(true)
-          }
-        }
       )
-    })
-  }
+    );
 
-  private async tracedGetVersionInfo(span: Span) {
-    const versionInfoSpan = span.traceChild('get-version-info')
-    return versionInfoSpan.traceAsyncFn<VersionInfo>(async () =>
-      getVersionInfo()
-    )
-  }
-
-  public async start(): Promise<void> {
-    const startSpan = this.hotReloaderSpan.traceChild('start')
-    startSpan.stop() // Stop immediately to create an artificial parent span
-
-    this.versionInfo = await this.tracedGetVersionInfo(startSpan)
-
-    const nodeDebugType = getNodeDebugType()
-    if (nodeDebugType && !this.devtoolsFrontendUrl) {
-      const debugPort = process.debugPort
-      let debugInfo
-      try {
-        // It requires to use 127.0.0.1 instead of localhost for server-side fetching.
-        const debugInfoList = await fetch(
-          `http://127.0.0.1:${debugPort}/json/list`
-        ).then((res) => res.json())
-        // There will be only one item for current process, so always get the first item.
-        debugInfo = debugInfoList[0]
-      } catch {}
-      if (debugInfo) {
-        this.devtoolsFrontendUrl = debugInfo.devtoolsFrontendUrl
-      }
-    }
-
-    await this.clean(startSpan)
-    // Ensure distDir exists before writing package.json
-    await fs.mkdir(this.distDir, { recursive: true })
-
-    const initialDevToolsConfig = await getDevToolsConfig(this.distDir)
-
-    const distPackageJsonPath = join(this.distDir, 'package.json')
-    // Ensure commonjs handling is used for files in the distDir (generally .next)
-    // Files outside of the distDir can be "type": "module"
-    await fs.writeFile(distPackageJsonPath, '{"type": "commonjs"}')
-
-    this.activeWebpackConfigs = await this.getWebpackConfig(startSpan)
-
-    for (const config of this.activeWebpackConfigs) {
-      (config as any).lazyCompilation = {
-        serverUrl: `http://127.0.0.1:${this.port}`,
-      }
-    }
-
-    await Promise.all(
-      Array.from(getCacheDirectories(this.activeWebpackConfigs)).map(
-        checkPersistentCacheInvalidationAndCleanup
-      )
-    )
-    this.multiCompiler = getWebpackBundler()(
-      this.activeWebpackConfigs
-    ) as unknown as webpack.MultiCompiler
-
-    const rspack = getRspackCore();
-    const lazyCompilationMiddleware = rspack.experiments.lazyCompilationMiddleware(
-      this.multiCompiler
-    )
-
-    // Copy over the filesystem so that it is shared between all compilers.
-    const inputFileSystem = this.multiCompiler.compilers[0].inputFileSystem
-    for (const compiler of this.multiCompiler.compilers) {
-      compiler.inputFileSystem = inputFileSystem
-      // This is set for the initial compile. After that Watching class in webpack adds it.
-      compiler.fsStartTime = Date.now()
-      // Ensure NodeEnvironmentPlugin doesn't purge the inputFileSystem. Purging is handled in `done` below.
-      compiler.hooks.beforeRun.intercept({
-        register(tapInfo: any) {
-          if (tapInfo.name === 'NodeEnvironmentPlugin') {
-            return null
-          }
-          return tapInfo
-        },
-      })
-    }
-
-    this.multiCompiler.hooks.done.tap('NextjsHotReloader', () => {
-      inputFileSystem?.purge?.()
-    })
-    watchCompilers(
-      this.multiCompiler.compilers[0],
-      this.multiCompiler.compilers[1],
-      this.multiCompiler.compilers[2]
-    )
-
-    // Watch for changes to client/server page files so we can tell when just
-    // the server file changes and trigger a reload for GS(S)P pages
-    const changedClientPages = new Set<string>()
-    const changedServerPages = new Set<string>()
-    const changedEdgeServerPages = new Set<string>()
-
-    const changedServerComponentPages = new Set<string>()
-    const changedCSSImportPages = new Set<string>()
-
-    const prevClientPageHashes = new Map<string, string>()
-    const prevServerPageHashes = new Map<string, string>()
-    const prevEdgeServerPageHashes = new Map<string, string>()
-    const prevCSSImportModuleHashes = new Map<string, string>()
-
-    const pageExtensionRegex = new RegExp(
-      `\\.(?:${this.config.pageExtensions.join('|')})$`
-    )
-
-    const trackPageChanges =
-      (
-        pageHashMap: Map<string, string>,
-        changedItems: Set<string>,
-        serverComponentChangedItems?: Set<string>
-      ) =>
-      (stats: webpack.Compilation) => {
-        try {
-          stats.entrypoints.forEach((entry, key) => {
-            if (
-              key.startsWith('pages/') ||
-              key.startsWith('app/') ||
-              isMiddlewareFilename(key)
-            ) {
-              // TODO this doesn't handle on demand loaded chunks
-              entry.chunks.forEach((chunk) => {
-                if (chunk.id === key) {
-                  const modsIterable: any =
-                    stats.chunkGraph.getChunkModulesIterable(chunk)
-
-                  let hasCSSModuleChanges = false
-                  let chunksHash = new StringXor()
-                  let chunksHashServerLayer = new StringXor()
-
-                  modsIterable.forEach((mod: any) => {
-                    if (
-                      mod.resource &&
-                      mod.resource.replace(/\\/g, '/').includes(key) &&
-                      // Shouldn't match CSS modules, etc.
-                      pageExtensionRegex.test(mod.resource)
-                    ) {
-                      // use original source to calculate hash since mod.hash
-                      // includes the source map in development which changes
-                      // every time for both server and client so we calculate
-                      // the hash without the source map for the page module
-                      const hash = (
-                        require('crypto') as typeof import('crypto')
-                      )
-                        .createHash('sha1')
-                        .update(mod.originalSource().buffer())
-                        .digest()
-                        .toString('hex')
-
-                      if (
-                        mod.layer === WEBPACK_LAYERS.reactServerComponents &&
-                        mod?.buildInfo?.rsc?.type !== 'client'
-                      ) {
-                        chunksHashServerLayer.add(hash)
-                      }
-
-                      chunksHash.add(hash)
-                    } else {
-                      // for non-pages we can use the module hash directly
-                      const hash = stats.chunkGraph.getModuleHash(
-                        mod,
-                        chunk.runtime
-                      )
-
-                      if (
-                        mod.layer === WEBPACK_LAYERS.reactServerComponents &&
-                        mod?.buildInfo?.rsc?.type !== 'client'
-                      ) {
-                        chunksHashServerLayer.add(hash)
-                      }
-
-                      chunksHash.add(hash)
-
-                      // Both CSS import changes from server and client
-                      // components are tracked.
-                      if (
-                        key.startsWith('app/') &&
-                        /\.(css|scss|sass)$/.test(mod.resource || '')
-                      ) {
-                        const resourceKey = mod.layer + ':' + mod.resource
-                        const prevHash =
-                          prevCSSImportModuleHashes.get(resourceKey)
-                        if (prevHash && prevHash !== hash) {
-                          hasCSSModuleChanges = true
-                        }
-                        prevCSSImportModuleHashes.set(resourceKey, hash)
-                      }
-                    }
-                  })
-
-                  const prevHash = pageHashMap.get(key)
-                  const curHash = chunksHash.toString()
-                  if (prevHash && prevHash !== curHash) {
-                    changedItems.add(key)
-                  }
-                  pageHashMap.set(key, curHash)
-
-                  if (serverComponentChangedItems) {
-                    const serverKey =
-                      WEBPACK_LAYERS.reactServerComponents + ':' + key
-                    const prevServerHash = pageHashMap.get(serverKey)
-                    const curServerHash = chunksHashServerLayer.toString()
-                    if (prevServerHash && prevServerHash !== curServerHash) {
-                      serverComponentChangedItems.add(key)
-                    }
-                    pageHashMap.set(serverKey, curServerHash)
-                  }
-
-                  if (hasCSSModuleChanges) {
-                    changedCSSImportPages.add(key)
-                  }
-                }
-              })
-            }
-          })
-        } catch (err) {
-          console.error(err)
-        }
-      }
-
-    this.multiCompiler.compilers[0].hooks.emit.tap(
-      'NextjsHotReloaderForClient',
-      trackPageChanges(prevClientPageHashes, changedClientPages)
-    )
-    this.multiCompiler.compilers[1].hooks.emit.tap(
-      'NextjsHotReloaderForServer',
-      trackPageChanges(
-        prevServerPageHashes,
-        changedServerPages,
-        changedServerComponentPages
-      )
-    )
-    this.multiCompiler.compilers[2].hooks.emit.tap(
-      'NextjsHotReloaderForServer',
-      trackPageChanges(
-        prevEdgeServerPageHashes,
-        changedEdgeServerPages,
-        changedServerComponentPages
-      )
-    )
-
-    // This plugin watches for changes to _document.js and notifies the client side that it should reload the page
-    this.multiCompiler.compilers[1].hooks.failed.tap(
-      'NextjsHotReloaderForServer',
-      (err: Error) => {
-        this.serverError = err
-        this.serverStats = null
-        this.serverChunkNames = undefined
-      }
-    )
-
-    this.multiCompiler.compilers[2].hooks.done.tap(
-      'NextjsHotReloaderForServer',
-      (stats) => {
-        this.serverError = null
-        this.edgeServerStats = stats
-      }
-    )
-
-    this.multiCompiler.compilers[1].hooks.done.tap(
-      'NextjsHotReloaderForServer',
-      (stats) => {
-        this.serverError = null
-        this.serverStats = stats
-
-        if (!this.pagesDir) {
-          return
-        }
-
-        const { compilation } = stats
-
-        // We only watch `_document` for changes on the server compilation
-        // the rest of the files will be triggered by the client compilation
-        const documentChunk = compilation.namedChunks.get('pages/_document')
-        // If the document chunk can't be found we do nothing
-        if (!documentChunk) {
-          return
-        }
-
-        // Initial value
-        if (this.serverPrevDocumentHash === null) {
-          this.serverPrevDocumentHash = documentChunk.hash || null
-          return
-        }
-
-        // If _document.js didn't change we don't trigger a reload.
-        if (documentChunk.hash === this.serverPrevDocumentHash) {
-          return
-        }
-
-        // As document chunk will change if new app pages are joined,
-        // since react bundle is different it will effect the chunk hash.
-        // So we diff the chunk changes, if there's only new app page chunk joins,
-        // then we don't trigger a reload by checking pages/_document chunk change.
-        if (this.appDir) {
-          const chunkNames = new Set(compilation.namedChunks.keys())
-          const diffChunkNames = difference<string>(
-            this.serverChunkNames || new Set(),
-            chunkNames
-          )
-
-          if (
-            diffChunkNames.length === 0 ||
-            diffChunkNames.every((chunkName) => chunkName.startsWith('app/'))
-          ) {
-            return
-          }
-          this.serverChunkNames = chunkNames
-        }
-
-        this.serverPrevDocumentHash = documentChunk.hash || null
-
-        // Notify reload to reload the page, as _document.js was changed (different hash)
-        this.send({
-          action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
-          data: '_document has changed',
-        })
-      }
-    )
-
-    this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
-      const reloadAfterInvalidation = this.reloadAfterInvalidation
-      this.reloadAfterInvalidation = false
-
-      const serverOnlyChanges = difference<string>(
-        changedServerPages,
-        changedClientPages
-      )
-
-      const edgeServerOnlyChanges = difference<string>(
-        changedEdgeServerPages,
-        changedClientPages
-      )
-
-      const pageChanges = serverOnlyChanges
-        .concat(edgeServerOnlyChanges)
-        .filter((key) => key.startsWith('pages/'))
-
-      const middlewareChanges = [
-        ...Array.from(changedEdgeServerPages),
-        ...Array.from(changedServerPages),
-      ].filter((name) => isMiddlewareFilename(name))
-
-      if (middlewareChanges.length > 0) {
-        this.send({
-          event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
-        })
-      }
-
-      if (pageChanges.length > 0) {
-        this.send({
-          event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
-          pages: serverOnlyChanges.map((pg) =>
-            denormalizePagePath(pg.slice('pages'.length))
-          ),
-        })
-      }
-
-      if (
-        changedServerComponentPages.size ||
-        changedCSSImportPages.size ||
-        reloadAfterInvalidation
-      ) {
-        this.resetFetch()
-        this.refreshServerComponents(stats.hash)
-      }
-
-      changedClientPages.clear()
-      changedServerPages.clear()
-      changedEdgeServerPages.clear()
-      changedServerComponentPages.clear()
-      changedCSSImportPages.clear()
-    })
-
-    this.multiCompiler.compilers[0].hooks.failed.tap(
-      'NextjsHotReloaderForClient',
-      (err: Error) => {
-        this.clientError = err
-        this.clientStats = null
-      }
-    )
-    this.multiCompiler.compilers[0].hooks.done.tap(
-      'NextjsHotReloaderForClient',
-      (stats) => {
-        this.clientError = null
-        this.clientStats = stats
-
-        const { compilation } = stats
-        const chunkNames = new Set(
-          [...compilation.namedChunks.keys()].filter(
-            (name) => !!getRouteFromEntrypoint(name)
-          )
-        )
-
-        if (this.prevChunkNames) {
-          // detect chunks which have to be replaced with a new template
-          // e.g, pages/index.js <-> pages/_error.js
-          const addedPages = diff(chunkNames, this.prevChunkNames!)
-          const removedPages = diff(this.prevChunkNames!, chunkNames)
-
-          if (addedPages.size > 0) {
-            for (const addedPage of addedPages) {
-              const page = getRouteFromEntrypoint(addedPage)
-              this.send({
-                action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE,
-                data: [page],
-              })
-            }
-          }
-
-          if (removedPages.size > 0) {
-            for (const removedPage of removedPages) {
-              const page = getRouteFromEntrypoint(removedPage)
-              this.send({
-                action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE,
-                data: [page],
-              })
-            }
-          }
-        }
-
-        this.prevChunkNames = chunkNames
-      }
-    )
-
-    this.webpackHotMiddleware = new WebpackHotMiddleware(
-      this.multiCompiler.compilers,
-      this.versionInfo,
-      this.devtoolsFrontendUrl,
-      initialDevToolsConfig
-    )
-
-    let booted = false
-
-    this.watcher = await new Promise((resolve) => {
-      const watcher = this.multiCompiler?.watch(
-        // @ts-ignore webpack supports an array of watchOptions when using a multiCompiler
-        this.activeWebpackConfigs.map((config) => config.watchOptions!),
-        // Errors are handled separately
-        (_err: any) => {
-          if (!booted) {
-            booted = true
-            resolve(watcher)
-          }
-        }
-      )
-    })
-
-    this.onDemandEntries = onDemandEntryHandler({
-      hotReloader: this as any as HotReloaderWebpack,
-      multiCompiler: this.multiCompiler,
-      pagesDir: this.pagesDir,
-      appDir: this.appDir,
-      rootDir: this.dir,
-      nextConfig: this.config,
-      ...(this.config.onDemandEntries as {
-        maxInactiveAge: number
-        pagesBufferLength: number
-      }),
-    })
-
-    this.middlewares = [
-      lazyCompilationMiddleware,
-      getOverlayMiddleware({
-        rootDirectory: this.dir,
-        isSrcDir: this.isSrcDir,
-        clientStats: () => this.clientStats,
-        serverStats: () => this.serverStats,
-        edgeServerStats: () => this.edgeServerStats,
-      }),
-      getSourceMapMiddleware({
-        clientStats: () => this.clientStats,
-        serverStats: () => this.serverStats,
-        edgeServerStats: () => this.edgeServerStats,
-      }),
-      getNextErrorFeedbackMiddleware(this.telemetry),
-      getDevOverlayFontMiddleware(),
-      getDisableDevIndicatorMiddleware(),
-      getRestartDevServerMiddleware({
-        telemetry: this.telemetry,
-        webpackCacheDirectories:
-          this.activeWebpackConfigs != null
-            ? getCacheDirectories(this.activeWebpackConfigs)
-            : undefined,
-      }),
-      devToolsConfigMiddleware({
-        distDir: this.distDir,
-        sendUpdateSignal: (data) => {
-          // Update the in-memory devToolsConfig value
-          // which will be used for the next onHMR call.
-          this.webpackHotMiddleware?.updateDevToolsConfig(data)
-
-          this.send({
-            action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG,
-            data,
-          })
-        },
-      })
-    ]
-  }
-
-  public invalidate(
-    { reloadAfterInvalidation }: { reloadAfterInvalidation: boolean } = {
-      reloadAfterInvalidation: false,
-    }
-  ) {
-    // Cache the `reloadAfterInvalidation` flag, and use it to reload the page when compilation is done
-    this.reloadAfterInvalidation = reloadAfterInvalidation
-    const outputPath = this.multiCompiler?.outputPath
-    if (outputPath) {
-      getInvalidator(outputPath)?.invalidate()
-    }
-  }
-
-  public async getCompilationErrors(page: string) {
-    const getErrors = ({ compilation }: webpack.Stats) => {
-      const failedPages = erroredPages(compilation)
-      const normalizedPage = normalizePathSep(page)
-      // If there is an error related to the requesting page we display it instead of the first error
-      return failedPages[normalizedPage]?.length > 0
-        ? failedPages[normalizedPage]
-        : compilation.errors
-    }
-
-    if (this.clientError) {
-      return [this.clientError]
-    } else if (this.serverError) {
-      return [this.serverError]
-    } else if (this.clientStats?.hasErrors()) {
-      return getErrors(this.clientStats)
-    } else if (this.serverStats?.hasErrors()) {
-      return getErrors(this.serverStats)
-    } else if (this.edgeServerStats?.hasErrors()) {
-      return getErrors(this.edgeServerStats)
-    } else {
-      return []
-    }
-  }
-
-  public send(action: HMR_ACTION_TYPES): void {
-    this.webpackHotMiddleware!.publish(action)
-  }
-
-  public async ensurePage({
-    page,
-  }: {
-    page: string
-    clientOnly: boolean
-    appPaths?: ReadonlyArray<string> | null
-    isApp?: boolean
-    definition?: RouteDefinition
-    url?: string
-  }): Promise<void> {
-    return this.hotReloaderSpan
-      .traceChild('ensure-page', {
-        inputPage: page,
-      })
-      .traceAsyncFn(async () => {
-      })
-  }
-
-  public close() {
-    this.webpackHotMiddleware?.close()
+    super.start()
   }
 }

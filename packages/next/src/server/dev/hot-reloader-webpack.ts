@@ -232,18 +232,18 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private hasAmpEntrypoints: boolean
   private hasAppRouterEntrypoints: boolean
   private hasPagesRouterEntrypoints: boolean
-  private dir: string
-  private buildId: string
+  protected dir: string
+  protected buildId: string
   private encryptionKey: string
   private middlewares: ((
     req: IncomingMessage,
     res: ServerResponse,
     next: () => void
   ) => Promise<void>)[]
-  private pagesDir?: string
+  protected pagesDir?: string
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
-  private config: NextConfigComplete
+  protected config: NextConfigComplete
   private clientStats: webpack.Stats | null
   private clientError: Error | null = null
   private serverError: Error | null = null
@@ -252,13 +252,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private serverChunkNames?: Set<string>
   private prevChunkNames?: Set<any>
   private onDemandEntries?: ReturnType<typeof onDemandEntryHandler>
-  private previewProps: __ApiPreviewProps
+  protected previewProps: __ApiPreviewProps
   private watcher: any
   private rewrites: CustomRoutes['rewrites']
   private fallbackWatcher: any
-  private hotReloaderSpan: Span
+  protected hotReloaderSpan: Span
   private pagesMapping: { [key: string]: string } = {}
-  private appDir?: string
+  protected appDir?: string
   private telemetry: Telemetry
   private resetFetch: () => void
   private versionInfo: VersionInfo = {
@@ -1165,6 +1165,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP]
         }
 
+        console.log("entrypoints", entrypoints)
         return entrypoints
       }
     }
