@@ -873,11 +873,11 @@ function bindingToApi(
     let nextConfigSerializable = augmentNextConfig(nextConfig, projectPath)
 
     nextConfigSerializable.generateBuildId =
-      await nextConfig.generateBuildId?.()
+      await nextConfigSerializable.generateBuildId?.()
 
     // TODO: these functions takes arguments, have to be supported in a different way
     nextConfigSerializable.exportPathMap = {}
-    nextConfigSerializable.webpack = nextConfig.webpack && {}
+    nextConfigSerializable.webpack = nextConfigSerializable.webpack && {}
 
     if (nextConfigSerializable.turbopack?.rules) {
       ensureLoadersHaveSerializableOptions(
@@ -908,16 +908,17 @@ function bindingToApi(
     // loaderFile is an absolute path, we need it to be relative for turbopack.
     if (nextConfigSerializable.images.loaderFile) {
       nextConfigSerializable.images = {
-        ...nextConfig.images,
+        ...nextConfigSerializable.images,
         loaderFile:
-          './' + path.relative(projectPath, nextConfig.images.loaderFile),
+          './' +
+          path.relative(projectPath, nextConfigSerializable.images.loaderFile),
       }
     }
 
     // cacheHandler can be an absolute path, we need it to be relative for turbopack.
     if (nextConfigSerializable.cacheHandler) {
       nextConfigSerializable.cacheHandler =
-        './' + path.relative(projectPath, nextConfig.cacheHandler)
+        './' + path.relative(projectPath, nextConfigSerializable.cacheHandler)
     }
 
     // cacheHandler can be an absolute path, we need it to be relative for turbopack.
@@ -926,7 +927,10 @@ function bindingToApi(
         ...nextConfigSerializable.experimental,
         cacheHandlers: Object.fromEntries(
           Object.entries(
-            nextConfig.experimental.cacheHandlers as Record<string, string>
+            nextConfigSerializable.experimental.cacheHandlers as Record<
+              string,
+              string
+            >
           )
             .filter(([_, value]) => value != null)
             .map(([key, value]) => [
