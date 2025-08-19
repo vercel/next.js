@@ -14,11 +14,11 @@
   },
   "devDependencies": {
     "@testing-library/react": "14.1.2",
-    "@types/node": "20.10.4",
+    "@types/node": "^20.19.11",
     "@types/react": "18.2.45",
     "@vitejs/plugin-react": "^4.2.1",
     "jsdom": "^23.0.1",
     "typescript": "5.3.3",
-    "vitest": "1.0.4"
+    "vitest": "^3.2.4"
   }
 }
