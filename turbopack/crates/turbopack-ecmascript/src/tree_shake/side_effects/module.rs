@@ -13,11 +13,11 @@ use turbopack_core::{
 use crate::{
     EcmascriptModuleAsset,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
-    tree_shake::chunk_item::SideEffectsModuleChunkItem,
+    tree_shake::side_effects::chunk_item::SideEffectsModuleChunkItem,
 };
 
 #[turbo_tasks::value]
-pub(super) struct SideEffectsModule {
+pub struct SideEffectsModule {
     /// Original module
     pub module: ResolvedVc<EcmascriptModuleAsset>,
     /// The part of the original module that is the binding

@@ -24,12 +24,11 @@ use crate::{
     EcmascriptModuleAsset, EcmascriptParsable, analyzer::graph::EvalContext, parse::ParseResult,
 };
 
-pub mod asset;
-pub mod chunk_item;
 mod graph;
 pub mod merge;
 mod optimizations;
-pub mod side_effect_module;
+pub mod part;
+pub mod side_effects;
 #[cfg(test)]
 mod tests;
 mod util;
