@@ -915,10 +915,11 @@ function bindingToApi(
     // cacheHandler can be an absolute path, we need it to be relative for turbopack.
     if (nextConfigSerializable.cacheHandler) {
       nextConfigSerializable.cacheHandler =
-        './' + path.relative(projectPath, nextConfigSerializable.cacheHandler)
+        './' +
+        (path.isAbsolute(nextConfigSerializable.cacheHandler)
+          ? path.relative(projectPath, nextConfigSerializable.cacheHandler)
+          : nextConfigSerializable.cacheHandler)
     }
-
-    // cacheHandler can be an absolute path, we need it to be relative for turbopack.
     if (nextConfigSerializable.experimental?.cacheHandlers) {
       nextConfigSerializable.experimental = {
         ...nextConfigSerializable.experimental,
@@ -932,7 +933,10 @@ function bindingToApi(
             .filter(([_, value]) => value != null)
             .map(([key, value]) => [
               key,
-              './' + path.relative(projectPath, value),
+              './' +
+                (path.isAbsolute(value)
+                  ? path.relative(projectPath, value)
+                  : value),
             ])
         ),
       }
