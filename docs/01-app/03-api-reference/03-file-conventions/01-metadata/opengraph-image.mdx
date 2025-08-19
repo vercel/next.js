@@ -463,7 +463,6 @@ import { readFile } from 'node:fs/promises'
 
 export default async function Image() {
   const logoData = await readFile(join(process.cwd(), 'logo.png'))
-  // Satori accepts ArrayBuffer/typed arrays at runtime, but TS doesn't model this yet.
   const logoSrc = Uint8Array.from(logoData).buffer
 
   return new ImageResponse(
@@ -508,11 +507,9 @@ export default async function Image() {
 }
 ```
 
-Why two versions? Base64 keeps TypeScript happy without suppressions. The ArrayBuffer/typed array form is supported by Satori at runtime but currently needs a small @ts-expect-error in TypeScript.
 
 ## Version History
 
 | Version   | Changes                                                                                                    |
 | --------- | ---------------------------------------------------------------------------------------------------------- |
-| `v15.x`   | Added two approaches for Node.js runtime local assets: `Base64` (TS-friendly) and `ArrayBuffer` (runtime). |
 | `v13.3.0` | `opengraph-image` and `twitter-image` introduced.                                                          |
