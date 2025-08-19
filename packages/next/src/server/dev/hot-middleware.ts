@@ -69,28 +69,40 @@ function getStatsForSyncEvent(
 }
 
 class EventStream {
-  clients: Set<ws>
-  constructor() {
-    this.clients = new Set()
-  }
+  clientsByRequestId: Map<string, ws> = new Map()
 
   close() {
-    for (const wsClient of this.clients) {
+    for (const wsClient of this.clientsByRequestId.values()) {
       // it's okay to not cleanly close these websocket connections, this is dev
       wsClient.terminate()
     }
-    this.clients.clear()
+    this.clientsByRequestId.clear()
   }
 
-  handler(client: ws) {
-    this.clients.add(client)
+  handler(client: ws, requestId: string) {
+    this.clientsByRequestId.set(requestId, client)
     client.addEventListener('close', () => {
-      this.clients.delete(client)
+      this.clientsByRequestId.delete(requestId)
     })
   }
 
-  publish(message: any) {
-    for (const wsClient of this.clients) {
+  isClientConnected(requestId: string): boolean {
+    return this.clientsByRequestId.has(requestId)
+  }
+
+  publish(message: any, requestId?: string) {
+    if (typeof requestId === 'string') {
+      // Only send to the matching client for the given request ID.
+      const client = this.clientsByRequestId.get(requestId)
+
+      if (client) {
+        client.send(JSON.stringify(message))
+      }
+
+      return
+    }
+
+    for (const wsClient of this.clientsByRequestId.values()) {
       wsClient.send(JSON.stringify(message))
     }
   }
@@ -198,9 +210,9 @@ export class WebpackHotMiddleware {
    * and we still want to show the client overlay with the error while
    * the error page should be rendered just fine.
    */
-  onHMR = (client: ws) => {
+  onHMR = (client: ws, requestId: string) => {
     if (this.closed) return
-    this.eventStream.handler(client)
+    this.eventStream.handler(client, requestId)
 
     const syncStats = getStatsForSyncEvent(
       this.clientLatestStats,
@@ -250,10 +262,15 @@ export class WebpackHotMiddleware {
     })
   }
 
-  publish = (message: HmrMessageSentToBrowser) => {
-    if (this.closed) return
-    this.eventStream.publish(message)
+  isClientConnected = (requestId: string): boolean => {
+    return this.eventStream.isClientConnected(requestId)
   }
+
+  publish = (message: HmrMessageSentToBrowser, requestId?: string) => {
+    if (this.closed) return
+    this.eventStream.publish(message, requestId)
+  }
+
   close = () => {
     if (this.closed) return
     // Can't remove compiler plugins, so we just set a flag and noop if closed
