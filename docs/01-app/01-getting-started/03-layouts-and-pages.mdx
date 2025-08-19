@@ -337,7 +337,6 @@ These are globally available helpers, generated when running either `next dev`, 
 ```tsx filename="app/blog/[slug]/page.tsx"
 export default async function Page(props: PageProps<'/blog/[slug]'>) {
   const { slug } = await props.params
-  const query = await props.searchParams
   return <h1>Blog post: {slug}</h1>
 }
 ```
