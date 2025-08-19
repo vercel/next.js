@@ -389,7 +389,7 @@ function processMessage(
 
       // Store the latest hash in a session cookie so that it's sent back to the
       // server with any subsequent requests.
-      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${obj.hash}`
+      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${obj.hash};path=/`
 
       if (RuntimeErrorHandler.hadRuntimeError) {
         if (reloading) return
