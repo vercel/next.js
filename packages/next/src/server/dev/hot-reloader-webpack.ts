@@ -95,6 +95,7 @@ import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -269,6 +270,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
 
+  private initialReactDebugChunksByRequestId = new Map<
+    string,
+    Uint8Array[] | null
+  >()
+
   public serverStats: webpack.Stats | null
   public edgeServerStats: webpack.Stats | null
   public multiCompiler?: webpack.MultiCompiler
@@ -438,7 +444,21 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     callback: (client: ws.WebSocket) => void
   ) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
-      this.webpackHotMiddleware?.onHMR(client)
+      const requestId = req.url
+        ? new URL(req.url, 'http://n').searchParams.get('id')
+        : null
+
+      if (requestId === null) {
+        throw new InvariantError(
+          'Expected the WebSocket request to contain an `id` parameter.'
+        )
+      }
+
+      if (!this.webpackHotMiddleware) {
+        throw new InvariantError('Did not start HotReloaderWebpack.')
+      }
+
+      this.webpackHotMiddleware.onHMR(client, requestId)
       this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
       callback(client)
 
@@ -605,6 +625,26 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           // invalid WebSocket message
         }
       })
+
+      const initialReactDebugChunks =
+        this.initialReactDebugChunksByRequestId.get(requestId)
+
+      if (initialReactDebugChunks) {
+        for (const chunk of initialReactDebugChunks) {
+          this.webpackHotMiddleware.publish(
+            {
+              // TODO: Send as binary frame, with the action type and request ID
+              // as header bytes.
+              type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+              requestId,
+              base64EncodedChunk: Buffer.from(chunk).toString('base64'),
+            },
+            requestId
+          )
+        }
+
+        this.initialReactDebugChunksByRequestId.set(requestId, null)
+      }
     })
   }
 
@@ -1664,11 +1704,39 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   public sendReactDebugChunk(
-    _chunk: Uint8Array,
-    _htmlRequestId: string,
-    _requestId: string
+    chunk: Uint8Array,
+    htmlRequestId: string,
+    requestId: string
   ): void {
-    throw new Error('sendReactDebugChunk is not implemented yet for Webpack')
+    if (this.webpackHotMiddleware?.isClientConnected(htmlRequestId)) {
+      // TODO: Send as binary frame, with the action type and request ID as
+      // header bytes.
+      this.webpackHotMiddleware.publish(
+        {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+          requestId,
+          base64EncodedChunk: Buffer.from(chunk).toString('base64'),
+        },
+        htmlRequestId
+      )
+    } else if (htmlRequestId === requestId) {
+      let initialReactDebugChunks =
+        this.initialReactDebugChunksByRequestId.get(requestId)
+
+      if (initialReactDebugChunks === null) {
+        // The client has already received all initial chunks. It has probably
+        // disconnected in the meantime.
+        return
+      } else if (initialReactDebugChunks === undefined) {
+        // The client has not connected yet, so we buffer the chunks.
+        this.initialReactDebugChunksByRequestId.set(
+          requestId,
+          (initialReactDebugChunks = [])
+        )
+      }
+
+      initialReactDebugChunks.push(chunk)
+    }
   }
 
   public async ensurePage({

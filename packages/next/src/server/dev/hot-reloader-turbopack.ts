@@ -762,23 +762,6 @@ export async function createHotReloaderTurbopack(
           )
         }
 
-        const initialReactDebugChunks =
-          initialReactDebugChunksByRequestId.get(requestId)
-
-        if (initialReactDebugChunks) {
-          for (const chunk of initialReactDebugChunks) {
-            sendToClient(client, {
-              // TODO: Send as binary frame, with the action type and request ID
-              // as header bytes.
-              action: HMR_ACTIONS_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
-              requestId,
-              base64EncodedChunk: Buffer.from(chunk).toString('base64'),
-            })
-          }
-
-          initialReactDebugChunksByRequestId.set(requestId, null)
-        }
-
         clientsByRequestId.set(requestId, client)
         clientStates.set(client, {
           clientIssues,
@@ -932,6 +915,23 @@ export async function createHotReloaderTurbopack(
           }
 
           sendToClient(client, syncMessage)
+
+          const initialReactDebugChunks =
+            initialReactDebugChunksByRequestId.get(requestId)
+
+          if (initialReactDebugChunks) {
+            for (const chunk of initialReactDebugChunks) {
+              sendToClient(client, {
+                // TODO: Send as binary frame, with the action type and request ID
+                // as header bytes.
+                type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+                requestId,
+                base64EncodedChunk: Buffer.from(chunk).toString('base64'),
+              })
+            }
+
+            initialReactDebugChunksByRequestId.set(requestId, null)
+          }
         })()
       })
     },
@@ -951,7 +951,7 @@ export async function createHotReloaderTurbopack(
         // TODO: Send as binary frame, with the action type and request ID as
         // header bytes.
         sendToClient(client, {
-          action: HMR_ACTIONS_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+          type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
           requestId,
           base64EncodedChunk: Buffer.from(chunk).toString('base64'),
         })
