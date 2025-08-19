@@ -391,7 +391,10 @@ function processMessage(
       // server with any subsequent requests.
       document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${obj.hash};path=/`
 
-      if (RuntimeErrorHandler.hadRuntimeError) {
+      if (
+        RuntimeErrorHandler.hadRuntimeError ||
+        document.documentElement.id === '__next_error__'
+      ) {
         if (reloading) return
         reloading = true
         return window.location.reload()
