@@ -523,6 +523,12 @@ impl ImportMap {
         // relative requests must not match global wildcard aliases.
 
         let request_pattern = request.request_pattern().await?;
+        if matches!(*request_pattern, Pattern::Dynamic | Pattern::DynamicNoSlash) {
+            // You could probably conceive of cases where this isn't correct. But the dynamic will
+            // just match every single entry in the import map, which is not what we want.
+            return Ok(ImportMapResult::NoEntry);
+        }
+
         let (req_rel, rest) = request_pattern.split_could_match("./");
         let (req_rel_parent, req_rest) =
             rest.map(|r| r.split_could_match("../")).unwrap_or_default();
