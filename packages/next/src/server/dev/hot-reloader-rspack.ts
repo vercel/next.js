@@ -14,6 +14,12 @@ import { isInstrumentationHookFile, isMiddlewareFile } from '../../build/utils'
 import { getFilesInDir } from '../../lib/get-files-in-dir'
 import { COMPILER_NAMES, RSC_MODULE_TYPES } from '../../shared/lib/constants'
 import type { PageExtensions } from '../../build/page-extensions-type'
+import type { MultiCompiler } from 'webpack'
+import { getRspackCore } from '../../shared/lib/get-rspack'
+import type { NextConfigComplete } from '../config-shared'
+import type { __ApiPreviewProps } from '../api-utils'
+import type { CustomRoutes } from '../../lib/load-custom-routes'
+import type { Telemetry } from '../../telemetry/storage'
 
 async function createEntries(
   params: CreateEntrypointsParams
@@ -232,6 +238,57 @@ async function createPagesAbsolutePathMapping({
 }
 
 export default class HotReloaderRspack extends HotReloaderWebpack {
+  port: number
+
+  constructor(
+    dir: string,
+    {
+      config,
+      isSrcDir,
+      pagesDir,
+      distDir,
+      buildId,
+      encryptionKey,
+      previewProps,
+      rewrites,
+      appDir,
+      telemetry,
+      resetFetch,
+      port
+    }: {
+      config: NextConfigComplete
+      isSrcDir: boolean
+      pagesDir?: string
+      distDir: string
+      buildId: string
+      encryptionKey: string
+      previewProps: __ApiPreviewProps
+      rewrites: CustomRoutes['rewrites']
+      appDir?: string
+      telemetry: Telemetry
+      resetFetch: () => void
+      port: number
+    }
+  ) {
+    super(
+      dir,
+      {
+        config,
+        isSrcDir,
+        pagesDir,
+        distDir,
+        buildId,
+        encryptionKey,
+        previewProps,
+        rewrites,
+        appDir,
+        telemetry,
+        resetFetch,
+      }
+    )
+    this.port = port
+  }
+
   public async start(): Promise<void> {
     const rspackStartSpan = this.hotReloaderSpan.traceChild('rspack-start')
 
@@ -357,5 +414,16 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
     );
 
     await super.start()
+  }
+
+  afterMultiCompilerCreated(multiCompiler: MultiCompiler) {
+    for (const compiler of multiCompiler.compilers) {
+      (compiler.options as any).lazyCompilation = {
+        serverUrl: `http://localhost:${this.port}`,
+      };
+    }
+    const rspack = getRspackCore();
+    const middleware = rspack.experiments.lazyCompilationMiddleware(multiCompiler);
+    this.middlewares.unshift(middleware);
   }
 }

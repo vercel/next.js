@@ -80,7 +80,7 @@ import {
   type NextJsHotReloaderInterface,
 } from './hot-reloader-types'
 import type { HMR_ACTION_TYPES } from './hot-reloader-types'
-import type { WebpackError } from 'webpack'
+import type { MultiCompiler, WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { getNodeDebugType } from '../lib/utils'
@@ -235,7 +235,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   protected dir: string
   protected buildId: string
   private encryptionKey: string
-  private middlewares: ((
+  protected middlewares: ((
     req: IncomingMessage,
     res: ServerResponse,
     next: () => void
@@ -1165,7 +1165,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           delete entrypoints[CLIENT_STATIC_FILES_RUNTIME_MAIN_APP]
         }
 
-        console.log("entrypoints", entrypoints)
         return entrypoints
       }
     }
@@ -1182,6 +1181,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.multiCompiler = getWebpackBundler()(
       this.activeWebpackConfigs
     ) as unknown as webpack.MultiCompiler
+
+    this.afterMultiCompilerCreated(this.multiCompiler);
 
     // Copy over the filesystem so that it is shared between all compilers.
     const inputFileSystem = this.multiCompiler.compilers[0].inputFileSystem
@@ -1582,7 +1583,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }),
     })
 
-    this.middlewares = [
+    this.middlewares.push(
       getOverlayMiddleware({
         rootDirectory: this.dir,
         isSrcDir: this.isSrcDir,
@@ -1617,9 +1618,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             data,
           })
         },
-      }),
-    ]
+      })
+    )
   }
+
+  protected afterMultiCompilerCreated(_multiCompiler: MultiCompiler) {}
 
   public invalidate(
     { reloadAfterInvalidation }: { reloadAfterInvalidation: boolean } = {
