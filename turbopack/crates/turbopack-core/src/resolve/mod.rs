@@ -2937,8 +2937,9 @@ async fn handle_exports_imports_field(
     }
     let req = path;
 
-    let values = exports_imports_field.lookup(&req).collect::<Vec<_>>();
-    for value in values.clone() {
+    let values = exports_imports_field.lookup(&req);
+    for value in values {
+        let value = value?;
         if value.output.add_results(
             value.prefix,
             value.key,

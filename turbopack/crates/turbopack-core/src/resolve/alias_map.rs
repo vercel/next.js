@@ -4,6 +4,7 @@ use std::{
     fmt::{Debug, Formatter},
 };
 
+use anyhow::Result;
 use patricia_tree::PatriciaMap;
 use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
@@ -543,7 +544,7 @@ impl<'a, T> Iterator for AliasMapLookupIterator<'a, T>
 where
     T: AliasTemplate + Clone,
 {
-    type Item = AliasMatch<'a, T>;
+    type Item = Result<AliasMatch<'a, T>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let (prefix, current_prefix_iterator) = self.current_prefix_iterator.as_mut()?;
@@ -553,11 +554,11 @@ where
                 match key {
                     AliasKey::Exact => {
                         if self.request.is_match(prefix) {
-                            return Some(AliasMatch {
+                            return Some(Ok(AliasMatch {
                                 prefix: prefix.clone(),
                                 key,
                                 output: template.convert(),
-                            });
+                            }));
                         }
                     }
                     AliasKey::Wildcard { suffix } => {
@@ -587,13 +588,13 @@ where
                         {
                             req_prefix.starts_with(&**prefix) && req_suffix.ends_with(&**suffix)
                         } else {
-                            panic!(
+                            return Some(Err(anyhow::anyhow!(
                                 "complex patterns into wildcard exports fields are not \
                                  implemented yet: '{}' into '{}*{}'",
                                 self.request.describe_as_string(),
                                 prefix,
                                 suffix,
-                            );
+                            )));
                         };
 
                         if is_match {
@@ -602,11 +603,11 @@ where
                             remaining.strip_suffix_len(suffix.len());
 
                             let output = template.replace(&remaining);
-                            return Some(AliasMatch {
+                            return Some(Ok(AliasMatch {
                                 prefix: prefix.clone(),
                                 key,
                                 output,
-                            });
+                            }));
                         }
                     }
                 }
@@ -737,6 +738,7 @@ pub trait AliasTemplate {
 mod test {
     use std::assert_matches::assert_matches;
 
+    use anyhow::Result;
     use turbo_rcstr::rcstr;
 
     use super::{AliasMap, AliasPattern, AliasTemplate};
@@ -756,7 +758,7 @@ mod test {
         };
 
         (@next $lookup:ident, exact($pattern:expr)$(, $($tail:tt)*)?) => {
-            match $lookup.next().unwrap() {
+            match $lookup.next().unwrap().unwrap() {
                 super::AliasMatch{key: super::AliasKey::Exact, output: Pattern::Constant(c), ..} if c == $pattern => {}
                 m => panic!("unexpected match {:?}", m),
             }
@@ -764,7 +766,7 @@ mod test {
         };
 
         (@next $lookup:ident, replaced($pattern:expr)$(, $($tail:tt)*)?) => {
-            match $lookup.next().unwrap() {
+            match $lookup.next().unwrap().unwrap() {
                 super::AliasMatch{key: super::AliasKey::Wildcard{..}, output: Pattern::Constant(c), ..} if c == $pattern => {}
                 m => panic!("unexpected match {:?}", m),
             }
@@ -772,7 +774,7 @@ mod test {
         };
 
         (@next $lookup:ident, replaced_owned($value:expr)$(, $($tail:tt)*)?) => {
-            match $lookup.next().unwrap() {
+            match $lookup.next().unwrap().unwrap() {
                 super::AliasMatch{key: super::AliasKey::Wildcard{..}, output: Pattern::Constant(c), ..} if c == $value => {}
                 m => panic!("unexpected match {:?}", m),
             }
@@ -956,7 +958,8 @@ mod test {
                 Pattern::Constant(rcstr!("card/")),
                 Pattern::Dynamic
             ]))
-            .collect::<Vec<_>>(),
+            .collect::<Result<Vec<_>>>()
+            .unwrap(),
             vec![super::AliasMatch {
                 prefix: "card/".into(),
                 key: &super::AliasKey::Wildcard { suffix: rcstr!("") },
@@ -972,7 +975,8 @@ mod test {
                 Pattern::Dynamic,
                 Pattern::Constant(rcstr!("/x")),
             ]))
-            .collect::<Vec<_>>(),
+            .collect::<Result<Vec<_>>>()
+            .unwrap(),
             vec![super::AliasMatch {
                 prefix: "comp/".into(),
                 key: &super::AliasKey::Wildcard {
@@ -991,7 +995,8 @@ mod test {
                 Pattern::Dynamic,
                 Pattern::Constant(rcstr!("/x")),
             ]))
-            .collect::<Vec<_>>(),
+            .collect::<Result<Vec<_>>>()
+            .unwrap(),
             vec![super::AliasMatch {
                 prefix: "head/".into(),
                 key: &super::AliasKey::Wildcard {
@@ -1035,7 +1040,8 @@ mod test {
                 Pattern::Dynamic,
                 Pattern::Constant(rcstr!("bar-a")),
             ]))
-            .collect::<Vec<_>>(),
+            .collect::<Result<Vec<_>>>()
+            .unwrap(),
             vec![super::AliasMatch {
                 prefix: "bar-a".into(),
                 key: &AliasKey::Exact,
@@ -1047,7 +1053,8 @@ mod test {
                 Pattern::Constant(rcstr!("bar-")),
                 Pattern::Dynamic,
             ]))
-            .collect::<Vec<_>>(),
+            .collect::<Result<Vec<_>>>()
+            .unwrap(),
             vec![
                 super::AliasMatch {
                     prefix: "bar-b".into(),

@@ -552,7 +552,7 @@ impl ImportMap {
             .chain(lookup_rel_parent.into_iter())
             .chain(lookup.into_iter())
             .map(async |result| {
-                import_mapping_to_result(*result.output.await?, lookup_path.clone(), request).await
+                import_mapping_to_result(*result?.output.await?, lookup_path.clone(), request).await
             })
             .try_join()
             .await?;
