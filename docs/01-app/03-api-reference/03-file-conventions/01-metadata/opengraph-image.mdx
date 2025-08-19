@@ -402,7 +402,7 @@ export default async function Image({ params }) {
 
 #### Using Node.js runtime with local assets
 
-This example reads a local image from the file system and renders it in an Open Graph image.
+These examples use the Node.js runtime to fetch a local image from the file system and pass it to the `<img>` `src` attribute, either as a base64 string or an `ArrayBuffer`. Place the local asset relative to the project root, not the example source file.
 
 > **Path note:** Place your asset relative to the **project root** (e.g. `logo.png` next to `app/`). If you keep assets in `public/`, change the path to `join(process.cwd(), 'public', 'logo.png')`.
 
