@@ -667,9 +667,7 @@ impl EsmExports {
 
                     let local = Ident::new(local.into(), DUMMY_SP, ctxt);
                     match (liveness, export_usage_info.is_circuit_breaker) {
-                        (Liveness::Constant, false) => {
-                            ExportBinding::Value(quote!("$local" as Expr, local = local))
-                        }
+                        (Liveness::Constant, false) => ExportBinding::Value(Expr::Ident(local)),
                         // If the value might change or we are a circuit breaker we must bind a
                         // getter to avoid capturing the value at the wrong time.
                         (Liveness::Live, _) | (Liveness::Constant, true) => {
@@ -679,7 +677,7 @@ impl EsmExports {
                             quote!("() => $local" as Expr, local = local.clone()),
                             quote!(
                                 "($new) => $local = $new" as Expr,
-                                local = local,
+                                local: AssignTarget = AssignTarget::Simple(local.into()),
                                 new = Ident::new(format!("new_{name}").into(), DUMMY_SP, ctxt),
                             ),
                         ),
@@ -692,31 +690,60 @@ impl EsmExports {
                         .get_ident(chunking_context, Some(name.clone()), scope_hoisting_context)
                         .await?
                         .map(|ident| {
-                            let expr = ident.as_expr_individual(DUMMY_SP);
+                                                        let expr = ident.as_expr_individual(DUMMY_SP);
                             let read_expr = expr.map_either(Expr::from, Expr::from).into_inner();
-                            // For imported bindings we could simply export the 'import' and have the runtime hook the bindings together.
-                            // This would be cute, slightly smaller codegen but efficiency is an open question.  In fact we could even
-                            // perform the 'liveness' check at runtime by querying the property descriptor.
-                            let getter = quote!(
-                                    "() => $expr" as Expr,
-                                    expr: Expr = read_expr,
-                                );
-                            if *mutable {
-                                ExportBinding::GetterSetter(
-                                    getter,
-                                quote!(
-                                    "($new) => $lhs = $new" as Expr,
-                                    lhs: AssignTarget = AssignTarget::Simple(
-                                        ident.as_expr_individual(DUMMY_SP).map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner()),
-                                    new = Ident::new(
-                                        format!("new_{name}").into(),
-                                        DUMMY_SP,
-                                        Default::default()
-                                    ),
-                                )
-                            )
-                            } else {
-                                ExportBinding::Getter(getter)
+                            use crate::references::esm::base::ReferencedAssetIdent;
+                            match &ident {
+                                ReferencedAssetIdent::LocalBinding {ctxt, liveness,.. } => {
+                                    debug_assert!(*mutable == (*liveness == Liveness::Mutable), "If the re-export is mutable, the merged local must be too");
+                                    // If we are re-exporting something but got merged with it we can treat it like a local export
+                                     match (liveness, export_usage_info.is_circuit_breaker) {
+                                        (Liveness::Constant, false) => {
+                                            ExportBinding::Value(read_expr)
+                                        }
+                                        // If the value might change or we are a circuit breaker we must bind a
+                                        // getter to avoid capturing the value at the wrong time.
+                                        (Liveness::Live, _) | (Liveness::Constant, true) => {
+                                            // In the constant case, we could still export as a value if we knew that the module
+                                            // came _before_ us, but we don't at this point.
+                                            ExportBinding::Getter(quote!("() => $local" as Expr, local: Expr = read_expr))
+                                        }
+                                        (Liveness::Mutable, _) => ExportBinding::GetterSetter(
+                                            quote!("() => $local" as Expr, local: Expr= read_expr.clone()),
+                                            quote!(
+                                                "($new) => $lhs = $new" as Expr,
+                                                lhs: AssignTarget = AssignTarget::Simple(
+                                                        ident.as_expr_individual(DUMMY_SP).map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner()),
+                                                new = Ident::new(format!("new_{name}").into(), DUMMY_SP, *ctxt),
+                                            ),
+                                        ),
+                                    }
+                                },
+                                ReferencedAssetIdent::Module { namespace_ident:_, ctxt:_, export:_ } => {
+                                    // Otherwise we need to bind as a getter to preserve the 'liveness' of the other modules bindings.
+                                    // TODO: If this becomes important it might be faster to use the runtime to copy PropertyDescriptors across modules
+                                    // since that would reduce allocations and optimize access. We could do this by passing the module-id up.
+                                    let getter = quote!(
+                                            "() => $expr" as Expr,
+                                            expr: Expr = read_expr,
+                                        );
+                                    if *mutable {
+                                        ExportBinding::GetterSetter(
+                                            getter,
+                                            quote!(
+                                                "($new) => $lhs = $new" as Expr,
+                                                lhs: AssignTarget = AssignTarget::Simple(
+                                                    ident.as_expr_individual(DUMMY_SP).map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner()),
+                                                new = Ident::new(
+                                                    format!("new_{name}").into(),
+                                                    DUMMY_SP,
+                                                    Default::default()
+                                                ),
+                                            ))
+                                    } else {
+                                        ExportBinding::Getter(getter)
+                                    }
+                                }
                             }
                         }).unwrap_or(ExportBinding::None)
                 }
