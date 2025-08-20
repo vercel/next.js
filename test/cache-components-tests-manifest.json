@@ -2,25 +2,24 @@
   "version": 2,
   "suites": {
     "test/production/app-dir/fetch-cache/fetch-cache.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "fetch-cache should have correct fetchUrl field for fetches and unstable_cache",
         "fetch-cache should not retry for failed fetch-cache GET",
         "fetch-cache should retry 3 times when revalidate times out",
         "fetch-cache should update cache TTL even if cache data does not change"
       ],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
+      "failed": []
     },
     "test/e2e/opentelemetry/opentelemetry.test.ts": {
-      "failed": [
+      "passed": [
         "opentelemetry root context app router should handle RSC with fetch",
         "opentelemetry incoming context propagation app router should handle RSC with fetch",
         "opentelemetry incoming context propagation app router should handle route handlers in app router"
-      ]
+      ],
+      "failed": []
     },
     "test/e2e/app-dir/searchparams-reuse-loading/searchparams-reuse-loading.test.ts": {
+      "passed": [],
       "failed": [
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-full route",
         "searchparams-reuse-loading should re-use loading from \"full\" prefetch for param-full URL when navigating to param-less route",
@@ -28,11 +27,13 @@
       ]
     },
     "test/production/app-dir/browser-chunks/browser-chunks.test.ts": {
+      "passed": [],
       "failed": [
         "browser-chunks must not bundle any server modules into browser chunks"
       ]
     },
     "test/e2e/next-form/default/next-form-prefetch.test.ts": {
+      "passed": [],
       "failed": [
         "app dir - form prefetching should not prefetch when prefetch is set to false`",
         "app dir - form prefetching should prefetch a loading state for the form's target"
