@@ -12,7 +12,10 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import type { CacheNode } from '../../shared/lib/app-router-types'
+import type {
+  CacheNode,
+  FlightRouterState,
+} from '../../shared/lib/app-router-types'
 import { ACTION_RESTORE } from './router-reducer/router-reducer-types'
 import type { AppRouterState } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
@@ -31,7 +34,6 @@ import { unresolvedThenable } from './unresolved-thenable'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import { getSelectedParams } from './router-reducer/compute-changed-path'
-import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,

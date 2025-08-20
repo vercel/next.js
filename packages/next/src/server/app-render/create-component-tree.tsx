@@ -1,4 +1,7 @@
-import type { CacheNodeSeedData } from '../../shared/lib/app-router-types'
+import type {
+  CacheNodeSeedData,
+  LoadingModuleData,
+} from '../../shared/lib/app-router-types'
 import type { PreloadCallbacks } from './types'
 import React from 'react'
 import {
@@ -18,7 +21,6 @@ import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/builtin/def
 import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import type { LoadingModuleData } from '../../shared/lib/app-router-types'
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/framework/boundary-constants'

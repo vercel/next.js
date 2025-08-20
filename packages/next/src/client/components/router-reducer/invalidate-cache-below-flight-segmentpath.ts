@@ -1,5 +1,7 @@
-import type { CacheNode } from '../../../shared/lib/app-router-types'
-import type { FlightSegmentPath } from '../../../shared/lib/app-router-types'
+import type {
+  CacheNode,
+  FlightSegmentPath,
+} from '../../../shared/lib/app-router-types'
 import { createRouterCacheKey } from './create-router-cache-key'
 import { getNextFlightSegmentPath } from '../../flight-data-helpers'
 

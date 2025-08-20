@@ -1,5 +1,7 @@
-import type { CacheNode } from '../../../shared/lib/app-router-types'
-import type { FlightDataPath } from '../../../shared/lib/app-router-types'
+import type {
+  CacheNode,
+  FlightDataPath,
+} from '../../../shared/lib/app-router-types'
 
 import { createHrefFromUrl } from './create-href-from-url'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'

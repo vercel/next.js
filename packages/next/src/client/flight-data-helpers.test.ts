@@ -1,6 +1,8 @@
 import { prepareFlightRouterStateForRequest } from './flight-data-helpers'
-import type { FlightRouterState } from '../shared/lib/app-router-types'
-import { HasLoadingBoundary } from '../shared/lib/app-router-types'
+import {
+  HasLoadingBoundary,
+  type FlightRouterState,
+} from '../shared/lib/app-router-types'
 
 describe('prepareFlightRouterStateForRequest', () => {
   describe('HMR refresh handling', () => {

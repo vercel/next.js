@@ -4,8 +4,11 @@ import type {
   FocusAndScrollRef,
   PrefetchKind,
 } from '../../client/components/router-reducer/router-reducer-types'
-import type { FlightRouterState, FlightSegmentPath } from './app-router-types'
-import type { CacheNode } from './app-router-types'
+import type {
+  FlightRouterState,
+  FlightSegmentPath,
+  CacheNode,
+} from './app-router-types'
 import React from 'react'
 
 export interface NavigateOptions {

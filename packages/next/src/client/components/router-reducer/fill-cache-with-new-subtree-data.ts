@@ -1,5 +1,4 @@
-import type { CacheNode } from '../../../shared/lib/app-router-types'
-import type { Segment } from '../../../shared/lib/app-router-types'
+import type { CacheNode, Segment } from '../../../shared/lib/app-router-types'
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
 import { createRouterCacheKey } from './create-router-cache-key'
