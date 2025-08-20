@@ -154,10 +154,10 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
                 if (entryData.absoluteEntryFilePath) {
                   const pageExists =
                     !entryData.dispose &&
-                    fs.access(entryData.absoluteEntryFilePath).then(
+                    (await fs.access(entryData.absoluteEntryFilePath).then(
                       () => true,
                       () => false
-                    )
+                    ))
                   if (!pageExists) {
                     delete builtEntries[entryKey]
                     return
@@ -220,16 +220,19 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
         if (key === 'client' && !this.isClientCacheEnabled) return
         if (key === 'server' && !this.isServerCacheEnabled) return
         if (key === 'edge-server' && !this.isEdgeServerCacheEnabled) return
-        builtEntries[entryName] = entry
+
+        let hash: string | undefined
         if (entry.type === EntryTypes.ENTRY) {
-          builtEntries[entryName].hash = await calculateFileHash(
-            entry.absolutePagePath
-          )
+          hash = await calculateFileHash(entry.absolutePagePath)
         } else if (entry.absoluteEntryFilePath) {
-          builtEntries[entryName].hash = await calculateFileHash(
-            entry.absoluteEntryFilePath
-          )
+          hash = await calculateFileHash(entry.absoluteEntryFilePath)
         }
+        if (!hash) {
+          return
+        }
+
+        builtEntries[entryName] = entry
+        builtEntries[entryName].hash = hash
       })
     )
 
@@ -258,7 +261,15 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
 async function calculateFileHash(
   filePath: string,
   algorithm: string = 'sha256'
-): Promise<string> {
+): Promise<string | undefined> {
+  if (
+    !(await fs.access(filePath).then(
+      () => true,
+      () => false
+    ))
+  ) {
+    return
+  }
   const fileBuffer = await fs.readFile(filePath)
   const hash = createHash(algorithm)
   hash.update(fileBuffer)
