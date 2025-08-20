@@ -566,9 +566,13 @@ const context = {}
     })
 
     // eslint-disable-next-line jest/no-identical-title
-    it('should not contain missing files warning', async () => {
-      expect(output).toContain('Compiled /only-amp')
-      expect(output).not.toContain('Could not find files for')
-    })
+    // Rspack caches complete compilation results, preventing detection of /only-amp recompilation
+    ;(process.env.NEXT_RSPACK ? it.skip : it)(
+      'should not contain missing files warning',
+      async () => {
+        expect(output).toContain('Compiled /only-amp')
+        expect(output).not.toContain('Could not find files for')
+      }
+    )
   })
 })
