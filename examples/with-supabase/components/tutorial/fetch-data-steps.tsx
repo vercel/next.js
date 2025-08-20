@@ -82,8 +82,8 @@ export function FetchDataSteps() {
       <TutorialStep title="Enable Row Level Security (RLS)">
         <p>
           Supabase enables Row Level Security (RLS) by default. To query data
-          from your <code>notes</code> table, you need to add a policy.
-          You can do this in the{" "}
+          from your <code>notes</code> table, you need to add a policy. You can
+          do this in the{" "}
           <a
             href="https://supabase.com/dashboard/project/_/editor"
             className="font-bold hover:underline text-foreground/80"
@@ -100,10 +100,12 @@ export function FetchDataSteps() {
             rel="noreferrer"
           >
             SQL Editor
-          </a>.
+          </a>
+          .
         </p>
         <p>
-          For example, you can run the following SQL to allow public read access:
+          For example, you can run the following SQL to allow public read
+          access:
         </p>
         <CodeBlock code={rls} />
         <p>
@@ -115,7 +117,8 @@ export function FetchDataSteps() {
             rel="noreferrer"
           >
             Supabase docs
-          </a>.
+          </a>
+          .
         </p>
       </TutorialStep>
 
