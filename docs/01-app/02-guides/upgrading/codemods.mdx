@@ -24,6 +24,73 @@ Replacing `<transform>` and `<path>` with appropriate values.
 
 ## Codemods
 
+### 16.0
+
+#### Migrate from `next lint` to ESLint CLI
+
+##### `next-lint-to-eslint-cli`
+
+```bash filename="Terminal"
+npx @next/codemod@canary next-lint-to-eslint-cli .
+```
+
+This codemod migrates projects from using `next lint` to using the ESLint CLI with your local ESLint config. It:
+
+- Creates an `eslint.config.mjs` file with Next.js recommended configurations
+- Updates `package.json` scripts to use `eslint .` instead of `next lint`
+- Adds necessary ESLint dependencies to `package.json`
+- Preserves existing ESLint configurations when found
+
+For example:
+
+```json filename="package.json"
+{
+  "scripts": {
+    "lint": "next lint"
+  }
+}
+```
+
+Becomes:
+
+```json filename="package.json"
+{
+  "scripts": {
+    "lint": "eslint ."
+  }
+}
+```
+
+And creates:
+
+```js filename="eslint.config.mjs"
+import { dirname } from 'path'
+import { fileURLToPath } from 'url'
+import { FlatCompat } from '@eslint/eslintrc'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+const compat = new FlatCompat({
+  baseDirectory: __dirname,
+})
+
+const eslintConfig = [
+  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  {
+    ignores: [
+      'node_modules/**',
+      '.next/**',
+      'out/**',
+      'build/**',
+      'next-env.d.ts',
+    ],
+  },
+]
+
+export default eslintConfig
+```
+
 ### 15.0
 
 #### Transform App Router Route Segment Config `runtime` value from `experimental-edge` to `edge`

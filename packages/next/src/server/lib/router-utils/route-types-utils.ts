@@ -348,7 +348,7 @@ export async function writeRouteTypesManifest(
   await fs.promises.writeFile(filePath, generateRouteTypesFile(manifest))
 
   // Write the link.d.ts file if typedRoutes is enabled
-  if (config.experimental?.typedRoutes === true) {
+  if (config.typedRoutes === true) {
     const linkTypesPath = path.join(dirname, 'link.d.ts')
     await fs.promises.writeFile(linkTypesPath, generateLinkTypesFile(manifest))
   }
