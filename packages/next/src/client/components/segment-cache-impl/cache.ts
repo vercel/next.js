@@ -55,7 +55,7 @@ import {
   parseDynamicParamFromURLPart,
   type RouteParam,
 } from '../../route-params'
-import { createTupleMap, type TupleMap, type Prefix } from './tuple-map'
+import { createCacheMap, type CacheMap, type MapEntry } from './cache-map'
 import { createLRU } from './lru'
 import {
   appendSegmentCacheKeyPart,
@@ -144,8 +144,10 @@ type RouteCacheEntryShared = {
   TODO_metadataStatus: EntryStatus.Empty | EntryStatus.Fulfilled
   TODO_isHeadDynamic: boolean
 
+  // Map-related fields.
+  ref: null | MapEntry<RouteCacheEntry>
+
   // LRU-related fields
-  keypath: null | Prefix<RouteCacheKeypath>
   next: null | RouteCacheEntry
   prev: null | RouteCacheEntry
   size: number
@@ -206,8 +208,10 @@ type SegmentCacheEntryShared = {
   fetchStrategy: FetchStrategy
   revalidating: SegmentCacheEntry | null
 
+  // Map-related fields.
+  ref: null | MapEntry<SegmentCacheEntry>
+
   // LRU-related fields
-  keypath: null | Prefix<SegmentCacheKeypath>
   next: null | SegmentCacheEntry
   prev: null | SegmentCacheEntry
   size: number
@@ -256,6 +260,11 @@ export type NonEmptySegmentCacheEntry = Exclude<
   EmptySegmentCacheEntry
 >
 
+// Utility type. Prefix<[A, B, C, D]> matches [A], [A, B], [A, B, C] etc.
+type Prefix<T extends any[]> = T extends [infer First, ...infer Rest]
+  ? [] | [First] | [First, ...Prefix<Rest>]
+  : []
+
 const isOutputExportMode =
   process.env.NODE_ENV === 'production' &&
   process.env.__NEXT_CONFIG_OUTPUT === 'export'
@@ -273,9 +282,9 @@ function getStaleTimeMs(staleTimeSeconds: number): number {
 // concatenate the keys into a single key, we use a multi-level map, where the
 // first level is keyed by href, the second level is keyed by Next-Url, and so
 // on (if were to add more levels).
-type RouteCacheKeypath = [NormalizedHref, NormalizedNextUrl]
-let routeCacheMap: TupleMap<RouteCacheKeypath, RouteCacheEntry> =
-  createTupleMap()
+type RouteCacheKeypath = Prefix<[NormalizedHref, NormalizedNextUrl]>
+let routeCacheMap: CacheMap<RouteCacheKeypath, RouteCacheEntry> =
+  createCacheMap()
 
 // We use an LRU for memory management. We must update this whenever we add or
 // remove a new cache entry, or when an entry changes size.
@@ -288,9 +297,9 @@ let routeCacheLru = createLRU<RouteCacheEntry>(
   onRouteLRUEviction
 )
 
-type SegmentCacheKeypath = [string, NormalizedSearch]
-let segmentCacheMap: TupleMap<SegmentCacheKeypath, SegmentCacheEntry> =
-  createTupleMap()
+type SegmentCacheKeypath = Prefix<[string, NormalizedSearch]>
+let segmentCacheMap: CacheMap<SegmentCacheKeypath, SegmentCacheEntry> =
+  createCacheMap()
 // NOTE: Segments and Route entries are managed by separate LRUs. We could
 // combine them into a single LRU, but because they are separate types, we'd
 // need to wrap each one in an extra LRU node (to maintain monomorphism, at the
@@ -336,9 +345,9 @@ export function revalidateEntireCache(
   // no longer reachable.
   // TODO: There's an exception to this case that we don't currently handle
   // correctly: background revalidations. See note in `upsertSegmentEntry`.
-  routeCacheMap = createTupleMap()
+  routeCacheMap = createCacheMap()
   routeCacheLru = createLRU(maxRouteLruSize, onRouteLRUEviction)
-  segmentCacheMap = createTupleMap()
+  segmentCacheMap = createCacheMap()
   segmentCacheLru = createLRU(maxSegmentLruSize, onSegmentLRUEviction)
 
   // Prefetch all the currently visible links again, to re-fill the cache.
@@ -409,8 +418,7 @@ export function readExactRouteCacheEntry(
   href: NormalizedHref,
   nextUrl: NormalizedNextUrl | null
 ): RouteCacheEntry | null {
-  const keypath: Prefix<RouteCacheKeypath> =
-    nextUrl === null ? [href] : [href, nextUrl]
+  const keypath: RouteCacheKeypath = nextUrl === null ? [href] : [href, nextUrl]
   const existingEntry = routeCacheMap.get(keypath)
   if (existingEntry !== null) {
     // Check if the entry is stale
@@ -423,7 +431,7 @@ export function readExactRouteCacheEntry(
       return existingEntry
     } else {
       // Evict the stale entry from the cache.
-      deleteRouteFromCache(existingEntry, keypath)
+      deleteRouteFromCache(existingEntry)
     }
   }
   return null
@@ -448,7 +456,7 @@ export function getSegmentKeypath(
   fetchStrategy: FetchStrategy,
   route: FulfilledRouteCacheEntry,
   cacheKey: SegmentCacheKey
-): Prefix<SegmentCacheKeypath> {
+): SegmentCacheKeypath {
   // When a prefetch includes dynamic data, the search params are included
   // in the result, so we must include the search string in the segment
   // cache key. (Note that this is true even if the search string is empty.)
@@ -501,7 +509,7 @@ export function readSegmentCacheEntry(
 
 function readExactSegmentCacheEntry(
   now: number,
-  keypath: Prefix<SegmentCacheKeypath>
+  keypath: SegmentCacheKeypath
 ): SegmentCacheEntry | null {
   const existingEntry = segmentCacheMap.get(keypath)
   if (existingEntry !== null) {
@@ -529,7 +537,7 @@ function readExactSegmentCacheEntry(
         }
       } else {
         // Evict the stale entry from the cache.
-        deleteSegmentFromCache(existingEntry, keypath)
+        deleteSegmentFromCache(existingEntry)
       }
     }
   }
@@ -607,17 +615,14 @@ export function readOrCreateRouteCacheEntry(
     TODO_isHeadDynamic: false,
 
     // LRU-related fields
-    keypath: null,
+    ref: null,
     next: null,
     prev: null,
     size: 0,
   }
-  const keypath: Prefix<RouteCacheKeypath> =
+  const keypath: RouteCacheKeypath =
     key.nextUrl === null ? [key.href] : [key.href, key.nextUrl]
   routeCacheMap.set(keypath, pendingEntry)
-  // Stash the keypath on the entry so we know how to remove it from the map
-  // if it gets evicted from the LRU.
-  pendingEntry.keypath = keypath
   routeCacheLru.put(pendingEntry)
   return pendingEntry
 }
@@ -758,8 +763,10 @@ export function requestOptimisticRouteCacheEntry(
     TODO_metadataStatus,
     TODO_isHeadDynamic,
 
+    // Map-related fields
+    ref: null,
+
     // LRU-related fields
-    keypath: null,
     next: null,
     prev: null,
     size: 0,
@@ -788,9 +795,6 @@ export function readOrCreateSegmentCacheEntry(
   // Create a pending entry and add it to the cache.
   const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
   segmentCacheMap.set(keypath, pendingEntry)
-  // Stash the keypath on the entry so we know how to remove it from the map
-  // if it gets evicted from the LRU.
-  pendingEntry.keypath = keypath
   segmentCacheLru.put(pendingEntry)
   return pendingEntry
 }
@@ -822,7 +826,7 @@ export function readOrCreateRevalidatingSegmentEntry(
 
 export function upsertSegmentEntry(
   now: number,
-  keypath: Prefix<SegmentCacheKeypath>,
+  keypath: SegmentCacheKeypath,
   candidateEntry: SegmentCacheEntry
 ): SegmentCacheEntry | null {
   // We have a new entry that has not yet been inserted into the cache. Before
@@ -861,12 +865,9 @@ export function upsertSegmentEntry(
     }
 
     // Evict the existing entry from the cache.
-    deleteSegmentFromCache(existingEntry, keypath)
+    deleteSegmentFromCache(existingEntry)
   }
   segmentCacheMap.set(keypath, candidateEntry)
-  // Stash the keypath on the entry so we know how to remove it from the map
-  // if it gets evicted from the LRU.
-  candidateEntry.keypath = keypath
   segmentCacheLru.put(candidateEntry)
   return candidateEntry
 }
@@ -887,7 +888,7 @@ export function createDetachedSegmentCacheEntry(
     promise: null,
 
     // LRU-related fields
-    keypath: null,
+    ref: null,
     next: null,
     prev: null,
     size: 0,
@@ -905,21 +906,15 @@ export function upgradeToPendingSegment(
   return pendingEntry
 }
 
-function deleteRouteFromCache(
-  entry: RouteCacheEntry,
-  keypath: Prefix<RouteCacheKeypath>
-): void {
+function deleteRouteFromCache(entry: RouteCacheEntry): void {
   pingBlockedTasks(entry)
-  routeCacheMap.delete(keypath)
+  routeCacheMap.delete(entry)
   routeCacheLru.delete(entry)
 }
 
-function deleteSegmentFromCache(
-  entry: SegmentCacheEntry,
-  keypath: Prefix<SegmentCacheKeypath>
-): void {
+function deleteSegmentFromCache(entry: SegmentCacheEntry): void {
   cancelEntryListeners(entry)
-  segmentCacheMap.delete(keypath)
+  segmentCacheMap.delete(entry)
   segmentCacheLru.delete(entry)
   clearRevalidatingSegmentFromOwner(entry)
 }
@@ -945,24 +940,18 @@ export function resetRevalidatingSegmentEntry(
   return emptyEntry
 }
 
+// TODO: See note in `dropRef`. We can get rid of these callbacks by updating
+// the map implementation to evict from the LRU directly.
 function onRouteLRUEviction(entry: RouteCacheEntry): void {
   // The LRU evicted this entry. Remove it from the map.
-  const keypath = entry.keypath
-  if (keypath !== null) {
-    entry.keypath = null
-    pingBlockedTasks(entry)
-    routeCacheMap.delete(keypath)
-  }
+  pingBlockedTasks(entry)
+  routeCacheMap.delete(entry)
 }
 
 function onSegmentLRUEviction(entry: SegmentCacheEntry): void {
   // The LRU evicted this entry. Remove it from the map.
-  const keypath = entry.keypath
-  if (keypath !== null) {
-    entry.keypath = null
-    cancelEntryListeners(entry)
-    segmentCacheMap.delete(keypath)
-  }
+  cancelEntryListeners(entry)
+  segmentCacheMap.delete(entry)
 }
 
 function cancelEntryListeners(entry: SegmentCacheEntry): void {
@@ -1537,28 +1526,23 @@ export async function fetchRouteOnCacheMiss(
       )
     }
 
-    if (!couldBeIntercepted && nextUrl !== null) {
+    if (!couldBeIntercepted) {
       // This route will never be intercepted. So we can use this entry for all
       // requests to this route, regardless of the Next-Url header. This works
       // because when reading the cache we always check for a valid
       // non-intercepted entry first.
-      //
-      // Re-key the entry. Since we're in an async task, we must first confirm
-      // that the entry hasn't been concurrently modified by a different task.
-      const currentKeypath: Prefix<RouteCacheKeypath> = [href, nextUrl]
-      const expectedEntry = routeCacheMap.get(currentKeypath)
-      if (expectedEntry === entry) {
-        routeCacheMap.delete(currentKeypath)
-        const newKeypath: Prefix<RouteCacheKeypath> = [href]
-        routeCacheMap.set(newKeypath, entry)
-        // We don't need to update the LRU because the entry is already in it.
-        // But since we changed the keypath, we do need to update that, so we
-        // know how to remove it from the map if it gets evicted from the LRU.
-        entry.keypath = newKeypath
-      } else {
-        // Something else modified this entry already. Since the re-keying is
-        // just a performance optimization, we can safely skip it.
-      }
+
+      // Re-key the entry. The `set` implementation handles removing it from
+      // its previous position in the cache. We don't need to do anything to
+      // update the LRU, because the entry is already in it.
+      // TODO: Treat this as an upsert — should check if an entry already
+      // exists at the new keypath, and if so, whether we should keep that
+      // one instead.
+      // TODO: Update this keypath to use the "fallback" behavior. This is
+      // currently manually handled by `readRouteCacheEntry`.
+      // const newKeypathWithFallback: RouteCacheKeypath = [href, Fallback]
+      const newKeypath: RouteCacheKeypath = [href]
+      routeCacheMap.set(newKeypath, entry)
     }
     // Return a promise that resolves when the network connection closes, so
     // the scheduler can track the number of concurrent network connections.
