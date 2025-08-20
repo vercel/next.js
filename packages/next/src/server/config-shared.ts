@@ -455,6 +455,13 @@ export interface ExperimentalConfig {
   caseSensitiveRoutes?: boolean
   clientSegmentCache?: boolean | 'client-only'
   clientParamParsing?: boolean
+
+  /**
+   * The origins that are allowed to write the rewritten headers when
+   * performing a non-relative rewrite. When undefined, no non-relative
+   * rewrites will get the rewrite headers.
+   */
+  clientParamParsingOrigins?: string[]
   dynamicOnHover?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
@@ -1540,6 +1547,7 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientSegmentCache: false,
     clientParamParsing: false,
+    clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,

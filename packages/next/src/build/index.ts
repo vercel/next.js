@@ -473,6 +473,13 @@ export type RoutesManifest = {
      * app pages when PPR is enabled.
      */
     clientParamParsing: boolean
+
+    /**
+     * The origins that are allowed to write the rewritten headers when
+     * performing a non-relative rewrite. When undefined, no non-relative
+     * rewrites will get the rewrite headers.
+     */
+    clientParamParsingOrigins: string[] | undefined
   }
   rewriteHeaders: {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
@@ -1557,6 +1564,9 @@ export default async function build(
                 // NOTE: once this is the default for `clientSegmentCache`, this
                 // should exclusively be based on the `clientSegmentCache` flag.
                 config.experimental.clientParamParsing ?? false,
+              clientParamParsingOrigins: config.experimental.clientParamParsing
+                ? config.experimental.clientParamParsingOrigins
+                : undefined,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
