@@ -107,13 +107,11 @@ import {
 import {
   DynamicState,
   type PostponedState,
-  DynamicHTMLPreludeState,
   parsePostponedState,
 } from './postponed-state'
 import {
-  getDynamicDataPostponedState,
+  getFullHtmlPostponedState,
   getDynamicHTMLPostponedState,
-  getPostponedFromState,
 } from './postponed-state'
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import {
@@ -2276,7 +2274,7 @@ async function renderToStream(
     // If provided, the postpone state should be parsed as JSON so it can be
     // provided to React.
     if (typeof renderOpts.postponed === 'string') {
-      if (postponedState?.type === DynamicState.DATA) {
+      if (postponedState?.type === DynamicState.FullHtml) {
         // We have a complete HTML Document in the prerender but we need to
         // still include the new server component render because it was not included
         // in the static prelude.
@@ -2292,8 +2290,6 @@ async function renderToStream(
         )
       } else if (postponedState) {
         // We assume we have dynamic HTML requiring a resume render to complete
-        const { postponed, preludeState } =
-          getPostponedFromState(postponedState)
         const resume = (
           require('react-dom/server') as typeof import('react-dom/server')
         ).resume
@@ -2308,7 +2304,7 @@ async function renderToStream(
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
             nonce={nonce}
           />,
-          postponed,
+          postponedState.postponed,
           { onError: htmlRendererErrorHandler, nonce }
         )
 
@@ -2325,7 +2321,7 @@ async function renderToStream(
           // If we have a non-empty-prelude (i.e. a static HTML shell), then it's already been sent separately,
           // so we shouldn't wait for any HTML to be emitted from the resume before sending RSC data.
           delayDataUntilFirstHtmlChunk:
-            preludeState === DynamicHTMLPreludeState.Empty,
+            postponedState.type === DynamicState.EmptyHtml,
           inlinedDataStream: createInlinedDataReadableStream(
             reactServerResult.consume(),
             nonce,
@@ -3925,17 +3921,14 @@ async function prerenderToStream(
         if (postponed != null) {
           // Dynamic HTML case
           metadata.postponed = await getDynamicHTMLPostponedState(
+            preludeIsEmpty ? DynamicState.EmptyHtml : DynamicState.PartialHtml,
             postponed,
-            preludeIsEmpty
-              ? DynamicHTMLPreludeState.Empty
-              : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
             resumeDataCache
           )
         } else {
           // Dynamic Data case
-          metadata.postponed =
-            await getDynamicDataPostponedState(resumeDataCache)
+          metadata.postponed = await getFullHtmlPostponedState(resumeDataCache)
         }
         reactServerResult.consume()
         return {
@@ -4148,16 +4141,14 @@ async function prerenderToStream(
         if (postponed != null) {
           // Dynamic HTML case.
           metadata.postponed = await getDynamicHTMLPostponedState(
+            preludeIsEmpty ? DynamicState.EmptyHtml : DynamicState.PartialHtml,
             postponed,
-            preludeIsEmpty
-              ? DynamicHTMLPreludeState.Empty
-              : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
             prerenderResumeDataCache
           )
         } else {
           // Dynamic Data case.
-          metadata.postponed = await getDynamicDataPostponedState(
+          metadata.postponed = await getFullHtmlPostponedState(
             prerenderResumeDataCache
           )
         }
@@ -4182,7 +4173,7 @@ async function prerenderToStream(
         }
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
         // Rendering the fallback case.
-        metadata.postponed = await getDynamicDataPostponedState(
+        metadata.postponed = await getFullHtmlPostponedState(
           prerenderResumeDataCache
         )
 

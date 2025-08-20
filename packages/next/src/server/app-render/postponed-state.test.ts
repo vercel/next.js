@@ -5,10 +5,9 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import {
   DynamicState,
-  getDynamicDataPostponedState,
   getDynamicHTMLPostponedState,
+  getFullHtmlPostponedState,
   parsePostponedState,
-  DynamicHTMLPreludeState,
   type PostponedState,
 } from './postponed-state'
 
@@ -30,11 +29,11 @@ it('can serialize and deserialize a HTML postponed state with fallback params an
   )
 
   const state = await getDynamicHTMLPostponedState(
+    DynamicState.PartialHtml,
     {
       [fallbackParam]: fallbackParam,
       nested: { [fallbackParam]: fallbackParam },
     },
-    DynamicHTMLPreludeState.Full,
     fallbackRouteParams,
     prerenderResumeDataCache
   )
@@ -42,16 +41,13 @@ it('can serialize and deserialize a HTML postponed state with fallback params an
   const paramValue = '123'
   const parsed = parsePostponedState(state, { slug: paramValue })
   expect(parsed).toEqual({
-    type: DynamicState.HTML,
-    data: [
-      DynamicHTMLPreludeState.Full,
-      {
+    type: DynamicState.PartialHtml,
+    postponed: {
+      [paramValue]: paramValue,
+      nested: {
         [paramValue]: paramValue,
-        nested: {
-          [paramValue]: paramValue,
-        },
       },
-    ],
+    },
     renderResumeDataCache: expect.any(Object),
   } satisfies PostponedState)
 
@@ -67,8 +63,8 @@ it('can serialize and deserialize a HTML postponed state with fallback params an
   const fallbackParam = '%%drp:slug:e9615126684e5%%'
   const fallbackRouteParams = new Map([['slug', fallbackParam]])
   const state = await getDynamicHTMLPostponedState(
+    DynamicState.PartialHtml,
     { [fallbackParam]: fallbackParam },
-    DynamicHTMLPreludeState.Full,
     fallbackRouteParams,
     createPrerenderResumeDataCache()
   )
@@ -77,8 +73,8 @@ it('can serialize and deserialize a HTML postponed state with fallback params an
   const params = { slug: paramValue }
   const parsed = parsePostponedState(state, params)
   expect(parsed).toEqual({
-    type: DynamicState.HTML,
-    data: [DynamicHTMLPreludeState.Full, { [paramValue]: paramValue }],
+    type: DynamicState.PartialHtml,
+    postponed: { [paramValue]: paramValue },
     renderResumeDataCache: createPrerenderResumeDataCache(),
   } satisfies PostponedState)
 
@@ -89,34 +85,34 @@ it('can serialize and deserialize a HTML postponed state with fallback params an
 it.each([
   {
     description: 'empty prelude',
-    preludeState: DynamicHTMLPreludeState.Empty,
+    type: DynamicState.EmptyHtml as const,
   },
   {
     description: 'non-empty prelude',
-    preludeState: DynamicHTMLPreludeState.Full,
+    type: DynamicState.PartialHtml as const,
   },
 ])(
   'can serialize and deserialize a HTML postponed state with no fallback params - $description',
-  async ({ preludeState }) => {
+  async ({ type }) => {
     const fallbackRouteParams = new Map()
     const postponed = { fake: 'state' }
     const state = await getDynamicHTMLPostponedState(
+      type,
       postponed,
-      preludeState,
       fallbackRouteParams,
       createPrerenderResumeDataCache()
     )
 
     const parsed = parsePostponedState(state, {})
     expect(parsed).toEqual({
-      type: DynamicState.HTML,
-      data: [preludeState, postponed],
+      type,
+      postponed,
       renderResumeDataCache: createPrerenderResumeDataCache(),
     } satisfies PostponedState)
   }
 )
 
-it('can serialize and deserialize a data postponed state', async () => {
+it('can serialize and deserialize a full-html postponed state', async () => {
   const prerenderResumeDataCache = createPrerenderResumeDataCache()
   prerenderResumeDataCache.cache.set(
     '1',
@@ -130,10 +126,10 @@ it('can serialize and deserialize a data postponed state', async () => {
     })
   )
 
-  const state = await getDynamicDataPostponedState(prerenderResumeDataCache)
-  const parsed = parsePostponedState(state, {})
+  const state = await getFullHtmlPostponedState(prerenderResumeDataCache)
 
-  expect(parsed.type).toBe(DynamicState.DATA)
+  const parsed = parsePostponedState(state, {})
+  expect(parsed.type).toBe(DynamicState.FullHtml)
 
   const cacheValue = await parsed.renderResumeDataCache.cache.get('1')
   expect(cacheValue).toBeDefined()

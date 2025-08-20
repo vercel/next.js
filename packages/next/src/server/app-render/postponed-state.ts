@@ -15,66 +15,73 @@ import {
 
 export enum DynamicState {
   /**
-   * The dynamic access occurred during the RSC render phase.
+   * A dynamic access prevented us from rendering any HTML.
    */
-  DATA = 1,
+  EmptyHtml = 1,
 
   /**
-   * The dynamic access occurred during the HTML shell render phase.
+   * We rendered partial HTML, with some dynamic holes.
    */
-  HTML = 2,
-}
-
-/**
- * The postponed state for dynamic data.
- */
-export type DynamicDataPostponedState = {
-  /**
-   * The type of dynamic state.
-   */
-  readonly type: DynamicState.DATA
+  PartialHtml = 2,
 
   /**
-   * The immutable resume data cache.
+   * A dynamic access occurred during the RSC render phase,
+   * but did not result in any dynamic holes in the HTML.
    */
-  readonly renderResumeDataCache: RenderResumeDataCache
-}
-
-/**
- * The postponed state for dynamic HTML.
- */
-export type DynamicHTMLPostponedState = {
-  /**
-   * The type of dynamic state.
-   */
-  readonly type: DynamicState.HTML
-
-  /**
-   * The postponed data used by React.
-   */
-  readonly data: [
-    preludeState: DynamicHTMLPreludeState,
-    postponed: ReactPostponed,
-  ]
-
-  /**
-   * The immutable resume data cache.
-   */
-  readonly renderResumeDataCache: RenderResumeDataCache
-}
-
-export const enum DynamicHTMLPreludeState {
-  Empty = 0,
-  Full = 1,
+  FullHtml = 3,
 }
 
 type ReactPostponed = NonNullable<
   import('react-dom/static').PrerenderResult['postponed']
 >
 
+/**
+ * The postponed state for a prerender that used dynamic data on the server, but produced complete HTML.
+ *
+ * This can happen if dynamic data is passed as a prop to a client component but was not used during SSR.
+ * (it may be used in an effect, or the usage is guarded behind a `typeof window !== undefined` check)
+ * We won't get a dynamic hole in the HTML, but still need to render RSC dynamically.
+ */
+export type FullHtmlPostponedState = {
+  readonly type: DynamicState.FullHtml
+
+  /**
+   * The immutable resume data cache.
+   */
+  readonly renderResumeDataCache: RenderResumeDataCache
+}
+
+export type DynamicHTMLPostponedStateBase = {
+  /**
+   * The postponed data used by React.
+   */
+  readonly postponed: ReactPostponed
+
+  /**
+   * The immutable resume data cache.
+   */
+  readonly renderResumeDataCache: RenderResumeDataCache
+}
+
+/**
+ * The postponed state for a partial prerender that produced an HTML shell,
+ * but has dynamic holes.
+ */
+export type PartialHTMLPostponedState = {
+  readonly type: DynamicState.PartialHtml
+} & DynamicHTMLPostponedStateBase
+
+/**
+ * The postponed state for a partial prerender that produced no HTML shell.
+ */
+export type EmptyHTMLPostponedState = {
+  readonly type: DynamicState.EmptyHtml
+} & DynamicHTMLPostponedStateBase
+
 export type PostponedState =
-  | DynamicDataPostponedState
-  | DynamicHTMLPostponedState
+  | EmptyHTMLPostponedState
+  | PartialHTMLPostponedState
+  | FullHtmlPostponedState
 
 function serializeStateParts(state: SerializedStateParts) {
   return lengthEncodeTupleWithTag(state)
@@ -84,12 +91,14 @@ function deserializeStateParts(serialized: string) {
   return lengthDecodeTupleWithTag(serialized) as SerializedStateParts
 }
 
-type SerializedStateParts = SerializedDynamicData | SerializedDynamicHTML
+type SerializedStateParts =
+  | SerializedFullHtml
+  | SerializedEmptyHTML
+  | SerializedPartialHTML
 
-type SerializedDynamicData = [tag: DynamicState.DATA, resumeDataCache: string]
+type SerializedFullHtml = [tag: DynamicState.FullHtml, resumeDataCache: string]
 
-type SerializedDynamicHTML = [
-  tag: DynamicState.HTML,
+type SerializedDynamicHTMLBase = [
   resumeDataCache: string,
   /** JSON, but might need to have `replacements` applied before decoding */
   postponed: string,
@@ -97,16 +106,25 @@ type SerializedDynamicHTML = [
   replacements: string,
 ]
 
+type SerializedEmptyHTML = [
+  tag: DynamicState.EmptyHtml,
+  ...SerializedDynamicHTMLBase,
+]
+
+type SerializedPartialHTML = [
+  tag: DynamicState.PartialHtml,
+  ...SerializedDynamicHTMLBase,
+]
+
 type ParamReplacements = Array<[string, string]> | null
 
 export async function getDynamicHTMLPostponedState(
+  type: DynamicState.EmptyHtml | DynamicState.PartialHtml,
   postponed: ReactPostponed,
-  preludeState: DynamicHTMLPreludeState,
   fallbackRouteParams: FallbackRouteParams | null,
   resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache
 ): Promise<string> {
-  const data: DynamicHTMLPostponedState['data'] = [preludeState, postponed]
-  const dataString = JSON.stringify(data)
+  const dataString = JSON.stringify(postponed)
 
   let replacements: ParamReplacements = null
   if (!fallbackRouteParams || fallbackRouteParams.size === 0) {
@@ -117,18 +135,18 @@ export async function getDynamicHTMLPostponedState(
   const replacementsString = JSON.stringify(replacements)
 
   return serializeStateParts([
-    DynamicState.HTML,
+    type,
     await stringifyResumeDataCache(resumeDataCache),
     dataString,
     replacementsString,
   ])
 }
 
-export async function getDynamicDataPostponedState(
+export async function getFullHtmlPostponedState(
   resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache
 ): Promise<string> {
   return serializeStateParts([
-    DynamicState.DATA,
+    DynamicState.FullHtml,
     await stringifyResumeDataCache(
       createRenderResumeDataCache(resumeDataCache)
     ),
@@ -139,21 +157,26 @@ export function parsePostponedState(
   state: string,
   params: Params | undefined
 ): PostponedState {
+  // If the deserialization fails, we can fall back to treating thisa s a `FullHtml` render,
+  // i.e. as if the prerender produced full HTML but still needs dynamic RSC.
+  // The HTML shell may in fact be incomplete or empty, but we should produce an RSC payload
+  // that will let the browser client-render a functional page.
   try {
     const parts = deserializeStateParts(state)
     const tag = parts[0]
     switch (tag) {
-      case DynamicState.DATA: {
+      case DynamicState.FullHtml: {
         const [, resumeDataCacheString] = parts
         const renderResumeDataCache = createRenderResumeDataCache(
           resumeDataCacheString
         )
         return {
-          type: DynamicState.DATA,
+          type: DynamicState.FullHtml,
           renderResumeDataCache,
         }
       }
-      case DynamicState.HTML: {
+      case DynamicState.EmptyHtml:
+      case DynamicState.PartialHtml: {
         let [, resumeDataCacheString, postponedString, replacementsString] =
           parts
 
@@ -178,13 +201,13 @@ export function parsePostponedState(
           }
 
           return {
-            type: DynamicState.HTML,
-            data: JSON.parse(postponedString),
+            type: tag,
+            postponed: JSON.parse(postponedString),
             renderResumeDataCache,
           }
         } catch (err) {
           console.error('Failed to parse postponed state', err)
-          return { type: DynamicState.DATA, renderResumeDataCache }
+          return { type: DynamicState.FullHtml, renderResumeDataCache }
         }
       }
       default: {
@@ -195,13 +218,8 @@ export function parsePostponedState(
   } catch (err) {
     console.error('Failed to parse postponed state', err)
     return {
-      type: DynamicState.DATA,
+      type: DynamicState.FullHtml,
       renderResumeDataCache: createPrerenderResumeDataCache(),
     }
   }
-}
-
-export function getPostponedFromState(state: DynamicHTMLPostponedState) {
-  const [preludeState, postponed] = state.data
-  return { preludeState, postponed }
 }
