@@ -1,4 +1,4 @@
-*arrow function 173* = (...) => (undefined | ???*0*)
+*arrow function 173* = (...) => (???*0* | undefined)
 - *0* spread in function calls is not supported
   ⚠️  This value might have side effects
 

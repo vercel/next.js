@@ -4,32 +4,20 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 4 unreachable = ???*0*
+0 -> 5 call = module<foo, {}>["unreachableA3"]()
+
+0 -> 7 call = module<foo, {}>["unreachableB1"]()
+
+0 -> 8 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 6 call = module<foo, {}>["unreachableA3"]()
+0 -> 10 call = module<foo, {}>["calledB1"]()
 
-0 -> 8 call = module<foo, {}>["unreachableB1"]()
+0 -> 12 call = module<foo, {}>["calledC1"]()
 
-0 -> 9 unreachable = ???*0*
+0 -> 13 unreachable = ???*0*
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 10 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
-
-0 -> 12 call = module<foo, {}>["calledB1"]()
-
-0 -> 14 call = module<foo, {}>["calledC1"]()
-
-0 -> 15 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
-
-0 -> 16 unreachable = ???*0*
-- *0* unreachable
-  ⚠️  This value might have side effects
-
-0 -> 18 call = module<foo, {}>["calledC2"]()
+0 -> 15 call = module<foo, {}>["calledC2"]()

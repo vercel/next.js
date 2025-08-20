@@ -253,10 +253,10 @@ ctor = (...) => undefined
 describeExpectation = (...) => DESCRIBE_EXPECTATION_FNS[expectation["type"]](expectation)
 
 describeExpected = (...) => (
-  | undefined
   | descriptions[0]
   | `${descriptions[0]} or ${descriptions[1]}`
   | `${descriptions["slice"](0, ???*0*)["join"](", ")}, or ${descriptions[???*1*]}`
+  | undefined
 )
 - *0* unsupported expression
   ⚠️  This value might have side effects
@@ -928,7 +928,7 @@ peg$computeLocation = (...) => {
     "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
 }
 
-peg$computePosDetails = (...) => (undefined | details)
+peg$computePosDetails = (...) => details
 
 peg$currPos = (
   | 0
@@ -1083,7 +1083,7 @@ peg$maxFailPos = (0 | peg$currPos)
 
 peg$otherExpectation = (...) => {"type": "other", "description": description}
 
-peg$parse = (...) => (undefined | peg$result)
+peg$parse = (...) => (peg$result | undefined)
 
 peg$parse_ = (...) => s0
 
