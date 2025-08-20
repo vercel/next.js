@@ -241,7 +241,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     next: () => void
   ) => Promise<void>)[]
   protected pagesDir?: string
-  private distDir: string
+  protected distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
   protected config: NextConfigComplete
   private clientStats: webpack.Stats | null
@@ -1182,7 +1182,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       this.activeWebpackConfigs
     ) as unknown as webpack.MultiCompiler
 
-    this.afterMultiCompilerCreated(this.multiCompiler);
+    await this.afterCompile(this.multiCompiler)
 
     // Copy over the filesystem so that it is shared between all compilers.
     const inputFileSystem = this.multiCompiler.compilers[0].inputFileSystem
@@ -1622,7 +1622,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     )
   }
 
-  protected afterMultiCompilerCreated(_multiCompiler: MultiCompiler) {}
+  protected async afterCompile(_multiCompiler: MultiCompiler) {}
 
   public invalidate(
     { reloadAfterInvalidation }: { reloadAfterInvalidation: boolean } = {

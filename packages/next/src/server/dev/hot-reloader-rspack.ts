@@ -1,4 +1,5 @@
 import path, { posix } from 'path'
+import fs from 'fs/promises'
 import type { PageStaticInfo } from '../../build/analysis/get-page-static-info'
 import type { MappedPages } from '../../build/build-context'
 import { collectAppFiles, collectPagesFiles, createPagesMapping, getPageFilePath, getPageFromPath, getStaticInfoIncludingLayouts, runDependingOnPageType, sortByPageExts, type CreateEntrypointsParams } from '../../build/entries'
@@ -9,17 +10,17 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { createValidFileMatcher } from '../lib/find-page-file'
 import HotReloaderWebpack from './hot-reloader-webpack'
-import { ADDED, EntryTypes, getEntries, getEntryKey } from './on-demand-entry-handler'
+import { ADDED, BUILT, EntryTypes, getEntries, getEntryKey } from './on-demand-entry-handler'
 import { isInstrumentationHookFile, isMiddlewareFile } from '../../build/utils'
 import { getFilesInDir } from '../../lib/get-files-in-dir'
 import { COMPILER_NAMES, RSC_MODULE_TYPES } from '../../shared/lib/constants'
 import type { PageExtensions } from '../../build/page-extensions-type'
-import type { MultiCompiler } from 'webpack'
-import { getRspackCore } from '../../shared/lib/get-rspack'
 import type { NextConfigComplete } from '../config-shared'
 import type { __ApiPreviewProps } from '../api-utils'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { Telemetry } from '../../telemetry/storage'
+import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { MultiCompiler } from 'webpack'
 
 async function createEntries(
   params: CreateEntrypointsParams
@@ -238,7 +239,7 @@ async function createPagesAbsolutePathMapping({
 }
 
 export default class HotReloaderRspack extends HotReloaderWebpack {
-  port: number
+  private builtEntriesCachePath: string
 
   constructor(
     dir: string,
@@ -253,8 +254,7 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       rewrites,
       appDir,
       telemetry,
-      resetFetch,
-      port
+      resetFetch
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -267,7 +267,6 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       appDir?: string
       telemetry: Telemetry
       resetFetch: () => void
-      port: number
     }
   ) {
     super(
@@ -286,14 +285,11 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
         resetFetch,
       }
     )
-    this.port = port
+    this.builtEntriesCachePath = path.join(this.distDir, 'cache', 'rspack', 'built-entries.json');
   }
 
-  public async start(): Promise<void> {
-    const rspackStartSpan = this.hotReloaderSpan.traceChild('rspack-start')
-
-    const outputPath = path.join(this.dir, this.config.distDir);
-    const curEntries = getEntries(outputPath)
+  public async afterCompile(multiCompiler: MultiCompiler): Promise<void> {
+    const rspackStartSpan = this.hotReloaderSpan.traceChild('rspack-after-compile')
 
     const pageExtensions = this.config.pageExtensions
 
@@ -390,40 +386,87 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       rootDir: this.dir,
     })
 
-    Object.assign(
-      curEntries,
-      await rspackStartSpan
-        .traceChild('create-entries')
-        .traceAsyncFn(() =>
-          createEntries({
-            appDir: this.appDir,
-            buildId: this.buildId,
-            config: this.config,
-            envFiles: [],
-            isDev: true,
-            pages: mappedPages,
-            pagesDir: this.pagesDir,
-            previewMode: this.previewProps,
-            rootDir: this.dir,
-            pageExtensions: this.config.pageExtensions,
-            appPaths: mappedAppPages,
-            rootPaths: mappedRootPaths,
-            hasInstrumentationHook
-          })
+    const existingEntries = await rspackStartSpan
+      .traceChild('create-entries')
+      .traceAsyncFn(() =>
+        createEntries({
+          appDir: this.appDir,
+          buildId: this.buildId,
+          config: this.config,
+          envFiles: [],
+          isDev: true,
+          pages: mappedPages,
+          pagesDir: this.pagesDir,
+          previewMode: this.previewProps,
+          rootDir: this.dir,
+          pageExtensions: this.config.pageExtensions,
+          appPaths: mappedAppPages,
+          rootPaths: mappedRootPaths,
+          hasInstrumentationHook
+        })
       )
-    );
 
-    await super.start()
+    const hasBuitEntriesCache = await fs.access(this.builtEntriesCachePath).then(
+      () => true,
+      () => false
+    )
+    if (hasBuitEntriesCache) {
+      try {
+        const builtEntries: ReturnType<typeof getEntries> = JSON.parse(await fs.readFile(this.builtEntriesCachePath, 'utf-8') || '{}')
+        for (const entryName in builtEntries) {
+          if (!existingEntries[entryName]) {
+            delete builtEntries[entryName];
+          }
+        }
+        Object.assign(getEntries(multiCompiler.outputPath), builtEntries)
+      } catch (error) {
+        console.error('Rspack failed to read built entries cache: ', error);
+      }
+    }
   }
 
-  afterMultiCompilerCreated(multiCompiler: MultiCompiler) {
-    for (const compiler of multiCompiler.compilers) {
-      (compiler.options as any).lazyCompilation = {
-        serverUrl: `http://localhost:${this.port}`,
-      };
+  public async ensurePage({
+    page,
+    clientOnly,
+    appPaths,
+    definition,
+    isApp,
+    url,
+  }: {
+    page: string
+    clientOnly: boolean
+    appPaths?: ReadonlyArray<string> | null
+    isApp?: boolean
+    definition?: RouteDefinition
+    url?: string
+  }): Promise<void> {
+    await super.ensurePage({
+      page,
+      clientOnly,
+      appPaths,
+      definition,
+      isApp,
+      url,
+    })
+    const entries = getEntries(this.multiCompiler!.outputPath);
+    const builtEntries: ReturnType<typeof getEntries> = {};
+    for (const entryName in entries) {
+      const entry = entries[entryName];
+      if (entry.status === BUILT) {
+        builtEntries[entryName] = entry;
+      }
     }
-    const rspack = getRspackCore();
-    const middleware = rspack.experiments.lazyCompilationMiddleware(multiCompiler);
-    this.middlewares.unshift(middleware);
+    const hasBuitEntriesCache = await fs.access(this.builtEntriesCachePath).then(
+      () => true,
+      () => false
+    )
+    try {
+      if (!hasBuitEntriesCache) {
+        await fs.mkdir(path.dirname(this.builtEntriesCachePath), { recursive: true });
+      }
+      await fs.writeFile(this.builtEntriesCachePath, JSON.stringify(builtEntries, null, 2));
+    } catch (error) {
+      console.error('Rspack failed to write built entries cache: ', error);
+    }
   }
 }
