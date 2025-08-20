@@ -9896,6 +9896,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbopack-nft"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "console-subscriber",
+ "rustc-hash 2.1.1",
+ "serde",
+ "swc_core",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "turbo-rcstr",
+ "turbo-tasks",
+ "turbo-tasks-backend",
+ "turbo-tasks-build",
+ "turbo-tasks-env",
+ "turbo-tasks-fs",
+ "turbo-tasks-malloc",
+ "turbopack",
+ "turbopack-cli-utils",
+ "turbopack-core",
+ "turbopack-resolve",
+ "turbopack-trace-utils",
+]
+
+[[package]]
 name = "turbopack-node"
 version = "0.1.0"
 dependencies = [
