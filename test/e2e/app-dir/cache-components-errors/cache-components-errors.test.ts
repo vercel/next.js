@@ -2081,9 +2081,12 @@ describe('Cache Components Errors', () => {
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                      at a (<anonymous>)
                      at main (<anonymous>)
+                     at b (<anonymous>)
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
+                     at c (<anonymous>)
+                     at d (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
