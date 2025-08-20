@@ -9,6 +9,7 @@ import type { CustomRoutes } from '../../lib/load-custom-routes'
 import type { Telemetry } from '../../telemetry/storage'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { MultiCompiler } from 'webpack'
+import { COMPILER_NAMES } from '../../shared/lib/constants'
 
 /**
  * Rspack Persistent Cache Strategy for Next.js Development
@@ -30,6 +31,10 @@ import type { MultiCompiler } from 'webpack'
  */
 export default class HotReloaderRspack extends HotReloaderWebpack {
   private builtEntriesCachePath?: string
+
+  private isClientCacheEnabled = false
+  private isServerCacheEnabled = false
+  private isEdgeServerCacheEnabled = false
 
   constructor(
     dir: string,
@@ -82,8 +87,17 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       const hash = createHash('sha1')
       multiCompiler.compilers.forEach((compiler) => {
         const cache = compiler.options.cache
-        if (typeof cache === 'object' && 'version' in cache) {
-          hash.update(cache.version || '-')
+        if (typeof cache === 'object' && 'version' in cache && cache.version) {
+          hash.update(cache.version)
+          if (compiler.name === COMPILER_NAMES.client) {
+            this.isClientCacheEnabled = true
+          } else if (compiler.name === COMPILER_NAMES.server) {
+            this.isServerCacheEnabled = true
+          } else if (compiler.name === COMPILER_NAMES.edgeServer) {
+            this.isEdgeServerCacheEnabled = true
+          }
+        } else {
+          hash.update('-')
         }
         return undefined
       })
@@ -141,10 +155,17 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
     const builtEntries: ReturnType<typeof getEntries> = {}
     for (const entryName in entries) {
       const entry = entries[entryName]
-      if (entry.status === BUILT) {
-        builtEntries[entryName] = entry
-      }
+      if (entry.status !== BUILT) continue
+      const result = /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(
+        entryName
+      )
+      const [, key /* pageType */, ,] = result! // this match should always happen
+      if (key === 'client' && !this.isClientCacheEnabled) continue
+      if (key === 'server' && !this.isServerCacheEnabled) continue
+      if (key === 'edge-server' && !this.isEdgeServerCacheEnabled) continue
+      builtEntries[entryName] = entry
     }
+
     const hasBuitEntriesCache = await fs
       .access(this.builtEntriesCachePath!)
       .then(
