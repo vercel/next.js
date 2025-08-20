@@ -1360,12 +1360,14 @@ function assertClientReferenceManifest(
 // This component must run in an SSR context. It will render the RSC root component
 function App<T>({
   reactServerStream,
+  reactDebugStream,
   preinitScripts,
   clientReferenceManifest,
   ServerInsertedHTMLProvider,
   nonce,
 }: {
   reactServerStream: BinaryStreamOf<T>
+  reactDebugStream: ReadableStream<Uint8Array> | undefined
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
@@ -1375,6 +1377,7 @@ function App<T>({
   const response = React.use(
     useFlightStream<InitialRSCPayload>(
       reactServerStream,
+      reactDebugStream,
       clientReferenceManifest,
       nonce
     )
@@ -1419,12 +1422,14 @@ function App<T>({
 // consistent for now.
 function ErrorApp<T>({
   reactServerStream,
+  reactDebugStream,
   preinitScripts,
   clientReferenceManifest,
   ServerInsertedHTMLProvider,
   nonce,
 }: {
   reactServerStream: BinaryStreamOf<T>
+  reactDebugStream: ReadableStream<Uint8Array> | undefined
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
@@ -1434,6 +1439,7 @@ function ErrorApp<T>({
   const response = React.use(
     useFlightStream<InitialRSCPayload>(
       reactServerStream,
+      reactDebugStream,
       clientReferenceManifest,
       nonce
     )
@@ -2225,7 +2231,7 @@ async function renderToStream(
   )
 
   let reactServerResult: null | ReactServerResult = null
-  // let reactServerDebugStream: null | ReadableStream<Uint8Array> = null
+  let reactDebugStream: ReadableStream<Uint8Array> | undefined
 
   const setHeader = res.setHeader.bind(res)
   const appendHeader = res.appendHeader.bind(res)
@@ -2271,7 +2277,8 @@ async function renderToStream(
               debugChannel: createDebugChannel(
                 sendReactDebugChunk,
                 htmlRequestId,
-                requestId
+                requestId,
+                (stream) => (reactDebugStream = stream)
               ),
             }
           )
@@ -2314,7 +2321,8 @@ async function renderToStream(
             debugChannel: createDebugChannel(
               sendReactDebugChunk,
               htmlRequestId,
-              requestId
+              requestId,
+              (stream) => (reactDebugStream = stream)
             ),
           }
         )
@@ -2357,6 +2365,7 @@ async function renderToStream(
           resume,
           <App
             reactServerStream={reactServerResult.tee()}
+            reactDebugStream={reactDebugStream}
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -2402,6 +2411,7 @@ async function renderToStream(
       renderToReadableStream,
       <App
         reactServerStream={reactServerResult.tee()}
+        reactDebugStream={reactDebugStream}
         preinitScripts={preinitScripts}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -2561,6 +2571,7 @@ async function renderToStream(
           element: (
             <ErrorApp
               reactServerStream={errorServerStream}
+              reactDebugStream={reactDebugStream}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
@@ -2636,16 +2647,31 @@ function createDebugChannel(
     | ((chunk: Uint8Array, htmlRequestId: string, requestId: string) => void)
     | undefined,
   htmlRequestId: string,
-  requestId: string
+  requestId: string,
+  createReadable?: (stream: ReadableStream<Uint8Array>) => void
 ): DebugChannelServer | undefined {
   if (process.env.NODE_ENV === 'production' || !sendReactDebugChunk) {
     return undefined
   }
 
+  let readableController: ReadableStreamDefaultController | undefined
+
+  createReadable?.(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        readableController = controller
+      },
+    })
+  )
+
   return {
     writable: new WritableStream<Uint8Array>({
       write(chunk) {
+        readableController?.enqueue(chunk)
         sendReactDebugChunk(chunk, htmlRequestId, requestId)
+      },
+      close() {
+        readableController?.close()
       },
     }),
   }
@@ -2925,6 +2951,7 @@ async function spawnDynamicValidationInDev(
       prerender,
       <App
         reactServerStream={initialServerResult.asUnclosingStream()}
+        reactDebugStream={undefined}
         preinitScripts={preinitScripts}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -3153,6 +3180,7 @@ async function spawnDynamicValidationInDev(
             prerender,
             <App
               reactServerStream={reactServerResult.asUnclosingStream()}
+              reactDebugStream={undefined}
               preinitScripts={preinitScripts}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -3667,6 +3695,7 @@ async function prerenderToStream(
           prerender,
           <App
             reactServerStream={initialServerResult.asUnclosingStream()}
+            reactDebugStream={undefined}
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -3900,6 +3929,7 @@ async function prerenderToStream(
               prerender,
               <App
                 reactServerStream={reactServerResult.asUnclosingStream()}
+                reactDebugStream={undefined}
                 preinitScripts={preinitScripts}
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4063,6 +4093,7 @@ async function prerenderToStream(
           const resumeStream = await resume(
             <App
               reactServerStream={foreverStream}
+              reactDebugStream={undefined}
               preinitScripts={() => {}}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4170,6 +4201,7 @@ async function prerenderToStream(
           prerender,
           <App
             reactServerStream={reactServerResult.asUnclosingStream()}
+            reactDebugStream={undefined}
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4310,6 +4342,7 @@ async function prerenderToStream(
           const resumeStream = await resume(
             <App
               reactServerStream={foreverStream}
+              reactDebugStream={undefined}
               preinitScripts={() => {}}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4394,6 +4427,7 @@ async function prerenderToStream(
         renderToReadableStream,
         <App
           reactServerStream={reactServerResult.asUnclosingStream()}
+          reactDebugStream={undefined}
           preinitScripts={preinitScripts}
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4568,6 +4602,7 @@ async function prerenderToStream(
           element: (
             <ErrorApp
               reactServerStream={errorServerStream}
+              reactDebugStream={undefined}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}

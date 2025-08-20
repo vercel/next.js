@@ -317,6 +317,11 @@ declare module 'react-server-dom-webpack/client.edge' {
     findSourceMapURL: FindSourceMapURLCallback | undefined
     replayConsoleLogs?: boolean
     environmentName?: string
+    debugChannel?: DebugChannelEdge
+  }
+
+  export interface DebugChannelEdge {
+    readable?: ReadableStream
   }
 
   export type EncodeFormActionCallback = <A>(
