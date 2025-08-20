@@ -79,7 +79,7 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       'rspack-after-compile'
     )
     await rspackStartSpan.traceAsyncFn(async () => {
-      const hash = createHash('md5')
+      const hash = createHash('sha1')
       multiCompiler.compilers.forEach((compiler) => {
         const cache = compiler.options.cache
         if (typeof cache === 'object' && 'version' in cache) {
@@ -91,7 +91,7 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
         this.distDir,
         'cache',
         'rspack',
-        hash.digest('hex'),
+        hash.digest('hex').substring(0, 16),
         'built-entries.json'
       )
 
