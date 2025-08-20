@@ -107,6 +107,7 @@ import {
 import {
   DynamicState,
   type PostponedState,
+  DynamicHTMLPreludeState,
   parsePostponedState,
 } from './postponed-state'
 import {
@@ -1783,6 +1784,8 @@ async function renderToHTMLOrFlightImpl(
       renderOpts.renderResumeDataCache ?? postponedState?.renderResumeDataCache
 
     const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
+    const devValidatingFallbackParams =
+      getRequestMeta(req, 'devValidatingFallbackParams') || null
     const requestStore = createRequestStoreForRender(
       req,
       res,
@@ -1793,7 +1796,8 @@ async function renderToHTMLOrFlightImpl(
       renderOpts.previewProps,
       isHmrRefresh,
       serverComponentsHmrCache,
-      renderResumeDataCache
+      renderResumeDataCache,
+      devValidatingFallbackParams
     )
 
     if (
@@ -1865,7 +1869,8 @@ async function renderToHTMLOrFlightImpl(
             notFoundLoaderTree,
             formState,
             postponedState,
-            metadata
+            metadata,
+            devValidatingFallbackParams
           )
 
           return new RenderResult(stream, {
@@ -1896,7 +1901,8 @@ async function renderToHTMLOrFlightImpl(
       loaderTree,
       formState,
       postponedState,
-      metadata
+      metadata,
+      devValidatingFallbackParams
     )
 
     // Invalid dynamic usages should only error the request in development.
@@ -2079,7 +2085,8 @@ async function renderToStream(
   tree: LoaderTree,
   formState: any,
   postponedState: PostponedState | null,
-  metadata: AppPageRenderResultMetadata
+  metadata: AppPageRenderResultMetadata,
+  devValidatingFallbackParams: FallbackRouteParams | null
 ): Promise<ReadableStream<Uint8Array>> {
   const { assetPrefix, nonce, pagePath, renderOpts } = ctx
 
@@ -2226,9 +2233,6 @@ async function renderToStream(
         }
       )
 
-      const devValidatingFallbackParams =
-        getRequestMeta(req, 'devValidatingFallbackParams') || null
-
       spawnDynamicValidationInDev(
         resolveValidation,
         tree,
@@ -2288,8 +2292,8 @@ async function renderToStream(
         )
       } else if (postponedState) {
         // We assume we have dynamic HTML requiring a resume render to complete
-        const postponed = getPostponedFromState(postponedState)
-
+        const { postponed, preludeState } =
+          getPostponedFromState(postponedState)
         const resume = (
           require('react-dom/server') as typeof import('react-dom/server')
         ).resume
@@ -2316,6 +2320,12 @@ async function renderToStream(
           tracingMetadata: tracingMetadata,
         })
         return await continueDynamicHTMLResume(htmlStream, {
+          // If the prelude is empty (i.e. is no static shell), we should wait for initial HTML to be rendered
+          // to avoid injecting RSC data too early.
+          // If we have a non-empty-prelude (i.e. a static HTML shell), then it's already been sent separately,
+          // so we shouldn't wait for any HTML to be emitted from the resume before sending RSC data.
+          delayDataUntilFirstHtmlChunk:
+            preludeState === DynamicHTMLPreludeState.Empty,
           inlinedDataStream: createInlinedDataReadableStream(
             reactServerResult.consume(),
             nonce,
@@ -3916,6 +3926,9 @@ async function prerenderToStream(
           // Dynamic HTML case
           metadata.postponed = await getDynamicHTMLPostponedState(
             postponed,
+            preludeIsEmpty
+              ? DynamicHTMLPreludeState.Empty
+              : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
             resumeDataCache
           )
@@ -4068,27 +4081,28 @@ async function prerenderToStream(
       const prerender = (
         require('react-dom/static') as typeof import('react-dom/static')
       ).prerender
-      const { prelude, postponed } = await workUnitAsyncStorage.run(
-        ssrPrerenderStore,
-        prerender,
-        <App
-          reactServerStream={reactServerResult.asUnclosingStream()}
-          preinitScripts={preinitScripts}
-          clientReferenceManifest={clientReferenceManifest}
-          ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-          nonce={nonce}
-        />,
-        {
-          onError: htmlRendererErrorHandler,
-          onHeaders: (headers: Headers) => {
-            headers.forEach((value, key) => {
-              appendHeader(key, value)
-            })
-          },
-          maxHeadersLength: reactMaxHeadersLength,
-          bootstrapScripts: [bootstrapScript],
-        }
-      )
+      const { prelude: unprocessedPrelude, postponed } =
+        await workUnitAsyncStorage.run(
+          ssrPrerenderStore,
+          prerender,
+          <App
+            reactServerStream={reactServerResult.asUnclosingStream()}
+            preinitScripts={preinitScripts}
+            clientReferenceManifest={clientReferenceManifest}
+            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            nonce={nonce}
+          />,
+          {
+            onError: htmlRendererErrorHandler,
+            onHeaders: (headers: Headers) => {
+              headers.forEach((value, key) => {
+                appendHeader(key, value)
+              })
+            },
+            maxHeadersLength: reactMaxHeadersLength,
+            bootstrapScripts: [bootstrapScript],
+          }
+        )
       const getServerInsertedHTML = makeGetServerInsertedHTML({
         polyfills,
         renderServerInsertedHTML,
@@ -4112,6 +4126,9 @@ async function prerenderToStream(
         )
       }
 
+      const { prelude, preludeIsEmpty } =
+        await processPrelude(unprocessedPrelude)
+
       /**
        * When prerendering there are three outcomes to consider
        *
@@ -4132,6 +4149,9 @@ async function prerenderToStream(
           // Dynamic HTML case.
           metadata.postponed = await getDynamicHTMLPostponedState(
             postponed,
+            preludeIsEmpty
+              ? DynamicHTMLPreludeState.Empty
+              : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
             prerenderResumeDataCache
           )

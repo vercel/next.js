@@ -879,7 +879,7 @@ function bindingToApi(
     nextConfigSerializable.exportPathMap = {}
     nextConfigSerializable.webpack = nextConfig.webpack && {}
 
-    if (nextConfigSerializable.experimental?.turbo?.rules) {
+    if (nextConfigSerializable.turbopack?.rules) {
       ensureLoadersHaveSerializableOptions(
         nextConfigSerializable.turbopack?.rules
       )
@@ -974,10 +974,9 @@ function bindingToApi(
       if ('loaders' in rule) {
         checkLoaderItems((rule as TurbopackRuleConfigItemOptions).loaders, glob)
       } else {
-        for (const key in rule) {
-          const inner = rule[key]
-          if (typeof inner === 'object' && inner) {
-            checkConfigItem(inner, glob)
+        for (const value of Object.values(rule)) {
+          if (typeof value === 'object' && value) {
+            checkConfigItem(value, glob)
           }
         }
       }

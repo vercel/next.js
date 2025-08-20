@@ -1789,7 +1789,10 @@
         var rejectListeners = chunk.reason;
         chunk.status = "resolved_module";
         chunk.value = value;
-        chunk._debugInfo = null;
+        value = [];
+        null !== value && null != chunk._debugInfo
+          ? chunk._debugInfo.push.apply(chunk._debugInfo, value)
+          : (chunk._debugInfo = value);
         null !== response &&
           (initializeModuleChunk(chunk),
           wakeChunkIfInitialized(chunk, response, rejectListeners));
@@ -3637,7 +3640,10 @@
                   componentEndTime = time;
                   result.component = componentInfo$jscomp$0;
                   isLastComponent = !1;
-                } else if (candidateInfo.awaited) {
+                } else if (
+                  candidateInfo.awaited &&
+                  null != candidateInfo.awaited.env
+                ) {
                   endTime > childrenEndTime && (childrenEndTime = endTime);
                   var asyncInfo = candidateInfo,
                     env$jscomp$1 = response$jscomp$0._rootEnvironmentName,
@@ -3805,7 +3811,10 @@
                   componentEndTime = time;
                   result.component = _componentInfo;
                   isLastComponent = !1;
-                } else if (_candidateInfo.awaited) {
+                } else if (
+                  _candidateInfo.awaited &&
+                  null != _candidateInfo.awaited.env
+                ) {
                   var _asyncInfo = _candidateInfo,
                     _env2 = response$jscomp$0._rootEnvironmentName;
                   _asyncInfo.awaited.end > endTime &&

@@ -18,15 +18,19 @@ import {
   type PrerenderStoreLegacy,
   type StaticPrerenderStoreModern,
   type StaticPrerenderStore,
+  throwInvariantForMissingStore,
+  type PrerenderStoreModernRuntime,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   describeStringPropertyAccess,
   wellKnownProperties,
 } from '../../shared/lib/utils/reflect-utils'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeDevtoolsIOAwarePromise,
+  makeHangingPromise,
+} from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { scheduleImmediate } from '../../lib/scheduler'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 
 export type ParamValue = string | Array<string> | undefined
@@ -63,7 +67,7 @@ export type UnsafeUnwrappedParams<P> =
 export function createParamsFromClient(
   underlyingParams: Params,
   workStore: WorkStore
-) {
+): Promise<Params> {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -71,7 +75,11 @@ export function createParamsFromClient(
       case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
-        return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+        return createStaticPrerenderParams(
+          underlyingParams,
+          workStore,
+          workUnitStore
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -83,12 +91,24 @@ export function createParamsFromClient(
           'createParamsFromClient should not be called in a runtime prerender.'
         )
       case 'request':
-        break
+        if (process.env.NODE_ENV === 'development') {
+          // Semantically we only need the dev tracking when running in `next dev`
+          // but since you would never use next dev with production NODE_ENV we use this
+          // as a proxy so we can statically exclude this code from production builds.
+          const devFallbackParams = workUnitStore.devFallbackParams
+          return createRenderParamsInDev(
+            underlyingParams,
+            devFallbackParams,
+            workStore
+          )
+        } else {
+          return createRenderParamsInProd(underlyingParams)
+        }
       default:
         workUnitStore satisfies never
     }
   }
-  return createRenderParams(underlyingParams, workStore)
+  throwInvariantForMissingStore()
 }
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
@@ -99,7 +119,7 @@ export const createServerParamsForMetadata = createServerParamsForServerSegment
 export function createServerParamsForRoute(
   underlyingParams: Params,
   workStore: WorkStore
-) {
+): Promise<Params> {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -107,7 +127,11 @@ export function createServerParamsForRoute(
       case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
-        return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+        return createStaticPrerenderParams(
+          underlyingParams,
+          workStore,
+          workUnitStore
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -115,17 +139,26 @@ export function createServerParamsForRoute(
           'createServerParamsForRoute should not be called in cache contexts.'
         )
       case 'prerender-runtime':
-        return delayUntilRuntimeStage(
-          workUnitStore,
-          createRenderParams(underlyingParams, workStore)
-        )
+        return createRuntimePrerenderParams(underlyingParams, workUnitStore)
       case 'request':
-        break
+        if (process.env.NODE_ENV === 'development') {
+          // Semantically we only need the dev tracking when running in `next dev`
+          // but since you would never use next dev with production NODE_ENV we use this
+          // as a proxy so we can statically exclude this code from production builds.
+          const devFallbackParams = workUnitStore.devFallbackParams
+          return createRenderParamsInDev(
+            underlyingParams,
+            devFallbackParams,
+            workStore
+          )
+        } else {
+          return createRenderParamsInProd(underlyingParams)
+        }
       default:
         workUnitStore satisfies never
     }
   }
-  return createRenderParams(underlyingParams, workStore)
+  throwInvariantForMissingStore()
 }
 
 export function createServerParamsForServerSegment(
@@ -139,7 +172,11 @@ export function createServerParamsForServerSegment(
       case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
-        return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+        return createStaticPrerenderParams(
+          underlyingParams,
+          workStore,
+          workUnitStore
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -147,17 +184,26 @@ export function createServerParamsForServerSegment(
           'createServerParamsForServerSegment should not be called in cache contexts.'
         )
       case 'prerender-runtime':
-        return delayUntilRuntimeStage(
-          workUnitStore,
-          createRenderParams(underlyingParams, workStore)
-        )
+        return createRuntimePrerenderParams(underlyingParams, workUnitStore)
       case 'request':
-        break
+        if (process.env.NODE_ENV === 'development') {
+          // Semantically we only need the dev tracking when running in `next dev`
+          // but since you would never use next dev with production NODE_ENV we use this
+          // as a proxy so we can statically exclude this code from production builds.
+          const devFallbackParams = workUnitStore.devFallbackParams
+          return createRenderParamsInDev(
+            underlyingParams,
+            devFallbackParams,
+            workStore
+          )
+        } else {
+          return createRenderParamsInProd(underlyingParams)
+        }
       default:
         workUnitStore satisfies never
     }
   }
-  return createRenderParams(underlyingParams, workStore)
+  throwInvariantForMissingStore()
 }
 
 export function createPrerenderParamsForClientSegment(
@@ -213,7 +259,7 @@ export function createPrerenderParamsForClientSegment(
   return Promise.resolve(underlyingParams)
 }
 
-function createPrerenderParams(
+function createStaticPrerenderParams(
   underlyingParams: Params,
   workStore: WorkStore,
   prerenderStore: StaticPrerenderStore
@@ -268,29 +314,53 @@ function createPrerenderParams(
   }
 }
 
-function createRenderParams(
+function createRuntimePrerenderParams(
   underlyingParams: Params,
+  workUnitStore: PrerenderStoreModernRuntime
+): Promise<Params> {
+  return delayUntilRuntimeStage(
+    workUnitStore,
+    process.env.__NEXT_CACHE_COMPONENTS
+      ? makeUntrackedParams(underlyingParams)
+      : makeUntrackedExoticParams(underlyingParams)
+  )
+}
+
+function createRenderParamsInProd(underlyingParams: Params): Promise<Params> {
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    return makeUntrackedParams(underlyingParams)
+  }
+
+  return makeUntrackedExoticParams(underlyingParams)
+}
+
+function createRenderParamsInDev(
+  underlyingParams: Params,
+  devFallbackParams: FallbackRouteParams | null | undefined,
   workStore: WorkStore
 ): Promise<Params> {
-  if (process.env.NODE_ENV === 'development' && !workStore.isPrefetchRequest) {
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
-      return makeDynamicallyTrackedParamsWithDevWarnings(
-        underlyingParams,
-        workStore
-      )
+  let hasFallbackParams = false
+  if (devFallbackParams) {
+    for (let key in underlyingParams) {
+      if (devFallbackParams.has(key)) {
+        hasFallbackParams = true
+        break
+      }
     }
-
-    return makeDynamicallyTrackedExoticParamsWithDevWarnings(
+  }
+  if (process.env.__NEXT_CACHE_COMPONENTS) {
+    return makeDynamicallyTrackedParamsWithDevWarnings(
       underlyingParams,
+      hasFallbackParams,
       workStore
     )
-  } else {
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
-      return makeUntrackedParams(underlyingParams)
-    }
-
-    return makeUntrackedExoticParams(underlyingParams)
   }
+
+  return makeDynamicallyTrackedExoticParamsWithDevWarnings(
+    underlyingParams,
+    hasFallbackParams,
+    workStore
+  )
 }
 
 interface CacheLifetime {}
@@ -481,6 +551,7 @@ function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
 
 function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   underlyingParams: Params,
+  hasFallbackParams: boolean,
   store: WorkStore
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
@@ -491,9 +562,10 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   // We don't use makeResolvedReactPromise here because params
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
-  const promise = new Promise<Params>((resolve) =>
-    scheduleImmediate(() => resolve(underlyingParams))
-  )
+  const promise = hasFallbackParams
+    ? makeDevtoolsIOAwarePromise(underlyingParams)
+    : // We don't want to force an environment transition when this params is not part of the fallback params set
+      Promise.resolve(underlyingParams)
 
   const proxiedProperties = new Set<string>()
   const unproxiedProperties: Array<string> = []
@@ -543,6 +615,7 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
 // logging the sync access without actually defining the params on the promise.
 function makeDynamicallyTrackedParamsWithDevWarnings(
   underlyingParams: Params,
+  hasFallbackParams: boolean,
   store: WorkStore
 ): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
@@ -553,9 +626,10 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   // We don't use makeResolvedReactPromise here because params
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
-  const promise = new Promise<Params>((resolve) =>
-    scheduleImmediate(() => resolve(underlyingParams))
-  )
+  const promise = hasFallbackParams
+    ? makeDevtoolsIOAwarePromise(underlyingParams)
+    : // We don't want to force an environment transition when this params is not part of the fallback params set
+      Promise.resolve(underlyingParams)
 
   const proxiedProperties = new Set<string>()
   const unproxiedProperties: Array<string> = []

@@ -428,7 +428,7 @@ const transform = (
 
         loaders: loadersWithOptions.map((loader) => ({
           loader: __turbopack_external_require__.resolve(loader.loader, {
-            paths: [resourceDir],
+            paths: [contextDir, resourceDir],
           }),
           options: loader.options,
         })),

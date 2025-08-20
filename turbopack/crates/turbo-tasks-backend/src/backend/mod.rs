@@ -2137,36 +2137,37 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     let until = last_snapshot + time;
                     if until > Instant::now() {
                         let mut stop_listener = self.stopping_event.listen();
-                        if !self.stopping.load(Ordering::Acquire) {
-                            let mut idle_start_listener = self.idle_start_event.listen();
-                            let mut idle_end_listener = self.idle_end_event.listen();
-                            let mut idle_time = if turbo_tasks.is_idle() {
-                                Instant::now() + IDLE_TIMEOUT
-                            } else {
-                                far_future()
-                            };
-                            loop {
-                                tokio::select! {
-                                    _ = &mut stop_listener => {
+                        if self.stopping.load(Ordering::Acquire) {
+                            return;
+                        }
+                        let mut idle_start_listener = self.idle_start_event.listen();
+                        let mut idle_end_listener = self.idle_end_event.listen();
+                        let mut idle_time = if turbo_tasks.is_idle() {
+                            Instant::now() + IDLE_TIMEOUT
+                        } else {
+                            far_future()
+                        };
+                        loop {
+                            tokio::select! {
+                                _ = &mut stop_listener => {
+                                    return;
+                                },
+                                _ = &mut idle_start_listener => {
+                                    idle_time = Instant::now() + IDLE_TIMEOUT;
+                                    idle_start_listener = self.idle_start_event.listen()
+                                },
+                                _ = &mut idle_end_listener => {
+                                    idle_time = until + IDLE_TIMEOUT;
+                                    idle_end_listener = self.idle_end_event.listen()
+                                },
+                                _ = tokio::time::sleep_until(until) => {
+                                    break;
+                                },
+                                _ = tokio::time::sleep_until(idle_time) => {
+                                    if turbo_tasks.is_idle() {
                                         break;
-                                    },
-                                    _ = &mut idle_start_listener => {
-                                        idle_time = Instant::now() + IDLE_TIMEOUT;
-                                        idle_start_listener = self.idle_start_event.listen()
-                                    },
-                                    _ = &mut idle_end_listener => {
-                                        idle_time = until + IDLE_TIMEOUT;
-                                        idle_end_listener = self.idle_end_event.listen()
-                                    },
-                                    _ = tokio::time::sleep_until(until) => {
-                                        break;
-                                    },
-                                    _ = tokio::time::sleep_until(idle_time) => {
-                                        if turbo_tasks.is_idle() {
-                                            break;
-                                        }
-                                    },
-                                }
+                                    }
+                                },
                             }
                         }
                     }

@@ -22,9 +22,11 @@ import {
   trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeDevtoolsIOAwarePromise,
+  makeHangingPromise,
+} from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { scheduleImmediate } from '../../lib/scheduler'
 import { isRequestAPICallableInsideAfter } from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
@@ -143,10 +145,10 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             underlyingCookies = workUnitStore.cookies
           }
 
-          if (
-            process.env.NODE_ENV === 'development' &&
-            !workStore?.isPrefetchRequest
-          ) {
+          if (process.env.NODE_ENV === 'development') {
+            // Semantically we only need the dev tracking when running in `next dev`
+            // but since you would never use next dev with production NODE_ENV we use this
+            // as a proxy so we can statically exclude this code from production builds.
             if (process.env.__NEXT_CACHE_COMPONENTS) {
               return makeUntrackedCookiesWithDevWarnings(
                 underlyingCookies,
@@ -290,9 +292,7 @@ function makeUntrackedExoticCookiesWithDevWarnings(
     return cachedCookies
   }
 
-  const promise = new Promise<ReadonlyRequestCookies>((resolve) =>
-    scheduleImmediate(() => resolve(underlyingCookies))
-  )
+  const promise = makeDevtoolsIOAwarePromise(underlyingCookies)
   CachedCookies.set(underlyingCookies, promise)
 
   Object.defineProperties(promise, {
@@ -443,9 +443,7 @@ function makeUntrackedCookiesWithDevWarnings(
     return cachedCookies
   }
 
-  const promise = new Promise<ReadonlyRequestCookies>((resolve) =>
-    scheduleImmediate(() => resolve(underlyingCookies))
-  )
+  const promise = makeDevtoolsIOAwarePromise(underlyingCookies)
 
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {

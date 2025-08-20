@@ -2094,27 +2094,31 @@ async fn resolve_internal_inline(
             }
         };
 
-        // Apply fallback import mappings if provided
-        if let Some(import_map) = &options_value.fallback_import_map
-            && *result.is_unresolvable().await?
-        {
-            let result = import_map
-                .await?
-                .lookup(lookup_path.clone(), request)
-                .await?;
-            let resolved_result = resolve_import_map_result(
-                &result,
-                lookup_path.clone(),
-                lookup_path.clone(),
-                request,
-                options,
-                request.query().owned().await?,
-            )
-            .await?;
-            if let Some(result) = resolved_result
-                && !*result.is_unresolvable().await?
+        // The individual variants inside the alternative already looked at the fallback import
+        // map in the recursive `resolve_internal_inline` calls
+        if !matches!(*request_value, Request::Alternatives { .. }) {
+            // Apply fallback import mappings if provided
+            if let Some(import_map) = &options_value.fallback_import_map
+                && *result.is_unresolvable().await?
             {
-                return Ok(result);
+                let result = import_map
+                    .await?
+                    .lookup(lookup_path.clone(), request)
+                    .await?;
+                let resolved_result = resolve_import_map_result(
+                    &result,
+                    lookup_path.clone(),
+                    lookup_path.clone(),
+                    request,
+                    options,
+                    request.query().owned().await?,
+                )
+                .await?;
+                if let Some(result) = resolved_result
+                    && !*result.is_unresolvable().await?
+                {
+                    return Ok(result);
+                }
             }
         }
 
@@ -2693,7 +2697,7 @@ async fn resolve_into_package(
                 };
 
                 let Some(path) = path.as_constant_string() else {
-                    todo!("pattern into an exports field is not implemented yet");
+                    bail!("pattern into an exports field is not implemented yet");
                 };
 
                 let path = if path == "/" {

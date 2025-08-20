@@ -6,8 +6,8 @@ import {
   workAsyncStorage,
   type WorkStore,
 } from '../app-render/work-async-storage.external'
-import { throwForMissingRequestStore } from '../app-render/work-unit-async-storage.external'
 import {
+  throwForMissingRequestStore,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
@@ -18,9 +18,11 @@ import {
   trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeDevtoolsIOAwarePromise,
+  makeHangingPromise,
+} from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { scheduleImmediate } from '../../lib/scheduler'
 import { isRequestAPICallableInsideAfter } from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
@@ -153,10 +155,10 @@ export function headers(): Promise<ReadonlyHeaders> {
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
 
-          if (
-            process.env.NODE_ENV === 'development' &&
-            !workStore?.isPrefetchRequest
-          ) {
+          if (process.env.NODE_ENV === 'development') {
+            // Semantically we only need the dev tracking when running in `next dev`
+            // but since you would never use next dev with production NODE_ENV we use this
+            // as a proxy so we can statically exclude this code from production builds.
             if (process.env.__NEXT_CACHE_COMPONENTS) {
               return makeUntrackedHeadersWithDevWarnings(
                 workUnitStore.headers,
@@ -281,9 +283,7 @@ function makeUntrackedExoticHeadersWithDevWarnings(
     return cachedHeaders
   }
 
-  const promise = new Promise<ReadonlyHeaders>((resolve) =>
-    scheduleImmediate(() => resolve(underlyingHeaders))
-  )
+  const promise = makeDevtoolsIOAwarePromise(underlyingHeaders)
 
   CachedHeaders.set(underlyingHeaders, promise)
 
@@ -402,9 +402,7 @@ function makeUntrackedHeadersWithDevWarnings(
     return cachedHeaders
   }
 
-  const promise = new Promise<ReadonlyHeaders>((resolve) =>
-    scheduleImmediate(() => resolve(underlyingHeaders))
-  )
+  const promise = makeDevtoolsIOAwarePromise(underlyingHeaders)
 
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {

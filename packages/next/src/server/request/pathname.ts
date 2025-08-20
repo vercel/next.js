@@ -7,6 +7,7 @@ import {
 } from '../app-render/dynamic-rendering'
 
 import {
+  throwInvariantForMissingStore,
   workUnitAsyncStorage,
   type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
@@ -43,12 +44,12 @@ export function createServerPathnameForMetadata(
           createRenderPathname(underlyingPathname)
         )
       case 'request':
-        break
+        return createRenderPathname(underlyingPathname)
       default:
         workUnitStore satisfies never
     }
   }
-  return createRenderPathname(underlyingPathname)
+  throwInvariantForMissingStore()
 }
 
 function createPrerenderPathname(
