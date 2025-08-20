@@ -3237,6 +3237,27 @@ impl<'a> ModuleReferencesVisitor<'a> {
     }
 }
 
+impl<'a> ModuleReferencesVisitor<'a> {
+    /// Returns true if the given export identifier is considered "live".  This means it might
+    /// change values after module evaluation.
+    fn is_export_ident_live(&self, id: &Ident) -> bool {
+        if let Some(crate::analyzer::graph::VarMeta {
+            value: _,
+            assignment_scopes: assignment_kinds,
+        }) = self.var_graph.values.get(&id.to_id())
+        {
+            // For now, assume all exports are live.
+            *assignment_kinds != crate::analyzer::graph::AssignmentScopes::AllInModuleEvalScope
+        } else {
+            // If we haven't computed a value for it, that means it might be
+            // A free variable
+            // an imported variable
+            // In those cases, we just assume that the value is live since we don't know anything
+            true
+        }
+    }
+}
+
 fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstParentKind> {
     ast_path.iter().map(|n| n.kind()).collect()
 }
