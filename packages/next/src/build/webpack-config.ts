@@ -2378,6 +2378,27 @@ export default async function getBaseWebpackConfig(
 
   webpack5Config.cache = cache
 
+  if (isRspack) {
+    const buildDependencies: string[] = cache.buildDependencies.config ?? []
+    if (babelConfigFile) {
+      buildDependencies.push(babelConfigFile)
+    }
+    if (jsConfigPath) {
+      buildDependencies.push(jsConfigPath)
+    }
+
+    // @ts-ignore
+    webpack5Config.experiments.cache = {
+      type: 'persistent',
+      buildDependencies,
+      storage: {
+        type: 'filesystem',
+        directory: cache.cacheDirectory,
+      },
+      version: `${__dirname}|${process.env.__NEXT_VERSION}|${configVars}`,
+    }
+  }
+
   if (process.env.NEXT_WEBPACK_LOGGING) {
     const infra = process.env.NEXT_WEBPACK_LOGGING.includes('infrastructure')
     const profileClient =
