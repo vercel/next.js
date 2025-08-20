@@ -1143,7 +1143,11 @@ The pattern excludes:
 
 > **Good to know**: Excluding `_next/image` prevents middleware from interfering with image optimization requests, which can cause images to fail loading on authenticated routes.
 
+#### Protected Images and Middleware
+
 The Image Optimizer doesn't forward client credentials when fetching internal images. If these images are protected by middleware, the requests will be rejected due to missing authentication.
+
+If your middleware rejects all requests without proper credentials, then images in your public folder may also be affected when accessed through the Image Optimization API.
 
 For protected images, use a dedicated API route:
 
