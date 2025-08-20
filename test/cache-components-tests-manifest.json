@@ -33,10 +33,11 @@
       ]
     },
     "test/e2e/next-form/default/next-form-prefetch.test.ts": {
-      "passed": [],
-      "failed": [
-        "app dir - form prefetching should not prefetch when prefetch is set to false`",
+      "passed": [
         "app dir - form prefetching should prefetch a loading state for the form's target"
+      ],
+      "failed": [
+        "app dir - form prefetching should not prefetch when prefetch is set to false`"
       ]
     }
   },
