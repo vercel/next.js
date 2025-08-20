@@ -508,13 +508,13 @@ export function generateValidatorFile(
 
   if (appRouteHandlerValidations) {
     typeDefinitions += `type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRoutes> = {
-  GET?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  POST?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  PUT?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  PATCH?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  DELETE?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  HEAD?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
-  OPTIONS?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response> | Response | Promise<void> | void
+  GET?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+  POST?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+  PUT?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+  PATCH?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+  DELETE?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+  HEAD?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
+  OPTIONS?: (request: NextRequest, context: { params: Promise<ParamMap[Route]> }) => Promise<Response | void> | Response | void
 }
 
 `
@@ -522,7 +522,7 @@ export function generateValidatorFile(
 
   if (pagesApiRouteValidations) {
     typeDefinitions += `type ApiRouteConfig = {
-  default: (req: any, res: any) => Promise<void> | void | Promise<Response> | Response
+  default: (req: any, res: any) => Promise<Response | void> | Response | void
   config?: {
     api?: {
       bodyParser?: boolean | { sizeLimit?: string }
