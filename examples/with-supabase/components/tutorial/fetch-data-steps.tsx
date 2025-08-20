@@ -2,22 +2,64 @@ import { TutorialStep } from "./tutorial-step";
 import { CodeBlock } from "./code-block";
 
 const create = `create table notes (
-  id bigserial primary key,
-  title text
+  id bigserial primary key generated always as identity,
+  title text,
+  created_at timestamp with time zone default now(),
+  user_id uuid references auth.users(id) on delete cascade
 );
 
-insert into notes(title)
+-- Enable Row Level Security
+alter table notes enable row level security;
+
+-- Create policy to allow users to see only their own notes
+create policy "Users can view their own notes" on notes
+  for select using (auth.uid() = user_id);
+
+-- Create policy to allow users to insert their own notes
+create policy "Users can insert their own notes" on notes
+  for insert with check (auth.uid() = user_id);
+
+-- Create policy to allow users to update their own notes
+create policy "Users can update their own notes" on notes
+  for update using (auth.uid() = user_id);
+
+-- Create policy to allow users to delete their own notes
+create policy "Users can delete their own notes" on notes
+  for delete using (auth.uid() = user_id);
+
+-- Insert some sample data (using a placeholder UUID for demonstration)
+insert into notes(title, user_id)
 values
-  ('Today I created a Supabase project.'),
-  ('I added some data and queried it from Next.js.'),
-  ('It was awesome!');
+  ('Today I created a Supabase project.', '00000000-0000-0000-0000-000000000000'),
+  ('I added some data and queried it from Next.js.', '00000000-0000-0000-0000-000000000000'),
+  ('It was awesome!', '00000000-0000-0000-0000-000000000000');
 `.trim();
 
-const server = `import { createClient } from '@/utils/supabase/server'
+const server = `import { createClient } from '@/lib/supabase/server'
 
 export default async function Page() {
   const supabase = await createClient()
-  const { data: notes } = await supabase.from('notes').select()
+  
+  // Get the current user safely
+  const { data, error } = await supabase.auth.getUser()
+  const user = data?.user || null
+  
+  if (error) {
+    console.error('Error fetching user:', error.message)
+    return <div>Error fetching user data.</div>
+  }
+
+  if (!user) {
+    return <div>Please sign in to view your notes.</div>
+  }
+  
+  // Query notes for the current user with error handling
+  const { data: notes, error: notesError } = await supabase.from('notes').select()
+  
+  if (notesError) {
+    console.error('Error fetching notes:', notesError.message)
+    return <div>Error loading notes. Please try again later.</div>
+  }
 
   return <pre>{JSON.stringify(notes, null, 2)}</pre>
 }
@@ -25,20 +67,56 @@ export default async function Page() {
 
 const client = `'use client'
 
-import { createClient } from '@/utils/supabase/client'
+import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 
 export default function Page() {
   const [notes, setNotes] = useState<any[] | null>(null)
+  const [user, setUser] = useState<any>(null)
+  const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
     const getData = async () => {
-      const { data } = await supabase.from('notes').select()
-      setNotes(data)
+      try {
+        // Get the current user safely
+        const { data, error } = await supabase.auth.getUser()
+        const currentUser = data?.user || null
+        setUser(currentUser)
+        
+        if (error) {
+          console.error('Error fetching user:', error.message)
+          setError('Error fetching user data.')
+          return
+        }
+
+        if (currentUser) {
+          // Query notes for the current user with error handling
+          const { data: fetchedNotes, error: notesError } = await supabase.from('notes').select()
+          
+          if (notesError) {
+            console.error('Error fetching notes:', notesError.message)
+            setError('Error loading notes. Please try again later.')
+            return
+          }
+          
+          setNotes(fetchedNotes)
+        }
+      } catch (err) {
+        console.error('Unexpected error:', err)
+        setError('An unexpected error occurred. Please try again.')
+      }
     }
     getData()
   }, [])
+
+  if (error) {
+    return <div style={{ color: 'red', padding: '20px' }}>Error: {error}</div>
+  }
+
+  if (!user) {
+    return <div>Please sign in to view your notes.</div>
+  }
 
   return <pre>{JSON.stringify(notes, null, 2)}</pre>
 }
