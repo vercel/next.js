@@ -37,7 +37,10 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import { HMR_ACTIONS_SENT_TO_BROWSER, type NextJsHotReloaderInterface } from './hot-reloader-types'
+import {
+  HMR_ACTIONS_SENT_TO_BROWSER,
+  type NextJsHotReloaderInterface,
+} from './hot-reloader-types'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'

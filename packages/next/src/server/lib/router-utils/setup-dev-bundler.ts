@@ -196,37 +196,37 @@ async function startWatcher(
     ? await createHotReloaderTurbopack(opts, serverFields, distDir, resetFetch)
     : process.env.NEXT_RSPACK
       ? new HotReloaderRspack(opts.dir, {
-        isSrcDir: opts.isSrcDir,
-        appDir,
-        pagesDir,
-        distDir,
-        config: opts.nextConfig,
-        buildId: 'development',
-        encryptionKey: await generateEncryptionKeyBase64({
-          isBuild: false,
+          isSrcDir: opts.isSrcDir,
+          appDir,
+          pagesDir,
           distDir,
-        }),
-        telemetry: opts.telemetry,
-        rewrites: opts.fsChecker.rewrites,
-        previewProps: opts.fsChecker.prerenderManifest.preview,
-        resetFetch,
-      })
+          config: opts.nextConfig,
+          buildId: 'development',
+          encryptionKey: await generateEncryptionKeyBase64({
+            isBuild: false,
+            distDir,
+          }),
+          telemetry: opts.telemetry,
+          rewrites: opts.fsChecker.rewrites,
+          previewProps: opts.fsChecker.prerenderManifest.preview,
+          resetFetch,
+        })
       : new HotReloaderWebpack(opts.dir, {
-        isSrcDir: opts.isSrcDir,
-        appDir,
-        pagesDir,
-        distDir,
-        config: opts.nextConfig,
-        buildId: 'development',
-        encryptionKey: await generateEncryptionKeyBase64({
-          isBuild: false,
+          isSrcDir: opts.isSrcDir,
+          appDir,
+          pagesDir,
           distDir,
-        }),
-        telemetry: opts.telemetry,
-        rewrites: opts.fsChecker.rewrites,
-        previewProps: opts.fsChecker.prerenderManifest.preview,
-        resetFetch,
-      })
+          config: opts.nextConfig,
+          buildId: 'development',
+          encryptionKey: await generateEncryptionKeyBase64({
+            isBuild: false,
+            distDir,
+          }),
+          telemetry: opts.telemetry,
+          rewrites: opts.fsChecker.rewrites,
+          previewProps: opts.fsChecker.prerenderManifest.preview,
+          resetFetch,
+        })
 
   await hotReloader.start()
 

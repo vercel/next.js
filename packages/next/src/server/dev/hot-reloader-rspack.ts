@@ -3,15 +3,37 @@ import fs from 'fs/promises'
 import { createHash } from 'crypto'
 import type { PageStaticInfo } from '../../build/analysis/get-page-static-info'
 import type { MappedPages } from '../../build/build-context'
-import { collectAppFiles, collectPagesFiles, createPagesMapping, getPageFilePath, getPageFromPath, getStaticInfoIncludingLayouts, runDependingOnPageType, sortByPageExts, type CreateEntrypointsParams } from '../../build/entries'
+import {
+  collectAppFiles,
+  collectPagesFiles,
+  createPagesMapping,
+  getPageFilePath,
+  getPageFromPath,
+  getStaticInfoIncludingLayouts,
+  runDependingOnPageType,
+  sortByPageExts,
+  type CreateEntrypointsParams,
+} from '../../build/entries'
 import { normalizeCatchAllRoutes } from '../../build/normalize-catchall-routes'
-import { APP_DIR_ALIAS, INSTRUMENTATION_HOOK_FILENAME, MIDDLEWARE_FILENAME, PAGES_DIR_ALIAS, ROOT_DIR_ALIAS } from '../../lib/constants'
+import {
+  APP_DIR_ALIAS,
+  INSTRUMENTATION_HOOK_FILENAME,
+  MIDDLEWARE_FILENAME,
+  PAGES_DIR_ALIAS,
+  ROOT_DIR_ALIAS,
+} from '../../lib/constants'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { createValidFileMatcher } from '../lib/find-page-file'
 import HotReloaderWebpack from './hot-reloader-webpack'
-import { ADDED, BUILT, EntryTypes, getEntries, getEntryKey } from './on-demand-entry-handler'
+import {
+  ADDED,
+  BUILT,
+  EntryTypes,
+  getEntries,
+  getEntryKey,
+} from './on-demand-entry-handler'
 import { isInstrumentationHookFile, isMiddlewareFile } from '../../build/utils'
 import { getFilesInDir } from '../../lib/get-files-in-dir'
 import { COMPILER_NAMES, RSC_MODULE_TYPES } from '../../shared/lib/constants'
@@ -232,26 +254,32 @@ async function createPagesAbsolutePathMapping({
     appDir,
   })
   for (const route in mappedPages) {
-    mappedPages[route] = mappedPages[route].replace(PAGES_DIR_ALIAS, pagesDir || '');
-    mappedPages[route] = mappedPages[route].replace(APP_DIR_ALIAS, appDir || '');
-    mappedPages[route] = mappedPages[route].replace(ROOT_DIR_ALIAS, rootDir || '');
+    mappedPages[route] = mappedPages[route].replace(
+      PAGES_DIR_ALIAS,
+      pagesDir || ''
+    )
+    mappedPages[route] = mappedPages[route].replace(APP_DIR_ALIAS, appDir || '')
+    mappedPages[route] = mappedPages[route].replace(
+      ROOT_DIR_ALIAS,
+      rootDir || ''
+    )
   }
-  return mappedPages;
+  return mappedPages
 }
 
 /**
  * Rspack Persistent Cache Strategy for Next.js Development
- * 
+ *
  * Rspack's persistent caching differs from Webpack in how it manages module graphs.
  * While Webpack incrementally updates modules, Rspack operates on complete module
  * graph snapshots for cache restoration.
- * 
+ *
  * Problem:
  * - Next.js dev server starts with no page modules in the initial entry points
  * - When Rspack restores from persistent cache, it finds no modules and purges
  *   the entire module graph
  * - Later page requests find no cached module information, preventing cache reuse
- * 
+ *
  * Solution:
  * - Track successfully built page entries after each compilation
  * - Restore these entries on dev server restart to maintain module graph continuity
@@ -273,7 +301,7 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       rewrites,
       appDir,
       telemetry,
-      resetFetch
+      resetFetch,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -288,45 +316,52 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       resetFetch: () => void
     }
   ) {
-    super(
-      dir,
-      {
-        config,
-        isSrcDir,
-        pagesDir,
-        distDir,
-        buildId,
-        encryptionKey,
-        previewProps,
-        rewrites,
-        appDir,
-        telemetry,
-        resetFetch,
-      }
-    )
+    super(dir, {
+      config,
+      isSrcDir,
+      pagesDir,
+      distDir,
+      buildId,
+      encryptionKey,
+      previewProps,
+      rewrites,
+      appDir,
+      telemetry,
+      resetFetch,
+    })
   }
 
   public async afterCompile(multiCompiler: MultiCompiler): Promise<void> {
-    const rspackStartSpan = this.hotReloaderSpan.traceChild('rspack-after-compile')
+    const rspackStartSpan = this.hotReloaderSpan.traceChild(
+      'rspack-after-compile'
+    )
 
     const pageExtensions = this.config.pageExtensions
 
     const validFileMatcher = createValidFileMatcher(pageExtensions, this.appDir)
 
-    const hash = createHash('sha1');
-    multiCompiler.compilers.forEach(compiler => {
-      const cache = compiler.options.cache;
-      if (typeof cache === "object" && "version" in cache) {
+    const hash = createHash('sha1')
+    multiCompiler.compilers.forEach((compiler) => {
+      const cache = compiler.options.cache
+      if (typeof cache === 'object' && 'version' in cache) {
         hash.update(cache.version || '-')
       }
       return undefined
     })
-    this.builtEntriesCachePath = path.join(this.distDir, 'cache', 'rspack', hash.digest('hex'), 'built-entries.json');
+    this.builtEntriesCachePath = path.join(
+      this.distDir,
+      'cache',
+      'rspack',
+      hash.digest('hex'),
+      'built-entries.json'
+    )
 
     const pagesPaths = this.pagesDir
       ? await rspackStartSpan
           .traceChild('collect-pages')
-          .traceAsyncFn(() => collectPagesFiles(this.pagesDir!, validFileMatcher))
+          .traceAsyncFn(() =>
+            collectPagesFiles(this.pagesDir!, validFileMatcher)
+          )
       : []
 
     const middlewareDetectionRegExp = new RegExp(
@@ -334,9 +369,7 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
     )
 
     const instrumentationHookDetectionRegExp = new RegExp(
-      `^${INSTRUMENTATION_HOOK_FILENAME}\\.(?:${pageExtensions.join(
-        '|'
-      )})$`
+      `^${INSTRUMENTATION_HOOK_FILENAME}\\.(?:${pageExtensions.join('|')})$`
     )
 
     const rootDir = path.join((this.pagesDir || this.appDir)!, '..')
@@ -349,7 +382,7 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       .filter((file) => includes.some((include) => include.test(file)))
       .sort(sortByPageExts(pageExtensions))
       .map((file) => path.join(rootDir, file).replace(this.dir, ''))
-    
+
     const hasInstrumentationHook = rootPaths.some((p) =>
       p.includes(INSTRUMENTATION_HOOK_FILENAME)
     )
@@ -430,25 +463,29 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
           pageExtensions: this.config.pageExtensions,
           appPaths: mappedAppPages,
           rootPaths: mappedRootPaths,
-          hasInstrumentationHook
+          hasInstrumentationHook,
         })
       )
 
-    const hasBuitEntriesCache = await fs.access(this.builtEntriesCachePath).then(
-      () => true,
-      () => false
-    )
+    const hasBuitEntriesCache = await fs
+      .access(this.builtEntriesCachePath)
+      .then(
+        () => true,
+        () => false
+      )
     if (hasBuitEntriesCache) {
       try {
-        const builtEntries: ReturnType<typeof getEntries> = JSON.parse(await fs.readFile(this.builtEntriesCachePath, 'utf-8') || '{}')
+        const builtEntries: ReturnType<typeof getEntries> = JSON.parse(
+          (await fs.readFile(this.builtEntriesCachePath, 'utf-8')) || '{}'
+        )
         for (const entryName in builtEntries) {
           if (!existingEntries[entryName]) {
-            delete builtEntries[entryName];
+            delete builtEntries[entryName]
           }
         }
         Object.assign(getEntries(multiCompiler.outputPath), builtEntries)
       } catch (error) {
-        console.error('Rspack failed to read built entries cache: ', error);
+        console.error('Rspack failed to read built entries cache: ', error)
       }
     }
   }
@@ -476,25 +513,32 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       isApp,
       url,
     })
-    const entries = getEntries(this.multiCompiler!.outputPath);
-    const builtEntries: ReturnType<typeof getEntries> = {};
+    const entries = getEntries(this.multiCompiler!.outputPath)
+    const builtEntries: ReturnType<typeof getEntries> = {}
     for (const entryName in entries) {
-      const entry = entries[entryName];
+      const entry = entries[entryName]
       if (entry.status === BUILT) {
-        builtEntries[entryName] = entry;
+        builtEntries[entryName] = entry
       }
     }
-    const hasBuitEntriesCache = await fs.access(this.builtEntriesCachePath!).then(
-      () => true,
-      () => false
-    )
+    const hasBuitEntriesCache = await fs
+      .access(this.builtEntriesCachePath!)
+      .then(
+        () => true,
+        () => false
+      )
     try {
       if (!hasBuitEntriesCache) {
-        await fs.mkdir(path.dirname(this.builtEntriesCachePath!), { recursive: true });
+        await fs.mkdir(path.dirname(this.builtEntriesCachePath!), {
+          recursive: true,
+        })
       }
-      await fs.writeFile(this.builtEntriesCachePath!, JSON.stringify(builtEntries, null, 2));
+      await fs.writeFile(
+        this.builtEntriesCachePath!,
+        JSON.stringify(builtEntries, null, 2)
+      )
     } catch (error) {
-      console.error('Rspack failed to write built entries cache: ', error);
+      console.error('Rspack failed to write built entries cache: ', error)
     }
   }
 }
