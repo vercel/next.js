@@ -1784,7 +1784,10 @@
         var rejectListeners = chunk.reason;
         chunk.status = "resolved_module";
         chunk.value = value;
-        chunk._debugInfo = null;
+        value = [];
+        null !== value && null != chunk._debugInfo
+          ? chunk._debugInfo.push.apply(chunk._debugInfo, value)
+          : (chunk._debugInfo = value);
         null !== response &&
           (initializeModuleChunk(chunk),
           wakeChunkIfInitialized(chunk, response, rejectListeners));
@@ -3632,7 +3635,10 @@
                   componentEndTime = time;
                   result.component = componentInfo$jscomp$0;
                   isLastComponent = !1;
-                } else if (candidateInfo.awaited) {
+                } else if (
+                  candidateInfo.awaited &&
+                  null != candidateInfo.awaited.env
+                ) {
                   endTime > childrenEndTime && (childrenEndTime = endTime);
                   var asyncInfo = candidateInfo,
                     env$jscomp$1 = response$jscomp$0._rootEnvironmentName,
@@ -3800,7 +3806,10 @@
                   componentEndTime = time;
                   result.component = _componentInfo;
                   isLastComponent = !1;
-                } else if (_candidateInfo.awaited) {
+                } else if (
+                  _candidateInfo.awaited &&
+                  null != _candidateInfo.awaited.env
+                ) {
                   var _asyncInfo = _candidateInfo,
                     _env2 = response$jscomp$0._rootEnvironmentName;
                   _asyncInfo.awaited.end > endTime &&
@@ -4196,11 +4205,16 @@
         void 0
       )._weakResponse;
     }
-    function startReadingFromStream(response$jscomp$0, stream) {
+    function startReadingFromStream(
+      response$jscomp$0,
+      stream,
+      isSecondaryStream
+    ) {
       function progress(_ref) {
         var value = _ref.value;
         if (_ref.done)
-          reportGlobalError(response$jscomp$0, Error("Connection closed."));
+          isSecondaryStream ||
+            reportGlobalError(response$jscomp$0, Error("Connection closed."));
         else {
           _ref = streamState;
           if (void 0 !== response$jscomp$0.weak.deref()) {
@@ -4518,7 +4532,14 @@
       var response = createResponseFromOptions(options);
       promiseForResponse.then(
         function (r) {
-          startReadingFromStream(response, r.body);
+          options && options.debugChannel && options.debugChannel.readable
+            ? (startReadingFromStream(
+                response,
+                options.debugChannel.readable,
+                !1
+              ),
+              startReadingFromStream(response, r.body, !0))
+            : startReadingFromStream(response, r.body, !1);
         },
         function (e) {
           reportGlobalError(response, e);
@@ -4527,9 +4548,12 @@
       return getRoot(response);
     };
     exports.createFromReadableStream = function (stream, options) {
-      options = createResponseFromOptions(options);
-      startReadingFromStream(options, stream);
-      return getRoot(options);
+      var response = createResponseFromOptions(options);
+      options && options.debugChannel && options.debugChannel.readable
+        ? (startReadingFromStream(response, options.debugChannel.readable, !1),
+          startReadingFromStream(response, stream, !0))
+        : startReadingFromStream(response, stream, !1);
+      return getRoot(response);
     };
     exports.createServerReference = function (id) {
       return createServerReference$1(id, noServerCall);

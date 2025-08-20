@@ -18,6 +18,7 @@ import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -67,6 +68,7 @@ export interface RequestStore extends CommonWorkUnitStore {
   // DEV-only
   usedDynamic?: boolean
   prerenderPhase?: boolean
+  devFallbackParams?: FallbackRouteParams | null
 }
 
 /**
@@ -333,6 +335,10 @@ export function throwForMissingRequestStore(callingExpression: string): never {
   throw new Error(
     `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
   )
+}
+
+export function throwInvariantForMissingStore(): never {
+  throw new InvariantError('Expected workUnitAsyncStorage to have a store.')
 }
 
 export function getPrerenderResumeDataCache(

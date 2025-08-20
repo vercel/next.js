@@ -14,6 +14,7 @@ import type {
   TurbopackRuleConfigItemOptions,
   TurbopackRuleConfigItemOrShortcut,
   TurbopackRuleCondition,
+  TurbopackLoaderBuiltinCondition,
 } from './config-shared'
 import type {
   Header,
@@ -102,7 +103,7 @@ const zHeader: zod.ZodType<Header> = z.object({
   internal: z.boolean().optional(),
 })
 
-const zTurboLoaderItem: zod.ZodType<TurbopackLoaderItem> = z.union([
+const zTurbopackLoaderItem: zod.ZodType<TurbopackLoaderItem> = z.union([
   z.string(),
   z.object({
     loader: z.string(),
@@ -111,31 +112,42 @@ const zTurboLoaderItem: zod.ZodType<TurbopackLoaderItem> = z.union([
   }),
 ])
 
-const zTurboRuleConfigItemOptions: zod.ZodType<TurbopackRuleConfigItemOptions> =
+const zTurbopackRuleConfigItemOptions: zod.ZodType<TurbopackRuleConfigItemOptions> =
   z.object({
-    loaders: z.array(zTurboLoaderItem),
+    loaders: z.array(zTurbopackLoaderItem),
     as: z.string().optional(),
   })
 
-const zTurboRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> = z.union([
+const zTurbopackLoaderBuiltinCondition: zod.ZodType<TurbopackLoaderBuiltinCondition> =
+  z.union([
+    z.literal('default'),
+    z.literal('browser'),
+    z.literal('foreign'),
+    z.literal('development'),
+    z.literal('production'),
+    z.literal('node'),
+    z.literal('edge-light'),
+  ])
+
+const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> = z.union([
   z.literal(false),
   z.record(
-    z.string(),
-    z.lazy(() => zTurboRuleConfigItem)
+    zTurbopackLoaderBuiltinCondition,
+    z.lazy(() => zTurbopackRuleConfigItem)
   ),
-  zTurboRuleConfigItemOptions,
+  zTurbopackRuleConfigItemOptions,
 ])
-const zTurboRuleConfigItemOrShortcut: zod.ZodType<TurbopackRuleConfigItemOrShortcut> =
-  z.union([z.array(zTurboLoaderItem), zTurboRuleConfigItem])
+const zTurbopackRuleConfigItemOrShortcut: zod.ZodType<TurbopackRuleConfigItemOrShortcut> =
+  z.union([z.array(zTurbopackLoaderItem), zTurbopackRuleConfigItem])
 
-const zTurboCondition: zod.ZodType<TurbopackRuleCondition> = z.object({
+const zTurbopackCondition: zod.ZodType<TurbopackRuleCondition> = z.object({
   path: z.union([z.string(), z.instanceof(RegExp)]).optional(),
   content: z.instanceof(RegExp).optional(),
 })
 
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
-  rules: z.record(z.string(), zTurboRuleConfigItemOrShortcut).optional(),
-  conditions: z.record(z.string(), zTurboCondition).optional(),
+  rules: z.record(z.string(), zTurbopackRuleConfigItemOrShortcut).optional(),
+  conditions: z.record(z.string(), zTurbopackCondition).optional(),
   resolveAlias: z
     .record(
       z.string(),
@@ -155,8 +167,8 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 // properties are duplicated here as `ZodType`s do not export `extend()`.
 const zDeprecatedExperimentalTurboConfig: zod.ZodType<DeprecatedExperimentalTurboOptions> =
   z.strictObject({
-    loaders: z.record(z.string(), z.array(zTurboLoaderItem)).optional(),
-    rules: z.record(z.string(), zTurboRuleConfigItemOrShortcut).optional(),
+    loaders: z.record(z.string(), z.array(zTurbopackLoaderItem)).optional(),
+    rules: z.record(z.string(), zTurbopackRuleConfigItemOrShortcut).optional(),
     resolveAlias: z
       .record(
         z.string(),
@@ -746,6 +758,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         tsconfigPath: z.string().min(1).optional(),
       })
       .optional(),
+    typedRoutes: z.boolean().optional(),
     useFileSystemPublicRoutes: z.boolean().optional(),
     // The webpack config type is unknown, use z.any() here
     webpack: z.any().nullable().optional(),

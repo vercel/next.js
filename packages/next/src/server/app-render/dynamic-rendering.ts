@@ -341,21 +341,6 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
   )
 }
 
-/**
- * Use this function when dynamically prerendering with dynamicIO.
- * We don't want to error, because it's better to return something
- * (and we've already aborted the render at the point where the sync dynamic error occured),
- * but we should log an error server-side.
- * @internal
- */
-export function warnOnSyncDynamicError(dynamicTracking: DynamicTrackingState) {
-  if (dynamicTracking.syncDynamicErrorWithStack) {
-    // the server did something sync dynamic, likely
-    // leading to an early termination of the prerender.
-    console.error(dynamicTracking.syncDynamicErrorWithStack)
-  }
-}
-
 // For now these implementations are the same so we just reexport
 export const trackSynchronousRequestDataAccessInDev =
   trackSynchronousPlatformIOAccessInDev
@@ -778,23 +763,20 @@ export function throwIfDisallowedDynamic(
   dynamicValidation: DynamicValidationState,
   serverDynamic: DynamicTrackingState
 ): void {
+  if (serverDynamic.syncDynamicErrorWithStack) {
+    logDisallowedDynamicError(
+      workStore,
+      serverDynamic.syncDynamicErrorWithStack
+    )
+    throw new StaticGenBailoutError()
+  }
+
   if (prelude !== PreludeState.Full) {
     if (dynamicValidation.hasSuspenseAboveBody) {
       // This route has opted into allowing fully dynamic rendering
       // by including a Suspense boundary above the body. In this case
       // a lack of a shell is not considered disallowed so we simply return
       return
-    }
-
-    if (serverDynamic.syncDynamicErrorWithStack) {
-      // There is no shell and the server did something sync dynamic likely
-      // leading to an early termination of the prerender before the shell
-      // could be completed. We terminate the build/validating render.
-      logDisallowedDynamicError(
-        workStore,
-        serverDynamic.syncDynamicErrorWithStack
-      )
-      throw new StaticGenBailoutError()
     }
 
     // We didn't have any sync bailouts but there may be user code which

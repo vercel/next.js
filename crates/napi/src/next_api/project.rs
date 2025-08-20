@@ -41,7 +41,7 @@ use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons}
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, util::uri_from_file,
 };
-use turbo_unix_path::get_relative_path_to;
+use turbo_unix_path::{get_relative_path_to, sys_to_unix};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     diagnostics::PlainDiagnostic,
@@ -1409,12 +1409,17 @@ pub struct OptionStackFrame(Option<StackFrame>);
 #[turbo_tasks::function]
 pub async fn get_source_map_rope(
     container: Vc<ProjectContainer>,
-    file_path: RcStr,
+    source_url: RcStr,
 ) -> Result<Vc<OptionStringifiedSourceMap>> {
-    let (file, module) = match Url::parse(&file_path) {
+    let (file_path_sys, module) = match Url::parse(&source_url) {
         Ok(url) => match url.scheme() {
             "file" => {
-                let path = urlencoding::decode(url.path())?.to_string();
+                let path = match url.to_file_path() {
+                    Ok(path) => path.to_string_lossy().into(),
+                    Err(_) => {
+                        bail!("Failed to convert file URL to file path: {url}");
+                    }
+                };
                 let module = url.query_pairs().find(|(k, _)| k == "id");
                 (
                     path,
@@ -1426,23 +1431,29 @@ pub async fn get_source_map_rope(
             }
             _ => bail!("Unknown url scheme '{}'", url.scheme()),
         },
-        Err(_) => (file_path.to_string(), None),
+        Err(_) => (source_url.to_string(), None),
     };
 
-    let Some(chunk_base) =
-        file.strip_prefix(container.project().dist_dir_absolute().await?.as_str())
-    else {
-        // File doesn't exist within the dist dir
-        return Ok(OptionStringifiedSourceMap::none());
-    };
+    let chunk_base_unix =
+        match file_path_sys.strip_prefix(container.project().dist_dir_absolute().await?.as_str()) {
+            Some(relative_path) => sys_to_unix(relative_path),
+            None => {
+                // File doesn't exist within the dist dir
+                return Ok(OptionStringifiedSourceMap::none());
+            }
+        };
 
-    let server_path = container.project().node_root().await?.join(chunk_base)?;
+    let server_path = container
+        .project()
+        .node_root()
+        .await?
+        .join(&chunk_base_unix)?;
 
     let client_path = container
         .project()
         .client_relative_path()
         .await?
-        .join(chunk_base)?;
+        .join(&chunk_base_unix)?;
 
     let mut map = container.get_source_map(server_path, module.clone());
 
@@ -1453,7 +1464,7 @@ pub async fn get_source_map_rope(
         // chunks.
         map = container.get_source_map(client_path, module);
         if map.await?.is_none() {
-            bail!("chunk/module '{}' is missing a sourcemap", file_path);
+            bail!("chunk/module '{}' is missing a sourcemap", source_url);
         }
     }
 

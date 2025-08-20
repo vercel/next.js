@@ -1,15 +1,11 @@
-use std::{
-    cmp::max,
-    path::PathBuf,
-    sync::Arc,
-    thread::{JoinHandle, available_parallelism, spawn},
-};
+use std::{cmp::max, path::PathBuf, sync::Arc, thread::available_parallelism, time::Instant};
 
 use anyhow::{Ok, Result};
 use parking_lot::Mutex;
 use turbo_persistence::{
     ArcSlice, CompactConfig, KeyBase, StoreKey, TurboPersistence, ValueBuffer,
 };
+use turbo_tasks::{JoinHandle, message_queue::TimingEvent, spawn, turbo_tasks};
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
@@ -84,7 +80,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>> {
         // Wait for the compaction to finish
         if let Some(join_handle) = self.compact_join_handle.lock().take() {
-            join_handle.join().unwrap()?;
+            join_handle.join()?;
         }
         // Start a new write batch
         Ok(WriteBatch::concurrent(TurboWriteBatch {
@@ -100,21 +96,42 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     fn shutdown(&self) -> Result<()> {
         // Wait for the compaction to finish
         if let Some(join_handle) = self.compact_join_handle.lock().take() {
-            join_handle.join().unwrap()?;
+            join_handle.join()?;
         }
         // Compact the database on shutdown
-        self.db.compact(&CompactConfig {
-            max_merge_segment_count: if self.is_ci {
-                // Fully compact in CI to reduce cache size
-                usize::MAX
-            } else {
-                available_parallelism().map_or(4, |c| max(4, c.get()))
-            },
-            ..COMPACT_CONFIG
-        })?;
+        if self.is_ci {
+            // Fully compact in CI to reduce cache size
+            do_compact(&self.db, "Finished database compaction", usize::MAX)?;
+        } else {
+            // Compact with a reasonable limit in non-CI environments
+            do_compact(
+                &self.db,
+                "Finished database compaction",
+                available_parallelism().map_or(4, |c| max(4, c.get())),
+            )?;
+        }
         // Shutdown the database
         self.db.shutdown()
     }
+}
+
+fn do_compact(
+    db: &TurboPersistence,
+    message: &'static str,
+    max_merge_segment_count: usize,
+) -> Result<()> {
+    let start = Instant::now();
+    // Compact the database with the given max merge segment count
+    let ran = db.compact(&CompactConfig {
+        max_merge_segment_count,
+        ..COMPACT_CONFIG
+    })?;
+    if ran {
+        let elapsed = start.elapsed();
+        turbo_tasks()
+            .send_compilation_event(Arc::new(TimingEvent::new(message.to_string(), elapsed)));
+    }
+    Ok(())
 }
 
 pub struct TurboWriteBatch<'a> {
@@ -144,12 +161,12 @@ impl<'a> BaseWriteBatch<'a> for TurboWriteBatch<'a> {
         if let Some(compact_join_handle) = self.compact_join_handle {
             // Start a new compaction in the background
             let db = self.db.clone();
-            let handle = spawn(move || {
-                db.compact(&CompactConfig {
-                    max_merge_segment_count: available_parallelism()
-                        .map_or(4, |c| max(4, c.get() / 2)),
-                    ..COMPACT_CONFIG
-                })
+            let handle = spawn(async move {
+                do_compact(
+                    &db,
+                    "Finished database compaction",
+                    available_parallelism().map_or(4, |c| max(4, c.get() / 2)),
+                )
             });
             compact_join_handle.lock().replace(handle);
         }

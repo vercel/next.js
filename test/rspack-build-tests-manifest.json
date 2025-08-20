@@ -197,6 +197,7 @@
       "app-dir action handling should not expose action content in sourcemaps",
       "app-dir action handling should not log errors for non-action form POSTs",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
+      "app-dir action handling should output exportName and filename info in manifest",
       "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
       "app-dir action handling should push new route when redirecting",
       "app-dir action handling should replace current route when redirecting with type set to replace",
@@ -329,6 +330,7 @@
       "app-dir action handling should not expose action content in sourcemaps",
       "app-dir action handling should not log errors for non-action form POSTs",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
+      "app-dir action handling should output exportName and filename info in manifest",
       "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
       "app-dir action handling should push new route when redirecting",
       "app-dir action handling should replace current route when redirecting with type set to replace",
@@ -7793,6 +7795,72 @@
     "passed": [
       "instrumentation-hook - register-once should not error when concurrent requests are made",
       "instrumentation-hook - register-once should only register once"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-app/invalid-static-asset-404-app-asset-prefix.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-app-asset-prefix should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-app-asset-prefix should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-app-asset-prefix should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-app/invalid-static-asset-404-app-base-path.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-app-base-path should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-app-base-path should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-app-base-path should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-app/invalid-static-asset-404-app.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-app should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-app should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-app should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-pages/invalid-static-asset-404-pages-asset-prefix.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-pages-asset-prefix should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-pages-asset-prefix should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-pages-asset-prefix should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-pages/invalid-static-asset-404-pages-base-path.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-pages-base-path should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-pages-base-path should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-pages-base-path should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-pages/invalid-static-asset-404-pages.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-pages should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-pages should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-pages should return custom 404 page when fetching invalid non-asset path"
     ],
     "failed": [],
     "pending": [],
@@ -19555,6 +19623,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/types-gen-nounuselocal/types-gen-nounuselocal.test.ts": {
+    "passed": [
+      "types-gen-nounuselocal should build successfully",
+      "types-gen-nounuselocal should generate route types successfully"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/unexpected-error/unexpected-error.test.ts": {
     "passed": [
       "unexpected-error cannot change response status when streaming has started",
@@ -20212,11 +20290,10 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm"
-    ],
-    "failed": [
+      "pnpm support should build with dependencies installed via pnpm",
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
