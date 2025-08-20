@@ -418,7 +418,7 @@ export async function createHotReloaderTurbopack(
 
   const initialReactDebugChunksByRequestId = new Map<
     string,
-    Uint8Array[] | null
+    (Uint8Array | null)[] | null
   >()
 
   function sendToClient(client: ws, message: HmrMessageSentToBrowser) {
@@ -932,7 +932,8 @@ export async function createHotReloaderTurbopack(
                   // as header bytes.
                   type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
                   requestId,
-                  base64EncodedChunk: Buffer.from(chunk).toString('base64'),
+                  base64EncodedChunk:
+                    chunk && Buffer.from(chunk).toString('base64'),
                 })
               }
 
@@ -960,7 +961,7 @@ export async function createHotReloaderTurbopack(
         sendToClient(client, {
           type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
           requestId,
-          base64EncodedChunk: Buffer.from(chunk).toString('base64'),
+          base64EncodedChunk: chunk && Buffer.from(chunk).toString('base64'),
         })
       } else if (htmlRequestId === requestId) {
         let initialReactDebugChunks =

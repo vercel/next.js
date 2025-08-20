@@ -272,7 +272,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
   private initialReactDebugChunksByRequestId = new Map<
     string,
-    Uint8Array[] | null
+    (Uint8Array | null)[] | null
   >()
 
   public serverStats: webpack.Stats | null
@@ -632,7 +632,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                 // as header bytes.
                 type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
                 requestId,
-                base64EncodedChunk: Buffer.from(chunk).toString('base64'),
+                base64EncodedChunk:
+                  chunk && Buffer.from(chunk).toString('base64'),
               },
               requestId
             )
@@ -1700,7 +1701,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   public sendReactDebugChunk(
-    chunk: Uint8Array,
+    chunk: Uint8Array | null,
     htmlRequestId: string,
     requestId: string
   ): void {
@@ -1711,7 +1712,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         {
           type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
           requestId,
-          base64EncodedChunk: Buffer.from(chunk).toString('base64'),
+          base64EncodedChunk: chunk && Buffer.from(chunk).toString('base64'),
         },
         htmlRequestId
       )
