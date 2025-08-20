@@ -563,6 +563,7 @@ export interface ExperimentalConfig {
 
   /**
    * @deprecated Use `config.turbopack` instead.
+   * Run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .` to migrate automatically.
    */
   turbo?: DeprecatedExperimentalTurboOptions
 
