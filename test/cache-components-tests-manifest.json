@@ -27,10 +27,11 @@
       ]
     },
     "test/production/app-dir/browser-chunks/browser-chunks.test.ts": {
-      "passed": [],
-      "failed": [
-        "browser-chunks must not bundle any server modules into browser chunks"
-      ]
+      "passed": [
+        "browser-chunks must not bundle any server modules into browser chunks",
+        "browser-chunks must not bundle any dev overlay into browser chunks"
+      ],
+      "failed": []
     },
     "test/e2e/next-form/default/next-form-prefetch.test.ts": {
       "passed": [
