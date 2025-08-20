@@ -292,6 +292,8 @@ declare module 'next' {
 }
 
 declare module 'next/link' {
+  export * from 'next/dist/client/link.js'
+
   import type { LinkProps as OriginalLinkProps } from 'next/dist/client/link.js'
   import type { AnchorHTMLAttributes, DetailedHTMLProps } from 'react'
   import type { UrlObject } from 'url'
