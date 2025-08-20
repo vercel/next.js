@@ -3,12 +3,12 @@
 import type {
   CacheNode,
   LazyCacheNode,
-  LoadingModuleData,
-} from '../../shared/lib/app-router-context.shared-runtime'
+} from '../../shared/lib/app-router-types'
+import type { LoadingModuleData } from '../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
   FlightSegmentPath,
-} from '../../server/app-render/types'
+} from '../../shared/lib/app-router-types'
 import type { ErrorComponent } from './error-boundary'
 import {
   ACTION_SERVER_PATCH,

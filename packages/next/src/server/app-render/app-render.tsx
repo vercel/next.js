@@ -1,16 +1,15 @@
+import type { RenderOpts, PreloadCallbacks } from './types'
 import type {
   ActionResult,
   DynamicParamTypesShort,
   FlightRouterState,
-  RenderOpts,
   Segment,
   CacheNodeSeedData,
-  PreloadCallbacks,
   RSCPayload,
   FlightData,
   InitialRSCPayload,
   FlightDataPath,
-} from './types'
+} from '../../shared/lib/app-router-types'
 import {
   workAsyncStorage,
   type WorkStore,

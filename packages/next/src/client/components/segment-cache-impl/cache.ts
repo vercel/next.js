@@ -6,13 +6,13 @@ import type {
 import type {
   HeadData,
   LoadingModuleData,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+} from '../../../shared/lib/app-router-types'
 import type {
   CacheNodeSeedData,
   DynamicParamTypesShort,
   Segment as FlightRouterStateSegment,
-} from '../../../server/app-render/types'
-import { HasLoadingBoundary } from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
+import { HasLoadingBoundary } from '../../../shared/lib/app-router-types'
 import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -70,7 +70,7 @@ import {
 import type {
   FlightRouterState,
   NavigationFlightResponse,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 import { normalizeFlightData } from '../../flight-data-helpers'
 import { STATIC_STALETIME_MS } from '../router-reducer/prefetch-cache-utils'
 import { pingVisibleLinks } from '../links'

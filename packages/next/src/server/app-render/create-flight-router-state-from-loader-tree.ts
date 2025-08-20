@@ -1,5 +1,8 @@
 import type { LoaderTree } from '../lib/app-dir-module'
-import { HasLoadingBoundary, type FlightRouterState } from './types'
+import {
+  HasLoadingBoundary,
+  type FlightRouterState,
+} from '../../shared/lib/app-router-types'
 import type { GetDynamicParamFromSegment } from './app-render'
 import { addSearchParamsIfPageSegment } from '../../shared/lib/segment'
 

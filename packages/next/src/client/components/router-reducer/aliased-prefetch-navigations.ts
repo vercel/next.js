@@ -1,8 +1,8 @@
 import type {
   CacheNodeSeedData,
   FlightRouterState,
-} from '../../../server/app-render/types'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+} from '../../../shared/lib/app-router-types'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import {
   addSearchParamsIfPageSegment,
   PAGE_SEGMENT_KEY,

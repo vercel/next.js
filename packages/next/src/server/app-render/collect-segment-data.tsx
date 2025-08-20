@@ -3,7 +3,7 @@ import type {
   FlightRouterState,
   InitialRSCPayload,
   DynamicParamTypesShort,
-} from './types'
+} from '../../shared/lib/app-router-types'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -19,7 +19,7 @@ import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import type {
   HeadData,
   LoadingModuleData,
-} from '../../shared/lib/app-router-context.shared-runtime'
+} from '../../shared/lib/app-router-types'
 import {
   type SegmentRequestKey,
   createSegmentRequestKeyPart,

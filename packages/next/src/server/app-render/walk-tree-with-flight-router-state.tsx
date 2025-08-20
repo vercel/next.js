@@ -2,9 +2,9 @@ import type {
   FlightDataPath,
   FlightDataSegment,
   FlightRouterState,
-  PreloadCallbacks,
   Segment,
-} from './types'
+} from '../../shared/lib/app-router-types'
+import type { PreloadCallbacks } from './types'
 import { matchSegment } from '../../client/components/match-segments'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
@@ -20,7 +20,7 @@ import {
   addSearchParamsIfPageSegment,
 } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
-import type { HeadData } from '../../shared/lib/app-router-context.shared-runtime'
+import type { HeadData } from '../../shared/lib/app-router-types'
 import { getSegmentParam } from './get-segment-param'
 
 /**

@@ -1,4 +1,4 @@
-import type { DynamicParamTypesShort } from '../server/app-render/types'
+import type { DynamicParamTypesShort } from '../shared/lib/app-router-types'
 import {
   addSearchParamsIfPageSegment,
   DEFAULT_SEGMENT_KEY,

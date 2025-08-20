@@ -7,7 +7,7 @@ import { createFromReadableStream as createFromReadableStreamBrowser } from 'rea
 import type {
   FlightRouterState,
   NavigationFlightResponse,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 
 import type { NEXT_ROUTER_SEGMENT_PREFETCH_HEADER } from '../app-router-headers'
 import {

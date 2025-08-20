@@ -1,7 +1,7 @@
 import type {
   ActionFlightResponse,
   ActionResult,
-} from '../../../../server/app-render/types'
+} from '../../../../shared/lib/app-router-types'
 import { callServer } from '../../../app-call-server'
 import { findSourceMapURL } from '../../../app-find-source-map-url'
 import {
@@ -34,7 +34,7 @@ import { createHrefFromUrl } from '../create-href-from-url'
 import { handleExternalUrl } from './navigate-reducer'
 import { applyRouterStatePatchToTree } from '../apply-router-state-patch-to-tree'
 import { isNavigatingToNewRootLayout } from '../is-navigating-to-new-root-layout'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-types'
 import { handleMutable } from '../handle-mutable'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
