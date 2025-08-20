@@ -95,13 +95,13 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
         'built-entries.json'
       )
 
-      const hasBuitEntriesCache = await fs
+      const hasBuiltEntriesCache = await fs
         .access(this.builtEntriesCachePath)
         .then(
           () => true,
           () => false
         )
-      if (hasBuitEntriesCache) {
+      if (hasBuiltEntriesCache) {
         try {
           const builtEntries: ReturnType<typeof getEntries> = JSON.parse(
             (await fs.readFile(this.builtEntriesCachePath, 'utf-8')) || '{}'
