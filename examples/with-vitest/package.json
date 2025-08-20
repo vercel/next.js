@@ -19,7 +19,7 @@
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.1",
     "jsdom": "^26.1.0",
-    "typescript": "5.3.3",
+    "typescript": "^5.9.2",
     "vitest": "^3.2.4"
   }
 }
