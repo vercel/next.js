@@ -3294,7 +3294,6 @@
       "app dir - metadata dynamic routes sitemap should support videos in sitemap",
       "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
       "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
-      "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime",
       "app dir - metadata dynamic routes social image routes should handle manifest.[ext] dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
@@ -3310,6 +3309,15 @@
     "passed": [
       "app dir - Metadata API on the Edge runtime OG image route should not bundle `ImageResponse` into the page worker",
       "app dir - Metadata API on the Edge runtime should render OpenGraph image meta tag correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-font/metadata-font.test.ts": {
+    "passed": [
+      "app dir - metadata font should handle custom fonts in both edge and nodejs runtime"
     ],
     "failed": [],
     "pending": [],
@@ -4972,6 +4980,26 @@
   "test/e2e/app-dir/ppr-navigations/stale-prefetch-entry/stale-prefetch-entry.test.ts": {
     "passed": [
       "stale-prefetch-entry works if a prefetched route entry has become stale (too much time has elapsed since it was prefetched)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-partial-hydration/ppr-partial-hydration.test.ts": {
+    "passed": [
+      "PPR - partial hydration No static shell, no streaming metadata should display the shell without JS",
+      "PPR - partial hydration No static shell, no streaming metadata should hydrate the shell without waiting for slow suspense boundaries",
+      "PPR - partial hydration No static shell, no streaming metadata should produce a valid HTML document",
+      "PPR - partial hydration No static shell, streaming metadata should display the shell without JS",
+      "PPR - partial hydration No static shell, streaming metadata should hydrate the shell without waiting for slow suspense boundaries",
+      "PPR - partial hydration No static shell, streaming metadata should produce a valid HTML document",
+      "PPR - partial hydration Static shell, no streaming metadata should display the shell without JS",
+      "PPR - partial hydration Static shell, no streaming metadata should hydrate the shell without waiting for slow suspense boundaries",
+      "PPR - partial hydration Static shell, no streaming metadata should produce a valid HTML document",
+      "PPR - partial hydration Static shell, streaming metadata should display the shell without JS",
+      "PPR - partial hydration Static shell, streaming metadata should hydrate the shell without waiting for slow suspense boundaries",
+      "PPR - partial hydration Static shell, streaming metadata should produce a valid HTML document"
     ],
     "failed": [],
     "pending": [],
@@ -10785,6 +10813,29 @@
       "Conflicting SSG paths production mode should show proper error when a dynamic SSG route conflicts with SSR route",
       "Conflicting SSG paths production mode should show proper error when a dynamic SSG route conflicts with normal route",
       "Conflicting SSG paths production mode should show proper error when two dynamic SSG routes have conflicting paths"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/create-next-app/biome-config.test.ts": {
+    "passed": [
+      "create-next-app Biome configuration should format code with biome successfully",
+      "create-next-app Biome configuration should match biome.json snapshot",
+      "create-next-app Biome configuration should run biome check successfully on generated JavaScript project",
+      "create-next-app Biome configuration should run biome check successfully on generated TypeScript project",
+      "create-next-app Biome configuration should show errors when biome detects issues"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/create-next-app/eslint-config.test.ts": {
+    "passed": [
+      "create-next-app ESLint configuration should generate eslint.config.mjs for JavaScript project with ESLint",
+      "create-next-app ESLint configuration should generate eslint.config.mjs for TypeScript project with ESLint"
     ],
     "failed": [],
     "pending": [],
