@@ -28,8 +28,9 @@ const findSourceMapURL =
  */
 export function useFlightStream<T>(
   flightStream: BinaryStreamOf<T>,
+  debugStream: ReadableStream<Uint8Array> | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
-  nonce?: string
+  nonce: string | undefined
 ): Promise<T> {
   const response = flightResponses.get(flightStream)
 
@@ -52,6 +53,7 @@ export function useFlightStream<T>(
       serverModuleMap: null,
     },
     nonce,
+    debugChannel: debugStream ? { readable: debugStream } : undefined,
   })
 
   // Edge pages are never prerendered so they necessarily cannot have a workUnitStore type
