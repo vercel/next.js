@@ -10,16 +10,16 @@ b#5 = arguments[0]
 
 inner = (...) => (a + b)
 
-outer = (...) => inner("b")
+outer (const after eval) = (...) => inner("b")
 
-r = (...) => (a | (r((a + 1)) + 1))
+r (const after eval) = (...) => (a | (r((a + 1)) + 1))
 
-v1 = x(1)(2)
+v1 (const after eval) = x(1)(2)
 
-v2 = r(2)
+v2 (const after eval) = r(2)
 
-v3 = outer("a")
+v3 (const after eval) = outer("a")
 
-x = (...) => y
+x (const after eval) = (...) => y
 
 y = (...) => (a + b)

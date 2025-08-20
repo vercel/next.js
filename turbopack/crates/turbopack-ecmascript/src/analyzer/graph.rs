@@ -247,10 +247,69 @@ impl Effect {
     }
 }
 
+pub enum AssignmentKind {
+    InRootScope,
+    InFunction,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum AssignmentKinds {
+    AllInRootScope,
+    AllInFunction,
+    Mixed,
+}
+impl AssignmentKinds {
+    fn new(initial: AssignmentKind) -> Self {
+        match initial {
+            AssignmentKind::InRootScope => AssignmentKinds::AllInRootScope,
+            AssignmentKind::InFunction => AssignmentKinds::AllInFunction,
+        }
+    }
+
+    fn merge(self, other: AssignmentKind) -> Self {
+        // If the other assignment kind is the same as the current one, return the current one.
+        if self == Self::new(other) {
+            self
+        } else {
+            AssignmentKinds::Mixed
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct VarMeta {
+    pub value: JsValue,
+    // Tracks the locations where this was assigned to:
+    // - [AssignmentKinds::AllInRootScope] if it was assigned only in the root scope
+    // - [AssignmentKinds::AllInFunction] if it was assigned in function scopes
+    // - [AssignmentKinds::Mixed] if it was assigned in both
+    // This is used to track the _liveness_ of exports.
+    pub assignment_kinds: AssignmentKinds,
+}
+
+impl VarMeta {
+    pub fn new(value: JsValue, kind: AssignmentKind) -> Self {
+        Self {
+            value,
+            assignment_kinds: AssignmentKinds::new(kind),
+        }
+    }
+
+    pub fn normalize(&mut self) {
+        self.value.normalize();
+    }
+
+    fn add_alt(&mut self, value: JsValue, kind: AssignmentKind) {
+        self.value.add_alt(value);
+        self.assignment_kinds = self.assignment_kinds.merge(kind);
+    }
+}
+
 #[derive(Debug)]
 pub struct VarGraph {
-    pub values: FxHashMap<Id, JsValue>,
+    pub values: FxHashMap<Id, VarMeta>,
     /// Map FreeVar names to their Id to facilitate lookups into [values]
+    /// Doesn't necessarily contain every FreeVar, just those who have non trivial values.
     pub free_var_ids: FxHashMap<Atom, Id>,
 
     pub effects: Vec<Effect>,
@@ -1027,10 +1086,15 @@ impl Analyzer<'_> {
             self.data.free_var_ids.insert(id.0.clone(), id.clone());
         }
 
-        if let Some(prev) = self.data.values.get_mut(&id) {
-            prev.add_alt(value);
+        let kind = if self.is_in_fn() {
+            AssignmentKind::InFunction
         } else {
-            self.data.values.insert(id, value);
+            AssignmentKind::InRootScope
+        };
+        if let Some(prev) = self.data.values.get_mut(&id) {
+            prev.add_alt(value, kind);
+        } else {
+            self.data.values.insert(id, VarMeta::new(value, kind));
         }
         // TODO(kdy1): We may need to report an error for this.
         // Variables declared with `var` are hoisted, but using undefined as its

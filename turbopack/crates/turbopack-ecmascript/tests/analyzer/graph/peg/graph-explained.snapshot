@@ -140,7 +140,7 @@
 
 *anonymous function 5936* = (...) => {"type": "sort_expression", "expression": expression, "order": order}
 
-*anonymous function 625* = (...) => `Expected ${describeExpected(expected)} but ${describeFound(found)} found.`
+*anonymous function 625* (const after eval) = (...) => `Expected ${describeExpected(expected)} but ${describeFound(found)} found.`
 
 *anonymous function 6287* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}
 
@@ -483,7 +483,7 @@ parts = arguments[0]
 
 peg$FAILED = {}
 
-peg$SyntaxError = (...) => undefined
+peg$SyntaxError (const after eval) = (...) => undefined
 
 peg$anyExpectation = (...) => {"type": "any"}
 
@@ -1083,7 +1083,7 @@ peg$maxFailPos = (0 | peg$currPos)
 
 peg$otherExpectation = (...) => {"type": "other", "description": description}
 
-peg$parse = (...) => (peg$result | undefined)
+peg$parse (const after eval) = (...) => (peg$result | undefined)
 
 peg$parse_ = (...) => s0
 
@@ -1364,7 +1364,7 @@ peg$startRuleFunction = (peg$parsesql | peg$startRuleFunctions[options["startRul
 
 peg$startRuleFunctions = {"sql": peg$parsesql}
 
-peg$subclass = (...) => undefined
+peg$subclass (const after eval) = (...) => undefined
 
 pos = arguments[0]
 

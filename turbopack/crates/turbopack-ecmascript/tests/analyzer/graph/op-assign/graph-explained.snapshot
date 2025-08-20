@@ -12,7 +12,7 @@ clientComponentLoadTimes = (0 | (clientComponentLoadTimes + ???*0*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-getClientComponentLoaderMetrics = (...) => metrics
+getClientComponentLoaderMetrics (const after eval) = (...) => metrics
 
 metrics = ((clientComponentLoadTimes === 0) ? undefined : {
     "clientComponentLoadTimes": clientComponentLoadTimes
@@ -24,4 +24,4 @@ options = ???*0*
 
 startTime = FreeVar(performance)["now"]()
 
-wrapClientComponentLoader = (...) => {"loadChunk": *arrow function 173*}
+wrapClientComponentLoader (const after eval) = (...) => {"loadChunk": *arrow function 173*}

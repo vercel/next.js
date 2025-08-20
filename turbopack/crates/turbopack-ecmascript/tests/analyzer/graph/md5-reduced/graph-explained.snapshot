@@ -74,7 +74,7 @@ i = (???*0* | 0 | (i + 16))
 
 len = arguments[1]
 
-md5cmn = (...) => FreeVar(safeAdd)(
+md5cmn (const after eval) = (...) => FreeVar(safeAdd)(
     FreeVar(bitRotateLeft)(
         FreeVar(safeAdd)(FreeVar(safeAdd)(a, q), FreeVar(safeAdd)(x, t)),
         s
@@ -82,7 +82,7 @@ md5cmn = (...) => FreeVar(safeAdd)(
     b
 )
 
-md5ff = (...) => md5cmn(???*0*, a, b, x, s, t)
+md5ff (const after eval) = (...) => md5cmn(???*0*, a, b, x, s, t)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
@@ -112,7 +112,7 @@ t#5 = arguments[5]
 
 t#6 = arguments[6]
 
-wordsToMd5 = (...) => [a, b, c, d]
+wordsToMd5 (const after eval) = (...) => [a, b, c, d]
 
 x#3 = arguments[0]
 
