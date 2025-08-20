@@ -2,7 +2,7 @@ import path from 'path'
 import fs from 'fs/promises'
 import { createHash } from 'crypto'
 import HotReloaderWebpack from './hot-reloader-webpack'
-import { BUILT, getEntries } from './on-demand-entry-handler'
+import { BUILT, EntryTypes, getEntries } from './on-demand-entry-handler'
 import type { NextConfigComplete } from '../config-shared'
 import type { __ApiPreviewProps } from '../api-utils'
 import type { CustomRoutes } from '../../lib/load-custom-routes'
@@ -120,6 +120,63 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
           const builtEntries: ReturnType<typeof getEntries> = JSON.parse(
             (await fs.readFile(this.builtEntriesCachePath, 'utf-8')) || '{}'
           )
+
+          await Promise.all(
+            Object.keys(builtEntries).map(async (entryKey) => {
+              const entryData = builtEntries[entryKey]
+
+              const isEntry = entryData.type === EntryTypes.ENTRY
+              const isChildEntry = entryData.type === EntryTypes.CHILD_ENTRY
+
+              // Check if the page was removed or disposed and remove it
+              if (isEntry) {
+                const pageExists =
+                  !entryData.dispose &&
+                  (await fs.access(entryData.absolutePagePath).then(
+                    () => true,
+                    () => false
+                  ))
+                if (!pageExists) {
+                  delete builtEntries[entryKey]
+                  return
+                } else if (
+                  !('hash' in builtEntries[entryKey]) ||
+                  builtEntries[entryKey].hash !==
+                    (await calculateFileHash(entryData.absolutePagePath))
+                ) {
+                  delete builtEntries[entryKey]
+                  return
+                }
+              }
+
+              // For child entries, if it has an entry file and it's gone, remove it
+              if (isChildEntry) {
+                if (entryData.absoluteEntryFilePath) {
+                  const pageExists =
+                    !entryData.dispose &&
+                    fs.access(entryData.absoluteEntryFilePath).then(
+                      () => true,
+                      () => false
+                    )
+                  if (!pageExists) {
+                    delete builtEntries[entryKey]
+                    return
+                  } else {
+                    if (
+                      !('hash' in builtEntries[entryKey]) ||
+                      builtEntries[entryKey].hash !==
+                        (await calculateFileHash(
+                          entryData.absoluteEntryFilePath
+                        ))
+                    ) {
+                      delete builtEntries[entryKey]
+                      return
+                    }
+                  }
+                }
+              }
+            })
+          )
           Object.assign(getEntries(multiCompiler.outputPath), builtEntries)
         } catch (error) {
           console.error('Rspack failed to read built entries cache: ', error)
@@ -152,19 +209,29 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       url,
     })
     const entries = getEntries(this.multiCompiler!.outputPath)
-    const builtEntries: ReturnType<typeof getEntries> = {}
-    for (const entryName in entries) {
-      const entry = entries[entryName]
-      if (entry.status !== BUILT) continue
-      const result = /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(
-        entryName
-      )
-      const [, key /* pageType */, ,] = result! // this match should always happen
-      if (key === 'client' && !this.isClientCacheEnabled) continue
-      if (key === 'server' && !this.isServerCacheEnabled) continue
-      if (key === 'edge-server' && !this.isEdgeServerCacheEnabled) continue
-      builtEntries[entryName] = entry
-    }
+    const builtEntries: { [entryName: string]: any } = {}
+    await Promise.all(
+      Object.keys(entries).map(async (entryName) => {
+        const entry = entries[entryName]
+        if (entry.status !== BUILT) return
+        const result =
+          /^(client|server|edge-server)@(app|pages|root)@(.*)/g.exec(entryName)
+        const [, key /* pageType */, ,] = result! // this match should always happen
+        if (key === 'client' && !this.isClientCacheEnabled) return
+        if (key === 'server' && !this.isServerCacheEnabled) return
+        if (key === 'edge-server' && !this.isEdgeServerCacheEnabled) return
+        builtEntries[entryName] = entry
+        if (entry.type === EntryTypes.ENTRY) {
+          builtEntries[entryName].hash = await calculateFileHash(
+            entry.absolutePagePath
+          )
+        } else if (entry.absoluteEntryFilePath) {
+          builtEntries[entryName].hash = await calculateFileHash(
+            entry.absoluteEntryFilePath
+          )
+        }
+      })
+    )
 
     const hasBuitEntriesCache = await fs
       .access(this.builtEntriesCachePath!)
@@ -186,4 +253,14 @@ export default class HotReloaderRspack extends HotReloaderWebpack {
       console.error('Rspack failed to write built entries cache: ', error)
     }
   }
+}
+
+async function calculateFileHash(
+  filePath: string,
+  algorithm: string = 'sha256'
+): Promise<string> {
+  const fileBuffer = await fs.readFile(filePath)
+  const hash = createHash(algorithm)
+  hash.update(fileBuffer)
+  return hash.digest('hex')
 }
