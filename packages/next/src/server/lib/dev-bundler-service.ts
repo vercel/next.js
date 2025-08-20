@@ -107,7 +107,7 @@ export class DevBundlerService {
   }
 
   public sendReactDebugChunk(
-    chunk: Uint8Array,
+    chunk: Uint8Array | null,
     htmlRequestId: string,
     requestId: string
   ) {

@@ -133,7 +133,7 @@ export interface DevToolsConfigMessage {
 export interface ReactDebugChunkMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK
   requestId: string
-  base64EncodedChunk: string
+  base64EncodedChunk: string | null
 }
 
 export type HmrMessageSentToBrowser =
@@ -181,7 +181,7 @@ export interface NextJsHotReloaderInterface {
   start(): Promise<void>
   send(action: HmrMessageSentToBrowser): void
   sendReactDebugChunk(
-    chunk: Uint8Array,
+    chunk: Uint8Array | null,
     htmlRequestId: string,
     requestId: string
   ): void
