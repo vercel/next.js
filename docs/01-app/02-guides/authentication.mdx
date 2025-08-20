@@ -1143,6 +1143,8 @@ The pattern excludes:
 
 > **Good to know**: Excluding `_next/image` prevents middleware from interfering with image optimization requests, which can cause images to fail loading on authenticated routes.
 
+The Image Optimizer doesn't forward client credentials when fetching internal images. If these images are protected by middleware, the requests will be rejected due to missing authentication.
+
 For protected images, use a dedicated API route:
 
 ```tsx filename="app/api/image/route.ts"
