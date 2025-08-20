@@ -1,0 +1,33 @@
+[package]
+name              = "next-rspack-binding"
+publish           = false
+edition           = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+rspack_binding_builder        = { version = "=0.4.11" }
+rspack_binding_builder_macros = { version = "=0.4.11" }
+
+rspack_core             = { version = "=0.4.11" }
+rspack_error            = { version = "=0.4.11" }
+rspack_hook             = { version = "=0.4.11" }
+rspack_plugin_externals = { version = "=0.4.11" }
+rspack_sources          = { version = "=0.4.8" }
+
+once_cell    = { workspace = true }
+regex        = { workspace = true }
+rspack_regex = { version = "=0.4.11" }
+rustc-hash   = { workspace = true }
+
+napi        = { workspace = true, features = ["async", "tokio_rt", "serde-json", "anyhow", "napi7", "compat-mode"] }
+napi-derive = { version = "2", features = ["compat-mode"] }
+
+# Enable SWC plugin feature for targets that support it
+# Skip: wasm32-wasip1-threads, i686-pc-windows-msvc, aarch64-pc-windows-msvc, armv7-linux-androideabi, armv7-unknown-linux-gnueabihf
+[target.'cfg(not(any(target_arch = "wasm32", target_arch = "arm", all(target_os = "windows", target_arch = "x86"), all(target_os = "windows", target_arch = "aarch64"))))'.dependencies]
+rspack_binding_builder = {version = "=0.4.11", features = ["plugin"] }
+
+[build-dependencies]
+rspack_binding_build = { version = "=0.4.11" }

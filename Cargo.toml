@@ -11,6 +11,7 @@ members = [
   "crates/next-core",
   "crates/next-custom-transforms",
   "crates/next-taskless",
+  "crates/next-rspack",
   "turbopack/crates/*",
   "turbopack/crates/*/fuzz",
   "turbopack/xtask",
