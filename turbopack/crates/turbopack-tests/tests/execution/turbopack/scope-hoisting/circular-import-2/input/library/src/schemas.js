@@ -1,7 +1,7 @@
 import * as iso from './iso.js'
-import * as parse from './parse.js'
+import { RealError } from './errors.js'
 
-parse.parse()
+RealError
 iso.datetime()
 
 export const anyBase = 1234
