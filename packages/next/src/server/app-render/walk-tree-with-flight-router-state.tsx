@@ -3,6 +3,7 @@ import type {
   FlightDataSegment,
   FlightRouterState,
   Segment,
+  HeadData,
 } from '../../shared/lib/app-router-types'
 import type { PreloadCallbacks } from './types'
 import { matchSegment } from '../../client/components/match-segments'
@@ -20,7 +21,6 @@ import {
   addSearchParamsIfPageSegment,
 } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
-import type { HeadData } from '../../shared/lib/app-router-types'
 import { getSegmentParam } from './get-segment-param'
 
 /**

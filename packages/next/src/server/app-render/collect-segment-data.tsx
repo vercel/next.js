@@ -3,6 +3,8 @@ import type {
   FlightRouterState,
   InitialRSCPayload,
   DynamicParamTypesShort,
+  HeadData,
+  LoadingModuleData,
 } from '../../shared/lib/app-router-types'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -16,10 +18,6 @@ import {
   streamToBuffer,
 } from '../stream-utils/node-web-streams-helper'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
-import type {
-  HeadData,
-  LoadingModuleData,
-} from '../../shared/lib/app-router-types'
 import {
   type SegmentRequestKey,
   createSegmentRequestKeyPart,
