@@ -39,6 +39,7 @@ use turbopack_core::{
     ident::Layer,
     issue::{IssueExt, IssueSource, StyledString, module::ModuleIssue},
     module::Module,
+    node_addon_module::NodeAddonModule,
     output::OutputAsset,
     raw_module::RawModule,
     reference_type::{
@@ -236,6 +237,9 @@ async fn apply_module_type(
         }
         ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(*source).to_resolved().await?),
         ModuleType::Raw => ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
+        ModuleType::NodeAddon => {
+            ResolvedVc::upcast(NodeAddonModule::new(*source).to_resolved().await?)
+        }
         ModuleType::CssModule => ResolvedVc::upcast(
             ModuleCssAsset::new(*source, Vc::upcast(module_asset_context))
                 .to_resolved()
