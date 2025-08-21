@@ -1134,8 +1134,8 @@ impl AppEndpoint {
         next_config: Vc<NextConfig>,
     ) -> Result<Vc<AppEntry>> {
         Ok(get_app_metadata_route_entry(
-            self.app_project.rsc_module_context(),
-            self.app_project.edge_rsc_module_context(),
+            self.app_project.route_module_context(),
+            self.app_project.edge_route_module_context(),
             self.app_project.project().project_path().owned().await?,
             self.page.clone(),
             *self.app_project.project().next_mode().await?,
