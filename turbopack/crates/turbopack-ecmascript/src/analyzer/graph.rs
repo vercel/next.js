@@ -820,8 +820,8 @@ mod analyzer_state {
     /// intentionally private to the rest of the `Analyzer` implementation.
     pub struct AnalyzerState {
         pat_value: Option<JsValue>,
-        // A unique identifier for the current function, based on the span of the function
-        // declaration.  [None] if we are in the root scope.
+        /// A unique identifier for the current function, based on the span of the function
+        /// declaration. [`None`] if we are in the root scope.
         cur_fn_ident: Option<u32>,
         /// Return values of the current function.
         ///
