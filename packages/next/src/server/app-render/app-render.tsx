@@ -3900,7 +3900,11 @@ async function prerenderToStream(
       // move the fallback route params out of the flight router state, we need
       // to always perform a dynamic resume after the static prerender.
       const hasFallbackRouteParams =
-        fallbackRouteParams && fallbackRouteParams.sizes.route > 0
+        // We consider both the route and parallel fallback route params for
+        // this check because we're determining if we can emit a completely
+        // static HTML prerender. If any of the route params are unknown then
+        // the prerender will be dynamic.
+        fallbackRouteParams && fallbackRouteParams.sizes.total > 0
 
       if (serverIsDynamic || hasFallbackRouteParams) {
         // Dynamic case

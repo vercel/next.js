@@ -19,7 +19,6 @@ import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import {
   normalizePathname,
   encodeParam,
-  filterNonParallelFallbackRouteParams,
   createFallbackRouteParam,
 } from './utils'
 import escapePathDelimiters from '../../shared/lib/router/utils/escape-path-delimiters'
@@ -504,7 +503,9 @@ export function assignErrorIfEmpty(
           // calculation because parallel route params won't contribute to
           // the request pathname.
           r.fallbackRouteParams
-            ? filterNonParallelFallbackRouteParams(r.fallbackRouteParams).length
+            ? r.fallbackRouteParams.filter(
+                (param) => !param.isParallelRouteParam
+              ).length
             : 0
         )
       }
@@ -529,8 +530,9 @@ export function assignErrorIfEmpty(
             // We only consider non-parallel fallback route params for this
             // calculation because parallel route params won't contribute to
             // the request pathname.
-            filterNonParallelFallbackRouteParams(route.fallbackRouteParams)
-              .length > minFallbacks)
+            route.fallbackRouteParams.filter(
+              (param) => !param.isParallelRouteParam
+            ).length > minFallbacks)
         ) {
           route.throwOnEmptyStaticShell = false // Should not throw on empty static shell.
         } else {
@@ -921,9 +923,8 @@ export async function buildAppStaticPaths({
       const fallbackRootParams: string[] = []
       // Only add the param to the fallback root params if it's not a
       // parallel route param. They won't contribute to the request pathname.
-      for (const { paramName } of filterNonParallelFallbackRouteParams(
-        fallbackRouteParams
-      )) {
+      for (const { paramName, isParallelRouteParam } of fallbackRouteParams) {
+        if (isParallelRouteParam) continue
         if (rootParamSet.has(paramName)) {
           fallbackRootParams.push(paramName)
         }

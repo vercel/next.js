@@ -64,6 +64,9 @@ function createPrerenderPathname(
       )
     case 'prerender': {
       const fallbackParams = prerenderStore.fallbackRouteParams
+      // We only consider the route fallback route params for this check because
+      // the parallel fallback route params do not contribute to the request
+      // pathname.
       if (fallbackParams && fallbackParams.sizes.route > 0) {
         return makeHangingPromise<string>(
           prerenderStore.renderSignal,
@@ -75,6 +78,9 @@ function createPrerenderPathname(
     }
     case 'prerender-ppr': {
       const fallbackParams = prerenderStore.fallbackRouteParams
+      // We only consider the route fallback route params for this check because
+      // the parallel fallback route params do not contribute to the request
+      // pathname.
       if (fallbackParams && fallbackParams.sizes.route > 0) {
         return makeErroringPathname(workStore, prerenderStore.dynamicTracking)
       }

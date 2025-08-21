@@ -3480,7 +3480,9 @@ export default async function build(
                     route.fallbackRouteParams &&
                     route.fallbackRouteParams.length > 0 &&
                     // If all the fallback route params are parallel route
-                    // params, then we still consider it a static route.
+                    // params, then we still consider it a static route. This is
+                    // required to ensure that the changes are backwards
+                    // compatible with the previous builder implementations.
                     !route.fallbackRouteParams.every(
                       (param) => param.isParallelRouteParam
                     )

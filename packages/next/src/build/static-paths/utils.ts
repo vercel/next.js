@@ -45,15 +45,3 @@ export function createFallbackRouteParam(
 ): FallbackRouteParam {
   return { paramName, isParallelRouteParam }
 }
-
-/**
- * Filters out all the parallel route params from the fallback route params.
- *
- * @param fallbackRouteParams - The fallback route params to filter.
- * @returns The filtered fallback route params.
- */
-export function filterNonParallelFallbackRouteParams(
-  fallbackRouteParams: readonly FallbackRouteParam[]
-): readonly FallbackRouteParam[] {
-  return fallbackRouteParams.filter((param) => !param.isParallelRouteParam)
-}

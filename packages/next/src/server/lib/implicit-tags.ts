@@ -80,6 +80,9 @@ export async function getImplicitTags(
   fallbackRouteParams: null | OpaqueFallbackRouteParams
 ): Promise<ImplicitTags> {
   const tags: string[] = []
+
+  // As we're using this to determine if the route pathname is dynamic, we only
+  // consider the route fallback route params for this check.
   const hasFallbackRouteParams =
     fallbackRouteParams && fallbackRouteParams.sizes.route > 0
 

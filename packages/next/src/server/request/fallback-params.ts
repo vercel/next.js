@@ -36,6 +36,11 @@ export type OpaqueFallbackRouteParams = {
      * the route should be considered dynamic.
      */
     readonly parallel: number
+
+    /**
+     * The total number of fallback route params.
+     */
+    readonly total: number
   }
 
   /**
@@ -83,7 +88,7 @@ export function createOpaqueFallbackRouteParams(
   // be also be unique.
   const uniqueID = Math.random().toString(16).slice(2)
 
-  const sizes = { route: 0, parallel: 0 }
+  const sizes = { route: 0, parallel: 0, total: 0 }
   const keys = new Map<string, string>()
 
   for (const { paramName, isParallelRouteParam } of fallbackRouteParams) {
@@ -91,6 +96,7 @@ export function createOpaqueFallbackRouteParams(
     // the render should be halted during static generation.
     if (isParallelRouteParam) sizes.parallel++
     else sizes.route++
+    sizes.total++
 
     // Generate a unique key for the fallback route param, if this key is found
     // in the static output, it represents a bug in cache components.
@@ -102,10 +108,7 @@ export function createOpaqueFallbackRouteParams(
     has: keys.has.bind(keys),
     get: keys.get.bind(keys),
     *[Symbol.iterator](): IterableIterator<[string, string]> {
-      for (const { paramName, isParallelRouteParam } of fallbackRouteParams) {
-        // We only want to include the route segments, not the parallel route
-        // segments.
-        if (isParallelRouteParam) continue
+      for (const { paramName } of fallbackRouteParams) {
         yield [paramName, keys.get(paramName)!]
       }
     },

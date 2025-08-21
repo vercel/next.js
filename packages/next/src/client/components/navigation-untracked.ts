@@ -21,6 +21,9 @@ function hasFallbackRouteParams(): boolean {
       case 'prerender-client':
       case 'prerender-ppr':
         const fallbackParams = workUnitStore.fallbackRouteParams
+        // We only consider the non-parallel fallback route params for this
+        // check because parallel route params won't contribute to the request
+        // pathname.
         return fallbackParams ? fallbackParams.sizes.route > 0 : false
       case 'prerender-legacy':
       case 'request':
