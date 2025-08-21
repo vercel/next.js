@@ -403,7 +403,7 @@ In development, you can preview and inspect the loading state of your components
 Sequential data fetching happens when nested components in a tree each fetch their own data and the requests are not [deduplicated](/docs/app/guides/caching#request-memoization), leading to longer response times.
 
 <Image
-  alt="Sequential and Parallel Data Fetching"
+  alt="Sequential and Concurrent Data Fetching"
   srcLight="/docs/light/sequential-parallel-data-fetching.png"
   srcDark="/docs/dark/sequential-parallel-data-fetching.png"
   width="1600"
@@ -484,9 +484,9 @@ async function Playlists({ artistID }) {
 
 To improve the user experience, you should use [React `<Suspense>`](/docs/app/getting-started/linking-and-navigating#streaming) to show a `fallback` while data is being fetch. This will enable [streaming](#streaming) and prevent the whole route from being blocked by the sequential data requests.
 
-### Parallel data fetching
+### Concurrent data fetching
 
-Parallel data fetching happens when data requests in a route are eagerly initiated and start at the same time.
+Concurrent data fetching happens when data requests in a route are eagerly initiated and executed at the same time.
 
 By default, [layouts and pages](/docs/app/getting-started/layouts-and-pages) are rendered in parallel. So each segment starts fetching data as soon as possible.
 
@@ -504,7 +504,7 @@ export default async function Page({ params }) {
 }
 ```
 
-You can initiate requests in parallel by defining them outside the components that use the data, and resolving them together, for example, with [`Promise.all`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all):
+You can initiate requests concurrently by defining them outside the components that use the data, and resolving them together, for example, with [`Promise.all`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all)(or any of the 4 [`Promise` concurency methods](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#promise_concurrency), depends on your use case):
 
 ```tsx filename="app/artist/[username]/page.tsx" highlight={3,8,23} switcher
 import Albums from './albums'
@@ -528,7 +528,7 @@ export default async function Page({
   const artistData = getArtist(username)
   const albumsData = getAlbums(username)
 
-  // Initiate both requests in parallel
+  // Initiate both requests concurrently
   const [artist, albums] = await Promise.all([artistData, albumsData])
 
   return (
@@ -558,7 +558,7 @@ export default async function Page({ params }) {
   const artistData = getArtist(username)
   const albumsData = getAlbums(username)
 
-  // Initiate both requests in parallel
+  // Initiate both requests concurrently
   const [artist, albums] = await Promise.all([artistData, albumsData])
 
   return (
