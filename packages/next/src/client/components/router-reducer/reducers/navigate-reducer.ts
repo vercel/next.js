@@ -48,7 +48,7 @@ export function handleExternalUrl(
   return handleMutable(state, mutable)
 }
 
-function generateSegmentsFromPatch(
+export function generateSegmentsFromPatch(
   flightRouterPatch: FlightRouterState
 ): FlightSegmentPath[] {
   const segments: FlightSegmentPath[] = []
