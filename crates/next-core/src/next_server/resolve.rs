@@ -72,7 +72,7 @@ impl ExternalCjsModulesResolvePlugin {
 fn condition(root: FileSystemPath) -> Vc<AfterResolvePluginCondition> {
     AfterResolvePluginCondition::new(
         root,
-        Glob::new(rcstr!("/node_modules/"), GlobOptions { contains: true }),
+        Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
     )
 }
 
@@ -448,8 +448,8 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
         return Ok(Vc::cell(None));
     }
     let path_glob = Glob::new(
-        format!("/node_modules/{{{}}}/", packages.join(",")).into(),
-        GlobOptions { contains: true },
+        format!("**/node_modules/{{{}}}/**", packages.join(",")).into(),
+        GlobOptions::default(),
     );
     let request_glob = Glob::new(
         format!("{{{},{}/**}}", packages.join(","), packages.join("/**,")).into(),

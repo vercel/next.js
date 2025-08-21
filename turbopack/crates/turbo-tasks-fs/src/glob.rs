@@ -49,6 +49,10 @@ impl Display for Glob {
 )]
 pub struct GlobOptions {
     /// Whether the glob is a partial match.
+    /// Allows glob to match any part of the given string(s).
+    /// NOTE: this means that a pattern like `node_modules/package_name` with `contains:true` will
+    /// match `foo_node_modules/package_name_bar` If you want to match a _directory_ named
+    /// `node_modules/package_name` you should use `**/node_modules/package_name/**`
     pub contains: bool,
 }
 

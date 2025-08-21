@@ -901,11 +901,11 @@ impl AssetContext for ModuleAssetContext {
         let pkgs = &self.module_options_context.await?.side_effect_free_packages;
 
         let mut globs = String::new();
-        globs.push_str("/node_modules/{");
+        globs.push_str("**/node_modules/{");
         globs.push_str(&pkgs.join(","));
-        globs.push_str("}/");
+        globs.push_str("}/**");
 
-        Ok(Glob::new(globs.into(), GlobOptions { contains: true }))
+        Ok(Glob::new(globs.into(), GlobOptions::default()))
     }
 }
 
