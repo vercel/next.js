@@ -424,7 +424,7 @@ function parseAndSourceMap(
     // instead of
     // [Error: message
     //   at <ignore-listed frames>]
-    sourceMappedStack = '\n    at ' + italic('<ignore-listed frames>')
+    sourceMappedStack = '\n    at ' + italic('ignore-listed frames')
   }
 
   return (
