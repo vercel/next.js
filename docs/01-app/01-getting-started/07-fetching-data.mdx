@@ -504,7 +504,7 @@ export default async function Page({ params }) {
 }
 ```
 
-You can initiate requests concurrently by defining them outside the components that use the data, and resolving them together, for example, with [`Promise.all`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all)(or any of the 4 [`Promise` concurency methods](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#promise_concurrency), depends on your use case):
+You can initiate requests concurrently by defining them outside the components that use the data, and resolving them together, for example, with [`Promise.all`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all)(or any of the 4 [`Promise` concurrency methods](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise#promise_concurrency), depends on your use case):
 
 ```tsx filename="app/artist/[username]/page.tsx" highlight={3,8,23} switcher
 import Albums from './albums'
