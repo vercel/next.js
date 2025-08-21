@@ -55,7 +55,13 @@ import {
   parseDynamicParamFromURLPart,
   type RouteParam,
 } from '../../route-params'
-import { createCacheMap, type CacheMap, type MapEntry } from './cache-map'
+import {
+  createCacheMap,
+  Fallback,
+  type CacheMap,
+  type MapEntry,
+  type FallbackType,
+} from './cache-map'
 import { createLRU } from './lru'
 import {
   appendSegmentCacheKeyPart,
@@ -282,7 +288,10 @@ function getStaleTimeMs(staleTimeSeconds: number): number {
 // concatenate the keys into a single key, we use a multi-level map, where the
 // first level is keyed by href, the second level is keyed by Next-Url, and so
 // on (if were to add more levels).
-type RouteCacheKeypath = Prefix<[NormalizedHref, NormalizedNextUrl]>
+type RouteCacheKeypath = [
+  NormalizedHref,
+  NormalizedNextUrl | null | FallbackType,
+]
 let routeCacheMap: CacheMap<RouteCacheKeypath, RouteCacheEntry> =
   createCacheMap()
 
@@ -413,13 +422,12 @@ export function pingInvalidationListeners(
   }
 }
 
-export function readExactRouteCacheEntry(
+export function readRouteCacheEntry(
   now: number,
-  href: NormalizedHref,
-  nextUrl: NormalizedNextUrl | null
+  key: RouteCacheKey
 ): RouteCacheEntry | null {
-  const keypath: RouteCacheKeypath = nextUrl === null ? [href] : [href, nextUrl]
-  const existingEntry = routeCacheMap.get(keypath)
+  const keypath: RouteCacheKeypath = [key.href, key.nextUrl]
+  const existingEntry = routeCacheMap.getWithFallback(keypath)
   if (existingEntry !== null) {
     // Check if the entry is stale
     if (existingEntry.staleAt > now) {
@@ -435,21 +443,6 @@ export function readExactRouteCacheEntry(
     }
   }
   return null
-}
-
-export function readRouteCacheEntry(
-  now: number,
-  key: RouteCacheKey
-): RouteCacheEntry | null {
-  // First check if there's a non-intercepted entry. Most routes cannot be
-  // intercepted, so this is the common case.
-  const nonInterceptedEntry = readExactRouteCacheEntry(now, key.href, null)
-  if (nonInterceptedEntry !== null && !nonInterceptedEntry.couldBeIntercepted) {
-    // Found a match, and the route cannot be intercepted. We can reuse it.
-    return nonInterceptedEntry
-  }
-  // There was no match. Check again but include the Next-Url this time.
-  return readExactRouteCacheEntry(now, key.href, key.nextUrl)
 }
 
 export function getSegmentKeypath(
@@ -620,8 +613,7 @@ export function readOrCreateRouteCacheEntry(
     prev: null,
     size: 0,
   }
-  const keypath: RouteCacheKeypath =
-    key.nextUrl === null ? [key.href] : [key.href, key.nextUrl]
+  const keypath: RouteCacheKeypath = [key.href, key.nextUrl]
   routeCacheMap.set(keypath, pendingEntry)
   routeCacheLru.put(pendingEntry)
   return pendingEntry
@@ -803,6 +795,13 @@ export function readOrCreateRevalidatingSegmentEntry(
   now: number,
   prevEntry: SegmentCacheEntry
 ): SegmentCacheEntry {
+  // TODO: Once we implement Fallback behavior for params, where an entry is
+  // re-keyed based on response information, we'll need to account for the
+  // possibility that the keypath of the previous entry is more generic than
+  // the keypath of the revalidating entry. In other words, the server could
+  // return a less generic entry upon revalidation. For now, though, this isn't
+  // a concern because the keypath is based solely on the prefetch strategy,
+  // not on data contained in the response.
   const existingRevalidation = readRevalidatingSegmentCacheEntry(now, prevEntry)
   if (existingRevalidation !== null) {
     return existingRevalidation
@@ -1538,10 +1537,7 @@ export async function fetchRouteOnCacheMiss(
       // TODO: Treat this as an upsert — should check if an entry already
       // exists at the new keypath, and if so, whether we should keep that
       // one instead.
-      // TODO: Update this keypath to use the "fallback" behavior. This is
-      // currently manually handled by `readRouteCacheEntry`.
-      // const newKeypathWithFallback: RouteCacheKeypath = [href, Fallback]
-      const newKeypath: RouteCacheKeypath = [href]
+      const newKeypath: RouteCacheKeypath = [href, Fallback]
       routeCacheMap.set(newKeypath, entry)
     }
     // Return a promise that resolves when the network connection closes, so

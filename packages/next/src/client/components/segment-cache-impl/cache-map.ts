@@ -25,8 +25,6 @@
  * is an O(n ^ 2) operation, but it's expected that keypaths are
  * relatively short.
  *
- * TODO: `getWithFallback` not yet implemented.
- *
  * Example:
  *   map.set(['store', 'product', 1], PRODUCT_PAGE_1);
  *   map.set(['store', 'product', Fallback], GENERIC_PRODUCT_PAGE);
@@ -49,8 +47,7 @@
 export type CacheMap<K extends readonly unknown[], V extends MapValue> = {
   set(key: K, value: V): void
   get(key: K): V | null
-  // TODO: Not yet implemented
-  // getWithFallback(key: KeyWithFallback<K>): V | null
+  getWithFallback(key: KeyWithFallback<K>): V | null
   getOrInitialize(key: K): MapEntry<V>
   delete(value: V): void
 }
@@ -80,6 +77,13 @@ export type MapEntry<V extends MapValue> = EmptyMapEntry<V> | FullMapEntry<V>
 interface MapValue {
   ref: MapEntry<any> | null
 }
+
+type KeyWithFallback<K extends readonly unknown[]> = {
+  [I in keyof K]: K[I] | FallbackType
+}
+
+export type FallbackType = { __brand: 'Fallback' }
+export const Fallback = {} as FallbackType
 
 export function createCacheMap<
   Keypath extends Array<any>,
@@ -154,6 +158,49 @@ export function createCacheMap<
     }
 
     return entry
+  }
+
+  function getWithFallback(keys: Keypath): V | null {
+    const entry = getEntryWithFallbackImpl(rootEntry, keys, 0)
+    if (entry === null || !entry.hasValue) {
+      return null
+    }
+    return entry.value
+  }
+
+  function getEntryWithFallbackImpl(
+    entry: MapEntry<V>,
+    keys: Keypath,
+    index: number
+  ): MapEntry<V> | null {
+    // This is similar to getExactEntry, but if an exact match is not found for
+    // a key, it will return the fallback entry instead. This is recursive at
+    // every level, e.g. an entry with keypath [a, Fallback, c, Fallback] is
+    // valid match for [a, b, c, d].
+    //
+    // It will return the most specific match available.
+    if (index >= keys.length) {
+      return entry
+    }
+    const key = keys[index]
+    const map = entry.map
+    if (map !== null) {
+      const existingEntry = map.get(key)
+      if (existingEntry !== undefined) {
+        // Found an exact match for this key. Keep searching.
+        const result = getEntryWithFallbackImpl(existingEntry, keys, index + 1)
+        if (result !== null) {
+          return result
+        }
+      }
+      // No match found for this key. Check if there's a fallback.
+      const fallbackEntry = map.get(Fallback)
+      if (fallbackEntry !== undefined) {
+        // Found a fallback for this key. Keep searching.
+        return getEntryWithFallbackImpl(fallbackEntry, keys, index + 1)
+      }
+    }
+    return null
   }
 
   function set(keys: Keypath, value: V): void {
@@ -271,5 +318,6 @@ export function createCacheMap<
     get,
     getOrInitialize,
     delete: deleteValue,
+    getWithFallback,
   }
 }
