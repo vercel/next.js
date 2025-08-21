@@ -378,7 +378,7 @@ function propagateCacheLifeAndTags(
 }
 
 async function collectResult(
-  savedStream: ReadableStream,
+  savedStream: ReadableStream<Uint8Array>,
   workStore: WorkStore,
   cacheContext: CacheContext,
   innerCacheStore: UseCacheStore,
@@ -398,7 +398,7 @@ async function collectResult(
   // that the stream might also error for other reasons anyway such as losing
   // connection.
 
-  const buffer: any[] = []
+  const buffer: Uint8Array[] = []
   const reader = savedStream.getReader()
 
   try {
@@ -410,7 +410,7 @@ async function collectResult(
   }
 
   let idx = 0
-  const bufferStream = new ReadableStream({
+  const bufferStream = new ReadableStream<Uint8Array>({
     pull(controller) {
       if (workStore.invalidDynamicUsageError) {
         controller.error(workStore.invalidDynamicUsageError)
