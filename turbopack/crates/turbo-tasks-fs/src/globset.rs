@@ -96,7 +96,7 @@ impl Tokens {
         opts: GlobOptions,
     ) -> String {
         let mut re = String::new();
-        // We care not care about for unicode correctness.  Paths do not require this and if the
+        // We don't care care about for unicode correctness.  Paths do not require this and if the
         // caller does they can simply take care to pass us valid utf8 themselves.
         re.push_str("(?-u)");
 
