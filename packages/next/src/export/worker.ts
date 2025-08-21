@@ -240,6 +240,7 @@ async function exportPageImpl(
     isAppPath: isAppDir,
     isDev: false,
     sriEnabled,
+    needsManifestsForLegacyReasons: true,
   })
 
   // Handle App Routes.
