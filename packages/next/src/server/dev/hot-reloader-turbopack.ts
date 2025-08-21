@@ -316,6 +316,10 @@ export async function createHotReloaderTurbopack(
   ): boolean {
     if (force) {
       for (const { path, contentHash } of writtenEndpoint.serverPaths) {
+        // We ignore source maps
+        if (path.endsWith('.map')) continue
+        const localKey = `${key}:${path}`
+        serverPathState.set(localKey, contentHash)
         serverPathState.set(path, contentHash)
       }
     } else {
@@ -332,11 +336,11 @@ export async function createHotReloaderTurbopack(
           (globalHash && globalHash !== contentHash)
         ) {
           hasChange = true
-          serverPathState.set(key, contentHash)
+          serverPathState.set(localKey, contentHash)
           serverPathState.set(path, contentHash)
         } else {
           if (!localHash) {
-            serverPathState.set(key, contentHash)
+            serverPathState.set(localKey, contentHash)
           }
           if (!globalHash) {
             serverPathState.set(path, contentHash)
