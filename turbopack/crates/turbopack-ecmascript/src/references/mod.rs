@@ -2638,7 +2638,7 @@ async fn handle_free_var_reference(
                 InputRelativeConstant::FileName => source_path,
             };
             analysis.add_code_gen(ConstantValueCodeGen::new(
-                as_abs_path(source_path).await?.into(),
+                as_abs_path(source_path).into(),
                 ast_path.to_vec().into(),
             ));
         }
@@ -2840,17 +2840,17 @@ async fn analyze_amd_define_with_deps(
 
 /// Used to generate the "root" path to a __filename/__dirname/import.meta.url
 /// reference.
-pub async fn as_abs_path(path: FileSystemPath) -> Result<String> {
+pub fn as_abs_path(path: FileSystemPath) -> String {
     // TODO: This should be updated to generate a real system path on the fly
     // during runtime, so that the generated code is constant between systems
     // but the runtime evaluation can take into account the project's
     // actual root directory.
-    require_resolve(path).await
+    require_resolve(path)
 }
 
 /// Generates an absolute path usable for `require.resolve()` calls.
-async fn require_resolve(path: FileSystemPath) -> Result<String> {
-    Ok(format!("/ROOT/{}", path.path.as_str()))
+fn require_resolve(path: FileSystemPath) -> String {
+    format!("/ROOT/{}", path.path.as_str())
 }
 
 async fn early_value_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
@@ -2977,12 +2977,8 @@ async fn value_visitor_inner(
             }
         }
         JsValue::FreeVar(ref kind) => match &**kind {
-            "__dirname" => as_abs_path(origin.origin_path().owned().await?.parent())
-                .await?
-                .into(),
-            "__filename" => as_abs_path(origin.origin_path().owned().await?)
-                .await?
-                .into(),
+            "__dirname" => as_abs_path(origin.origin_path().owned().await?.parent()).into(),
+            "__filename" => as_abs_path(origin.origin_path().owned().await?).into(),
 
             "require" => JsValue::unknown_if(
                 ignore,
@@ -3051,9 +3047,7 @@ async fn require_resolve_visitor(
             .await?
             .iter()
             .map(|&source| async move {
-                require_resolve(source.ident().path().owned().await?)
-                    .await
-                    .map(JsValue::from)
+                Ok(require_resolve(source.ident().path().owned().await?).into())
             })
             .try_join()
             .await?;
