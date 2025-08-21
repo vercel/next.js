@@ -3,6 +3,8 @@ import {
   postponeWithTracking,
 } from '../../app-render/dynamic-rendering'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
+import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import {
   NEXT_CACHE_IMPLICIT_TAG_ID,
   NEXT_CACHE_SOFT_TAG_MAX_LENGTH,
@@ -37,6 +39,7 @@ export function unstable_expirePath(
     return
   }
 
+  const tagsToRevalidate: string[] = []
   let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath}`
 
   if (type) {
@@ -46,7 +49,41 @@ export function unstable_expirePath(
       `Warning: a dynamic page path "${originalPath}" was passed to "expirePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath`
     )
   }
-  return revalidate([normalizedPath], `unstable_expirePath ${originalPath}`)
+
+  // Add the specific path tag
+  tagsToRevalidate.push(normalizedPath)
+
+  // Try to get the current work store to check if this path matches a dynamic route
+  const store = workAsyncStorage.getStore()
+  if (store && !isDynamicRoute(originalPath)) {
+    // Check if the current route is dynamic and the provided path could match it
+    const currentRoute = store.route
+    if (currentRoute && isDynamicRoute(currentRoute)) {
+      try {
+        const routeRegex = getRouteRegex(currentRoute)
+        const matcher = getRouteMatcher(routeRegex)
+        const routeMatch = matcher(originalPath)
+
+        if (routeMatch) {
+          // The provided path matches the current dynamic route
+          // Also revalidate the dynamic route pattern
+          let dynamicRouteTag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${currentRoute}`
+          if (type) {
+            dynamicRouteTag += `${dynamicRouteTag.endsWith('/') ? '' : '/'}${type}`
+          }
+
+          if (!tagsToRevalidate.includes(dynamicRouteTag)) {
+            tagsToRevalidate.push(dynamicRouteTag)
+          }
+        }
+      } catch (error) {
+        // If route matching fails, just continue with the original behavior
+        // Don't break revalidation for the specific path
+      }
+    }
+  }
+
+  return revalidate(tagsToRevalidate, `unstable_expirePath ${originalPath}`)
 }
 
 /**
@@ -71,6 +108,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     return
   }
 
+  const tagsToRevalidate: string[] = []
   let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${originalPath}`
 
   if (type) {
@@ -80,7 +118,41 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
       `Warning: a dynamic page path "${originalPath}" was passed to "revalidatePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/revalidatePath`
     )
   }
-  return revalidate([normalizedPath], `revalidatePath ${originalPath}`)
+
+  // Add the specific path tag
+  tagsToRevalidate.push(normalizedPath)
+
+  // Try to get the current work store to check if this path matches a dynamic route
+  const store = workAsyncStorage.getStore()
+  if (store && !isDynamicRoute(originalPath)) {
+    // Check if the current route is dynamic and the provided path could match it
+    const currentRoute = store.route
+    if (currentRoute && isDynamicRoute(currentRoute)) {
+      try {
+        const routeRegex = getRouteRegex(currentRoute)
+        const matcher = getRouteMatcher(routeRegex)
+        const routeMatch = matcher(originalPath)
+
+        if (routeMatch) {
+          // The provided path matches the current dynamic route
+          // Also revalidate the dynamic route pattern
+          let dynamicRouteTag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${currentRoute}`
+          if (type) {
+            dynamicRouteTag += `${dynamicRouteTag.endsWith('/') ? '' : '/'}${type}`
+          }
+
+          if (!tagsToRevalidate.includes(dynamicRouteTag)) {
+            tagsToRevalidate.push(dynamicRouteTag)
+          }
+        }
+      } catch (error) {
+        // If route matching fails, just continue with the original behavior
+        // Don't break revalidation for the specific path
+      }
+    }
+  }
+
+  return revalidate(tagsToRevalidate, `revalidatePath ${originalPath}`)
 }
 
 function revalidate(tags: string[], expression: string) {
