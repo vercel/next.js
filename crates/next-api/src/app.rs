@@ -1190,17 +1190,9 @@ impl AppEndpoint {
                     },
                     matches!(ty, AppPageEndpointType::Html),
                 ),
-                AppEndpointType::Route { .. } => (false, false, EmitManifests::Minimal, true),
-                AppEndpointType::Metadata { metadata } => (
-                    false,
-                    false,
-                    if matches!(metadata, MetadataItem::Dynamic { .. }) {
-                        EmitManifests::Full
-                    } else {
-                        EmitManifests::Minimal
-                    },
-                    matches!(metadata, MetadataItem::Dynamic { .. }),
-                ),
+                AppEndpointType::Route { .. } | AppEndpointType::Metadata { .. } => {
+                    (false, false, EmitManifests::Minimal, true)
+                }
             };
 
         let node_root = project.node_root().owned().await?;
