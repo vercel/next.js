@@ -235,6 +235,7 @@ export class ClientReferenceManifestPlugin {
 
   createAsset(compilation: webpack.Compilation, context: string) {
     const manifestsPerGroup = new Map<string, ClientReferenceManifest[]>()
+    const manifestsPerPage = new Map<string, ClientReferenceManifest[]>()
     const manifestEntryFiles: string[] = []
 
     const configuredCrossOriginLoading =
@@ -543,12 +544,7 @@ export class ClientReferenceManifestPlugin {
 
       recordChunkGroup(entrypoint)
 
-      // A page's entry name can have extensions. For example, these are both valid:
-      // - app/foo/page
-      // - app/foo/page.page
-      if (/\/page(\.[^/]+)?$/.test(entryName)) {
-        manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
-      }
+      const groupName = entryNameToGroupName(entryName)
 
       // We also need to create manifests for route handler entrypoints to
       // enable `'use cache'`.
@@ -556,11 +552,24 @@ export class ClientReferenceManifestPlugin {
         manifestEntryFiles.push(entryName)
       }
 
-      const groupName = entryNameToGroupName(entryName)
-      if (!manifestsPerGroup.has(groupName)) {
-        manifestsPerGroup.set(groupName, [])
+      // A page's entry name can have extensions. For example, these are both valid:
+      // - app/foo/page
+      // - app/foo/page.page
+      if (/\/page(\.[^/]+)?$/.test(entryName)) {
+        manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
+
+        if (!manifestsPerPage.has(groupName)) {
+          manifestsPerPage.set(groupName, [])
+        }
+        manifestsPerPage.get(groupName)!.push(manifest)
       }
-      manifestsPerGroup.get(groupName)!.push(manifest)
+      // For other entries, we use the global group
+      else {
+        if (!manifestsPerGroup.has(groupName)) {
+          manifestsPerGroup.set(groupName, [])
+        }
+        manifestsPerGroup.get(groupName)!.push(manifest)
+      }
     }
 
     // Generate per-page manifests.
@@ -584,6 +593,13 @@ export class ClientReferenceManifestPlugin {
         for (const manifest of manifestsPerGroup.get(group) || []) {
           mergeManifest(mergedManifest, manifest)
         }
+
+        if (segment === 'page') {
+          for (const manifest of manifestsPerPage.get(group) || []) {
+            mergeManifest(mergedManifest, manifest)
+          }
+        }
+
         group += (group ? '/' : '') + segment
       }
 
