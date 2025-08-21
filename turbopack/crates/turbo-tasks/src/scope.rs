@@ -191,7 +191,7 @@ mod tests {
 
     use super::*;
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_scope() {
         let results = scope_and_block(1000, |scope| {
             for i in 0..1000 {
@@ -203,7 +203,7 @@ mod tests {
         });
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_empty_scope() {
         let results = scope_and_block(0, |scope| {
             if false {
@@ -213,7 +213,7 @@ mod tests {
         assert_eq!(results.count(), 0);
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_single_task() {
         let results = scope_and_block(1, |scope| {
             scope.spawn(async move { 42 });
@@ -222,7 +222,7 @@ mod tests {
         assert_eq!(results, vec![42]);
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_task_finish_before_scope() {
         let results = scope_and_block(1, |scope| {
             scope.spawn(async move { 42 });
@@ -232,7 +232,7 @@ mod tests {
         assert_eq!(results, vec![42]);
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_task_finish_after_scope() {
         let results = scope_and_block(1, |scope| {
             scope.spawn(async move {
@@ -244,7 +244,7 @@ mod tests {
         assert_eq!(results, vec![42]);
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_panic_in_scope_factory() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             let _results = scope_and_block(1000, |scope| {
@@ -262,7 +262,7 @@ mod tests {
         );
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_panic_in_scope_task() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             let _results = scope_and_block(1000, |scope| {

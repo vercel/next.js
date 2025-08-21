@@ -10,7 +10,7 @@ static REGISTRATION: Registration = register!();
 const EXPECTED_MSG: &str =
     "Collectible is transient, transient collectibles cannot be emitted from persistent tasks";
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_transient_emit_from_persistent() {
     let result = run_without_cache_check(&REGISTRATION, async {
         emit_incorrect_task_input_operation(IncorrectTaskInput(U32Wrapper(123).resolved_cell()))

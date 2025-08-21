@@ -2423,7 +2423,7 @@ mod tests {
         );
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn with_extension() {
         crate::register();
 
@@ -2460,7 +2460,7 @@ mod tests {
         .unwrap()
     }
 
-    #[tokio::test(flavor = "multi_thread")]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn file_stem() {
         crate::register();
 
