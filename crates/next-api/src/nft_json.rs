@@ -231,6 +231,38 @@ impl Asset for NftJsonAsset {
                 continue;
             }
 
+            #[cfg(debug_assertions)]
+            {
+                // Verify that we there are no entries where a file is created inside of a symlink,
+                // as this can result in invalid ZIP files and deployment failures.
+                // For example
+                // node_modules/.pnpm/node_modules/@libsql/client/package.json
+                // where
+                // node_modules/.pnpm/node_modules/@libsql/client is a symlink
+                let mut current_path = referenced_chunk_path.parent();
+                loop {
+                    use turbo_tasks_fs::FileSystemEntryType;
+
+                    if current_path.is_root() {
+                        break;
+                    }
+
+                    if matches!(
+                        &*current_path.get_type().await?,
+                        FileSystemEntryType::Symlink
+                    ) {
+                        bail!(
+                            "Encountered file inside of symlink in NFT list: {} is a symlink, but \
+                             {} was created inside of it",
+                            current_path.value_to_string().await?,
+                            referenced_chunk_path.value_to_string().await?
+                        );
+                    }
+
+                    current_path = current_path.parent();
+                }
+            }
+
             let Some(specifier) = get_output_specifier(
                 &referenced_chunk_path,
                 &ident_folder,
@@ -241,6 +273,7 @@ impl Asset for NftJsonAsset {
             else {
                 continue;
             };
+
             result.insert(specifier);
         }
 
