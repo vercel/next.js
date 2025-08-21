@@ -26,7 +26,10 @@ use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, Modu
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
@@ -895,15 +898,14 @@ impl AssetContext for ModuleAssetContext {
 
     #[turbo_tasks::function]
     async fn side_effect_free_packages(&self) -> Result<Vc<Glob>> {
-        let pkgs = &*self.module_options_context.await?.side_effect_free_packages;
+        let pkgs = &self.module_options_context.await?.side_effect_free_packages;
 
-        let mut globs = Vec::with_capacity(pkgs.len());
+        let mut globs = String::new();
+        globs.push_str("/node_modules/{");
+        globs.push_str(&pkgs.join(","));
+        globs.push_str("}/");
 
-        for pkg in pkgs {
-            globs.push(Glob::new(format!("**/node_modules/{{{pkg}}}/**").into()));
-        }
-
-        Ok(Glob::alternatives(globs))
+        Ok(Glob::new(globs.into(), GlobOptions { contains: true }))
     }
 }
 

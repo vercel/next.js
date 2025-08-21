@@ -1,10 +1,10 @@
 use std::fmt::Display;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use regex::bytes::{Regex, RegexBuilder};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::Vc;
+use turbo_tasks::{TaskInput, Vc, trace::TraceRawVcs};
 
 use crate::globset::parse;
 
@@ -26,6 +26,8 @@ use crate::globset::parse;
 pub struct Glob {
     glob: String,
     #[turbo_tasks(trace_ignore)]
+    opts: GlobOptions,
+    #[turbo_tasks(trace_ignore)]
     regex: Regex,
     #[turbo_tasks(trace_ignore)]
     directory_match_regex: Regex,
@@ -42,22 +44,31 @@ impl Display for Glob {
         write!(f, "Glob({})", self.glob)
     }
 }
+#[derive(
+    Serialize, Deserialize, Copy, Clone, PartialEq, Eq, Hash, Default, TaskInput, TraceRawVcs, Debug,
+)]
+pub struct GlobOptions {
+    /// Whether the glob is a partial match.
+    pub contains: bool,
+}
 
 #[derive(Serialize, Deserialize)]
-#[serde(transparent)]
-#[repr(transparent)]
 struct GlobForm {
     glob: String,
+    opts: GlobOptions,
 }
 impl From<Glob> for GlobForm {
     fn from(value: Glob) -> Self {
-        Self { glob: value.glob }
+        Self {
+            glob: value.glob,
+            opts: value.opts,
+        }
     }
 }
 impl TryFrom<GlobForm> for Glob {
     type Error = anyhow::Error;
     fn try_from(value: GlobForm) -> Result<Self, Self::Error> {
-        Glob::parse(&value.glob)
+        Glob::parse(&value.glob, value.opts)
     }
 }
 
@@ -77,13 +88,14 @@ impl Glob {
         self.directory_match_regex.is_match(path.as_bytes())
     }
 
-    pub fn parse(input: &str) -> Result<Glob> {
-        let (glob_re, directory_match_re) = parse(input)?;
+    pub fn parse(input: &str, opts: GlobOptions) -> Result<Glob> {
+        let (glob_re, directory_match_re) = parse(input, opts)?;
         let regex = new_regex(glob_re.as_str());
         let directory_match_regex = new_regex(directory_match_re.as_str());
 
         Ok(Glob {
             glob: input.to_string(),
+            opts,
             regex,
             directory_match_regex,
         })
@@ -94,33 +106,46 @@ impl TryFrom<&str> for Glob {
     type Error = anyhow::Error;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Glob::parse(value)
+        Glob::parse(value, GlobOptions::default())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl Glob {
     #[turbo_tasks::function]
-    pub fn new(glob: RcStr) -> Result<Vc<Self>> {
-        Ok(Self::cell(Glob::parse(glob.as_str())?))
+    pub fn new(glob: RcStr, opts: GlobOptions) -> Result<Vc<Self>> {
+        Ok(Self::cell(Glob::parse(glob.as_str(), opts)?))
     }
 
     #[turbo_tasks::function]
     pub async fn alternatives(globs: Vec<Vc<Glob>>) -> Result<Vc<Self>> {
         match globs.len() {
-            0 => Ok(Glob::new(rcstr!(""))),
+            0 => Ok(Glob::new(rcstr!(""), GlobOptions::default())),
             1 => Ok(globs.into_iter().next().unwrap()),
             _ => {
                 let mut new_glob = String::new();
                 new_glob.push('{');
+                let mut opts = None;
                 for (index, glob) in globs.iter().enumerate() {
                     if index > 0 {
                         new_glob.push(',');
                     }
-                    new_glob.push_str(&glob.await?.glob);
+                    let glob = &*glob.await?;
+                    if let Some(old_opts) = opts {
+                        if old_opts != glob.opts {
+                            bail!(
+                                "Cannot compose globs with different options via the \
+                                 `alternatives` function."
+                            )
+                        }
+                    } else {
+                        opts = Some(glob.opts);
+                    }
+                    new_glob.push_str(&glob.glob);
                 }
                 new_glob.push('}');
-                Ok(Glob::new(new_glob.into()))
+                // The loop must have iterated at least once, so the options must be initialized.
+                Ok(Glob::new(new_glob.into(), opts.unwrap()))
             }
         }
     }
@@ -138,6 +163,7 @@ mod tests {
     use rstest::*;
 
     use super::Glob;
+    use crate::glob::GlobOptions;
 
     #[rstest]
     #[case::file("file.js", "file.js")]
@@ -208,7 +234,7 @@ mod tests {
     #[case::alternatives_empty2("react{,-dom}", "react-dom")]
     #[case::alternatives_chars("[abc]", "b")]
     fn glob_match(#[case] glob: &str, #[case] path: &str) {
-        let glob = Glob::parse(glob).unwrap();
+        let glob = Glob::parse(glob, GlobOptions::default()).unwrap();
 
         println!("{glob:?} {path}");
 
@@ -223,7 +249,7 @@ mod tests {
     )]
     #[case::star("*", "/foo")]
     fn glob_not_matching(#[case] glob: &str, #[case] path: &str) {
-        let glob = Glob::parse(glob).unwrap();
+        let glob = Glob::parse(glob, GlobOptions::default()).unwrap();
 
         println!("{glob:?} {path}");
 
@@ -242,7 +268,7 @@ mod tests {
     #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/a/b/sub")]
     #[case::globstar_in_dir_partial("dir/**/sub/file.js", "dir/a/b/sub/file.js")]
     fn glob_can_match_directory(#[case] glob: &str, #[case] path: &str) {
-        let glob = Glob::parse(glob).unwrap();
+        let glob = Glob::parse(glob, GlobOptions::default()).unwrap();
 
         println!("{glob:?} {path}");
 
@@ -252,10 +278,35 @@ mod tests {
     #[case::dir_and_file_partial("dir/file.js", "dir/file.js")] // even if there was a dir, named `file.js` we know the glob wasn't intended to match it.
     #[case::alternatives_chars("[abc]", "b")]
     fn glob_not_can_match_directory(#[case] glob: &str, #[case] path: &str) {
-        let glob = Glob::parse(glob).unwrap();
+        let glob = Glob::parse(glob, GlobOptions::default()).unwrap();
 
         println!("{glob:?} {path}");
 
         assert!(!glob.can_match_in_directory(path));
+    }
+
+    #[rstest]
+    #[case::star("*", "/foo")]
+    #[case::star("*", "foo")]
+    #[case::star("*", "foo/bar")]
+    #[case::prefix("foo/*", "bar/foo/baz")]
+    fn partial_glob_match(#[case] glob: &str, #[case] path: &str) {
+        let glob = Glob::parse(glob, GlobOptions { contains: true }).unwrap();
+
+        println!("{glob:?} {path}");
+
+        assert!(glob.matches(path));
+    }
+
+    #[rstest]
+    #[case::literal("foo", "bar")]
+    #[case::suffix("*.js", "foo.ts")]
+    #[case::prefix("foo/*", "bar")]
+    fn partial_glob_not_matching(#[case] glob: &str, #[case] path: &str) {
+        let glob = Glob::parse(glob, GlobOptions { contains: true }).unwrap();
+
+        println!("{glob:?} {path}");
+
+        assert!(!glob.matches(path));
     }
 }

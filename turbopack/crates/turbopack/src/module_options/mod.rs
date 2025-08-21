@@ -12,7 +12,10 @@ pub use module_rule::*;
 pub use rule_condition::*;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack_core::{
     chunk::SourceMapsType,
     ident::Layer,
@@ -510,11 +513,11 @@ impl ModuleOptions {
                             if glob.contains('/') {
                                 rule_conditions.push(RuleCondition::ResourcePathGlob {
                                     base: execution_context.project_path().owned().await?,
-                                    glob: Glob::new(glob.clone()).await?,
+                                    glob: Glob::new(glob.clone(), GlobOptions::default()).await?,
                                 });
                             } else {
                                 rule_conditions.push(RuleCondition::ResourceBasePathGlob(
-                                    Glob::new(glob.clone()).await?,
+                                    Glob::new(glob.clone(), GlobOptions::default()).await?,
                                 ));
                             }
                         }
@@ -529,11 +532,11 @@ impl ModuleOptions {
                 } else if key.contains('/') {
                     rule_conditions.push(RuleCondition::ResourcePathGlob {
                         base: execution_context.project_path().owned().await?,
-                        glob: Glob::new(key.clone()).await?,
+                        glob: Glob::new(key.clone(), GlobOptions::default()).await?,
                     });
                 } else {
                     rule_conditions.push(RuleCondition::ResourceBasePathGlob(
-                        Glob::new(key.clone()).await?,
+                        Glob::new(key.clone(), GlobOptions::default()).await?,
                     ));
                 };
                 rule_conditions.push(RuleCondition::not(RuleCondition::ResourceIsVirtualSource));

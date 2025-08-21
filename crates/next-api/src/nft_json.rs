@@ -7,7 +7,10 @@ use turbo_tasks::{
     FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     graph::{AdjacencyMap, GraphTraversal},
 };
-use turbo_tasks_fs::{DirectoryEntry, File, FileSystem, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    DirectoryEntry, File, FileSystem, FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{OutputAsset, OutputAssets},
@@ -174,7 +177,11 @@ impl Asset for NftJsonAsset {
                 if let Some(excludes_obj) = excludes_config.as_object() {
                     for (glob_pattern, exclude_patterns) in excludes_obj {
                         // Check if the route matches the glob pattern
-                        let glob = Glob::new(RcStr::from(glob_pattern.clone())).await?;
+                        let glob = Glob::new(
+                            RcStr::from(glob_pattern.clone()),
+                            GlobOptions { contains: true },
+                        )
+                        .await?;
                         if glob.matches(route)
                             && let Some(patterns) = exclude_patterns.as_array()
                         {
@@ -207,6 +214,7 @@ impl Asset for NftJsonAsset {
                                 .join(",")
                         )
                         .into(),
+                        GlobOptions { contains: true },
                     );
 
                     Some(glob)
@@ -289,7 +297,9 @@ impl Asset for NftJsonAsset {
             {
                 for (glob_pattern, include_patterns) in includes_obj {
                     // Check if the route matches the glob pattern
-                    let glob = Glob::new(glob_pattern.as_str().into()).await?;
+                    let glob =
+                        Glob::new(glob_pattern.as_str().into(), GlobOptions { contains: true })
+                            .await?;
                     if glob.matches(route)
                         && let Some(patterns) = include_patterns.as_array()
                     {
@@ -311,7 +321,10 @@ impl Asset for NftJsonAsset {
             let includes = combined_includes_by_root
                 .into_iter()
                 .map(|(root, globs)| {
-                    let glob = Glob::new(format!("{{{}}}", globs.join(",")).into());
+                    let glob = Glob::new(
+                        format!("{{{}}}", globs.join(",")).into(),
+                        GlobOptions { contains: true },
+                    );
                     apply_includes(root, glob, &ident_folder_in_project_fs)
                 })
                 .try_join()
