@@ -3814,7 +3814,7 @@ mod tests {
         linker::link,
     };
     use crate::analyzer::{
-        graph::{AssignmentKinds, VarMeta},
+        graph::{AssignmentScopes, VarMeta},
         imports::ImportAttributes,
     };
 
@@ -3876,13 +3876,17 @@ mod tests {
                 named_values.sort_by(|a, b| a.0.cmp(&b.0));
 
                 fn explain_all<'a>(
-                    values: impl IntoIterator<Item = (&'a String, &'a JsValue, Option<AssignmentKinds>)>,
+                    values: impl IntoIterator<
+                        Item = (&'a String, &'a JsValue, Option<AssignmentScopes>),
+                    >,
                 ) -> String {
                     values
                         .into_iter()
-                        .map(|(id, value, assignment_kinds)| {
-                            let non_root_assignments = match assignment_kinds {
-                                Some(AssignmentKinds::AllInRootScope) => " (const after eval)",
+                        .map(|(id, value, assignment_scopes)| {
+                            let non_root_assignments = match assignment_scopes {
+                                Some(AssignmentScopes::AllInModuleEvalScope) => {
+                                    " (const after eval)"
+                                }
                                 _ => "",
                             };
                             let (explainer, hints) = value.explain(10, 5);
@@ -3902,7 +3906,7 @@ mod tests {
                             "{:#?}",
                             named_values
                                 .iter()
-                                .map(|(name, (_, VarMeta {value, ..}))| (name, value))
+                                .map(|(name, (_, VarMeta { value, .. }))| (name, value))
                                 .collect::<Vec<_>>()
                         ))
                         .compare_to_file(&graph_snapshot_path)
@@ -3915,10 +3919,10 @@ mod tests {
                                 _,
                                 VarMeta {
                                     value,
-                                    assignment_kinds,
+                                    assignment_scopes,
                                 },
                             ),
-                        )| (name, value, Some(*assignment_kinds)),
+                        )| (name, value, Some(*assignment_scopes)),
                     )))
                     .compare_to_file(&graph_explained_snapshot_path)
                     .unwrap();

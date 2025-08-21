@@ -247,31 +247,31 @@ impl Effect {
     }
 }
 
-pub enum AssignmentKind {
-    InRootScope,
-    InFunction,
+pub enum AssignmentScope {
+    ModuleEval,
+    Function,
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum AssignmentKinds {
-    AllInRootScope,
-    AllInFunction,
+pub enum AssignmentScopes {
+    AllInModuleEvalScope,
+    AllInFunctionScopes,
     Mixed,
 }
-impl AssignmentKinds {
-    fn new(initial: AssignmentKind) -> Self {
+impl AssignmentScopes {
+    fn new(initial: AssignmentScope) -> Self {
         match initial {
-            AssignmentKind::InRootScope => AssignmentKinds::AllInRootScope,
-            AssignmentKind::InFunction => AssignmentKinds::AllInFunction,
+            AssignmentScope::ModuleEval => AssignmentScopes::AllInModuleEvalScope,
+            AssignmentScope::Function => AssignmentScopes::AllInFunctionScopes,
         }
     }
 
-    fn merge(self, other: AssignmentKind) -> Self {
+    fn merge(self, other: AssignmentScope) -> Self {
         // If the other assignment kind is the same as the current one, return the current one.
         if self == Self::new(other) {
             self
         } else {
-            AssignmentKinds::Mixed
+            AssignmentScopes::Mixed
         }
     }
 }
@@ -280,18 +280,18 @@ impl AssignmentKinds {
 pub struct VarMeta {
     pub value: JsValue,
     // Tracks the locations where this was assigned to:
-    // - [AssignmentKinds::AllInRootScope] if it was assigned only in the root scope
-    // - [AssignmentKinds::AllInFunction] if it was assigned in function scopes
-    // - [AssignmentKinds::Mixed] if it was assigned in both
+    // - [AssignmentScopes::AllInModuleEvalScope] if it was assigned only in the root scope
+    // - [AssignmentScopes::AllInFunctionScopes] if it was assigned in any set of function scopes
+    // - [AssignmentScopes::Mixed] if it was assigned in both
     // This is used to track the _liveness_ of exports.
-    pub assignment_kinds: AssignmentKinds,
+    pub assignment_scopes: AssignmentScopes,
 }
 
 impl VarMeta {
-    pub fn new(value: JsValue, kind: AssignmentKind) -> Self {
+    pub fn new(value: JsValue, kind: AssignmentScope) -> Self {
         Self {
             value,
-            assignment_kinds: AssignmentKinds::new(kind),
+            assignment_scopes: AssignmentScopes::new(kind),
         }
     }
 
@@ -299,9 +299,9 @@ impl VarMeta {
         self.value.normalize();
     }
 
-    fn add_alt(&mut self, value: JsValue, kind: AssignmentKind) {
+    fn add_alt(&mut self, value: JsValue, kind: AssignmentScope) {
         self.value.add_alt(value);
-        self.assignment_kinds = self.assignment_kinds.merge(kind);
+        self.assignment_scopes = self.assignment_scopes.merge(kind);
     }
 }
 
@@ -1087,9 +1087,9 @@ impl Analyzer<'_> {
         }
 
         let kind = if self.is_in_fn() {
-            AssignmentKind::InFunction
+            AssignmentScope::Function
         } else {
-            AssignmentKind::InRootScope
+            AssignmentScope::ModuleEval
         };
         if let Some(prev) = self.data.values.get_mut(&id) {
             prev.add_alt(value, kind);
