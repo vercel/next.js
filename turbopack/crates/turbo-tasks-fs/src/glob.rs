@@ -294,6 +294,8 @@ mod tests {
     #[case::star("*", "foo")]
     #[case::star("*", "foo/bar")]
     #[case::prefix("foo/*", "bar/foo/baz")]
+    // This is a possibly surprising case.
+    #[case::dir_match("node_modules/foo", "my_node_modules/foobar")]
     fn partial_glob_match(#[case] glob: &str, #[case] path: &str) {
         let glob = Glob::parse(glob, GlobOptions { contains: true }).unwrap();
 
@@ -306,6 +308,8 @@ mod tests {
     #[case::literal("foo", "bar")]
     #[case::suffix("*.js", "foo.ts")]
     #[case::prefix("foo/*", "bar")]
+    // This is a possibly surprising case
+    #[case::dir_match("/node_modules/", "node_modules/")]
     fn partial_glob_not_matching(#[case] glob: &str, #[case] path: &str) {
         let glob = Glob::parse(glob, GlobOptions { contains: true }).unwrap();
 
