@@ -440,6 +440,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         serverComponentsHmrCache: z.boolean().optional(),
         authInterrupts: z.boolean().optional(),
         newDevOverlay: z.boolean().optional(),
+        buildHooks: z
+          .object({
+            pre: z.function().args().returns(z.promise(z.void())).optional(),
+            post: z.function().args().returns(z.promise(z.void())).optional(),
+            error: z.function().args().returns(z.promise(z.void())).optional(),
+          })
+          .optional(),
       })
       .optional(),
     exportPathMap: z

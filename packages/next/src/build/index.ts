@@ -820,6 +820,9 @@ export default async function build(
 
       process.env.NEXT_DEPLOYMENT_ID = config.deploymentId || ''
       NextBuildContext.config = config
+      if (config.experimental.buildHooks?.pre) {
+        await config.experimental.buildHooks?.pre()
+      }
 
       let configOutDir = 'out'
       if (hasCustomExportOutput(config)) {

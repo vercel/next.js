@@ -10,6 +10,7 @@ import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
+import { NextBuildContext } from '../build/build-context'
 
 export type NextBuildOptions = {
   debug?: boolean
@@ -86,11 +87,14 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     experimentalBuildMode,
     traceUploadUrl
   )
-    .catch((err) => {
+    .catch(async (err) => {
       if (experimentalDebugMemoryUsage) {
         disableMemoryDebuggingMode()
       }
-      console.error('')
+      if (NextBuildContext.config?.experimental.buildHooks?.error) {
+        await NextBuildContext.config?.experimental.buildHooks?.error()
+      }
+
       if (
         isError(err) &&
         (err.code === 'INVALID_RESOLVE_ALIAS' ||
@@ -106,9 +110,12 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
         printAndExit(err)
       }
     })
-    .finally(() => {
+    .finally(async () => {
       if (experimentalDebugMemoryUsage) {
         disableMemoryDebuggingMode()
+      }
+      if (NextBuildContext.config?.experimental.buildHooks?.post) {
+        await NextBuildContext.config?.experimental.buildHooks?.post()
       }
     })
 }

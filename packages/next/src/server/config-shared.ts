@@ -567,6 +567,12 @@ export interface ExperimentalConfig {
    * Enables the new dev overlay.
    */
   newDevOverlay?: boolean
+
+  buildHooks?: {
+    pre?: () => Promise<void>
+    post?: () => Promise<void>
+    error?: () => Promise<void>
+  }
 }
 
 export type ExportPathMap = {
