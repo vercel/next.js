@@ -3,11 +3,10 @@
   "private": true,
   "license": "MIT",
   "dependencies": {
-    "next": "workspace:*",
-    "next-minimal-server": "workspace:*",
-    "sharp": "^0.34.3",
     "webpack-bundle-analyzer": "^4.6.1",
-    "webpack-stats-plugin": "^1.1.0"
+    "webpack-stats-plugin": "^1.1.0",
+    "next": "workspace:*",
+    "next-minimal-server": "workspace:*"
   },
   "scripts": {
     "build-application": "next build",
