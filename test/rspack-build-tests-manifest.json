@@ -1817,7 +1817,7 @@
       "Cache Components Errors Build With --prerender-debug Inside `use cache` draftMode should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` headers should error the build",
       "Cache Components Errors Build With --prerender-debug Static Route should not error the build when all routes are static",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
+      "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request client params should not error the build when synchronously reading `params.slug`",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request client searchParams should not error the build when synchronously reading `searchParams.foo`",
@@ -1828,6 +1828,21 @@
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Current Time - Date() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Current Time - Date.now() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Current Time - new Date() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - generateKeyPairSync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - generateKeySync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - generatePrimeSync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - getRandomValues() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - random-bytes() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - random-fill-sync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - random-int-between() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - random-int-up-to() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - random-uuid should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Random - Math.random() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Web Crypto - getRandomValue() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Web Crypto - randomUUID() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` with `headers()` should not fail the build and show no runtime error (caught in userland)",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` without Suspense should error the build",
@@ -1847,7 +1862,7 @@
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` draftMode should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` headers should error the build",
       "Cache Components Errors Build Without --prerender-debug Static Route should not error the build when all routes are static",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request client params should not error the build when synchronously reading `params.slug`",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request client searchParams should not error the build when synchronously reading `searchParams.foo`",
@@ -1858,6 +1873,21 @@
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Current Time - Date() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Current Time - Date.now() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Current Time - new Date() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - generateKeyPairSync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - generateKeySync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - generatePrimeSync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - getRandomValues() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - random-bytes() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - random-fill-sync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - random-int-between() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - random-int-up-to() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - random-uuid should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Random - Math.random() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Web Crypto - getRandomValue() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Web Crypto - randomUUID() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` in `unstable_cache` should error the build",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` in `use cache` should error the build",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
@@ -1925,9 +1955,6 @@
   "test/e2e/app-dir/cache-components/cache-components.date.test.ts": {
     "passed": [
       "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached `Date()` calls",
-      "cache-components should not prerender pages with uncached `Date.now()` calls",
-      "cache-components should not prerender pages with uncached `new Date()` calls",
       "cache-components should not prerender pages with uncached static Date instances like `new Date(0)`",
       "cache-components should prerender pages with cached `Date()` calls",
       "cache-components should prerender pages with cached `Date.now()` calls",
@@ -1962,15 +1989,6 @@
   "test/e2e/app-dir/cache-components/cache-components.node-crypto.test.ts": {
     "passed": [
       "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached `require('node:crypto').generateKeyPairSync(type, options)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').generateKeySync(type, options)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').generatePrimeSync(size, options)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').getRandomValues(...)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomBytes(size)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomFillSync(buffer)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomInt(max)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomInt(min, max)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomUUID()` calls",
       "cache-components should prerender pages with cached `require('node:crypto').generateKeyPairSync(type, options)` calls",
       "cache-components should prerender pages with cached `require('node:crypto').generateKeySync(type, options)` calls",
       "cache-components should prerender pages with cached `require('node:crypto').generatePrimeSync(size, options)` calls",
@@ -2007,7 +2025,6 @@
   "test/e2e/app-dir/cache-components/cache-components.random.test.ts": {
     "passed": [
       "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached Math.random() calls",
       "cache-components should prerender pages with cached Math.random() calls"
     ],
     "failed": [],
@@ -2088,8 +2105,6 @@
   "test/e2e/app-dir/cache-components/cache-components.web-crypto.test.ts": {
     "passed": [
       "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached `crypto.getRandomValues(...)` calls",
-      "cache-components should not prerender pages with uncached `crypto.randomUUID()` calls",
       "cache-components should prerender pages with cached `crypto.getRandomValues(...)` calls",
       "cache-components should prerender pages with cached `crypto.randomUUID()` calls"
     ],
@@ -5960,16 +5975,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
-    "passed": [
-      "segment cache (deployment skew) does not crash when prefetching a dynamic, non-PPR page on a different deployment",
-      "segment cache (deployment skew) does not crash when prefetching a static page on a different deployment"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/segment-cache/dynamic-on-hover/dynamic-on-hover.test.ts": {
     "passed": [
       "dynamic on hover prefetches the dynamic data for a Link on hover"
@@ -6071,10 +6076,10 @@
       "<Link prefetch={true}> (runtime prefetch) cache stale time handling omits private caches with a short enough staleTime",
       "<Link prefetch={true}> (runtime prefetch) cache stale time handling omits short-lived public caches with a short enough staleTime",
       "<Link prefetch={true}> (runtime prefetch) can completely prefetch a page that is fully static",
-      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender and logs an error when sync IO is used after awaiting a private cache",
-      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender and logs an error when sync IO is used after awaiting a quickly-expiring public cache",
-      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender and logs an error when sync IO is used after awaiting cookies()",
-      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender and logs an error when sync IO is used after awaiting searchParams",
+      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender without logging an error when sync IO is used after awaiting a private cache",
+      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender without logging an error when sync IO is used after awaiting a quickly-expiring public cache",
+      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender without logging an error when sync IO is used after awaiting cookies()",
+      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender without logging an error when sync IO is used after awaiting searchParams",
       "<Link prefetch={true}> (runtime prefetch) errors should trigger error boundaries for errors that occurred in runtime-prefetched content",
       "<Link prefetch={true}> (runtime prefetch) in a page can completely prefetch a page that uses cookies and no uncached IO",
       "<Link prefetch={true}> (runtime prefetch) in a page includes cookies, but not dynamic content",
@@ -20341,10 +20346,11 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm",
+      "pnpm support should build with dependencies installed via pnpm"
+    ],
+    "failed": [
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
