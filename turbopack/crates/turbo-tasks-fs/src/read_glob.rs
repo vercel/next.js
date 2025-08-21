@@ -240,7 +240,7 @@ pub mod tests {
         DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath, glob::Glob,
     };
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn read_glob_basic() {
         crate::register();
         let scratch = tempfile::tempdir().unwrap();
@@ -304,7 +304,7 @@ pub mod tests {
     }
 
     #[cfg(unix)]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn read_glob_symlinks() {
         crate::register();
         let scratch = tempfile::tempdir().unwrap();
@@ -407,7 +407,7 @@ pub mod tests {
     }
 
     #[cfg(unix)]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn track_glob_invalidations() {
         use std::os::unix::fs::symlink;
         crate::register();
@@ -494,7 +494,7 @@ pub mod tests {
     }
 
     #[cfg(unix)]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn track_glob_symlinks_loop() {
         crate::register();
         let scratch = tempfile::tempdir().unwrap();
@@ -552,7 +552,7 @@ pub mod tests {
     }
 
     #[cfg(unix)]
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn read_glob_symlinks_loop() {
         crate::register();
         let scratch = tempfile::tempdir().unwrap();

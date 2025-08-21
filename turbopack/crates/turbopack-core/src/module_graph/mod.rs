@@ -1877,7 +1877,7 @@ pub mod tests {
         resolve::ExportUsage,
     };
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn traverse_dfs_from_entries_diamond() {
         run_graph_test(
             vec![rcstr!("a.js")],
@@ -1939,7 +1939,7 @@ pub mod tests {
         .await;
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn traverse_dfs_from_entries_cycle() {
         run_graph_test(
             vec![rcstr!("a.js")],
@@ -1999,7 +1999,7 @@ pub mod tests {
         .await;
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn traverse_edges_from_entries_fixed_point_cycle() {
         run_graph_test(
             vec![rcstr!("a.js")],

@@ -425,7 +425,7 @@ pub mod test {
         ResolveSourceRequestResult::NotFound.cell()
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_get_content_fn() {
         crate::register();
         let tt = TurboTasks::new(TurboTasksBackend::new(

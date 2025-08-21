@@ -240,7 +240,7 @@ pub mod tests {
 
     use super::*;
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_rule_condition_leaves() {
         crate::register();
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
@@ -374,7 +374,7 @@ pub mod tests {
         anyhow::Ok(())
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     async fn test_rule_condition_tree() {
         crate::register();
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
