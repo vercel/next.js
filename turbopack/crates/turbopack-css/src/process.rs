@@ -79,17 +79,27 @@ async fn get_lightningcss_browser_targets(
                 Vc::cell(Targets {
                     browsers: browserslist_browsers,
                     include: Features::Nesting,
+                    // Also preserve logical properties when nesting is enabled
+                    exclude: Features::LogicalProperties,
                     ..Default::default()
                 })
             } else {
                 Vc::cell(Targets {
                     browsers: browserslist_browsers,
+                    // Preserve CSS logical properties for modern browsers
+                    // This prevents LightningCSS from downgrading border-inline-width
+                    // to border-left-width + border-right-width
+                    exclude: Features::LogicalProperties,
                     ..Default::default()
                 })
             })
         }
         // Default when empty environment is passed.
-        None => Ok(Vc::cell(Default::default())),
+        None => Ok(Vc::cell(Targets {
+            // Use modern defaults and preserve logical properties
+            exclude: Features::LogicalProperties,
+            ..Default::default()
+        })),
     }
 }
 
