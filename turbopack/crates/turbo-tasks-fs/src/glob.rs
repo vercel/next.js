@@ -153,6 +153,9 @@ mod tests {
     #[case::globstar("**/*.js", "dir/sub/file.js")]
     #[case::globstar("**/**/*.js", "file.js")]
     #[case::globstar("**/**/*.js", "dir/sub/file.js")]
+    #[case::globstar("**", "/foo")]
+    #[case::globstar("**", "foo")]
+    #[case::star("*", "foo")]
     #[case::globstar_in_dir("dir/**/sub/file.js", "dir/sub/file.js")]
     #[case::globstar_in_dir("dir/**/sub/file.js", "dir/a/sub/file.js")]
     #[case::globstar_in_dir("dir/**/sub/file.js", "dir/a/b/sub/file.js")]
@@ -218,6 +221,7 @@ mod tests {
         "**/next/dist/esm/*.shared-runtime.js",
         "next/dist/shared/lib/app-router-context.shared-runtime.js"
     )]
+    #[case::star("*", "/foo")]
     fn glob_not_matching(#[case] glob: &str, #[case] path: &str) {
         let glob = Glob::parse(glob).unwrap();
 
