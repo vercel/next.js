@@ -1710,9 +1710,9 @@ impl Endpoint for PageEndpoint {
                         node_root
                             .get_path_to(&*entry_chunk.path().await?)
                             .context("ssr chunk entry path must be inside the node root")?
-                            .to_string()
+                            .into()
                     } else {
-                        String::new() // Empty path when no pages should be created
+                        rcstr!("") // Empty path when no pages should be created
                     };
 
                     EndpointOutputPaths::NodeJs {
