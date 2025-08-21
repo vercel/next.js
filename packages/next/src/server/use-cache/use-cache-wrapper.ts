@@ -451,17 +451,39 @@ async function collectResult(
     tags: collectedTags === null ? [] : collectedTags,
   }
 
-  // Propagate tags/revalidate to the parent context.
-  if (cacheContext) {
-    propagateCacheLifeAndTags(cacheContext, entry)
-  }
+  if (cacheContext.outerWorkUnitStore) {
+    const outerWorkUnitStore = cacheContext.outerWorkUnitStore
 
-  const cacheSignal = cacheContext.outerWorkUnitStore
-    ? getCacheSignal(cacheContext.outerWorkUnitStore)
-    : null
+    // Propagate tags/revalidate to the parent context if appropriate.
+    switch (outerWorkUnitStore.type) {
+      case 'prerender':
+      case 'prerender-runtime': {
+        // If we've just created a cache result, then we're filling caches for a Cache Components prerender.
+        // We don't want to propagate cache life/tags yet in case the entry ends up being omitted from
+        // the final render due to short expire/stale times --
+        // if it's omitted, then it shouldn't have any effects on the prerender.
+        // We'll decide whether or not this cache should have its tags/life propagated
+        // when we read it in the final render.
+        break
+      }
+      case 'request':
+      case 'private-cache':
+      case 'cache':
+      case 'unstable-cache':
+      case 'prerender-legacy':
+      case 'prerender-ppr': {
+        propagateCacheLifeAndTags(cacheContext, entry)
+        break
+      }
+      default: {
+        outerWorkUnitStore satisfies never
+      }
+    }
 
-  if (cacheSignal) {
-    cacheSignal.endRead()
+    const cacheSignal = getCacheSignal(outerWorkUnitStore)
+    if (cacheSignal) {
+      cacheSignal.endRead()
+    }
   }
 
   return entry
@@ -1160,8 +1182,6 @@ export function cache(
         const cachedEntry = renderResumeDataCache.cache.get(serializedCacheKey)
         if (cachedEntry !== undefined) {
           const existingEntry = await cachedEntry
-          propagateCacheLifeAndTags(cacheContext, existingEntry)
-
           if (workUnitStore !== undefined && existingEntry !== undefined) {
             if (
               existingEntry.revalidate === 0 ||
@@ -1231,6 +1251,10 @@ export function cache(
               }
             }
           }
+
+          // We want to make sure we only propagate cache life / tags if the entry *wasn't* omitted from the prerender,
+          // so we only do this after the above early returns.
+          propagateCacheLifeAndTags(cacheContext, existingEntry)
 
           const [streamA, streamB] = existingEntry.value.tee()
           existingEntry.value = streamB
