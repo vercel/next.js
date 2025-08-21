@@ -446,7 +446,6 @@ export interface ExperimentalConfig {
   clientSegmentCache?: boolean | 'client-only'
   clientParamParsing?: boolean
   dynamicOnHover?: boolean
-  appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -1521,7 +1520,6 @@ export const defaultConfig = Object.freeze({
     clientSegmentCache: false,
     clientParamParsing: false,
     dynamicOnHover: false,
-    appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,

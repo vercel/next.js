@@ -321,7 +321,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         adapterPath: z.string().optional(),
         useSkewCookie: z.boolean().optional(),
         after: z.boolean().optional(),
-        appDocumentPreloading: z.boolean().optional(),
         appNavFailHandling: z.boolean().optional(),
         preloadEntriesOnStart: z.boolean().optional(),
         allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
