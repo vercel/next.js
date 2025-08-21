@@ -2,17 +2,11 @@ import { getModuleContext } from './context'
 import { validateURL } from '../utils'
 
 jest.mock('../utils', () => ({
-  validateURL: jest.fn((url: string) => {
-    try {
-      new URL(url)
-      return url
-    } catch {
-      throw new Error('Invalid URL')
-    }
-  }),
+  ...jest.requireActual('../utils'),
+  validateURL: jest.fn(jest.requireActual('../utils').validateURL),
 }))
 
-const mockedValidateURL = validateURL as jest.MockedFunction<typeof validateURL>
+const mockedValidateURL = jest.mocked(validateURL)
 
 describe('Next.js sandbox Request constructor', () => {
   let moduleContext: any
@@ -67,5 +61,12 @@ describe('Next.js sandbox Request constructor', () => {
 
     expect(copiedRequest.method).toBe('POST')
     expect(copiedRequest.headers.get('Content-Type')).toBe('application/json')
+  })
+
+  it('should throw Next.js specific error for relative URLs', () => {
+    const { Request: NextRequest } = moduleContext.runtime.context
+    expect(() => new NextRequest('/urls-b')).toThrow(
+      'Please use only absolute URLs'
+    )
   })
 })

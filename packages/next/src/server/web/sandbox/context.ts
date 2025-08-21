@@ -402,12 +402,18 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       context.Request = class extends __Request {
         next?: NextFetchRequestConfig | undefined
         constructor(input: URL | RequestInfo, init?: RequestInit | undefined) {
-          super(input, init)
           const url =
             typeof input !== 'string' && 'url' in input
               ? input.url
               : String(input)
-          validateURL(url)
+
+          if (typeof input === 'string') {
+            validateURL(url)
+            super(input, init)
+          } else {
+            super(input, init)
+            validateURL(url)
+          }
           this.next = init?.next
         }
       }
