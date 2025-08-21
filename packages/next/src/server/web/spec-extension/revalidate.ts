@@ -138,7 +138,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
           // Also revalidate the dynamic route pattern
           let dynamicRouteTag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${currentRoute}`
           if (type) {
-            dynamicRouteTag += `${dynamicRouteTag.endsWith('/') ? '' : '/'}${type}`
+            dynamicRouteTag += `${currentRoute.endsWith('/') ? '' : '/'}${type}`
           }
 
           if (!tagsToRevalidate.includes(dynamicRouteTag)) {
