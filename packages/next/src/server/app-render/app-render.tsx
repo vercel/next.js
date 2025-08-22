@@ -58,6 +58,7 @@ import {
   NEXT_HMR_REFRESH_HASH_COOKIE,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_REQUEST_ID_HEADER,
+  NEXT_HTML_REQUEST_ID_HEADER,
 } from '../../client/components/app-router-headers'
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
@@ -335,8 +336,8 @@ function parseRequestHeaders(
   )
 
   const htmlRequestId =
-    typeof headers[NEXT_REQUEST_ID_HEADER] === 'string'
-      ? headers[NEXT_REQUEST_ID_HEADER]
+    typeof headers[NEXT_HTML_REQUEST_ID_HEADER] === 'string'
+      ? headers[NEXT_HTML_REQUEST_ID_HEADER]
       : undefined
 
   return {
