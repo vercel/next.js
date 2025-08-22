@@ -14,7 +14,7 @@ export function getAssetPrefix() {
 
   if (nextIndex === -1) {
     throw new InvariantError(
-      `Expected document.currentScript src to contain '/_next/'. Received ${currentScript} instead.`
+      `Expected document.currentScript src to contain '/_next/'. Received ${currentScript.src} instead.`
     )
   }
 
