@@ -66,8 +66,8 @@ Then, add the following scripts to your `package.json` file:
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "lint:fix": "eslint --fix"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   }
 }
 ```
@@ -281,8 +281,8 @@ Next.js 15.5 deprecates the `next lint` command and it will be removed in Next.j
 ```json filename="package.json"
 {
   "scripts": {
-    "lint": "eslint",
-    "lint:fix": "eslint --fix"
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   }
 }
 ```
