@@ -180,7 +180,7 @@ function writeInitialInstructions(
   }
 
   if (formState != null) {
-    scriptContents += `self.__next_f.push(${htmlEscapeJsonString(
+    scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
       JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
     )})`
   }
