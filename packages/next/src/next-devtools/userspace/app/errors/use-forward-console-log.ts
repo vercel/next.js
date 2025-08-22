@@ -1,9 +1,9 @@
 import { useEffect } from 'react'
 import { isTerminalLoggingEnabled, logQueue } from '../forward-logs'
-import type { useWebsocket } from '../../../../client/dev/hot-reloader/app/use-websocket'
+import type { useWebSocket } from '../../../../client/dev/hot-reloader/app/web-socket'
 
 export const useForwardConsoleLog = (
-  socketRef: ReturnType<typeof useWebsocket>
+  socketRef: ReturnType<typeof useWebSocket>
 ) => {
   useEffect(() => {
     if (!isTerminalLoggingEnabled) {

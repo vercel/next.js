@@ -3,7 +3,7 @@ import { GlobalLayoutRouterContext } from '../../../../shared/lib/app-router-con
 import { getSocketUrl } from '../get-socket-url'
 import type { TurbopackMsgToBrowser } from '../../../../server/dev/hot-reloader-types'
 
-export function useWebsocket(assetPrefix: string) {
+export function useWebSocket(assetPrefix: string) {
   const webSocketRef = useRef<WebSocket>(undefined)
 
   useEffect(() => {
@@ -19,7 +19,7 @@ export function useWebsocket(assetPrefix: string) {
   return webSocketRef
 }
 
-export function useSendMessage(webSocketRef: ReturnType<typeof useWebsocket>) {
+export function useSendMessage(webSocketRef: ReturnType<typeof useWebSocket>) {
   const sendMessage = useCallback(
     (data: string) => {
       const socket = webSocketRef.current
@@ -89,10 +89,10 @@ export function useTurbopack(
   return processTurbopackMessage
 }
 
-export function useWebsocketPing(
-  websocketRef: ReturnType<typeof useWebsocket>
+export function useWebSocketPing(
+  webSocketRef: ReturnType<typeof useWebSocket>
 ) {
-  const sendMessage = useSendMessage(websocketRef)
+  const sendMessage = useSendMessage(webSocketRef)
   const { tree } = useContext(GlobalLayoutRouterContext)
 
   useEffect(() => {

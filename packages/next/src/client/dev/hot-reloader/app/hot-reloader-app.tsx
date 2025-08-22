@@ -18,9 +18,9 @@ import { RuntimeErrorHandler } from '../../runtime-error-handler'
 import {
   useSendMessage,
   useTurbopack,
-  useWebsocket,
-  useWebsocketPing,
-} from './use-websocket'
+  useWebSocket,
+  useWebSocketPing,
+} from './web-socket'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
   HMR_ACTION_TYPES,
@@ -466,9 +466,9 @@ export default function HotReload({
 }) {
   useErrorHandler(dispatcher.onUnhandledError, dispatcher.onUnhandledRejection)
 
-  const webSocketRef = useWebsocket(assetPrefix)
+  const webSocketRef = useWebSocket(assetPrefix)
 
-  useWebsocketPing(webSocketRef)
+  useWebSocketPing(webSocketRef)
   const sendMessage = useSendMessage(webSocketRef)
   useForwardConsoleLog(webSocketRef)
   const processTurbopackMessage = useTurbopack(sendMessage, (err) =>
