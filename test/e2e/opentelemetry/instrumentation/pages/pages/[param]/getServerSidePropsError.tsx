@@ -4,7 +4,4 @@ export default function Page() {
 
 export function getServerSideProps() {
   throw new Error('ServerSideProps error')
-  return {
-    props: {},
-  }
 }

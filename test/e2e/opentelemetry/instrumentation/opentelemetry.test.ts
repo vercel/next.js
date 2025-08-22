@@ -876,7 +876,7 @@ describe('opentelemetry', () => {
                   'next.span_type': 'BaseServer.handleRequest',
                 },
                 kind: 1,
-                status: { code: 0 },
+                status: { code: 2 },
                 traceId: env.span.traceId,
                 parentId: env.span.rootParentId,
                 spans: [
