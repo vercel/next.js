@@ -57,7 +57,7 @@ import {
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
 import { revalidateEntireCache } from '../../segment-cache'
-import { createDebugChannel } from '../debug-channel'
+import type { DebugChannelBrowser } from 'react-server-dom-webpack/client.browser'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -179,14 +179,18 @@ async function fetchServerAction(
   let actionResult: FetchServerActionResult['actionResult']
   let actionFlightData: FetchServerActionResult['actionFlightData']
   if (isRscResponse) {
+    let debugChannel: DebugChannelBrowser | undefined
+
+    if (process.env.NODE_ENV !== 'production') {
+      const { createDebugChannel } =
+        require('../../../dev/debug-channel') as typeof import('../../../dev/debug-channel')
+
+      debugChannel = createDebugChannel(res.headers)
+    }
+
     const response: ActionFlightResponse = await createFromFetch(
       Promise.resolve(res),
-      {
-        callServer,
-        findSourceMapURL,
-        temporaryReferences,
-        debugChannel: createDebugChannel(res.headers),
-      }
+      { callServer, findSourceMapURL, temporaryReferences, debugChannel }
     )
 
     // An internal redirect can send an RSC response, but does not have a useful `actionResult`.

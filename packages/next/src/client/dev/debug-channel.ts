@@ -1,14 +1,10 @@
 import type { DebugChannelBrowser } from 'react-server-dom-webpack/client.browser'
-import { NEXT_REQUEST_ID_HEADER } from '../app-router-headers'
-import { InvariantError } from '../../../shared/lib/invariant-error'
+import { NEXT_REQUEST_ID_HEADER } from '../components/app-router-headers'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 export function createDebugChannel(
   responseHeaders: Headers | undefined
-): DebugChannelBrowser | undefined {
-  if (process.env.NODE_ENV === 'production') {
-    return
-  }
-
+): DebugChannelBrowser {
   let requestId: string | undefined
 
   if (responseHeaders) {
