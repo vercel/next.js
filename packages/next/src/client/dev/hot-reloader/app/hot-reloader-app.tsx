@@ -1,7 +1,7 @@
 /// <reference types="webpack/module.d.ts" />
 
-import type { ReactNode, RefObject } from 'react'
-import { useEffect, startTransition, useRef } from 'react'
+import type { ReactNode } from 'react'
+import { useEffect, startTransition } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../../../shared/lib/format-webpack-messages'
 import {
@@ -27,6 +27,11 @@ import {
   publicAppRouterInstance,
   type GlobalErrorState,
 } from '../../../components/app-router-instance'
+
+export interface StaticIndicatorState {
+  pathname: string | null
+  appIsrManifest: Record<string, true>
+}
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
@@ -194,8 +199,7 @@ export function processMessage(
   obj: HMR_ACTION_TYPES,
   sendMessage: (message: string) => void,
   processTurbopackMessage: (msg: TurbopackMsgToBrowser) => void,
-  appIsrManifestRef: RefObject<Record<string, boolean>>,
-  pathnameRef: RefObject<string>
+  staticIndicatorState: StaticIndicatorState
 ) {
   if (!('action' in obj)) {
     return
@@ -248,18 +252,19 @@ export function processMessage(
   switch (obj.action) {
     case HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST: {
       if (process.env.__NEXT_DEV_INDICATOR) {
-        if (appIsrManifestRef) {
-          appIsrManifestRef.current = obj.data
+        staticIndicatorState.appIsrManifest = obj.data
 
-          // handle initial status on receiving manifest
-          // navigation is handled in useEffect for pathname changes
-          // as we'll receive the updated manifest before usePathname
-          // triggers for new value
-          if ((pathnameRef.current as string) in obj.data) {
-            dispatcher.onStaticIndicator(true)
-          } else {
-            dispatcher.onStaticIndicator(false)
-          }
+        // handle initial status on receiving manifest
+        // navigation is handled in useEffect for pathname changes
+        // as we'll receive the updated manifest before usePathname
+        // triggers for new value
+        if (
+          staticIndicatorState.pathname &&
+          staticIndicatorState.pathname in obj.data
+        ) {
+          dispatcher.onStaticIndicator(true)
+        } else {
+          dispatcher.onStaticIndicator(false)
         }
       }
       break
@@ -453,13 +458,15 @@ export function processMessage(
 }
 
 export default function HotReload({
-  webSocket,
   children,
   globalError,
+  webSocket,
+  staticIndicatorState,
 }: {
-  webSocket?: WebSocket
   children: ReactNode
   globalError: GlobalErrorState
+  webSocket: WebSocket | undefined
+  staticIndicatorState: StaticIndicatorState | undefined
 }) {
   useErrorHandler(dispatcher.onUnhandledError, dispatcher.onUnhandledRejection)
   useWebSocketPing(webSocket)
@@ -467,41 +474,22 @@ export default function HotReload({
   // We don't want access of the pathname for the dev tools to trigger a dynamic
   // access (as the dev overlay will never be present in production).
   const pathname = useUntrackedPathname()
-  const appIsrManifestRef = useRef<Record<string, false | number>>({})
-  const pathnameRef = useRef(pathname)
 
   if (process.env.__NEXT_DEV_INDICATOR) {
     // this conditional is only for dead-code elimination which
     // isn't a runtime conditional only build-time so ignore hooks rule
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
-      pathnameRef.current = pathname
+      if (staticIndicatorState) {
+        staticIndicatorState.pathname = pathname
 
-      const appIsrManifest = appIsrManifestRef.current
-
-      if (appIsrManifest) {
-        if (pathname && pathname in appIsrManifest) {
-          try {
-            dispatcher.onStaticIndicator(true)
-          } catch (reason) {
-            let message = ''
-
-            if (reason instanceof DOMException) {
-              // Most likely a SecurityError, because of an unavailable localStorage
-              message = reason.stack ?? reason.message
-            } else if (reason instanceof Error) {
-              message = 'Error: ' + reason.message + '\n' + (reason.stack ?? '')
-            } else {
-              message = 'Unexpected Exception: ' + reason
-            }
-
-            console.warn('[HMR] ' + message)
-          }
+        if (pathname && pathname in staticIndicatorState.appIsrManifest) {
+          dispatcher.onStaticIndicator(true)
         } else {
           dispatcher.onStaticIndicator(false)
         }
       }
-    }, [pathname])
+    }, [pathname, staticIndicatorState])
   }
 
   return (

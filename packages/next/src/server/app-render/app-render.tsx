@@ -1532,7 +1532,7 @@ async function renderToHTMLOrFlightImpl(
   if (process.env.NODE_ENV === 'development') {
     // reset isr status at start of request
     const { pathname } = new URL(req.url || '/', 'http://n')
-    renderOpts.setIsrStatus?.(pathname, null)
+    renderOpts.setIsrStatus?.(pathname, false)
   }
 
   if (

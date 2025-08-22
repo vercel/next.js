@@ -1,15 +1,22 @@
-import { useContext, useEffect, type RefObject } from 'react'
+import { useContext, useEffect } from 'react'
 import { GlobalLayoutRouterContext } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { getSocketUrl } from '../get-socket-url'
 import type { TurbopackMsgToBrowser } from '../../../../server/dev/hot-reloader-types'
 import { reportInvalidHmrMessage } from '../shared'
-import { performFullReload, processMessage } from './hot-reloader-app'
+import {
+  performFullReload,
+  processMessage,
+  type StaticIndicatorState,
+} from './hot-reloader-app'
 import {
   isTerminalLoggingEnabled,
   logQueue,
 } from '../../../../next-devtools/userspace/app/forward-logs'
 
-export function createWebSocket(assetPrefix: string) {
+export function createWebSocket(
+  assetPrefix: string,
+  staticIndicatorState: StaticIndicatorState
+) {
   const url = getSocketUrl(assetPrefix)
   const webSocket = new window.WebSocket(`${url}/_next/webpack-hmr`)
 
@@ -27,9 +34,6 @@ export function createWebSocket(assetPrefix: string) {
 
   const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
 
-  const appIsrManifestRef: RefObject<Record<string, boolean>> = { current: {} }
-  const pathnameRef: RefObject<string> = { current: '' }
-
   webSocket.addEventListener('message', (event) => {
     try {
       const obj = JSON.parse(event.data)
@@ -37,8 +41,7 @@ export function createWebSocket(assetPrefix: string) {
         obj,
         sendMessage,
         processTurbopackMessage,
-        appIsrManifestRef,
-        pathnameRef
+        staticIndicatorState
       )
     } catch (err: unknown) {
       reportInvalidHmrMessage(event, err)

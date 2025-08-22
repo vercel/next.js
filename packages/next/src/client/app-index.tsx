@@ -154,13 +154,17 @@ const readable = new ReadableStream({
   },
 })
 
+let staticIndicatorState:
+  | { pathname: string | null; appIsrManifest: Record<string, true> }
+  | undefined
 let webSocket: WebSocket | undefined
 
 if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
   const { createWebSocket } =
     require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
 
-  webSocket = createWebSocket(getAssetPrefix())
+  staticIndicatorState = { pathname: null, appIsrManifest: {} }
+  webSocket = createWebSocket(getAssetPrefix(), staticIndicatorState)
 }
 
 const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
@@ -181,6 +185,7 @@ function ServerRoot({
       actionQueue={actionQueue}
       globalErrorState={initialRSCPayload.G}
       webSocket={webSocket}
+      staticIndicatorState={staticIndicatorState}
     />
   )
 
