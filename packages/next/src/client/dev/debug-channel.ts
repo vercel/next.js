@@ -1,4 +1,3 @@
-import type { DebugChannelBrowser } from 'react-server-dom-webpack/client.browser'
 import { NEXT_REQUEST_ID_HEADER } from '../components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
@@ -26,9 +25,10 @@ export function getOrCreateDebugChannelReadableWriterPair(
   return pair
 }
 
-export function createDebugChannel(
-  responseHeaders: Headers | undefined
-): DebugChannelBrowser {
+export function createDebugChannel(responseHeaders: Headers | undefined): {
+  writable?: WritableStream
+  readable?: ReadableStream
+} {
   let requestId: string | undefined
 
   if (responseHeaders) {

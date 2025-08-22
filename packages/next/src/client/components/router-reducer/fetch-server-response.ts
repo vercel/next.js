@@ -33,7 +33,6 @@ import {
 import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
 import { urlToUrlWithoutFlightMarker } from '../../route-params'
-import type { DebugChannelBrowser } from 'react-server-dom-webpack/client.browser'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -394,7 +393,9 @@ export function createFromNextReadableStream(
   flightStream: ReadableStream<Uint8Array>,
   responseHeaders: Headers
 ): Promise<unknown> {
-  let debugChannel: DebugChannelBrowser | undefined
+  let debugChannel:
+    | { readable?: ReadableStream; writable?: WritableStream }
+    | undefined
 
   if (process.env.NODE_ENV !== 'production') {
     const { createDebugChannel } =

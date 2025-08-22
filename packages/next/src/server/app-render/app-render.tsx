@@ -208,7 +208,6 @@ import { getDynamicParam } from '../../shared/lib/router/utils/get-dynamic-param
 import type { ExperimentalConfig } from '../config-shared'
 import type { Params } from '../request/params'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
-import type { DebugChannelServer } from 'react-server-dom-webpack/server.edge'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -2657,7 +2656,7 @@ function createDebugChannel(
   htmlRequestId: string,
   requestId: string,
   createReadable?: (stream: ReadableStream<Uint8Array>) => void
-): DebugChannelServer | undefined {
+): { readable?: ReadableStream; writable?: WritableStream } | undefined {
   if (process.env.NODE_ENV === 'production' || !sendReactDebugChunk) {
     return undefined
   }
