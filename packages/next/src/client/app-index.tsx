@@ -21,7 +21,7 @@ import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
-import { createDebugChannel } from './components/router-reducer/debug-channel'
+import type { DebugChannelBrowser } from 'react-server-dom-webpack/client.browser'
 import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-app'
 
 /// <reference types="react-dom/experimental" />
@@ -159,9 +159,18 @@ const readable = new ReadableStream({
   },
 })
 
+let debugChannel: DebugChannelBrowser | undefined
+
+if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+  const { createDebugChannel } =
+    require('./dev/debug-channel') as typeof import('./dev/debug-channel')
+
+  debugChannel = createDebugChannel(undefined)
+}
+
 const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
   readable,
-  { callServer, findSourceMapURL, debugChannel: createDebugChannel(undefined) }
+  { callServer, findSourceMapURL, debugChannel }
 )
 
 function ServerRoot({
