@@ -469,15 +469,8 @@ export function processMessage(
             // TODO: Revisit this cleanup logic when we integrate the return
             // channel that keeps the connection open to be able to lazily
             // retrieve debug objects.
-
-            // Defer closing the debug channel by at least a task, to give React
-            // a chance to unblock the root model before closing the response.
-            // This avoids `Connection closed` errors.
-            // TODO: Is this a bug in React?
-            setTimeout(() => {
-              controller.close()
-              controllers.delete(requestId)
-            })
+            controller.close()
+            controllers.delete(requestId)
           }
         }
       }
