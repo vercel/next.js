@@ -158,8 +158,8 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
     let file_size_limit_mb = if is_twitter { 5 } else { 8 };
     if (is_twitter || is_open_graph)
         && let Some(content) = path.read().await?.as_content()
-        && let file_size_mb = content.content().to_bytes().len() / 1024 / 1024
-        && file_size_mb > file_size_limit_mb
+        && let file_size = content.content().to_bytes().len()
+        && file_size > (file_size_limit_mb * 1024 * 1024)
     {
         StaticMetadataFileSizeIssue {
             img_name: if is_twitter {
@@ -169,7 +169,7 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
             },
             path: path.clone(),
             file_size_limit_mb,
-            file_size_mb,
+            file_size,
         }
         .resolved_cell()
         .emit();
@@ -428,7 +428,7 @@ async fn dynamic_image_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn S
 struct StaticMetadataFileSizeIssue {
     img_name: RcStr,
     path: FileSystemPath,
-    file_size_mb: usize,
+    file_size: usize,
     file_size_limit_mb: usize,
 }
 
@@ -458,11 +458,11 @@ impl Issue for StaticMetadataFileSizeIssue {
         Ok(Vc::cell(Some(
             StyledString::Text(
                 format!(
-                    "File size for {} image {} exceeds {}MB. (Current: {}MB)",
+                    "File size for {} image \"{}\" exceeds {}MB. (Current: {:.1}MB)",
                     self.img_name,
                     self.path.value_to_string().await?,
                     self.file_size_limit_mb,
-                    self.file_size_mb,
+                    (self.file_size as f32) / 1024.0 / 1024.0
                 )
                 .into(),
             )
