@@ -57,6 +57,9 @@ import {
 } from '../../route-params'
 import {
   createCacheMap,
+  getFromCacheMap,
+  setInCacheMap,
+  deleteFromCacheMap,
   Fallback,
   type CacheMap,
   type MapEntry,
@@ -151,7 +154,7 @@ type RouteCacheEntryShared = {
   TODO_isHeadDynamic: boolean
 
   // Map-related fields.
-  ref: null | MapEntry<RouteCacheEntry>
+  ref: null | MapEntry<RouteCacheKeypath, RouteCacheEntry>
 
   // LRU-related fields
   next: null | RouteCacheEntry
@@ -215,7 +218,7 @@ type SegmentCacheEntryShared = {
   revalidating: SegmentCacheEntry | null
 
   // Map-related fields.
-  ref: null | MapEntry<SegmentCacheEntry>
+  ref: null | MapEntry<SegmentCacheKeypath, SegmentCacheEntry>
 
   // LRU-related fields
   next: null | SegmentCacheEntry
@@ -423,7 +426,7 @@ export function readRouteCacheEntry(
   key: RouteCacheKey
 ): RouteCacheEntry | null {
   const keypath: RouteCacheKeypath = [key.href, key.nextUrl]
-  const existingEntry = routeCacheMap.getWithFallback(keypath)
+  const existingEntry = getFromCacheMap(routeCacheMap, keypath)
   if (existingEntry !== null) {
     // Check if the entry is stale
     if (existingEntry.staleAt > now) {
@@ -491,7 +494,7 @@ export function readSegmentCacheEntry(
   now: number,
   keypath: SegmentCacheKeypath
 ): SegmentCacheEntry | null {
-  const existingEntry = segmentCacheMap.getWithFallback(keypath)
+  const existingEntry = getFromCacheMap(segmentCacheMap, keypath)
   if (existingEntry !== null) {
     // Check if the entry is stale
     if (existingEntry.staleAt > now) {
@@ -601,7 +604,7 @@ export function readOrCreateRouteCacheEntry(
     size: 0,
   }
   const keypath: RouteCacheKeypath = [key.href, key.nextUrl]
-  routeCacheMap.set(keypath, pendingEntry)
+  setInCacheMap(routeCacheMap, keypath, pendingEntry)
   routeCacheLru.put(pendingEntry)
   return pendingEntry
 }
@@ -778,7 +781,7 @@ export function readOrCreateSegmentCacheEntry(
     cacheKey
   )
   const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
-  segmentCacheMap.set(genericKeypath, pendingEntry)
+  setInCacheMap(segmentCacheMap, genericKeypath, pendingEntry)
   segmentCacheLru.put(pendingEntry)
   return pendingEntry
 }
@@ -858,7 +861,7 @@ export function upsertSegmentEntry(
     // Evict the existing entry from the cache.
     deleteSegmentFromCache(existingEntry)
   }
-  segmentCacheMap.set(keypath, candidateEntry)
+  setInCacheMap(segmentCacheMap, keypath, candidateEntry)
   segmentCacheLru.put(candidateEntry)
   return candidateEntry
 }
@@ -899,13 +902,13 @@ export function upgradeToPendingSegment(
 
 function deleteRouteFromCache(entry: RouteCacheEntry): void {
   pingBlockedTasks(entry)
-  routeCacheMap.delete(entry)
+  deleteFromCacheMap(entry)
   routeCacheLru.delete(entry)
 }
 
 function deleteSegmentFromCache(entry: SegmentCacheEntry): void {
   cancelEntryListeners(entry)
-  segmentCacheMap.delete(entry)
+  deleteFromCacheMap(entry)
   segmentCacheLru.delete(entry)
   clearRevalidatingSegmentFromOwner(entry)
 }
@@ -936,13 +939,13 @@ export function resetRevalidatingSegmentEntry(
 function onRouteLRUEviction(entry: RouteCacheEntry): void {
   // The LRU evicted this entry. Remove it from the map.
   pingBlockedTasks(entry)
-  routeCacheMap.delete(entry)
+  deleteFromCacheMap(entry)
 }
 
 function onSegmentLRUEviction(entry: SegmentCacheEntry): void {
   // The LRU evicted this entry. Remove it from the map.
   cancelEntryListeners(entry)
-  segmentCacheMap.delete(entry)
+  deleteFromCacheMap(entry)
 }
 
 function cancelEntryListeners(entry: SegmentCacheEntry): void {
@@ -1530,7 +1533,7 @@ export async function fetchRouteOnCacheMiss(
       // exists at the new keypath, and if so, whether we should keep that
       // one instead.
       const newKeypath: RouteCacheKeypath = [href, Fallback]
-      routeCacheMap.set(newKeypath, entry)
+      setInCacheMap(routeCacheMap, newKeypath, entry)
     }
     // Return a promise that resolves when the network connection closes, so
     // the scheduler can track the number of concurrent network connections.
