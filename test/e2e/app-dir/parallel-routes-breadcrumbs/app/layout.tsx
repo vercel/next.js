@@ -10,12 +10,12 @@ export default function Root({
   return (
     <html>
       <body>
-        <div id="slot">
-          <Suspense>{slot}</Suspense>
-        </div>
-        <div id="children">
-          <Suspense>{children}</Suspense>
-        </div>
+        <Suspense>
+          <div id="slot">{slot}</div>
+        </Suspense>
+        <Suspense>
+          <div id="children">{children}</div>
+        </Suspense>
       </body>
     </html>
   )

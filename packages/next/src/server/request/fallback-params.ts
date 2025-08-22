@@ -14,40 +14,42 @@ function getParamKeys(page: string) {
   return Object.keys(matcher(page))
 }
 
-/**
- * The entries of the opaque fallback route params object.
- *
- * @param key the key of the fallback route param
- * @param value the value of the fallback route param
- */
-export type OpaqueFallbackRouteParamEntries = [
-  key: string,
-  value: [
-    /**
-     * The search value of the fallback route param. This is the opaque key
-     * that will be used to replace the dynamic param in the postponed state.
-     */
-    searchValue: string,
+export type OpaqueFallbackRouteParamValue = [
+  /**
+   * The search value of the fallback route param. This is the opaque key
+   * that will be used to replace the dynamic param in the postponed state.
+   */
+  searchValue: string,
 
-    /**
-     * The dynamic param type of the fallback route param. This is the type of
-     * the dynamic param that will be used to replace the dynamic param in the
-     * postponed state.
-     */
-    dynamicParamType: DynamicParamTypesShort,
-  ],
+  /**
+   * The dynamic param type of the fallback route param. This is the type of
+   * the dynamic param that will be used to replace the dynamic param in the
+   * postponed state.
+   */
+  dynamicParamType: DynamicParamTypesShort,
 ]
 
 /**
  * An opaque fallback route params object. This is used to store the fallback
  * route params in a way that is not easily accessible to the client.
  */
-export type OpaqueFallbackRouteParams = {
-  readonly size: number
-  readonly has: (key: string) => boolean
-  readonly get: (key: string) => string | undefined
-  readonly entries: () => IterableIterator<OpaqueFallbackRouteParamEntries>
-}
+export type OpaqueFallbackRouteParams = ReadonlyMap<
+  string,
+  OpaqueFallbackRouteParamValue
+>
+
+/**
+ * The entries of the opaque fallback route params object.
+ *
+ * @param key the key of the fallback route param
+ * @param value the value of the fallback route param
+ */
+export type OpaqueFallbackRouteParamEntries =
+  ReturnType<OpaqueFallbackRouteParams['entries']> extends MapIterator<
+    [infer K, infer V]
+  >
+    ? ReadonlyArray<[K, V]>
+    : never
 
 /**
  * Creates an opaque fallback route params object from the fallback route params.
@@ -66,28 +68,18 @@ export function createOpaqueFallbackRouteParams(
   // be also be unique.
   const uniqueID = Math.random().toString(16).slice(2)
 
-  const keys = new Map<string, OpaqueFallbackRouteParamEntries[1]>()
+  const keys = new Map<string, OpaqueFallbackRouteParamValue>()
 
   // Generate a unique key for the fallback route param, if this key is found
   // in the static output, it represents a bug in cache components.
   for (const { paramName, paramType } of fallbackRouteParams) {
     keys.set(paramName, [
       `%%drp:${paramName}:${uniqueID}%%`,
-
       dynamicParamTypes[paramType],
     ])
   }
 
-  return {
-    size: keys.size,
-    has: keys.has.bind(keys),
-    get: (key: string) => {
-      const value = keys.get(key)
-      if (!value) return undefined
-      return value[0]
-    },
-    entries: keys.entries.bind(keys),
-  }
+  return keys
 }
 
 /**

@@ -248,12 +248,12 @@ describe('getDynamicParam', () => {
     it('should handle parallel routes with fallback params for catchall', () => {
       const params: Params = { category: 'electronics' }
       const fallbackParams = createMockOpaqueFallbackRouteParams({
-        slug: '%%drp:slug:parallel123%%',
+        slug: ['%%drp:slug:parallel123%%', 'd'],
       })
       const result = getDynamicParam(
         params,
         'slug',
-        'c',
+        'd',
         '/shop/[category]/@modal/@sidebar/product',
         fallbackParams
       )
@@ -261,8 +261,8 @@ describe('getDynamicParam', () => {
       expect(result).toEqual({
         param: 'slug',
         value: '%%drp:slug:parallel123%%',
-        type: 'c',
-        treeSegment: ['slug', '%%drp:slug:parallel123%%', 'c'],
+        type: 'd',
+        treeSegment: ['slug', '%%drp:slug:parallel123%%', 'd'],
       })
     })
 
@@ -460,7 +460,7 @@ describe('getDynamicParam', () => {
     it('should use fallback param value when available', () => {
       const params: Params = { slug: 'original-value' }
       const fallbackParams = createMockOpaqueFallbackRouteParams({
-        slug: '%%drp:slug:abc123%%',
+        slug: ['%%drp:slug:abc123%%', 'd'],
       })
 
       const result = getDynamicParam(
@@ -482,7 +482,7 @@ describe('getDynamicParam', () => {
     it('should not encode fallback param values', () => {
       const params: Params = { slug: 'hello world' }
       const fallbackParams = createMockOpaqueFallbackRouteParams({
-        slug: '%%drp:slug:xyz789%%',
+        slug: ['%%drp:slug:xyz789%%', 'd'],
       })
 
       const result = getDynamicParam(
@@ -499,7 +499,7 @@ describe('getDynamicParam', () => {
     it('should use fallback params with catchall routes', () => {
       const params: Params = { slug: ['docs', 'api'] }
       const fallbackParams = createMockOpaqueFallbackRouteParams({
-        slug: '%%drp:slug:def456%%',
+        slug: ['%%drp:slug:def456%%', 'c'],
       })
 
       const result = getDynamicParam(
@@ -521,7 +521,7 @@ describe('getDynamicParam', () => {
     it('should use fallback params with optional catchall routes', () => {
       const params: Params = {}
       const fallbackParams = createMockOpaqueFallbackRouteParams({
-        slug: '%%drp:slug:ghi789%%',
+        slug: ['%%drp:slug:ghi789%%', 'oc'],
       })
 
       const result = getDynamicParam(
@@ -543,7 +543,7 @@ describe('getDynamicParam', () => {
     it('should fall back to regular encoding when param not in fallback', () => {
       const params: Params = { slug: 'hello world' }
       const fallbackParams = createMockOpaqueFallbackRouteParams({
-        other: '%%drp:other:abc123%%',
+        other: ['%%drp:other:abc123%%', 'd'],
       })
 
       const result = getDynamicParam(

@@ -93,8 +93,9 @@ export async function getDynamicHTMLPostponedState(
     )}`
   }
 
-  const replacements: ReadonlyArray<OpaqueFallbackRouteParamEntries> =
-    Array.from(fallbackRouteParams.entries())
+  const replacements: OpaqueFallbackRouteParamEntries = Array.from(
+    fallbackRouteParams.entries()
+  )
   const replacementsString = JSON.stringify(replacements)
 
   // Serialized as `<replacements.length><replacements><data>`
@@ -155,7 +156,7 @@ export function parsePostponedState(
             // We then go to the end of the string.
             match.length + length
           )
-        ) as ReadonlyArray<OpaqueFallbackRouteParamEntries>
+        ) as OpaqueFallbackRouteParamEntries
 
         let postponed = postponedString.slice(match.length + length)
         for (const [key, [searchValue, dynamicParamType]] of replacements) {

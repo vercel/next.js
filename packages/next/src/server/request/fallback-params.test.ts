@@ -20,8 +20,8 @@ describe('createOpaqueFallbackRouteParams', () => {
     it('get method works correctly', () => {
       const result = createOpaqueFallbackRouteParams(fallbackParams)!
 
-      expect(result.get('slug')).toMatch(/^%%drp:slug:[a-f0-9]+%%$/)
-      expect(result.get('modal')).toMatch(/^%%drp:modal:[a-f0-9]+%%$/)
+      expect(result.get('slug')?.[0]).toMatch(/^%%drp:slug:[a-f0-9]+%%$/)
+      expect(result.get('modal')?.[0]).toMatch(/^%%drp:modal:[a-f0-9]+%%$/)
       expect(result.get('nonexistent')).toBeUndefined()
       expect(result.get('')).toBeUndefined()
     })
