@@ -8,7 +8,7 @@ import {
   ACTION_HEADER,
   NEXT_ACTION_NOT_FOUND_HEADER,
   NEXT_IS_PRERENDER_HEADER,
-  NEXT_REQUEST_ID_HEADER,
+  NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_URL,
   RSC_CONTENT_TYPE_HEADER,
@@ -108,7 +108,7 @@ async function fetchServerAction(
   }
 
   if (process.env.NODE_ENV !== 'production' && self.__next_r) {
-    headers[NEXT_REQUEST_ID_HEADER] = self.__next_r
+    headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
   }
 
   const res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })

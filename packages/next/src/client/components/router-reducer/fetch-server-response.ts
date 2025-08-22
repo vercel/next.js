@@ -20,7 +20,7 @@ import {
   NEXT_HMR_REFRESH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
-  NEXT_REQUEST_ID_HEADER,
+  NEXT_HTML_REQUEST_ID_HEADER,
 } from '../app-router-headers'
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
@@ -64,7 +64,7 @@ export type RequestHeaders = {
   [NEXT_HMR_REFRESH_HEADER]?: '1'
   // A header that is only added in test mode to assert on fetch priority
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
-  [NEXT_REQUEST_ID_HEADER]?: string // dev-only
+  [NEXT_HTML_REQUEST_ID_HEADER]?: string // dev-only
 }
 
 function doMpaNavigation(url: string): FetchServerResponseResult {
@@ -288,7 +288,7 @@ export async function createFetch(
   }
 
   if (process.env.NODE_ENV !== 'production' && self.__next_r) {
-    headers[NEXT_REQUEST_ID_HEADER] = self.__next_r
+    headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
   }
 
   const fetchOptions: RequestInit = {
