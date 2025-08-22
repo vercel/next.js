@@ -3134,12 +3134,7 @@ export default async function build(
             for (const prerenderedRoute of prerenderedRoutes) {
               if (
                 prerenderedRoute.fallbackRouteParams &&
-                prerenderedRoute.fallbackRouteParams.length > 0 &&
-                // If all the fallback route params are parallel route params,
-                // then we still consider it a known route.
-                !prerenderedRoute.fallbackRouteParams.every(
-                  (param) => param.isParallelRouteParam
-                )
+                prerenderedRoute.fallbackRouteParams.length > 0
               ) {
                 unsortedUnknownPrerenderRoutes.push(prerenderedRoute)
               } else {
@@ -3165,12 +3160,7 @@ export default async function build(
               if (
                 isRoutePPREnabled &&
                 prerenderedRoute.fallbackRouteParams &&
-                prerenderedRoute.fallbackRouteParams.length > 0 &&
-                // If all the fallback route params are parallel route params,
-                // then we still consider it a static route.
-                !prerenderedRoute.fallbackRouteParams.every(
-                  (param) => param.isParallelRouteParam
-                )
+                prerenderedRoute.fallbackRouteParams.length > 0
               ) {
                 // If the route has unknown params, then we need to add it to
                 // the list of dynamic routes.
@@ -3478,14 +3468,7 @@ export default async function build(
                     : undefined,
                   fallbackSourceRoute:
                     route.fallbackRouteParams &&
-                    route.fallbackRouteParams.length > 0 &&
-                    // If all the fallback route params are parallel route
-                    // params, then we still consider it a static route. This is
-                    // required to ensure that the changes are backwards
-                    // compatible with the previous builder implementations.
-                    !route.fallbackRouteParams.every(
-                      (param) => param.isParallelRouteParam
-                    )
+                    route.fallbackRouteParams.length > 0
                       ? page
                       : undefined,
                   fallbackRouteParams: route.fallbackRouteParams,

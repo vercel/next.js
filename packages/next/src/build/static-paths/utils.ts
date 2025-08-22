@@ -1,3 +1,4 @@
+import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
 import type { FallbackRouteParam } from './types'
 
 /**
@@ -41,7 +42,8 @@ export function normalizePathname(pathname: string) {
  */
 export function createFallbackRouteParam(
   paramName: string,
+  paramType: DynamicParamTypes,
   isParallelRouteParam: boolean
 ): FallbackRouteParam {
-  return { paramName, isParallelRouteParam }
+  return { paramName, paramType, isParallelRouteParam }
 }

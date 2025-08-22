@@ -222,7 +222,6 @@
       "test/e2e/app-dir/parallel-routes-and-interception-from-root/parallel-routes-and-interception-from-root.test.ts",
       "test/e2e/app-dir/parallel-routes-and-interception-nested-dynamic-routes/parallel-routes-and-interception-nested-dynamic-routes.test.ts",
       "test/e2e/app-dir/parallel-routes-and-interception/parallel-routes-and-interception.test.ts",
-      "test/e2e/app-dir/parallel-routes-breadcrumbs/parallel-routes-breadcrumbs.test.ts",
       "test/e2e/app-dir/parallel-routes-catchall-specificity/parallel-routes-catchall-specificity.test.ts",
       "test/e2e/app-dir/parallel-routes-generate-static-params/parallel-routes-generate-static-params.test.ts",
       "test/e2e/app-dir/parallel-routes-revalidation/parallel-routes-revalidation.test.ts",

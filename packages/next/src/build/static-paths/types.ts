@@ -1,5 +1,6 @@
 import type { FallbackMode } from '../../lib/fallback'
 import type { Params } from '../../server/request/params'
+import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
 
 type StaticPrerenderedRoute = {
   readonly params: Params
@@ -21,6 +22,11 @@ export type FallbackRouteParam = {
    * The name of the param.
    */
   readonly paramName: string
+
+  /**
+   * The type of the param.
+   */
+  readonly paramType: DynamicParamTypes
 
   /**
    * Whether this is a parallel route param or descends from a parallel route

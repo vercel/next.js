@@ -1,7 +1,9 @@
 import { collectFallbackRouteParams } from '../../build/segment-config/app/app-segments'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
+import type { DynamicParamTypesShort } from '../../shared/lib/app-router-types'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
+import { dynamicParamTypes } from '../app-render/get-short-dynamic-param-type'
 import type AppPageRouteModule from '../route-modules/app-page/module'
 
 function getParamKeys(page: string) {
@@ -13,62 +15,38 @@ function getParamKeys(page: string) {
 }
 
 /**
+ * The entries of the opaque fallback route params object.
+ *
+ * @param key the key of the fallback route param
+ * @param value the value of the fallback route param
+ */
+export type OpaqueFallbackRouteParamEntries = [
+  key: string,
+  value: [
+    /**
+     * The search value of the fallback route param. This is the opaque key
+     * that will be used to replace the dynamic param in the postponed state.
+     */
+    searchValue: string,
+
+    /**
+     * The dynamic param type of the fallback route param. This is the type of
+     * the dynamic param that will be used to replace the dynamic param in the
+     * postponed state.
+     */
+    dynamicParamType: DynamicParamTypesShort,
+  ],
+]
+
+/**
  * An opaque fallback route params object. This is used to store the fallback
  * route params in a way that is not easily accessible to the client.
  */
 export type OpaqueFallbackRouteParams = {
-  /**
-   * The sizes of the fallback route params.
-   */
-  readonly sizes: {
-    /**
-     * The number of fallback route params that contribute to the route
-     * segments. These are fallback parameters that are associated with the
-     * route segments and should be used to determine if the pathname for the
-     * route should be considered dynamic.
-     */
-    readonly route: number
-
-    /**
-     * The number of fallback route params that contribute to the parallel route
-     * segments. These are fallback parameters that are not associated with the
-     * route segments and should not be used to determine if the pathname for
-     * the route should be considered dynamic.
-     */
-    readonly parallel: number
-
-    /**
-     * The total number of fallback route params.
-     */
-    readonly total: number
-  }
-
-  /**
-   * Whether the fallback route params include the specified key. This will also
-   * include the keys associated with parallel route segments.
-   *
-   * @param key the key to check
-   * @returns whether the fallback route params include the specified key
-   */
+  readonly size: number
   readonly has: (key: string) => boolean
-
-  /**
-   * Gets the value of the fallback route param for the specified key. This will
-   * also include the values associated with parallel route segments.
-   *
-   * @param key the key to get the value for
-   * @returns the value of the fallback route param for the specified key
-   */
   readonly get: (key: string) => string | undefined
-
-  /**
-   * The iterator for the fallback route params. This will only include the keys
-   * associated with the route segments, not the parallel route segments. This
-   * is because the only use for this is to generate the postponed state keys
-   * for replacement, yet the parallel route segments are not used in the static
-   * render, so it won't exist in the postponed state.
-   */
-  readonly [Symbol.iterator]: () => IterableIterator<[string, string]>
+  readonly entries: () => IterableIterator<OpaqueFallbackRouteParamEntries>
 }
 
 /**
@@ -88,31 +66,28 @@ export function createOpaqueFallbackRouteParams(
   // be also be unique.
   const uniqueID = Math.random().toString(16).slice(2)
 
-  const sizes = { route: 0, parallel: 0, total: 0 }
-  const keys = new Map<string, string>()
+  const keys = new Map<string, OpaqueFallbackRouteParamEntries[1]>()
 
-  for (const { paramName, isParallelRouteParam } of fallbackRouteParams) {
-    // We need to track the sizes of the fallback route params to determine if
-    // the render should be halted during static generation.
-    if (isParallelRouteParam) sizes.parallel++
-    else sizes.route++
-    sizes.total++
+  // Generate a unique key for the fallback route param, if this key is found
+  // in the static output, it represents a bug in cache components.
+  for (const { paramName, paramType } of fallbackRouteParams) {
+    keys.set(paramName, [
+      `%%drp:${paramName}:${uniqueID}%%`,
 
-    // Generate a unique key for the fallback route param, if this key is found
-    // in the static output, it represents a bug in cache components.
-    keys.set(paramName, `%%drp:${paramName}:${uniqueID}%%`)
+      dynamicParamTypes[paramType],
+    ])
   }
 
   return {
-    sizes,
+    size: keys.size,
     has: keys.has.bind(keys),
-    get: keys.get.bind(keys),
-    *[Symbol.iterator](): IterableIterator<[string, string]> {
-      for (const { paramName } of fallbackRouteParams) {
-        yield [paramName, keys.get(paramName)!]
-      }
+    get: (key: string) => {
+      const value = keys.get(key)
+      if (!value) return undefined
+      return value[0]
     },
-  } satisfies OpaqueFallbackRouteParams
+    entries: keys.entries.bind(keys),
+  }
 }
 
 /**
@@ -131,14 +106,66 @@ export function getFallbackRouteParams(
   // First, get the fallback route params based on the provided page.
   const unknownParamKeys = new Set(getParamKeys(page))
 
+  // Needed when processing fallback route params for catchall routes in
+  // parallel segments, derive from pathname. This is similar to
+  // getDynamicParam's pagePath parsing logic.
+  const pathSegments = page.split('/').filter(Boolean)
+
+  const collected = collectFallbackRouteParams(routeModule)
+
   // Then, we have to get the fallback route params from the segments that are
   // associated with parallel route segments.
   const fallbackRouteParams: FallbackRouteParam[] = []
-  for (const fallbackRouteParam of collectFallbackRouteParams(routeModule)) {
+  for (const fallbackRouteParam of collected) {
     if (fallbackRouteParam.isParallelRouteParam) {
-      // If this is a parallel route segment, we know it wasn't provided in the
-      // page, so we can add it to the fallback route params.
-      fallbackRouteParams.push(fallbackRouteParam)
+      // Try to see if we can resolve this parameter from the page that was
+      // passed in.
+      if (unknownParamKeys.has(fallbackRouteParam.paramName)) {
+        // The parameter is known, we can skip adding it to the fallback route
+        // params.
+        continue
+      }
+
+      if (
+        fallbackRouteParam.paramType === 'optional-catchall' ||
+        fallbackRouteParam.paramType === 'catchall'
+      ) {
+        // If there are any fallback route segments then we can't use the
+        // pathname to derive the value because it's not complete. We can
+        // make this assumption because the routes are always resolved left
+        // to right and the catchall is always the last segment, so any
+        // route parameters that are unknown will always contribute to the
+        // pathname and therefore the catchall param too.
+        if (
+          collected.some(
+            (param) =>
+              !param.isParallelRouteParam &&
+              unknownParamKeys.has(param.paramName)
+          )
+        ) {
+          fallbackRouteParams.push(fallbackRouteParam)
+          continue
+        }
+
+        // If there are no path segments and this is not an optional catchall,
+        // we can add it to the fallback route params as the value is unknown.
+        if (
+          pathSegments.length === 0 &&
+          fallbackRouteParam.paramType !== 'optional-catchall'
+        ) {
+          fallbackRouteParams.push(fallbackRouteParam)
+          continue
+        }
+
+        // The path segments are not empty, and the segments didn't contain any
+        // unknown params, so we know that this particular fallback route param
+        // route param is not actually unknown, and is known. We can skip adding
+        // it to the fallback route params.
+      } else {
+        // This is some other type of route param, but it wasn't already
+        // resolved, so we can add it to the fallback route params.
+        fallbackRouteParams.push(fallbackRouteParam)
+      }
     } else if (unknownParamKeys.has(fallbackRouteParam.paramName)) {
       // As this is a non-parallel route segment, and it exists in the unknown
       // param keys, we know it's a fallback route param.

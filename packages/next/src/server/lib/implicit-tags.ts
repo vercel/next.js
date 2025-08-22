@@ -81,11 +81,6 @@ export async function getImplicitTags(
 ): Promise<ImplicitTags> {
   const tags: string[] = []
 
-  // As we're using this to determine if the route pathname is dynamic, we only
-  // consider the route fallback route params for this check.
-  const hasFallbackRouteParams =
-    fallbackRouteParams && fallbackRouteParams.sizes.route > 0
-
   // Add the derived tags from the page.
   const derivedTags = getDerivedTags(page)
   for (let tag of derivedTags) {
@@ -95,7 +90,10 @@ export async function getImplicitTags(
 
   // Add the tags from the pathname. If the route has unknown params, we don't
   // want to add the pathname as a tag, as it will be invalid.
-  if (url.pathname && !hasFallbackRouteParams) {
+  if (
+    url.pathname &&
+    (!fallbackRouteParams || fallbackRouteParams.size === 0)
+  ) {
     const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${url.pathname}`
     tags.push(tag)
   }

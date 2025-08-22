@@ -10,21 +10,28 @@ import {
   parsePostponedState,
   DynamicHTMLPreludeState,
 } from './postponed-state'
-import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
+import type {
+  OpaqueFallbackRouteParamEntries,
+  OpaqueFallbackRouteParams,
+} from '../request/fallback-params'
 
-function createMockOpaqueFallbackRouteParams(
+export function createMockOpaqueFallbackRouteParams(
   params: Record<string, string>
 ): OpaqueFallbackRouteParams {
-  const entries = Object.entries(params)
+  const data = new Map(
+    Object.entries(params).map(
+      ([key, value]) => [key, [value, 'c']] as OpaqueFallbackRouteParamEntries
+    )
+  )
+
   return {
-    sizes: { route: entries.length, parallel: 0 },
-    has: (key: string) => key in params,
-    get: (key: string) => params[key],
-    *[Symbol.iterator]() {
-      for (const [key, value] of entries) {
-        yield [key, value] as [string, string]
-      }
+    size: data.size,
+    has: data.has.bind(data),
+    get: (key: string) => {
+      const entry = data.get(key)
+      return entry ? entry[0] : undefined
     },
+    entries: data.entries.bind(data),
   }
 }
 
@@ -55,7 +62,7 @@ describe('getDynamicHTMLPostponedState', () => {
       prerenderResumeDataCache
     )
 
-    const parsed = parsePostponedState(state, { slug: '123' })
+    const parsed = parsePostponedState(state, '/blog/[slug]', { slug: '123' })
     expect(parsed).toMatchInlineSnapshot(`
      {
        "data": [
@@ -110,7 +117,7 @@ describe('getDynamicHTMLPostponedState', () => {
 
     const value = 'hello'
     const params = { slug: value }
-    const parsed = parsePostponedState(state, params)
+    const parsed = parsePostponedState(state, '/blog/[slug]', params)
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: [1, { [value]: value }],
@@ -137,7 +144,7 @@ describe('parsePostponedState', () => {
     const params = {
       slug: Math.random().toString(16).slice(3),
     }
-    const parsed = parsePostponedState(state, params)
+    const parsed = parsePostponedState(state, '/blog/[slug]', params)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
@@ -153,7 +160,7 @@ describe('parsePostponedState', () => {
   it('parses a HTML postponed state without fallback params', () => {
     const state = `2:{}null`
     const params = {}
-    const parsed = parsePostponedState(state, params)
+    const parsed = parsePostponedState(state, '/blog', params)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
@@ -165,7 +172,7 @@ describe('parsePostponedState', () => {
 
   it('parses a data postponed state', () => {
     const state = '4:nullnull'
-    const parsed = parsePostponedState(state, undefined)
+    const parsed = parsePostponedState(state, '/blog', undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({

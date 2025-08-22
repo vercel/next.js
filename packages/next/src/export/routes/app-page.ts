@@ -139,9 +139,7 @@ export async function exportAppPage(
       // means that the route has unknown route params.
       if (
         !fallbackRouteParams ||
-        // We only consider the non-parallel fallback route params to maintain
-        // backwards compatibility with the previous implementation.
-        fallbackRouteParams.sizes.route === 0 ||
+        fallbackRouteParams.size === 0 ||
         renderOpts.experimental.clientParamParsing
       ) {
         throw new Error(`Invariant: failed to get page data for ${path}`)

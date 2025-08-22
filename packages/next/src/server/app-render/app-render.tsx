@@ -1974,6 +1974,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
     postponedState = parsePostponedState(
       renderOpts.postponed,
+      pagePath,
       renderOpts.params
     )
   }
@@ -3900,11 +3901,7 @@ async function prerenderToStream(
       // move the fallback route params out of the flight router state, we need
       // to always perform a dynamic resume after the static prerender.
       const hasFallbackRouteParams =
-        // We consider both the route and parallel fallback route params for
-        // this check because we're determining if we can emit a completely
-        // static HTML prerender. If any of the route params are unknown then
-        // the prerender will be dynamic.
-        fallbackRouteParams && fallbackRouteParams.sizes.total > 0
+        fallbackRouteParams && fallbackRouteParams.size > 0
 
       if (serverIsDynamic || hasFallbackRouteParams) {
         // Dynamic case
@@ -4170,7 +4167,7 @@ async function prerenderToStream(
           collectedStale: selectStaleTime(reactServerPrerenderStore.stale),
           collectedTags: reactServerPrerenderStore.tags,
         }
-      } else if (fallbackRouteParams && fallbackRouteParams.sizes.route > 0) {
+      } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
         // Rendering the fallback case.
         metadata.postponed = await getDynamicDataPostponedState(
           prerenderResumeDataCache

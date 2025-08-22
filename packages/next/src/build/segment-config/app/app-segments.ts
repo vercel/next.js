@@ -20,6 +20,7 @@ import {
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 import type { FallbackRouteParam } from '../../static-paths/types'
 import { createFallbackRouteParam } from '../../static-paths/utils'
+import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 
@@ -59,6 +60,7 @@ function attach(segment: AppSegment, userland: unknown, route: string) {
 export type AppSegment = {
   name: string
   paramName: string | undefined
+  paramType: DynamicParamTypes | undefined
   filePath: string | undefined
   config: AppSegmentConfig | undefined
   isDynamicSegment: boolean
@@ -98,11 +100,12 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
     const { mod: userland, filePath } = await getLayoutOrPageModule(loaderTree)
     const isClientComponent = userland && isClientReference(userland)
 
-    const paramName = getSegmentParam(name)?.param
+    const { param: paramName, type: paramType } = getSegmentParam(name) ?? {}
 
     const segment: AppSegment = {
       name,
       paramName,
+      paramType,
       filePath,
       config: undefined,
       isDynamicSegment: !!paramName,
@@ -169,11 +172,12 @@ function collectAppRouteSegments(
 
   // Generate all the segments.
   const segments: AppSegment[] = parts.map((name) => {
-    const paramName = getSegmentParam(name)?.param
+    const { param: paramName, type: paramType } = getSegmentParam(name) ?? {}
 
     return {
       name,
       paramName,
+      paramType,
       filePath: undefined,
       isDynamicSegment: !!paramName,
       config: undefined,
@@ -244,7 +248,11 @@ export function collectFallbackRouteParams(
       if (!uniqueSegments.has(key)) {
         uniqueSegments.set(
           key,
-          createFallbackRouteParam(segmentParam.param, isParallelRouteSegment)
+          createFallbackRouteParam(
+            segmentParam.param,
+            segmentParam.type,
+            isParallelRouteSegment
+          )
         )
       }
     }
