@@ -12,6 +12,7 @@ import {
   isTerminalLoggingEnabled,
   logQueue,
 } from '../../../../next-devtools/userspace/app/forward-logs'
+import { InvariantError } from '../../../../shared/lib/invariant-error'
 
 export function createWebSocket(
   assetPrefix: string,
@@ -95,13 +96,13 @@ export function useWebSocketPing(webSocket: WebSocket | undefined) {
   const { tree } = useContext(GlobalLayoutRouterContext)
 
   useEffect(() => {
+    if (!webSocket) {
+      throw new InvariantError('Expected webSocket to be defined in dev mode.')
+    }
+
     // Never send pings when using Turbopack as it's not used.
     // Pings were originally used to keep track of active routes in on-demand-entries with webpack.
     if (process.env.TURBOPACK) {
-      return
-    }
-
-    if (!webSocket) {
       return
     }
 

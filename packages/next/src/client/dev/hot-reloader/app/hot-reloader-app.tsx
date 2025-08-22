@@ -27,6 +27,7 @@ import {
   publicAppRouterInstance,
   type GlobalErrorState,
 } from '../../../components/app-router-instance'
+import { InvariantError } from '../../../../shared/lib/invariant-error'
 
 export interface StaticIndicatorState {
   pathname: string | null
@@ -480,14 +481,18 @@ export default function HotReload({
     // isn't a runtime conditional only build-time so ignore hooks rule
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
-      if (staticIndicatorState) {
-        staticIndicatorState.pathname = pathname
+      if (!staticIndicatorState) {
+        throw new InvariantError(
+          'Expected staticIndicatorState to be defined in dev mode.'
+        )
+      }
 
-        if (pathname && pathname in staticIndicatorState.appIsrManifest) {
-          dispatcher.onStaticIndicator(true)
-        } else {
-          dispatcher.onStaticIndicator(false)
-        }
+      staticIndicatorState.pathname = pathname
+
+      if (pathname && pathname in staticIndicatorState.appIsrManifest) {
+        dispatcher.onStaticIndicator(true)
+      } else {
+        dispatcher.onStaticIndicator(false)
       }
     }, [pathname, staticIndicatorState])
   }

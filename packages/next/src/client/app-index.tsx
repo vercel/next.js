@@ -234,12 +234,10 @@ export function hydrate(
   instrumentationHooks: ClientInstrumentationHooks | null,
   assetPrefix: string
 ) {
-  let staticIndicatorState:
-    | { pathname: string | null; appIsrManifest: Record<string, true> }
-    | undefined
+  let staticIndicatorState: StaticIndicatorState | undefined
   let webSocket: WebSocket | undefined
 
-  if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+  if (process.env.NODE_ENV !== 'production') {
     const { createWebSocket } =
       require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
 
