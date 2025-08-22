@@ -5327,6 +5327,7 @@
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is display none",
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is position fixed",
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is position sticky",
+      "router autoscrolling on navigation bugs should scroll to top when navigating to same page with different search params",
       "router autoscrolling on navigation horizontal scroll should't scroll horizontally",
       "router autoscrolling on navigation router.refresh() should not scroll when called alone",
       "router autoscrolling on navigation router.refresh() should not stop router.push() from scrolling",
@@ -5975,6 +5976,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/deployment-skew/deployment-skew.test.ts": {
+    "passed": [
+      "segment cache (deployment skew) does not crash when prefetching a dynamic, non-PPR page on a different deployment",
+      "segment cache (deployment skew) does not crash when prefetching a static page on a different deployment"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/dynamic-on-hover/dynamic-on-hover.test.ts": {
     "passed": [
       "dynamic on hover prefetches the dynamic data for a Link on hover"
@@ -6430,10 +6441,14 @@
   },
   "test/e2e/app-dir/typed-routes/typed-links.test.ts": {
     "passed": [
+      "typed-links should fail type checking with invalid redirect routes",
       "typed-links should fail type checking with invalid routes",
       "typed-links should generate types for next/link",
+      "typed-links should include handler route from app/api-test/route.ts in generated link route definitions",
+      "typed-links should pass type checking with valid redirect routes",
       "typed-links should pass type checking with valid routes",
-      "typed-links should work with Route type casting"
+      "typed-links should work with Route type casting",
+      "typed-links should work with redirect Route type casting"
     ],
     "failed": [],
     "pending": [],
@@ -10344,6 +10359,7 @@
   "test/integration/app-types/app-types.test.js": {
     "passed": [
       "app type checking - production mode should generate route types correctly and report form errors",
+      "app type checking - production mode should generate route types correctly and report redirect errors",
       "app type checking - production mode should generate route types correctly and report router API errors",
       "app type checking - production mode should report link errors",
       "app type checking - production mode should type check invalid entry exports"
@@ -19103,6 +19119,38 @@
     "pending": [
       "Web Workers with webpack 5 development mode should pass on both client and worker"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/500-page/app-router-only/app-router-only.test.ts": {
+    "passed": [
+      "500-page app-router-only pages manifest should only contain 404 and 500",
+      "500-page app-router-only should not contain pages router routes default assets",
+      "500-page app-router-only should use app router to generate 500.html when no pages _error.tsx exists"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/500-page/mixed-router-no-custom-pages-error/mixed-router-no-error.test.ts": {
+    "passed": [
+      "500-page - mixed-router-no-custom-pages-error pages manifest should only contain 404 and 500",
+      "500-page - mixed-router-no-custom-pages-error should generate 500.html with pages builtin _error",
+      "500-page - mixed-router-no-custom-pages-error should not use app router global-error for 500.html when no pages _error.tsx exists"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/500-page/mixed-router-with-custom-pages-error/mixed-router-with-error.test.ts": {
+    "passed": [
+      "500-page - mixed-router-with-custom-pages-error should generate 500.html with pages builtin _error",
+      "500-page - mixed-router-with-custom-pages-error should not override 500.html with app router global-error when pages _error.tsx exists"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
