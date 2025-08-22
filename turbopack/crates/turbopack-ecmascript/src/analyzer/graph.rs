@@ -821,8 +821,9 @@ mod analyzer_state {
     pub struct AnalyzerState {
         pat_value: Option<JsValue>,
         /// A unique identifier for the current function, based on the span of the function
-        /// declaration. [`None`] if we are in the root scope.
-        cur_fn_ident: Option<u32>,
+        /// declaration. [`None`] if we are in the root scope.  These are only used as opaque
+        /// identifiers to distinguish function arguments.
+        cur_fn_id: Option<u32>,
         /// Return values of the current function.
         ///
         /// This is configured to [Some] by function handlers and filled by the
@@ -834,7 +835,7 @@ mod analyzer_state {
         pub fn new() -> AnalyzerState {
             AnalyzerState {
                 pat_value: None,
-                cur_fn_ident: None,
+                cur_fn_id: None,
                 cur_fn_return_values: None,
             }
         }
@@ -843,13 +844,13 @@ mod analyzer_state {
     impl Analyzer<'_> {
         /// Returns true if we are in a function. False if we are in the root scope.
         pub(super) fn is_in_fn(&self) -> bool {
-            self.state.cur_fn_ident.is_some()
+            self.state.cur_fn_id.is_some()
         }
 
         /// Returns the identifier of the current function.
         /// must be called only if `is_in_fn` is true
         pub(super) fn cur_fn_ident(&self) -> u32 {
-            self.state.cur_fn_ident.expect("not in a function")
+            self.state.cur_fn_id.expect("not in a function")
         }
 
         /// Returns the return values of the current function.
@@ -902,7 +903,7 @@ mod analyzer_state {
             is_expr_arrow_fn: bool,
             func: impl FnOnce(&mut Self),
         ) -> JsValue {
-            let prev_fn_id = self.state.cur_fn_ident.replace(fn_id);
+            let prev_fn_id = self.state.cur_fn_id.replace(fn_id);
             let prev_return_values = self.state.cur_fn_return_values.replace(vec![]);
             let prev_early_return_stack = take(&mut self.early_return_stack);
             let mut prev_effects = take(&mut self.effects);
@@ -925,7 +926,7 @@ mod analyzer_state {
             self.effects = prev_effects;
             self.early_return_stack = prev_early_return_stack;
 
-            self.state.cur_fn_ident = prev_fn_id;
+            self.state.cur_fn_id = prev_fn_id;
             self.state.cur_fn_return_values = prev_return_values;
             JsValue::function(fn_id, return_values)
         }
@@ -1684,7 +1685,6 @@ impl VisitAstPath for Analyzer<'_> {
         let fn_value = self.enter_fn(expr.function.span.lo.0, false, |this| {
             expr.visit_children_with_ast_path(this, ast_path);
         });
-        // function expressions may have an ident when they appear in an export declaration.
         if let Some(ident) = &expr.ident {
             self.add_value(
                 ident.to_id(),
