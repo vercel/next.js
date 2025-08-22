@@ -30,7 +30,7 @@ pub async fn node_file_trace(
     show_issues: bool,
 ) -> Result<()> {
     let op = node_file_trace_operation(project_root.clone(), input.clone(), graph);
-    op.resolve_strongly_consistent().await?;
+    let result = op.resolve_strongly_consistent().await?;
 
     if show_issues {
         let issue_reporter: Vc<Box<dyn IssueReporter>> =
@@ -45,11 +45,20 @@ pub async fn node_file_trace(
         handle_issues(op, issue_reporter, IssueSeverity::Error, None, None).await?;
     }
 
+    println!("FILELIST:");
+    for a in result.await? {
+        println!("{a}");
+    }
+
     Ok(())
 }
 
 #[turbo_tasks::function(operation)]
-async fn node_file_trace_operation(project_root: RcStr, input: RcStr, graph: bool) -> Result<()> {
+async fn node_file_trace_operation(
+    project_root: RcStr,
+    input: RcStr,
+    graph: bool,
+) -> Result<Vc<Vec<RcStr>>> {
     let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
         rcstr!("workspace"),
         project_root.clone(),
@@ -63,9 +72,8 @@ async fn node_file_trace_operation(project_root: RcStr, input: RcStr, graph: boo
     ));
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
-        // TODO These test cases should move into the `node-file-trace` crate and use the same
-        // config.
-        // It's easy to make a mistake here as this should match the config in the binary from
+        // This config should be kept in sync with
+        // turbopack/crates/turbopack/tests/node-file-trace.rs and
         // turbopack/crates/turbopack/src/lib.rs
         CompileTimeInfo::new(environment),
         ModuleOptionsContext {
@@ -98,17 +106,14 @@ async fn node_file_trace_operation(project_root: RcStr, input: RcStr, graph: boo
 
     let asset = TracedAsset::new(module).to_resolved().await?;
 
-    if graph {
-        print_graph(ResolvedVc::upcast(asset)).await?;
+    Ok(Vc::cell(if graph {
+        to_graph(ResolvedVc::upcast(asset)).await?
     } else {
-        println!("FILELIST:");
-        print_list(ResolvedVc::upcast(asset)).await?;
-    }
-
-    Ok(())
+        to_list(ResolvedVc::upcast(asset)).await?
+    }))
 }
 
-async fn print_list(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
+async fn to_list(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vec<RcStr>> {
     let mut assets = all_assets_from_entries(Vc::cell(vec![asset]))
         .await?
         .iter()
@@ -118,17 +123,15 @@ async fn print_list(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
     assets.sort();
     assets.dedup();
 
-    for a in assets {
-        println!("{a}");
-    }
-
-    Ok(())
+    Ok(assets)
 }
 
-async fn print_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
+async fn to_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vec<RcStr>> {
     let mut visited = HashSet::new();
     let mut queue = Vec::new();
     queue.push((0, asset));
+
+    let mut result = vec![];
     while let Some((depth, asset)) = queue.pop() {
         let references = asset.references().await?;
         let mut indent = String::new();
@@ -139,12 +142,12 @@ async fn print_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
             for &asset in references.iter().rev() {
                 queue.push((depth + 1, asset));
             }
-            println!("{}{}", indent, asset.path().to_string().await?);
+            result.push(format!("{}{}", indent, asset.path().to_string().await?).into());
         } else if references.is_empty() {
-            println!("{}{} *", indent, asset.path().to_string().await?);
+            result.push(format!("{}{} *", indent, asset.path().to_string().await?).into());
         } else {
-            println!("{}{} *...", indent, asset.path().to_string().await?);
+            result.push(format!("{}{} *...", indent, asset.path().to_string().await?).into());
         }
     }
-    Ok(())
+    Ok(result)
 }

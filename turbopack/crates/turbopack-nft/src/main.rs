@@ -1,7 +1,7 @@
 #![feature(future_join)]
 #![feature(min_specialization)]
 
-use std::{cell::RefCell, env::current_dir, time::Instant};
+use std::env::current_dir;
 
 use anyhow::Result;
 use clap::Parser;
@@ -37,27 +37,8 @@ pub struct Arguments {
 static ALLOC: TurboMalloc = TurboMalloc;
 
 fn main() {
-    thread_local! {
-        static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
-    }
-
     let mut rt = tokio::runtime::Builder::new_multi_thread();
-    rt.enable_all()
-        .on_thread_stop(|| {
-            TurboMalloc::thread_stop();
-        })
-        .on_thread_park(|| {
-            LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
-                use std::time::Duration;
-
-                if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
-                    swc_core::ecma::atoms::hstr::global_atom_store_gc();
-                    *cell = Some(Instant::now());
-                }
-            });
-        });
-
-    rt.disable_lifo_slot();
+    rt.enable_all().disable_lifo_slot();
 
     let args = Arguments::parse();
     rt.build().unwrap().block_on(main_inner(args)).unwrap();
