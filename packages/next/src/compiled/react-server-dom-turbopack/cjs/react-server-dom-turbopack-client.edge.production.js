@@ -873,7 +873,7 @@ function initializeModelChunk(chunk) {
     null !== resolveListeners &&
       ((chunk.value = null),
       (chunk.reason = null),
-      wakeChunk(resolveListeners, value));
+      wakeChunk(resolveListeners, value, chunk));
     if (null !== initializingHandler) {
       if (initializingHandler.errored) throw initializingHandler.reason;
       if (0 < initializingHandler.deps) {
