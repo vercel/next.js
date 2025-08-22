@@ -147,7 +147,7 @@ return NextResponse.next({
 
 This forwards `newHeaders` upstream and does not expose them to the client. While this pattern is useful to pass data upstream, it should be used with caution because the headers containing this data can be further shared with external services.
 
-In contrast, the `NextResponse.next({ headers })` pattern makes these headers available to the client. This is **NOT** good practice and should be avoided.
+In contrast, the `NextResponse.next({ headers })` pattern makes these headers available to the client. This is **NOT** good practice and should be avoided. Additionally, setting response headers like `content-type` here can override framework expectations (for example, the `Content-Type` used by Server Actions), leading to failed submissions or broken streaming responses.
 
 ```ts
 import { type NextRequest, NextResponse } from 'next/server'
