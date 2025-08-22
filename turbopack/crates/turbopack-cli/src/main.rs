@@ -1,7 +1,7 @@
 #![feature(future_join)]
 #![feature(min_specialization)]
 
-use std::{cell::RefCell, path::Path, time::Instant};
+use std::{cell::RefCell, path::Path, thread::available_parallelism, time::Instant};
 
 use anyhow::{Context, Result};
 use clap::Parser;
@@ -41,6 +41,11 @@ fn main() {
                 }
             });
         });
+
+    let worker_threads = available_parallelism().map(|n| n.get()).unwrap_or(1);
+
+    rt.worker_threads(worker_threads);
+    rt.max_blocking_threads(usize::MAX - worker_threads);
 
     #[cfg(not(codspeed))]
     rt.disable_lifo_slot();
