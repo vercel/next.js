@@ -1,98 +1,94 @@
-import { useCallback, useContext, useEffect, useRef } from 'react'
+import { useContext, useEffect, type RefObject } from 'react'
 import { GlobalLayoutRouterContext } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { getSocketUrl } from '../get-socket-url'
 import type { TurbopackMsgToBrowser } from '../../../../server/dev/hot-reloader-types'
+import { reportInvalidHmrMessage } from '../shared'
+import { performFullReload, processMessage } from './hot-reloader-app'
+import {
+  isTerminalLoggingEnabled,
+  logQueue,
+} from '../../../../next-devtools/userspace/app/forward-logs'
 
-export function useWebSocket(assetPrefix: string) {
-  const webSocketRef = useRef<WebSocket>(undefined)
+export function createWebSocket(assetPrefix: string) {
+  const url = getSocketUrl(assetPrefix)
+  const webSocket = new window.WebSocket(`${url}/_next/webpack-hmr`)
 
-  useEffect(() => {
-    if (webSocketRef.current) {
-      return
+  if (isTerminalLoggingEnabled) {
+    webSocket.addEventListener('open', () => {
+      logQueue.onSocketReady(webSocket)
+    })
+  }
+
+  const sendMessage = (data: string) => {
+    if (webSocket.readyState === webSocket.OPEN) {
+      webSocket.send(data)
     }
+  }
 
-    const url = getSocketUrl(assetPrefix)
+  const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
 
-    webSocketRef.current = new window.WebSocket(`${url}/_next/webpack-hmr`)
-  }, [assetPrefix])
+  const appIsrManifestRef: RefObject<Record<string, boolean>> = { current: {} }
+  const pathnameRef: RefObject<string> = { current: '' }
 
-  return webSocketRef
-}
-
-export function useSendMessage(webSocketRef: ReturnType<typeof useWebSocket>) {
-  const sendMessage = useCallback(
-    (data: string) => {
-      const socket = webSocketRef.current
-      if (!socket || socket.readyState !== socket.OPEN) {
-        return
-      }
-      return socket.send(data)
-    },
-    [webSocketRef]
-  )
-  return sendMessage
-}
-
-export function useTurbopack(
-  sendMessage: ReturnType<typeof useSendMessage>,
-  onUpdateError: (err: unknown) => void
-) {
-  const turbopackState = useRef<{
-    init: boolean
-    queue: Array<TurbopackMsgToBrowser> | undefined
-    callback: ((msg: TurbopackMsgToBrowser) => void) | undefined
-  }>({
-    init: false,
-    // Until the dynamic import resolves, queue any turbopack messages which will be replayed.
-    queue: [],
-    callback: undefined,
+  webSocket.addEventListener('message', (event) => {
+    try {
+      const obj = JSON.parse(event.data)
+      processMessage(
+        obj,
+        sendMessage,
+        processTurbopackMessage,
+        appIsrManifestRef,
+        pathnameRef
+      )
+    } catch (err: unknown) {
+      reportInvalidHmrMessage(event, err)
+    }
   })
 
-  const processTurbopackMessage = useCallback((msg: TurbopackMsgToBrowser) => {
-    const { callback, queue } = turbopackState.current
+  return webSocket
+}
+
+export function createProcessTurbopackMessage(
+  sendMessage: (data: string) => void
+): (msg: TurbopackMsgToBrowser) => void {
+  if (!process.env.TURBOPACK) {
+    return () => {}
+  }
+
+  let queue: TurbopackMsgToBrowser[] = []
+  let callback: ((msg: TurbopackMsgToBrowser) => void) | undefined
+
+  const processTurbopackMessage = (msg: TurbopackMsgToBrowser) => {
     if (callback) {
       callback(msg)
     } else {
-      queue!.push(msg)
+      queue.push(msg)
     }
-  }, [])
+  }
 
-  useEffect(() => {
-    const { current: initCurrent } = turbopackState
-    // TODO(WEB-1589): only install if `process.turbopack` set.
-    if (initCurrent.init) {
-      return
-    }
-    initCurrent.init = true
+  import(
+    // @ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
+    '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
+  ).then(({ connect }) => {
+    connect({
+      addMessageListener(cb: (msg: TurbopackMsgToBrowser) => void) {
+        callback = cb
 
-    import(
-      // @ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
-      '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
-    ).then(({ connect }) => {
-      const { current } = turbopackState
-      connect({
-        addMessageListener(cb: (msg: TurbopackMsgToBrowser) => void) {
-          current.callback = cb
-
-          // Replay all Turbopack messages before we were able to establish the HMR client.
-          for (const msg of current.queue!) {
-            cb(msg)
-          }
-          current.queue = undefined
-        },
-        sendMessage,
-        onUpdateError,
-      })
+        // Replay all Turbopack messages before we were able to establish the HMR client.
+        for (const msg of queue) {
+          cb(msg)
+        }
+        queue.length = 0
+      },
+      sendMessage,
+      onUpdateError: (err: unknown) => performFullReload(err, sendMessage),
     })
-  }, [sendMessage, onUpdateError])
+  })
 
   return processTurbopackMessage
 }
 
-export function useWebSocketPing(
-  webSocketRef: ReturnType<typeof useWebSocket>
-) {
-  const sendMessage = useSendMessage(webSocketRef)
+export function useWebSocketPing(webSocket: WebSocket | undefined) {
   const { tree } = useContext(GlobalLayoutRouterContext)
 
   useEffect(() => {
@@ -102,16 +98,22 @@ export function useWebSocketPing(
       return
     }
 
+    if (!webSocket) {
+      return
+    }
+
     // Taken from on-demand-entries-client.js
     const interval = setInterval(() => {
-      sendMessage(
-        JSON.stringify({
-          event: 'ping',
-          tree,
-          appDirRoute: true,
-        })
-      )
+      if (webSocket.readyState === webSocket.OPEN) {
+        webSocket.send(
+          JSON.stringify({
+            event: 'ping',
+            tree,
+            appDirRoute: true,
+          })
+        )
+      }
     }, 2500)
     return () => clearInterval(interval)
-  }, [tree, sendMessage])
+  }, [tree, webSocket])
 }

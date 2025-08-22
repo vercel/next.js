@@ -21,6 +21,7 @@ import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
+import { getAssetPrefix } from './asset-prefix'
 
 /// <reference types="react-dom/experimental" />
 
@@ -153,6 +154,15 @@ const readable = new ReadableStream({
   },
 })
 
+let webSocket: WebSocket | undefined
+
+if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+  const { createWebSocket } =
+    require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
+
+  webSocket = createWebSocket(getAssetPrefix())
+}
+
 const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
   readable,
   { callServer, findSourceMapURL }
@@ -170,7 +180,7 @@ function ServerRoot({
     <AppRouter
       actionQueue={actionQueue}
       globalErrorState={initialRSCPayload.G}
-      assetPrefix={initialRSCPayload.p}
+      webSocket={webSocket}
     />
   )
 

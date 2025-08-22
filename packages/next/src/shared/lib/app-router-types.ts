@@ -258,8 +258,6 @@ export type ActionResult = Promise<any>
 export type InitialRSCPayload = {
   /** buildId */
   b: string
-  /** assetPrefix */
-  p: string
   /** initialCanonicalUrlParts */
   c: string[]
   /** couldBeIntercepted */

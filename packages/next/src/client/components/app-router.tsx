@@ -196,11 +196,11 @@ function Head({
  */
 function Router({
   actionQueue,
-  assetPrefix,
+  webSocket,
   globalError,
 }: {
   actionQueue: AppRouterActionQueue
-  assetPrefix: string
+  webSocket?: WebSocket
   globalError: GlobalErrorState
 }) {
   const state = useActionQueue(actionQueue)
@@ -524,7 +524,7 @@ function Router({
       ).default
 
     content = (
-      <HotReloader assetPrefix={assetPrefix} globalError={globalError}>
+      <HotReloader webSocket={webSocket} globalError={globalError}>
         {content}
       </HotReloader>
     )
@@ -570,18 +570,18 @@ function Router({
 export default function AppRouter({
   actionQueue,
   globalErrorState,
-  assetPrefix,
+  webSocket,
 }: {
   actionQueue: AppRouterActionQueue
   globalErrorState: GlobalErrorState
-  assetPrefix: string
+  webSocket?: WebSocket
 }) {
   useNavFailureHandler()
 
   const router = (
     <Router
       actionQueue={actionQueue}
-      assetPrefix={assetPrefix}
+      webSocket={webSocket}
       globalError={globalErrorState}
     />
   )
