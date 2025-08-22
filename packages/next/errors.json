@@ -781,5 +781,6 @@
   "780": "Invariant: failed to find parent dynamic route for notFound route %s",
   "781": "No LRU node to remove",
   "782": "Failed to find the root directory of the project. This is a bug in Next.js.",
-  "783": "Expected document.currentScript to be a <script> element. Received %s instead."
+  "783": "Expected document.currentScript to be a <script> element. Received %s instead.",
+  "784": "Expected document.currentScript src to contain '/_next/'. Received %s instead."
 }

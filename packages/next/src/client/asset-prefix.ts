@@ -10,6 +10,13 @@ export function getAssetPrefix() {
   }
 
   const { pathname } = new URL(currentScript.src)
+  const nextIndex = pathname.indexOf('/_next/')
 
-  return pathname.slice(0, pathname.indexOf('/_next/static'))
+  if (nextIndex === -1) {
+    throw new InvariantError(
+      `Expected document.currentScript src to contain '/_next/'. Received ${currentScript} instead.`
+    )
+  }
+
+  return pathname.slice(0, nextIndex)
 }
