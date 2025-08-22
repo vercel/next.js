@@ -17,6 +17,8 @@ import {
   isInterceptionRouteAppPath,
 } from '../../../shared/lib/router/utils/interception-routes'
 
+import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
+
 interface RouteInfo {
   path: string
   groups: { [groupName: string]: Group }
@@ -166,10 +168,12 @@ export async function createRouteTypesManifest({
   const getRelativePath = (filePath: string) => {
     if (validatorFilePath) {
       // For validator generation, calculate path relative to validator directory
-      return path.relative(path.dirname(validatorFilePath), filePath)
+      return normalizePathSep(
+        path.relative(path.dirname(validatorFilePath), filePath)
+      )
     }
     // For other uses, calculate path relative to project directory
-    return path.relative(dir, filePath)
+    return normalizePathSep(path.relative(dir, filePath))
   }
 
   const manifest: RouteTypesManifest = {
