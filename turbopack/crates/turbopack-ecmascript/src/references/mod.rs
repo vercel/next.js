@@ -3246,7 +3246,7 @@ impl<'a> ModuleReferencesVisitor<'a> {
             assignment_scopes: assignment_kinds,
         }) = self.var_graph.values.get(&id.to_id())
         {
-            // For now, assume all exports are live.
+            // If all assignments are in module scope, the export is not live.
             *assignment_kinds != crate::analyzer::graph::AssignmentScopes::AllInModuleEvalScope
         } else {
             // If we haven't computed a value for it, that means it might be
