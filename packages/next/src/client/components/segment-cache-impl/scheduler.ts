@@ -24,8 +24,9 @@ import {
   upgradeToPendingSegment,
   waitForSegmentCacheEntry,
   resetRevalidatingSegmentEntry,
-  getSegmentKeypath,
+  getGenericSegmentKeypathFromFetchStrategy,
   canNewFetchStrategyProvideMoreContent,
+  type SegmentCacheKeypath,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
 import { createCacheKey } from './cache-key'
@@ -1421,14 +1422,7 @@ function pingStaticSegmentData(
           if (background(task)) {
             // TODO: Instead of speculatively revalidating, consider including
             // `hasLoading` in the route tree prefetch response.
-            pingPPRSegmentRevalidation(
-              now,
-              task,
-              segment,
-              route,
-              routeKey,
-              tree
-            )
+            pingPPRSegmentRevalidation(now, segment, route, routeKey, tree)
           }
           break
         default:
@@ -1456,7 +1450,7 @@ function pingStaticSegmentData(
           // Because a rejected segment will definitely prevent the segment (and
           // all of its children) from rendering, we perform this revalidation
           // immediately instead of deferring it to a background task.
-          pingPPRSegmentRevalidation(now, task, segment, route, routeKey, tree)
+          pingPPRSegmentRevalidation(now, segment, route, routeKey, tree)
           break
         default:
           segment.fetchStrategy satisfies never
@@ -1477,7 +1471,6 @@ function pingStaticSegmentData(
 
 function pingPPRSegmentRevalidation(
   now: number,
-  task: PrefetchTask,
   currentSegment: SegmentCacheEntry,
   route: FulfilledRouteCacheEntry,
   routeKey: RouteCacheKey,
@@ -1492,9 +1485,6 @@ function pingPPRSegmentRevalidation(
       // Spawn a prefetch request and upsert the segment into the cache
       // upon completion.
       upsertSegmentOnCompletion(
-        task.fetchStrategy,
-        route,
-        tree.cacheKey,
         spawnPrefetchSubtask(
           fetchSegmentOnCacheMiss(
             route,
@@ -1502,6 +1492,11 @@ function pingPPRSegmentRevalidation(
             routeKey,
             tree
           )
+        ),
+        getGenericSegmentKeypathFromFetchStrategy(
+          FetchStrategy.PPR,
+          route,
+          tree.cacheKey
         )
       )
       break
@@ -1541,10 +1536,12 @@ function pingFullSegmentRevalidation(
       fetchStrategy
     )
     upsertSegmentOnCompletion(
-      fetchStrategy,
-      route,
-      tree.cacheKey,
-      waitForSegmentCacheEntry(pendingSegment)
+      waitForSegmentCacheEntry(pendingSegment),
+      getGenericSegmentKeypathFromFetchStrategy(
+        fetchStrategy,
+        route,
+        tree.cacheKey
+      )
     )
     return pendingSegment
   } else {
@@ -1566,10 +1563,12 @@ function pingFullSegmentRevalidation(
         fetchStrategy
       )
       upsertSegmentOnCompletion(
-        fetchStrategy,
-        route,
-        tree.cacheKey,
-        waitForSegmentCacheEntry(pendingSegment)
+        waitForSegmentCacheEntry(pendingSegment),
+        getGenericSegmentKeypathFromFetchStrategy(
+          fetchStrategy,
+          route,
+          tree.cacheKey
+        )
       )
       return pendingSegment
     }
@@ -1593,16 +1592,13 @@ function pingFullSegmentRevalidation(
 const noop = () => {}
 
 function upsertSegmentOnCompletion(
-  fetchStrategy: FetchStrategy,
-  route: FulfilledRouteCacheEntry,
-  cacheKey: SegmentCacheKey,
-  promise: Promise<FulfilledSegmentCacheEntry | null>
+  promise: Promise<FulfilledSegmentCacheEntry | null>,
+  keypath: SegmentCacheKeypath
 ) {
   // Wait for a segment to finish loading, then upsert it into the cache
   promise.then((fulfilled) => {
     if (fulfilled !== null) {
       // Received new data. Attempt to replace the existing entry in the cache.
-      const keypath = getSegmentKeypath(fetchStrategy, route, cacheKey)
       upsertSegmentEntry(Date.now(), keypath, fulfilled)
     }
   }, noop)

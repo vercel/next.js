@@ -266,11 +266,6 @@ export type NonEmptySegmentCacheEntry = Exclude<
   EmptySegmentCacheEntry
 >
 
-// Utility type. Prefix<[A, B, C, D]> matches [A], [A, B], [A, B, C] etc.
-type Prefix<T extends any[]> = T extends [infer First, ...infer Rest]
-  ? [] | [First] | [First, ...Prefix<Rest>]
-  : []
-
 const isOutputExportMode =
   process.env.NODE_ENV === 'production' &&
   process.env.__NEXT_CONFIG_OUTPUT === 'export'
@@ -306,7 +301,8 @@ let routeCacheLru = createLRU<RouteCacheEntry>(
   onRouteLRUEviction
 )
 
-type SegmentCacheKeypath = Prefix<[string, NormalizedSearch]>
+export type SegmentCacheKeypath = [string, NormalizedSearch | FallbackType]
+
 let segmentCacheMap: CacheMap<SegmentCacheKeypath, SegmentCacheEntry> =
   createCacheMap()
 // NOTE: Segments and Route entries are managed by separate LRUs. We could
@@ -445,66 +441,57 @@ export function readRouteCacheEntry(
   return null
 }
 
-export function getSegmentKeypath(
+export function getCanonicalSegmentKeypath(
+  route: FulfilledRouteCacheEntry,
+  cacheKey: SegmentCacheKey
+): SegmentCacheKeypath {
+  // Returns the actual keypath for a segment, without omitting any params.
+  return [
+    cacheKey,
+    cacheKey.endsWith('/' + PAGE_SEGMENT_KEY)
+      ? route.renderedSearch
+      : // Non-page segments never contain search params, so there's no reason
+        // to include it in the keypath.
+        Fallback,
+  ]
+}
+
+export function getGenericSegmentKeypathFromFetchStrategy(
   fetchStrategy: FetchStrategy,
   route: FulfilledRouteCacheEntry,
   cacheKey: SegmentCacheKey
 ): SegmentCacheKeypath {
-  // When a prefetch includes dynamic data, the search params are included
-  // in the result, so we must include the search string in the segment
-  // cache key. (Note that this is true even if the search string is empty.)
+  // Returns the most generic possible keypath for a segment, based on the
+  // strategy used to fetch it, i.e. static/PPR versus runtime prefetching.
   //
-  // If we're fetching using PPR, we do not need to include the search params in
-  // the cache key, because the search params are treated as dynamic data. The
-  // cache entry is valid for all possible search param values.
-  const isDynamic =
-    fetchStrategy === FetchStrategy.Full ||
-    fetchStrategy === FetchStrategy.PPRRuntime ||
-    !route.isPPREnabled
-  return isDynamic && cacheKey.endsWith('/' + PAGE_SEGMENT_KEY)
-    ? [cacheKey, route.renderedSearch]
-    : [cacheKey]
+  // This is used when _writing_ to the cache. We want to choose the most
+  // generic keypath so that it can be reused as much as possible.
+  //
+  // We may be able to re-key the response to something even more generic once
+  // we receive it — for example, if the server tells us that the response
+  // doesn't vary on a particular param — but even before we send the request,
+  // we know somethings based on the fetch strategy alone.
+  const doesVaryOnSearchParams =
+    // Non-page segments never include search params
+    cacheKey.endsWith('/' + PAGE_SEGMENT_KEY) &&
+    // Only a runtime prefetch will include search params in the result. Static
+    // prefetches never include search params, so they can be reused across all
+    // possible search param values.
+    (fetchStrategy === FetchStrategy.Full ||
+      fetchStrategy === FetchStrategy.PPRRuntime)
+  const keypath: SegmentCacheKeypath = [
+    cacheKey,
+
+    doesVaryOnSearchParams ? route.renderedSearch : Fallback,
+  ]
+  return keypath
 }
 
 export function readSegmentCacheEntry(
   now: number,
-  route: FulfilledRouteCacheEntry,
-  cacheKey: SegmentCacheKey
-): SegmentCacheEntry | null {
-  if (!cacheKey.endsWith('/' + PAGE_SEGMENT_KEY)) {
-    // Fast path. Search params only exist on page segments.
-    return readExactSegmentCacheEntry(now, [cacheKey])
-  }
-
-  const renderedSearch = route.renderedSearch
-  if (renderedSearch !== null) {
-    // Page segments may or may not contain search params. If they were prefetched
-    // using a dynamic request, then we will have an entry with search params.
-    // Check for that case first.
-    const entryWithSearchParams = readExactSegmentCacheEntry(now, [
-      cacheKey,
-      renderedSearch,
-    ])
-    if (entryWithSearchParams !== null) {
-      return entryWithSearchParams
-    }
-  }
-
-  // If we did not find an entry with the given search params, check for a
-  // "fallback" entry, where the search params are treated as dynamic data. This
-  // is the common case because PPR/static prerenders always treat search params
-  // as dynamic.
-  //
-  // See corresponding logic in `getSegmentKeypath`.
-  const entryWithoutSearchParams = readExactSegmentCacheEntry(now, [cacheKey])
-  return entryWithoutSearchParams
-}
-
-function readExactSegmentCacheEntry(
-  now: number,
   keypath: SegmentCacheKeypath
 ): SegmentCacheEntry | null {
-  const existingEntry = segmentCacheMap.get(keypath)
+  const existingEntry = segmentCacheMap.getWithFallback(keypath)
   if (existingEntry !== null) {
     // Check if the entry is stale
     if (existingEntry.staleAt > now) {
@@ -779,14 +766,19 @@ export function readOrCreateSegmentCacheEntry(
   route: FulfilledRouteCacheEntry,
   cacheKey: SegmentCacheKey
 ): SegmentCacheEntry {
-  const keypath = getSegmentKeypath(fetchStrategy, route, cacheKey)
-  const existingEntry = readExactSegmentCacheEntry(now, keypath)
+  const canonicalKeypath = getCanonicalSegmentKeypath(route, cacheKey)
+  const existingEntry = readSegmentCacheEntry(now, canonicalKeypath)
   if (existingEntry !== null) {
     return existingEntry
   }
   // Create a pending entry and add it to the cache.
+  const genericKeypath = getGenericSegmentKeypathFromFetchStrategy(
+    fetchStrategy,
+    route,
+    cacheKey
+  )
   const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
-  segmentCacheMap.set(keypath, pendingEntry)
+  segmentCacheMap.set(genericKeypath, pendingEntry)
   segmentCacheLru.put(pendingEntry)
   return pendingEntry
 }
@@ -834,7 +826,7 @@ export function upsertSegmentEntry(
   // TODO: We should not upsert an entry if its key was invalidated in the time
   // since the request was made. We can do that by passing the "owner" entry to
   // this function and confirming it's the same as `existingEntry`.
-  const existingEntry = readExactSegmentCacheEntry(now, keypath)
+  const existingEntry = readSegmentCacheEntry(now, keypath)
   if (existingEntry !== null) {
     // Don't replace a more specific segment with a less-specific one. A case where this
     // might happen is if the existing segment was fetched via
@@ -2086,7 +2078,11 @@ function writeSeedDataIntoCache(
       )
       upsertSegmentEntry(
         now,
-        getSegmentKeypath(fetchStrategy, route, cacheKey),
+        getGenericSegmentKeypathFromFetchStrategy(
+          fetchStrategy,
+          route,
+          cacheKey
+        ),
         newEntry
       )
     }

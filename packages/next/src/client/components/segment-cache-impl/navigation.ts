@@ -19,6 +19,7 @@ import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
 import {
   EntryStatus,
   readRouteCacheEntry,
+  getCanonicalSegmentKeypath,
   readSegmentCacheEntry,
   waitForSegmentCacheEntry,
   requestOptimisticRouteCacheEntry,
@@ -338,7 +339,11 @@ function readRenderSnapshotFromCache(
   let loading: LoadingModuleData | Promise<LoadingModuleData> = null
   let isPartial: boolean = true
 
-  const segmentEntry = readSegmentCacheEntry(now, route, tree.cacheKey)
+  const canonicalSegmentKeypath = getCanonicalSegmentKeypath(
+    route,
+    tree.cacheKey
+  )
+  const segmentEntry = readSegmentCacheEntry(now, canonicalSegmentKeypath)
   if (segmentEntry !== null) {
     switch (segmentEntry.status) {
       case EntryStatus.Fulfilled: {
