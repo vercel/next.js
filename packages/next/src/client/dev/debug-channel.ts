@@ -2,6 +2,30 @@ import type { DebugChannelBrowser } from 'react-server-dom-webpack/client.browse
 import { NEXT_REQUEST_ID_HEADER } from '../components/app-router-headers'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
+export interface DebugChannelReadableWriterPair {
+  readonly readable: ReadableStream<Uint8Array>
+  readonly writer: WritableStreamDefaultWriter<Uint8Array>
+}
+
+export function getOrCreateDebugChannelReadableWriterPair(
+  requestId: string
+): DebugChannelReadableWriterPair {
+  const pairs: Map<string, DebugChannelReadableWriterPair> =
+    (window.__NEXT_REACT_DEBUG_CHANNEL_READABLE_WRITER_PAIRS_BY_REQUEST_ID ??=
+      new Map())
+
+  let pair = pairs.get(requestId)
+
+  if (!pair) {
+    const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>()
+    pair = { readable, writer: writable.getWriter() }
+    pairs.set(requestId, pair)
+    pair.writer.closed.finally(() => pairs.delete(requestId))
+  }
+
+  return pair
+}
+
 export function createDebugChannel(
   responseHeaders: Headers | undefined
 ): DebugChannelBrowser {
@@ -25,15 +49,10 @@ export function createDebugChannel(
     }
   }
 
-  const controllers: Map<string, ReadableStreamDefaultController> =
-    (window.__NEXT_REACT_DEBUG_CHUNKS_CONTROLLERS_BY_REQUEST_ID ??= new Map())
+  const { readable } = getOrCreateDebugChannelReadableWriterPair(requestId)
 
   return {
-    readable: new ReadableStream({
-      start(controller) {
-        controllers.set(requestId, controller)
-      },
-    }),
+    readable,
     writable: new WritableStream({
       write(_chunk) {
         // The return channel is currently not used. We do need to define the

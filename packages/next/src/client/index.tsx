@@ -48,6 +48,7 @@ import {
 import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import tracer from './tracing/tracer'
 import { isNextRouterError } from './components/is-next-router-error'
+import type { DebugChannelReadableWriterPair } from './dev/debug-channel'
 
 /// <reference types="react-dom/experimental" />
 
@@ -63,9 +64,9 @@ declare global {
     __NEXT_P: any[]
 
     /* dev */
-    __NEXT_REACT_DEBUG_CHUNKS_CONTROLLERS_BY_REQUEST_ID?: Map<
+    __NEXT_REACT_DEBUG_CHANNEL_READABLE_WRITER_PAIRS_BY_REQUEST_ID?: Map<
       string,
-      ReadableStreamDefaultController
+      DebugChannelReadableWriterPair
     >
   }
 }

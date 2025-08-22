@@ -28,6 +28,7 @@ import {
   type GlobalErrorState,
 } from '../../../components/app-router-instance'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
+import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
 
 export interface StaticIndicatorState {
   pathname: string | null
@@ -453,32 +454,26 @@ export function processMessage(
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
       const { requestId, base64EncodedChunk } = message
+      const { writer } = getOrCreateDebugChannelReadableWriterPair(requestId)
 
-      const controllers =
-        window.__NEXT_REACT_DEBUG_CHUNKS_CONTROLLERS_BY_REQUEST_ID
-
-      if (controllers) {
-        const controller = controllers.get(requestId)
-
-        if (controller) {
-          if (base64EncodedChunk) {
-            controller.enqueue(Buffer.from(base64EncodedChunk, 'base64'))
-          } else {
-            // A null chunk signals that no more chunks will be sent, which
-            // allows us to close and delete the controller.
-            // TODO: Revisit this cleanup logic when we integrate the return
-            // channel that keeps the connection open to be able to lazily
-            // retrieve debug objects.
-            controller.close()
-            controllers.delete(requestId)
-          }
-        } else {
-          console.error(
-            new Error(
-              'No debug channel controller found for request ID: ' + requestId
-            )
-          )
-        }
+      if (base64EncodedChunk) {
+        writer.ready
+          .then(() => writer.write(Buffer.from(base64EncodedChunk, 'base64')))
+          .catch(console.error)
+      } else {
+        // A null chunk signals that no more chunks will be sent, which allows
+        // us to close the writer.
+        // TODO: Revisit this cleanup logic when we integrate the return channel
+        // that keeps the connection open to be able to lazily retrieve debug
+        // objects.
+        writer.ready
+          .then(() => {
+            // FIXME: React needs to wait for the main stream (called
+            // "secondary" stream) to close, before closing the response as a
+            // result of the debug stream being closed here.
+            // return writer.close()
+          })
+          .catch(console.error)
       }
 
       return
