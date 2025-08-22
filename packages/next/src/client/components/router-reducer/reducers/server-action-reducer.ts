@@ -57,7 +57,6 @@ import {
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
 import { revalidateEntireCache } from '../../segment-cache'
-import type { DebugChannelBrowser } from 'react-server-dom-webpack/client.browser'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -179,7 +178,9 @@ async function fetchServerAction(
   let actionResult: FetchServerActionResult['actionResult']
   let actionFlightData: FetchServerActionResult['actionFlightData']
   if (isRscResponse) {
-    let debugChannel: DebugChannelBrowser | undefined
+    let debugChannel:
+      | { readable?: ReadableStream; writable?: WritableStream }
+      | undefined
 
     if (process.env.NODE_ENV !== 'production') {
       const { createDebugChannel } =

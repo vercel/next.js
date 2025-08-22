@@ -104,12 +104,7 @@ declare module 'react-server-dom-webpack/client.browser' {
     findSourceMapURL: FindSourceMapURLCallback | undefined
     replayConsoleLogs?: boolean
     temporaryReferences?: TemporaryReferenceSet
-    debugChannel?: DebugChannelBrowser
-  }
-
-  export interface DebugChannelBrowser {
-    writable?: WritableStream
-    readable?: ReadableStream
+    debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
   }
 
   export function createFromFetch<T>(
@@ -162,14 +157,9 @@ declare module 'react-server-dom-webpack/server.edge' {
       onError?: (error: unknown) => void
       onPostpone?: (reason: string) => void
       signal?: AbortSignal
-      debugChannel?: DebugChannelServer
+      debugChannel?: { readable?: ReadableStream; writable?: WritableStream }
     }
   ): ReadableStream<Uint8Array>
-
-  export interface DebugChannelServer {
-    readable?: ReadableStream
-    writable?: WritableStream
-  }
 
   export function createTemporaryReferenceSet(
     ...args: unknown[]
@@ -317,11 +307,7 @@ declare module 'react-server-dom-webpack/client.edge' {
     findSourceMapURL: FindSourceMapURLCallback | undefined
     replayConsoleLogs?: boolean
     environmentName?: string
-    debugChannel?: DebugChannelEdge
-  }
-
-  export interface DebugChannelEdge {
-    readable?: ReadableStream
+    debugChannel?: { readable?: ReadableStream }
   }
 
   export type EncodeFormActionCallback = <A>(
