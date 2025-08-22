@@ -17,3 +17,11 @@ export function setBar(b) {
 }
 
 export { globalThis as g }
+
+export default function defaultFunction() {
+  return 'defaultFunction'
+}
+
+export function setDefaultFunction(f) {
+  defaultFunction = f
+}

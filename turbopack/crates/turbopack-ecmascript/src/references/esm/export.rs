@@ -690,7 +690,7 @@ impl EsmExports {
                         .get_ident(chunking_context, Some(name.clone()), scope_hoisting_context)
                         .await?
                         .map(|ident| {
-                                                        let expr = ident.as_expr_individual(DUMMY_SP);
+                            let expr = ident.as_expr_individual(DUMMY_SP);
                             let read_expr = expr.map_either(Expr::from, Expr::from).into_inner();
                             use crate::references::esm::base::ReferencedAssetIdent;
                             match &ident {
@@ -708,32 +708,33 @@ impl EsmExports {
                                             // came _before_ us, but we don't at this point.
                                             ExportBinding::Getter(quote!("() => $local" as Expr, local: Expr = read_expr))
                                         }
-                                        (Liveness::Mutable, _) => ExportBinding::GetterSetter(
-                                            quote!("() => $local" as Expr, local: Expr= read_expr.clone()),
-                                            quote!(
-                                                "($new) => $lhs = $new" as Expr,
-                                                lhs: AssignTarget = AssignTarget::Simple(
-                                                        ident.as_expr_individual(DUMMY_SP).map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner()),
-                                                new = Ident::new(format!("new_{name}").into(), DUMMY_SP, *ctxt),
-                                            ),
-                                        ),
+                                        (Liveness::Mutable, _) => {
+                                            let assign_target = AssignTarget::Simple(
+                                                        ident.as_expr_individual(DUMMY_SP).map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner());
+                                            ExportBinding::GetterSetter(
+                                                quote!("() => $local" as Expr, local: Expr= read_expr.clone()),
+                                                quote!(
+                                                    "($new) => $lhs = $new" as Expr,
+                                                    lhs: AssignTarget = assign_target,
+                                                    new = Ident::new(format!("new_{name}").into(), DUMMY_SP, *ctxt),
+                                                )
+                                            )
+                                        }
                                     }
                                 },
                                 ReferencedAssetIdent::Module { namespace_ident:_, ctxt:_, export:_ } => {
                                     // Otherwise we need to bind as a getter to preserve the 'liveness' of the other modules bindings.
                                     // TODO: If this becomes important it might be faster to use the runtime to copy PropertyDescriptors across modules
                                     // since that would reduce allocations and optimize access. We could do this by passing the module-id up.
-                                    let getter = quote!(
-                                            "() => $expr" as Expr,
-                                            expr: Expr = read_expr,
-                                        );
+                                    let getter = quote!("() => $expr" as Expr, expr: Expr = read_expr);
+                                    let assign_target = AssignTarget::Simple(
+                                                    ident.as_expr_individual(DUMMY_SP).map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner());
                                     if *mutable {
                                         ExportBinding::GetterSetter(
                                             getter,
                                             quote!(
                                                 "($new) => $lhs = $new" as Expr,
-                                                lhs: AssignTarget = AssignTarget::Simple(
-                                                    ident.as_expr_individual(DUMMY_SP).map_either(|i| SimpleAssignTarget::Ident(i.into()), SimpleAssignTarget::Member).into_inner()),
+                                                lhs: AssignTarget = assign_target,
                                                 new = Ident::new(
                                                     format!("new_{name}").into(),
                                                     DUMMY_SP,
