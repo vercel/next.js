@@ -23,6 +23,12 @@ it('default class export declarations are live', () => {
   expect(liveDefaultClass.default()).toBe('patched')
 })
 
+it('default function export declarations are live', () => {
+  expect(liveExports.default()).toBe('defaultFunction')
+  liveExports.setDefaultFunction(() => 'patched')
+  expect(liveExports.default()).toBe('patched')
+})
+
 it('exported lets are live', () => {
   expect(liveExports.foo).toBe('foo')
   liveExports.setFoo('new')
@@ -33,7 +39,6 @@ it('exported bindings that are not mutated are not live', () => {
   // These should be bound to values, but we don't have the analysis yet
   expectGetter(liveExports, 'obviouslyneverMutated')
   expectGetter(liveExports, 'neverMutated')
-  expectGetter(liveExports, 'default')
   expectGetter(constDefaultExportFunction, 'default')
 })
 
