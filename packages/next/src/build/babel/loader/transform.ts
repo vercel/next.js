@@ -3,7 +3,9 @@
  */
 
 import traverse from 'next/dist/compiled/babel/traverse'
-import generate from 'next/dist/compiled/babel/generator'
+import generate, {
+  type GeneratorResult,
+} from 'next/dist/compiled/babel/generator'
 import normalizeFile from 'next/dist/compiled/babel/core-lib-normalize-file'
 import normalizeOpts from 'next/dist/compiled/babel/core-lib-normalize-opts'
 import loadBlockHoistPlugin from 'next/dist/compiled/babel/core-lib-block-hoist-plugin'
@@ -13,6 +15,7 @@ import getConfig from './get-config'
 import { consumeIterator } from './util'
 import type { Span } from '../../../trace'
 import type { NextJsLoaderContext } from './types'
+import type { SourceMap } from './util'
 
 function getTraversalParams(file: any, pluginPairs: any[]) {
   const passPairs = []
@@ -70,24 +73,25 @@ function transformAst(file: any, babelConfig: any, parentSpan: Span) {
 }
 
 export default async function transform(
-  this: NextJsLoaderContext,
+  ctx: NextJsLoaderContext,
   source: string,
-  inputSourceMap: object | null | undefined,
+  inputSourceMap: SourceMap | null | undefined,
   loaderOptions: any,
   filename: string,
   target: string,
   parentSpan: Span
-) {
+): Promise<GeneratorResult> {
   const getConfigSpan = parentSpan.traceChild('babel-turbo-get-config')
-  const babelConfig = await getConfig.call(this, {
+
+  const babelConfig = await getConfig(ctx, {
     source,
     loaderOptions,
-    inputSourceMap,
+    inputSourceMap: inputSourceMap ?? undefined,
     target,
     filename,
   })
   if (!babelConfig) {
-    return { code: source, map: inputSourceMap }
+    return { code: source, map: inputSourceMap ?? null }
   }
   getConfigSpan.stop()
 

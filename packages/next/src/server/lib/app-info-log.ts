@@ -95,6 +95,7 @@ export async function getStartServerInfo({
         )
       },
       debugPrerender,
+      silent: false,
     }
   )
 

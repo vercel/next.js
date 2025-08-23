@@ -1321,6 +1321,9 @@
             if (null === value) return "";
             if (value instanceof Error) return String(value.message);
             if ("string" === typeof value.url) return value.url;
+            if ("string" === typeof value.href) return value.href;
+            if ("string" === typeof value.src) return value.src;
+            if ("string" === typeof value.currentSrc) return value.currentSrc;
             if ("string" === typeof value.command) return value.command;
             if (
               "object" === typeof value.request &&
@@ -1781,7 +1784,10 @@
         var rejectListeners = chunk.reason;
         chunk.status = "resolved_module";
         chunk.value = value;
-        chunk._debugInfo = null;
+        value = [];
+        null !== value && null != chunk._debugInfo
+          ? chunk._debugInfo.push.apply(chunk._debugInfo, value)
+          : (chunk._debugInfo = value);
         null !== response &&
           (initializeModuleChunk(chunk),
           wakeChunkIfInitialized(chunk, response, rejectListeners));
@@ -2417,6 +2423,37 @@
     function createModel(response, model) {
       return model;
     }
+    function getInferredFunctionApproximate(code) {
+      code = code.startsWith("Object.defineProperty(")
+        ? code.slice(22)
+        : code.startsWith("(")
+          ? code.slice(1)
+          : code;
+      if (code.startsWith("async function")) {
+        var idx = code.indexOf("(", 14);
+        if (-1 !== idx)
+          return (
+            (code = code.slice(14, idx).trim()),
+            (0, eval)("({" + JSON.stringify(code) + ":async function(){}})")[
+              code
+            ]
+          );
+      } else if (code.startsWith("function")) {
+        if (((idx = code.indexOf("(", 8)), -1 !== idx))
+          return (
+            (code = code.slice(8, idx).trim()),
+            (0, eval)("({" + JSON.stringify(code) + ":function(){}})")[code]
+          );
+      } else if (
+        code.startsWith("class") &&
+        ((idx = code.indexOf("{", 5)), -1 !== idx)
+      )
+        return (
+          (code = code.slice(5, idx).trim()),
+          (0, eval)("({" + JSON.stringify(code) + ":class{}})")[code]
+        );
+      return function () {};
+    }
     function parseModelString(response, parentObject, key, value) {
       if ("$" === value[0]) {
         if ("$" === value)
@@ -2541,42 +2578,26 @@
           case "E":
             response = value.slice(2);
             try {
-              return (0, eval)(response);
-            } catch (x) {
-              if (response.startsWith("(async function")) {
-                if (
-                  ((parentObject = response.indexOf("(", 15)),
-                  -1 !== parentObject)
-                )
-                  return (
-                    (response = response.slice(15, parentObject).trim()),
-                    (0, eval)(
-                      "({" + JSON.stringify(response) + ":async function(){}})"
-                    )[response]
+              if (!mightHaveStaticConstructor.test(response))
+                return (0, eval)(response);
+            } catch (x) {}
+            try {
+              if (
+                ((ref = getInferredFunctionApproximate(response)),
+                response.startsWith("Object.defineProperty("))
+              ) {
+                var idx = response.lastIndexOf(',"name",{value:"');
+                if (-1 !== idx) {
+                  var name = JSON.parse(
+                    response.slice(idx + 16 - 1, response.length - 2)
                   );
-              } else if (response.startsWith("(function")) {
-                if (
-                  ((parentObject = response.indexOf("(", 9)),
-                  -1 !== parentObject)
-                )
-                  return (
-                    (response = response.slice(9, parentObject).trim()),
-                    (0, eval)(
-                      "({" + JSON.stringify(response) + ":function(){}})"
-                    )[response]
-                  );
-              } else if (
-                response.startsWith("(class") &&
-                ((parentObject = response.indexOf("{", 6)), -1 !== parentObject)
-              )
-                return (
-                  (response = response.slice(6, parentObject).trim()),
-                  (0, eval)("({" + JSON.stringify(response) + ":class{}})")[
-                    response
-                  ]
-                );
-              return function () {};
+                  Object.defineProperty(ref, "name", { value: name });
+                }
+              }
+            } catch (_) {
+              ref = function () {};
             }
+            return ref;
           case "Y":
             if (2 < value.length && (ref = response._debugChannel)) {
               if ("@" === value[2])
@@ -2587,9 +2608,9 @@
                   getChunk(response, key)
                 );
               value = value.slice(2);
-              var _id2 = parseInt(value, 16);
-              response._chunks.has(_id2) || ref("Q:" + value);
-              ref = getChunk(response, _id2);
+              idx = parseInt(value, 16);
+              response._chunks.has(idx) || ref("Q:" + value);
+              ref = getChunk(response, idx);
               return "fulfilled" === ref.status
                 ? ref.value
                 : defineLazyGetter(response, ref, parentObject, key);
@@ -3623,7 +3644,10 @@
                   componentEndTime = time;
                   result.component = componentInfo$jscomp$0;
                   isLastComponent = !1;
-                } else if (candidateInfo.awaited) {
+                } else if (
+                  candidateInfo.awaited &&
+                  null != candidateInfo.awaited.env
+                ) {
                   endTime > childrenEndTime && (childrenEndTime = endTime);
                   var asyncInfo = candidateInfo,
                     env$jscomp$1 = response$jscomp$0._rootEnvironmentName,
@@ -3791,7 +3815,10 @@
                   componentEndTime = time;
                   result.component = _componentInfo;
                   isLastComponent = !1;
-                } else if (_candidateInfo.awaited) {
+                } else if (
+                  _candidateInfo.awaited &&
+                  null != _candidateInfo.awaited.env
+                ) {
                   var _asyncInfo = _candidateInfo,
                     _env2 = response$jscomp$0._rootEnvironmentName;
                   _asyncInfo.awaited.end > endTime &&
@@ -4283,10 +4310,10 @@
         void 0
       )._weakResponse;
     }
-    function startReadingFromStream(response, stream) {
+    function startReadingFromStream$1(response, stream, isSecondaryStream) {
       function progress(_ref) {
         var value = _ref.value;
-        if (_ref.done) close(response);
+        if (_ref.done) isSecondaryStream || close(response);
         else
           return (
             processBinaryChunk(response, streamState, value),
@@ -4304,6 +4331,112 @@
       throw Error(
         "Server Functions cannot be called during initial render. This would create a fetch waterfall. Try to use a Server Component to pass data to Client Components instead."
       );
+    }
+    function startReadingFromStream(
+      response$jscomp$0,
+      stream,
+      isSecondaryStream
+    ) {
+      var streamState = createStreamState();
+      stream.on("data", function (chunk) {
+        if ("string" === typeof chunk) {
+          if (void 0 !== response$jscomp$0.weak.deref()) {
+            for (
+              var response = unwrapWeakResponse(response$jscomp$0),
+                i = 0,
+                rowState = streamState._rowState,
+                rowID = streamState._rowID,
+                rowTag = streamState._rowTag,
+                rowLength = streamState._rowLength,
+                buffer = streamState._buffer,
+                chunkLength = chunk.length;
+              i < chunkLength;
+
+            ) {
+              var lastIdx = -1;
+              switch (rowState) {
+                case 0:
+                  lastIdx = chunk.charCodeAt(i++);
+                  58 === lastIdx
+                    ? (rowState = 1)
+                    : (rowID =
+                        (rowID << 4) |
+                        (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+                  continue;
+                case 1:
+                  rowState = chunk.charCodeAt(i);
+                  84 === rowState ||
+                  65 === rowState ||
+                  79 === rowState ||
+                  111 === rowState ||
+                  85 === rowState ||
+                  83 === rowState ||
+                  115 === rowState ||
+                  76 === rowState ||
+                  108 === rowState ||
+                  71 === rowState ||
+                  103 === rowState ||
+                  77 === rowState ||
+                  109 === rowState ||
+                  86 === rowState
+                    ? ((rowTag = rowState), (rowState = 2), i++)
+                    : (64 < rowState && 91 > rowState) ||
+                        114 === rowState ||
+                        120 === rowState
+                      ? ((rowTag = rowState), (rowState = 3), i++)
+                      : ((rowTag = 0), (rowState = 3));
+                  continue;
+                case 2:
+                  lastIdx = chunk.charCodeAt(i++);
+                  44 === lastIdx
+                    ? (rowState = 4)
+                    : (rowLength =
+                        (rowLength << 4) |
+                        (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+                  continue;
+                case 3:
+                  lastIdx = chunk.indexOf("\n", i);
+                  break;
+                case 4:
+                  if (84 !== rowTag)
+                    throw Error(
+                      "Binary RSC chunks cannot be encoded as strings. This is a bug in the wiring of the React streams."
+                    );
+                  if (rowLength < chunk.length || chunk.length > 3 * rowLength)
+                    throw Error(
+                      "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
+                    );
+                  lastIdx = chunk.length;
+              }
+              if (-1 < lastIdx) {
+                if (0 < buffer.length)
+                  throw Error(
+                    "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
+                  );
+                i = chunk.slice(i, lastIdx);
+                processFullStringRow(response, rowID, rowTag, i);
+                i = lastIdx;
+                3 === rowState && i++;
+                rowLength = rowID = rowTag = rowState = 0;
+                buffer.length = 0;
+              } else if (chunk.length !== i)
+                throw Error(
+                  "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
+                );
+            }
+            streamState._rowState = rowState;
+            streamState._rowID = rowID;
+            streamState._rowTag = rowTag;
+            streamState._rowLength = rowLength;
+          }
+        } else processBinaryChunk(response$jscomp$0, streamState, chunk);
+      });
+      stream.on("error", function (error) {
+        reportGlobalError(response$jscomp$0, error);
+      });
+      stream.on("end", function () {
+        isSecondaryStream || close(response$jscomp$0);
+      });
     }
     var util = require("util"),
       ReactDOM = require("react-dom"),
@@ -4412,6 +4545,7 @@
           : null,
       initializingHandler = null,
       initializingChunk = null,
+      mightHaveStaticConstructor = /\bclass\b.*\bstatic\b/,
       supportsCreateTask = !!console.createTask,
       fakeFunctionCache = new Map(),
       fakeFunctionIdx = 0,
@@ -4512,7 +4646,14 @@
       var response = createResponseFromOptions(options);
       promiseForResponse.then(
         function (r) {
-          startReadingFromStream(response, r.body);
+          options && options.debugChannel && options.debugChannel.readable
+            ? (startReadingFromStream$1(
+                response,
+                options.debugChannel.readable,
+                !1
+              ),
+              startReadingFromStream$1(response, r.body, !0))
+            : startReadingFromStream$1(response, r.body, !1);
         },
         function (e) {
           reportGlobalError(response, e);
@@ -4525,127 +4666,40 @@
       serverConsumerManifest,
       options
     ) {
-      var response$jscomp$0 = new ResponseInstance(
-          serverConsumerManifest.moduleMap,
-          serverConsumerManifest.serverModuleMap,
-          serverConsumerManifest.moduleLoading,
-          noServerCall,
-          options ? options.encodeFormAction : void 0,
-          options && "string" === typeof options.nonce ? options.nonce : void 0,
-          void 0,
-          options && options.findSourceMapURL
-            ? options.findSourceMapURL
-            : void 0,
-          options ? !0 === options.replayConsoleLogs : !1,
-          options && options.environmentName ? options.environmentName : void 0,
-          void 0
-        )._weakResponse,
-        streamState = createStreamState();
-      stream.on("data", function (chunk) {
-        if ("string" === typeof chunk) {
-          if (void 0 !== response$jscomp$0.weak.deref()) {
-            for (
-              var response = unwrapWeakResponse(response$jscomp$0),
-                i = 0,
-                rowState = streamState._rowState,
-                rowID = streamState._rowID,
-                rowTag = streamState._rowTag,
-                rowLength = streamState._rowLength,
-                buffer = streamState._buffer,
-                chunkLength = chunk.length;
-              i < chunkLength;
-
-            ) {
-              var lastIdx = -1;
-              switch (rowState) {
-                case 0:
-                  lastIdx = chunk.charCodeAt(i++);
-                  58 === lastIdx
-                    ? (rowState = 1)
-                    : (rowID =
-                        (rowID << 4) |
-                        (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-                  continue;
-                case 1:
-                  rowState = chunk.charCodeAt(i);
-                  84 === rowState ||
-                  65 === rowState ||
-                  79 === rowState ||
-                  111 === rowState ||
-                  85 === rowState ||
-                  83 === rowState ||
-                  115 === rowState ||
-                  76 === rowState ||
-                  108 === rowState ||
-                  71 === rowState ||
-                  103 === rowState ||
-                  77 === rowState ||
-                  109 === rowState ||
-                  86 === rowState
-                    ? ((rowTag = rowState), (rowState = 2), i++)
-                    : (64 < rowState && 91 > rowState) ||
-                        114 === rowState ||
-                        120 === rowState
-                      ? ((rowTag = rowState), (rowState = 3), i++)
-                      : ((rowTag = 0), (rowState = 3));
-                  continue;
-                case 2:
-                  lastIdx = chunk.charCodeAt(i++);
-                  44 === lastIdx
-                    ? (rowState = 4)
-                    : (rowLength =
-                        (rowLength << 4) |
-                        (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-                  continue;
-                case 3:
-                  lastIdx = chunk.indexOf("\n", i);
-                  break;
-                case 4:
-                  if (84 !== rowTag)
-                    throw Error(
-                      "Binary RSC chunks cannot be encoded as strings. This is a bug in the wiring of the React streams."
-                    );
-                  if (rowLength < chunk.length || chunk.length > 3 * rowLength)
-                    throw Error(
-                      "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
-                    );
-                  lastIdx = chunk.length;
-              }
-              if (-1 < lastIdx) {
-                if (0 < buffer.length)
-                  throw Error(
-                    "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
-                  );
-                i = chunk.slice(i, lastIdx);
-                processFullStringRow(response, rowID, rowTag, i);
-                i = lastIdx;
-                3 === rowState && i++;
-                rowLength = rowID = rowTag = rowState = 0;
-                buffer.length = 0;
-              } else if (chunk.length !== i)
-                throw Error(
-                  "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
-                );
-            }
-            streamState._rowState = rowState;
-            streamState._rowID = rowID;
-            streamState._rowTag = rowTag;
-            streamState._rowLength = rowLength;
-          }
-        } else processBinaryChunk(response$jscomp$0, streamState, chunk);
-      });
-      stream.on("error", function (error) {
-        reportGlobalError(response$jscomp$0, error);
-      });
-      stream.on("end", function () {
-        return close(response$jscomp$0);
-      });
-      return getRoot(response$jscomp$0);
+      serverConsumerManifest = new ResponseInstance(
+        serverConsumerManifest.moduleMap,
+        serverConsumerManifest.serverModuleMap,
+        serverConsumerManifest.moduleLoading,
+        noServerCall,
+        options ? options.encodeFormAction : void 0,
+        options && "string" === typeof options.nonce ? options.nonce : void 0,
+        void 0,
+        options && options.findSourceMapURL ? options.findSourceMapURL : void 0,
+        options ? !0 === options.replayConsoleLogs : !1,
+        options && options.environmentName ? options.environmentName : void 0,
+        void 0
+      )._weakResponse;
+      options && options.debugChannel
+        ? (startReadingFromStream(
+            serverConsumerManifest,
+            options.debugChannel,
+            !1
+          ),
+          startReadingFromStream(serverConsumerManifest, stream, !0))
+        : startReadingFromStream(serverConsumerManifest, stream, !1);
+      return getRoot(serverConsumerManifest);
     };
     exports.createFromReadableStream = function (stream, options) {
-      options = createResponseFromOptions(options);
-      startReadingFromStream(options, stream);
-      return getRoot(options);
+      var response = createResponseFromOptions(options);
+      options && options.debugChannel && options.debugChannel.readable
+        ? (startReadingFromStream$1(
+            response,
+            options.debugChannel.readable,
+            !1
+          ),
+          startReadingFromStream$1(response, stream, !0))
+        : startReadingFromStream$1(response, stream, !1);
+      return getRoot(response);
     };
     exports.createServerReference = function (id) {
       return createServerReference$1(id, noServerCall$1);

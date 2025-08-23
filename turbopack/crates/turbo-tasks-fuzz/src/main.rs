@@ -52,6 +52,9 @@ struct FsWatcher {
     directory_modifications: u32,
     #[arg(long)]
     print_missing_invalidations: bool,
+    /// Call `start_watching` after the initial read of files instead of before (the default).
+    #[arg(long)]
+    start_watching_late: bool,
 }
 
 #[tokio::main]
@@ -91,7 +94,9 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
             .await?;
         create_directory_tree(&mut FxHashSet::default(), &fs_root, args.depth, args.width)?;
 
-        project_fs.await?.start_watching(None).await?;
+        if !args.start_watching_late {
+            project_fs.await?.start_watching(None).await?;
+        }
 
         let read_all_paths_op =
             read_all_paths_operation(invalidations.clone(), project_root, args.depth, args.width);
@@ -100,6 +105,10 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
             let mut invalidations = invalidations.0.lock().unwrap();
             println!("read all {} files", invalidations.len());
             invalidations.clear();
+        }
+
+        if args.start_watching_late {
+            project_fs.await?.start_watching(None).await?;
         }
 
         let mut rand_buf = [0; 16];

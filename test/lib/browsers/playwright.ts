@@ -57,6 +57,20 @@ interface ElementHandleExt extends ElementHandle {
   text(): Promise<string>
 }
 
+export type ElementByCssOpts = {
+  timeout?: number
+  /** The state of the DOM element. */
+  state?: 'attached' | 'visible' | 'hidden'
+  /** The state of the page. */
+  waitUntil?: false | 'load' | 'domcontentloaded' | 'networkidle'
+}
+
+export type PlaywrightNavigationWaitUntil =
+  | 'load'
+  | 'domcontentloaded'
+  | 'networkidle'
+  | 'commit'
+
 export class Playwright<TCurrent = undefined> {
   private activeTrace?: string
   private eventCallbacks: Record<EventType, Set<(...args: any[]) => void>> = {
@@ -229,6 +243,7 @@ export class Playwright<TCurrent = undefined> {
       cpuThrottleRate?: number
       pushErrorAsConsoleLog?: boolean
       beforePageLoad?: (page: Page) => void | Promise<void>
+      waitUntil?: PlaywrightNavigationWaitUntil
     }
   ) {
     await this.close()
@@ -312,7 +327,7 @@ export class Playwright<TCurrent = undefined> {
 
     await opts?.beforePageLoad?.(page)
 
-    await page.goto(url, { waitUntil: 'load' })
+    await page.goto(url, { waitUntil: opts?.waitUntil ?? 'load' })
   }
 
   back(options?: Parameters<Page['goBack']>[0]) {
@@ -371,8 +386,20 @@ export class Playwright<TCurrent = undefined> {
     })
   }
 
-  elementByCss(selector: string) {
-    return this.waitForElementByCss(selector, 5_000)
+  elementByCss(selector: string, opts?: ElementByCssOpts) {
+    return this.waitForElementByCss(selector, {
+      timeout: 5_000,
+      ...opts,
+    })
+  }
+
+  /** A replacement for the default `browser.elementByCss` that doesn't wait for the page to fire "load". */
+  elementByCssInstant(selector: string, opts?: ElementByCssOpts) {
+    return this.waitForElementByCss(selector, {
+      timeout: 10,
+      waitUntil: false,
+      ...opts,
+    })
   }
 
   hasElementByCss(selector: string) {
@@ -455,16 +482,29 @@ export class Playwright<TCurrent = undefined> {
     )
   }
 
-  waitForElementByCss(selector: string, timeout = 10_000) {
+  waitForElementByCss(selector: string, opts: number | ElementByCssOpts = {}) {
+    const {
+      timeout = 10_000,
+      waitUntil = 'load', // TODO: we should get rid of this and fix the tests that implicitly rely on it
+      state = 'attached', // TODO: we should probably default to "visible" instead
+    } = typeof opts === 'number' ? { timeout: opts } : opts
+
     return this.startChain(async () => {
       const el = await page.waitForSelector(selector, {
         timeout,
-        state: 'attached',
+        state,
       })
-      // it seems selenium waits longer and tests rely on this behavior
-      // so we wait for the load event fire before returning
-      await page.waitForLoadState()
-      return this.wrapElement(el, selector)
+      if (waitUntil !== false) {
+        // it seems selenium waits longer and tests rely on this behavior
+        // so we wait for the load event fire before returning
+        await page.waitForLoadState(waitUntil)
+      }
+      return this.wrapElement(
+        // Playwright has `null` as a possible return type in case `state` is `detached`,
+        // but we don't allow passing that here, so we can assume it's non-null
+        el!,
+        selector
+      )
     })
   }
 

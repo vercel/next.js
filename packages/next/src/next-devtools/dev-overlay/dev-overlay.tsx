@@ -1,11 +1,9 @@
 import { createContext, useContext, useRef, useState } from 'react'
 import { ShadowPortal } from './components/shadow-portal'
-import { Base } from './styles/base'
 import { ComponentStyles } from './styles/component-styles'
-import { Colors } from './styles/colors'
 import { ErrorOverlay } from './components/errors/error-overlay/error-overlay'
 import { RenderError } from './container/runtime-error/render-error'
-import { DarkTheme } from './styles/dark-theme'
+import { ScaleUpdater } from './styles/scale-updater'
 import type { ReadyRuntimeError } from './utils/get-error-by-type'
 import { DevToolsIndicator } from './components/devtools-indicator/devtools-indicator'
 import { PanelRouter } from './menu/panel-router'
@@ -28,12 +26,10 @@ export function DevOverlay() {
   const triggerRef = useRef<HTMLButtonElement>(null)
   return (
     <ShadowPortal>
-      <Base scale={state.scale} />
-      <Colors />
+      <ScaleUpdater />
       <ComponentStyles />
-      <DarkTheme />
 
-      <RenderError state={state} dispatch={dispatch} isAppDir={true}>
+      <RenderError state={state} isAppDir={true}>
         {({ runtimeErrors, totalErrorCount }) => {
           return (
             <>

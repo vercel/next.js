@@ -116,6 +116,7 @@ export const getHandler = ({
       routerServerContext,
       nextConfig,
       resolvedPathname,
+      encodedResolvedPathname,
     } = prepareResult
 
     const isExperimentalCompile =
@@ -197,8 +198,8 @@ export const getHandler = ({
 
       const resolvedUrl = formatUrl({
         pathname: nextConfig.trailingSlash
-          ? parsedUrl.pathname
-          : removeTrailingSlash(parsedUrl.pathname || '/'),
+          ? `${encodedResolvedPathname}${!encodedResolvedPathname.endsWith('/') && parsedUrl.pathname?.endsWith('/') ? '/' : ''}`
+          : removeTrailingSlash(encodedResolvedPathname || '/'),
         // make sure to only add query values from original URL
         query: hasStaticProps ? {} : originalQuery,
       })

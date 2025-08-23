@@ -7,6 +7,7 @@ import {
   trackDynamicDataInDynamicRender,
   annotateDynamicAccess,
   trackSynchronousRequestDataAccessInDev,
+  delayUntilRuntimeStage,
 } from '../app-render/dynamic-rendering'
 
 import {
@@ -14,10 +15,15 @@ import {
   type PrerenderStoreLegacy,
   type PrerenderStorePPR,
   type PrerenderStoreModern,
+  type PrerenderStoreModernRuntime,
   type StaticPrerenderStore,
+  throwInvariantForMissingStore,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeDevtoolsIOAwarePromise,
+  makeHangingPromise,
+} from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import {
   describeStringPropertyAccess,
@@ -28,7 +34,6 @@ import {
   throwWithStaticGenerationBailoutErrorWithDynamicError,
   throwForSearchParamsAccessInUseCache,
 } from './utils'
-import { scheduleImmediate } from '../../lib/scheduler'
 
 export type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -63,7 +68,7 @@ export type UnsafeUnwrappedSearchParams<P> =
 export function createSearchParamsFromClient(
   underlyingSearchParams: SearchParams,
   workStore: WorkStore
-) {
+): Promise<SearchParams> {
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -71,7 +76,7 @@ export function createSearchParamsFromClient(
       case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
-        return createPrerenderSearchParams(workStore, workUnitStore)
+        return createStaticPrerenderSearchParams(workStore, workUnitStore)
       case 'prerender-runtime':
         throw new InvariantError(
           'createSearchParamsFromClient should not be called in a runtime prerender.'
@@ -83,12 +88,12 @@ export function createSearchParamsFromClient(
           'createSearchParamsFromClient should not be called in cache contexts.'
         )
       case 'request':
-        break
+        return createRenderSearchParams(underlyingSearchParams, workStore)
       default:
         workUnitStore satisfies never
     }
   }
-  return createRenderSearchParams(underlyingSearchParams, workStore)
+  throwInvariantForMissingStore()
 }
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
@@ -106,7 +111,7 @@ export function createServerSearchParamsForServerPage(
       case 'prerender-client':
       case 'prerender-ppr':
       case 'prerender-legacy':
-        return createPrerenderSearchParams(workStore, workUnitStore)
+        return createStaticPrerenderSearchParams(workStore, workUnitStore)
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
@@ -114,13 +119,17 @@ export function createServerSearchParamsForServerPage(
           'createServerSearchParamsForServerPage should not be called in cache contexts.'
         )
       case 'prerender-runtime':
+        return createRuntimePrerenderSearchParams(
+          underlyingSearchParams,
+          workUnitStore
+        )
       case 'request':
-        break
+        return createRenderSearchParams(underlyingSearchParams, workStore)
       default:
         workUnitStore satisfies never
     }
   }
-  return createRenderSearchParams(underlyingSearchParams, workStore)
+  throwInvariantForMissingStore()
 }
 
 export function createPrerenderSearchParamsForClientPage(
@@ -157,18 +166,15 @@ export function createPrerenderSearchParamsForClientPage(
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
-        break
+        return Promise.resolve({})
       default:
         workUnitStore satisfies never
     }
   }
-  // We're prerendering in a mode that does not abort. We resolve the promise
-  // without any tracking because we're just transporting a value from server to
-  // client where the tracking will be applied.
-  return Promise.resolve({})
+  throwInvariantForMissingStore()
 }
 
-function createPrerenderSearchParams(
+function createStaticPrerenderSearchParams(
   workStore: WorkStore,
   prerenderStore: StaticPrerenderStore
 ): Promise<SearchParams> {
@@ -193,6 +199,18 @@ function createPrerenderSearchParams(
   }
 }
 
+function createRuntimePrerenderSearchParams(
+  underlyingSearchParams: SearchParams,
+  workUnitStore: PrerenderStoreModernRuntime
+): Promise<SearchParams> {
+  return delayUntilRuntimeStage(
+    workUnitStore,
+    process.env.__NEXT_CACHE_COMPONENTS
+      ? makeUntrackedSearchParams(underlyingSearchParams)
+      : makeUntrackedExoticSearchParams(underlyingSearchParams)
+  )
+}
+
 function createRenderSearchParams(
   underlyingSearchParams: SearchParams,
   workStore: WorkStore
@@ -202,10 +220,10 @@ function createRenderSearchParams(
     // dictionary object.
     return Promise.resolve({})
   } else {
-    if (
-      process.env.NODE_ENV === 'development' &&
-      !workStore.isPrefetchRequest
-    ) {
+    if (process.env.NODE_ENV === 'development') {
+      // Semantically we only need the dev tracking when running in `next dev`
+      // but since you would never use next dev with production NODE_ENV we use this
+      // as a proxy so we can statically exclude this code from production builds.
       if (process.env.__NEXT_CACHE_COMPONENTS) {
         return makeUntrackedSearchParamsWithDevWarnings(
           underlyingSearchParams,
@@ -455,7 +473,7 @@ function makeErroringExoticSearchParams(
  * error on access, because accessing searchParams inside of `"use cache"` is
  * not allowed.
  */
-export function makeErroringExoticSearchParamsForUseCache(
+export function makeErroringSearchParamsForUseCache(
   workStore: WorkStore
 ): Promise<SearchParams> {
   const cachedSearchParams = CachedSearchParamsForUseCache.get(workStore)
@@ -628,9 +646,7 @@ function makeDynamicallyTrackedExoticSearchParamsWithDevWarnings(
   // We don't use makeResolvedReactPromise here because searchParams
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
-  const promise = new Promise<SearchParams>((resolve) =>
-    scheduleImmediate(() => resolve(underlyingSearchParams))
-  )
+  const promise = makeDevtoolsIOAwarePromise(underlyingSearchParams)
   promise.then(() => {
     promiseInitialized = true
   })
@@ -731,7 +747,7 @@ function makeUntrackedSearchParamsWithDevWarnings(
 
   const proxiedProperties = new Set<string>()
   const unproxiedProperties: Array<string> = []
-  const promise = Promise.resolve(underlyingSearchParams)
+  const promise = makeDevtoolsIOAwarePromise(underlyingSearchParams)
 
   Object.keys(underlyingSearchParams).forEach((prop) => {
     if (wellKnownProperties.has(prop)) {

@@ -11,9 +11,36 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
     return
   }
 
+  let currentCliOutputIndex = 0
+  beforeEach(() => {
+    resetCliOutput()
+  })
+
+  const getCliOutput = () => {
+    if (next.cliOutput.length < currentCliOutputIndex) {
+      // cliOutput shrank since we started the test, so something (like a `sandbox`) reset the logs
+      currentCliOutputIndex = 0
+    }
+    return next.cliOutput.slice(currentCliOutputIndex)
+  }
+
+  const resetCliOutput = () => {
+    currentCliOutputIndex = next.cliOutput.length
+  }
+
   describe.each([
-    { description: 'in a page', prefix: 'in-page' },
-    { description: 'in a private cache', prefix: 'in-private-cache' },
+    {
+      description: 'in a page',
+      prefix: 'in-page',
+    },
+    {
+      description: 'in a private cache',
+      prefix: 'in-private-cache',
+    },
+    {
+      description: 'passed to a public cache',
+      prefix: 'passed-to-public-cache',
+    },
   ])('$description', ({ prefix }) => {
     it('includes dynamic params, but not dynamic content', async () => {
       let page: Playwright.Page
@@ -670,10 +697,32 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
   })
 
   describe('cache stale time handling', () => {
-    it('includes short-lived public caches with a long enough staleTime', async () => {
-      // If a cache has an expiration time under 5min (DYNAMIC_EXPIRE), we omit it from static prerenders.
-      // However, it should still be included in a runtime prefetch if it's stale time is above 30s. (RUNTIME_PREFETCH_DYNAMIC_STALE)
-
+    it.each([
+      {
+        // If a cache has an expiration time under 5min (DYNAMIC_EXPIRE), we omit it from static prerenders.
+        // However, it should still be included in a runtime prefetch if its stale time is >=30s. (RUNTIME_PREFETCH_DYNAMIC_STALE)
+        description:
+          'includes short-lived public caches with a long enough staleTime',
+        staticContent: 'This page uses a short-lived public cache',
+        path: '/caches/public-short-expire-long-stale',
+      },
+      {
+        // If a cache has an expiration time under 5min (DYNAMIC_EXPIRE), we omit it from static prerenders.
+        // However, it should still be included in a runtime prefetch if its stale time is >=30s. (RUNTIME_PREFETCH_DYNAMIC_STALE)
+        // `cacheLife("seconds")` is deliberately set to have a stale time of 30s to stay above this treshold.
+        description: 'includes public caches with cacheLife("seconds")',
+        staticContent: 'This page uses a short-lived public cache',
+        path: '/caches/public-seconds',
+      },
+      {
+        // A Private cache will always be omitted from static prerenders.
+        // However, it should still be included in a runtime prefetch if its stale time is >=30s. (RUNTIME_PREFETCH_DYNAMIC_STALE)
+        // `cacheLife("seconds")` is deliberately set to have a stale time of 30s to stay above this treshold.
+        description: 'includes private caches with cacheLife("seconds")',
+        staticContent: 'This page uses a short-lived private cache',
+        path: '/caches/private-seconds',
+      },
+    ])('$description', async ({ path, staticContent }) => {
       let page: Playwright.Page
       const browser = await next.browser('/', {
         beforePageLoad(p: Playwright.Page) {
@@ -682,22 +731,20 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
       })
       const act = createRouterAct(page)
 
-      const STATIC_CONTENT = 'This page uses a short-lived public cache'
       const DYNAMICALLY_PREFETCHABLE_CONTENT = 'Short-lived cached content'
 
       // Reveal the link to trigger a static prefetch
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="auto"][data-link-accordion="/caches/public-short-expire-long-stale"]`
+          `input[data-prefetch="auto"][data-link-accordion="${path}"]`
         )
         await linkToggle.click()
       }, [
         // Should include the static shell
         {
-          includes: STATIC_CONTENT,
+          includes: staticContent,
         },
         // Should not include the short-lived cache
-        // (We set the `expire` value to be under 5min, so it will be excluded from prerenders)
         {
           includes: DYNAMICALLY_PREFETCHABLE_CONTENT,
           block: 'reject',
@@ -707,12 +754,11 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
       // Reveal the link to trigger a runtime prefetch
       await act(async () => {
         const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="runtime"][data-link-accordion="/caches/public-short-expire-long-stale"]`
+          `input[data-prefetch="runtime"][data-link-accordion="${path}"]`
         )
         await linkToggle.click()
       }, [
         // Should include the short-lived cache
-        // (We set `stale` to be above 30s, which means it shouldn't be omitted)
         {
           includes: DYNAMICALLY_PREFETCHABLE_CONTENT,
         },
@@ -721,9 +767,7 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
       // Navigate to the page. We didn't include any uncached IO, so the page is fully prefetched,
       // and this shouldn't issue any more requests
       await act(async () => {
-        await browser
-          .elementByCss(`a[href="/caches/public-short-expire-long-stale"]`)
-          .click()
+        await browser.elementByCss(`a[href="${path}"]`).click()
       }, 'no-requests')
 
       expect(await browser.elementByCss('main').text()).toInclude(
@@ -934,82 +978,114 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
   })
 
   describe('errors', () => {
-    it('aborts the prerender and logs an error when sync IO is used after cookies()', async () => {
-      // In a runtime prefetch, we might encounter sync IO usages that weren't caught during build,
-      // because they were hidden behind e.g. a cookies() call.
-      // We currently have no way to catch these statically.
-      // In that case, we should abort the prerender, but still return partial content.
+    it.each([
+      {
+        description: 'when sync IO is used after awaiting cookies()',
+        path: '/errors/sync-io-after-runtime-api/cookies',
+      },
+      // TODO(dynamic-ppr):
+      // A tree prefetch for "/dynamic-params/123" currently causes it to be prerendered on demand,
+      // meaning that we end up statically prerendering it with all the params included.
+      // Because of this, `await params` doesn't hang in the static prerender, so we hit the sync IO error behind it.
+      // This error somehow causes an infinite redirect loop between two different `?_rsc` URLs.
+      // Investigate this separately or wait until we start always using fallback params for route trees.
+      //
+      // {
+      //   description: 'when sync IO is used after awaiting dynamic params',
+      //   path: '/errors/sync-io-after-runtime-api/dynamic-params/123',
+      // },
+      {
+        description: 'when sync IO is used after awaiting searchParams',
+        path: '/errors/sync-io-after-runtime-api/search-params?foo=bar',
+      },
+      {
+        description: 'when sync IO is used after awaiting a private cache',
+        path: '/errors/sync-io-after-runtime-api/private-cache',
+      },
+      {
+        description:
+          'when sync IO is used after awaiting a quickly-expiring public cache',
+        path: '/errors/sync-io-after-runtime-api/quickly-expiring-public-cache',
+      },
+    ])(
+      'aborts the prerender without logging an error $description',
+      async ({ path }) => {
+        // In a runtime prefetch, we might encounter sync IO usages that weren't caught during build,
+        // because they were hidden behind e.g. a cookies() call.
+        // We currently have no way to catch these statically.
+        // In that case, we should abort the prerender, but still return partial content.
 
-      // TODO: this doesn't work as well as it could, see comment before the navigation
+        // TODO: this doesn't work as well as it could, see comment before the navigation
 
-      let page: Playwright.Page
-      const browser = await next.browser('/', {
-        beforePageLoad(p: Playwright.Page) {
-          page = p
-        },
-      })
-      const act = createRouterAct(page)
+        let page: Playwright.Page
+        const browser = await next.browser('/errors', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page)
 
-      const STATIC_CONTENT = 'This page performs sync IO after a cookies() call'
+        const STATIC_CONTENT = 'This page performs sync IO after'
 
-      // Reveal the link to trigger a runtime prefetch
-      await act(async () => {
-        const linkToggle = await browser.elementByCss(
-          `input[data-prefetch="runtime"][data-link-accordion="/errors/sync-io-after-cookies"]`
+        // Reveal the link to trigger a runtime prefetch
+        await act(async () => {
+          const linkToggle = await browser.elementByCss(
+            `input[data-prefetch="runtime"][data-link-accordion="${path}"]`
+          )
+          await linkToggle.click()
+        }, [
+          // Should include the shell
+          {
+            includes: STATIC_CONTENT,
+          },
+          // Should abort the render when sync IO is encountered,
+          // so this should never be included
+          {
+            includes: 'Timestamp',
+            block: 'reject',
+          },
+        ])
+
+        if (!isNextDeploy) {
+          expect(getCliOutput()).not.toMatch(`Date.now()`)
+        }
+
+        // Navigate to the page
+        await act(async () => {
+          await act(
+            async () => {
+              await browser.elementByCss(`a[href="${path}"]`).click()
+            },
+            {
+              // Temporarily block the navigation request.
+              includes: 'Timestamp',
+              block: true,
+            }
+          )
+          // We aborted the render because of sync IO, so we won't display the timestamp,
+          // but due to the way we sequence tasks, we should've at least finished rendering the static parts.
+          expect(await browser.elementsByCss('#timestamp')).toHaveLength(0)
+          expect(await browser.elementById('intro').text()).toInclude(
+            STATIC_CONTENT
+          )
+        })
+
+        // After navigating, we should see the sync IO result that we omitted from the prefetch.
+        expect(await browser.elementById('intro').text()).toInclude(
+          STATIC_CONTENT
         )
-        await linkToggle.click()
-      }, [
-        // Should include the shell
-        {
-          includes: STATIC_CONTENT,
-        },
-        // Should abort the render when sync IO is encountered,
-        // so this should never be included
-        {
-          includes: 'Timestamp',
-          block: 'reject',
-        },
-      ])
-
-      if (!isNextDeploy) {
-        expect(next.cliOutput).toContain(
-          'Error: Route "/errors/sync-io-after-cookies" used `Date.now()` instead of using `performance` or without explicitly calling `await connection()` beforehand.'
+        expect(await browser.elementById('timestamp').text()).toMatch(
+          /Timestamp: \d+/
         )
       }
-
-      // TODO(runtime-ppr): we should be able to display the (aborted, partial) prefetched contents before navigating,
-      // but it seems like when we abort the render, we're also inadvertently cutting off some promises related to metadata
-      // which end up suspending on the client and blocking react from rendering.
-      // Ideally, we'd be able to use the partial result, but this is an error scenario and we don't crash,
-      // so i'm just settling for that for now.
-
-      // Navigate to the page
-      await act(
-        async () => {
-          await browser
-            .elementByCss(`a[href="/errors/sync-io-after-cookies"]`)
-            .click()
-        },
-        {
-          includes: 'Timestamp',
-        }
-      )
-
-      // After navigating, we should see the sync IO result that we omitted from the prefetch.
-      expect(await browser.elementById('intro').text()).toInclude(
-        STATIC_CONTENT
-      )
-      expect(await browser.elementById('timestamp').text()).toMatch(
-        /Timestamp: \d+/
-      )
-    })
+    )
 
     it('should trigger error boundaries for errors that occurred in runtime-prefetched content', async () => {
       // A thrown error in the prerender should not stop us from sending a prefetch response.
       // This should work without any extra effort, but I'm adding a test for it as a sanity check.
 
       let page: Playwright.Page
-      const browser = await next.browser('/', {
+      const browser = await next.browser('/errors', {
         beforePageLoad(p: Playwright.Page) {
           page = p
         },
@@ -1032,7 +1108,7 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
       ])
 
       if (!isNextDeploy) {
-        expect(next.cliOutput).toContain('Error: Kaboom')
+        expect(getCliOutput()).toContain('Error: Kaboom')
       }
 
       // Navigate to the page. We already have the paged cached.

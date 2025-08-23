@@ -24,7 +24,7 @@ struct TaskSpec {
 #[turbo_tasks::value(transparent)]
 struct TasksSpec(Vec<TaskSpec>);
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn graph_bug() {
     // see https://github.com/vercel/next.js/pull/79451
     run(&REGISTRATION, || async {

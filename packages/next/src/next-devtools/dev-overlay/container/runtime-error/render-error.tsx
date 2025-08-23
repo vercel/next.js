@@ -1,4 +1,4 @@
-import type { OverlayDispatch, OverlayState } from '../../shared'
+import type { OverlayState } from '../../shared'
 import type { StackFrame } from '../../../shared/stack-frame'
 
 import { useMemo, useState, useEffect } from 'react'
@@ -6,14 +6,11 @@ import {
   getErrorByType,
   type ReadyRuntimeError,
 } from '../../utils/get-error-by-type'
-import type { ComponentStackFrame } from '../../utils/parse-component-stack'
-import { usePersistentCacheErrorDetection } from '../../components/errors/error-overlay-toolbar/restart-server-button'
 
 export type SupportedErrorEvent = {
   id: number
   error: Error
-  frames: StackFrame[]
-  componentStackFrames?: ComponentStackFrame[]
+  frames: readonly StackFrame[]
   type: 'runtime' | 'recoverable' | 'console'
 }
 
@@ -24,7 +21,6 @@ type Props = {
   }) => React.ReactNode
   state: OverlayState
   isAppDir: boolean
-  dispatch: OverlayDispatch
 }
 
 export const RenderError = (props: Props) => {
@@ -38,7 +34,7 @@ export const RenderError = (props: Props) => {
   }
 }
 
-const RenderRuntimeError = ({ children, state, isAppDir, dispatch }: Props) => {
+const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
   const { errors } = state
 
   const [lookups, setLookups] = useState<{
@@ -66,8 +62,6 @@ const RenderRuntimeError = ({ children, state, isAppDir, dispatch }: Props) => {
 
     return [ready, next]
   }, [errors, lookups])
-
-  usePersistentCacheErrorDetection({ errors, dispatch })
 
   useEffect(() => {
     if (nextError == null) {

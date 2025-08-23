@@ -18,9 +18,9 @@ import { RuntimeErrorHandler } from '../../runtime-error-handler'
 import {
   useSendMessage,
   useTurbopack,
-  useWebsocket,
-  useWebsocketPing,
-} from './use-websocket'
+  useWebSocket,
+  useWebSocketPing,
+} from './web-socket'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
   HMR_ACTION_TYPES,
@@ -389,9 +389,12 @@ function processMessage(
 
       // Store the latest hash in a session cookie so that it's sent back to the
       // server with any subsequent requests.
-      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${obj.hash}`
+      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${obj.hash};path=/`
 
-      if (RuntimeErrorHandler.hadRuntimeError) {
+      if (
+        RuntimeErrorHandler.hadRuntimeError ||
+        document.documentElement.id === '__next_error__'
+      ) {
         if (reloading) return
         reloading = true
         return window.location.reload()
@@ -463,9 +466,9 @@ export default function HotReload({
 }) {
   useErrorHandler(dispatcher.onUnhandledError, dispatcher.onUnhandledRejection)
 
-  const webSocketRef = useWebsocket(assetPrefix)
+  const webSocketRef = useWebSocket(assetPrefix)
 
-  useWebsocketPing(webSocketRef)
+  useWebSocketPing(webSocketRef)
   const sendMessage = useSendMessage(webSocketRef)
   useForwardConsoleLog(webSocketRef)
   const processTurbopackMessage = useTurbopack(sendMessage, (err) =>

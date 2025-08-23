@@ -1,4 +1,4 @@
-export type DialogHeaderProps = React.HTMLAttributes<HTMLDivElement>
+type DialogHeaderProps = React.HTMLAttributes<HTMLDivElement>
 
 export function DialogHeader(props: DialogHeaderProps) {
   return (

@@ -15,7 +15,10 @@ use turbo_tasks::{
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    File, FileContent, FileSystemPath, glob::Glob, json::parse_json_with_source_context, rope::Rope,
+    File, FileContent, FileSystemPath,
+    glob::{Glob, GlobOptions},
+    json::parse_json_with_source_context,
+    rope::Rope,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -513,7 +516,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     .map(|(dir, glob)| async move {
                         self.cwd
                             .join(dir)?
-                            .track_glob(Glob::new(glob.clone()), false)
+                            .track_glob(Glob::new(glob.clone(), GlobOptions::default()), false)
                             .await
                     })
                     .try_join();

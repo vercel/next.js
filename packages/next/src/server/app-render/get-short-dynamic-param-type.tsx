@@ -1,4 +1,7 @@
-import type { DynamicParamTypes, DynamicParamTypesShort } from './types'
+import type {
+  DynamicParamTypes,
+  DynamicParamTypesShort,
+} from '../../shared/lib/app-router-types'
 
 export const dynamicParamTypes: Record<
   DynamicParamTypes,

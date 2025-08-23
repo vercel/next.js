@@ -16,7 +16,6 @@ anyhow = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.21.0"
 either = { workspace = true }
-next-custom-transforms = { workspace = true }
 once_cell = { workspace = true }
 qstring = { workspace = true }
 regex = { workspace = true }
@@ -54,6 +53,9 @@ swc_core = { workspace = true, features = [
   "ecma_visit",
 ] }
 modularize_imports = { workspace = true }
+
+next-custom-transforms = { workspace = true }
+next-taskless = { workspace = true }
 
 turbo-rcstr = { workspace = true }
 turbo-esregex = { workspace = true }

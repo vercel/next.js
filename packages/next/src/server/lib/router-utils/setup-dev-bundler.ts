@@ -87,6 +87,7 @@ import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
+  writeValidatorFile,
 } from './route-types-utils'
 import { isParallelRouteSegment } from '../../../shared/lib/segment'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
@@ -219,10 +220,18 @@ async function startWatcher(
       appRoutes: {},
       pageRoutes: {},
       layoutRoutes: {},
+      appRouteHandlerRoutes: {},
       redirectRoutes: {},
       rewriteRoutes: {},
+      appPagePaths: new Set(),
+      pagesRouterPagePaths: new Set(),
+      layoutPaths: new Set(),
+      appRouteHandlers: new Set(),
+      pageApiRoutes: new Set(),
+      filePathToRoute: new Map(),
     },
-    path.join(distTypesDir, 'routes.d.ts')
+    path.join(distTypesDir, 'routes.d.ts'),
+    opts.nextConfig
   )
 
   const usingTypeScript = await verifyTypeScript(opts)
@@ -334,6 +343,7 @@ async function startWatcher(
     let previousConflictingPagePaths: Set<string> = new Set()
 
     const routeTypesFilePath = path.join(distDir, 'types', 'routes.d.ts')
+    const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     wp.on('aggregated', async () => {
       let middlewareMatchers: MiddlewareMatcher[] | undefined
@@ -344,6 +354,8 @@ async function startWatcher(
       const conflictingAppPagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
+      const appRouteHandlers: Array<{ route: string; filePath: string }> = []
+      const pageApiRoutes: Array<{ route: string; filePath: string }> = []
 
       const pageRoutes: Array<{ route: string; filePath: string }> = []
       const appRoutes: Array<{ route: string; filePath: string }> = []
@@ -564,7 +576,10 @@ async function startWatcher(
                   ''
                 )
               ),
-              filePath: fileName,
+              filePath: path.relative(
+                path.dirname(validatorFilePath),
+                fileName
+              ),
             })
           }
 
@@ -588,10 +603,23 @@ async function startWatcher(
             appFiles.add(pageName)
           }
 
-          appRoutes.push({
-            route: normalizePathSep(pageName),
-            filePath: fileName,
-          })
+          if (validFileMatcher.isAppRouterRoute(fileName)) {
+            appRouteHandlers.push({
+              route: normalizePathSep(pageName),
+              filePath: path.relative(
+                path.dirname(validatorFilePath),
+                fileName
+              ),
+            })
+          } else {
+            appRoutes.push({
+              route: normalizePathSep(pageName),
+              filePath: path.relative(
+                path.dirname(validatorFilePath),
+                fileName
+              ),
+            })
+          }
 
           if (routedPages.includes(pageName)) {
             continue
@@ -604,10 +632,23 @@ async function startWatcher(
             opts.fsChecker.nextDataRoutes.add(pageName)
           }
 
-          pageRoutes.push({
-            route: normalizePathSep(pageName),
-            filePath: fileName,
-          })
+          if (pageName.startsWith('/api/')) {
+            pageApiRoutes.push({
+              route: normalizePathSep(pageName),
+              filePath: path.relative(
+                path.dirname(validatorFilePath),
+                fileName
+              ),
+            })
+          } else {
+            pageRoutes.push({
+              route: normalizePathSep(pageName),
+              filePath: path.relative(
+                path.dirname(validatorFilePath),
+                fileName
+              ),
+            })
+          }
         }
 
         // Record pages
@@ -1021,9 +1062,16 @@ async function startWatcher(
             slots,
             redirects: opts.nextConfig.redirects,
             rewrites: opts.nextConfig.rewrites,
+            appRouteHandlers,
+            pageApiRoutes,
           })
 
-          await writeRouteTypesManifest(routeTypesManifest, routeTypesFilePath)
+          await writeRouteTypesManifest(
+            routeTypesManifest,
+            routeTypesFilePath,
+            opts.nextConfig
+          )
+          await writeValidatorFile(routeTypesManifest, validatorFilePath)
         }
 
         if (!resolved) {

@@ -80,11 +80,11 @@ describe('Error recovery app', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "  x Unexpected eof",
+         "description": "  x Expected '>', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-       Error:   x Unexpected eof
+       Error:   x Expected '>', got '<eof>'
           ,----
         1 | export default () => <div/
           \`----

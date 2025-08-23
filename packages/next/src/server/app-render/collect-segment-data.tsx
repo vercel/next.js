@@ -2,8 +2,10 @@ import type {
   CacheNodeSeedData,
   FlightRouterState,
   InitialRSCPayload,
-  Segment as FlightRouterStateSegment,
-} from './types'
+  DynamicParamTypesShort,
+  HeadData,
+  LoadingModuleData,
+} from '../../shared/lib/app-router-types'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -16,10 +18,6 @@ import {
   streamToBuffer,
 } from '../stream-utils/node-web-streams-helper'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
-import type {
-  HeadData,
-  LoadingModuleData,
-} from '../../shared/lib/app-router-context.shared-runtime'
 import {
   type SegmentRequestKey,
   createSegmentRequestKeyPart,
@@ -39,8 +37,13 @@ export type RootTreePrefetch = {
 }
 
 export type TreePrefetch = {
-  // The segment, in the format expected by a FlightRouterState.
-  segment: FlightRouterStateSegment
+  name: string
+  paramType: DynamicParamTypesShort | null
+  // TODO: When clientParamParsing is enabled, this field is always null.
+  // Instead we parse the param on the client, allowing us to omit it from
+  // the prefetch response and increase its cacheability. Remove this field
+  // once clientParamParsing is enabled everywhere.
+  paramKey: string | null
 
   // Child segments.
   slots: null | {
@@ -83,6 +86,7 @@ function onSegmentPrerenderError(error: unknown) {
 }
 
 export async function collectSegmentData(
+  isClientParamParsingEnabled: boolean,
   fullPageDataBuffer: Buffer,
   staleTime: number,
   clientModules: ManifestNode,
@@ -127,6 +131,7 @@ export async function collectSegmentData(
     // inside of it, the side effects are transferred to the new stream.
     // @ts-expect-error
     <PrefetchTreeData
+      isClientParamParsingEnabled={isClientParamParsingEnabled}
       fullPageDataBuffer={fullPageDataBuffer}
       serverConsumerManifest={serverConsumerManifest}
       clientModules={clientModules}
@@ -157,6 +162,7 @@ export async function collectSegmentData(
 }
 
 async function PrefetchTreeData({
+  isClientParamParsingEnabled,
   fullPageDataBuffer,
   serverConsumerManifest,
   clientModules,
@@ -164,6 +170,7 @@ async function PrefetchTreeData({
   segmentTasks,
   onCompletedProcessingRouteTree,
 }: {
+  isClientParamParsingEnabled: boolean
   fullPageDataBuffer: Buffer
   serverConsumerManifest: any
   clientModules: ManifestNode
@@ -203,6 +210,7 @@ async function PrefetchTreeData({
   // walk the tree, we will also spawn a task to produce a prefetch response for
   // each segment.
   const tree = collectSegmentDataImpl(
+    isClientParamParsingEnabled,
     flightRouterState,
     buildId,
     seedData,
@@ -230,6 +238,7 @@ async function PrefetchTreeData({
 }
 
 function collectSegmentDataImpl(
+  isClientParamParsingEnabled: boolean,
   route: FlightRouterState,
   buildId: string,
   seedData: CacheNodeSeedData | null,
@@ -255,6 +264,7 @@ function collectSegmentDataImpl(
       createSegmentRequestKeyPart(childSegment)
     )
     const childTree = collectSegmentDataImpl(
+      isClientParamParsingEnabled,
       childRoute,
       buildId,
       childSeedData,
@@ -285,10 +295,30 @@ function collectSegmentDataImpl(
     // ever happen in practice, though.
   }
 
+  const segment = route[0]
+  let name
+  let paramType: DynamicParamTypesShort | null = null
+  let paramKey: string | null = null
+  if (typeof segment === 'string') {
+    name = segment
+    paramKey = segment
+    paramType = null
+  } else {
+    name = segment[0]
+    paramKey = segment[1]
+    paramType = segment[2] as DynamicParamTypesShort
+  }
+
   // Metadata about the segment. Sent to the client as part of the
   // tree prefetch.
   return {
-    segment: route[0],
+    name,
+    paramType,
+    // This value is ommitted from the prefetch response when clientParamParsing
+    // is enabled. The flag only exists while we're testing the feature, in
+    // case there's a bug and we need to revert.
+    // TODO: Remove once clientParamParsing is enabled everywhere.
+    paramKey: isClientParamParsingEnabled ? null : paramKey,
     slots: slotMetadata,
     isRootLayout: route[4] === true,
   }

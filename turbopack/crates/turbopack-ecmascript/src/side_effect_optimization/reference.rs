@@ -54,6 +54,13 @@ impl EcmascriptModulePartReference {
         part: ModulePart,
         export_usage: ResolvedVc<ExportUsage>,
     ) -> Vc<Self> {
+        debug_assert!(matches!(
+            part,
+            ModulePart::Locals
+                | ModulePart::Facade
+                | ModulePart::RenamedExport { .. }
+                | ModulePart::RenamedNamespace { .. }
+        ));
         EcmascriptModulePartReference {
             module,
             part,
@@ -104,14 +111,12 @@ impl ModuleReference for EcmascriptModulePartReference {
                         };
                         Vc::upcast::<Box<dyn Module>>(EcmascriptModuleLocalsModule::new(*module))
                     }
-                    ModulePart::Exports
-                    | ModulePart::Evaluation
-                    | ModulePart::Facade
+                    ModulePart::Facade
                     | ModulePart::RenamedExport { .. }
                     | ModulePart::RenamedNamespace { .. } => Vc::upcast(
                         EcmascriptModuleFacadeModule::new(*self.module, self.part.clone()),
                     ),
-                    ModulePart::Export(..) | ModulePart::Internal(..) => {
+                    _ => {
                         bail!(
                             "Unexpected ModulePart \"{}\" for EcmascriptModulePartReference",
                             self.part

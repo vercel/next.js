@@ -34,7 +34,10 @@ use next_core::{
     },
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
-    util::NextRuntime,
+    util::{
+        NextRuntime, app_middleware_function_name, module_styles_rule_condition,
+        styles_rule_condition,
+    },
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -99,37 +102,6 @@ pub struct AppProject {
 pub struct OptionAppProject(Option<ResolvedVc<AppProject>>);
 
 impl AppProject {}
-
-fn styles_rule_condition() -> RuleCondition {
-    RuleCondition::any(vec![
-        RuleCondition::all(vec![
-            RuleCondition::ResourcePathEndsWith(".css".into()),
-            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
-        ]),
-        RuleCondition::all(vec![
-            RuleCondition::ResourcePathEndsWith(".scss".into()),
-            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.scss".into())),
-        ]),
-        RuleCondition::all(vec![
-            RuleCondition::ResourcePathEndsWith(".sass".into()),
-            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.sass".into())),
-        ]),
-        RuleCondition::all(vec![
-            RuleCondition::ContentTypeStartsWith("text/css".into()),
-            RuleCondition::not(RuleCondition::ContentTypeStartsWith(
-                "text/css+module".into(),
-            )),
-        ]),
-    ])
-}
-fn module_styles_rule_condition() -> RuleCondition {
-    RuleCondition::any(vec![
-        RuleCondition::ResourcePathEndsWith(".module.css".into()),
-        RuleCondition::ResourcePathEndsWith(".module.scss".into()),
-        RuleCondition::ResourcePathEndsWith(".module.sass".into()),
-        RuleCondition::ContentTypeStartsWith("text/css+module".into()),
-    ])
-}
 impl AppProject {
     pub fn client_transition_name() -> RcStr {
         rcstr!("next-ecmascript-client-reference")
@@ -199,6 +171,7 @@ impl AppProject {
             self.app_dir.clone(),
             conf.page_extensions(),
             conf.is_global_not_found_enabled(),
+            self.project.next_mode(),
         )
     }
 
@@ -406,10 +379,10 @@ impl AppProject {
             transition_rules: vec![
                 // Mark as client reference (and exclude from RSC chunking) the edge from the
                 // CSS Module to the actual CSS
-                TransitionRule::new_internal(
+                TransitionRule::new(
                     RuleCondition::all(vec![
                         RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::Internal,
+                            CssReferenceSubType::Inner,
                         )),
                         module_styles_rule_condition(),
                     ]),
@@ -678,6 +651,18 @@ impl AppProject {
         Ok(ModuleAssetContext::new(
             TransitionOptions {
                 named_transitions: transitions,
+                transition_rules: vec![
+                    // Change context, this is used to determine the list of CSS module classes.
+                    TransitionRule::new(
+                        RuleCondition::all(vec![
+                            RuleCondition::ReferenceType(ReferenceType::Css(
+                                CssReferenceSubType::Analyze,
+                            )),
+                            module_styles_rule_condition(),
+                        ]),
+                        ResolvedVc::upcast(self.client_transition().to_resolved().await?),
+                    ),
+                ],
                 ..Default::default()
             }
             .cell(),
@@ -738,6 +723,18 @@ impl AppProject {
         Ok(ModuleAssetContext::new(
             TransitionOptions {
                 named_transitions: transitions,
+                transition_rules: vec![
+                    // Change context, this is used to determine the list of CSS module classes.
+                    TransitionRule::new(
+                        RuleCondition::all(vec![
+                            RuleCondition::ReferenceType(ReferenceType::Css(
+                                CssReferenceSubType::Analyze,
+                            )),
+                            module_styles_rule_condition(),
+                        ]),
+                        ResolvedVc::upcast(self.client_transition().to_resolved().await?),
+                    ),
+                ],
                 ..Default::default()
             }
             .cell(),
@@ -1594,7 +1591,7 @@ impl AppEndpoint {
                         files: file_paths_from_root.into_iter().collect(),
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
-                        name: app_entry.pathname.clone(),
+                        name: app_middleware_function_name(&app_entry.original_name).into(),
                         page: app_entry.original_name.clone(),
                         regions: app_entry
                             .config

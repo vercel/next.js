@@ -163,6 +163,7 @@ async function requestHandler(
         staleTimes: nextConfig.experimental.staleTimes,
         cacheComponents: Boolean(nextConfig.experimental.cacheComponents),
         clientSegmentCache: Boolean(nextConfig.experimental.clientSegmentCache),
+        clientParamParsing: Boolean(nextConfig.experimental.clientParamParsing),
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),

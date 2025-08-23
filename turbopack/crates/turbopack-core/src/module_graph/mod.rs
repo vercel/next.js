@@ -348,8 +348,6 @@ impl SingleModuleGraph {
         #[cfg(debug_assertions)]
         {
             use once_cell::sync::Lazy;
-
-            // TODO(PACK-4578): This is temporary while the last issues are being addressed.
             static CHECK_FOR_DUPLICATE_MODULES: Lazy<bool> = Lazy::new(|| {
                 match std::env::var_os("TURBOPACK_TEMP_DISABLE_DUPLICATE_MODULES_CHECK") {
                     Some(v) => v != "1" && v != "true",
@@ -1879,7 +1877,7 @@ pub mod tests {
         resolve::ExportUsage,
     };
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn traverse_dfs_from_entries_diamond() {
         run_graph_test(
             vec![rcstr!("a.js")],
@@ -1941,7 +1939,7 @@ pub mod tests {
         .await;
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn traverse_dfs_from_entries_cycle() {
         run_graph_test(
             vec![rcstr!("a.js")],
@@ -2001,7 +1999,7 @@ pub mod tests {
         .await;
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn traverse_edges_from_entries_fixed_point_cycle() {
         run_graph_test(
             vec![rcstr!("a.js")],

@@ -29,6 +29,49 @@ describe('app-dir action handling', () => {
       },
     })
 
+  if (isNextStart) {
+    it('should output exportName and filename info in manifest', async () => {
+      const referenceManifest = await next.readJSON(
+        '.next/server/server-reference-manifest.json'
+      )
+      let foundExportNames = []
+
+      for (const item in referenceManifest.node) {
+        try {
+          const itemInfo = referenceManifest.node[item]
+
+          foundExportNames.push(itemInfo.exportedName)
+
+          expect(itemInfo.filename).toBeString()
+          // can be outside app dir but this test suite has them all in app
+          expect(itemInfo.filename.startsWith('app/')).toBe(true)
+          expect(itemInfo.exportedName).toBeString()
+        } catch (err) {
+          require('console').error(`Invalid action entry ${item}`, err)
+          throw err
+        }
+      }
+      for (const item in referenceManifest.edge) {
+        try {
+          const itemInfo = referenceManifest.edge[item]
+
+          foundExportNames.push(itemInfo.exportedName)
+
+          expect(itemInfo.filename).toBeString()
+          expect(itemInfo.exportedName).toBeString()
+        } catch (err) {
+          require('console').error(`Invalid action entry ${item}`, err)
+          throw err
+        }
+      }
+
+      expect(foundExportNames).toContain('setCookie')
+      expect(foundExportNames).toContain('getCookie')
+      expect(foundExportNames).toContain('getHeader')
+      expect(foundExportNames).toContain('setCookieWithMaxAge')
+    })
+  }
+
   it('should handle action correctly with middleware rewrite', async () => {
     const browser = await next.browser('/rewrite-to-static-first')
     let actionRequestStatus: number | undefined

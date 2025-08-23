@@ -12,6 +12,45 @@ export const COMPILER_NAMES = {
 
 export type CompilerNameValues = ValueOf<typeof COMPILER_NAMES>
 
+export enum AdapterOutputType {
+  /**
+   * `PAGES` represents all the React pages that are under `pages/`.
+   */
+  PAGES = 'PAGES',
+
+  /**
+   * `PAGES_API` represents all the API routes under `pages/api/`.
+   */
+  PAGES_API = 'PAGES_API',
+  /**
+   * `APP_PAGE` represents all the React pages that are under `app/` with the
+   * filename of `page.{j,t}s{,x}`.
+   */
+  APP_PAGE = 'APP_PAGE',
+
+  /**
+   * `APP_ROUTE` represents all the API routes and metadata routes that are under `app/` with the
+   * filename of `route.{j,t}s{,x}`.
+   */
+  APP_ROUTE = 'APP_ROUTE',
+
+  /**
+   * `PRERENDER` represents an ISR enabled route that might
+   * have a seeded cache entry or fallback generated during build
+   */
+  PRERENDER = 'PRERENDER',
+
+  /**
+   * `STATIC_FILE` represents a static file (ie /_next/static)
+   */
+  STATIC_FILE = 'STATIC_FILE',
+
+  /**
+   * `MIDDLEWARE` represents the middleware output if present
+   */
+  MIDDLEWARE = 'MIDDLEWARE',
+}
+
 export const COMPILER_INDEXES: {
   [compilerKey in CompilerNameValues]: number
 } = {
@@ -20,8 +59,14 @@ export const COMPILER_INDEXES: {
   [COMPILER_NAMES.edgeServer]: 2,
 } as const
 
-export const UNDERSCORE_NOT_FOUND_ROUTE = '/_not-found'
-export const UNDERSCORE_NOT_FOUND_ROUTE_ENTRY = `${UNDERSCORE_NOT_FOUND_ROUTE}/page`
+// Re-export entry constants for backward compatibility
+export {
+  UNDERSCORE_NOT_FOUND_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+} from './entry-constants'
+
 export const PHASE_EXPORT = 'phase-export'
 export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'

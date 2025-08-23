@@ -1,4 +1,8 @@
-import type { CacheNodeSeedData, PreloadCallbacks } from './types'
+import type {
+  CacheNodeSeedData,
+  LoadingModuleData,
+} from '../../shared/lib/app-router-types'
+import type { PreloadCallbacks } from './types'
 import React from 'react'
 import {
   isClientReference,
@@ -17,10 +21,9 @@ import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/builtin/def
 import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
-import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
+import { OUTLET_BOUNDARY_NAME } from '../../lib/framework/boundary-constants'
 import type {
   UseCacheLayoutComponentProps,
   UseCachePageComponentProps,
@@ -200,8 +203,6 @@ async function createComponentTreeInternal(
     },
     () => getLayoutOrPageModule(tree)
   )
-
-  const gracefullyDegrade = !!ctx.renderOpts.botType
 
   /**
    * Checks if the current segment is a root layout.
@@ -647,9 +648,6 @@ async function createComponentTreeInternal(
             forbidden={forbiddenComponent}
             unauthorized={unauthorizedComponent}
             {...(isSegmentViewEnabled && { segmentViewBoundaries })}
-            // Since gracefullyDegrade only applies to bots, only
-            // pass it when we're in a bot context to avoid extra bytes.
-            {...(gracefullyDegrade && { gracefullyDegrade })}
           />,
           childCacheNodeSeedData,
         ]

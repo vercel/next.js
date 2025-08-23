@@ -1,14 +1,19 @@
-import type { DynamicParamTypesShort } from '../server/app-render/types'
-import { PAGE_SEGMENT_KEY } from '../shared/lib/segment'
+import type { DynamicParamTypesShort } from '../shared/lib/app-router-types'
+import {
+  addSearchParamsIfPageSegment,
+  DEFAULT_SEGMENT_KEY,
+  PAGE_SEGMENT_KEY,
+} from '../shared/lib/segment'
 import { ROOT_SEGMENT_REQUEST_KEY } from '../shared/lib/segment-cache/segment-value-encoding'
 import {
   NEXT_REWRITTEN_PATH_HEADER,
   NEXT_REWRITTEN_QUERY_HEADER,
+  NEXT_RSC_UNION_QUERY,
 } from './components/app-router-headers'
-import type { RSCResponse } from './components/router-reducer/fetch-server-response'
 import type { NormalizedSearch } from './components/segment-cache'
+import type { RSCResponse } from './components/router-reducer/fetch-server-response'
 
-type RouteParamValue = string | Array<string> | null
+export type RouteParamValue = string | Array<string> | null
 
 export type RouteParam = {
   name: string
@@ -28,7 +33,8 @@ export function getRenderedSearch(response: RSCResponse): NormalizedSearch {
   }
   // If the header is not present, there was no rewrite, so we use the search
   // query of the response URL.
-  return new URL(response.url).search as NormalizedSearch
+  return urlToUrlWithoutFlightMarker(new URL(response.url))
+    .search as NormalizedSearch
 }
 
 export function getRenderedPathname(response: RSCResponse): string {
@@ -36,7 +42,9 @@ export function getRenderedPathname(response: RSCResponse): string {
   // page will be different from the pathname in the request URL. In this case,
   // the response will include a header that gives the rewritten pathname.
   const rewrittenPath = response.headers.get(NEXT_REWRITTEN_PATH_HEADER)
-  return rewrittenPath ?? new URL(response.url).pathname
+  return (
+    rewrittenPath ?? urlToUrlWithoutFlightMarker(new URL(response.url)).pathname
+  )
 }
 
 export function parseDynamicParamFromURLPart(
@@ -101,7 +109,9 @@ export function doesStaticSegmentAppearInURL(segment: string): boolean {
     // TODO: Investigate why the loader produces these fake page segments.
     segment.startsWith(PAGE_SEGMENT_KEY) ||
     // Route groups.
-    (segment[0] === '(' && segment.endsWith(')'))
+    (segment[0] === '(' && segment.endsWith(')')) ||
+    segment === DEFAULT_SEGMENT_KEY ||
+    segment === '/_not-found'
   ) {
     return false
   } else {
@@ -111,14 +121,60 @@ export function doesStaticSegmentAppearInURL(segment: string): boolean {
 }
 
 export function getCacheKeyForDynamicParam(
-  paramValue: RouteParamValue
+  paramValue: RouteParamValue,
+  renderedSearch: NormalizedSearch
 ): string {
   // This needs to match the logic in get-dynamic-param.ts, until we're able to
   // unify the various implementations so that these are always computed on
   // the client.
-  return typeof paramValue === 'string'
-    ? paramValue
-    : paramValue === null
-      ? ''
-      : paramValue.join('/')
+  if (typeof paramValue === 'string') {
+    // TODO: Refactor or remove this helper function to accept a string rather
+    // than the whole segment type. Also we can probably just append the
+    // search string instead of turning it into JSON.
+    const pageSegmentWithSearchParams = addSearchParamsIfPageSegment(
+      paramValue,
+      Object.fromEntries(new URLSearchParams(renderedSearch))
+    ) as string
+    return pageSegmentWithSearchParams
+  } else if (paramValue === null) {
+    return ''
+  } else {
+    return paramValue.join('/')
+  }
+}
+
+export function urlToUrlWithoutFlightMarker(url: URL): URL {
+  const urlWithoutFlightParameters = new URL(url)
+  urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
+  if (process.env.NODE_ENV === 'production') {
+    if (
+      process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
+      urlWithoutFlightParameters.pathname.endsWith('.txt')
+    ) {
+      const { pathname } = urlWithoutFlightParameters
+      const length = pathname.endsWith('/index.txt') ? 10 : 4
+      // Slice off `/index.txt` or `.txt` from the end of the pathname
+      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
+    }
+  }
+  return urlWithoutFlightParameters
+}
+
+export function getParamValueFromCacheKey(
+  paramCacheKey: string,
+  paramType: DynamicParamTypesShort
+) {
+  // Turn the cache key string sent by the server (as part of FlightRouterState)
+  // into a value that can be passed to `useParams` and client components.
+  const isCatchAll = paramType === 'c' || paramType === 'oc'
+  if (isCatchAll) {
+    // Catch-all param keys are a concatenation of the path segments.
+    // See equivalent logic in `getSelectedParams`.
+    // TODO: We should just pass the array directly, rather than concatenate
+    // it to a string and then split it back to an array. It needs to be an
+    // array in some places, like when passing a key React, but we can convert
+    // it at runtime in those places.
+    return paramCacheKey.split('/')
+  }
+  return paramCacheKey
 }

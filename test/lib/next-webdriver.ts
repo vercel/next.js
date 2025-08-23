@@ -1,6 +1,9 @@
 import { getFullUrl, waitFor } from 'next-test-utils'
 import os from 'os'
-import { Playwright } from './browsers/playwright'
+import {
+  Playwright,
+  PlaywrightNavigationWaitUntil,
+} from './browsers/playwright'
 import { Page } from 'playwright'
 
 export type { Playwright }
@@ -53,6 +56,10 @@ export interface WebdriverOptions {
    * allow retrying hydration wait if reload occurs
    */
   retryWaitHydration?: boolean
+  /**
+   * The browser event to wait for during the initial page load. Passed through to `browser.loadPage`
+   * */
+  waitUntil?: PlaywrightNavigationWaitUntil
   /**
    * disable cache for page load
    */
@@ -114,6 +121,7 @@ export default async function webdriver(
     cpuThrottleRate,
     pushErrorAsConsoleLog,
     userAgent,
+    waitUntil,
   } = options
 
   const { Playwright, quit } = await import('./browsers/playwright')
@@ -145,13 +153,14 @@ export default async function webdriver(
     cpuThrottleRate,
     beforePageLoad,
     pushErrorAsConsoleLog,
+    waitUntil,
   })
   console.log(`\n> Loaded browser with ${fullUrl}\n`)
 
   browserTeardown.push(browser.close.bind(browser))
 
   // Wait for application to hydrate
-  if (waitHydration) {
+  if (!disableJavaScript && waitHydration) {
     console.log(`\n> Waiting hydration for ${fullUrl}\n`)
 
     const checkHydrated = async () => {
@@ -204,7 +213,9 @@ export default async function webdriver(
   // This is a temporary workaround for turbopack starting watching too late.
   // So we delay file changes to give it some time
   // to connect the WebSocket and start watching.
-  if (process.env.IS_TURBOPACK_TEST) {
+  // TODO: Is this still needed? Can we wait in a more useful way, like a socket connection event?
+  if (process.env.IS_TURBOPACK_TEST && process.env.TURBOPACK_DEV) {
+    console.log(`\n> Waiting for for turbopack watcher to start`)
     await waitFor(1000)
   }
   return browser

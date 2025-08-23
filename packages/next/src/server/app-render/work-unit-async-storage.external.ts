@@ -18,6 +18,7 @@ import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -67,6 +68,7 @@ export interface RequestStore extends CommonWorkUnitStore {
   // DEV-only
   usedDynamic?: boolean
   prerenderPhase?: boolean
+  devFallbackParams?: FallbackRouteParams | null
 }
 
 /**
@@ -105,6 +107,18 @@ export interface PrerenderStoreModernServer
 export interface PrerenderStoreModernRuntime
   extends PrerenderStoreModernCommon {
   readonly type: 'prerender-runtime'
+
+  /**
+   * A runtime prerender resolves APIs in two tasks:
+   *
+   * 1. Static data (available in a static prerender)
+   * 2. Runtime data (available in a runtime prerender)
+   *
+   * This separation is achieved by awaiting this promise in "runtime" APIs.
+   * In the final prerender, the promise will be resolved during the second task,
+   * and the render will be aborted in the task that follows it.
+   */
+  readonly runtimeStagePromise: Promise<void> | null
 
   readonly cookies: RequestStore['cookies']
   readonly draftMode: RequestStore['draftMode']
@@ -269,6 +283,18 @@ export interface PrivateUseCacheStore extends CommonUseCacheStore {
   readonly type: 'private-cache'
 
   /**
+   * A runtime prerender resolves APIs in two tasks:
+   *
+   * 1. Static data (available in a static prerender)
+   * 2. Runtime data (available in a runtime prerender)
+   *
+   * This separation is achieved by awaiting this promise in "runtime" APIs.
+   * In the final prerender, the promise will be resolved during the second task,
+   * and the render will be aborted in the task that follows it.
+   */
+  readonly runtimeStagePromise: Promise<void> | null
+
+  /**
    * As opposed to the public cache store, the private cache store is allowed to
    * access the request cookies.
    */
@@ -309,6 +335,10 @@ export function throwForMissingRequestStore(callingExpression: string): never {
   throw new Error(
     `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
   )
+}
+
+export function throwInvariantForMissingStore(): never {
+  throw new InvariantError('Expected workUnitAsyncStorage to have a store.')
 }
 
 export function getPrerenderResumeDataCache(
@@ -480,6 +510,26 @@ export function getCacheSignal(
     case 'request':
     case 'cache':
     case 'private-cache':
+    case 'unstable-cache':
+      return null
+    default:
+      return workUnitStore satisfies never
+  }
+}
+
+export function getRuntimeStagePromise(
+  workUnitStore: WorkUnitStore
+): Promise<void> | null {
+  switch (workUnitStore.type) {
+    case 'prerender-runtime':
+    case 'private-cache':
+      return workUnitStore.runtimeStagePromise
+    case 'prerender':
+    case 'prerender-client':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'request':
+    case 'cache':
     case 'unstable-cache':
       return null
     default:

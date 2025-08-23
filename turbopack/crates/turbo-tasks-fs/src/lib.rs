@@ -46,7 +46,6 @@ use dunce::simplified;
 use indexmap::IndexSet;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -56,19 +55,24 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
     ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat, effect,
-    mark_session_dependent, mark_stateful, trace::TraceRawVcs,
+    mark_session_dependent, mark_stateful, parallel, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
+use turbo_unix_path::{
+    get_parent_path, get_relative_path_to, join_path, normalize_path, sys_to_unix, unix_to_sys,
+};
 
-use self::{invalidation::Write, json::UnparsableJson, mutex_map::MutexMap};
 use crate::{
     attach::AttachedFileSystem,
     glob::Glob,
+    invalidation::Write,
     invalidator_map::{InvalidatorMap, WriteContent},
+    json::UnparsableJson,
+    mutex_map::MutexMap,
     read_glob::{read_glob, track_glob},
     retry::retry_blocking,
     rope::{Rope, RopeReader},
-    util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys},
+    util::extract_disk_access,
     watcher::DiskWatcher,
 };
 pub use crate::{read_glob::ReadGlobResult, virtual_fs::VirtualFileSystem};
@@ -256,11 +260,7 @@ impl DiskFileSystemInner {
         let invalidator = turbo_tasks::get_invalidator();
         self.invalidator_map
             .insert(path.to_owned(), invalidator, None);
-        if let Some(non_recursive) = &self.watcher.non_recursive_state
-            && let Some(dir) = path.parent()
-        {
-            non_recursive.ensure_watching(&self.watcher, dir, self.root_path())?;
-        }
+        self.watcher.ensure_watched_file(path, self.root_path())?;
         Ok(())
     }
 
@@ -286,11 +286,7 @@ impl DiskFileSystemInner {
             .collect::<Vec<_>>();
         invalidators.insert(invalidator, Some(write_content));
         drop(invalidator_map);
-        if let Some(non_recursive) = &self.watcher.non_recursive_state
-            && let Some(dir) = path.parent()
-        {
-            non_recursive.ensure_watching(&self.watcher, dir, self.root_path())?;
-        }
+        self.watcher.ensure_watched_file(path, self.root_path())?;
         Ok(old_invalidators)
     }
 
@@ -300,9 +296,7 @@ impl DiskFileSystemInner {
         let invalidator = turbo_tasks::get_invalidator();
         self.dir_invalidator_map
             .insert(path.to_owned(), invalidator, None);
-        if let Some(non_recursive) = &self.watcher.non_recursive_state {
-            non_recursive.ensure_watching(&self.watcher, path, self.root_path())?;
-        }
+        self.watcher.ensure_watched_dir(path, self.root_path())?;
         Ok(())
     }
 
@@ -314,19 +308,14 @@ impl DiskFileSystemInner {
 
     fn invalidate(&self) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
-        let span = tracing::Span::current();
-        let handle = tokio::runtime::Handle::current();
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
-        let iter = invalidator_map
-            .into_par_iter()
-            .chain(dir_invalidator_map.into_par_iter())
-            .flat_map(|(_, invalidators)| invalidators.into_par_iter());
-        iter.for_each(|(i, _)| {
-            let _span = span.clone().entered();
-            let _guard = handle.enter();
-            i.invalidate()
-        });
+        let invalidators = invalidator_map
+            .into_iter()
+            .chain(dir_invalidator_map)
+            .flat_map(|(_, invalidators)| invalidators.into_keys())
+            .collect::<Vec<_>>();
+        parallel::for_each_owned(invalidators, |invalidator| invalidator.invalidate());
     }
 
     /// Invalidates every tracked file in the filesystem.
@@ -337,23 +326,19 @@ impl DiskFileSystemInner {
         reason: impl Fn(&Path) -> R + Sync,
     ) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
-        let span = tracing::Span::current();
-        let handle = tokio::runtime::Handle::current();
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
-        let iter = invalidator_map
-            .into_par_iter()
-            .chain(dir_invalidator_map.into_par_iter())
+        let invalidators = invalidator_map
+            .into_iter()
+            .chain(dir_invalidator_map)
             .flat_map(|(path, invalidators)| {
-                let _span = span.clone().entered();
                 let reason_for_path = reason(&path);
                 invalidators
-                    .into_par_iter()
+                    .into_keys()
                     .map(move |i| (reason_for_path.clone(), i))
-            });
-        iter.for_each(|(reason, (invalidator, _))| {
-            let _span = span.clone().entered();
-            let _guard = handle.enter();
+            })
+            .collect::<Vec<_>>();
+        parallel::for_each_owned(invalidators, |(reason, invalidator)| {
             invalidator.invalidate_with_reason(reason)
         });
     }
@@ -1000,39 +985,6 @@ impl ValueToString for DiskFileSystem {
     }
 }
 
-/// Note: this only works for Unix-style paths (with `/` as a separator).
-pub fn get_relative_path_to(path: &str, other_path: &str) -> String {
-    fn split(s: &str) -> impl Iterator<Item = &str> {
-        let empty = s.is_empty();
-        let mut iterator = s.split('/');
-        if empty {
-            iterator.next();
-        }
-        iterator
-    }
-
-    let mut self_segments = split(path).peekable();
-    let mut other_segments = split(other_path).peekable();
-    while self_segments.peek() == other_segments.peek() {
-        self_segments.next();
-        if other_segments.next().is_none() {
-            return ".".to_string();
-        }
-    }
-    let mut result = Vec::new();
-    if self_segments.peek().is_none() {
-        result.push(".");
-    } else {
-        while self_segments.next().is_some() {
-            result.push("..");
-        }
-    }
-    for segment in other_segments {
-        result.push(segment);
-    }
-    result.join("/")
-}
-
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Hash, TaskInput)]
 pub struct FileSystemPath {
@@ -1287,6 +1239,8 @@ impl FileSystemPath {
         Ok(None)
     }
 
+    /// DETERMINISM: Result is in random order. Either sort result or do not depend
+    /// on the order.
     pub fn read_glob(&self, glob: Vc<Glob>) -> Vc<ReadGlobResult> {
         read_glob(self.clone(), glob)
     }
@@ -1456,11 +1410,7 @@ impl FileSystemPath {
         if path.is_empty() {
             return self.clone();
         }
-        let p = match str::rfind(path, '/') {
-            Some(index) => path[..index].to_string(),
-            None => "".to_string(),
-        };
-        FileSystemPath::new_normalized(self.fs, p.into())
+        FileSystemPath::new_normalized(self.fs, RcStr::from(get_parent_path(path)))
     }
 
     // It is important that get_type uses read_dir and not stat/metadata.
@@ -2473,7 +2423,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn with_extension() {
         crate::register();
 
@@ -2510,7 +2460,7 @@ mod tests {
         .unwrap()
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn file_stem() {
         crate::register();
 

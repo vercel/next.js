@@ -16,7 +16,7 @@ use crate::{
     next_config::{NextConfig, OutputType},
     next_edge::entry::wrap_edge_entry,
     parse_segment_config_from_source,
-    util::{NextRuntime, load_next_js_template},
+    util::{NextRuntime, app_middleware_function_name, load_next_js_template},
 };
 
 /// Computes the entry for a Next.js app route.
@@ -59,33 +59,31 @@ pub async fn get_app_route_entry(
 
     let inner = rcstr!("INNER_APP_ROUTE");
 
-    let output_type: RcStr = next_config
+    let output_type: &str = next_config
         .await?
         .output
         .as_ref()
         .map(|o| match o {
-            OutputType::Standalone => rcstr!("\"standalone\""),
-            OutputType::Export => rcstr!("\"export\""),
+            OutputType::Standalone => "\"standalone\"",
+            OutputType::Export => "\"export\"",
         })
-        .unwrap_or(rcstr!("\"\""));
+        .unwrap_or("\"\"");
 
     // Load the file from the next.js codebase.
     let virtual_source = load_next_js_template(
         "app-route.js",
         project_root.clone(),
-        fxindexmap! {
-            "VAR_DEFINITION_PAGE" => page.to_string().into(),
-            "VAR_DEFINITION_PATHNAME" => pathname.clone(),
-            "VAR_DEFINITION_FILENAME" => path.file_stem().unwrap().into(),
+        &[
+            ("VAR_DEFINITION_PAGE", &*page.to_string()),
+            ("VAR_DEFINITION_PATHNAME", &pathname),
+            ("VAR_DEFINITION_FILENAME", path.file_stem().unwrap()),
             // TODO(alexkirsz) Is this necessary?
-            "VAR_DEFINITION_BUNDLE_PATH" => "".to_string().into(),
-            "VAR_RESOLVED_PAGE_PATH" => path.value_to_string().owned().await?,
-            "VAR_USERLAND" => inner.clone(),
-        },
-        fxindexmap! {
-            "nextConfigOutput" => output_type
-        },
-        fxindexmap! {},
+            ("VAR_DEFINITION_BUNDLE_PATH", ""),
+            ("VAR_RESOLVED_PAGE_PATH", &path.value_to_string().await?),
+            ("VAR_USERLAND", &inner),
+        ],
+        &[("nextConfigOutput", output_type)],
+        &[],
     )
     .await?;
 
@@ -143,14 +141,9 @@ async fn wrap_edge_route(
     let source = load_next_js_template(
         "edge-app-route.js",
         project_root.clone(),
-        fxindexmap! {
-            "VAR_USERLAND" => inner.clone(),
-            "VAR_PAGE" => page.to_string().into(),
-        },
-        fxindexmap! {
-            "nextConfig" => serde_json::to_string(next_config)?.into(),
-        },
-        fxindexmap! {},
+        &[("VAR_USERLAND", &*inner), ("VAR_PAGE", &page.to_string())],
+        &[("nextConfig", &*serde_json::to_string(next_config)?)],
+        &[],
     )
     .await?;
 
@@ -169,6 +162,6 @@ async fn wrap_edge_route(
         asset_context,
         project_root.clone(),
         wrapped,
-        AppPath::from(page).to_string().into(),
+        app_middleware_function_name(&page).into(),
     ))
 }

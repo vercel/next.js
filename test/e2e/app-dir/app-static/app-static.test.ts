@@ -987,6 +987,31 @@ describe('app-dir static/dynamic handling', () => {
            "initialRevalidateSeconds": false,
            "srcRoute": "/",
          },
+         "/_not-found": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/_not-found.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "initialStatus": 404,
+           "srcRoute": "/_not-found",
+         },
          "/api/large-data": {
            "allowHeader": [
              "host",

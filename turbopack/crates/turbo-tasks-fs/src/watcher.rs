@@ -1,28 +1,27 @@
 use std::{
     any::Any,
+    collections::BTreeSet,
     env, fmt,
     mem::take,
     path::{Path, PathBuf},
     sync::{
-        Arc, LazyLock, Mutex, MutexGuard,
+        Arc, LazyLock, RwLock, RwLockWriteGuard,
         mpsc::{Receiver, TryRecvError, channel},
     },
     time::Duration,
 };
 
-use anyhow::{Context, Result, anyhow};
-use dashmap::DashSet;
+use anyhow::{Context, Result};
 use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
     event::{MetadataKind, ModifyKind, RenameMode},
 };
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, spawn_thread,
+    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, parallel, spawn_thread,
     util::StaticOrArc,
 };
 
@@ -61,151 +60,265 @@ static WATCH_RECURSIVE_MODE: LazyLock<RecursiveMode> = LazyLock::new(|| {
     }
 });
 
-/// A thin wrapper around [`RecommendedWatcher`] and [`PollWatcher`].
-enum DiskWatcherInternal {
-    Recommended(RecommendedWatcher),
-    Polling(PollWatcher),
-}
-
-impl DiskWatcherInternal {
-    fn watch(&mut self, path: &Path, recursive_mode: RecursiveMode) -> notify::Result<()> {
-        match self {
-            DiskWatcherInternal::Recommended(watcher) => watcher.watch(path, recursive_mode),
-            DiskWatcherInternal::Polling(watcher) => watcher.watch(path, recursive_mode),
-        }
-    }
-}
-
 #[derive(Serialize, Deserialize)]
 pub(crate) struct DiskWatcher {
-    #[serde(skip)]
-    internal: Mutex<Option<DiskWatcherInternal>>,
-
-    #[serde(skip, default = "NonRecursiveDiskWatcherState::try_new")]
-    pub(crate) non_recursive_state: Option<NonRecursiveDiskWatcherState>,
+    #[serde(skip, default = "State::new_stopped")]
+    state: State,
 }
 
-impl Default for DiskWatcher {
-    fn default() -> Self {
-        Self {
-            internal: Mutex::new(None),
-            non_recursive_state: NonRecursiveDiskWatcherState::try_new(),
+enum State {
+    // Note: Information about if we're a recursive or non-recursive watcher must live outside the
+    // `RwLock` to allow us to quickly bail out on calls to `ensure_watched`.
+    Recursive(RwLock<RecursiveState>),
+    NonRecursive(RwLock<NonRecursiveState>),
+}
+
+enum StateWriteGuard<'a> {
+    Recursive(RwLockWriteGuard<'a, RecursiveState>),
+    NonRecursive(RwLockWriteGuard<'a, NonRecursiveState>),
+}
+
+impl State {
+    fn new_stopped() -> Self {
+        match *WATCH_RECURSIVE_MODE {
+            RecursiveMode::Recursive => Self::Recursive(RwLock::new(RecursiveState::Stopped)),
+            RecursiveMode::NonRecursive => {
+                Self::NonRecursive(RwLock::new(NonRecursiveState::Stopped))
+            }
+        }
+    }
+
+    fn write(&self) -> StateWriteGuard<'_> {
+        match self {
+            Self::Recursive(state) => StateWriteGuard::Recursive(state.write().unwrap()),
+            Self::NonRecursive(state) => StateWriteGuard::NonRecursive(state.write().unwrap()),
         }
     }
 }
 
-/// Extra state used by [`DiskWatcher`] when [`WATCH_RECURSIVE_MODE`] is
-/// [`RecursiveMode::NonRecursive`] (default on Linux).
-pub(crate) struct NonRecursiveDiskWatcherState {
-    /// Keeps track of which directories are currently (or were previously) watched.
+/// Used by when [`WATCH_RECURSIVE_MODE`] is [`RecursiveMode::Recursive`] (default on macOS and
+/// Windows).
+enum RecursiveState {
+    /// Used when [`DiskWatcher::start_watching`] hasn't been called yet or after
+    /// [`DiskWatcher::stop_watching`] is called.
+    Stopped,
+    Watching {
+        /// Hold onto the watcher: When this is dropped, it will cause the channel to disconnect
+        _notify_watcher: NotifyWatcher,
+    },
+}
+
+/// Used by when [`WATCH_RECURSIVE_MODE`] is [`RecursiveMode::NonRecursive`] (default on Linux).
+enum NonRecursiveState {
+    /// Used when [`DiskWatcher::start_watching`] hasn't been called yet or after
+    /// [`DiskWatcher::stop_watching`] is called.
+    Stopped,
+    Watching(NonRecursiveWatchingState),
+}
+
+// split out from the `NonRecursiveState` enum because we want to pass this value around
+struct NonRecursiveWatchingState {
+    notify_watcher: NotifyWatcher,
+    /// Keeps track of which directories are currently or were previously watched by
+    /// [`Self::notify_watcher`].
     ///
     /// Invariants:
     /// - Never contains `root_path`. A watcher for `root_path` is implicitly set up during
     ///   [`DiskWatcher::start_watching`].
     /// - Contains all parent directories up to `root_path` for every entry.
-    watching: DashSet<PathBuf>,
+    watched: BTreeSet<PathBuf>,
 }
 
-impl NonRecursiveDiskWatcherState {
-    fn try_new() -> Option<NonRecursiveDiskWatcherState> {
-        match *WATCH_RECURSIVE_MODE {
-            RecursiveMode::Recursive => None,
-            RecursiveMode::NonRecursive => Some(NonRecursiveDiskWatcherState {
-                watching: DashSet::new(),
-            }),
+/// A thin wrapper around [`RecommendedWatcher`] and [`PollWatcher`].
+enum NotifyWatcher {
+    Recommended(RecommendedWatcher),
+    Polling(PollWatcher),
+}
+
+impl NotifyWatcher {
+    fn watch(&mut self, path: &Path, recursive_mode: RecursiveMode) -> notify::Result<()> {
+        match self {
+            Self::Recommended(watcher) => watcher.watch(path, recursive_mode),
+            Self::Polling(watcher) => watcher.watch(path, recursive_mode),
         }
     }
+}
+
+mod non_recursive_helpers {
+    use super::*;
+    use crate::path_map::OrderedPathSetExt;
 
     /// Called after a rescan in case a previously watched-but-deleted directory was recreated.
-    pub(crate) fn restore_all_watching(&self, watcher: &DiskWatcher, root_path: &Path) {
-        let mut internal = watcher.internal.lock().unwrap();
-        for dir_path in self.watching.iter() {
+    #[instrument(skip_all, level = "trace")]
+    pub fn restore_all_watched_ignore_errors(state: &RwLock<NonRecursiveState>, root_path: &Path) {
+        let mut guard = state.write().unwrap();
+        let NonRecursiveState::Watching(watching_state) = &mut *guard else {
+            return;
+        };
+        for dir_path in watching_state.watched.iter() {
             // TODO: Report diagnostics if this error happens
-            let _ = self.start_watching_dir(&mut internal, &dir_path, root_path);
+            //
+            // Don't watch the parents, because those are already included in `self.watched` (so
+            // it'd be redundant), but also because this could deadlock, since we'd try to modify
+            // `self.watched` while iterating over it (write lock overlapping with a read lock).
+            let _ = start_watching_dir(&mut watching_state.notify_watcher, dir_path, root_path);
         }
     }
 
     /// Called when a new directory is found in a parent directory we're watching. Restores the
     /// watcher if we were previously watching it.
-    pub(crate) fn restore_if_watching(
-        &self,
-        watcher: &DiskWatcher,
+    #[instrument(skip_all, level = "trace")]
+    pub fn restore_if_watched(
+        state: &RwLock<NonRecursiveState>,
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
-        if dir_path == root_path || !self.watching.contains(dir_path) {
+        // fast path: The root directory is always implicitly watched during
+        // `DiskWatcher::start_watching`, we assume it is never deleted and never needs to be
+        // restored.
+        if dir_path == root_path {
             return Ok(());
         }
-        let mut internal = watcher.internal.lock().unwrap();
-        // TODO: Also restore any watchers for children of this directory
-        self.start_watching_dir(&mut internal, dir_path, root_path)
-    }
 
-    /// Called when a file in `dir_path` or `dir_path` itself is read or written. Adds a new watcher
-    /// if we're not already watching the directory.
-    pub(crate) fn ensure_watching(
-        &self,
-        watcher: &DiskWatcher,
-        dir_path: &Path,
-        root_path: &Path,
-    ) -> Result<()> {
-        if dir_path == root_path || self.watching.contains(dir_path) {
-            return Ok(());
+        // fast path: the directory isn't in `watched`, only take a read lock and bail out early
+        {
+            let guard = state.read().unwrap();
+            let NonRecursiveState::Watching(watching_state) = &*guard else {
+                return Ok(());
+            };
+            if !watching_state.watched.contains(dir_path) {
+                return Ok(());
+            }
         }
-        let mut internal = watcher.internal.lock().unwrap();
-        if self.watching.insert(dir_path.to_path_buf()) {
-            self.start_watching_dir(&mut internal, dir_path, root_path)?;
+
+        // slow path: re-watch the path
+        let mut guard = state.write().unwrap();
+        let NonRecursiveState::Watching(watching_state) = &mut *guard else {
+            return Ok(());
+        };
+
+        // watch the new directory
+        start_watching_dir(&mut watching_state.notify_watcher, dir_path, root_path)?;
+
+        // Also try to restore any watchers for children of this directory
+        for child_path in watching_state.watched.iter_path_children(dir_path) {
+            // Don't watch the parents -- see the comment on `restore_all_watched`
+            start_watching_dir(&mut watching_state.notify_watcher, child_path, root_path)?;
         }
         Ok(())
     }
 
-    /// Private helper, assumes that the path has already been added to `self.watching`.
+    /// Called when a file in `dir_path` or `dir_path` itself is read or written. Adds a new watcher
+    /// if we're not already watching the directory.
+    ///
+    /// This should be called *before* reading a file to avoid a race condition.
+    #[instrument(skip_all, level = "trace")]
+    pub fn ensure_watched(
+        state: &RwLock<NonRecursiveState>,
+        dir_path: &Path,
+        root_path: &Path,
+    ) -> Result<()> {
+        // fast path: The root directory is always implicitly watched during
+        // `DiskWatcher::start_watching`.
+        if dir_path == root_path {
+            return Ok(());
+        }
+
+        // fast path: the directory is already in `watched`, only take a read lock and bail out
+        // early
+        {
+            let guard = state.read().unwrap();
+            let NonRecursiveState::Watching(watching_state) = &*guard else {
+                return Ok(());
+            };
+            if watching_state.watched.contains(dir_path) {
+                return Ok(());
+            }
+        }
+
+        // slow path: watch the path
+        let mut guard = state.write().unwrap();
+        let NonRecursiveState::Watching(watching_state) = &mut *guard else {
+            return Ok(());
+        };
+        if watching_state.watched.insert(dir_path.to_path_buf()) {
+            start_watching_dir_and_parents(watching_state, dir_path, root_path)?;
+        }
+        Ok(())
+    }
+
+    /// Private helper, assumes that `dir_path` has already been added to
+    /// [`NonRecursiveWatchingState::watched`].
+    ///
+    /// This does not watch any of the parent directories. For that, use
+    /// [`start_watching_dir_and_parents`]. Use this method when iterating over previously-watched
+    /// values in `self.watching`.
     fn start_watching_dir(
-        &self,
-        watcher_internal_guard: &mut MutexGuard<Option<DiskWatcherInternal>>,
+        notify_watcher: &mut NotifyWatcher,
         dir_path: &Path,
         root_path: &Path,
     ) -> Result<()> {
         debug_assert_ne!(dir_path, root_path);
-        let Some(watcher_internal_guard) = watcher_internal_guard.as_mut() else {
-            return Ok(());
-        };
 
-        let mut path = dir_path;
-        let err_with_context = |err: anyhow::Error| {
-            return Err(err).context(format!(
-                "Unable to watch {} (tried up to {})",
-                dir_path.display(),
-                path.display()
-            ));
-        };
-
-        // watch every parent: https://docs.rs/notify/latest/notify/#parent-folder-deletion
-        loop {
-            match watcher_internal_guard.watch(path, RecursiveMode::NonRecursive) {
-                res @ Ok(())
-                | res @ Err(notify::Error {
-                    // The path was probably deleted before we could process the event. That's
-                    // okay, just make sure we're watching the parent directory, so we can know
-                    // if it gets recreated.
-                    kind: notify::ErrorKind::PathNotFound,
-                    ..
-                }) => {
-                    let Some(parent_path) = path.parent() else {
-                        // this should never happen as we break before we reach the root path
-                        return err_with_context(res.err().map_or_else(
-                            || anyhow!("failed to compute parent path"),
-                            |err| err.into(),
-                        ));
-                    };
-                    if parent_path == root_path || !self.watching.insert(parent_path.to_path_buf())
-                    {
-                        break;
-                    }
-                    path = parent_path;
-                }
-                Err(err) => return err_with_context(err.into()),
+        match notify_watcher.watch(dir_path, RecursiveMode::NonRecursive) {
+            Ok(())
+            | Err(notify::Error {
+                // The path was probably deleted before we could process the event, but the parent
+                // should still be watched. The codepaths that care about this either call
+                // `start_watching_dir_and_parents` or handle the parents themselves.
+                kind: notify::ErrorKind::PathNotFound,
+                ..
+            }) => Ok(()),
+            Err(err) => {
+                return Err(err).context(format!("Unable to watch {}", dir_path.display(),));
             }
+        }
+    }
+
+    /// Private helper, assumes that `dir_path` has already been added to
+    /// [`NonRecursiveWatchingState::watched`].
+    ///
+    /// Watches the given `dir_path` and every parent up to `root_path`. Parents must be recursively
+    /// watched in case any of them change:
+    /// https://docs.rs/notify/latest/notify/#parent-folder-deletion
+    fn start_watching_dir_and_parents(
+        state: &mut NonRecursiveWatchingState,
+        dir_path: &Path,
+        root_path: &Path,
+    ) -> Result<()> {
+        let mut found_watched_ancestor = false;
+
+        // NOTE: `Path::ancestors` yields ancestors from longest to shortest path.
+        let dir_and_ancestor_paths: Vec<_> = [dir_path]
+            .into_iter()
+            .chain(
+                dir_path
+                    .ancestors()
+                    // skip: `ancestors` includes `dir_path` itself, as well as the ancestors, but
+                    // we only want to apply the `take_while` check to parents
+                    .skip(1)
+                    .take_while(|p| {
+                        found_watched_ancestor = *p == root_path || state.watched.contains(*p);
+                        !found_watched_ancestor
+                    }),
+            )
+            .collect();
+
+        if !found_watched_ancestor {
+            // this should never happen, as we should eventually hit the `root_path`
+            anyhow::bail!(
+                "failed to find the fs root of {root_path:?} while watching {dir_path:?}"
+            );
+        }
+
+        // Reverse the iterator: We want to start closest to the root and work towards `dir_path`
+        // (opposite of `Path::ancestors`), to avoid a potential race condition if directories are
+        // removed and re-added before we've watched their parent.
+        for path in dir_and_ancestor_paths.into_iter().rev() {
+            // this will silently ignore if the path is not found, expecting that we've watched the
+            // parent directory
+            start_watching_dir(&mut state.notify_watcher, path, root_path)?;
+            state.watched.insert(path.to_owned());
         }
 
         Ok(())
@@ -213,8 +326,10 @@ impl NonRecursiveDiskWatcherState {
 }
 
 impl DiskWatcher {
-    pub(crate) fn new() -> Self {
-        Default::default()
+    pub fn new() -> Self {
+        Self {
+            state: State::new_stopped(),
+        }
     }
 
     /// Create a watcher and start watching by creating `debounced` watcher
@@ -232,14 +347,22 @@ impl DiskWatcher {
     /// - Emits only one Remove event when deleting a directory (inotify)
     /// - Doesn't emit duplicate create events
     /// - Doesn't emit Modify events after a Create event
-    pub(crate) fn start_watching(
+    pub fn start_watching(
         &self,
         fs_inner: Arc<DiskFileSystemInner>,
         report_invalidation_reason: bool,
         poll_interval: Option<Duration>,
     ) -> Result<()> {
-        let mut internal_guard = self.internal.lock().unwrap();
-        if internal_guard.is_some() {
+        let state_guard = self.state.write();
+
+        // bail out if we're already watching
+        if let StateWriteGuard::Recursive(guard) = &state_guard
+            && matches!(**guard, RecursiveState::Watching { .. })
+        {
+            return Ok(());
+        } else if let StateWriteGuard::NonRecursive(guard) = &state_guard
+            && matches!(**guard, NonRecursiveState::Watching(..))
+        {
             return Ok(());
         }
 
@@ -248,69 +371,58 @@ impl DiskWatcher {
         // Create a watcher object, delivering debounced events.
         // The notification back-end is selected based on the platform.
         let config = Config::default();
-        // we should track and invalidate each part of a symlink chain ourselves in turbo-tasks-fs
+        // we should track and invalidate each part of a symlink chain ourselves in
+        // turbo-tasks-fs
         config.with_follow_symlinks(false);
 
-        let mut internal = if let Some(poll_interval) = poll_interval {
+        let mut notify_watcher = if let Some(poll_interval) = poll_interval {
             let config = config.with_poll_interval(poll_interval);
-
-            DiskWatcherInternal::Polling(PollWatcher::new(tx, config)?)
+            NotifyWatcher::Polling(PollWatcher::new(tx, config)?)
         } else {
-            DiskWatcherInternal::Recommended(RecommendedWatcher::new(tx, Config::default())?)
+            NotifyWatcher::Recommended(RecommendedWatcher::new(tx, Config::default())?)
         };
 
-        if let Some(non_recursive) = &self.non_recursive_state {
-            internal.watch(fs_inner.root_path(), RecursiveMode::NonRecursive)?;
-            for dir_path in non_recursive.watching.iter() {
-                internal.watch(&dir_path, RecursiveMode::NonRecursive)?;
-            }
-        } else {
-            internal.watch(fs_inner.root_path(), RecursiveMode::Recursive)?;
-        }
+        // TOCTOU: we must watch `root_path` before calling any invalidators and setting up the
+        // watchers in their associated functions
+        let root_path = fs_inner.root_path();
+        let recursive_mode = match state_guard {
+            StateWriteGuard::Recursive(_) => RecursiveMode::Recursive,
+            StateWriteGuard::NonRecursive(_) => RecursiveMode::NonRecursive,
+        };
+        notify_watcher.watch(root_path, recursive_mode)?;
 
-        // We need to invalidate all reads that happened before watching
+        // We need to invalidate all reads or writes that happened before watching. As a
+        // side-effect, this will call `ensure_watched` again, setting up any watchers needed.
+        //
         // Best is to start_watching before starting to read
         {
-            let span = tracing::info_span!("invalidate filesystem");
-            let _span = span.clone().entered();
+            let _span = tracing::info_span!("invalidate filesystem").entered();
             let invalidator_map = take(&mut *fs_inner.invalidator_map.lock().unwrap());
             let dir_invalidator_map = take(&mut *fs_inner.dir_invalidator_map.lock().unwrap());
-            let iter = invalidator_map
-                .into_par_iter()
-                .chain(dir_invalidator_map.into_par_iter());
-            let handle = tokio::runtime::Handle::current();
+            let iter = invalidator_map.into_iter().chain(dir_invalidator_map);
             if report_invalidation_reason {
-                iter.flat_map(|(path, invalidators)| {
-                    let _span = span.clone().entered();
-                    let reason = WatchStart {
-                        name: fs_inner.name.clone(),
-                        // this path is just used for display purposes
-                        path: RcStr::from(path.to_string_lossy()),
-                    };
-                    invalidators
-                        .into_par_iter()
-                        .map(move |i| (reason.clone(), i))
-                })
-                .for_each(|(reason, (invalidator, _))| {
-                    let _span = span.clone().entered();
-                    let _guard = handle.enter();
-                    invalidator.invalidate_with_reason(reason)
+                let invalidators = iter
+                    .flat_map(|(path, invalidators)| {
+                        let reason = WatchStart {
+                            name: fs_inner.name.clone(),
+                            // this path is just used for display purposes
+                            path: RcStr::from(path.to_string_lossy()),
+                        };
+                        invalidators.into_iter().map(move |i| (reason.clone(), i))
+                    })
+                    .collect::<Vec<_>>();
+                parallel::for_each_owned(invalidators, |(reason, (invalidator, _))| {
+                    invalidator.invalidate_with_reason(reason);
                 });
             } else {
-                iter.flat_map(|(_, invalidators)| {
-                    let _span = span.clone().entered();
-                    invalidators.into_par_iter().map(move |i| i)
-                })
-                .for_each(|(invalidator, _)| {
-                    let _span = span.clone().entered();
-                    let _guard = handle.enter();
-                    invalidator.invalidate()
+                let invalidators = iter
+                    .flat_map(|(_, invalidators)| invalidators.into_keys())
+                    .collect::<Vec<_>>();
+                parallel::for_each_owned(invalidators, |invalidator| {
+                    invalidator.invalidate();
                 });
             }
         }
-
-        internal_guard.replace(internal);
-        drop(internal_guard);
 
         spawn_thread(move || {
             fs_inner
@@ -319,14 +431,32 @@ impl DiskWatcher {
                 .watch_thread(rx, fs_inner, report_invalidation_reason)
         });
 
+        // Updating `self.state` is done last. If we panic while setting up the watcher, it'll
+        // stay in the `Stopped` state.
+        match state_guard {
+            StateWriteGuard::Recursive(mut recursive) => {
+                *recursive = RecursiveState::Watching {
+                    _notify_watcher: notify_watcher,
+                }
+            }
+            StateWriteGuard::NonRecursive(mut non_recursive) => {
+                *non_recursive = NonRecursiveState::Watching(NonRecursiveWatchingState {
+                    notify_watcher,
+                    watched: BTreeSet::new(),
+                })
+            }
+        };
+
         Ok(())
     }
 
-    pub(crate) fn stop_watching(&self) {
-        if let Some(watcher) = self.internal.lock().unwrap().take() {
-            drop(watcher);
-            // thread will detect the stop because the channel is disconnected
+    pub fn stop_watching(&self) {
+        match &self.state {
+            State::Recursive(state) => *state.write().unwrap() = RecursiveState::Stopped,
+            State::NonRecursive(state) => *state.write().unwrap() = NonRecursiveState::Stopped,
         }
+        // thread will detect the stop because the channel is disconnected when `NotifyWatcher` is
+        // dropped
     }
 
     /// Internal thread that processes the events from the watcher
@@ -336,7 +466,7 @@ impl DiskWatcher {
     fn watch_thread(
         &self,
         rx: Receiver<notify::Result<notify::Event>>,
-        inner: Arc<DiskFileSystemInner>,
+        fs_inner: Arc<DiskFileSystemInner>,
         report_invalidation_reason: bool,
     ) {
         let mut batched_invalidate_path = FxHashSet::default();
@@ -344,7 +474,7 @@ impl DiskWatcher {
         let mut batched_invalidate_path_and_children = FxHashSet::default();
         let mut batched_invalidate_path_and_children_dir = FxHashSet::default();
 
-        let mut batched_new_paths = if self.non_recursive_state.is_some() {
+        let mut batched_new_paths = if let State::NonRecursive(_) = self.state {
             Some(FxHashSet::default())
         } else {
             None
@@ -366,25 +496,30 @@ impl DiskWatcher {
                         // echo 3 | sudo tee /proc/sys/fs/inotify/max_queued_events
                         // ```
                         if event.need_rescan() {
-                            let _lock = inner.invalidation_lock.blocking_write();
+                            let _lock = fs_inner.invalidation_lock.blocking_write();
 
-                            if let Some(non_recursive) = &self.non_recursive_state {
+                            if let State::NonRecursive(non_recursive) = &self.state {
                                 // we can't narrow this down to a smaller set of paths: Rescan
                                 // events (at least when tested on Linux) come with no `paths`, and
                                 // we use only one global `notify::Watcher` instance.
-                                non_recursive.restore_all_watching(self, inner.root_path());
+                                //
+                                // TODO: Report diagnostics if an error happens
+                                non_recursive_helpers::restore_all_watched_ignore_errors(
+                                    non_recursive,
+                                    fs_inner.root_path(),
+                                );
                                 if let Some(batched_new_paths) = &mut batched_new_paths {
                                     batched_new_paths.clear();
                                 }
                             }
 
                             if report_invalidation_reason {
-                                inner.invalidate_with_reason(|path| InvalidateRescan {
+                                fs_inner.invalidate_with_reason(|path| InvalidateRescan {
                                     // this path is just used for display purposes
                                     path: RcStr::from(path.to_string_lossy()),
                                 });
                             } else {
-                                inner.invalidate();
+                                fs_inner.invalidate();
                             }
 
                             // no need to process the rest of the batch as we just
@@ -501,9 +636,9 @@ impl DiskWatcher {
 
                         if paths.is_empty() {
                             batched_invalidate_path_and_children
-                                .insert(inner.root_path().to_path_buf());
+                                .insert(fs_inner.root_path().to_path_buf());
                             batched_invalidate_path_and_children_dir
-                                .insert(inner.root_path().to_path_buf());
+                                .insert(fs_inner.root_path().to_path_buf());
                         } else {
                             batched_invalidate_path_and_children.extend(paths.clone());
                             batched_invalidate_path_and_children_dir.extend(paths.clone());
@@ -536,39 +671,43 @@ impl DiskWatcher {
 
             // We need to start watching first before invalidating the changed paths...
             // This is only needed on platforms we don't do recursive watching on.
-            if let Some(non_recursive) = &self.non_recursive_state {
+            if let State::NonRecursive(non_recursive) = &self.state {
                 for path in batched_new_paths.as_mut().unwrap().drain() {
                     // TODO: Report diagnostics if this error happens
-                    let _ = non_recursive.restore_if_watching(self, &path, inner.root_path());
+                    let _ = non_recursive_helpers::restore_if_watched(
+                        non_recursive,
+                        &path,
+                        fs_inner.root_path(),
+                    );
                 }
             }
 
-            let _lock = inner.invalidation_lock.blocking_write();
+            let _lock = fs_inner.invalidation_lock.blocking_write();
             {
-                let mut invalidator_map = inner.invalidator_map.lock().unwrap();
+                let mut invalidator_map = fs_inner.invalidator_map.lock().unwrap();
                 invalidate_path(
-                    &inner,
+                    &fs_inner,
                     report_invalidation_reason,
                     &mut invalidator_map,
                     batched_invalidate_path.drain(),
                 );
                 invalidate_path_and_children_execute(
-                    &inner,
+                    &fs_inner,
                     report_invalidation_reason,
                     &mut invalidator_map,
                     batched_invalidate_path_and_children.drain(),
                 );
             }
             {
-                let mut dir_invalidator_map = inner.dir_invalidator_map.lock().unwrap();
+                let mut dir_invalidator_map = fs_inner.dir_invalidator_map.lock().unwrap();
                 invalidate_path(
-                    &inner,
+                    &fs_inner,
                     report_invalidation_reason,
                     &mut dir_invalidator_map,
                     batched_invalidate_path_dir.drain(),
                 );
                 invalidate_path_and_children_execute(
-                    &inner,
+                    &fs_inner,
                     report_invalidation_reason,
                     &mut dir_invalidator_map,
                     batched_invalidate_path_and_children_dir.drain(),
@@ -576,9 +715,34 @@ impl DiskWatcher {
             }
         }
     }
+
+    pub fn ensure_watched_file(&self, path: &Path, root_path: &Path) -> Result<()> {
+        // Watch the parent directory instead of the specified file, since directories also track
+        // their immediate children (even in non-recursive mode), and we need to watch all the
+        // parents anyways.
+        if let State::NonRecursive(non_recursive) = &self.state
+            && let Some(dir_path) = path.parent()
+        {
+            non_recursive_helpers::ensure_watched(non_recursive, dir_path, root_path)?;
+        }
+        Ok(())
+    }
+
+    pub fn ensure_watched_dir(&self, dir_path: &Path, root_path: &Path) -> Result<()> {
+        if let State::NonRecursive(non_recursive) = &self.state {
+            non_recursive_helpers::ensure_watched(non_recursive, dir_path, root_path)?;
+        }
+        Ok(())
+    }
 }
 
-#[instrument(parent = None, level = "info", name = "DiskFileSystem file change", skip_all, fields(name = display(path.display())))]
+#[instrument(
+    parent = None,
+    level = "info",
+    name = "DiskFileSystem file change",
+    skip_all,
+    fields(name = %path.display())
+)]
 fn invalidate(
     inner: &DiskFileSystemInner,
     report_invalidation_reason: bool,

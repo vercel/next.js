@@ -767,8 +767,8 @@ async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<P
     Ok(plain_traces)
 }
 
-#[turbo_tasks::value(shared, serialization = "none")]
-#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash, Serialize)]
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash)]
 pub enum IssueStage {
     Config,
     AppStructure,

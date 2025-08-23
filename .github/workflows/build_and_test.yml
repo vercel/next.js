@@ -52,8 +52,10 @@ jobs:
       is-release: ${{ steps.is-release.outputs.IS_RELEASE == 'true' }}
       rspack: >-
         ${{
-          github.event_name == 'pull_request' &&
-          contains(github.event.pull_request.labels.*.name, 'Rspack')
+          steps.is-release.outputs.IS_RELEASE == 'true' || (
+            github.event_name == 'pull_request' &&
+            contains(github.event.pull_request.labels.*.name, 'Rspack')
+          )
         }}
 
   build-native:
@@ -312,8 +314,6 @@ jobs:
         export TURBOPACK_BUILD=1
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
-        # TODO(PACK-4578): Remove
-        export TURBOPACK_TEMP_DISABLE_DUPLICATE_MODULES_CHECK=1
 
         node run-tests.js --timings -g ${{ matrix.group }} --type production
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'

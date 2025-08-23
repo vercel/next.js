@@ -81,6 +81,7 @@ describe(`Request Promises`, () => {
     const { next, isNextDev, skipped } = nextTestSetup({
       files: __dirname + '/fixtures/reject-hanging-promises-dynamic',
       skipStart: true,
+      skipDeployment: true,
     })
 
     if (skipped) {
@@ -95,9 +96,7 @@ describe(`Request Promises`, () => {
     it('should reject request APIs after the prerender is interrupted with synchronously dynamic APIs', async () => {
       try {
         await next.start()
-      } catch {
-        throw new Error('expected build not to fail for fully static project')
-      }
+      } catch {}
       const expectError = createExpectError(next.cliOutput)
 
       expectError(

@@ -1,5 +1,5 @@
 import type { DynamicParam } from '../../../../server/app-render/app-render'
-import type { DynamicParamTypesShort } from '../../../../server/app-render/types'
+import type { DynamicParamTypesShort } from '../../app-router-types'
 import type { FallbackRouteParams } from '../../../../server/request/fallback-params'
 
 /**

@@ -121,22 +121,7 @@ function trackFetchMetric(
   workStore: WorkStore,
   ctx: Omit<FetchMetric, 'end' | 'idx'>
 ) {
-  // If the static generation store is not available, we can't track the fetch
-  if (!workStore) return
-  if (workStore.requestEndedState?.ended) return
-
-  const isDebugBuild =
-    (!!process.env.NEXT_DEBUG_BUILD ||
-      process.env.NEXT_SSG_FETCH_METRICS === '1') &&
-    workStore.isStaticGeneration
-  const isDevelopment = process.env.NODE_ENV === 'development'
-
-  if (
-    // The only time we want to track fetch metrics outside of development is when
-    // we are performing a static generation & we are in debug mode.
-    !isDebugBuild &&
-    !isDevelopment
-  ) {
+  if (!workStore.shouldTrackFetchMetrics) {
     return
   }
 

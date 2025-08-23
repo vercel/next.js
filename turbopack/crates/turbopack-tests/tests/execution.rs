@@ -21,8 +21,9 @@ use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
-    json::parse_json_with_source_context, util::sys_to_unix,
+    json::parse_json_with_source_context,
 };
+use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
     css::chunk::CssChunkType,
@@ -243,23 +244,31 @@ async fn run_inner_operation(
 }
 
 #[derive(
-    PartialEq,
-    Eq,
-    Debug,
-    Default,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    ValueDebugFormat,
-    NonLocalValue,
+    PartialEq, Eq, Debug, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue,
 )]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
+    #[serde(default = "default_tree_shaking_mode")]
     tree_shaking_mode: Option<TreeShakingMode>,
     remove_unused_exports: Option<bool>,
     scope_hoisting: Option<bool>,
     #[serde(default)]
     minify: bool,
+}
+
+fn default_tree_shaking_mode() -> Option<TreeShakingMode> {
+    Some(TreeShakingMode::ReexportsOnly)
+}
+
+impl Default for TestOptions {
+    fn default() -> Self {
+        Self {
+            tree_shaking_mode: default_tree_shaking_mode(),
+            remove_unused_exports: None,
+            scope_hoisting: None,
+            minify: false,
+        }
+    }
 }
 
 #[turbo_tasks::value]
@@ -290,9 +299,9 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
         &*REPO_ROOT,
         resource_path.display()
     ))?;
-    let relative_path: RcStr = sys_to_unix(relative_path.to_str().unwrap()).into();
-    let path = root_fs.root().await?.join(&relative_path.clone())?;
-    let project_path = project_root.join(&relative_path.clone())?;
+    let relative_path = RcStr::from(sys_to_unix(relative_path.to_str().unwrap()));
+    let path = root_fs.root().await?.join(&relative_path)?;
+    let project_path = project_root.join(&relative_path)?;
     let tests_path = project_fs
         .root()
         .await?
@@ -377,6 +386,22 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
             .resolved_cell(),
     );
+    import_map.insert_exact_alias(
+        rcstr!("testGlobalExternalValue"),
+        ImportMapping::External(None, ExternalType::Global, ExternalTraced::Untraced)
+            .resolved_cell(),
+    );
+
+    let mut fallback_import_map = ImportMap::empty();
+    fallback_import_map.insert_exact_alias(
+        rcstr!("fallback"),
+        ImportMapping::External(
+            None,
+            ExternalType::EcmaScriptModule,
+            ExternalTraced::Untraced,
+        )
+        .resolved_cell(),
+    );
 
     let remove_unused_exports = options.remove_unused_exports.unwrap_or(true);
 
@@ -421,6 +446,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             browser: true,
             module: true,
             import_map: Some(import_map.resolved_cell()),
+            fallback_import_map: Some(fallback_import_map.resolved_cell()),
             ..Default::default()
         }
         .cell(),

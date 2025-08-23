@@ -1,11 +1,13 @@
 import type { WorkStore } from '../app-render/work-async-storage.external'
 
 import {
+  delayUntilRuntimeStage,
   postponeWithTracking,
   type DynamicTrackingState,
 } from '../app-render/dynamic-rendering'
 
 import {
+  throwInvariantForMissingStore,
   workUnitAsyncStorage,
   type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
@@ -37,13 +39,17 @@ export function createServerPathnameForMetadata(
         )
 
       case 'prerender-runtime':
+        return delayUntilRuntimeStage(
+          workUnitStore,
+          createRenderPathname(underlyingPathname)
+        )
       case 'request':
-        break
+        return createRenderPathname(underlyingPathname)
       default:
         workUnitStore satisfies never
     }
   }
-  return createRenderPathname(underlyingPathname)
+  throwInvariantForMissingStore()
 }
 
 function createPrerenderPathname(

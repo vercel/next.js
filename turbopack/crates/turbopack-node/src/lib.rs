@@ -31,6 +31,7 @@ pub mod debug;
 pub mod embed_js;
 pub mod evaluate;
 pub mod execution_context;
+mod heap_queue;
 mod node_entry;
 mod pool;
 pub mod render;

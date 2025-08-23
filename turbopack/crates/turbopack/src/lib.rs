@@ -26,7 +26,10 @@ use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, Modu
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
@@ -55,6 +58,7 @@ use turbopack_ecmascript::{
     references::external_module::{
         CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
     },
+    side_effect_optimization::locals::module::EcmascriptModuleLocalsModule,
     tree_shake::asset::EcmascriptModulePartAsset,
 };
 use turbopack_json::JsonModuleAsset;
@@ -176,11 +180,8 @@ async fn apply_module_type(
                         if let Some(part) = part {
                             match part {
                                 ModulePart::Evaluation => {
-                                    if *module.get_exports().needs_facade().await? {
-                                        Vc::upcast(EcmascriptModuleFacadeModule::new(
-                                            Vc::upcast(*module),
-                                            part,
-                                        ))
+                                    if *module.get_exports().split_locals_and_reexports().await? {
+                                        Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
                                     } else {
                                         Vc::upcast(*module)
                                     }
@@ -191,12 +192,12 @@ async fn apply_module_type(
                                         .resolve()
                                         .await?;
 
-                                    if *module.get_exports().needs_facade().await? {
+                                    if *module.get_exports().split_locals_and_reexports().await? {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(
                                                 EcmascriptModuleFacadeModule::new(
                                                     Vc::upcast(*module),
-                                                    ModulePart::exports(),
+                                                    ModulePart::facade(),
                                                 )
                                                 .resolve()
                                                 .await?,
@@ -218,7 +219,7 @@ async fn apply_module_type(
                                     part
                                 ),
                             }
-                        } else if *module.get_exports().needs_facade().await? {
+                        } else if *module.get_exports().split_locals_and_reexports().await? {
                             Vc::upcast(EcmascriptModuleFacadeModule::new(
                                 Vc::upcast(*module),
                                 ModulePart::facade(),
@@ -287,7 +288,7 @@ async fn apply_reexport_tree_shaking(
             module: final_module,
             export_name: new_export,
             ..
-        } = &*follow_reexports(module, export.clone(), side_effect_free_packages, false).await?;
+        } = &*follow_reexports(module, export.clone(), side_effect_free_packages, true).await?;
         let module = if let Some(new_export) = new_export {
             if *new_export == *export {
                 Vc::upcast(**final_module)
@@ -672,12 +673,13 @@ async fn externals_tracing_module_context(
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ModuleAssetContext>> {
     let resolve_options = ResolveOptionsContext {
+        enable_node_native_modules: true,
         emulate_environment: Some(compile_time_info.await?.environment),
         loose_errors: true,
         custom_conditions: match ty {
-            ExternalType::CommonJs => vec![rcstr!("require")],
-            ExternalType::EcmaScriptModule => vec![rcstr!("import")],
-            ExternalType::Url | ExternalType::Global | ExternalType::Script => vec![],
+            ExternalType::CommonJs => vec![rcstr!("require"), rcstr!("node")],
+            ExternalType::EcmaScriptModule => vec![rcstr!("import"), rcstr!("node")],
+            ExternalType::Url | ExternalType::Global | ExternalType::Script => vec![rcstr!("node")],
         },
         ..Default::default()
     };
@@ -690,11 +692,14 @@ async fn externals_tracing_module_context(
         // are actually representative of what Turbopack does.
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                // enable_types should not be enabled here. It gets set automatically when a TS file
+                // is encountered.
                 source_maps: SourceMapsType::None,
                 ..Default::default()
             },
             css: CssOptionsContext {
                 source_maps: SourceMapsType::None,
+                enable_raw_css: true,
                 ..Default::default()
             },
             // Environment is not passed in order to avoid downleveling JS / CSS for
@@ -893,15 +898,14 @@ impl AssetContext for ModuleAssetContext {
 
     #[turbo_tasks::function]
     async fn side_effect_free_packages(&self) -> Result<Vc<Glob>> {
-        let pkgs = &*self.module_options_context.await?.side_effect_free_packages;
+        let pkgs = &self.module_options_context.await?.side_effect_free_packages;
 
-        let mut globs = Vec::with_capacity(pkgs.len());
+        let mut globs = String::new();
+        globs.push_str("**/node_modules/{");
+        globs.push_str(&pkgs.join(","));
+        globs.push_str("}/**");
 
-        for pkg in pkgs {
-            globs.push(Glob::new(format!("**/node_modules/{{{pkg}}}/**").into()));
-        }
-
-        Ok(Glob::alternatives(globs))
+        Ok(Glob::new(globs.into(), GlobOptions::default()))
     }
 }
 

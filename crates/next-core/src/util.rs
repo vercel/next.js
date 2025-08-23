@@ -1,7 +1,7 @@
-use std::{str::FromStr, sync::LazyLock};
+use std::{fmt::Display, future::Future, str::FromStr};
 
-use anyhow::{Context, Result, bail};
-use regex::Regex;
+use anyhow::{Result, bail};
+use next_taskless::expand_next_js_template;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use swc_core::{
     common::{GLOBALS, Spanned, source_map::SmallPos},
@@ -9,13 +9,14 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, ValueDefault, Vc,
-    trace::TraceRawVcs, util::WrapFuture,
+    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, ValueDefault, Vc, trace::TraceRawVcs,
+    util::WrapFuture,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, json::parse_json_rope_with_source_context,
-    rope::Rope, util::join_path,
+    rope::Rope,
 };
+use turbopack::module_options::RuleCondition;
 use turbopack_core::{
     asset::AssetContent,
     compile_time_info::{CompileTimeDefineValue, CompileTimeDefines, DefinableNameSegment},
@@ -32,7 +33,6 @@ use turbopack_ecmascript::{
     EcmascriptParsable,
     analyzer::{ConstantValue, JsValue, ObjectPart},
     parse::ParseResult,
-    utils::StringifyJs,
 };
 
 use crate::{
@@ -40,6 +40,7 @@ use crate::{
     next_config::{NextConfig, RouteHas},
     next_import_map::get_next_package,
     next_manifests::MiddlewareMatcher,
+    next_shared::webpack_rules::WebpackLoaderBuiltinCondition,
 };
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
@@ -196,6 +197,13 @@ pub async fn internal_assets_conditions() -> Result<ContextCondition> {
     ]))
 }
 
+pub fn app_middleware_function_name(page: impl Display) -> String {
+    format!("app{page}")
+}
+pub fn pages_middleware_function_name(page: impl Display) -> String {
+    format!("pages{page}")
+}
+
 #[derive(
     Default,
     PartialEq,
@@ -221,11 +229,23 @@ pub enum NextRuntime {
 }
 
 impl NextRuntime {
-    pub fn conditions(&self) -> &'static [&'static str] {
+    /// Returns conditions that can be used in the Next.js config's turbopack "rules" section for
+    /// defining webpack loader configuration.
+    pub fn webpack_loader_conditions(&self) -> impl Iterator<Item = WebpackLoaderBuiltinCondition> {
         match self {
-            NextRuntime::NodeJs => &["node"],
-            NextRuntime::Edge => &["edge-light"],
+            NextRuntime::NodeJs => [WebpackLoaderBuiltinCondition::Node],
+            NextRuntime::Edge => [WebpackLoaderBuiltinCondition::EdgeLight],
         }
+        .into_iter()
+    }
+
+    /// Returns conditions used by `ResolveOptionsContext`.
+    pub fn custom_resolve_conditions(&self) -> impl Iterator<Item = RcStr> {
+        match self {
+            NextRuntime::NodeJs => [rcstr!("node")],
+            NextRuntime::Edge => [rcstr!("edge-light")],
+        }
+        .into_iter()
     }
 }
 
@@ -725,250 +745,31 @@ async fn parse_config_from_js_value(
 /// Loads a next.js template, replaces `replacements` and `injections` and makes
 /// sure there are none left over.
 pub async fn load_next_js_template(
-    path: &str,
+    template_path: &str,
     project_path: FileSystemPath,
-    replacements: FxIndexMap<&'static str, RcStr>,
-    injections: FxIndexMap<&'static str, RcStr>,
-    imports: FxIndexMap<&'static str, Option<RcStr>>,
+    replacements: &[(&str, &str)],
+    injections: &[(&str, &str)],
+    imports: &[(&str, Option<&str>)],
 ) -> Result<Vc<Box<dyn Source>>> {
-    let path = virtual_next_js_template_path(project_path.clone(), path.to_string()).await?;
+    let template_path = virtual_next_js_template_path(project_path.clone(), template_path).await?;
 
-    let content = &*file_content_rope(path.read()).await?;
-    let content = content.to_str()?.into_owned();
+    let content = file_content_rope(template_path.read()).await?;
+    let content = content.to_str()?;
 
-    let parent_path = path.parent();
-    let parent_path_value = parent_path.clone();
+    let package_root = &*get_next_package(project_path).await?;
 
-    let package_root = get_next_package(project_path).await?.parent();
-    let package_root_value = package_root.clone();
-
-    /// See [regex::Regex::replace_all].
-    fn replace_all<E>(
-        re: &regex::Regex,
-        haystack: &str,
-        mut replacement: impl FnMut(&regex::Captures) -> Result<String, E>,
-    ) -> Result<String, E> {
-        let mut new = String::with_capacity(haystack.len());
-        let mut last_match = 0;
-        for caps in re.captures_iter(haystack) {
-            let m = caps.get(0).unwrap();
-            new.push_str(&haystack[last_match..m.start()]);
-            new.push_str(&replacement(&caps)?);
-            last_match = m.end();
-        }
-        new.push_str(&haystack[last_match..]);
-        Ok(new)
-    }
-
-    // Update the relative imports to be absolute. This will update any relative
-    // imports to be relative to the root of the `next` package.
-    static IMPORT_PATH_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new("(?:from '(\\..*)'|import '(\\..*)')").unwrap());
-
-    let mut count = 0;
-    let mut content = replace_all(&IMPORT_PATH_RE, &content, |caps| {
-        let from_request = caps.get(1).map_or("", |c| c.as_str());
-        let import_request = caps.get(2).map_or("", |c| c.as_str());
-
-        count += 1;
-        let is_from_request = !from_request.is_empty();
-
-        let imported = FileSystemPath {
-            fs: package_root_value.fs,
-            path: join_path(
-                &parent_path_value.path,
-                if is_from_request {
-                    from_request
-                } else {
-                    import_request
-                },
-            )
-            .context("path should not leave the fs")?
-            .into(),
-        };
-
-        let relative = package_root_value
-            .get_relative_path_to(&imported)
-            .context("path has to be relative to package root")?;
-
-        if !relative.starts_with("./next/") {
-            bail!(
-                "Invariant: Expected relative import to start with \"./next/\", found \"{}\"",
-                relative
-            )
-        }
-
-        let relative = relative
-            .strip_prefix("./")
-            .context("should be able to strip the prefix")?;
-
-        Ok(if is_from_request {
-            format!("from {}", StringifyJs(relative))
-        } else {
-            format!("import {}", StringifyJs(relative))
-        })
-    })
-    .context("replacing imports failed")?;
-
-    // Verify that at least one import was replaced. It's the case today where
-    // every template file has at least one import to update, so this ensures that
-    // we don't accidentally remove the import replacement code or use the wrong
-    // template file.
-    if count == 0 {
-        bail!("Invariant: Expected to replace at least one import")
-    }
-
-    // Replace all the template variables with the actual values. If a template
-    // variable is missing, throw an error.
-    let mut replaced = FxIndexSet::default();
-    for (key, replacement) in &replacements {
-        let full = format!("'{key}'");
-
-        if content.contains(&full) {
-            replaced.insert(*key);
-            content = content.replace(&full, &StringifyJs(&replacement).to_string());
-        }
-    }
-
-    // Check to see if there's any remaining template variables.
-    static TEMPLATE_VAR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new("VAR_[A-Z_]+").unwrap());
-    let mut matches = TEMPLATE_VAR_RE.find_iter(&content).peekable();
-
-    if matches.peek().is_some() {
-        bail!(
-            "Invariant: Expected to replace all template variables, found {}",
-            matches.map(|m| m.as_str()).collect::<Vec<_>>().join(", "),
-        )
-    }
-
-    // Check to see if any template variable was provided but not used.
-    if replaced.len() != replacements.len() {
-        // Find the difference between the provided replacements and the replaced
-        // template variables. This will let us notify the user of any template
-        // variables that were not used but were provided.
-        let difference = replacements
-            .keys()
-            .filter(|k| !replaced.contains(*k))
-            .copied()
-            .collect::<Vec<_>>();
-
-        bail!(
-            "Invariant: Expected to replace all template variables, missing {} in template",
-            difference.join(", "),
-        )
-    }
-
-    // Replace the injections.
-    let mut injected = FxIndexSet::default();
-    for (key, injection) in &injections {
-        let full = format!("// INJECT:{key}");
-
-        if content.contains(&full) {
-            // Track all the injections to ensure that we're not missing any.
-            injected.insert(*key);
-            content = content.replace(&full, &format!("const {key} = {injection}"));
-        }
-    }
-
-    // Check to see if there's any remaining injections.
-    static INJECT_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new("// INJECT:[A-Za-z0-9_]+").unwrap());
-    let mut matches = INJECT_RE.find_iter(&content).peekable();
-
-    if matches.peek().is_some() {
-        bail!(
-            "Invariant: Expected to inject all injections, found {}",
-            matches.map(|m| m.as_str()).collect::<Vec<_>>().join(", "),
-        )
-    }
-
-    // Check to see if any injection was provided but not used.
-    if injected.len() != injections.len() {
-        // Find the difference between the provided replacements and the replaced
-        // template variables. This will let us notify the user of any template
-        // variables that were not used but were provided.
-        let difference = injections
-            .keys()
-            .filter(|k| !injected.contains(*k))
-            .copied()
-            .collect::<Vec<_>>();
-
-        bail!(
-            "Invariant: Expected to inject all injections, missing {} in template",
-            difference.join(", "),
-        )
-    }
-
-    // Replace the optional imports.
-    let mut imports_added = FxIndexSet::default();
-    for (key, import_path) in &imports {
-        let mut full = format!("// OPTIONAL_IMPORT:{key}");
-        let namespace = if !content.contains(&full) {
-            full = format!("// OPTIONAL_IMPORT:* as {key}");
-            if content.contains(&full) {
-                true
-            } else {
-                continue;
-            }
-        } else {
-            false
-        };
-
-        // Track all the imports to ensure that we're not missing any.
-        imports_added.insert(*key);
-
-        if let Some(path) = import_path {
-            content = content.replace(
-                &full,
-                &format!(
-                    "import {}{} from {}",
-                    if namespace { "* as " } else { "" },
-                    key,
-                    &StringifyJs(&path).to_string()
-                ),
-            );
-        } else {
-            content = content.replace(&full, &format!("const {key} = null"));
-        }
-    }
-
-    // Check to see if there's any remaining imports.
-    static OPTIONAL_IMPORT_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new("// OPTIONAL_IMPORT:(\\* as )?[A-Za-z0-9_]+").unwrap());
-    let mut matches = OPTIONAL_IMPORT_RE.find_iter(&content).peekable();
-
-    if matches.peek().is_some() {
-        bail!(
-            "Invariant: Expected to inject all imports, found {}",
-            matches.map(|m| m.as_str()).collect::<Vec<_>>().join(", "),
-        )
-    }
-
-    // Check to see if any import was provided but not used.
-    if imports_added.len() != imports.len() {
-        // Find the difference between the provided imports and the injected
-        // imports. This will let us notify the user of any imports that were
-        // not used but were provided.
-        let difference = imports
-            .keys()
-            .filter(|k| !imports_added.contains(*k))
-            .cloned()
-            .collect::<Vec<_>>();
-
-        bail!(
-            "Invariant: Expected to inject all imports, missing {} in template",
-            difference.join(", "),
-        )
-    }
-
-    // Ensure that the last line is a newline.
-    if !content.ends_with('\n') {
-        content.push('\n');
-    }
+    let content = expand_next_js_template(
+        &content,
+        &template_path.path,
+        &package_root.path,
+        replacements.iter().copied(),
+        injections.iter().copied(),
+        imports.iter().copied(),
+    )?;
 
     let file = File::from(content);
 
-    let source = VirtualSource::new(path, AssetContent::file(file.into()));
+    let source = VirtualSource::new(template_path, AssetContent::file(file.into()));
 
     Ok(Vc::upcast(source))
 }
@@ -984,9 +785,9 @@ pub async fn file_content_rope(content: Vc<FileContent>) -> Result<Vc<Rope>> {
     Ok(file.content().to_owned().cell())
 }
 
-pub async fn virtual_next_js_template_path(
+async fn virtual_next_js_template_path(
     project_path: FileSystemPath,
-    file: String,
+    file: &str,
 ) -> Result<FileSystemPath> {
     debug_assert!(!file.contains('/'));
     get_next_package(project_path)
@@ -1012,4 +813,49 @@ pub async fn load_next_js_templateon<T: DeserializeOwned>(
     let result: T = parse_json_rope_with_source_context(file.content())?;
 
     Ok(result)
+}
+
+pub fn styles_rule_condition() -> RuleCondition {
+    RuleCondition::any(vec![
+        RuleCondition::all(vec![
+            RuleCondition::ResourcePathEndsWith(".css".into()),
+            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
+        ]),
+        RuleCondition::all(vec![
+            RuleCondition::ResourcePathEndsWith(".sass".into()),
+            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.sass".into())),
+        ]),
+        RuleCondition::all(vec![
+            RuleCondition::ResourcePathEndsWith(".scss".into()),
+            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.scss".into())),
+        ]),
+        RuleCondition::all(vec![
+            RuleCondition::ContentTypeStartsWith("text/css".into()),
+            RuleCondition::not(RuleCondition::ContentTypeStartsWith(
+                "text/css+module".into(),
+            )),
+        ]),
+        RuleCondition::all(vec![
+            RuleCondition::ContentTypeStartsWith("text/sass".into()),
+            RuleCondition::not(RuleCondition::ContentTypeStartsWith(
+                "text/sass+module".into(),
+            )),
+        ]),
+        RuleCondition::all(vec![
+            RuleCondition::ContentTypeStartsWith("text/scss".into()),
+            RuleCondition::not(RuleCondition::ContentTypeStartsWith(
+                "text/scss+module".into(),
+            )),
+        ]),
+    ])
+}
+pub fn module_styles_rule_condition() -> RuleCondition {
+    RuleCondition::any(vec![
+        RuleCondition::ResourcePathEndsWith(".module.css".into()),
+        RuleCondition::ResourcePathEndsWith(".module.scss".into()),
+        RuleCondition::ResourcePathEndsWith(".module.sass".into()),
+        RuleCondition::ContentTypeStartsWith("text/css+module".into()),
+        RuleCondition::ContentTypeStartsWith("text/sass+module".into()),
+        RuleCondition::ContentTypeStartsWith("text/scss+module".into()),
+    ])
 }
