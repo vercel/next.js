@@ -565,7 +565,7 @@ export function generateValidatorFile(
 
   if (pagesApiRouteValidations) {
     typeDefinitions += `type ApiRouteConfig = {
-  default: (req: any, res: any) => Promise<Response | void> | Response | void
+  default: (req: any, res: any) => Promise<Response | void> | Response | void | unknown
   config?: {
     api?: {
       bodyParser?: boolean | { sizeLimit?: string }
