@@ -744,7 +744,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // It's not possible that the task is InProgress at this point. If it is InProgress {
         // done: true } it must have Output and would early return.
         task.add_new(item);
-        turbo_tasks.schedule(task_id);
+        ctx.schedule_task(task);
 
         Ok(Err(listener))
     }
@@ -873,7 +873,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 || self.get_task_desc_fn(task_id),
             ))
         {
-            turbo_tasks.schedule(task_id);
+            ctx.schedule_task(task);
         }
 
         Ok(Err(listener))

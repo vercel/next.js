@@ -176,10 +176,10 @@ pub fn make_task_dirty(
         return;
     }
 
-    let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+    let task = ctx.task(task_id, TaskDataCategory::Meta);
 
     make_task_dirty_internal(
-        &mut task,
+        task,
         task_id,
         true,
         #[cfg(feature = "trace_task_dirty")]
@@ -190,12 +190,12 @@ pub fn make_task_dirty(
 }
 
 pub fn make_task_dirty_internal(
-    task: &mut impl TaskGuard,
+    mut task: impl TaskGuard,
     task_id: TaskId,
     make_stale: bool,
     #[cfg(feature = "trace_task_dirty")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
-    ctx: &impl ExecuteContext,
+    ctx: &mut impl ExecuteContext,
 ) {
     // There must be no way to invalidate immutable tasks. If there would be a way the task is not
     // immutable.
@@ -286,7 +286,7 @@ pub fn make_task_dirty_internal(
         });
         if !aggregated_update.is_zero() {
             queue.extend(AggregationUpdateJob::data_update(
-                task,
+                &mut task,
                 AggregatedDataUpdate::new().dirty_container_update(task_id, aggregated_update),
             ));
         }
@@ -301,7 +301,9 @@ pub fn make_task_dirty_internal(
             TaskExecutionReason::Invalidated,
             description,
         )) {
-            ctx.schedule(task_id);
+            drop(task);
+            let task = ctx.task(task_id, TaskDataCategory::All);
+            ctx.schedule_task(task);
         }
     }
 }

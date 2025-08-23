@@ -56,7 +56,8 @@ pub trait ExecuteContext<'e>: Sized {
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (impl TaskGuard + 'e, impl TaskGuard + 'e);
-    fn schedule(&self, task_id: TaskId);
+    fn schedule(&mut self, task_id: TaskId);
+    fn schedule_task(&self, task: impl TaskGuard + '_);
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
         T: Clone + Into<AnyOperation>;
@@ -255,8 +256,13 @@ where
         )
     }
 
-    fn schedule(&self, task_id: TaskId) {
-        self.turbo_tasks.schedule(task_id);
+    fn schedule(&mut self, task_id: TaskId) {
+        let task = self.task(task_id, TaskDataCategory::All);
+        self.schedule_task(task);
+    }
+
+    fn schedule_task(&self, mut task: impl TaskGuard + '_) {
+        self.turbo_tasks.schedule(task.id());
     }
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
