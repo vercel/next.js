@@ -780,5 +780,12 @@
   "779": "Route %s used \"searchParams\" inside \"use cache\". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \"searchParams\" outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
   "780": "Invariant: failed to find parent dynamic route for notFound route %s",
   "781": "No LRU node to remove",
-  "782": "Failed to find the root directory of the project. This is a bug in Next.js."
+  "782": "Failed to find the root directory of the project. This is a bug in Next.js.",
+  "783": "Part length cannot be parsed as a number: '%s'",
+  "784": "Expected tag but got empty input",
+  "785": "Actual part length %s does not match length %s from header: '%s'",
+  "786": "Unexpected part without length header or last-part indicator: '%s'",
+  "787": "Expected tag to be a numeric digit, but got '%s'",
+  "788": "Tags that cannot be encoded as a single digit are not supported",
+  "789": "Invalid postponed state tag: %s"
 }

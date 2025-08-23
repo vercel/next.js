@@ -1,13 +1,15 @@
+/// <reference path="../../../../packages/next/types/react-dom.d.ts" />
+// in order to use `parsePostponedState` here, we need to bring the extended type definition
+// for `import('react-dom/static').PrerenderResult` into the compilation, because that module relies on it
+
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { format } from 'util'
 import { Playwright } from 'next-webdriver'
-import {
-  createRenderResumeDataCache,
-  RenderResumeDataCache,
-} from 'next/dist/server/resume-data-cache/resume-data-cache'
+import type { RenderResumeDataCache } from 'next/dist/server/resume-data-cache/resume-data-cache'
 import { PrerenderManifest } from 'next/dist/build'
+import { parsePostponedState } from 'next/dist/server/app-render/postponed-state'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -1042,12 +1044,8 @@ async function getSanitizedLogs(browser: Playwright): Promise<string[]> {
 }
 
 function extractResumeDataCacheFromPostponedState(
-  state: string
+  serializedState: string
 ): RenderResumeDataCache {
-  const postponedStringLengthMatch = state.match(/^([0-9]*):/)![1]
-  const postponedStringLength = parseInt(postponedStringLengthMatch)
-
-  return createRenderResumeDataCache(
-    state.slice(postponedStringLengthMatch.length + postponedStringLength + 1)
-  )
+  const state = parsePostponedState(serializedState, {})
+  return state.renderResumeDataCache
 }
