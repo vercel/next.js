@@ -13,7 +13,7 @@ const EXTERNAL = {
 const COLLECTOR_PORT = 9001
 
 describe('opentelemetry', () => {
-  const { next, skipped, isNextDev, isNextStart } = nextTestSetup({
+  const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     dependencies: require('./package.json').dependencies,
@@ -874,6 +874,7 @@ describe('opentelemetry', () => {
                   'next.span_name':
                     'GET /pages/[param]/getServerSidePropsError',
                   'next.span_type': 'BaseServer.handleRequest',
+                  'error.type': '500',
                 },
                 kind: 1,
                 status: { code: 2 },
@@ -887,6 +888,7 @@ describe('opentelemetry', () => {
                       'next.span_name':
                         'getServerSideProps /pages/[param]/getServerSidePropsError',
                       'next.span_type': 'Render.getServerSideProps',
+                      'error.type': 'Error',
                     },
                     kind: 0,
                     status: {
@@ -923,8 +925,9 @@ describe('opentelemetry', () => {
                     kind: 0,
                     status: { code: 0 },
                   },
-                  ...(isNextStart
-                    ? [
+                  ...(isNextDev
+                    ? []
+                    : [
                         {
                           name: 'resolve page components',
                           attributes: {
@@ -936,8 +939,18 @@ describe('opentelemetry', () => {
                           kind: 0,
                           status: { code: 0 },
                         },
-                      ]
-                    : []),
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/500',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
                   {
                     name: 'resolve page components',
                     attributes: {
@@ -990,16 +1003,20 @@ describe('opentelemetry', () => {
                       code: 0,
                     },
                   },
-                  {
-                    name: 'render route (app) /_not-found',
-                    attributes: {
-                      'next.route': '/_not-found',
-                      'next.span_name': 'render route (app) /_not-found',
-                      'next.span_type': 'AppRender.getBodyResult',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
+                  ...(isNextDev
+                    ? [
+                        {
+                          name: 'render route (app) /_not-found',
+                          attributes: {
+                            'next.route': '/_not-found',
+                            'next.span_name': 'render route (app) /_not-found',
+                            'next.span_type': 'AppRender.getBodyResult',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]
+                    : []),
                   {
                     name: 'resolve page components',
                     attributes: {
