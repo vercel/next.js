@@ -1,4 +1,5 @@
-import { globSync } from 'fast-glob'
+import * as fastGlob from 'fast-glob'
+const { globSync } = fastGlob
 import type { Rule } from 'eslint'
 
 /**

@@ -1,8 +1,13 @@
 {
   "compilerOptions": {
     "module": "commonjs",
-    "target": "es2019"
+    "target": "es2019",
+    "outDir": "dist",
+    "declaration": true,
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules"]
+  "exclude": ["**/*.test.js", "**/*.test.ts", "dist", "node_modules"]
 }
