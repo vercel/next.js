@@ -1,0 +1,18 @@
+{
+    "name": "biome-config-next",
+    "type": "module",
+    "version": "15.5.1-canary.6",
+    "description": "Biome configuration used by Next.js.",
+    "license": "MIT",
+    "repository": {
+        "url": "vercel/next.js",
+        "directory": "packages/biome-config-next"
+    },
+    "homepage": "https://nextjs.org/docs/app/api-reference/config/biome",
+    "peerDependencies": {
+        "@biomejs/biome": ">=2.2.0"
+    },
+    "exports": {
+        ".": "./biome.json"
+    }
+} 
