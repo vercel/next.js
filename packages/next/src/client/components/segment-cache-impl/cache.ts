@@ -59,13 +59,14 @@ import {
   createCacheMap,
   getFromCacheMap,
   setInCacheMap,
+  setSizeInCacheMap,
   deleteFromCacheMap,
   Fallback,
   type CacheMap,
   type MapEntry,
   type FallbackType,
 } from './cache-map'
-import { createLRU } from './lru'
+import { dropEntireLru } from './lru'
 import {
   appendSegmentCacheKeyPart,
   appendSegmentRequestKeyPart,
@@ -155,10 +156,6 @@ type RouteCacheEntryShared = {
 
   // Map-related fields.
   ref: null | MapEntry<RouteCacheKeypath, RouteCacheEntry>
-
-  // LRU-related fields
-  next: null | RouteCacheEntry
-  prev: null | RouteCacheEntry
   size: number
 }
 
@@ -219,10 +216,6 @@ type SegmentCacheEntryShared = {
 
   // Map-related fields.
   ref: null | MapEntry<SegmentCacheKeypath, SegmentCacheEntry>
-
-  // LRU-related fields
-  next: null | SegmentCacheEntry
-  prev: null | SegmentCacheEntry
   size: number
 }
 
@@ -293,30 +286,10 @@ type RouteCacheKeypath = [
 let routeCacheMap: CacheMap<RouteCacheKeypath, RouteCacheEntry> =
   createCacheMap()
 
-// We use an LRU for memory management. We must update this whenever we add or
-// remove a new cache entry, or when an entry changes size.
-// TODO: I chose the max size somewhat arbitrarily. Consider setting this based
-// on navigator.deviceMemory, or some other heuristic. We should make this
-// customizable via the Next.js config, too.
-const maxRouteLruSize = 10 * 1024 * 1024 // 10 MB
-let routeCacheLru = createLRU<RouteCacheEntry>(
-  maxRouteLruSize,
-  onRouteLRUEviction
-)
-
 export type SegmentCacheKeypath = [string, NormalizedSearch | FallbackType]
 
 let segmentCacheMap: CacheMap<SegmentCacheKeypath, SegmentCacheEntry> =
   createCacheMap()
-// NOTE: Segments and Route entries are managed by separate LRUs. We could
-// combine them into a single LRU, but because they are separate types, we'd
-// need to wrap each one in an extra LRU node (to maintain monomorphism, at the
-// cost of additional memory).
-const maxSegmentLruSize = 50 * 1024 * 1024 // 50 MB
-let segmentCacheLru = createLRU<SegmentCacheEntry>(
-  maxSegmentLruSize,
-  onSegmentLRUEviction
-)
 
 // All invalidation listeners for the whole cache are tracked in single set.
 // Since we don't yet support tag or path-based invalidation, there's no point
@@ -354,9 +327,8 @@ export function revalidateEntireCache(
   // TODO: There's an exception to this case that we don't currently handle
   // correctly: background revalidations. See note in `upsertSegmentEntry`.
   routeCacheMap = createCacheMap()
-  routeCacheLru = createLRU(maxRouteLruSize, onRouteLRUEviction)
   segmentCacheMap = createCacheMap()
-  segmentCacheLru = createLRU(maxSegmentLruSize, onSegmentLRUEviction)
+  dropEntireLru()
 
   // Prefetch all the currently visible links again, to re-fill the cache.
   pingVisibleLinks(nextUrl, tree)
@@ -431,10 +403,6 @@ export function readRouteCacheEntry(
     // Check if the entry is stale
     if (existingEntry.staleAt > now) {
       // Reuse the existing entry.
-
-      // Since this is an access, move the entry to the front of the LRU.
-      routeCacheLru.put(existingEntry)
-
       return existingEntry
     } else {
       // Evict the stale entry from the cache.
@@ -499,10 +467,6 @@ export function readSegmentCacheEntry(
     // Check if the entry is stale
     if (existingEntry.staleAt > now) {
       // Reuse the existing entry.
-
-      // Since this is an access, move the entry to the front of the LRU.
-      segmentCacheLru.put(existingEntry)
-
       return existingEntry
     } else {
       // This is a stale entry.
@@ -597,15 +561,12 @@ export function readOrCreateRouteCacheEntry(
     TODO_metadataStatus: EntryStatus.Empty,
     TODO_isHeadDynamic: false,
 
-    // LRU-related fields
+    // Map-related fields
     ref: null,
-    next: null,
-    prev: null,
     size: 0,
   }
   const keypath: RouteCacheKeypath = [key.href, key.nextUrl]
   setInCacheMap(routeCacheMap, keypath, pendingEntry)
-  routeCacheLru.put(pendingEntry)
   return pendingEntry
 }
 
@@ -747,10 +708,6 @@ export function requestOptimisticRouteCacheEntry(
 
     // Map-related fields
     ref: null,
-
-    // LRU-related fields
-    next: null,
-    prev: null,
     size: 0,
   }
 
@@ -782,7 +739,6 @@ export function readOrCreateSegmentCacheEntry(
   )
   const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
   setInCacheMap(segmentCacheMap, genericKeypath, pendingEntry)
-  segmentCacheLru.put(pendingEntry)
   return pendingEntry
 }
 
@@ -862,7 +818,6 @@ export function upsertSegmentEntry(
     deleteSegmentFromCache(existingEntry)
   }
   setInCacheMap(segmentCacheMap, keypath, candidateEntry)
-  segmentCacheLru.put(candidateEntry)
   return candidateEntry
 }
 
@@ -881,10 +836,8 @@ export function createDetachedSegmentCacheEntry(
     isPartial: true,
     promise: null,
 
-    // LRU-related fields
+    // Map-related fields
     ref: null,
-    next: null,
-    prev: null,
     size: 0,
   }
   return emptyEntry
@@ -903,13 +856,11 @@ export function upgradeToPendingSegment(
 function deleteRouteFromCache(entry: RouteCacheEntry): void {
   pingBlockedTasks(entry)
   deleteFromCacheMap(entry)
-  routeCacheLru.delete(entry)
 }
 
 function deleteSegmentFromCache(entry: SegmentCacheEntry): void {
   cancelEntryListeners(entry)
   deleteFromCacheMap(entry)
-  segmentCacheLru.delete(entry)
   clearRevalidatingSegmentFromOwner(entry)
 }
 
@@ -932,20 +883,6 @@ export function resetRevalidatingSegmentEntry(
   const emptyEntry = createDetachedSegmentCacheEntry(owner.staleAt)
   owner.revalidating = emptyEntry
   return emptyEntry
-}
-
-// TODO: See note in `dropRef`. We can get rid of these callbacks by updating
-// the map implementation to evict from the LRU directly.
-function onRouteLRUEviction(entry: RouteCacheEntry): void {
-  // The LRU evicted this entry. Remove it from the map.
-  pingBlockedTasks(entry)
-  deleteFromCacheMap(entry)
-}
-
-function onSegmentLRUEviction(entry: SegmentCacheEntry): void {
-  // The LRU evicted this entry. Remove it from the map.
-  cancelEntryListeners(entry)
-  deleteFromCacheMap(entry)
 }
 
 function cancelEntryListeners(entry: SegmentCacheEntry): void {
@@ -1434,7 +1371,7 @@ export async function fetchRouteOnCacheMiss(
         response.body,
         closed.resolve,
         function onResponseSizeUpdate(size) {
-          routeCacheLru.updateSize(entry, size)
+          setSizeInCacheMap(entry, size)
         }
       )
       const serverData = await createFromNextReadableStream<RootTreePrefetch>(
@@ -1486,7 +1423,7 @@ export async function fetchRouteOnCacheMiss(
         response.body,
         closed.resolve,
         function onResponseSizeUpdate(size) {
-          routeCacheLru.updateSize(entry, size)
+          setSizeInCacheMap(entry, size)
         }
       )
       const serverData =
@@ -1625,7 +1562,7 @@ export async function fetchSegmentOnCacheMiss(
       response.body,
       closed.resolve,
       function onResponseSizeUpdate(size) {
-        segmentCacheLru.updateSize(segmentCacheEntry, size)
+        setSizeInCacheMap(segmentCacheEntry, size)
       }
     )
     const serverData = await (createFromNextReadableStream(
@@ -1743,7 +1680,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
         }
         const averageSize = totalBytesReceivedSoFar / fulfilledEntries.length
         for (const entry of fulfilledEntries) {
-          segmentCacheLru.updateSize(entry, averageSize)
+          setSizeInCacheMap(entry, averageSize)
         }
       }
     )

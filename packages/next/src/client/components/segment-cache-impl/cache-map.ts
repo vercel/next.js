@@ -1,3 +1,5 @@
+import { lruPut, updateLruSize, deleteFromLru } from './lru'
+
 /**
  * A specialized data type for storing multi-key cache entries.
  *
@@ -48,6 +50,11 @@ type MapEntryShared<K extends readonly unknown[], V extends MapValue> = {
   parent: MapEntry<K, V> | null
   key: any
   map: Map<any, MapEntry<K, V>> | null
+
+  // LRU-related fields
+  prev: MapEntry<any, any> | null
+  next: MapEntry<any, any> | null
+  size: number
 }
 
 type EmptyMapEntry<
@@ -80,8 +87,9 @@ export type CacheMap<
 // we ever actually deal with in this module are RouteCacheEntry and
 // SegmentCacheEntry; this is just to keep track of the coupling so we don't
 // leak concerns between the modules unnecessarily.
-interface MapValue {
+export interface MapValue {
   ref: MapEntry<any, any> | null
+  size: number
 }
 
 type KeyWithFallback<K extends readonly unknown[]> = {
@@ -101,6 +109,11 @@ export function createCacheMap<
     hasValue: false,
     value: null,
     map: null,
+
+    // LRU-related fields
+    prev: null,
+    next: null,
+    size: 0,
   }
   return cacheMap
 }
@@ -137,6 +150,11 @@ function getOrInitialize<K extends readonly unknown[], V extends MapValue>(
       value: null,
       hasValue: false,
       map: null,
+
+      // LRU-related fields
+      prev: null,
+      next: null,
+      size: 0,
     }
     map.set(key, newEntry)
     entry = newEntry
@@ -153,6 +171,8 @@ export function getFromCacheMap<
   if (entry === null || !entry.hasValue) {
     return null
   }
+  // This is an LRU access. Move the entry to the front of the list.
+  lruPut(entry)
   return entry.value
 }
 
@@ -203,6 +223,11 @@ export function setInCacheMap<K extends readonly unknown[], V extends MapValue>(
   // part of the map, it's removed from its previous keypath. (NOTE: This is
   // unlike a regular JS map, but the behavior is intentional.)
   const entry = getOrInitialize(cacheMap, keys)
+
+  // This is an LRU access. Move the entry to the front of the list.
+  lruPut(entry)
+  updateLruSize(entry, value.size)
+
   if (entry.hasValue) {
     // There's already a value at the given keypath. Disconnect the old value
     // from the map. We're not calling `deleteMapEntry` here because the
@@ -232,6 +257,8 @@ function fillEmptyReference<K extends readonly unknown[], V extends MapValue>(
   fullEntry.value = value
   value.ref = fullEntry
 
+  updateLruSize(fullEntry, value.size)
+
   if (oldEntry !== null && oldEntry !== entry && oldEntry.hasValue) {
     // This value is already in the map at a different keypath in the map.
     // Values only exist at a single keypath at a time. Remove it from the
@@ -260,11 +287,6 @@ function dropRef<V extends MapValue>(value: V): void {
   // null. This is a separate operation from `deleteMapEntry` because when
   // re-keying a value we need to be able to delete the old, internal map
   // entry without garbage collecting the value itself.
-  // TODO: We should also remove the old value from the LRU here, so the LRU
-  // doesn't unnecessarily retain it. We should do this by calling
-  // `deleteNode` directly. It's fine for the LRU and map modules to have some
-  // coupling like this when reasonable; they're only separate modules to keep
-  // the implementation organized, not because they need to be super generic.
   value.ref = null
 }
 
@@ -275,6 +297,8 @@ function deleteMapEntry<K extends readonly unknown[], V extends MapValue>(
   const emptyEntry: EmptyMapEntry<K, V> = entry as any
   emptyEntry.hasValue = false
   emptyEntry.value = null
+
+  deleteFromLru(entry)
 
   // Check if we can garbage collect the entry.
   if (emptyEntry.map === null) {
@@ -303,4 +327,20 @@ function deleteMapEntry<K extends readonly unknown[], V extends MapValue>(
       break
     }
   }
+}
+
+export function setSizeInCacheMap<V extends MapValue>(
+  value: V,
+  size: number
+): void {
+  const entry = value.ref
+  if (entry === null) {
+    // This value is not a member of any map.
+    return
+  }
+  // Except during initialization (when the size is set to 0), this is the only
+  // place the `size` field should be updated, to ensure it's in sync with the
+  // the LRU.
+  value.size = size
+  updateLruSize(entry, size)
 }
