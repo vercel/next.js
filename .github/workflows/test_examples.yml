@@ -13,6 +13,10 @@ on:
 
 name: Test examples
 
+env:
+  NODE_MAINTENANCE_VERSION: 18
+  NODE_LTS_VERSION: 20
+
 jobs:
   testExamples:
     # Don't execute using cron on forks
@@ -37,7 +41,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: ${{ matrix.node }}
           check-latest: true
       - name: Setup corepack
         run: |

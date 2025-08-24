@@ -109,7 +109,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: ${{ env.NODE_MAINTENANCE_VERSION }}
       - name: Setup corepack
         run: |
           npm i -g corepack@0.31
