@@ -1,5 +1,5 @@
-@import '@sass/abstracts/mixins';
-@import '@sass/abstracts/vars';
+@import "@sass/abstracts/mixins";
+@import "@sass/abstracts/vars";
 
 label {
   background: transparent;
@@ -22,9 +22,9 @@ button {
 input:focus {
   border: 1px solid $border-gray;
 }
-input[type='submit'],
-input[type='reset'],
-input[type='button'],
+input[type="submit"],
+input[type="reset"],
+input[type="button"],
 button {
   border: 1px solid $border-basic-color;
   padding: 5px 20px;
@@ -37,12 +37,12 @@ button::-moz-focus-inner {
   border: 0;
   padding: 0;
 }
-input[type='text'] {
+input[type="text"] {
   font-size: 13px;
 }
-input[type='text'],
-input[type='email'],
-input[type='password'],
+input[type="text"],
+input[type="email"],
+input[type="password"],
 textarea,
 select {
   box-shadow: inset 0 1px 5px rgba(0, 0, 0, 0.1);

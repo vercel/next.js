@@ -1,20 +1,27 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
-createNextDescribe(
-  'app dir - metadata dynamic routes suspense',
-  {
+describe('app dir - metadata dynamic routes suspense', () => {
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
-  },
-  ({ next }) => {
-    it('should render metadata in head even root layout is wrapped with Suspense', async () => {
-      const $ = await next.render$('/')
-      expect($('head title').text()).toBe('My title')
-      expect($('head meta[name="application-name"]').attr('content')).toBe(
-        'suspense-app'
-      )
+  })
 
-      expect($('body meta').length).toBe(0)
-    })
+  if (skipped) {
+    return
   }
-)
+
+  it('should render metadata in head when root layout is wrapped with Suspense for bot requests', async () => {
+    const $ = await next.render$('/', undefined, {
+      headers: {
+        'User-Agent': 'Discordbot/2.0;',
+      },
+    })
+    expect($('head title').text()).toBe('My title')
+    expect($('head meta[name="application-name"]').attr('content')).toBe(
+      'suspense-app'
+    )
+
+    // unique title
+    expect($('title').length).toBe(1)
+  })
+})

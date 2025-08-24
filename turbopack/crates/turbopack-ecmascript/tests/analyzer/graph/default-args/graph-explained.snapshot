@@ -1,0 +1,9 @@
+*arrow function 105* = (...) => value2
+
+Fun = (...) => value
+
+Fun2 = *arrow function 105*
+
+value = (arguments[0]["value"] | module<./module.js, {}>["named"])
+
+value2 = (arguments[0]["value2"] | module<./module.js, {}>["named"])

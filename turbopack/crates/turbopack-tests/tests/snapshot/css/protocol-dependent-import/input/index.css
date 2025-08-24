@@ -1,0 +1,6 @@
+@import url('//example.com/something.css');
+@import '//somewhere.com/example.css';
+
+.foo {
+  background: red;
+}

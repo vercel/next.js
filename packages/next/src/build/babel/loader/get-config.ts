@@ -2,11 +2,30 @@ import { readFileSync } from 'fs'
 import JSON5 from 'next/dist/compiled/json5'
 
 import { createConfigItem, loadOptions } from 'next/dist/compiled/babel/core'
-import loadConfig from 'next/dist/compiled/babel/core-lib-config'
+import loadFullConfig from 'next/dist/compiled/babel/core-lib-config'
 
 import type { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
-import { consumeIterator } from './util'
+import {
+  consumeIterator,
+  type SourceMap,
+  type BabelLoaderTransformOptions,
+} from './util'
 import * as Log from '../../output/log'
+import jsx from 'next/dist/compiled/babel/plugin-syntax-jsx'
+import { isReactCompilerRequired } from '../../swc'
+
+/**
+ * An internal (non-exported) type used by babel.
+ */
+export type ResolvedBabelConfig = {
+  options: BabelLoaderTransformOptions
+  passes: BabelPluginPasses
+  externalDependencies: ReadonlyArray<string>
+}
+
+export type BabelPlugin = unknown
+export type BabelPluginPassList = ReadonlyArray<BabelPlugin>
+export type BabelPluginPasses = ReadonlyArray<BabelPluginPassList>
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -35,27 +54,31 @@ interface CharacteristicsGermaneToCaching {
   isPageFile: boolean
   isNextDist: boolean
   hasModuleExports: boolean
-  fileExt: string
+  fileNameOrExt: string
 }
 
 const fileExtensionRegex = /\.([a-z]+)$/
 function getCacheCharacteristics(
   loaderOptions: NextBabelLoaderOptions,
   source: string,
-  filename: string
+  filename: string,
+  transformMode: 'default' | 'standalone'
 ): CharacteristicsGermaneToCaching {
   const { isServer, pagesDir } = loaderOptions
   const isPageFile = filename.startsWith(pagesDir)
   const isNextDist = nextDistPath.test(filename)
   const hasModuleExports = source.indexOf('module.exports') !== -1
-  const fileExt = fileExtensionRegex.exec(filename)?.[1] || 'unknown'
+  const fileNameOrExt =
+    transformMode === 'default'
+      ? fileExtensionRegex.exec(filename)?.[1] || 'unknown'
+      : filename
 
   return {
     isServer,
     isPageFile,
     isNextDist,
     hasModuleExports,
-    fileExt,
+    fileNameOrExt,
   }
 }
 
@@ -70,15 +93,22 @@ function getPlugins(
   const { isServer, isPageFile, isNextDist, hasModuleExports } =
     cacheCharacteristics
 
-  const { hasReactRefresh, development } = loaderOptions
+  const { development } = loaderOptions
+  const hasReactRefresh =
+    loaderOptions.transformMode !== 'standalone'
+      ? loaderOptions.hasReactRefresh
+      : false
 
   const applyCommonJsItem = hasModuleExports
-    ? createConfigItem(require('../plugins/commonjs'), { type: 'plugin' })
+    ? createConfigItem(
+        require('../plugins/commonjs') as typeof import('../plugins/commonjs'),
+        { type: 'plugin' }
+      )
     : null
   const reactRefreshItem = hasReactRefresh
     ? createConfigItem(
         [
-          require('next/dist/compiled/react-refresh/babel'),
+          require('next/dist/compiled/react-refresh/babel') as typeof import('next/dist/compiled/react-refresh/babel'),
           { skipEnvCheck: true },
         ],
         { type: 'plugin' }
@@ -86,14 +116,21 @@ function getPlugins(
     : null
   const pageConfigItem =
     !isServer && isPageFile
-      ? createConfigItem([require('../plugins/next-page-config')], {
-          type: 'plugin',
-        })
+      ? createConfigItem(
+          [
+            require('../plugins/next-page-config') as typeof import('../plugins/next-page-config'),
+          ],
+          {
+            type: 'plugin',
+          }
+        )
       : null
   const disallowExportAllItem =
     !isServer && isPageFile
       ? createConfigItem(
-          [require('../plugins/next-page-disallow-re-export-all-exports')],
+          [
+            require('../plugins/next-page-disallow-re-export-all-exports') as typeof import('../plugins/next-page-disallow-re-export-all-exports'),
+          ],
           { type: 'plugin' }
         )
       : null
@@ -117,12 +154,14 @@ function getPlugins(
       : null
   const commonJsItem = isNextDist
     ? createConfigItem(
-        require('next/dist/compiled/babel/plugin-transform-modules-commonjs'),
+        require('next/dist/compiled/babel/plugin-transform-modules-commonjs') as typeof import('next/dist/compiled/babel/plugin-transform-modules-commonjs'),
         { type: 'plugin' }
       )
     : null
   const nextFontUnsupported = createConfigItem(
-    [require('../plugins/next-font-unsupported')],
+    [
+      require('../plugins/next-font-unsupported') as typeof import('../plugins/next-font-unsupported'),
+    ],
     { type: 'plugin' }
   )
 
@@ -252,52 +291,122 @@ function checkCustomBabelConfigDeprecation(
  * Generate a new, flat Babel config, ready to be handed to Babel-traverse.
  * This config should have no unresolved overrides, presets, etc.
  */
-function getFreshConfig(
-  this: NextJsLoaderContext,
+async function getFreshConfig(
+  ctx: NextJsLoaderContext,
   cacheCharacteristics: CharacteristicsGermaneToCaching,
   loaderOptions: NextBabelLoaderOptions,
   target: string,
   filename: string,
-  inputSourceMap?: object | null
-) {
-  let { isServer, pagesDir, development, hasJsxRuntime, configFile } =
-    loaderOptions
+  inputSourceMap?: SourceMap
+): Promise<ResolvedBabelConfig | null> {
+  const hasReactCompiler = await (async () => {
+    if (
+      loaderOptions.reactCompilerPlugins &&
+      loaderOptions.reactCompilerPlugins.length === 0
+    ) {
+      return false
+    }
 
-  let customConfig: any = configFile
-    ? getCustomBabelConfig(configFile)
-    : undefined
+    if (/[/\\]node_modules[/\\]/.test(filename)) {
+      return false
+    }
 
-  checkCustomBabelConfigDeprecation(customConfig)
+    if (
+      loaderOptions.reactCompilerExclude &&
+      loaderOptions.reactCompilerExclude(filename)
+    ) {
+      return false
+    }
 
-  let options = {
+    if (!(await isReactCompilerRequired(filename))) {
+      return false
+    }
+
+    return true
+  })()
+
+  const reactCompilerPluginsIfEnabled = hasReactCompiler
+    ? (loaderOptions.reactCompilerPlugins ?? [])
+    : []
+
+  let { isServer, pagesDir, srcDir, development } = loaderOptions
+
+  let options: BabelLoaderTransformOptions = {
     babelrc: false,
     cloneInputAst: false,
     filename,
-    inputSourceMap: inputSourceMap || undefined,
-
-    // Set the default sourcemap behavior based on Webpack's mapping flag,
-    // but allow users to override if they want.
-    sourceMaps:
-      loaderOptions.sourceMaps === undefined
-        ? this.sourceMap
-        : loaderOptions.sourceMaps,
+    inputSourceMap,
 
     // Ensure that Webpack will get a full absolute path in the sourcemap
     // so that it can properly map the module back to its internal cached
     // modules.
     sourceFileName: filename,
+    sourceMaps: ctx.sourceMap,
+  }
 
-    plugins: [
+  const baseCaller = {
+    name: 'next-babel-turbo-loader',
+    supportsStaticESM: true,
+    supportsDynamicImport: true,
+
+    // Provide plugins with insight into webpack target.
+    // https://github.com/babel/babel-loader/issues/787
+    target,
+
+    // Webpack 5 supports TLA behind a flag. We enable it by default
+    // for Babel, and then webpack will throw an error if the experimental
+    // flag isn't enabled.
+    supportsTopLevelAwait: true,
+
+    isServer,
+    srcDir,
+    pagesDir,
+    isDev: development,
+
+    ...loaderOptions.caller,
+  }
+
+  if (loaderOptions.transformMode === 'standalone') {
+    if (!reactCompilerPluginsIfEnabled.length) {
+      return null
+    }
+
+    options.plugins = [jsx, ...reactCompilerPluginsIfEnabled]
+    options.presets = [
+      [
+        require('next/dist/compiled/babel/preset-typescript') as typeof import('next/dist/compiled/babel/preset-typescript'),
+        { allowNamespaces: true },
+      ],
+    ]
+    options.caller = baseCaller
+  } else {
+    let { configFile, hasJsxRuntime } = loaderOptions
+    let customConfig: any = configFile
+      ? getCustomBabelConfig(configFile)
+      : undefined
+
+    checkCustomBabelConfigDeprecation(customConfig)
+
+    // Set the default sourcemap behavior based on Webpack's mapping flag,
+    // but allow users to override if they want.
+    options.sourceMaps =
+      loaderOptions.sourceMaps === undefined
+        ? ctx.sourceMap
+        : loaderOptions.sourceMaps
+
+    options.plugins = [
       ...getPlugins(loaderOptions, cacheCharacteristics),
+      ...reactCompilerPluginsIfEnabled,
       ...(customConfig?.plugins || []),
-    ],
+    ]
 
     // target can be provided in babelrc
-    target: isServer ? undefined : customConfig?.target,
-    // env can be provided in babelrc
-    env: customConfig?.env,
+    options.target = isServer ? undefined : customConfig?.target
 
-    presets: (() => {
+    // env can be provided in babelrc
+    options.env = customConfig?.env
+
+    options.presets = (() => {
       // If presets is defined the user will have next/babel in their babelrc
       if (customConfig?.presets) {
         return customConfig.presets
@@ -310,32 +419,15 @@ function getFreshConfig(
 
       // If no custom config is provided the default is to use next/babel
       return ['next/babel']
-    })(),
+    })()
 
-    overrides: loaderOptions.overrides,
+    options.overrides = loaderOptions.overrides
 
-    caller: {
-      name: 'next-babel-turbo-loader',
-      supportsStaticESM: true,
-      supportsDynamicImport: true,
-
-      // Provide plugins with insight into webpack target.
-      // https://github.com/babel/babel-loader/issues/787
-      target: target,
-
-      // Webpack 5 supports TLA behind a flag. We enable it by default
-      // for Babel, and then webpack will throw an error if the experimental
-      // flag isn't enabled.
-      supportsTopLevelAwait: true,
-
-      isServer,
-      pagesDir,
-      isDev: development,
+    options.caller = {
+      ...baseCaller,
       hasJsxRuntime,
-
-      ...loaderOptions.caller,
-    },
-  } as any
+    }
+  }
 
   // Babel does strict checks on the config so undefined is not allowed
   if (typeof options.target === 'undefined') {
@@ -349,12 +441,12 @@ function getFreshConfig(
       if (!(reason instanceof Error)) {
         reason = new Error(reason)
       }
-      this.emitWarning(reason)
+      ctx.emitWarning(reason)
     },
   })
 
   const loadedOptions = loadOptions(options)
-  const config = consumeIterator(loadConfig(loadedOptions))
+  const config = consumeIterator(loadFullConfig(loadedOptions))
 
   return config
 }
@@ -365,7 +457,7 @@ function getFreshConfig(
  * file attributes and Next.js compiler states: `CharacteristicsGermaneToCaching`.
  */
 function getCacheKey(cacheCharacteristics: CharacteristicsGermaneToCaching) {
-  const { isServer, isPageFile, isNextDist, hasModuleExports, fileExt } =
+  const { isServer, isPageFile, isNextDist, hasModuleExports, fileNameOrExt } =
     cacheCharacteristics
 
   const flags =
@@ -375,15 +467,14 @@ function getCacheKey(cacheCharacteristics: CharacteristicsGermaneToCaching) {
     (isNextDist ? 0b0100 : 0) |
     (hasModuleExports ? 0b1000 : 0)
 
-  return fileExt + flags
+  return fileNameOrExt + flags
 }
 
-type BabelConfig = any
-const configCache: Map<any, BabelConfig> = new Map()
+const configCache: Map<any, ResolvedBabelConfig | null> = new Map()
 const configFiles: Set<string> = new Set()
 
-export default function getConfig(
-  this: NextJsLoaderContext,
+export default async function getConfig(
+  ctx: NextJsLoaderContext,
   {
     source,
     target,
@@ -395,23 +486,27 @@ export default function getConfig(
     loaderOptions: NextBabelLoaderOptions
     target: string
     filename: string
-    inputSourceMap?: object | null
+    inputSourceMap?: SourceMap | undefined
   }
-): BabelConfig {
+): Promise<ResolvedBabelConfig | null> {
   const cacheCharacteristics = getCacheCharacteristics(
     loaderOptions,
     source,
-    filename
+    filename,
+    loaderOptions.transformMode
   )
 
-  if (loaderOptions.configFile) {
+  if (loaderOptions.transformMode === 'default' && loaderOptions.configFile) {
     // Ensures webpack invalidates the cache for this loader when the config file changes
-    this.addDependency(loaderOptions.configFile)
+    ctx.addDependency(loaderOptions.configFile)
   }
 
   const cacheKey = getCacheKey(cacheCharacteristics)
   if (configCache.has(cacheKey)) {
     const cachedConfig = configCache.get(cacheKey)
+    if (!cachedConfig) {
+      return null
+    }
 
     return {
       ...cachedConfig,
@@ -425,15 +520,19 @@ export default function getConfig(
     }
   }
 
-  if (loaderOptions.configFile && !configFiles.has(loaderOptions.configFile)) {
+  if (
+    loaderOptions.transformMode === 'default' &&
+    loaderOptions.configFile &&
+    !configFiles.has(loaderOptions.configFile)
+  ) {
     configFiles.add(loaderOptions.configFile)
     Log.info(
       `Using external babel configuration from ${loaderOptions.configFile}`
     )
   }
 
-  const freshConfig = getFreshConfig.call(
-    this,
+  const freshConfig = await getFreshConfig(
+    ctx,
     cacheCharacteristics,
     loaderOptions,
     target,

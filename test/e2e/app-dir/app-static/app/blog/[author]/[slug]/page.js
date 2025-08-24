@@ -2,7 +2,8 @@ import { notFound } from 'next/navigation'
 
 export const dynamicParams = true
 
-export default function Page({ params }) {
+export default async function Page(props) {
+  const params = await props.params
   if (params.author === 'shu') {
     notFound()
   }

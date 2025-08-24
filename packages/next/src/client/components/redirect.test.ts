@@ -1,5 +1,6 @@
-/* eslint-disable jest/no-try-expect */
-import { getURLFromRedirectError, isRedirectError, redirect } from './redirect'
+import { getURLFromRedirectError, redirect } from './redirect'
+import { isRedirectError } from './redirect-error'
+
 describe('test', () => {
   it('should throw a redirect error', () => {
     try {

@@ -1,4 +1,9 @@
-export default function IdPage({ children, params, searchParams }) {
+export default async function IdPage(props) {
+  const params = await props.params
+  const searchParams = await props.searchParams
+
+  const { children } = props
+
   return (
     <>
       <p>
@@ -6,8 +11,7 @@ export default function IdPage({ children, params, searchParams }) {
         <span id="id-page-params">{JSON.stringify(params)}</span>
       </p>
       {children}
-
-      <p id="search-params">{JSON.stringify(searchParams)}</p>
+      <p id="search-params">{JSON.stringify(await searchParams)}</p>
     </>
   )
 }

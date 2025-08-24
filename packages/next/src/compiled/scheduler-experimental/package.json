@@ -1,6 +1,3 @@
 {
-  "name": "scheduler-experimental-builtin",
-  "dependencies": {
-    "loose-envify": "^1.1.0"
-  }
+  "name": "scheduler-experimental-builtin"
 }

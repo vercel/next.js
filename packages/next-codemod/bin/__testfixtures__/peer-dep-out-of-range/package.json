@@ -1,0 +1,13 @@
+{
+  "name": "peer-dep-out-of-range",
+  "scripts": {
+    "dev": "next dev --turbopack"
+  },
+  "dependencies": {
+    "next": "15.0.0-canary.0",
+    "react": "19.0.0-rc-f994737d14-20240522",
+    "react-dom": "19.0.0-rc-f994737d14-20240522",
+    "unmet-prerelease": "file:./unmet-prerelease",
+    "unmet-range": "file:./unmet-range"
+  }
+}

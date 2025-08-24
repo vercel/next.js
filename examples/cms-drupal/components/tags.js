@@ -10,5 +10,5 @@ export default function Tags({ tags }) {
         ))}
       </p>
     </div>
-  )
+  );
 }

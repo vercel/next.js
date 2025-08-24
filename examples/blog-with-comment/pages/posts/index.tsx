@@ -1,8 +1,8 @@
-import type { InferGetStaticPropsType } from 'next'
-import Link from 'next/link'
-import Container from '../../components/container'
-import distanceToNow from '../../lib/dateRelative'
-import { getAllPosts } from '../../lib/getPost'
+import type { InferGetStaticPropsType } from "next";
+import Link from "next/link";
+import Container from "../../components/container";
+import distanceToNow from "../../lib/dateRelative";
+import { getAllPosts } from "../../lib/getPost";
 
 export default function NotePage({
   allPosts,
@@ -29,13 +29,13 @@ export default function NotePage({
         <p>No blog posted yet :/</p>
       )}
     </Container>
-  )
+  );
 }
 
 export async function getStaticProps() {
-  const allPosts = getAllPosts(['slug', 'title', 'excerpt', 'date'])
+  const allPosts = getAllPosts(["slug", "title", "excerpt", "date"]);
 
   return {
     props: { allPosts },
-  }
+  };
 }

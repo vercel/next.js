@@ -68,7 +68,7 @@ function normalizeSourceMapAfterPostcss(map: any, resourceContext: string) {
 
   // eslint-disable-next-line no-param-reassign
   newMap.sources = newMap.sources.map((source: string) => {
-    if (source.indexOf('<') === 0) {
+    if (source.startsWith('<')) {
       return source
     }
 

@@ -151,11 +151,14 @@ export class ProfilingPlugin {
       (compilation: any) => {
         compilation.hooks.buildModule.tap(pluginName, (module: any) => {
           const moduleType = (() => {
-            if (!module.userRequest) {
+            const r = module.userRequest
+            if (!r || r.endsWith('!')) {
               return ''
+            } else {
+              const resource = r.split('!').pop()
+              const match = /^[^?]+\.([^?]+)$/.exec(resource)
+              return match ? match[1] : ''
             }
-
-            return module.userRequest.split('.').pop()
           })()
 
           const issuerModule = compilation?.moduleGraph?.getIssuer(module)
@@ -200,10 +203,7 @@ export class ProfilingPlugin {
           register(tapInfo: any) {
             const fn = tapInfo.fn
             tapInfo.fn = (loaderContext: any, callback: any) => {
-              const moduleSpan =
-                loaderContext.currentTraceSpan.traceChild(`read-resource`)
               fn(loaderContext, (err: any, result: any) => {
-                moduleSpan.stop()
                 callback(err, result)
               })
             }

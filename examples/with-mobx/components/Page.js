@@ -1,22 +1,22 @@
-import { observer } from 'mobx-react-lite'
-import Link from 'next/link'
-import { useEffect } from 'react'
-import Clock from './Clock'
-import { useStore } from './StoreProvider'
+import { observer } from "mobx-react-lite";
+import Link from "next/link";
+import { useEffect } from "react";
+import Clock from "./Clock";
+import { useStore } from "./StoreProvider";
 
 const Page = observer(function Page(props) {
   // use store from the store context
-  const store = useStore()
+  const store = useStore();
 
   //start the clock when the component is mounted
   useEffect(() => {
-    store.start()
+    store.start();
 
     // stop the clock when the component unmounts
     return () => {
-      store.stop()
-    }
-  }, [store])
+      store.stop();
+    };
+  }, [store]);
 
   return (
     <div>
@@ -26,7 +26,7 @@ const Page = observer(function Page(props) {
         <Link href={props.linkTo}>Navigate</Link>
       </nav>
     </div>
-  )
-})
+  );
+});
 
-export default Page
+export default Page;

@@ -1,8 +1,5 @@
 import path from 'path'
-import {
-  DiagnosticCategory,
-  getFormattedDiagnostic,
-} from './diagnosticFormatter'
+import { getFormattedDiagnostic } from './diagnosticFormatter'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
 import { getRequiredConfiguration } from './writeConfigurationDefaults'
 
@@ -74,18 +71,16 @@ export async function runTypeCheck(
 
   const result = program.emit()
 
-  // Intended to match:
-  // - pages/test.js
-  // - pages/apples.test.js
-  // - pages/__tests__/a.js
-  //
-  // But not:
-  // - pages/contest.js
-  // - pages/other.js
-  // - pages/test/a.js
-  //
-  const regexIgnoredFile =
-    /[\\/]__(?:tests|mocks)__[\\/]|(?<=[\\/.])(?:spec|test)\.[^\\/]+$/
+  const ignoreRegex = [
+    // matches **/__(tests|mocks)__/**
+    /[\\/]__(?:tests|mocks)__[\\/]/,
+    // matches **/*.(spec|test).*
+    /(?<=[\\/.])(?:spec|test)\.[^\\/]+$/,
+  ]
+  const regexIgnoredFile = new RegExp(
+    ignoreRegex.map((r) => r.source).join('|')
+  )
+
   const allDiagnostics = ts
     .getPreEmitDiagnostics(program as import('typescript').Program)
     .concat(result.diagnostics)
@@ -93,14 +88,14 @@ export async function runTypeCheck(
 
   const firstError =
     allDiagnostics.find(
-      (d) => d.category === DiagnosticCategory.Error && Boolean(d.file)
-    ) ?? allDiagnostics.find((d) => d.category === DiagnosticCategory.Error)
+      (d) => d.category === ts.DiagnosticCategory.Error && Boolean(d.file)
+    ) ?? allDiagnostics.find((d) => d.category === ts.DiagnosticCategory.Error)
 
   // In test mode, we want to check all diagnostics, not just the first one.
   if (process.env.__NEXT_TEST_MODE) {
     if (firstError) {
       const allErrors = allDiagnostics
-        .filter((d) => d.category === DiagnosticCategory.Error)
+        .filter((d) => d.category === ts.DiagnosticCategory.Error)
         .map(
           (d) =>
             '[Test Mode] ' +
@@ -125,7 +120,7 @@ export async function runTypeCheck(
   }
 
   const warnings = allDiagnostics
-    .filter((d) => d.category === DiagnosticCategory.Warning)
+    .filter((d) => d.category === ts.DiagnosticCategory.Warning)
     .map((d) =>
       getFormattedDiagnostic(ts, baseDir, distDir, d, isAppDirEnabled)
     )

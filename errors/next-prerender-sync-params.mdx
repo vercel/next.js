@@ -1,0 +1,61 @@
+---
+title: Cannot access Request information synchronously with Page or Layout or Route `params` or Page `searchParams`
+---
+
+## Why This Error Occurred
+
+In Next.js 15 `params` passed into Page and Layout components and `searchParams` passed into Page components are now Promises.
+
+To support migrating to the async `params` and `searchParams` Next.js 15 still supports accessing param and searchParam values directly on the Promise object. However when `cacheComponents` is enabled it is an error to do so.
+
+## Possible Ways to Fix It
+
+If you haven't already followed the Next.js 15 upgrade guide which includes running a codemod to auto-convert to the necessary async form of `params` and `searchParams` start there.
+
+[Next 15 Upgrade Guide](/docs/app/guides/upgrading/version-15#async-request-apis-breaking-change)
+
+If you have already run the codemod on your project look for instances of the string `@next-codemod-error` to see where the codemod was unable to convert to the async form. You will have to refactor your code manually here to make it compatible with the new result type.
+
+Before:
+
+```jsx filename=".../some-file.js"
+// This component ends up being the Page component even though it is defined outside of
+// page.js due to how it is reexported in page.js
+export default function ComponentThatWillBeExportedAsPage({ params, searchParams }) {
+  const { slug } = params;
+  const { page } = searchParams
+  return <RenderList slug={slug} page={page}>
+}
+```
+
+```jsx filename="app/page.js"
+// the codemod cannot find the actual Page component so the Page may still have remaining
+// synchronous access to params and searchParams
+
+// @next-codemod-error
+export * from '.../some-file'
+```
+
+After:
+
+```jsx filename=".../some-file.js"
+// This component ends up being the Page component even though it is defined outside of
+// page.js due to how it is reexported in page.js
+export default async function ComponentThatWillBeExportedAsPage({ params, searchParams }) {
+  const { slug } = await params;
+  const { page } = await searchParams
+  return <RenderList slug={slug} page={page}>
+}
+```
+
+```jsx filename="app/page.js"
+export * from '.../some-file'
+```
+
+It is unexpected that you would run the codemod and not successfully convert all instances of `params` and `searchParams` to async or have a marker string to help you locate unconverted cases. If you do find yourself in this situation please report this to [Next.js on Github](https://github.com/vercel/next.js/issues).
+
+## Useful Links
+
+- [`page.js` file convention](/docs/app/api-reference/file-conventions/page)
+- [`layout.js` file convention](/docs/app/api-reference/file-conventions/layout)
+- [`route.js` file convention](/docs/app/api-reference/file-conventions/route)

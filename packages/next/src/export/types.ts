@@ -1,14 +1,18 @@
-import type { WriteFileOptions } from 'fs'
 import type { RenderOptsPartial as AppRenderOptsPartial } from '../server/app-render/types'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from '../server/render'
 import type { LoadComponentsReturnType } from '../server/load-components'
 import type { OutgoingHttpHeaders } from 'http'
 import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
-import type { FontConfig } from '../server/font-utils'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
-import type { Span } from '../trace'
-import type { Revalidate } from '../server/lib/revalidate'
+import type { CacheControl } from '../server/lib/cache-control'
 import type { NextEnabledDirectories } from '../server/base-server'
+import type {
+  SerializableTurborepoAccessTraceResult,
+  TurborepoAccessTraceResult,
+} from '../build/turborepo-access-trace'
+import type { FetchMetrics } from '../server/base-http'
+import type { RouteMetadata } from './routes/types'
+import type { RenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 
 export interface AmpValidation {
   page: string
@@ -18,26 +22,31 @@ export interface AmpValidation {
   }
 }
 
-/**
- * Writes a file to the filesystem (and also records the file that was written).
- */
-export type FileWriter = (
-  type: string,
-  path: string,
-  content:
-    | string
-    | NodeJS.ArrayBufferView
-    | Iterable<string | NodeJS.ArrayBufferView>
-    | AsyncIterable<string | NodeJS.ArrayBufferView>,
-  encodingOptions?: WriteFileOptions
-) => Promise<void>
+export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
+  path: string
+}
 
-type PathMap = ExportPathMap[keyof ExportPathMap]
+export interface ExportPagesInput {
+  buildId: string
+  exportPaths: ExportPathEntry[]
+  parentSpanId: number
+  dir: string
+  distDir: string
+  outDir: string
+  pagesDataDir: string
+  renderOpts: WorkerRenderOptsPartial
+  nextConfig: NextConfigComplete
+  cacheMaxMemorySize: NextConfigComplete['cacheMaxMemorySize'] | undefined
+  fetchCache: boolean | undefined
+  cacheHandler: string | undefined
+  fetchCacheKeyPrefix: string | undefined
+  options: ExportAppOptions
+  renderResumeDataCachesByPage: Record<string, string> | undefined
+}
 
 export interface ExportPageInput {
-  path: string
-  dir: string
-  pathMap: PathMap
+  buildId: string
+  exportPath: ExportPathEntry
   distDir: string
   outDir: string
   pagesDataDir: string
@@ -47,46 +56,43 @@ export interface ExportPageInput {
   buildExport?: boolean
   serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
-  optimizeFonts: FontConfig
   optimizeCss: any
   disableOptimizedLoading: any
-  parentSpanId: any
+  parentSpanId: number
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   debugOutput?: boolean
-  isrMemoryCacheSize?: NextConfigComplete['experimental']['isrMemoryCacheSize']
-  fetchCache?: boolean
-  incrementalCacheHandlerPath?: string
-  fetchCacheKeyPrefix?: string
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
-  enabledDirectories: NextEnabledDirectories
-}
-
-export type ExportedPageFile = {
-  type: string
-  path: string
+  sriEnabled: boolean
+  renderResumeDataCache: RenderResumeDataCache | undefined
 }
 
 export type ExportRouteResult =
   | {
       ampValidations?: AmpValidation[]
-      revalidate: Revalidate
-      metadata?: {
-        status?: number
-        headers?: OutgoingHttpHeaders
-      }
+      cacheControl: CacheControl
+      metadata?: Partial<RouteMetadata>
       ssgNotFound?: boolean
-      hasEmptyPrelude?: boolean
+      hasEmptyStaticShell?: boolean
       hasPostponed?: boolean
+      fetchMetrics?: FetchMetrics
+      renderResumeDataCache?: string
     }
   | {
       error: boolean
     }
 
 export type ExportPageResult = ExportRouteResult & {
-  files: ExportedPageFile[]
   duration: number
+  turborepoAccessTraceResult?: SerializableTurborepoAccessTraceResult
 }
+
+export type ExportPagesResult = {
+  result: ExportPageResult | undefined
+  path: string
+  page: string
+  pageKey: string
+}[]
 
 export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
   AppRenderOptsPartial
@@ -94,24 +100,19 @@ export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
 export type WorkerRenderOpts = WorkerRenderOptsPartial &
   LoadComponentsReturnType
 
-export type ExportWorker = (
-  input: ExportPageInput
-) => Promise<ExportPageResult | undefined>
-
 export interface ExportAppOptions {
   outdir: string
   enabledDirectories: NextEnabledDirectories
   silent?: boolean
-  threads?: number
   debugOutput?: boolean
+  debugPrerender?: boolean
   pages?: string[]
   buildExport: boolean
   statusMessage?: string
-  exportPageWorker?: ExportWorker
-  exportAppPageWorker?: ExportWorker
-  endWorker?: () => Promise<void>
   nextConfig?: NextConfigComplete
   hasOutdirFromCli?: boolean
+  numWorkers: number
+  appDirOnly: boolean
 }
 
 export type ExportPageMetadata = {
@@ -133,21 +134,23 @@ export type ExportAppResult = {
     string,
     {
       /**
-       * The revalidation time for the page in seconds.
+       * The cache control for the page.
        */
-      revalidate?: Revalidate
+      cacheControl?: CacheControl
       /**
        * The metadata for the page.
        */
-      metadata?: { status?: number; headers?: OutgoingHttpHeaders }
+      metadata?: Partial<RouteMetadata>
       /**
-       * If the page has an empty prelude when using PPR.
+       * If the page has an empty static shell when using PPR.
        */
-      hasEmptyPrelude?: boolean
+      hasEmptyStaticShell?: boolean
       /**
        * If the page has postponed when using PPR.
        */
       hasPostponed?: boolean
+
+      fetchMetrics?: FetchMetrics
     }
   >
 
@@ -160,10 +163,9 @@ export type ExportAppResult = {
    * The paths that were not found during SSG.
    */
   ssgNotFoundPaths: Set<string>
-}
 
-export type ExportAppWorker = (
-  dir: string,
-  options: ExportAppOptions,
-  span: Span
-) => Promise<ExportAppResult | null>
+  /**
+   * Traced dependencies for each page.
+   */
+  turborepoAccessTraceResults: Map<string, TurborepoAccessTraceResult>
+}

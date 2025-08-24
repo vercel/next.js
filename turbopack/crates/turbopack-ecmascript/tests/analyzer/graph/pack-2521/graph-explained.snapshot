@@ -1,0 +1,22 @@
+err = ???*0*
+- *0* err
+  ⚠️  pattern without value
+
+errors = []
+
+path = Iterated(paths)
+
+paths = [
+    `../src/build/Release/sharp-${runtimePlatform}.node`,
+    "../src/build/Release/sharp-wasm32.node",
+    `@img/sharp-${runtimePlatform}/sharp.node`,
+    "@img/sharp-wasm32/sharp.node"
+]
+
+runtimePlatform = runtimePlatformArch()
+
+runtimePlatformArch = FreeVar(require)("./libvips")["runtimePlatformArch"]
+
+sharp = (???*0* | FreeVar(require)(path))
+- *0* sharp
+  ⚠️  pattern without value

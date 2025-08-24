@@ -1,3 +1,5 @@
+/// <reference types="webpack/module.d.ts" />
+
 const getTarget = (() => {
   const memo: any = {}
 
@@ -26,8 +28,6 @@ const getTarget = (() => {
     return memo[target]
   }
 })()
-
-declare let __webpack_nonce__: string
 
 module.exports = (url: any, options: any) => {
   options = options || {}

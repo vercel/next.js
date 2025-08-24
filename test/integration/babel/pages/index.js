@@ -1,3 +1,4 @@
+// @flow
 // This page is written in flowtype to test Babel's functionality
 import { React } from '../test/namespace-exported-react'
 

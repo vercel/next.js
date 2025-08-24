@@ -2,11 +2,11 @@
 title: SWC disabled
 ---
 
-#### Why This Message Occurred
+## Why This Message Occurred
 
 Next.js now uses Rust-based compiler [SWC](https://swc.rs/) to compile JavaScript/TypeScript. This new compiler is up to 17x faster than Babel when compiling individual files and up to 5x faster Fast Refresh.
 
-Next.js provides full backwards compatibility with applications that have [custom Babel configuration](/docs/pages/building-your-application/configuring/babel). All transformations that Next.js handles by default like styled-jsx and tree-shaking of `getStaticProps` / `getStaticPaths` / `getServerSideProps` have been ported to Rust.
+Next.js provides full backwards compatibility with applications that have [custom Babel configuration](/docs/pages/guides/babel). All transformations that Next.js handles by default like styled-jsx and tree-shaking of `getStaticProps` / `getStaticPaths` / `getServerSideProps` have been ported to Rust.
 
 When an application has custom Babel configuration Next.js will automatically opt-out of using SWC for compiling JavaScript/Typescript and will fall back to using Babel in the same way that it was used in Next.js 11.
 

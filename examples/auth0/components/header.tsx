@@ -1,9 +1,9 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 type HeaderProps = {
-  user?: any
-  loading: boolean
-}
+  user?: any;
+  loading: boolean;
+};
 
 const Header = ({ user, loading }: HeaderProps) => {
   return (
@@ -80,7 +80,7 @@ const Header = ({ user, loading }: HeaderProps) => {
         }
       `}</style>
     </header>
-  )
-}
+  );
+};
 
-export default Header
+export default Header;

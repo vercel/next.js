@@ -1,9 +1,10 @@
 import type { API, FileInfo } from 'jscodeshift'
+import { createParserFromPath } from '../lib/parser'
 
 const importToChange = 'ImageResponse'
 
-export default function transformer(file: FileInfo, api: API) {
-  const j = api.jscodeshift
+export default function transformer(file: FileInfo, _api: API) {
+  const j = createParserFromPath(file.path)
 
   // Find import declarations that match the pattern
   file.source = j(file.source)

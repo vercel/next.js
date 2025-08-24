@@ -1,5 +1,5 @@
-@import '@sass/abstracts/vars';
-@import 'variables';
+@import "@sass/abstracts/vars";
+@import "variables";
 
 $hamburger-width: 28px;
 $hamburger-height: 18px;
@@ -112,7 +112,7 @@ $hamburger-margin: 18px;
         &:checked ~ {
           .menu-humburger {
             &::before {
-              content: '\00d7';
+              content: "\00d7";
               color: $text-basic-active;
               font-size: $text-size-48;
               position: fixed;
@@ -134,7 +134,7 @@ $hamburger-margin: 18px;
 
       .menu-humburger {
         &::before {
-          content: '';
+          content: "";
           width: $hamburger-width;
           height: $hamburger-height;
           margin-right: $hamburger-margin;

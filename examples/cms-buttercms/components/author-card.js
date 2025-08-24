@@ -3,5 +3,5 @@ export default function AuthorCard({ author }) {
     <a>
       {author.first_name} {author.last_name}
     </a>
-  )
+  );
 }

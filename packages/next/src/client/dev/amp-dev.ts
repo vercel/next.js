@@ -1,12 +1,11 @@
 /* globals __webpack_hash__ */
 import { displayContent } from './fouc'
 import initOnDemandEntries from './on-demand-entries-client'
-import { addMessageListener, connectHMR } from './error-overlay/websocket'
+import { addMessageListener, connectHMR } from './hot-reloader/pages/websocket'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
+import { reportInvalidHmrMessage } from './hot-reloader/shared'
 
-declare global {
-  const __webpack_runtime_id__: string
-}
+/// <reference types="webpack/module.d.ts" />
 
 const data = JSON.parse(
   (document.getElementById('__NEXT_DATA__') as any).textContent
@@ -31,7 +30,6 @@ function isUpdateAvailable() {
 
 // Webpack disallows updates in other states.
 function canApplyUpdates() {
-  // @ts-expect-error TODO: module.hot exists but type needs to be added. Can't use `as any` here as webpack parses for `module.hot` calls.
   return module.hot.status() === 'idle'
 }
 
@@ -103,10 +101,8 @@ addMessageListener((message) => {
     } else if (message.action === HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE) {
       window.location.reload()
     }
-  } catch (err: any) {
-    console.warn(
-      '[HMR] Invalid message: ' + message + '\n' + (err?.stack ?? '')
-    )
+  } catch (err: unknown) {
+    reportInvalidHmrMessage(message, err)
   }
 })
 

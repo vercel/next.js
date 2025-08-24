@@ -1,16 +1,16 @@
+import { Form } from '../form'
+
 export default function TestPage() {
   async function action(data) {
     'use server'
 
-    console.log('Action Submitted (Page)')
+    return 'Action Submitted (Page)'
   }
 
   return (
-    <form action={action} id="children-data">
+    <div id="children-data">
       in "page"
-      <button type="submit" id="submit-page-action">
-        Test
-      </button>
-    </form>
+      <Form action={action} id="submit-page-action" />
+    </div>
   )
 }

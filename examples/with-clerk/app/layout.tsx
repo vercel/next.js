@@ -1,18 +1,18 @@
-import '../styles/globals.css'
-import { ClerkProvider, SignedIn, SignedOut, UserButton } from '@clerk/nextjs'
-import { Inter } from 'next/font/google'
-import Image from 'next/image'
-import Script from 'next/script'
-import styles from '../styles/Header.module.css'
-import Link from 'next/link'
-import type { Metadata } from 'next'
+import "../styles/globals.css";
+import { ClerkProvider, SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import { Inter } from "next/font/google";
+import Image from "next/image";
+import Script from "next/script";
+import styles from "../styles/Header.module.css";
+import Link from "next/link";
+import type { Metadata } from "next";
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: 'Clerk with App Router',
-  description: 'Power your Next.js application with Clerk ',
-}
+  title: "Clerk with App Router",
+  description: "Power your Next.js application with Clerk ",
+};
 
 const Header = () => (
   <header className={styles.header}>
@@ -31,12 +31,12 @@ const Header = () => (
       </SignedIn>
     </div>
   </header>
-)
+);
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
     <html lang="en">
@@ -49,5 +49,5 @@ export default function RootLayout({
       <Script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-core.min.js" />
       <Script src="https://cdn.jsdelivr.net/npm/prismjs@1/plugins/autoloader/prism-autoloader.min.js" />
     </html>
-  )
+  );
 }

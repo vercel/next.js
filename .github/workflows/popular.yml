@@ -1,0 +1,30 @@
+name: Notify about the top 15 issues/PRs/feature requests (most reacted) in the last 90 days
+
+on:
+  schedule:
+    - cron: '0 10 * * 1' # Every Monday at 10AM UTC (6AM EST)
+  workflow_dispatch:
+
+jobs:
+  run:
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+      - name: 'Issues: Send notification to Slack'
+        run: node ./.github/actions/next-repo-actions/dist/issues/index.mjs
+        continue-on-error: true
+      - name: 'PRs: Send notification to Slack'
+        run: node ./.github/actions/next-repo-actions/dist/prs/index.js
+        continue-on-error: true
+      - name: 'Feature requests: Send notification to Slack'
+        run: node ./.github/actions/next-repo-actions/dist/feature-requests/index.mjs
+        continue-on-error: true
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      SLACK_TOKEN: ${{ secrets.SLACK_TOKEN }}

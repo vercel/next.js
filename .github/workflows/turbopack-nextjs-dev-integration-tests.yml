@@ -1,0 +1,17 @@
+name: Turbopack Next.js development integration tests
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  test-dev:
+    name: Next.js integration tests
+    uses: ./.github/workflows/integration_tests_reusable.yml
+    with:
+      name: turbopack-development
+      test_type: development
+      run_before_test: |
+        export IS_TURBOPACK_TEST=1 TURBOPACK_DEV=1
+    secrets: inherit

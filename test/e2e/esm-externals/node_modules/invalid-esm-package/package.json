@@ -1,0 +1,10 @@
+{
+  "name": "invalid-esm-package",
+  "exports": {
+    "./entry": {
+      "browser": "./browser.js",
+      "import": "./correct.js",
+      "require": "./alternative.js"
+    }
+  }
+}

@@ -6,14 +6,14 @@
     "start": "next start"
   },
   "dependencies": {
-    "@types/node": "^20.4.7",
-    "@types/react": "^18.2.18",
-    "@types/react-dom": "^18.2.7",
-    "mongoose": "^7.4.2",
+    "@types/node": "^20.12.7",
+    "@types/react": "^18.2.79",
+    "@types/react-dom": "^18.2.25",
+    "mongoose": "^8.3.2",
     "next": "latest",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "swr": "^2.2.0",
-    "typescript": "^5.1.6"
+    "swr": "^2.2.5",
+    "typescript": "^5.4.5"
   }
 }

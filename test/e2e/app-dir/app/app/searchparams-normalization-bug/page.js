@@ -1,7 +1,7 @@
 import Button from './client-component'
 import { headers } from 'next/headers'
-export default function Page() {
-  const headerStore = headers()
+export default async function Page() {
+  const headerStore = await headers()
   const headerValue = headerStore.get('test') || 'empty'
 
   return (

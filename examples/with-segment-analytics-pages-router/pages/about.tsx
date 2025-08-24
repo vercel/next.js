@@ -1,4 +1,4 @@
-import Head from 'next/head'
+import Head from "next/head";
 
 export default function About() {
   return (
@@ -10,5 +10,5 @@ export default function About() {
         <h1>This is the About page</h1>
       </div>
     </>
-  )
+  );
 }

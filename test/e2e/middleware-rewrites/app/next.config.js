@@ -13,6 +13,10 @@ module.exports = {
       ],
       afterFiles: [
         {
+          source: '/article/:slug*',
+          destination: '/detail/:slug*',
+        },
+        {
           source: '/afterfiles-rewrite',
           destination: '/ab-test/b',
         },

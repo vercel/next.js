@@ -5,19 +5,19 @@ function eslintParser() {
 }
 
 function pluginProposalClassProperties() {
-  return require('@babel/plugin-proposal-class-properties')
+  return require('@babel/plugin-transform-class-properties')
 }
 
 function pluginProposalExportNamespaceFrom() {
-  return require('@babel/plugin-proposal-export-namespace-from')
+  return require('@babel/plugin-transform-export-namespace-from')
 }
 
 function pluginProposalNumericSeparator() {
-  return require('@babel/plugin-proposal-numeric-separator')
+  return require('@babel/plugin-transform-numeric-separator')
 }
 
 function pluginProposalObjectRestSpread() {
-  return require('@babel/plugin-proposal-object-rest-spread')
+  return require('@babel/plugin-transform-object-rest-spread')
 }
 
 function pluginSyntaxBigint() {
@@ -28,8 +28,8 @@ function pluginSyntaxDynamicImport() {
   return require('@babel/plugin-syntax-dynamic-import')
 }
 
-function pluginSyntaxImportAssertions() {
-  return require('@babel/plugin-syntax-import-assertions')
+function pluginSyntaxImportAttributes() {
+  return require('@babel/plugin-syntax-import-attributes')
 }
 
 function pluginSyntaxJsx() {
@@ -72,7 +72,7 @@ module.exports = {
   pluginProposalObjectRestSpread,
   pluginSyntaxBigint,
   pluginSyntaxDynamicImport,
-  pluginSyntaxImportAssertions,
+  pluginSyntaxImportAttributes,
   pluginSyntaxJsx,
   pluginTransformDefine,
   pluginTransformModulesCommonjs,

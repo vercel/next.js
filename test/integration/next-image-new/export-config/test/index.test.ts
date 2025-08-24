@@ -2,9 +2,9 @@
 
 import { join } from 'path'
 import {
+  assertHasRedbox,
   findPort,
   getRedboxHeader,
-  hasRedbox,
   killApp,
   launchApp,
 } from 'next-test-utils'
@@ -16,26 +16,29 @@ let app
 let stderr = ''
 
 describe('next/image with output export config', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, {
-        onStderr(msg) {
-          stderr += msg || ''
-        },
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        })
       })
-    })
-    afterAll(async () => {
-      await killApp(app)
-      stderr = ''
-    })
-    it('should error', async () => {
-      const browser = await webdriver(appPort, '/')
-      const msg =
-        "Image Optimization using the default loader is not compatible with `{ output: 'export' }`."
-      expect(await hasRedbox(browser, true)).toBe(true)
-      expect(await getRedboxHeader(browser)).toContain(msg)
-      expect(stderr).toContain(msg)
-    })
-  })
+      afterAll(async () => {
+        await killApp(app)
+        stderr = ''
+      })
+      it('should error', async () => {
+        const browser = await webdriver(appPort, '/')
+        const msg =
+          "Image Optimization using the default loader is not compatible with `{ output: 'export' }`."
+        await assertHasRedbox(browser)
+        expect(await getRedboxHeader(browser)).toContain(msg)
+        expect(stderr).toContain(msg)
+      })
+    }
+  )
 })

@@ -1,5 +1,5 @@
-import React from 'react'
-import styles from '../styles/LoaderWave.module.css'
+import React from "react";
+import styles from "../styles/LoaderWave.module.css";
 
 const LoaderWave = () => {
   return (
@@ -8,7 +8,7 @@ const LoaderWave = () => {
       <div className={`${styles.loader} ${styles.l2}`}></div>
       <div className={`${styles.loader} ${styles.l3}`}></div>
     </div>
-  )
-}
+  );
+};
 
-export default LoaderWave
+export default LoaderWave;

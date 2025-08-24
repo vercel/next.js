@@ -1,0 +1,55 @@
+{
+  "name": "@vercel/devlow-bench",
+  "version": "0.3.5",
+  "description": "Benchmarking tool for the developer workflow",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "turbopack/packages/devlow-bench"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": "dist/cli.js",
+  "scripts": {
+    "lint": "eslint src/",
+    "prerelease": "pnpm run build",
+    "test": "node --import tsx --test src/**/*-test.ts",
+    "build": "tsc"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [],
+  "author": "Tobias Koppers",
+  "license": "MIT",
+  "exports": {
+    ".": "./dist/index.js",
+    "./browser": "./dist/browser.js",
+    "./shell": "./dist/shell.js",
+    "./file": "./dist/file.js",
+    "./interfaces/compose": "./dist/interfaces/compose.js",
+    "./interfaces/console": "./dist/interfaces/console.js",
+    "./interfaces/interactive": "./dist/interfaces/interactive.js",
+    "./interfaces/json": "./dist/interfaces/json.js"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.3",
+    "@types/minimist": "^1.2.2",
+    "@types/node": "^20.3.0",
+    "@types/split2": "^4.2.0",
+    "tsx": "4.19.2"
+  },
+  "dependencies": {
+    "@datadog/datadog-api-client": "^1.13.0",
+    "inquirer": "^9.2.7",
+    "minimist": "^1.2.8",
+    "picocolors": "1.0.1",
+    "pidusage-tree": "^2.0.5",
+    "playwright-chromium": "1.48.0",
+    "split2": "^4.2.0",
+    "tree-kill": "^1.2.2"
+  }
+}

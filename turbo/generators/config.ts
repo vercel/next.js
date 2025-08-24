@@ -5,6 +5,7 @@ import * as helpers from './helpers'
 interface TestResponse {
   appDir: string
   type: 'e2e' | 'production' | 'development' | 'unit'
+  name: string
 }
 
 interface ErrorResponse {
@@ -61,24 +62,48 @@ export default function generator(plop: NodePlopAPI): void {
       },
     ],
     actions: function (answers) {
-      const { appDir, type } = answers as TestResponse
-      const testRoot = path.join(plop.getDestBasePath(), 'test')
-
+      const { appDir, type, name } = answers as TestResponse
+      const basePath = plop.getDestBasePath()
+      const testRoot = path.join(basePath, 'test')
       const appDirPath = appDir ? 'app-dir/' : ''
-      let templatePath = path.join(
+
+      const templatePath = path.join(
         testRoot,
         type === 'unit' ? 'unit' : 'e2e',
         appDirPath,
         'test-template'
       )
-      let targetPath = path.join(testRoot, type, appDirPath)
+
+      const targetPath = path.join(testRoot, type, appDirPath)
+
+      const cnaTemplatePath = path.join(
+        basePath,
+        'packages/create-next-app/templates',
+        appDir ? 'app-empty' : 'default-empty',
+        'ts'
+      )
 
       return [
         {
           type: 'addMany',
-          templateFiles: `${templatePath}/**/*`,
+          templateFiles: path.join(templatePath, '**/*'),
           base: templatePath,
           destination: targetPath,
+        },
+        {
+          type: 'add',
+          templateFile: path.join(cnaTemplatePath, 'tsconfig.json'),
+          path: path.join(targetPath, name, 'tsconfig.json'),
+          transform: (template: string) =>
+            template.replace(
+              '"exclude": ["node_modules"]',
+              '"exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"]'
+            ),
+        },
+        {
+          type: 'add',
+          templateFile: path.join(cnaTemplatePath, 'next-env.d.ts'),
+          path: path.join(targetPath, name, 'next-env.d.ts'),
         },
       ]
     },
@@ -114,24 +139,13 @@ export default function generator(plop: NodePlopAPI): void {
     ],
     actions: function (answers) {
       const { name } = answers as ErrorResponse
+      const errorsRoot = path.join(plop.getDestBasePath(), 'errors')
 
       return [
         {
           type: 'add',
-          path: `errors/{{ toFileName name }}.md`,
-          templateFile: `errors/template.txt`,
-        },
-        {
-          type: 'modify',
-          path: 'errors/manifest.json',
-          transform(fileContents: string) {
-            const manifestData = JSON.parse(fileContents)
-            manifestData.routes[0].routes.push({
-              title: helpers.toFileName(name),
-              path: `/errors/${helpers.toFileName(name)}.md`,
-            })
-            return JSON.stringify(manifestData, null, 2)
-          },
+          path: path.join(errorsRoot, `{{ toFileName name }}.mdx`),
+          templateFile: path.join(errorsRoot, `template.txt`),
         },
         `Url for the error: https://nextjs.org/docs/messages/${helpers.toFileName(
           name

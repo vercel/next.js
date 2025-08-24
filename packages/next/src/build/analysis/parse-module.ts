@@ -1,4 +1,4 @@
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from '../../server/lib/lru-cache'
 import { withPromiseCache } from '../../lib/with-promise-cache'
 import { createHash } from 'crypto'
 import { parse } from '../swc'
@@ -8,7 +8,7 @@ import { parse } from '../swc'
  * be indexed by a sha of its content holding up to 500 entries.
  */
 export const parseModule = withPromiseCache(
-  new LRUCache<string, any>({ max: 500 }),
+  new LRUCache<any>(500),
   async (filename: string, content: string) =>
     parse(content, { isModule: 'unknown', filename }).catch(() => null),
   (_, content) => createHash('sha1').update(content).digest('hex')

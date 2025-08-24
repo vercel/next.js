@@ -1,5 +1,5 @@
-import Clock from '../components/clock'
-import Counter from '../components/counter'
+import Clock from "../components/clock";
+import Counter from "../components/counter";
 
 export default function Page() {
   return (
@@ -7,5 +7,5 @@ export default function Page() {
       <Clock />
       <Counter />
     </>
-  )
+  );
 }

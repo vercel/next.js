@@ -13,8 +13,8 @@ loaderApi.pitch = function loader(this: any, request: any): any {
       typeof options.insert === 'undefined'
         ? '"head"'
         : typeof options.insert === 'string'
-        ? JSON.stringify(options.insert)
-        : options.insert.toString()
+          ? JSON.stringify(options.insert)
+          : options.insert.toString()
     const injectType = options.injectType || 'styleTag'
     const esModule =
       typeof options.esModule !== 'undefined' ? options.esModule : false
@@ -82,7 +82,11 @@ ${esModule ? 'export default {}' : ''}`
           ? `
 if (module.hot) {
   if (!content.locals || module.hot.invalidate) {
-    var isEqualLocals = ${require('./runtime/isEqualLocals').toString()};
+    
+    var isEqualLocals = ${
+      // eslint-disable-next-line @next/internal/typechecked-require -- Not a module.
+      require('./runtime/isEqualLocals').toString()
+    };
     console.log({isEqualLocals})
     var oldLocals = content.locals;
 
@@ -194,7 +198,10 @@ ${esModule ? 'export default' : 'module.exports ='} exported;`
           ? `
 if (module.hot) {
   if (!content.locals || module.hot.invalidate) {
-    var isEqualLocals = ${require('./runtime/isEqualLocals').toString()};
+    var isEqualLocals = ${
+      // eslint-disable-next-line @next/internal/typechecked-require -- Not a module.
+      require('./runtime/isEqualLocals').toString()
+    };
     var oldLocals = content.locals;
 
     module.hot.accept(

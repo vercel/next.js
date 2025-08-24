@@ -1,9 +1,9 @@
-import { authMiddleware } from '@clerk/nextjs'
+import { authMiddleware } from "@clerk/nextjs";
 
 export default authMiddleware({
-  publicRoutes: ['/', '/api/getAuthenticatedUserId'],
-})
+  publicRoutes: ["/", "/api/getAuthenticatedUserId"],
+});
 
 export const config = {
-  matcher: ['/((?!.*\\..*|_next).*)', '/'],
-}
+  matcher: ["/((?!.*\\..*|_next).*)", "/"],
+};

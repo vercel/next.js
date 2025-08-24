@@ -1,10 +1,10 @@
-import * as React from 'react'
-import Link from 'next/link'
+import * as React from "react";
+import Link from "next/link";
 
-import { motion } from 'framer-motion'
-import { images } from '../constants'
+import { motion } from "framer-motion";
+import { images } from "../constants";
 
-const transition = { duration: 0.5, ease: [0.43, 0.13, 0.23, 0.96] }
+const transition = { duration: 0.5, ease: [0.43, 0.13, 0.23, 0.96] };
 
 const thumbnailVariants = {
   initial: { scale: 0.9, opacity: 0 },
@@ -14,15 +14,15 @@ const thumbnailVariants = {
     opacity: 0,
     transition: { duration: 1.5, ...transition },
   },
-}
+};
 
 const frameVariants = {
   hover: { scale: 0.95 },
-}
+};
 
 const imageVariants = {
   hover: { scale: 1.1 },
-}
+};
 
 const Thumbnail = ({ id, i }) => (
   <>
@@ -70,7 +70,7 @@ const Thumbnail = ({ id, i }) => (
         `}
     </style>
   </>
-)
+);
 
 const Gallery = () => (
   <>
@@ -146,6 +146,6 @@ const Gallery = () => (
         `}
     </style>
   </>
-)
+);
 
-export default Gallery
+export default Gallery;

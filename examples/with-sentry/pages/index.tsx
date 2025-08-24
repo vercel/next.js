@@ -1,10 +1,10 @@
-import Link from 'next/link'
+import Link from "next/link";
 
-import Image from 'next/image'
-import { Inter } from 'next/font/google'
-import styles from '../styles/Home.module.css'
+import Image from "next/image";
+import { Inter } from "next/font/google";
+import styles from "../styles/Home.module.css";
 
-const inter = Inter({ subsets: ['latin'] })
+const inter = Inter({ subsets: ["latin"] });
 
 export default function Home() {
   return (
@@ -20,7 +20,7 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
           >
-            By{' '}
+            By{" "}
             <Image
               src="/vercel.svg"
               alt="Vercel Logo"
@@ -55,7 +55,7 @@ export default function Home() {
       />
       <div
         className={styles.justCenter}
-        style={{ display: 'flex', flexDirection: 'column', rowGap: '1rem' }}
+        style={{ display: "flex", flexDirection: "column", rowGap: "1rem" }}
       >
         <p className={inter.className}>
           See how Sentry records unhandled exceptions in your code.
@@ -64,9 +64,9 @@ export default function Home() {
           <p className={inter.className}>
             <strong>Important:</strong> exceptions in development mode take a
             different path than in production. These tests should be run on a
-            production build (i.e.{' '}
+            production build (i.e.{" "}
             <code className={styles.code}>next build</code>
-            ).{' '}
+            ).{" "}
             <Link
               className={styles.link}
               target="_blank"
@@ -89,7 +89,7 @@ export default function Home() {
           </p>
           <p className={inter.className}>
             Top-of-module promise that rejects, but its result is not awaited.
-            {'  '}
+            {"  "}
             <code className={styles.code}>
               <a className={styles.link} href="/api/test1" target="_blank">
                 API Test 1
@@ -97,7 +97,7 @@ export default function Home() {
             </code>
           </p>
           <p className={inter.className}>
-            API has a top-of-module exception.{' '}
+            API has a top-of-module exception.{" "}
             <code className={styles.code}>
               <a className={styles.link} href="/api/test2" target="_blank">
                 API Test 2
@@ -105,7 +105,7 @@ export default function Home() {
             </code>
           </p>
           <p className={inter.className}>
-            API with an exception in its request handler.{' '}
+            API with an exception in its request handler.{" "}
             <code className={styles.code}>
               <a className={styles.link} href="/api/test3" target="_blank">
                 API Test 3
@@ -113,7 +113,7 @@ export default function Home() {
             </code>
           </p>
           <p className={inter.className}>
-            API uses a try/catch to handle an exception and records it.{' '}
+            API uses a try/catch to handle an exception and records it.{" "}
             <code className={styles.code}>
               <a className={styles.link} href="/api/test4" target="_blank">
                 API Test 4
@@ -135,7 +135,7 @@ export default function Home() {
           <p className={inter.className}>
             <code className={styles.code}>getServerSideProps </code>
             &nbsp;throws an Error. This should cause _error.js to render and
-            record and Error in Sentry.{' '}
+            record and Error in Sentry.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/ssr/test1">
                 SSR Test 1
@@ -145,7 +145,7 @@ export default function Home() {
           <p className={inter.className}>
             <code className={styles.code}>getServerSideProps </code>
             returns a Promise that rejects. This should cause _error.js to
-            render and record an Error in Sentry.{' '}
+            render and record an Error in Sentry.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/ssr/test2">
                 SSR Test 2
@@ -157,7 +157,7 @@ export default function Home() {
             calls a Promise that rejects, but does not handle the rejection or
             await its result (returning synchronously). Sentry records an Error
             but <strong>will not</strong> when deployed to Vercel because the
-            serverless function will already have exited.{' '}
+            serverless function will already have exited.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/ssr/test3">
                 SSR Test 3
@@ -167,7 +167,7 @@ export default function Home() {
           <p className={inter.className}>
             <code className={styles.code}>getServerSideProps </code>
             manually captures an exception from a try/catch. This should record
-            Error in Sentry.{' '}
+            Error in Sentry.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/ssr/test4">
                 SSR Test 4
@@ -182,7 +182,7 @@ export default function Home() {
           </h2>
           <p className={inter.className}>
             There is a top-of-module Promise that rejects, but its result is not
-            awaited. Sentry records an Error.{' '}
+            awaited. Sentry records an Error.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/client/test1">
                 Client Test 1
@@ -191,7 +191,7 @@ export default function Home() {
           </p>
           <p className={inter.className}>
             There is a top-of-module exception. _error.js should render and
-            record ReferenceError('process is not defined') in Sentry.{' '}
+            record ReferenceError('process is not defined') in Sentry.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/client/test2">
                 Client Test 2
@@ -201,7 +201,7 @@ export default function Home() {
           <p className={inter.className}>
             There is an exception during React lifecycle that is caught by
             Next.js's React Error Boundary. In this case, when the component
-            mounts. This causes _error.js to render and records Error in Sentry.{' '}
+            mounts. This causes _error.js to render and records Error in Sentry.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/client/test3">
                 Client Test 3
@@ -210,10 +210,10 @@ export default function Home() {
           </p>
           <p className={inter.className}>
             There is an unhandled Promise rejection during React lifecycle. In
-            this case, when the component mounts. Sentry records an Error.{' '}
+            this case, when the component mounts. Sentry records an Error.{" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/client/test4">
-                {' '}
+                {" "}
                 Client Test 4
               </Link>
             </code>
@@ -221,7 +221,7 @@ export default function Home() {
           <p className={inter.className}>
             An Error is thrown from an event handler. Sentry records an Error.
             (This page also demonstrates how to manually instrument your code
-            for performance monitoring.){' '}
+            for performance monitoring.){" "}
             <code className={styles.code}>
               <Link className={styles.link} href="/client/test5">
                 Client Test 5
@@ -254,7 +254,7 @@ export default function Home() {
           </p>
           <p className={inter.className}>
             Sentry creates links between errors and transactions, and can be
-            seen in the{' '}
+            seen in the{" "}
             <strong>
               <Link
                 className={styles.link}
@@ -281,5 +281,5 @@ export default function Home() {
         </div>
       </div>
     </main>
-  )
+  );
 }

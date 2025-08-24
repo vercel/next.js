@@ -1,4 +1,9 @@
-import { NextMiddleware, NextResponse, URLPattern } from 'next/server'
+import {
+  NextMiddleware,
+  NextResponse,
+  URLPattern,
+  MiddlewareConfig,
+} from 'next/server'
 
 export const middleware: NextMiddleware = function (request) {
   const pattern = new URLPattern({
@@ -18,3 +23,8 @@ export const middleware: NextMiddleware = function (request) {
     })
   }
 }
+
+export const config = {
+  matcher: ['/:path*'],
+  regions: [],
+} satisfies MiddlewareConfig

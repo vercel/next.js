@@ -1,0 +1,82 @@
+# A recurring workflow which updates the passing/failing/skipped integration tests for Turbopack.
+name: Update Turbopack test manifest
+
+on:
+  # schedule:
+  # Every day at 7AM UTC https://crontab.guru/#0_7_*_*_*
+  # - cron: '0 7 * * *'
+  workflow_dispatch:
+
+jobs:
+  update_dev_manifest:
+    name: Update and upload Turbopack development test manifest
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
+          # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
+          token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm i
+
+      - name: Create Pull Request
+        shell: bash
+        run: node scripts/automated-update-workflow.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
+          BRANCH_NAME: turbopack-manifest
+          SCRIPT: test/update-bundler-manifest.js --bundler turbopack --test-suite dev
+          PR_TITLE: Update Turbopack development test manifest
+          PR_BODY: This auto-generated PR updates the development integration test manifest used when testing Turbopack.
+  update_build_manifest:
+    name: Update and upload Turbopack production test manifest
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
+          # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
+          token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm i
+
+      - name: Create Pull Request
+        shell: bash
+        run: node scripts/automated-update-workflow.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
+          BRANCH_NAME: turbopack-manifest
+          SCRIPT: test/update-bundler-manifest.js --bundler turbopack --test-suite build
+          PR_TITLE: Update Turbopack production test manifest
+          PR_BODY: This auto-generated PR updates the production integration test manifest used when testing Turbopack.

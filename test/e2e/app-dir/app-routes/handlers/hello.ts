@@ -3,7 +3,7 @@ import { withRequestMeta } from '../helpers'
 
 const helloHandler = async (
   request: NextRequest,
-  { params }: { params?: Record<string, string | string[]> }
+  { params }: { params?: Promise<Record<string, string | string[]>> }
 ): Promise<Response> => {
   const { pathname } = request.nextUrl
 
@@ -11,10 +11,12 @@ const helloHandler = async (
     throw new Error('missing WebSocket constructor!!')
   }
 
+  const resolvedParams = params ? await params : null
+
   return new Response('hello, world', {
     headers: withRequestMeta({
       method: request.method,
-      params: params ?? null,
+      params: resolvedParams,
       pathname,
     }),
   })

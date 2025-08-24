@@ -3,10 +3,10 @@ module.exports = {
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'myaccount.dx.commercecloud.salesforce.com',
-        port: '',
+        protocol: "https",
+        hostname: "myaccount.dx.commercecloud.salesforce.com",
+        port: "",
       },
     ],
   },
-}
+};

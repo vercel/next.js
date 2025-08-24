@@ -6,7 +6,7 @@ const CustomLink = ({
   children,
 }) => {
   return (
-    <span className="link-container">
+    (<span className="link-container">
       <Link href={href} legacyBehavior>
         <a className="link" title={title}>
           {children}
@@ -19,7 +19,7 @@ const CustomLink = ({
           font-weight: 500;
         }
       `}</style>
-    </span>
+    </span>)
   );
 };
 

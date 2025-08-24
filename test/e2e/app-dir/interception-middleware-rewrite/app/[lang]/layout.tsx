@@ -1,6 +1,10 @@
 import Link from 'next/link'
 
-export default function Layout({ children, modal, params }) {
+export default async function Layout(props) {
+  const params = await props.params
+
+  const { children, modal } = props
+
   return (
     <>
       <div>

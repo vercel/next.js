@@ -1,5 +1,5 @@
 export default function Page() {
-  return 'alternate'
+  return <p id="alternates">alternate</p>
 }
 
 export async function generateMetadata(props, parentResolvingMetadata) {

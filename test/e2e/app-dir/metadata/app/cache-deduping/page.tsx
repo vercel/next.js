@@ -1,6 +1,6 @@
 import React, { cache } from 'react'
 
-const getRandomMemoized = cache(() => Math.random())
+const getRandomMemoized = cache(() => Math.random().toString())
 
 async function getRandomMemoizedByFetch() {
   const res = await fetch(
@@ -26,7 +26,7 @@ export async function generateMetadata(props, parent) {
 
   return {
     title: {
-      default: JSON.stringify({ val, val2 }),
+      default: JSON.stringify({ page: 'cache-deduping', val, val2 }),
     },
   }
 }

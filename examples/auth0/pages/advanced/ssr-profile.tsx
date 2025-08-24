@@ -1,10 +1,10 @@
-import { withPageAuthRequired } from '@auth0/nextjs-auth0'
-import Layout from '../../components/layout'
-import { User } from '../../interfaces'
+import { withPageAuthRequired } from "@auth0/nextjs-auth0";
+import Layout from "../../components/layout";
+import { User } from "../../interfaces";
 
 type ProfileProps = {
-  user: User
-}
+  user: User;
+};
 
 export default function Profile({ user }: ProfileProps) {
   return (
@@ -18,9 +18,9 @@ export default function Profile({ user }: ProfileProps) {
         <p>name: {user.name}</p>
       </div>
     </Layout>
-  )
+  );
 }
 
 // Protected route, checking authentication status before rendering the page.(SSR)
 // It's slower than a static page with client side authentication
-export const getServerSideProps = withPageAuthRequired()
+export const getServerSideProps = withPageAuthRequired();

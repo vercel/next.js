@@ -1,0 +1,18 @@
+0 -> 1 typeof = typeof(???*0*)
+- *0* FreeVar(EdgeRuntime)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+0 -> 2 free var = FreeVar(EdgeRuntime)
+
+0 -> 3 conditional = (???*0* === "undefined")
+- *0* typeof(???*1*)
+  ⚠️  nested operation
+- *1* FreeVar(EdgeRuntime)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+3 -> 4 free var = FreeVar(require)
+
+3 -> 5 call = require*0*("ioredis")
+- *0* require: The require method from CommonJS

@@ -1,0 +1,6 @@
+  x Using `export * from '...'` in a page is disallowed. Please use `export { default } from '...'` instead.
+  | Read more: https://nextjs.org/docs/messages/export-all-in-page
+   ,-[input.js:1:1]
+ 1 | export * from './other-page'
+   : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   `----

@@ -1,5 +1,5 @@
-import styles from '../../styles/Home.module.css'
-import Link from 'next/link'
+import styles from "../../styles/Home.module.css";
+import Link from "next/link";
 
 export default function About() {
   return (
@@ -11,5 +11,5 @@ export default function About() {
         </p>
       </main>
     </div>
-  )
+  );
 }

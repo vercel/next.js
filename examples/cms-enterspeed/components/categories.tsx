@@ -1,6 +1,6 @@
 type Props = {
-  categories: string[]
-}
+  categories: string[];
+};
 
 export default function Categories({ categories }: Props) {
   return (
@@ -16,5 +16,5 @@ export default function Categories({ categories }: Props) {
         <span className="ml-1">{categories}</span>
       )}
     </span>
-  )
+  );
 }

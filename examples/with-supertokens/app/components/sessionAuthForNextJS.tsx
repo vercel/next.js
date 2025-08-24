@@ -1,19 +1,19 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react'
-import { SessionAuth } from 'supertokens-auth-react/recipe/session'
+import React, { useState, useEffect } from "react";
+import { SessionAuth } from "supertokens-auth-react/recipe/session";
 
 type Props = Parameters<typeof SessionAuth>[0] & {
-  children?: React.ReactNode | undefined
-}
+  children?: React.ReactNode | undefined;
+};
 
 export const SessionAuthForNextJS = (props: Props) => {
-  const [loaded, setLoaded] = useState(false)
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
-    setLoaded(true)
-  }, [])
+    setLoaded(true);
+  }, []);
   if (!loaded) {
-    return props.children
+    return props.children;
   }
-  return <SessionAuth {...props}>{props.children}</SessionAuth>
-}
+  return <SessionAuth {...props}>{props.children}</SessionAuth>;
+};

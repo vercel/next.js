@@ -1,21 +1,21 @@
-import Head from 'next/head'
-import Image from 'next/image'
-import React, { useEffect, useState } from 'react'
-import VideosListResponse from '@api.video/nodejs-client/lib/model/VideosListResponse'
+import Head from "next/head";
+import Image from "next/image";
+import React, { useEffect, useState } from "react";
+import VideosListResponse from "@api.video/nodejs-client/lib/model/VideosListResponse";
 
 export default function Videos() {
   const [videosResponse, setVideosResponse] = useState<
     VideosListResponse | undefined
-  >(undefined)
-  const [error, setError] = useState<boolean>(false)
+  >(undefined);
+  const [error, setError] = useState<boolean>(false);
   useEffect(() => {
-    fetch('/api/videos')
+    fetch("/api/videos")
       .then((res) => res.json())
       .then((res: { videos: VideosListResponse }) =>
-        setVideosResponse(res.videos)
+        setVideosResponse(res.videos),
       )
-      .catch((_) => setError(true))
-  }, [])
+      .catch((_) => setError(true));
+  }, []);
 
   return (
     <div className="global-container">
@@ -35,7 +35,7 @@ export default function Videos() {
       <main>
         <div className="texts-container">
           <p>
-            Welcome to this basic example of videos list provided by{' '}
+            Welcome to this basic example of videos list provided by{" "}
             <a
               href="https://api.video"
               target="_blank"
@@ -54,7 +54,7 @@ export default function Videos() {
         {!videosResponse && !error && <div>Loading...</div>}
         {error && (
           <div className="error">
-            An error occured trying to fetch your videos. Be sure to have you
+            An error occurred trying to fetch your videos. Be sure to have you
             API key set in your .env file this way: <i>API_KEY=YOUR_API_KEY</i>
           </div>
         )}
@@ -68,7 +68,7 @@ export default function Videos() {
               >
                 <h3>{video.title}</h3>
                 <Image
-                  src={video.assets?.thumbnail ?? '/vercel.svg'}
+                  src={video.assets?.thumbnail ?? "/vercel.svg"}
                   alt="Video thumbmail"
                   width={150}
                   height={80}
@@ -93,7 +93,7 @@ export default function Videos() {
           target="_blank"
           rel="noopener noreferrer"
         >
-          Powered by{' '}
+          Powered by{" "}
           <span>
             <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
           </span>
@@ -104,5 +104,5 @@ export default function Videos() {
         </a>
       </footer>
     </div>
-  )
+  );
 }

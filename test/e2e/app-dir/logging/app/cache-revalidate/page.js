@@ -7,7 +7,7 @@ export default async function Page() {
     ),
     {
       next: {
-        revalidate: 3,
+        revalidate: 0,
       },
     }
   )
@@ -21,7 +21,7 @@ export default async function Page() {
     ),
     {
       next: {
-        revalidate: 3,
+        revalidate: 0,
       },
     }
   )
@@ -30,9 +30,33 @@ export default async function Page() {
     'https://next-data-api-endpoint.vercel.app/api/random?request-string',
     {
       next: {
-        revalidate: 3,
+        revalidate: 0,
       },
       cache: 'force-cache',
+    }
+  )
+
+  await fetch(
+    new Request(
+      'https://next-data-api-endpoint.vercel.app/api/random?no-store-request-input-cache-override',
+      {
+        cache: 'no-store',
+      }
+    ),
+    {
+      next: {
+        revalidate: 3,
+      },
+    }
+  )
+
+  await fetch(
+    'https://next-data-api-endpoint.vercel.app/api/random?no-store-request-string',
+    {
+      next: {
+        revalidate: 3,
+      },
+      cache: 'no-store',
     }
   )
 

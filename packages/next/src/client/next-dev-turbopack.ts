@@ -2,15 +2,14 @@
 import { initialize, version, router, emitter } from './'
 import initHMR from './dev/hot-middleware-client'
 
-import './setup-hydration-warning'
-import { pageBootrap } from './page-bootstrap'
-import { addMessageListener, sendMessage } from './dev/error-overlay/websocket'
+import { pageBootstrap } from './page-bootstrap'
 //@ts-expect-error requires "moduleResolution": "node16" in tsconfig.json and not .ts extension
-import { connect } from '@vercel/turbopack-ecmascript-runtime/dev/client/hmr-client.ts'
-import type { HMR_ACTION_TYPES } from '../server/dev/hot-reloader-types'
+import { connect } from '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
+import type { TurbopackMsgToBrowser } from '../server/dev/hot-reloader-types'
 
 window.next = {
-  version: `${version}-turbo`,
+  version,
+  turbopack: true,
   // router is initialized later so it has to be live-binded
   get router() {
     return router
@@ -23,7 +22,7 @@ window.next = {
 // for the page loader
 declare let __turbopack_load__: any
 
-const devClient = initHMR('turbopack')
+const devClient = initHMR()
 initialize({
   devClient,
 })
@@ -33,7 +32,9 @@ initialize({
       page: string,
       chunksData: any
     ) => {
-      const chunkPromises = chunksData.map(__turbopack_load__)
+      const chunkPromises = chunksData.map((c: unknown) =>
+        __turbopack_load__(c)
+      )
 
       Promise.all(chunkPromises).catch((err) =>
         console.error('failed to load chunks for page ' + page, err)
@@ -41,21 +42,14 @@ initialize({
     }
 
     connect({
-      addMessageListener(cb: (msg: HMR_ACTION_TYPES) => void) {
-        addMessageListener((msg) => {
-          if (!('type' in msg)) {
-            return
-          }
-          // Only call Turbopack's message listener for turbopack messages
-          if (msg.type?.startsWith('turbopack-')) {
-            cb(msg)
-          }
-        })
+      addMessageListener(cb: (msg: TurbopackMsgToBrowser) => void) {
+        devClient.addTurbopackMessageListener(cb)
       },
-      sendMessage,
+      sendMessage: devClient.sendTurbopackMessage,
+      onUpdateError: devClient.handleUpdateError,
     })
 
-    return pageBootrap(assetPrefix)
+    return pageBootstrap(assetPrefix)
   })
   .catch((err) => {
     console.error('Error was not caught', err)

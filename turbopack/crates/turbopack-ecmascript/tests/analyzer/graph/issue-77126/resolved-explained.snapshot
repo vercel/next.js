@@ -1,0 +1,7 @@
+*arrow function 19* = (...) => false
+
+run = (...) => ("should not run" | "should run")
+
+shouldRun = (...) => false
+
+x = (true | undefined)

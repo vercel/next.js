@@ -1,6 +1,6 @@
 import postcss from 'postcss'
 
-import mod from 'next/src/bundles/cssnano-simple/index'
+import mod from 'next/dist/compiled/cssnano-simple/index'
 import css from '../noop-template'
 
 describe('exclude all test', () => {
@@ -33,7 +33,7 @@ describe('exclude all test', () => {
     const res = await postcss([
       mod({
         excludeAll: true,
-        discardComments: true,
+        discardComments: { removeAll: true },
         normalizeWhitespace: { exclude: false },
       }),
     ]).process(input, {
@@ -57,7 +57,7 @@ describe('exclude all test', () => {
     const res = await postcss([
       mod({
         excludeAll: true,
-        discardComments: true,
+        discardComments: { removeAll: true },
         normalizeWhitespace: { exclude: false },
         discardEmpty: {},
       }),

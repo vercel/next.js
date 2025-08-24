@@ -1,9 +1,9 @@
-import { useRouter } from 'next/router'
+import { useRouter } from "next/router";
 
 export const CacheStrategySelector = () => {
-  const router = useRouter()
-  const { asPath, route } = router
-  const value = asPath.split('/')[2]
+  const router = useRouter();
+  const { asPath, route } = router;
+  const value = asPath.split("/")[2];
 
   return (
     <div className="cache-option-toggler">
@@ -11,9 +11,9 @@ export const CacheStrategySelector = () => {
       <select
         name="cache-option"
         onChange={(event) => {
-          const newValue = event.currentTarget.value
-          const newRoute = route.replace('[cacheStrategy]', newValue)
-          router.push(newRoute, undefined, { scroll: false })
+          const newValue = event.currentTarget.value;
+          const newRoute = route.replace("[cacheStrategy]", newValue);
+          router.push(newRoute, undefined, { scroll: false });
         }}
         value={value}
       >
@@ -23,5 +23,5 @@ export const CacheStrategySelector = () => {
         <option value="ls-cache">Local Storage Cache</option>
       </select>
     </div>
-  )
-}
+  );
+};

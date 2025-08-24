@@ -1,18 +1,13 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-before-interactive-script-outside-document'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
-    },
-  },
-})
-const ruleTester = new RuleTester()
+import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
+import { RuleTester as ESLintTesterV9 } from 'eslint'
+import { rules } from '@next/eslint-plugin-next'
 
-ruleTester.run('no-before-interactive-script-outside-document', rule, {
+const NextESLintRule = rules['no-before-interactive-script-outside-document']
+
+const message =
+  "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document"
+
+const tests = {
   valid: [
     {
       code: `
@@ -172,13 +167,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
       filename:
         'C:\\Users\\username\\projects\\project-name\\src\\app\\layout.tsx',
     },
-  ].map((obj, idx) => ({
-    ...obj,
-    code: `// valid-${idx}
-      ${obj.code}
-    `,
-  })),
-
+  ],
   invalid: [
     {
       code: `
@@ -195,12 +184,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
         );
       }`,
       filename: 'pages/index.js',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
+      errors: [{ message }],
     },
     {
       code: `
@@ -217,12 +201,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
         );
       }`,
       filename: 'components/outside-known-dirs.js',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
+      errors: [{ message }],
     },
     {
       code: `
@@ -240,12 +219,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
         );
       }`,
       filename: '/Users/user_name/projects/project-name/pages/layout.tsx',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
+      errors: [{ message }],
     },
     {
       code: `
@@ -264,12 +238,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
       }`,
       filename:
         'C:\\Users\\username\\projects\\project-name\\pages\\layout.tsx',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
+      errors: [{ message }],
     },
     {
       code: `
@@ -287,12 +256,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
         );
       }`,
       filename: '/Users/user_name/projects/project-name/src/pages/layout.tsx',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
+      errors: [{ message }],
     },
     {
       code: `
@@ -311,17 +275,33 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
       }`,
       filename:
         'C:\\Users\\username\\projects\\project-name\\src\\pages\\layout.tsx',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
+      errors: [{ message }],
     },
-  ].map((obj, idx) => ({
-    ...obj,
-    code: `// invalid-${idx}
-      ${obj.code}
-    `,
-  })),
+  ],
+}
+
+describe('no-before-interactive-script-outside-document', () => {
+  new ESLintTesterV8({
+    parserOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
+    },
+  }).run('eslint-v8', NextESLintRule, tests)
+
+  new ESLintTesterV9({
+    languageOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: {
+          modules: true,
+          jsx: true,
+        },
+      },
+    },
+  }).run('eslint-v9', NextESLintRule, tests)
 })

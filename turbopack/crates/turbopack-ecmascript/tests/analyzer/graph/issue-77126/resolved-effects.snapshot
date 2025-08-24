@@ -1,0 +1,11 @@
+0 -> 1 call = (...) => false()
+
+0 -> 2 conditional = (true | undefined)
+
+2 -> 3 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects
+
+2 -> 4 unreachable = ???*0*
+- *0* unreachable
+  ⚠️  This value might have side effects

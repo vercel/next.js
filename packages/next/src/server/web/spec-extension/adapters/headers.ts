@@ -197,7 +197,7 @@ export class HeadersAdapter extends Headers {
     }
   }
 
-  public *entries(): IterableIterator<[string, string]> {
+  public *entries(): HeadersIterator<[string, string]> {
     for (const key of Object.keys(this.headers)) {
       const name = key.toLowerCase()
       // We assert here that this is a string because we got it from the
@@ -208,14 +208,14 @@ export class HeadersAdapter extends Headers {
     }
   }
 
-  public *keys(): IterableIterator<string> {
+  public *keys(): HeadersIterator<string> {
     for (const key of Object.keys(this.headers)) {
       const name = key.toLowerCase()
       yield name
     }
   }
 
-  public *values(): IterableIterator<string> {
+  public *values(): HeadersIterator<string> {
     for (const key of Object.keys(this.headers)) {
       // We assert here that this is a string because we got it from the
       // Object.keys() call above.
@@ -225,7 +225,7 @@ export class HeadersAdapter extends Headers {
     }
   }
 
-  public [Symbol.iterator](): IterableIterator<[string, string]> {
+  public [Symbol.iterator](): HeadersIterator<[string, string]> {
     return this.entries()
   }
 }

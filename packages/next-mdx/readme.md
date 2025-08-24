@@ -7,13 +7,13 @@ Use [MDX](https://github.com/mdx-js/mdx) with [Next.js](https://github.com/verce
 For usage with the `app` directory see the section below.
 
 ```
-npm install @next/mdx @mdx-js/loader @mdx-js/react
+npm install @next/mdx @mdx-js/loader
 ```
 
 or
 
 ```
-yarn add @next/mdx @mdx-js/loader @mdx-js/react
+yarn add @next/mdx @mdx-js/loader
 ```
 
 ## Usage
@@ -102,17 +102,16 @@ yarn add @next/mdx
 
 ## Usage
 
-Create a `mdx-components.js` file at the root of your project with the following contents:
+Create an `mdx-components.js` file at the root of your project with the following contents:
 
 ```js
-// This file is required to use @next/mdx in the `app` directory.
-export function useMDXComponents(components) {
+// Allows customizing built-in components, e.g. to add styling.
+const components = {
+  // h1: ({ children }) => <h1 style={{ fontSize: "100px" }}>{children}</h1>,
+}
+
+export function useMDXComponents() {
   return components
-  // Allows customizing built-in components, e.g. to add styling.
-  // return {
-  //   h1: ({ children }) => <h1 style={{ fontSize: "100px" }}>{children}</h1>,
-  //   ...components,
-  // }
 }
 ```
 
@@ -128,8 +127,6 @@ const withMDX = require('@next/mdx')({
     // https://github.com/remarkjs/remark-gfm#install
     remarkPlugins: [],
     rehypePlugins: [],
-    // If you use `MDXProvider`, uncomment the following line.
-    // providerImportSource: "@mdx-js/react",
   },
 })
 
@@ -137,9 +134,6 @@ const withMDX = require('@next/mdx')({
 const nextConfig = {
   // Configure pageExtensions to include md and mdx
   pageExtensions: ['ts', 'tsx', 'js', 'jsx', 'md', 'mdx'],
-  experimental: {
-    appDir: true,
-  }
   // Optionally, add any other Next.js config below
   reactStrictMode: true,
 }

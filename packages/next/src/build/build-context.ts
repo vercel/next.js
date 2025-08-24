@@ -1,11 +1,10 @@
 import type { LoadedEnvFiles } from '@next/env'
-import type { Ora } from 'next/dist/compiled/ora'
 import type { Rewrite, Redirect } from '../lib/load-custom-routes'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import type { NextConfigComplete } from '../server/config-shared'
 import type { Span } from '../trace'
 import type getBaseWebpackConfig from './webpack-config'
-import type { TelemetryPluginState } from './webpack/plugins/telemetry-plugin'
+import type { TelemetryPluginState } from './webpack/plugins/telemetry-plugin/telemetry-plugin'
 import type { Telemetry } from '../telemetry/storage'
 
 // A layer for storing data that is used by plugins to communicate with each
@@ -41,6 +40,10 @@ export function getPluginState() {
   return pluginState
 }
 
+export interface MappedPages {
+  [page: string]: string
+}
+
 // a global object to store context for the current build
 // this is used to pass data between different steps of the build without having
 // to pass it through function arguments.
@@ -50,7 +53,9 @@ export const NextBuildContext: Partial<{
   pluginState: Record<string, any>
   // core fields
   dir: string
+  distDir: string
   buildId: string
+  encryptionKey: string
   config: NextConfigComplete
   appDir: string
   pagesDir: string
@@ -64,28 +69,18 @@ export const NextBuildContext: Partial<{
     afterFiles: Rewrite[]
     beforeFiles: Rewrite[]
   }
+  hasRewrites: boolean
   originalRedirects: Redirect[]
   loadedEnvFiles: LoadedEnvFiles
   previewProps: __ApiPreviewProps
-  mappedPages:
-    | {
-        [page: string]: string
-      }
-    | undefined
-  mappedAppPages:
-    | {
-        [page: string]: string
-      }
-    | undefined
-  mappedRootPaths: {
-    [page: string]: string
-  }
+  mappedPages: MappedPages | undefined
+  mappedAppPages: MappedPages | undefined
+  mappedRootPaths: MappedPages
   hasInstrumentationHook: boolean
 
   // misc fields
   telemetry: Telemetry
   telemetryState: TelemetryPluginState
-  buildSpinner: Ora
   nextBuildSpan: Span
 
   // cli fields
@@ -98,4 +93,6 @@ export const NextBuildContext: Partial<{
   previewModeId: string
   fetchCacheKeyPrefix?: string
   allowedRevalidateHeaderKeys?: string[]
+  isCompileMode?: boolean
+  debugPrerender: boolean
 }> = {}

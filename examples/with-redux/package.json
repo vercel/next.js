@@ -6,18 +6,16 @@
     "start": "next start"
   },
   "dependencies": {
-    "@reduxjs/toolkit": "1.9.5",
+    "@reduxjs/toolkit": "^2.2.0",
     "next": "latest",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
-    "react-redux": "8.1.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-redux": "^9.1.0"
   },
   "devDependencies": {
-    "@types/node": "20.3.1",
-    "@types/react": "18.2.8",
-    "@types/react-dom": "18.2.5",
-    "@types/redux-logger": "3.0.9",
-    "redux-logger": "3.0.6",
-    "typescript": "5.1.3"
+    "@types/node": "20.2.5",
+    "@types/react": "18.2.37",
+    "@types/react-dom": "^18.2.18",
+    "typescript": "^5.3.3"
   }
 }

@@ -5,6 +5,7 @@ const createJestConfig = nextJest()
 // Any custom config you want to pass to Jest
 /** @type {import('jest').Config} */
 const customJestConfig = {
+  displayName: process.env.TURBOPACK ? 'turbopack' : 'default',
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.jsx', '**/*.test.tsx'],
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,
@@ -12,6 +13,8 @@ const customJestConfig = {
   roots: [
     '<rootDir>',
     '<rootDir>/../packages/next/src/',
+    '<rootDir>/../packages/next-codemod/',
+    '<rootDir>/../packages/eslint-plugin-internal/',
     '<rootDir>/../packages/font/src/',
   ],
   modulePathIgnorePatterns: ['/\\.next/'],
@@ -34,9 +37,14 @@ if (enableTestReport) {
     customJestConfig.reporters = ['default']
   }
 
-  const outputDirectory = process.env.TURBOPACK
-    ? '<rootDir>/turbopack-test-junit-report'
-    : '<rootDir>/test-junit-report'
+  let outputDirectory
+  if (process.env.IS_TURBOPACK_TEST) {
+    outputDirectory = '<rootDir>/turbopack-test-junit-report'
+  } else if (process.env.NEXT_RSPACK) {
+    outputDirectory = '<rootDir>/rspack-test-junit-report'
+  } else {
+    outputDirectory = '<rootDir>/test-junit-report'
+  }
 
   customJestConfig.reporters.push([
     'jest-junit',

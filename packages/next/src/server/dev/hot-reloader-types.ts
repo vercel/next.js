@@ -3,9 +3,12 @@ import type { UrlObject } from 'url'
 import type { Duplex } from 'stream'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type getBaseWebpackConfig from '../../build/webpack-config'
-import type { RouteDefinition } from '../future/route-definitions/route-definition'
-import type { Project, Update as TurbopackUpdate } from '../../build/swc'
+import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { Project, Update as TurbopackUpdate } from '../../build/swc/types'
 import type { VersionInfo } from './parse-version-info'
+import type { DebugInfo } from '../../next-devtools/shared/types'
+import type { DevIndicatorServerState } from './dev-indicator-server-state'
+import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 
 export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   ADDED_PAGE = 'addedPage',
@@ -18,11 +21,13 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   SYNC = 'sync',
   BUILT = 'built',
   BUILDING = 'building',
-  FINISH_BUILDING = 'finishBuilding',
   DEV_PAGES_MANIFEST_UPDATE = 'devPagesManifestUpdate',
   TURBOPACK_MESSAGE = 'turbopack-message',
   SERVER_ERROR = 'serverError',
   TURBOPACK_CONNECTED = 'turbopack-connected',
+  ISR_MANIFEST = 'isrManifest',
+  DEV_INDICATOR = 'devIndicator',
+  DEVTOOLS_CONFIG = 'devtoolsConfig',
 }
 
 interface ServerErrorAction {
@@ -31,7 +36,7 @@ interface ServerErrorAction {
 }
 
 export interface TurbopackMessageAction {
-  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
+  action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
   data: TurbopackUpdate | TurbopackUpdate[]
 }
 
@@ -39,22 +44,30 @@ interface BuildingAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING
 }
 
-interface FinishBuildingAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.FINISH_BUILDING
+export interface CompilationError {
+  moduleName?: string
+  message: string
+  details?: string
+  moduleTrace?: Array<{ moduleName?: string }>
+  stack?: string
 }
-
 export interface SyncAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC
   hash: string
-  errors: ReadonlyArray<unknown>
-  warnings: ReadonlyArray<unknown>
+  errors: ReadonlyArray<CompilationError>
+  warnings: ReadonlyArray<CompilationError>
   versionInfo: VersionInfo
+  updatedModules?: ReadonlyArray<string>
+  debug?: DebugInfo
+  devIndicator: DevIndicatorServerState
+  devToolsConfig?: DevToolsConfig
 }
 interface BuiltAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
   hash: string
-  errors: ReadonlyArray<unknown>
-  warnings: ReadonlyArray<unknown>
+  errors: ReadonlyArray<CompilationError>
+  warnings: ReadonlyArray<CompilationError>
+  updatedModules?: ReadonlyArray<string>
 }
 
 interface AddedPageAction {
@@ -69,10 +82,12 @@ interface RemovedPageAction {
 
 export interface ReloadPageAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE
+  data: string
 }
 
 interface ServerComponentChangesAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+  hash: string
 }
 
 interface MiddlewareChangesAction {
@@ -93,19 +108,29 @@ interface DevPagesManifestUpdateAction {
   data: [
     {
       devPagesManifest: true
-    }
+    },
   ]
 }
 
 export interface TurbopackConnectedAction {
-  type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+  action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+  data: { sessionId: number }
+}
+
+export interface AppIsrManifestAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST
+  data: Record<string, boolean>
+}
+
+export interface DevToolsConfigAction {
+  action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG
+  data: DevToolsConfig
 }
 
 export type HMR_ACTION_TYPES =
   | TurbopackMessageAction
   | TurbopackConnectedAction
   | BuildingAction
-  | FinishBuildingAction
   | SyncAction
   | BuiltAction
   | AddedPageAction
@@ -117,6 +142,15 @@ export type HMR_ACTION_TYPES =
   | ServerOnlyChangesAction
   | DevPagesManifestUpdateAction
   | ServerErrorAction
+  | AppIsrManifestAction
+  | DevToolsConfigAction
+
+export type TurbopackMsgToBrowser =
+  | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE; data: any }
+  | {
+      type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+      data: { sessionId: number }
+    }
 
 export interface NextJsHotReloaderInterface {
   turbopackProject?: Project
@@ -132,15 +166,19 @@ export interface NextJsHotReloaderInterface {
   setHmrServerError(error: Error | null): void
   clearHmrServerError(): void
   start(): Promise<void>
-  stop(): Promise<void>
   send(action: HMR_ACTION_TYPES): void
   getCompilationErrors(page: string): Promise<any[]>
-  onHMR(req: IncomingMessage, _socket: Duplex, head: Buffer): void
+  onHMR(
+    req: IncomingMessage,
+    _socket: Duplex,
+    head: Buffer,
+    onUpgrade: (client: { send(data: string): void }) => void
+  ): void
   invalidate({
     reloadAfterInvalidation,
   }: {
     reloadAfterInvalidation: boolean
-  }): void
+  }): Promise<void> | void
   buildFallbackError(): Promise<void>
   ensurePage({
     page,
@@ -157,4 +195,5 @@ export interface NextJsHotReloaderInterface {
     definition: RouteDefinition | undefined
     url?: string
   }): Promise<void>
+  close(): void
 }

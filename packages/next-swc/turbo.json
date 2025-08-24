@@ -1,0 +1,158 @@
+{
+  "$schema": "https://turborepo.org/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build-native": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../Cargo.toml",
+        "../../Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "env": ["CI"],
+      "outputs": ["native/*.node"]
+    },
+    "build-native-release": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "env": ["CI"],
+      "outputs": ["native/*.node"]
+    },
+    "build-native-release-with-assertions": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "env": ["CI"],
+      "outputs": ["native/*.node"]
+    },
+    "build-native-no-plugin": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "env": ["CI"],
+      "outputs": ["native/*.node"]
+    },
+    "build-native-no-plugin-release": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "env": ["CI"],
+      "outputs": ["native/*.node"]
+    },
+    "build-wasm": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "env": ["CI"],
+      "outputs": ["../../crates/wasm/pkg/*"]
+    },
+    "build-native-wasi": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "env": ["CI"],
+      "outputs": ["native/*"]
+    },
+    "cache-build-native": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "env": ["CI"],
+      "outputs": ["native/*.node"]
+    },
+    "rust-check": {
+      "dependsOn": ["rust-check-fmt", "rust-check-clippy", "rust-check-napi"]
+    },
+    "rust-check-fmt": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ],
+      "cache": false
+    },
+    "rust-check-clippy": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ]
+    },
+    "rust-check-napi": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ]
+    },
+    "test-cargo-unit": {
+      "inputs": [
+        "../../.cargo/**",
+        "../../crates/**",
+        "../../turbopack/crates/**",
+        "../../**/Cargo.toml",
+        "../../**/Cargo.lock",
+        "../../.github/workflows/build_and_deploy.yml",
+        "../../rust-toolchain"
+      ]
+    }
+  }
+}

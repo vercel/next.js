@@ -12,6 +12,7 @@ export interface ParsedUrl {
   protocol?: string | null
   query: ParsedUrlQuery
   search: string
+  slashes: boolean | undefined
 }
 
 export function parseUrl(url: string): ParsedUrl {
@@ -29,5 +30,10 @@ export function parseUrl(url: string): ParsedUrl {
     protocol: parsedURL.protocol,
     query: searchParamsToUrlQuery(parsedURL.searchParams),
     search: parsedURL.search,
+    slashes:
+      parsedURL.href.slice(
+        parsedURL.protocol.length,
+        parsedURL.protocol.length + 2
+      ) === '//',
   }
 }

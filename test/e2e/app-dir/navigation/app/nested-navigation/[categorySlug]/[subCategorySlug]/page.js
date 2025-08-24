@@ -3,7 +3,7 @@ import { fetchSubCategory } from '../../getCategories'
 
 export default function Page({ params }) {
   const category = use(
-    fetchSubCategory(params.categorySlug, params.subCategorySlug)
+    fetchSubCategory(use(params).categorySlug, use(params).subCategorySlug)
   )
   if (!category) return null
 

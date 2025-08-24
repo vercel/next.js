@@ -1,60 +1,60 @@
-import { NextApiRequest, NextApiResponse } from 'next'
-import dbConnect from '../../../lib/dbConnect'
-import Pet from '../../../models/Pet'
+import { NextApiRequest, NextApiResponse } from "next";
+import dbConnect from "../../../lib/dbConnect";
+import Pet from "../../../models/Pet";
 
 export default async function handler(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
   const {
     query: { id },
     method,
-  } = req
+  } = req;
 
-  await dbConnect()
+  await dbConnect();
 
   switch (method) {
-    case 'GET' /* Get a model by its ID */:
+    case "GET" /* Get a model by its ID */:
       try {
-        const pet = await Pet.findById(id)
+        const pet = await Pet.findById(id);
         if (!pet) {
-          return res.status(400).json({ success: false })
+          return res.status(400).json({ success: false });
         }
-        res.status(200).json({ success: true, data: pet })
+        res.status(200).json({ success: true, data: pet });
       } catch (error) {
-        res.status(400).json({ success: false })
+        res.status(400).json({ success: false });
       }
-      break
+      break;
 
-    case 'PUT' /* Edit a model by its ID */:
+    case "PUT" /* Edit a model by its ID */:
       try {
         const pet = await Pet.findByIdAndUpdate(id, req.body, {
           new: true,
           runValidators: true,
-        })
+        });
         if (!pet) {
-          return res.status(400).json({ success: false })
+          return res.status(400).json({ success: false });
         }
-        res.status(200).json({ success: true, data: pet })
+        res.status(200).json({ success: true, data: pet });
       } catch (error) {
-        res.status(400).json({ success: false })
+        res.status(400).json({ success: false });
       }
-      break
+      break;
 
-    case 'DELETE' /* Delete a model by its ID */:
+    case "DELETE" /* Delete a model by its ID */:
       try {
-        const deletedPet = await Pet.deleteOne({ _id: id })
+        const deletedPet = await Pet.deleteOne({ _id: id });
         if (!deletedPet) {
-          return res.status(400).json({ success: false })
+          return res.status(400).json({ success: false });
         }
-        res.status(200).json({ success: true, data: {} })
+        res.status(200).json({ success: true, data: {} });
       } catch (error) {
-        res.status(400).json({ success: false })
+        res.status(400).json({ success: false });
       }
-      break
+      break;
 
     default:
-      res.status(400).json({ success: false })
-      break
+      res.status(400).json({ success: false });
+      break;
   }
 }

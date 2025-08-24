@@ -1,3 +1,3 @@
-const Bar = () => <strong>bar</strong>
+const Bar = () => <strong>bar</strong>;
 
-export default Bar
+export default Bar;

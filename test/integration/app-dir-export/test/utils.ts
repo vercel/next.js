@@ -6,12 +6,13 @@ import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import globOrig from 'glob'
 import {
+  assertHasRedbox,
   check,
   fetchViaHTTP,
   File,
   findPort,
   getRedboxHeader,
-  hasRedbox,
+  getRedboxSource,
   killApp,
   launchApp,
   nextBuild,
@@ -31,9 +32,18 @@ export const expectedWhenTrailingSlashTrue = [
   '404.html',
   '404/index.html',
   // Turbopack and plain next.js have different hash output for the file name
+  // Turbopack will output favicon in the _next/static/media folder
+  ...(process.env.IS_TURBOPACK_TEST
+    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    : []),
   expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
+  ...(process.env.IS_TURBOPACK_TEST
+    ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
+    : []),
   '_next/static/test-build-id/_ssgManifest.js',
+  '_not-found/index.html',
+  '_not-found/index.txt',
   'another/first/index.html',
   'another/first/index.txt',
   'another/index.html',
@@ -54,9 +64,18 @@ export const expectedWhenTrailingSlashTrue = [
 
 const expectedWhenTrailingSlashFalse = [
   '404.html',
+  // Turbopack will output favicon in the _next/static/media folder
+  ...(process.env.IS_TURBOPACK_TEST
+    ? [expect.stringMatching(/_next\/static\/media\/favicon\.[0-9a-f]+\.ico/)]
+    : []),
   expect.stringMatching(/_next\/static\/media\/test\.[0-9a-f]+\.png/),
   '_next/static/test-build-id/_buildManifest.js',
+  ...(process.env.IS_TURBOPACK_TEST
+    ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
+    : []),
   '_next/static/test-build-id/_ssgManifest.js',
+  '_not-found.html',
+  '_not-found.txt',
   'another.html',
   'another.txt',
   'another/first.html',
@@ -91,6 +110,7 @@ export async function runTests({
   isDev = false,
   trailingSlash = true,
   dynamicPage,
+  dynamicParams,
   dynamicApiRoute,
   generateStaticParamsOpt,
   expectedErrMsg,
@@ -98,9 +118,10 @@ export async function runTests({
   isDev?: boolean
   trailingSlash?: boolean
   dynamicPage?: string
+  dynamicParams?: string
   dynamicApiRoute?: string
   generateStaticParamsOpt?: 'set noop' | 'set client'
-  expectedErrMsg?: string
+  expectedErrMsg?: string | RegExp
 }) {
   if (trailingSlash !== undefined) {
     nextConfig.replace(
@@ -108,18 +129,25 @@ export async function runTests({
       `trailingSlash: ${trailingSlash},`
     )
   }
+
   if (dynamicPage !== undefined) {
     slugPage.replace(
-      `const dynamic = 'force-static'`,
-      `const dynamic = ${dynamicPage}`
+      `export const dynamic = 'force-static'`,
+      dynamicPage === 'undefined' ? '' : `export const dynamic = ${dynamicPage}`
     )
   }
+
   if (dynamicApiRoute !== undefined) {
     apiJson.replace(
-      `const dynamic = 'force-static'`,
-      `const dynamic = ${dynamicApiRoute}`
+      `export const dynamic = 'force-static'`,
+      `export const dynamic = ${dynamicApiRoute}`
     )
   }
+
+  if (dynamicParams !== undefined) {
+    slugPage.prepend(`export const dynamicParams = ${dynamicParams}\n`)
+  }
+
   if (generateStaticParamsOpt === 'set noop') {
     slugPage.replace('export function generateStaticParams', 'function noop')
   } else if (generateStaticParamsOpt === 'set client') {
@@ -153,8 +181,14 @@ export async function runTests({
       if (isDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
         const browser = await webdriver(port, url)
-        expect(await hasRedbox(browser, true)).toBe(true)
-        expect(await getRedboxHeader(browser)).toContain(expectedErrMsg)
+        await assertHasRedbox(browser)
+        const header = await getRedboxHeader(browser)
+        const source = await getRedboxSource(browser)
+        if (expectedErrMsg instanceof RegExp) {
+          expect(`${header}\n${source}`).toContain(expectedErrMsg)
+        } else {
+          expect(`${header}\n${source}`).toContain(expectedErrMsg)
+        }
       } else {
         await check(() => result.stderr, /error/i)
       }
@@ -209,8 +243,8 @@ export async function runTests({
 
       await check(() => browser.elementByCss('h1').text(), 'Image Import')
       expect(await browser.elementByCss(a(2)).text()).toBe('View the image')
-      expect(await browser.elementByCss(a(2)).getAttribute('href')).toContain(
-        '/test.3f1a293b.png'
+      expect(await browser.elementByCss(a(2)).getAttribute('href')).toMatch(
+        /\/test\.(.*)\.png/
       )
       const res1 = await fetchViaHTTP(port, '/api/json')
       expect(res1.status).toBe(200)

@@ -14,6 +14,10 @@ module.exports = {
         source: '/blog-:param',
         destination: '/blog/post-3',
       },
+      {
+        source: '/rewrite-source/:path+',
+        destination: '/rewrite-target',
+      },
     ]
   },
 }

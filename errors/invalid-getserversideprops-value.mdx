@@ -10,7 +10,7 @@ In one of the page's `getServerSideProps` the return value had the incorrect sha
 
 Make sure to return the following shape from `getServerSideProps`:
 
-```ts filename="pages/example.js"
+```tsx filename="pages/example.tsx"
 export async function getServerSideProps(ctx: GetServerSidePropsContext) {
   return {
     props: { [key: string]: any }

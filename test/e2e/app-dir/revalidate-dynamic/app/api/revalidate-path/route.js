@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
-import { revalidatePath } from 'next/cache'
+import { unstable_expirePath } from 'next/cache'
 
 export async function GET(req) {
-  revalidatePath('/')
+  unstable_expirePath('/')
   return NextResponse.json({ revalidated: true, now: Date.now() })
 }

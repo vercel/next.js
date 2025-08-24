@@ -1,0 +1,147 @@
+[
+    (
+        "a",
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Constant(
+                    Str(
+                        Atom(
+                            "",
+                        ),
+                    ),
+                ),
+                Concat(
+                    3,
+                    [
+                        Variable(
+                            (
+                                "a",
+                                #2,
+                            ),
+                        ),
+                        Constant(
+                            Str(
+                                Atom(
+                                    "x",
+                                ),
+                            ),
+                        ),
+                    ],
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "b",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported assign operation",
+                    has_side_effects: true,
+                },
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "c",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+                Unknown {
+                    original_value: None,
+                    reason: "updated with update expression",
+                    has_side_effects: true,
+                },
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "d",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "e",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "f",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+]

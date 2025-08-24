@@ -98,30 +98,33 @@ const runTests = (isDev = false) => {
   }
 }
 
-describe('AMP SSG Support', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-      // TODO: use browser instead to do checks that now need filesystem access
-      builtServerPagesDir = join(appDir, '.next', 'server', 'pages')
+// Turbopack does not support AMP rendering.
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+  'AMP SSG Support',
+  () => {
+    describe('production mode', () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+        // TODO: use browser instead to do checks that now need filesystem access
+        builtServerPagesDir = join(appDir, '.next', 'server', 'pages')
+      })
+      afterAll(() => killApp(app))
+      runTests()
     })
-    afterAll(() => killApp(app))
-    runTests()
-  })
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
+
+    describe('development mode', () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
+      runTests(true)
     })
-    afterAll(() => killApp(app))
-    runTests(true)
-  })
-  describe('export mode', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
-      'production mode',
-      () => {
+
+    describe('export mode', () => {
+      describe('production mode', () => {
         let buildId
 
         beforeAll(async () => {
@@ -151,7 +154,7 @@ describe('AMP SSG Support', () => {
             await fsExists(outFile(join('_next/data', buildId, 'hybrid.json')))
           ).toBe(true)
         })
-      }
-    )
-  })
-})
+      })
+    })
+  }
+)

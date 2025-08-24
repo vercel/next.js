@@ -1,5 +1,7 @@
+/** @type {import('next').NextConfig} */
 module.exports = {
+  deploymentId: process.env.CUSTOM_DEPLOYMENT_ID,
   experimental: {
-    useDeploymentId: !!process.env.USE_DEPLOYMENT_ID,
+    useSkewCookie: Boolean(process.env.COOKIE_SKEW),
   },
 }

@@ -1,8 +1,9 @@
-import { revalidateTag } from 'next/cache'
+import { unstable_expireTag } from 'next/cache'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
 
 export default async function Page() {
+  const randomCookie = (await cookies()).get('random')
   const data = await fetch(
     'https://next-data-api-endpoint.vercel.app/api/random?page',
     {
@@ -25,7 +26,7 @@ export default async function Page() {
           id="revalidate-tag"
           formAction={async () => {
             'use server'
-            revalidateTag('thankyounext')
+            unstable_expireTag('thankyounext')
           }}
         >
           revalidate thankyounext
@@ -33,9 +34,7 @@ export default async function Page() {
       </form>
       <p>
         random cookie:{' '}
-        <span id="random-cookie">
-          {JSON.stringify(cookies().get('random'))}
-        </span>
+        <span id="random-cookie">{JSON.stringify(randomCookie)}</span>
       </p>
     </>
   )

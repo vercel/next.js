@@ -1,18 +1,18 @@
-'use client'
+"use client";
 
-import React from 'react'
-import Root from 'payload/dist/admin/Root'
+import React from "react";
+import Root from "payload/dist/admin/Root";
 
 const PayloadAdmin = () => {
-  const [mounted, setMounted] = React.useState(false)
+  const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
-  if (!mounted) return null
+  if (!mounted) return null;
 
-  return <Root />
-}
+  return <Root />;
+};
 
-export default PayloadAdmin
+export default PayloadAdmin;

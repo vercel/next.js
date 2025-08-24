@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 describe('eslint plugin deps', () => {
@@ -84,6 +84,44 @@ describe('eslint plugin deps', () => {
   }
 }
         `,
+        'tsconfig.json': `{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": false,
+    // The rule @typescript-eslint/no-unnecessary-boolean-literal-compare requires the \`strictNullChecks\` compiler option to be turned on to function correctly.
+    "strictNullChecks": true,
+    "noEmit": true,
+    "incremental": true,
+    "module": "esnext",
+    "esModuleInterop": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+  ]
+}
+        `,
       },
       dependencies: {
         // Manually installed @typescript-eslint/eslint-plugin, expect to be deduped
@@ -95,7 +133,8 @@ describe('eslint plugin deps', () => {
         '@types/node': 'latest',
         '@types/react': 'latest',
         '@types/react-dom': 'latest',
-        eslint: 'latest',
+        // Use minimum peer dep version instead of v9 of eslint to avoid breaking changes
+        eslint: '8.56.0',
         'eslint-config-next': 'latest',
         typescript: 'latest',
       },

@@ -1,4 +1,4 @@
-import Image from 'next/image'
+import Image from "next/image";
 
 export default function Feature({ headline, description, icon }) {
   return (
@@ -13,5 +13,5 @@ export default function Feature({ headline, description, icon }) {
         </div>
       </div>
     </div>
-  )
+  );
 }

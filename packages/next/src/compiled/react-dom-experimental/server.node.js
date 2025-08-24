@@ -2,8 +2,8 @@
 
 var l, s;
 if (process.env.NODE_ENV === 'production') {
-  l = require('./cjs/react-dom-server-legacy.node.production.min.js');
-  s = require('./cjs/react-dom-server.node.production.min.js');
+  l = require('./cjs/react-dom-server-legacy.node.production.js');
+  s = require('./cjs/react-dom-server.node.production.js');
 } else {
   l = require('./cjs/react-dom-server-legacy.node.development.js');
   s = require('./cjs/react-dom-server.node.development.js');
@@ -12,9 +12,11 @@ if (process.env.NODE_ENV === 'production') {
 exports.version = l.version;
 exports.renderToString = l.renderToString;
 exports.renderToStaticMarkup = l.renderToStaticMarkup;
-exports.renderToNodeStream = l.renderToNodeStream;
-exports.renderToStaticNodeStream = l.renderToStaticNodeStream;
 exports.renderToPipeableStream = s.renderToPipeableStream;
+exports.renderToReadableStream = s.renderToReadableStream;
 if (s.resumeToPipeableStream) {
   exports.resumeToPipeableStream = s.resumeToPipeableStream;
+}
+if (s.resume) {
+  exports.resume = s.resume;
 }

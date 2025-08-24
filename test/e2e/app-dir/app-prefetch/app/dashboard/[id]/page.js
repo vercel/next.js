@@ -12,7 +12,8 @@ export function generateStaticParams() {
   return [{ id: 'static' }]
 }
 
-export default function IdPage({ params }) {
+export default function IdPage(props) {
+  const params = use(props.params)
   const data = use(getData())
   console.log(data)
 

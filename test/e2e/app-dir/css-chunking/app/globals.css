@@ -1,0 +1,12 @@
+:root {
+  --maxWidth: 1210px;
+}
+
+html,
+body {
+  background: #000;
+}
+
+a {
+  color: aqua;
+}

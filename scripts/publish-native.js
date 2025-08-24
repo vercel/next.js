@@ -11,12 +11,10 @@ const cwd = process.cwd()
   try {
     const publishSema = new Sema(2)
 
-    let version = JSON.parse(
-      await readFile(path.join(cwd, 'lerna.json'))
-    ).version
+    let version = require('@next/swc/package.json').version
 
     // Copy binaries to package folders, update version, and publish
-    let nativePackagesDir = path.join(cwd, 'packages/next-swc/crates/napi/npm')
+    let nativePackagesDir = path.join(cwd, 'crates/napi/npm')
     let platforms = (await readdir(nativePackagesDir)).filter(
       (name) => !name.startsWith('.')
     )
@@ -24,6 +22,7 @@ const cwd = process.cwd()
     await Promise.all(
       platforms.map(async (platform) => {
         await publishSema.acquire()
+        let output = ''
 
         try {
           let binaryName = `next-swc.${platform}.node`
@@ -41,7 +40,7 @@ const cwd = process.cwd()
             path.join(nativePackagesDir, platform, 'package.json'),
             JSON.stringify(pkg, null, 2)
           )
-          await execa(
+          const child = execa(
             `npm`,
             [
               `publish`,
@@ -52,14 +51,20 @@ const cwd = process.cwd()
             ],
             { stdio: 'inherit' }
           )
+          const handleData = (type) => (chunk) => {
+            process[type].write(chunk)
+            output += chunk.toString()
+          }
+          child.stdout?.on('data', handleData('stdout'))
+          child.stderr?.on('data', handleData('stderr'))
+          await child
         } catch (err) {
           // don't block publishing other versions on single platform error
           console.error(`Failed to publish`, platform, err)
 
           if (
-            err.message &&
-            err.message.includes(
-              'You cannot publish over the previously published versions'
+            output.includes(
+              'cannot publish over the previously published versions'
             )
           ) {
             console.error('Ignoring already published error', platform, err)
@@ -73,7 +78,7 @@ const cwd = process.cwd()
     )
 
     // Update name/version of wasm packages and publish
-    const pkgDirectory = 'packages/next-swc/crates/wasm'
+    const pkgDirectory = 'crates/wasm'
     let wasmDir = path.join(cwd, pkgDirectory)
     await Promise.all(
       ['web', 'nodejs'].map(async (wasmTarget) => {

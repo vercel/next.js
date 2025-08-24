@@ -3,8 +3,8 @@ import type { IncomingMessage, ServerResponse } from 'http'
 import type { NextConfigComplete } from '../../config-shared'
 import type { RenderServer, initialize } from '../router-server'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
-import type { Redirect } from '../../../../types'
-import type { Header } from '../../../lib/load-custom-routes'
+import type { Redirect } from '../../../types'
+import type { Header, Rewrite } from '../../../lib/load-custom-routes'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { NextUrlWithParsedQuery } from '../../request-meta'
 
@@ -18,17 +18,19 @@ import { formatHostname } from '../format-hostname'
 import { toNodeOutgoingHttpHeaders } from '../../web/utils'
 import { isAbortError } from '../../pipe-readable'
 import { getHostname } from '../../../shared/lib/get-hostname'
-import { getRedirectStatus } from '../../../lib/redirect-status'
+import {
+  getRedirectStatus,
+  allowedStatusCodes,
+} from '../../../lib/redirect-status'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
-import { relativizeURL } from '../../../shared/lib/router/utils/relativize-url'
+import { getRelativeURL } from '../../../shared/lib/router/utils/relativize-url'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-locale'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
-import { NextDataPathnameNormalizer } from '../../future/normalizers/request/next-data'
-import { BasePathPathnameNormalizer } from '../../future/normalizers/request/base-path'
-import { PostponedPathnameNormalizer } from '../../future/normalizers/request/postponed'
+import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
+import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
 
 import { addRequestMeta } from '../../request-meta'
 import {
@@ -36,8 +38,16 @@ import {
   matchHas,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
-import { createRequestResponseMocks } from '../mock-request'
 import type { TLSSocket } from 'tls'
+import {
+  NEXT_REWRITTEN_PATH_HEADER,
+  NEXT_REWRITTEN_QUERY_HEADER,
+  NEXT_ROUTER_STATE_TREE_HEADER,
+  RSC_HEADER,
+} from '../../../client/components/app-router-headers'
+import { getSelectedParams } from '../../../client/components/router-reducer/compute-changed-path'
+import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
+import { parseAndValidateFlightRouterState } from '../../app-render/parse-and-validate-flight-router-state'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
@@ -137,7 +147,7 @@ export function getResolveRoutes(
     // TODO: inherit this from higher up
     const protocol =
       (req?.socket as TLSSocket)?.encrypted ||
-      req.headers['x-forwarded-proto'] === 'https'
+      req.headers['x-forwarded-proto']?.includes('https')
         ? 'https'
         : 'http'
 
@@ -145,10 +155,10 @@ export function getResolveRoutes(
     const initUrl = (config.experimental as any).trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
-      ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
-          opts.port
-        }${req.url}`
-      : req.url || ''
+        ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
+            opts.port
+          }${req.url}`
+        : req.url || ''
 
     addRequestMeta(req, 'initURL', initUrl)
     addRequestMeta(req, 'initQuery', { ...parsedUrl.query })
@@ -181,8 +191,19 @@ export function getResolveRoutes(
         parsedUrl.pathname || '',
         config.basePath
       )
+      let normalizedPath = parsedUrl.pathname || '/'
+
+      if (config.basePath && pathHasPrefix(normalizedPath, config.basePath)) {
+        normalizedPath = removePathPrefix(normalizedPath, config.basePath)
+      } else if (
+        config.assetPrefix &&
+        pathHasPrefix(normalizedPath, config.assetPrefix)
+      ) {
+        normalizedPath = removePathPrefix(normalizedPath, config.assetPrefix)
+      }
+
       initialLocaleResult = normalizeLocalePath(
-        removePathPrefix(parsedUrl.pathname || '/', config.basePath),
+        normalizedPath,
         config.i18n.locales
       )
 
@@ -192,9 +213,12 @@ export function getResolveRoutes(
       )
       defaultLocale = domainLocale?.defaultLocale || config.i18n.defaultLocale
 
-      parsedUrl.query.__nextDefaultLocale = defaultLocale
-      parsedUrl.query.__nextLocale =
+      addRequestMeta(req, 'defaultLocale', defaultLocale)
+      addRequestMeta(
+        req,
+        'locale',
         initialLocaleResult.detectedLocale || defaultLocale
+      )
 
       // ensure locale is present for resolving routes
       if (
@@ -229,7 +253,7 @@ export function getResolveRoutes(
     }
 
     async function checkTrue() {
-      const pathname = parsedUrl.pathname || ''
+      const pathname = parsedUrl.pathname || '/'
 
       if (checkLocaleApi(pathname)) {
         return
@@ -283,7 +307,7 @@ export function getResolveRoutes(
           }
 
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
-            parsedUrl.query.__nextDataReq = '1'
+            addRequestMeta(req, 'isNextDataReq', true)
           }
 
           if (config.useFileSystemPublicRoutes || didRewrite) {
@@ -299,13 +323,10 @@ export function getResolveRoutes(
           ? new BasePathPathnameNormalizer(config.basePath)
           : undefined,
       data: new NextDataPathnameNormalizer(fsChecker.buildId),
-      postponed: config.experimental.ppr
-        ? new PostponedPathnameNormalizer()
-        : undefined,
     }
 
     async function handleRoute(
-      route: (typeof routes)[0]
+      route: Route
     ): Promise<UnwrapPromise<ReturnType<typeof resolveRoutes>> | void> {
       let curPathname = parsedUrl.pathname || '/'
 
@@ -359,9 +380,12 @@ export function getResolveRoutes(
       }
 
       if (params) {
-        if (fsChecker.interceptionRoutes && route.name === 'before_files_end') {
-          for (const interceptionRoute of fsChecker.interceptionRoutes) {
-            const result = await handleRoute(interceptionRoute)
+        if (
+          fsChecker.exportPathMapRoutes &&
+          route.name === 'before_files_end'
+        ) {
+          for (const exportPathMapRoute of fsChecker.exportPathMapRoutes) {
+            const result = await handleRoute(exportPathMapRoute)
 
             if (result) {
               return result
@@ -382,18 +406,29 @@ export function getResolveRoutes(
             let updated = false
             if (normalizers.data.match(normalized)) {
               updated = true
-              parsedUrl.query.__nextDataReq = '1'
+              addRequestMeta(req, 'isNextDataReq', true)
               normalized = normalizers.data.normalize(normalized, true)
-            } else if (normalizers.postponed?.match(normalized)) {
-              updated = true
-              normalized = normalizers.postponed.normalize(normalized, true)
+            }
+
+            if (config.i18n) {
+              const curLocaleResult = normalizeLocalePath(
+                normalized,
+                config.i18n.locales
+              )
+
+              if (curLocaleResult.detectedLocale) {
+                addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
+              }
             }
 
             // If we updated the pathname, and it had a base path, re-add the
             // base path.
             if (updated) {
               if (hadBasePath) {
-                normalized = path.posix.join(config.basePath, normalized)
+                normalized =
+                  normalized === '/'
+                    ? config.basePath
+                    : path.posix.join(config.basePath, normalized)
               }
 
               // Re-add the trailing slash (if required).
@@ -405,7 +440,7 @@ export function getResolveRoutes(
         }
 
         if (route.name === 'check_fs') {
-          const pathname = parsedUrl.pathname || ''
+          const pathname = parsedUrl.pathname || '/'
 
           if (invokedOutputs?.has(pathname) || checkLocaleApi(pathname)) {
             return
@@ -428,7 +463,7 @@ export function getResolveRoutes(
               matchedOutput = output
 
               if (output.locale) {
-                parsedUrl.query.__nextLocale = output.locale
+                addRequestMeta(req, 'locale', output.locale)
               }
               return {
                 parsedUrl,
@@ -442,50 +477,44 @@ export function getResolveRoutes(
 
         if (!opts.minimalMode && route.name === 'middleware') {
           const match = fsChecker.getMiddlewareMatchers()
+          let maybeDecodedPathname = parsedUrl.pathname || '/'
+
+          try {
+            maybeDecodedPathname = decodeURIComponent(maybeDecodedPathname)
+          } catch {
+            /* non-fatal we can't decode so can't match it */
+          }
+
           if (
             // @ts-expect-error BaseNextRequest stuff
-            match?.(parsedUrl.pathname, req, parsedUrl.query)
+            match?.(parsedUrl.pathname, req, parsedUrl.query) ||
+            match?.(
+              maybeDecodedPathname,
+              // @ts-expect-error BaseNextRequest stuff
+              req,
+              parsedUrl.query
+            )
           ) {
             if (ensureMiddleware) {
               await ensureMiddleware(req.url)
             }
 
-            const serverResult = await renderServer?.initialize(
-              renderServerOpts
-            )
+            const serverResult =
+              await renderServer?.initialize(renderServerOpts)
 
             if (!serverResult) {
               throw new Error(`Failed to initialize render server "middleware"`)
             }
 
-            const invokeHeaders: typeof req.headers = {
-              'x-invoke-path': '',
-              'x-invoke-query': '',
-              'x-invoke-output': '',
-              'x-middleware-invoke': '1',
-            }
-            Object.assign(req.headers, invokeHeaders)
-
-            debug('invoking middleware', req.url, invokeHeaders)
+            addRequestMeta(req, 'invokePath', '')
+            addRequestMeta(req, 'invokeOutput', '')
+            addRequestMeta(req, 'invokeQuery', {})
+            addRequestMeta(req, 'middlewareInvoke', true)
+            debug('invoking middleware', req.url, req.headers)
 
             let middlewareRes: Response | undefined = undefined
             let bodyStream: ReadableStream | undefined = undefined
             try {
-              let readableController: ReadableStreamController<Buffer>
-              const { res: mockedRes } = await createRequestResponseMocks({
-                url: req.url || '/',
-                method: req.method || 'GET',
-                headers: filterReqHeaders(invokeHeaders, ipcForbiddenHeaders),
-                resWriter(chunk) {
-                  readableController.enqueue(Buffer.from(chunk))
-                  return true
-                },
-              })
-
-              mockedRes.on('close', () => {
-                readableController.close()
-              })
-
               try {
                 await serverResult.requestHandler(req, res, parsedUrl)
               } catch (err: any) {
@@ -586,13 +615,18 @@ export function getResolveRoutes(
                   'x-middleware-rewrite',
                   'x-middleware-redirect',
                   'x-middleware-refresh',
-                  'x-middleware-invoke',
-                  'x-invoke-path',
-                  'x-invoke-query',
                 ].includes(key)
               ) {
                 continue
               }
+
+              // for set-cookie, the header shouldn't be added to the response
+              // as it's only needed for the request to the middleware function.
+              if (key === 'x-middleware-set-cookie') {
+                req.headers[key] = value
+                continue
+              }
+
               if (value) {
                 resHeaders[key] = value
                 req.headers[key] = value
@@ -601,24 +635,16 @@ export function getResolveRoutes(
 
             if (middlewareHeaders['x-middleware-rewrite']) {
               const value = middlewareHeaders['x-middleware-rewrite'] as string
-              const rel = relativizeURL(value, initUrl)
-              resHeaders['x-middleware-rewrite'] = rel
+              const destination = getRelativeURL(value, initUrl)
+              resHeaders['x-middleware-rewrite'] = destination
 
-              const query = parsedUrl.query
-              parsedUrl = url.parse(rel, true)
+              parsedUrl = url.parse(destination, true)
 
               if (parsedUrl.protocol) {
                 return {
                   parsedUrl,
                   resHeaders,
                   finished: true,
-                }
-              }
-
-              // keep internal query state
-              for (const key of Object.keys(query)) {
-                if (key.startsWith('_next') || key.startsWith('__next')) {
-                  parsedUrl.query[key] = query[key]
                 }
               }
 
@@ -629,22 +655,43 @@ export function getResolveRoutes(
                 )
 
                 if (curLocaleResult.detectedLocale) {
-                  parsedUrl.query.__nextLocale = curLocaleResult.detectedLocale
+                  addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
                 }
               }
             }
 
             if (middlewareHeaders['location']) {
               const value = middlewareHeaders['location'] as string
-              const rel = relativizeURL(value, initUrl)
-              resHeaders['location'] = rel
-              parsedUrl = url.parse(rel, true)
 
-              return {
-                parsedUrl,
-                resHeaders,
-                finished: true,
-                statusCode: middlewareRes.status,
+              // Only process Location header as a redirect if it has a proper redirect status
+              // This prevents a Location header with non-redirect status from being treated as a redirect
+              const isRedirectStatus = allowedStatusCodes.has(
+                middlewareRes.status
+              )
+
+              if (isRedirectStatus) {
+                // Process as redirect: update parsedUrl and convert to relative URL
+                const rel = getRelativeURL(value, initUrl)
+                resHeaders['location'] = rel
+                parsedUrl = url.parse(rel, true)
+
+                return {
+                  parsedUrl,
+                  resHeaders,
+                  finished: true,
+                  statusCode: middlewareRes.status,
+                }
+              } else {
+                // Not a redirect: just pass through the Location header
+                resHeaders['location'] = value
+
+                return {
+                  parsedUrl,
+                  resHeaders,
+                  finished: true,
+                  bodyStream,
+                  statusCode: middlewareRes.status,
+                }
               }
             }
 
@@ -713,10 +760,33 @@ export function getResolveRoutes(
 
         // handle rewrite
         if (route.destination) {
+          let rewriteParams = params
+
+          try {
+            // An interception rewrite might reference a dynamic param for a route the user
+            // is currently on, which wouldn't be extractable from the matched route params.
+            // This attempts to extract the dynamic params from the provided router state.
+            if (isInterceptionRouteRewrite(route as Rewrite)) {
+              const stateHeader = req.headers[NEXT_ROUTER_STATE_TREE_HEADER]
+
+              if (stateHeader) {
+                rewriteParams = {
+                  ...getSelectedParams(
+                    parseAndValidateFlightRouterState(stateHeader)
+                  ),
+                  ...params,
+                }
+              }
+            }
+          } catch (err) {
+            // this is a no-op -- we couldn't extract dynamic params from the provided router state,
+            // so we'll just use the params from the route matcher
+          }
+
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: true,
             destination: route.destination,
-            params: params,
+            params: rewriteParams,
             query: parsedUrl.query,
           })
 
@@ -728,6 +798,25 @@ export function getResolveRoutes(
             }
           }
 
+          // Set the rewrite headers only if this is a RSC request.
+          if (req.headers[RSC_HEADER] === '1') {
+            // We set the rewritten path and query headers on the response now
+            // that we know that the it's not an external rewrite.
+            if (parsedUrl.pathname !== parsedDestination.pathname) {
+              res.setHeader(
+                NEXT_REWRITTEN_PATH_HEADER,
+                parsedDestination.pathname
+              )
+            }
+            if (parsedUrl.search !== parsedDestination.search) {
+              res.setHeader(
+                NEXT_REWRITTEN_QUERY_HEADER,
+                // remove the leading ? from the search
+                parsedDestination.search.slice(1)
+              )
+            }
+          }
+
           if (config.i18n) {
             const curLocaleResult = normalizeLocalePath(
               removePathPrefix(parsedDestination.pathname, config.basePath),
@@ -735,7 +824,7 @@ export function getResolveRoutes(
             )
 
             if (curLocaleResult.detectedLocale) {
-              parsedUrl.query.__nextLocale = curLocaleResult.detectedLocale
+              addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
             }
           }
           didRewrite = true

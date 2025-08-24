@@ -1,0 +1,1 @@
+../symlink-target/page.tsx

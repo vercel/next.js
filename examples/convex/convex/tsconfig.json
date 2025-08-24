@@ -16,8 +16,8 @@
     "module": "ESNext",
     "moduleResolution": "Node",
     "isolatedModules": true,
-    "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noEmit": true
   },
   "include": ["./**/*"],
   "exclude": ["./_generated"]

@@ -1,5 +1,5 @@
-@import '@sass/abstracts/mixins';
-@import 'variables';
+@import "@sass/abstracts/mixins";
+@import "variables";
 
 footer {
   @include respond-to(mobile-large) {

@@ -1,0 +1,25 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@meilisearch/instant-meilisearch": "^0.19.3",
+    "autoprefixer": "^10.4.17",
+    "next": "latest",
+    "postcss": "^8.4.35",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-instantsearch": "^7.13.0",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20.7.0",
+    "@types/react": "^18.2.23",
+    "@types/react-dom": "^18.2.8",
+    "@types/react-instantsearch": "^6.10.4"
+  }
+}

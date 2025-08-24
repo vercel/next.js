@@ -1,3 +1,4 @@
+// @ts-nocheck
 /*
 	MIT License http://www.opensource.org/licenses/mit-license.php
 	Author Tobias Koppers @sokra
@@ -35,7 +36,6 @@ module.exports = function () {
 	var currentUpdateApplyHandlers;
 	var queuedInvalidatedModules;
 
-	// eslint-disable-next-line no-unused-vars
 	$hmrModuleData$ = currentModuleData;
 
 	$interceptModuleExecution$.push(function (options) {
@@ -96,8 +96,8 @@ module.exports = function () {
 				Object.defineProperty(fn, name, createPropertyDescriptor(name));
 			}
 		}
-		fn.e = function (chunkId) {
-			return trackBlockingPromise(require.e(chunkId));
+		fn.e = function (chunkId, fetchPriority) {
+			return trackBlockingPromise(require.e(chunkId, fetchPriority));
 		};
 		return fn;
 	}
@@ -202,7 +202,7 @@ module.exports = function () {
 				if (idx >= 0) registeredStatusHandlers.splice(idx, 1);
 			},
 
-			//inherit from previous dispose call
+			// inherit from previous dispose call
 			data: currentModuleData[moduleId]
 		};
 		currentChildModule = undefined;
@@ -216,7 +216,7 @@ module.exports = function () {
 		for (var i = 0; i < registeredStatusHandlers.length; i++)
 			results[i] = registeredStatusHandlers[i].call(null, newStatus);
 
-		return Promise.all(results);
+		return Promise.all(results).then(function () {});
 	}
 
 	function unblock() {
@@ -289,17 +289,15 @@ module.exports = function () {
 								updatedModules
 							);
 							return promises;
-						},
-						[])
+						}, [])
 					).then(function () {
 						return waitForBlockingPromises(function () {
 							if (applyOnUpdate) {
 								return internalApply(applyOnUpdate);
-							} else {
-								return setStatus("ready").then(function () {
-									return updatedModules;
-								});
 							}
+							return setStatus("ready").then(function () {
+								return updatedModules;
+							});
 						});
 					});
 				});

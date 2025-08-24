@@ -1,0 +1,17 @@
+a = ("" | `${???*0*}x`)
+- *0* a
+  ⚠️  circular variable reference
+
+b = (0 | ???*0*)
+- *0* unsupported assign operation
+  ⚠️  This value might have side effects
+
+c = (0 | ???*0*)
+- *0* updated with update expression
+  ⚠️  This value might have side effects
+
+d = (0 | 1)
+
+e = (1 | 2)
+
+f = (1 | 2)

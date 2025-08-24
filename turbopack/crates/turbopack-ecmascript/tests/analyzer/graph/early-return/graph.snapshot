@@ -1,0 +1,222 @@
+[
+    (
+        "a",
+        Function(
+            4,
+            1,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "b",
+        Function(
+            4,
+            67,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "c",
+        Function(
+            4,
+            154,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "d",
+        Function(
+            4,
+            210,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "e",
+        Function(
+            4,
+            287,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "f",
+        Function(
+            4,
+            365,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "g",
+        Function(
+            4,
+            433,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "h",
+        Function(
+            4,
+            521,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Undefined,
+                    ),
+                    FreeVar(
+                        "undefined",
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "i",
+        Function(
+            6,
+            606,
+            Alternatives {
+                total_nodes: 5,
+                values: [
+                    Call(
+                        2,
+                        FreeVar(
+                            "i1",
+                        ),
+                        [],
+                    ),
+                    Call(
+                        2,
+                        FreeVar(
+                            "i2",
+                        ),
+                        [],
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "j#2",
+        Function(
+            6,
+            673,
+            Alternatives {
+                total_nodes: 5,
+                values: [
+                    Call(
+                        2,
+                        FreeVar(
+                            "i1",
+                        ),
+                        [],
+                    ),
+                    Call(
+                        2,
+                        FreeVar(
+                            "i2",
+                        ),
+                        [],
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "j#25",
+        Argument(
+            606,
+            0,
+        ),
+    ),
+    (
+        "j#26",
+        Argument(
+            673,
+            0,
+        ),
+    ),
+]

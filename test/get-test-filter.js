@@ -7,6 +7,11 @@ function getTestFilter() {
     : null
   if (!manifest) return null
 
+  console.log(
+    'Filtering tests using manifest:',
+    process.env.NEXT_EXTERNAL_TESTS_FILTERS
+  )
+
   // For the legacy manifest without a version, we assume it's a complete list
   // of all the tests.
   if (!manifest.version || typeof manifest.version !== 'number') {
@@ -14,12 +19,13 @@ function getTestFilter() {
       tests
         .filter((test) => {
           const info = manifest[test.file]
-          return info && info.passed.length > 0 && !info.runtimeError
+          // Include tests that are not in the manifest
+          return !info || !info.runtimeError
         })
         .map((test) => {
           const info = manifest[test.file]
           // Exclude failing and flakey tests, newly added tests are automatically included
-          if (info.failed.length > 0 || info.flakey.length > 0) {
+          if (info && (info.failed.length > 0 || info.flakey.length > 0)) {
             test.excludedCases = info.failed.concat(info.flakey)
           }
           return test

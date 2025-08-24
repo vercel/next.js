@@ -6,21 +6,18 @@
     "start": "next start"
   },
   "dependencies": {
-    "algoliasearch": "^4.14.2",
-    "instantsearch.css": "^7.4.5",
+    "algoliasearch": "^4.22.0",
+    "instantsearch.css": "^8.1.0",
+    "instantsearch.js": "^4.63.0",
     "next": "latest",
-    "qs": "^6.11.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-instantsearch-dom": "^6.38.0"
+    "react-instantsearch": "^7.5.0",
+    "react-instantsearch-nextjs": "^0.1.7"
   },
   "devDependencies": {
-    "@types/node": "^18.11.9",
-    "@types/qs": "^6.9.7",
-    "@types/react": "^18.0.25",
-    "@types/react-dom": "^18.0.8",
-    "@types/react-instantsearch-core": "^6.26.2",
-    "@types/react-instantsearch-dom": "^6.12.3",
-    "typescript": "^4.8.4"
+    "@types/react": "^18.2.45",
+    "@types/react-dom": "^18.2.18",
+    "typescript": "^5.3.3"
   }
 }

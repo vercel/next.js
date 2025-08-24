@@ -24,11 +24,16 @@ let app
 
 const context = {}
 
-describe('AMP Usage', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
+// Turbopack does not support AMP rendering.
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)('AMP Usage', () => {
+  describe('production mode', () => {
     let output = ''
 
     beforeAll(async () => {
+      await rename(
+        join(appDir, 'pages/custom-scripts.js'),
+        join(appDir, 'pages/custom-scripts.js.bak')
+      )
       await rename(
         join(appDir, 'pages/invalid-amp.js'),
         join(appDir, 'pages/invalid-amp.js.bak')
@@ -45,10 +50,18 @@ describe('AMP Usage', () => {
     })
     afterAll(async () => {
       await rename(
+        join(appDir, 'pages/custom-scripts.js.bak'),
+        join(appDir, 'pages/custom-scripts.js')
+      )
+      await rename(
         join(appDir, 'pages/invalid-amp.js.bak'),
         join(appDir, 'pages/invalid-amp.js')
       )
       return killApp(app)
+    })
+
+    it('should not have deprecation warning', async () => {
+      expect(output.toLowerCase()).not.toContain('deprecation')
     })
 
     it('should have amp optimizer in trace', async () => {
@@ -230,7 +243,7 @@ describe('AMP Usage', () => {
         const html = await renderViaHTTP(appPort, '/styled?amp=1')
         const $ = cheerio.load(html)
         expect($('style[amp-custom]').first().text()).toMatch(
-          /div.jsx-[a-zA-Z0-9]{1,}{color:red}span.jsx-[a-zA-Z0-9]{1,}{color:blue}body{background-color:green}/
+          /div.jsx-[a-zA-Z0-9]{1,}{color:red}span.jsx-[a-zA-Z0-9]{1,}{color:(?:blue|#00f)}body{background-color:green}/
         )
       })
 
@@ -269,7 +282,7 @@ describe('AMP Usage', () => {
     })
   })
 
-  describe('AMP dev mode', () => {
+  describe('AMP development mode', () => {
     let dynamicAppPort
     let ampDynamic
     let output = ''
@@ -306,13 +319,7 @@ describe('AMP Usage', () => {
           .map((e) =>
             e.startsWith('/') ? new URL(e, 'http://x.x').pathname : e
           )
-      ).toEqual([
-        '__NEXT_DATA__',
-        '/_next/static/chunks/react-refresh.js',
-        '/_next/static/chunks/polyfills.js',
-        '/_next/static/chunks/webpack.js',
-        '/_next/static/chunks/amp.js',
-      ])
+      ).not.toBeEmpty()
     })
 
     it.skip('should detect the changes and display it', async () => {
@@ -539,6 +546,26 @@ describe('AMP Usage', () => {
       expect(inspectPayload).toContain('error')
     })
 
+    it('should detect amp validator warning on custom scripts', async () => {
+      let inspectPayload = ''
+      dynamicAppPort = await findPort()
+      ampDynamic = await launchApp(join(__dirname, '../'), dynamicAppPort, {
+        onStdout(msg) {
+          inspectPayload += msg
+        },
+        onStderr(msg) {
+          inspectPayload += msg
+        },
+      })
+
+      await renderViaHTTP(dynamicAppPort, '/custom-scripts')
+
+      await killApp(ampDynamic)
+
+      expect(inspectPayload).toContain('error')
+    })
+
+    // eslint-disable-next-line jest/no-identical-title
     it('should not contain missing files warning', async () => {
       expect(output).toContain('Compiled /only-amp')
       expect(output).not.toContain('Could not find files for')

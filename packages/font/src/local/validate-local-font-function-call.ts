@@ -29,7 +29,7 @@ type FontOptions = {
 }
 
 /**
- * Validate the data recieved from next-swc next-transform-font on next/font/local calls
+ * Validate the data received from next-swc next-transform-font on next/font/local calls
  */
 export function validateLocalFontFunctionCall(
   functionName: string,
@@ -86,13 +86,9 @@ export function validateLocalFontFunctionCall(
   if (Array.isArray(declarations)) {
     declarations.forEach((declaration) => {
       if (
-        [
-          'font-family',
-          'src',
-          'font-display',
-          'font-weight',
-          'font-style',
-        ].includes(declaration?.prop)
+        ['src', 'font-display', 'font-weight', 'font-style'].includes(
+          declaration?.prop
+        )
       ) {
         nextFontError(`Invalid declaration prop: \`${declaration.prop}\``)
       }

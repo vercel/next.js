@@ -1,19 +1,19 @@
-import { useState } from 'react'
-import { useVisitorData } from '@fingerprintjs/fingerprintjs-pro-react'
-import VisitorDataPresenter from '../../components/VisitorDataPresenter'
+import { useState } from "react";
+import { useVisitorData } from "@fingerprintjs/fingerprintjs-pro-react";
+import VisitorDataPresenter from "../../components/VisitorDataPresenter";
 
 function SignInPage() {
-  const [login, setLogin] = useState('')
-  const [password, setPassword] = useState('')
-  const [tag, setTag] = useState('')
+  const [login, setLogin] = useState("");
+  const [password, setPassword] = useState("");
+  const [tag, setTag] = useState("");
 
-  const [ignoreCache, setIgnoreCache] = useState(false)
-  const [extendedResult, setExtendedResult] = useState(false)
+  const [ignoreCache, setIgnoreCache] = useState(false);
+  const [extendedResult, setExtendedResult] = useState(false);
 
   const { getData, data, isLoading, error } = useVisitorData(
     { extendedResult, tag, linkedId: login },
-    { immediate: false }
-  )
+    { immediate: false },
+  );
 
   return (
     <section className="body">
@@ -22,8 +22,8 @@ function SignInPage() {
         <p>
           Another common use-case is when you want to only fingerprint a user
           after they perform some action, in this case - submit a form. For this
-          purpose <code>useVisitorData</code> hook should be called with{' '}
-          <code>immediate</code> flag set to <code>false</code> and call the{' '}
+          purpose <code>useVisitorData</code> hook should be called with{" "}
+          <code>immediate</code> flag set to <code>false</code> and call the{" "}
           <code>getData</code> function on form submission.
         </p>
         <p>
@@ -57,14 +57,14 @@ function SignInPage() {
       <form
         className="form"
         onSubmit={(e) => {
-          e.preventDefault()
+          e.preventDefault();
           getData({ ignoreCache }).then((data) => {
             if (data) {
               // do something with the visitor data
               // for example, append visitor data to the form data to send to your server
-              console.log(data)
+              console.log(data);
             }
-          })
+          });
         }}
       >
         <div className="form-control">
@@ -106,7 +106,7 @@ function SignInPage() {
       </form>
       <VisitorDataPresenter data={data} isLoading={isLoading} error={error} />
     </section>
-  )
+  );
 }
 
-export default SignInPage
+export default SignInPage;

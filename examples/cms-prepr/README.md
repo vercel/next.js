@@ -11,7 +11,7 @@ Check out our Blog page example:
 
 ## How to use
 
-Run one of the following [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) commands using [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to create a new Next.js app and connect it to Prepr:
+Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
 npx create-next-app --example cms-prepr cms-prepr-app
@@ -145,20 +145,31 @@ If you have questions, please [get in touch](https://prepr.io/get-in-touch) with
 
 ## Related examples
 
-- [WordPress](/examples/cms-wordpress)
-- [DatoCMS](/examples/cms-datocms)
-- [Sanity](/examples/cms-sanity)
-- [TakeShape](/examples/cms-takeshape)
-- [Prismic](/examples/cms-prismic)
-- [Contentful](/examples/cms-contentful)
-- [Strapi](/examples/cms-strapi)
-- [Agility CMS](/examples/cms-agilitycms)
-- [Cosmic](/examples/cms-cosmic)
+- [AgilityCMS](/examples/cms-agilitycms)
+- [Builder.io](/examples/cms-builder-io)
 - [ButterCMS](/examples/cms-buttercms)
-- [Storyblok](/examples/cms-storyblok)
-- [Kontent](/examples/cms-kontent)
+- [Contentful](/examples/cms-contentful)
+- [Cosmic](/examples/cms-cosmic)
+- [DatoCMS](/examples/cms-datocms)
+- [DotCMS](/examples/cms-dotcms)
+- [Drupal](/examples/cms-drupal)
+- [Enterspeed](/examples/cms-enterspeed)
 - [Ghost](/examples/cms-ghost)
 - [GraphCMS](/examples/cms-graphcms)
+- [Kontent.ai](/examples/cms-kontent-ai)
+- [MakeSwift](/examples/cms-makeswift)
+- [Payload](/examples/cms-payload)
+- [Plasmic](/examples/cms-plasmic)
+- [Prepr](/examples/cms-prepr)
+- [Prismic](/examples/cms-prismic)
+- [Sanity](/examples/cms-sanity)
+- [Sitecore XM Cloud](/examples/cms-sitecore-xmcloud)
+- [Sitefinity](/examples/cms-sitefinity)
+- [Storyblok](/examples/cms-storyblok)
+- [TakeShape](/examples/cms-takeshape)
+- [Tina](/examples/cms-tina)
+- [Umbraco](/examples/cms-umbraco)
+- [Umbraco heartcore](/examples/cms-umbraco-heartcore)
+- [Webiny](/examples/cms-webiny)
+- [WordPress](/examples/cms-wordpress)
 - [Blog Starter](/examples/blog-starter)
-- [DotCMS](/examples/cms-dotcms)
-- [Enterspeed](/examples/cms-enterspeed)

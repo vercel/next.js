@@ -7,7 +7,7 @@ const http = require('http')
   const requestHandlers = new Map()
   const dev = process.env.NODE_ENV !== 'production'
 
-  for (const appName of ['first', 'second']) {
+  for (const appName of ['host', 'guest']) {
     const appDir = path.join(__dirname, 'apps', appName)
     const nextApp = next({
       dir: appDir,
@@ -20,7 +20,7 @@ const http = require('http')
   }
 
   const server = http.createServer(async (req, res) => {
-    const appName = req.url?.split('/')[1].split('?')[0]
+    const appName = req.url.startsWith('/guest') ? 'guest' : 'host'
     const handler = requestHandlers.get(appName)
 
     if (!handler) {

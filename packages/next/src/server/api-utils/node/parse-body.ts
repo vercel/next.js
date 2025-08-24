@@ -1,8 +1,8 @@
 import type { IncomingMessage } from 'http'
-import type { SizeLimit } from 'next/types'
 
 import { parse } from 'next/dist/compiled/content-type'
 import isError from '../../../lib/is-error'
+import type { SizeLimit } from '../../../types'
 import { ApiError } from '../index'
 
 /**
@@ -58,7 +58,7 @@ export async function parseBody(
   if (type === 'application/json' || type === 'application/ld+json') {
     return parseJson(body)
   } else if (type === 'application/x-www-form-urlencoded') {
-    const qs = require('querystring')
+    const qs = require('querystring') as typeof import('querystring')
     return qs.decode(body)
   } else {
     return body

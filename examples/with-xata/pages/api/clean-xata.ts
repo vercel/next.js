@@ -1,22 +1,22 @@
-import type { NextApiRequest, NextApiResponse } from 'next'
-import { getXataClient } from '../../utils/xata.codegen'
+import type { NextApiRequest, NextApiResponse } from "next";
+import { getXataClient } from "../../utils/xata.codegen";
 
-const xata = getXataClient()
+const xata = getXataClient();
 
 const deleteItem = async (id: string) => {
-  return await xata.db.nextjs_with_xata_example.delete(id)
-}
+  return await xata.db.nextjs_with_xata_example.delete(id);
+};
 
 export async function cleanDummyDataFromXata(
   req: NextApiRequest,
-  res: NextApiResponse
+  res: NextApiResponse,
 ) {
-  const { id } = req.body
-  await deleteItem(id)
+  const { id } = req.body;
+  await deleteItem(id);
 
   res.json({
     ok: true,
-  })
+  });
 }
 
-export default cleanDummyDataFromXata
+export default cleanDummyDataFromXata;

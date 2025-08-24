@@ -4,6 +4,7 @@
 const nextConfig = {
   experimental: {
     ppr: true,
+    prerenderEarlyExit: false,
   },
 }
 

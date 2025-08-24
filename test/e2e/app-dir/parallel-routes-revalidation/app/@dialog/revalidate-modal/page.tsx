@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { revalidatePath } from 'next/cache'
+import { unstable_expirePath } from 'next/cache'
 import { addData } from '../../actions'
 
 export default function Page() {
@@ -9,7 +9,7 @@ export default function Page() {
 
     await addData(new Date().toISOString())
 
-    revalidatePath('/', 'layout')
+    unstable_expirePath('/', 'layout')
   }
 
   return (

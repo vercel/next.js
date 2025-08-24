@@ -1,0 +1,8 @@
+{
+  "name": "unmet-prerelease",
+  "version": "0.0.1",
+  "peerDependencies": {
+    "react": "^18.2.0 || 19.0.0-rc-aaaaaaaa-20240101",
+    "react-dom": "^18.2.0 || 19.0.0-rc-aaaaaaaa-20240101"
+  }
+}

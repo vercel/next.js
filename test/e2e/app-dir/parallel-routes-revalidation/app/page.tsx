@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getData } from './actions'
+import { clearData, getData } from './actions'
 
 export default async function Home() {
   const data = await getData()
@@ -8,11 +8,15 @@ export default async function Home() {
   ).then((res) => res.text())
 
   return (
-    <div>
+    <div id="root-page">
       <Link href="/revalidate-modal">Open Revalidate Modal</Link>
       <Link href="/refresh-modal">Open Refresh Modal</Link>
       <Link href="/redirect-modal">Open Redirect Modal</Link>
+      <Link href="/detail-page">Intercepted Detail Page</Link>
       <div id="random-number">{randomNumber}</div>
+      <form action={clearData}>
+        <button id="clear-entries">Clear Entries</button>
+      </form>
       <div>
         <h1>Current Data</h1>
         <ul id="entries">

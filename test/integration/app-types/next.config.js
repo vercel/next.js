@@ -1,7 +1,12 @@
-export default {
-  experimental: {
-    typedRoutes: true,
-  },
+import createMdx from '@next/mdx'
+
+const withMdx = createMdx()
+
+export default withMdx({
+  typedRoutes: true,
+
+  pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'mdx'],
+
   async rewrites() {
     return [
       {
@@ -40,4 +45,4 @@ export default {
       },
     ]
   },
-}
+})

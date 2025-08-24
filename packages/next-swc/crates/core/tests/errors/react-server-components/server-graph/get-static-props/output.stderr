@@ -1,6 +1,0 @@
-
-  x NEXT_RSC_ERR_INVALID_API: getStaticProps
-   ,-[input.js:1:1]
- 1 | export function getStaticProps() {}
-   :                 ^^^^^^^^^^^^^^
-   `----

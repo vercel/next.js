@@ -123,7 +123,7 @@ sub {
   font-size: 18px;
 }
 
-.form button[type='submit'] {
+.form button[type="submit"] {
   padding: 8px 12px;
   font-size: 16px;
   cursor: pointer;

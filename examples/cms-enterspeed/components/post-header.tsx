@@ -1,17 +1,17 @@
-import Avatar from './avatar'
-import Date from './date'
-import CoverImage from './cover-image'
-import PostTitle from './post-title'
-import Categories from './categories'
-import AuthorType from '../types/authorType'
+import Avatar from "./avatar";
+import Date from "./date";
+import CoverImage from "./cover-image";
+import PostTitle from "./post-title";
+import Categories from "./categories";
+import AuthorType from "../types/authorType";
 
 type Props = {
-  title: string
-  coverImage: string
-  date: string
-  author: AuthorType
-  categories: string[]
-}
+  title: string;
+  coverImage: string;
+  date: string;
+  author: AuthorType;
+  categories: string[];
+};
 
 export default function PostHeader({
   title,
@@ -39,5 +39,5 @@ export default function PostHeader({
         </div>
       </div>
     </>
-  )
+  );
 }

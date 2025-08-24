@@ -1,0 +1,23 @@
+  x "use cache" functions must be async functions.
+  | 
+   ,-[input.js:1:1]
+ 1 | export default function Default() {
+   :                         ^^^^^^^
+ 2 |   'use cache'
+   `----
+  x "use cache" functions must be async functions.
+  | 
+   ,-[input.js:5:1]
+ 4 | 
+ 5 | export function foo() {
+   :                 ^^^
+ 6 |   'use cache'
+   `----
+  x "use cache" functions must be async functions.
+  | 
+    ,-[input.js:9:1]
+  8 | 
+  9 | export const bar = () => {
+    :              ^^^
+ 10 |   'use cache'
+    `----

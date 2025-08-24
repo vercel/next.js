@@ -1,0 +1,63 @@
+[
+    (
+        "*arrow function 19*",
+        Function(
+            2,
+            19,
+            Constant(
+                False,
+            ),
+        ),
+    ),
+    (
+        "run",
+        Function(
+            4,
+            48,
+            Alternatives {
+                total_nodes: 3,
+                values: [
+                    Constant(
+                        Str(
+                            Atom(
+                                "should not run",
+                            ),
+                        ),
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "should run",
+                            ),
+                        ),
+                    ),
+                ],
+                logical_property: None,
+            },
+        ),
+    ),
+    (
+        "shouldRun",
+        Variable(
+            (
+                "*arrow function 19*",
+                #0,
+            ),
+        ),
+    ),
+    (
+        "x",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    True,
+                ),
+                Constant(
+                    Undefined,
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+]

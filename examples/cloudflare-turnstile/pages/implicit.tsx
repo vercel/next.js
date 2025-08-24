@@ -1,4 +1,4 @@
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function ImplicitRender() {
   return (
@@ -20,5 +20,5 @@ export default function ImplicitRender() {
         </p>
       </form>
     </main>
-  )
+  );
 }

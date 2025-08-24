@@ -1,8 +1,8 @@
-import Image from 'next/image'
-import Link from 'next/link'
+import Image from "next/image";
+import Link from "next/link";
 
-import HumanDate from '@/components/human-date'
-import AuthorCard from '@/components/author-card'
+import HumanDate from "@/components/human-date";
+import AuthorCard from "@/components/author-card";
 
 export default function PostsPreview({
   title,
@@ -26,7 +26,7 @@ export default function PostsPreview({
               <AuthorCard author={author} />
             </li>
             <li>
-              <i className="lni lni-calendar"></i>{' '}
+              <i className="lni lni-calendar"></i>{" "}
               <HumanDate dateString={date} />
             </li>
             {tags.map((tag) => (
@@ -59,5 +59,5 @@ export default function PostsPreview({
         </div>
       </div>
     </div>
-  )
+  );
 }

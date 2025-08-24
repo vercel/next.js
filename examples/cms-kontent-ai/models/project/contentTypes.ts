@@ -10,21 +10,21 @@ export const contentTypes = {
    * Author
    */
   author: {
-    codename: 'author',
-    id: 'c204b17f-d320-5755-b913-7b4caa8902b6',
-    externalId: 'ba75f751-d649-4fad-a643-bd58c660bb86',
-    name: 'Author',
+    codename: "author",
+    id: "c204b17f-d320-5755-b913-7b4caa8902b6",
+    externalId: "ba75f751-d649-4fad-a643-bd58c660bb86",
+    name: "Author",
     elements: {
       /**
        * Name (text)
        */
       name: {
-        codename: 'name',
-        id: 'fab7d833-5672-5271-ac00-49e6fcf34754',
-        externalId: '27cd83d2-9bb6-4c3c-9e0e-08abd3c604dc',
-        name: 'Name',
+        codename: "name",
+        id: "fab7d833-5672-5271-ac00-49e6fcf34754",
+        externalId: "27cd83d2-9bb6-4c3c-9e0e-08abd3c604dc",
+        name: "Name",
         required: false,
-        type: 'text',
+        type: "text",
         snippetCodename: undefined,
       },
 
@@ -32,12 +32,12 @@ export const contentTypes = {
        * Picture (asset)
        */
       picture: {
-        codename: 'picture',
-        id: '78b67780-55e4-5b29-903c-de37d3aa263b',
-        externalId: '7a94a17f-fbe6-4415-a0fd-a99d150d74e3',
-        name: 'Picture',
+        codename: "picture",
+        id: "78b67780-55e4-5b29-903c-de37d3aa263b",
+        externalId: "7a94a17f-fbe6-4415-a0fd-a99d150d74e3",
+        name: "Picture",
         required: false,
-        type: 'asset',
+        type: "asset",
         snippetCodename: undefined,
       },
     },
@@ -47,21 +47,21 @@ export const contentTypes = {
    * Post
    */
   post: {
-    codename: 'post',
-    id: 'b1efdda5-18a3-5445-8ca2-51c252a9ee2d',
-    externalId: '5126584e-b734-457a-8a9f-f954fd597fa6',
-    name: 'Post',
+    codename: "post",
+    id: "b1efdda5-18a3-5445-8ca2-51c252a9ee2d",
+    externalId: "5126584e-b734-457a-8a9f-f954fd597fa6",
+    name: "Post",
     elements: {
       /**
        * Author (modular_content)
        */
       author: {
-        codename: 'author',
-        id: 'aa68b9d2-e807-54be-ac82-543ff122b6b2',
-        externalId: 'bc8e9421-f4d0-4c05-a607-572ac635aaa9',
-        name: 'Author',
+        codename: "author",
+        id: "aa68b9d2-e807-54be-ac82-543ff122b6b2",
+        externalId: "bc8e9421-f4d0-4c05-a607-572ac635aaa9",
+        name: "Author",
         required: false,
-        type: 'modular_content',
+        type: "modular_content",
         snippetCodename: undefined,
       },
 
@@ -69,12 +69,12 @@ export const contentTypes = {
        * Content (rich_text)
        */
       content: {
-        codename: 'content',
-        id: 'f8b91d9f-0a7d-557e-9fe8-ca1203ae4a67',
-        externalId: 'b496e813-c1ad-4468-aee4-e0fcbfc2f075',
-        name: 'Content',
+        codename: "content",
+        id: "f8b91d9f-0a7d-557e-9fe8-ca1203ae4a67",
+        externalId: "b496e813-c1ad-4468-aee4-e0fcbfc2f075",
+        name: "Content",
         required: false,
-        type: 'rich_text',
+        type: "rich_text",
         snippetCodename: undefined,
       },
 
@@ -82,12 +82,12 @@ export const contentTypes = {
        * Cover Image (asset)
        */
       cover_image: {
-        codename: 'cover_image',
-        id: '8f1bd2ae-b15a-5100-b8ee-b279a87862fb',
-        externalId: '072504ad-20d9-4918-a2db-bac37c7ac3d2',
-        name: 'Cover Image',
+        codename: "cover_image",
+        id: "8f1bd2ae-b15a-5100-b8ee-b279a87862fb",
+        externalId: "072504ad-20d9-4918-a2db-bac37c7ac3d2",
+        name: "Cover Image",
         required: false,
-        type: 'asset',
+        type: "asset",
         snippetCodename: undefined,
       },
 
@@ -95,12 +95,12 @@ export const contentTypes = {
        * Date (date_time)
        */
       date: {
-        codename: 'date',
-        id: '1739ed56-ccd8-55a3-9cd3-67f09a8073db',
-        externalId: 'c0510c50-1f74-47f1-85de-4780138651a0',
-        name: 'Date',
+        codename: "date",
+        id: "1739ed56-ccd8-55a3-9cd3-67f09a8073db",
+        externalId: "c0510c50-1f74-47f1-85de-4780138651a0",
+        name: "Date",
         required: false,
-        type: 'date_time',
+        type: "date_time",
         snippetCodename: undefined,
       },
 
@@ -108,12 +108,12 @@ export const contentTypes = {
        * Excerpt (text)
        */
       excerpt: {
-        codename: 'excerpt',
-        id: 'e1461965-9004-500e-9441-39a51aa3088b',
-        externalId: '58f63166-ecb7-4c87-a644-6f616c6b2028',
-        name: 'Excerpt',
+        codename: "excerpt",
+        id: "e1461965-9004-500e-9441-39a51aa3088b",
+        externalId: "58f63166-ecb7-4c87-a644-6f616c6b2028",
+        name: "Excerpt",
         required: false,
-        type: 'text',
+        type: "text",
         snippetCodename: undefined,
       },
 
@@ -121,12 +121,12 @@ export const contentTypes = {
        * Slug (url_slug)
        */
       slug: {
-        codename: 'slug',
-        id: 'f12efb12-764a-512c-82f8-4423d978b62b',
-        externalId: 'b1bb5d5b-68b8-4fdc-91d9-1c9ad9efc84f',
-        name: 'Slug',
+        codename: "slug",
+        id: "f12efb12-764a-512c-82f8-4423d978b62b",
+        externalId: "b1bb5d5b-68b8-4fdc-91d9-1c9ad9efc84f",
+        name: "Slug",
         required: false,
-        type: 'url_slug',
+        type: "url_slug",
         snippetCodename: undefined,
       },
 
@@ -134,14 +134,14 @@ export const contentTypes = {
        * Title (text)
        */
       title: {
-        codename: 'title',
-        id: '933469d0-fe2b-51fa-8f62-600f103aee8b',
-        externalId: '63664f0c-3d1d-4a89-adbe-5f502b227f9d',
-        name: 'Title',
+        codename: "title",
+        id: "933469d0-fe2b-51fa-8f62-600f103aee8b",
+        externalId: "63664f0c-3d1d-4a89-adbe-5f502b227f9d",
+        name: "Title",
         required: true,
-        type: 'text',
+        type: "text",
         snippetCodename: undefined,
       },
     },
   },
-} as const
+} as const;

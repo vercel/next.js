@@ -1,37 +1,43 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import https from 'https'
-import { renderViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
+import { renderViaHTTP } from 'next-test-utils'
 
-createNextDescribe(
-  'experimental-https-server (generated certificate)',
-  {
+describe('experimental-https-server (generated certificate)', () => {
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
-    startCommand: `yarn next ${
-      shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'
-    } --experimental-https`,
-    skipStart: !process.env.CI,
-  },
-  ({ next }) => {
-    if (!process.env.CI) {
-      console.warn('only runs on CI as it requires administrator privileges')
-      it('only runs on CI as it requires administrator privileges', () => {})
-      return
-    }
+    startCommand: 'pnpm next dev --experimental-https',
+    skipStart: !process.env.NEXT_TEST_CI,
+  })
+  if (skipped) return
 
-    const agent = new https.Agent({
-      rejectUnauthorized: false,
-    })
-
-    it('should successfully load the app in app dir', async () => {
-      expect(next.url).toInclude('https://')
-      const html = await renderViaHTTP(next.url, '/1', undefined, { agent })
-      expect(html).toContain('Hello from App')
-    })
-
-    it('should successfully load the app in pages dir', async () => {
-      expect(next.url).toInclude('https://')
-      const html = await renderViaHTTP(next.url, '/2', undefined, { agent })
-      expect(html).toContain('Hello from Pages')
-    })
+  if (!process.env.NEXT_TEST_CI) {
+    console.warn('only runs on CI as it requires administrator privileges')
+    it('only runs on CI as it requires administrator privileges', () => {})
+    return
   }
-)
+
+  const agent = new https.Agent({
+    rejectUnauthorized: false,
+  })
+
+  it('should successfully load the app in app dir', async () => {
+    expect(next.url).toInclude('https://')
+    const html = await renderViaHTTP(next.url, '/1', undefined, { agent })
+    expect(html).toContain('Hello from App')
+  })
+
+  it('should successfully load the app in pages dir', async () => {
+    expect(next.url).toInclude('https://')
+    const html = await renderViaHTTP(next.url, '/2', undefined, { agent })
+    expect(html).toContain('Hello from Pages')
+  })
+
+  it('should successfully reuse generated certificates', async () => {
+    await next.stop()
+    await next.start()
+    expect(next.url).toInclude('https://')
+    expect(next.cliOutput).toContain(
+      'Using already generated self signed certificate'
+    )
+  })
+})

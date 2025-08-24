@@ -1,3 +1,4 @@
+// @ts-nocheck
 /*
 	MIT License http://www.opensource.org/licenses/mit-license.php
 	Author Tobias Koppers @sokra
@@ -117,15 +118,12 @@ module.exports = function () {
 			if ($hasOwnProperty$(currentUpdate, moduleId)) {
 				var newModuleFactory = currentUpdate[moduleId];
 				/** @type {TODO} */
-				var result;
-				if (newModuleFactory) {
-					result = getAffectedModuleEffects(moduleId);
-				} else {
-					result = {
-						type: "disposed",
-						moduleId: moduleId
-					};
-				}
+				var result = newModuleFactory
+					? getAffectedModuleEffects(moduleId)
+					: {
+							type: "disposed",
+							moduleId: moduleId
+						};
 				/** @type {Error|false} */
 				var abortError = false;
 				var doApply = false;
@@ -376,17 +374,17 @@ module.exports = function () {
 									moduleId: moduleId,
 									module: $moduleCache$[moduleId]
 								});
-							} catch (err2) {
+							} catch (err1) {
 								if (options.onErrored) {
 									options.onErrored({
 										type: "self-accept-error-handler-errored",
 										moduleId: moduleId,
-										error: err2,
+										error: err1,
 										originalError: err
 									});
 								}
 								if (!options.ignoreErrored) {
-									reportError(err2);
+									reportError(err1);
 									reportError(err);
 								}
 							}

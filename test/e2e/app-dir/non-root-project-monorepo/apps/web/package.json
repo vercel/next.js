@@ -1,0 +1,12 @@
+{
+  "name": "web",
+  "version": "0.0.0",
+  "dependencies": {
+    "my-package": "workspace:*"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "start": "next start",
+    "build": "next build"
+  }
+}

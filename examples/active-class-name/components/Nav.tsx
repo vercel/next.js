@@ -1,4 +1,6 @@
-import ActiveLink from './ActiveLink'
+"use client";
+
+import ActiveLink from "./ActiveLink";
 
 const Nav = () => (
   <nav>
@@ -8,7 +10,7 @@ const Nav = () => (
       }
 
       .active:after {
-        content: ' (current page)';
+        content: " (current page)";
       }
     `}</style>
     <ul className="nav">
@@ -31,14 +33,13 @@ const Nav = () => (
         <ActiveLink
           activeClassName="active"
           className="nav-link"
-          href="/[slug]"
-          as="/dynamic-route"
+          href="/dynamic-route"
         >
           Dynamic Route
         </ActiveLink>
       </li>
     </ul>
   </nav>
-)
+);
 
-export default Nav
+export default Nav;

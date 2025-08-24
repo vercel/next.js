@@ -1,7 +1,7 @@
-import Link from 'next/link'
-import Avatar from '@components/avatar'
-import DateComponent from '@components/date'
-import CoverImage from './cover-image'
+import Link from "next/link";
+import Avatar from "@components/avatar";
+import DateComponent from "@components/date";
+import CoverImage from "./cover-image";
 
 export default function PostPreview({
   title,
@@ -21,7 +21,7 @@ export default function PostPreview({
           slug={slug}
           src={coverImage.idPath}
           objectFit="cover"
-          layout={'intrinsic'}
+          layout={"intrinsic"}
         />
       </div>
       <h3 className="mb-3 text-3xl leading-snug">
@@ -29,7 +29,7 @@ export default function PostPreview({
           {title}
         </Link>
       </h3>
-      {date !== 'now' ? (
+      {date !== "now" ? (
         <div className="mb-4 text-lg">
           <DateComponent dateString={date} />
         </div>
@@ -42,5 +42,5 @@ export default function PostPreview({
         />
       ) : null}
     </div>
-  )
+  );
 }

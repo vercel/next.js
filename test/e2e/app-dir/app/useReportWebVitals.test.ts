@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('useReportWebVitals hook', () => {
@@ -10,6 +10,9 @@ describe('useReportWebVitals hook', () => {
       files: __dirname,
       skipStart: true,
       env: {},
+      dependencies: {
+        nanoid: '4.0.1',
+      },
     })
 
     await next.start()
@@ -17,7 +20,7 @@ describe('useReportWebVitals hook', () => {
   afterAll(() => next.destroy())
 
   // Analytics events are only sent in production
-  it('should send web-vitals to vercel-insights', async () => {
+  it('should send web-vitals', async () => {
     await next.fetch('/report-web-vitals')
 
     let eventsCount = 0

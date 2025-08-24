@@ -1,14 +1,29 @@
-import { throwWithNoSSR } from '../../shared/lib/lazy-dynamic/no-ssr-error'
-import { staticGenerationAsyncStorage } from './static-generation-async-storage.external'
+import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import { workAsyncStorage } from '../../server/app-render/work-async-storage.external'
+import { workUnitAsyncStorage } from '../../server/app-render/work-unit-async-storage.external'
 
-export function bailoutToClientRendering(): void | never {
-  const staticGenerationStore = staticGenerationAsyncStorage.getStore()
+export function bailoutToClientRendering(reason: string): void | never {
+  const workStore = workAsyncStorage.getStore()
 
-  if (staticGenerationStore?.forceStatic) {
-    return
-  }
+  if (workStore?.forceStatic) return
 
-  if (staticGenerationStore?.isStaticGeneration) {
-    throwWithNoSSR()
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-runtime':
+      case 'prerender-client':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+        throw new BailoutToCSRError(reason)
+      case 'request':
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
   }
 }

@@ -1,0 +1,7 @@
+services:
+  redis-stack:
+    image: redis/redis-stack:latest
+    container_name: cache-handler-redis
+    ports:
+      - "6379:6379"
+      - "8001:8001"

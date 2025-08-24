@@ -3,13 +3,12 @@ import path from 'path'
 import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
   findPort,
   initNextServerScript,
   killApp,
   renderViaHTTP,
-  shouldRunTurboDevTest,
 } from 'next-test-utils'
 
 describe('pnpm support', () => {
@@ -73,7 +72,7 @@ describe('pnpm support', () => {
       },
       packageJson: {
         scripts: {
-          dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
+          dev: 'next dev',
           build: 'next build',
           start: 'next start',
         },

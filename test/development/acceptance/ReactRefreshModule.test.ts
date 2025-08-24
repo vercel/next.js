@@ -1,5 +1,5 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import path from 'path'
 
 describe('ReactRefreshModule', () => {
@@ -9,8 +9,9 @@ describe('ReactRefreshModule', () => {
   })
 
   it('should allow any variable names', async () => {
-    const { session, cleanup } = await sandbox(next)
-    expect(await session.hasRedbox(false)).toBe(false)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
+    await session.assertNoRedbox()
 
     const variables = [
       '_a',
@@ -24,16 +25,15 @@ describe('ReactRefreshModule', () => {
       await session.patch(
         'pages/index.js',
         `import { default as ${variable} } from 'next/link'
+        console.log({ ${variable} })
         export default function Page() {
           return null
         }`
       )
-      expect(await session.hasRedbox(false)).toBe(false)
+      await session.assertNoRedbox()
       expect(next.cliOutput).not.toContain(
         `'${variable}' has already been declared`
       )
     }
-
-    await cleanup()
   })
 })

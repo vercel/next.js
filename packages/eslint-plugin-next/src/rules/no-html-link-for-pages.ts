@@ -7,6 +7,7 @@ import {
   getUrlFromPagesDirectories,
   normalizeURL,
   execOnce,
+  getUrlFromAppDirectory,
 } from '../utils/url'
 
 const pagesDirWarning = execOnce((pagesDirs) => {
@@ -19,6 +20,20 @@ const pagesDirWarning = execOnce((pagesDirs) => {
 // Cache for fs.existsSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsExistsSyncCache = {}
+
+const memoize = <T = any>(fn: (...args: any[]) => T) => {
+  const cache = {}
+  return (...args: any[]): T => {
+    const key = JSON.stringify(args)
+    if (cache[key] === undefined) {
+      cache[key] = fn(...args)
+    }
+    return cache[key]
+  }
+}
+
+const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
+const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
@@ -92,7 +107,10 @@ export = defineRule({
       return {}
     }
 
-    const pageUrls = getUrlFromPagesDirectories('/', foundPagesDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
+    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const allUrlRegex = [...pageUrls, ...appDirUrls]
+
     return {
       JSXOpeningElement(node) {
         if (node.name.name !== 'a') {
@@ -134,8 +152,8 @@ export = defineRule({
           return
         }
 
-        pageUrls.forEach((pageUrl) => {
-          if (pageUrl.test(normalizeURL(hrefPath))) {
+        allUrlRegex.forEach((foundUrl) => {
+          if (foundUrl.test(normalizeURL(hrefPath))) {
             context.report({
               node,
               message: `Do not use an \`<a>\` element to navigate to \`${hrefPath}\`. Use \`<Link />\` from \`next/link\` instead. See: ${url}`,

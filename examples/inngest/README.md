@@ -7,8 +7,6 @@ This is an example of how to use [Inngest](https://inngest.com) to easily add du
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/inngest&project-name=inngest&repository-name=inngest)
 
 To full deploy you'll need an [Inngest Cloud account](https://inngest.com) and the [Vercel Inngest integration](https://vercel.com/integrations/inngest) configured.

@@ -1,0 +1,290 @@
+[
+    FreeVar {
+        var: FreeVar(
+            "URL",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    0,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                New,
+            ),
+            NewExpr(
+                Callee,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 21..24,
+        in_try: false,
+    },
+    Member {
+        obj: WellKnownObject(
+            ImportMeta,
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "url",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    0,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                New,
+            ),
+            NewExpr(
+                Args(
+                    1,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 40..55,
+        in_try: false,
+    },
+    ImportMeta {
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    0,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                New,
+            ),
+            NewExpr(
+                Args(
+                    1,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Obj,
+            ),
+            Expr(
+                MetaProp,
+            ),
+        ],
+        span: 40..51,
+        in_try: false,
+    },
+    Call {
+        func: FreeVar(
+            "URL",
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "./worker.ts",
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Member(
+                    3,
+                    WellKnownObject(
+                        ImportMeta,
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "url",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    0,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                New,
+            ),
+        ],
+        span: 17..56,
+        in_try: false,
+        new: true,
+    },
+    FreeVar {
+        var: FreeVar(
+            "Worker",
+        ),
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                New,
+            ),
+            NewExpr(
+                Callee,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 62..68,
+        in_try: false,
+    },
+    Call {
+        func: FreeVar(
+            "Worker",
+        ),
+        args: [
+            Value(
+                Variable(
+                    (
+                        "workerUrl",
+                        #2,
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Module,
+            ),
+            Module(
+                Body(
+                    1,
+                ),
+            ),
+            ModuleItem(
+                Stmt,
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                New,
+            ),
+        ],
+        span: 58..79,
+        in_try: false,
+        new: true,
+    },
+]

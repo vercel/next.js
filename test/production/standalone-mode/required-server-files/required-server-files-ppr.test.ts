@@ -3,19 +3,23 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import {
+  createNowRouteMatches,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
   killApp,
 } from 'next-test-utils'
+import { ChildProcess } from 'child_process'
 
 describe('required server files app router', () => {
   let next: NextInstance
-  let server
-  let appPort
+  let server: ChildProcess
+  let appPort: number | string
   let delayedPostpone
+  let rewritePostpone
+  let cliOutput = ''
 
   const setupNext = async ({
     nextEnv,
@@ -26,6 +30,7 @@ describe('required server files app router', () => {
   }) => {
     // test build against environment with next support
     process.env.NOW_BUILDER = nextEnv ? '1' : ''
+    process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
     next = await createNext({
       files: {
@@ -39,8 +44,8 @@ describe('required server files app router', () => {
         '.env.production': new FileRef(join(__dirname, '.env.production')),
       },
       nextConfig: {
+        cacheHandler: './cache-handler.js',
         experimental: {
-          incrementalCacheHandlerPath: './cache-handler.js',
           ppr: true,
         },
         eslint: {
@@ -53,6 +58,9 @@ describe('required server files app router', () => {
 
     delayedPostpone = (await next.readJSON('.next/server/app/delayed.meta'))
       .postponed
+    rewritePostpone = (
+      await next.readJSON('.next/server/app/rewrite/first-cookie.meta')
+    ).postponed
 
     await fs.move(
       join(next.testDir, '.next/standalone'),
@@ -78,9 +86,10 @@ describe('required server files app router', () => {
     const testServer = join(next.testDir, 'standalone/server.js')
     await fs.writeFile(
       testServer,
-      (
-        await fs.readFile(testServer, 'utf8')
-      ).replace('port:', `minimalMode: ${minimalMode},port:`)
+      (await fs.readFile(testServer, 'utf8')).replace(
+        'port:',
+        `minimalMode: ${minimalMode},port:`
+      )
     )
     appPort = await findPort()
     server = await initNextServerScript(
@@ -88,20 +97,26 @@ describe('required server files app router', () => {
       /- Local:/,
       {
         ...process.env,
-        PORT: appPort,
+        PORT: `${appPort}`,
       },
       undefined,
       {
         cwd: next.testDir,
+        onStderr(data) {
+          cliOutput += data
+        },
+        onStdout(data) {
+          cliOutput += data
+        },
       }
     )
-    appPort = `http://127.0.0.1:${appPort}`
   }
 
   beforeAll(async () => {
     await setupNext({ nextEnv: true, minimalMode: true })
   })
   afterAll(async () => {
+    delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)
   })
@@ -110,14 +125,49 @@ describe('required server files app router', () => {
     expect(next.cliOutput).not.toContain('ERR_INVALID_URL')
   })
 
-  it('should properly stream resume', async () => {
+  // this enables client segment cache in CI
+  if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+    it('should de-dupe client segment tree revalidate requests', async () => {
+      const { segmentPaths } = await next.readJSON(
+        'standalone/.next/server/app/isr/first.meta'
+      )
+      const outputIdx = cliOutput.length
+
+      for (const segmentPath of segmentPaths) {
+        const outputSegmentPath =
+          join('/isr/[slug].segments', segmentPath) + '.segment.rsc'
+
+        require('console').error('requesting', outputSegmentPath)
+
+        const res = await fetchViaHTTP(appPort, outputSegmentPath, undefined, {
+          headers: {
+            'x-matched-path': '/isr/[slug].segments/_tree.segment.rsc',
+            'x-now-route-matches': 'slug=first&1=first',
+          },
+        })
+
+        expect(res.status).toBe(200)
+        expect(res.headers.get('content-type')).toBe('text/x-component')
+      }
+
+      expect(
+        cliOutput.substring(outputIdx).match(/rendering \/isr\/\[slug\]/g)
+          .length
+      ).toBe(1)
+    })
+  }
+
+  it('should properly stream resume with Next-Resume', async () => {
     const res = await fetchViaHTTP(appPort, '/delayed', undefined, {
       headers: {
-        'x-matched-path': '/_next/postponed/resume/delayed',
+        'x-matched-path': '/delayed',
+        'next-resume': '1',
       },
       method: 'POST',
       body: delayedPostpone,
     })
+
+    expect(res.status).toBe(200)
 
     let chunks = []
 
@@ -172,7 +222,9 @@ describe('required server files app router', () => {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-now-route-matches': '1=second&nxtPslug=new',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'new',
+        }).toString(),
         'x-matched-path': '/isr/[slug]',
       },
     })
@@ -187,7 +239,9 @@ describe('required server files app router', () => {
       headers: {
         'user-agent':
           'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.179 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'x-now-route-matches': '1=second&nxtPslug=new',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'new',
+        }).toString(),
         'x-matched-path': '/isr/[slug]',
       },
     })
@@ -195,23 +249,70 @@ describe('required server files app router', () => {
     expect(rscRes.status).toBe(200)
   })
 
+  describe('middleware rewrite', () => {
+    it('should work with a dynamic path with Next-Resume', async () => {
+      const res = await fetchViaHTTP(
+        appPort,
+        '/rewrite-with-cookie',
+        undefined,
+        {
+          method: 'POST',
+          headers: {
+            'x-matched-path': '/rewrite/first-cookie',
+            'next-resume': '1',
+          },
+          body: rewritePostpone,
+        }
+      )
+
+      expect(res.status).toBe(200)
+      const html = await res.text()
+      const $ = cheerio.load(html)
+
+      expect($('#page').text()).toBe('/rewrite/[slug]')
+      expect($('#params').text()).toBe(JSON.stringify({ slug: 'first-cookie' }))
+    })
+  })
+
+  it('should still render when postponed is corrupted with Next-Resume', async () => {
+    const random = Math.random().toString(36).substring(2)
+
+    const res = await fetchViaHTTP(appPort, '/dyn/' + random, undefined, {
+      method: 'POST',
+      headers: {
+        'x-matched-path': '/dyn/[slug]',
+        'next-resume': '1',
+      },
+      // This is a corrupted postponed JSON payload.
+      body: '{',
+    })
+
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+
+    // Expect that the closing HTML tag is still present, indicating a
+    // successful render.
+    expect(html).toContain('</html>')
+  })
+
   it('should send cache tags in minimal mode for ISR', async () => {
     for (const [path, tags] of [
       [
         '/isr/first',
-        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/first',
+        '_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/first,isr-page',
       ],
       [
         '/isr/second',
-        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/second',
+        '_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/second,isr-page',
       ],
       [
         '/api/isr/first',
-        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/first',
+        '_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/first,isr-page',
       ],
       [
         '/api/isr/second',
-        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/second',
+        '_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/second,isr-page',
       ],
     ]) {
       require('console').error('checking', { path, tags })
@@ -261,7 +362,7 @@ describe('required server files app router', () => {
   it('should handle RSC requests', async () => {
     const res = await fetchViaHTTP(appPort, '/dyn/first.rsc', undefined, {
       headers: {
-        'x-matched-path': '/dyn/first',
+        'x-matched-path': '/dyn/[slug]',
       },
     })
 
@@ -277,7 +378,7 @@ describe('required server files app router', () => {
       undefined,
       {
         headers: {
-          'x-matched-path': '/dyn/first',
+          'x-matched-path': '/dyn/[slug]',
         },
       }
     )
@@ -285,5 +386,29 @@ describe('required server files app router', () => {
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toEqual('text/x-component')
     expect(res.headers.has('x-nextjs-postponed')).toBeTrue()
+  })
+
+  it('should handle revalidating the fallback page', async () => {
+    const res = await fetchViaHTTP(appPort, '/postpone/isr/[slug]', undefined, {
+      headers: {
+        'x-matched-path': '/postpone/isr/[slug]',
+        // We don't include the `x-now-route-matches` header because we want to
+        // test that the fallback route params are correctly set.
+        'x-now-route-matches': '',
+      },
+    })
+
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+
+    expect(html).not.toContain('</html>')
+
+    const $ = cheerio.load(html)
+
+    expect($('#page').text()).toBeEmpty()
+    expect($('#params').text()).toBeEmpty()
+    expect($('#now').text()).toBeEmpty()
+    expect($('#loading').text()).toBe('/postpone/isr/[slug]')
   })
 })

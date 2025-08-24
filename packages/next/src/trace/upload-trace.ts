@@ -1,19 +1,23 @@
+import { traceId } from './shared'
+import { Telemetry } from '../telemetry/storage'
+
 export default function uploadTrace({
   traceUploadUrl,
   mode,
-  isTurboSession,
   projectDir,
   distDir,
+  isTurboSession,
   sync,
 }: {
   traceUploadUrl: string
-  mode: 'dev'
-  isTurboSession: boolean
+  mode: 'dev' | 'build'
   projectDir: string
   distDir: string
+  isTurboSession: boolean
   sync?: boolean
 }) {
   const { NEXT_TRACE_UPLOAD_DEBUG } = process.env
+  const telemetry = new Telemetry({ distDir })
 
   // Note: cross-spawn is not used here as it causes
   // a new command window to appear when we don't want it to
@@ -33,9 +37,12 @@ export default function uploadTrace({
       require.resolve('./trace-uploader'),
       traceUploadUrl,
       mode,
-      String(isTurboSession),
       projectDir,
       distDir,
+      String(isTurboSession),
+      traceId,
+      telemetry.anonymousId,
+      telemetry.sessionId,
     ],
     {
       detached: !NEXT_TRACE_UPLOAD_DEBUG,

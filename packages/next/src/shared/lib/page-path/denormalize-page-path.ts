@@ -14,6 +14,6 @@ export function denormalizePagePath(page: string) {
   return _page.startsWith('/index/') && !isDynamicRoute(_page)
     ? _page.slice(6)
     : _page !== '/index'
-    ? _page
-    : '/'
+      ? _page
+      : '/'
 }

@@ -1,14 +1,19 @@
-import { createNextDescribe } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 // Tests Babel, not needed for Turbopack
-;(process.env.TURBOPACK ? describe.skip : describe)('with babel', () => {
-  createNextDescribe(
-    'with babel',
-    {
-      files: __dirname,
-      skipDeployment: true,
-    },
-    ({ next, isNextStart }) => {
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+  'with babel',
+  () => {
+    describe('with babel', () => {
+      const { next, isNextStart, skipped } = nextTestSetup({
+        files: __dirname,
+        skipDeployment: true,
+      })
+
+      if (skipped) {
+        return
+      }
+
       it('should support babel in app dir', async () => {
         const $ = await next.render$('/')
         expect($('h1').text()).toBe('hello')
@@ -21,6 +26,6 @@ import { createNextDescribe } from 'e2e-utils'
           expect(middleware).not.toContain('noto-sans-v27-latin-regular.ttf')
         })
       }
-    }
-  )
-})
+    })
+  }
+)

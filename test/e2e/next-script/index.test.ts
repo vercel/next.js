@@ -1,7 +1,6 @@
-import webdriver from 'next-webdriver'
+import webdriver, { Playwright } from 'next-webdriver'
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { BrowserInterface } from 'test/lib/browsers/base'
+import { NextInstance } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
 describe('beforeInteractive in document Head', () => {
@@ -41,16 +40,12 @@ describe('beforeInteractive in document Head', () => {
           }
         `,
       },
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-      },
     })
   })
   afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
-    let browser: BrowserInterface
+    let browser: Playwright
 
     try {
       browser = await webdriver(next.url, '/')
@@ -101,16 +96,12 @@ describe('beforeInteractive in document body', () => {
           }
         `,
       },
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-      },
     })
   })
   afterAll(() => next.destroy())
 
   it('Script is injected server-side', async () => {
-    let browser: BrowserInterface
+    let browser: Playwright
 
     try {
       browser = await webdriver(next.url, '/')
@@ -125,7 +116,118 @@ describe('beforeInteractive in document body', () => {
     }
   })
 })
-;(process.env.TURBOPACK ? describe.skip : describe)(
+
+describe('empty strategy in document Head', () => {
+  let next: NextInstance
+
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/_document.js': `
+          import { Html, Head, Main, NextScript } from 'next/document'
+          import Script from 'next/script'
+
+          export default function Document() {
+            return (
+              <Html>
+                <Head>
+                  <Script
+                    src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
+                  ></Script>
+                </Head>
+                <body>
+                  <Main />
+                  <NextScript />
+                </body>
+              </Html>
+            )
+          }
+        `,
+        'pages/index.js': `
+          export default function Home() {
+            return (
+              <>
+                <p>Home page</p>
+              </>
+            )
+          }
+        `,
+      },
+    })
+  })
+  afterAll(() => next.destroy())
+
+  it('Script is injected server-side', async () => {
+    let browser: Playwright
+
+    try {
+      browser = await webdriver(next.url, '/')
+
+      const script = await browser.eval(
+        `document.querySelector('script[data-nscript="afterInteractive"]')`
+      )
+      expect(script).not.toBeNull()
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+})
+
+describe('empty strategy in document body', () => {
+  let next: NextInstance
+
+  beforeAll(async () => {
+    next = await createNext({
+      files: {
+        'pages/_document.js': `
+          import { Html, Head, Main, NextScript } from 'next/document'
+          import Script from 'next/script'
+
+          export default function Document() {
+            return (
+              <Html>
+                <Head/>
+                <body>
+                  <Main />
+                  <NextScript />
+                  <Script
+                    src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js"
+                  />
+                </body>
+              </Html>
+            )
+          }
+        `,
+        'pages/index.js': `
+          export default function Home() {
+            return (
+              <>
+                <p>Home page</p>
+              </>
+            )
+          }
+        `,
+      },
+    })
+  })
+  afterAll(() => next.destroy())
+
+  it('Script is injected server-side', async () => {
+    let browser: Playwright
+
+    try {
+      browser = await webdriver(next.url, '/')
+
+      const script = await browser.eval(
+        `document.querySelector('script[data-nscript="afterInteractive"]')`
+      )
+      expect(script).not.toBeNull()
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+})
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'experimental.nextScriptWorkers',
   () => {
     describe('experimental.nextScriptWorkers: false with no Partytown dependency', () => {
@@ -149,17 +251,12 @@ describe('beforeInteractive in document body', () => {
           }
         `,
           },
-          // TODO: @housseindjirdeh: verify React 18 functionality
-          dependencies: {
-            react: 'latest',
-            'react-dom': 'latest',
-          },
         })
       })
       afterAll(() => next.destroy())
 
       it('Partytown snippet is not injected to head if not enabled in configuration', async () => {
-        let browser: BrowserInterface
+        let browser: Playwright
 
         try {
           browser = await webdriver(next.url, '/')
@@ -202,8 +299,6 @@ describe('beforeInteractive in document body', () => {
         `,
           },
           dependencies: {
-            react: 'latest',
-            'react-dom': 'latest',
             '@builder.io/partytown': '0.4.2',
           },
         })
@@ -211,7 +306,7 @@ describe('beforeInteractive in document body', () => {
       afterAll(() => next.destroy())
 
       it('Partytown snippets are injected to head if enabled in configuration', async () => {
-        let browser: BrowserInterface
+        let browser: Playwright
 
         try {
           browser = await webdriver(next.url, '/')
@@ -236,7 +331,7 @@ describe('beforeInteractive in document body', () => {
       })
 
       it('Worker scripts are modified by Partytown to execute on a worker thread', async () => {
-        let browser: BrowserInterface
+        let browser: Playwright
 
         try {
           browser = await webdriver(next.url, '/')
@@ -291,14 +386,12 @@ describe('beforeInteractive in document body', () => {
       `,
           },
           dependencies: {
-            react: 'latest',
-            'react-dom': 'latest',
             '@builder.io/partytown': '0.4.2',
           },
         })
 
       it('Inline worker script through children is modified by Partytown to execute on a worker thread', async () => {
-        let browser: BrowserInterface
+        let browser: Playwright
 
         next = await createNextApp(
           `<Script id="inline-script" strategy="worker">{"document.getElementById('text').textContent += 'abc'"}</Script>`
@@ -323,7 +416,7 @@ describe('beforeInteractive in document body', () => {
       })
 
       it('Inline worker script through dangerouslySetInnerHtml is modified by Partytown to execute on a worker thread', async () => {
-        let browser: BrowserInterface
+        let browser: Playwright
 
         next = await createNextApp(
           `<Script id="inline-script" strategy="worker" dangerouslySetInnerHTML={{__html: "document.getElementById('text').textContent += 'abcd'"}}/>`
@@ -407,15 +500,13 @@ describe('beforeInteractive in document body', () => {
           },
           dependencies: {
             '@builder.io/partytown': '0.4.2',
-            react: 'latest',
-            'react-dom': 'latest',
           },
         })
       })
       afterAll(() => next.destroy())
 
       it('Partytown config script is overwritten', async () => {
-        let browser: BrowserInterface
+        let browser: Playwright
 
         try {
           browser = await webdriver(next.url, '/')

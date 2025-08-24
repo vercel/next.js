@@ -9,8 +9,9 @@ import { hasNecessaryDependencies } from '../lib/has-necessary-dependencies'
 
 let TSCONFIG_WARNED = false
 
-function parseJsonFile(filePath: string) {
-  const JSON5 = require('next/dist/compiled/json5')
+export function parseJsonFile(filePath: string) {
+  const JSON5 =
+    require('next/dist/compiled/json5') as typeof import('next/dist/compiled/json5')
   const contents = readFileSync(filePath, 'utf8')
 
   // Special case an empty file
@@ -22,7 +23,8 @@ function parseJsonFile(filePath: string) {
     return JSON5.parse(contents)
   } catch (err) {
     if (!isError(err)) throw err
-    const { codeFrameColumns } = require('next/dist/compiled/babel/code-frame')
+    const { codeFrameColumns } =
+      require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
     const codeFrame = codeFrameColumns(
       String(contents),
       {
@@ -49,6 +51,7 @@ export default async function loadJsConfig(
 ): Promise<{
   useTypeScript: boolean
   jsConfig: JsConfig
+  jsConfigPath?: string
   resolvedBaseUrl: ResolvedBaseUrl
 }> {
   let typeScriptPath: string | undefined
@@ -110,5 +113,10 @@ export default async function loadJsConfig(
     useTypeScript,
     jsConfig,
     resolvedBaseUrl,
+    jsConfigPath: useTypeScript
+      ? tsConfigPath
+      : fs.existsSync(jsConfigPath)
+        ? jsConfigPath
+        : undefined,
   }
 }

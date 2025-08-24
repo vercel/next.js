@@ -1,0 +1,41 @@
+---
+title: Cannot access Request information synchronously in route.js without awaiting connection first
+---
+
+## Why This Error Occurred
+
+When `cacheComponents` is enabled Next.js treats most access to Request information as explicitly dynamic. However routes have a Request object and you can read values like the current pathname from that object synchronously. If you need to access Request information in a route handler you should first call `await connection()` to inform Next.js that everything after this point is explicitly dynamic.
+
+This is only needed in `GET` handlers because `GET` is the only handler Next.js will attempt to prerender.
+
+## Possible Ways to Fix It
+
+Look for access of the Request object in your route.js and add `await connection()` before you access any properties of the Request.
+
+Before:
+
+```jsx filename="app/.../route.js"
+export default function GET(request) {
+  const requestHeaders = request.headers
+  return ...
+}
+```
+
+After:
+
+```jsx filename="app/.../route.js"
+import { connection } from 'next/server'
+
+export default async function GET(request) {
+  await connection()
+  const requestHeaders = request.headers
+  return ...
+}
+```
+
+It is unexpected that you would run the codemod and not successfully convert all instances of `params` and `searchParams` to async or have a marker string to help you locate unconverted cases. If you do find yourself in this situation please report this to [Next.js on Github](https://github.com/vercel/next.js/issues).
+
+## Useful Links
+
+- [`connection` function](/docs/app/api-reference/functions/connection)
+- [`route.js` file convention](/docs/app/api-reference/file-conventions/route)

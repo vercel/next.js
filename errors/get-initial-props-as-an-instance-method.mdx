@@ -10,7 +10,7 @@ title: '`getInitialProps` was defined as an instance method'
 
 Use the static keyword.
 
-```js filename="pages/example.js"
+```jsx filename="pages/example.js"
 export default class YourEntryComponent extends React.Component {
   static getInitialProps() {
     return {}
@@ -24,7 +24,7 @@ export default class YourEntryComponent extends React.Component {
 
 or
 
-```js filename="pages/example.js"
+```jsx filename="pages/example.js"
 const YourEntryComponent = function () {
   return 'foo'
 }

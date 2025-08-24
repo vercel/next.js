@@ -1,24 +1,24 @@
-import React, { useEffect } from 'react'
-import { observer } from 'mobx-react-lite'
-import Link from 'next/link'
-import { IStore, useStore } from '../store'
-import Clock from './Clock'
+import React, { useEffect } from "react";
+import { observer } from "mobx-react-lite";
+import Link from "next/link";
+import { IStore, useStore } from "../store";
+import Clock from "./Clock";
 
 interface IOwnProps {
-  store?: IStore
-  title: string
-  linkTo: string
+  store?: IStore;
+  title: string;
+  linkTo: string;
 }
 
 const SampleComponent: React.FC<IOwnProps> = observer((props) => {
-  const { lastUpdate, light, start, stop } = useStore(props.store)
+  const { lastUpdate, light, start, stop } = useStore(props.store);
 
   useEffect(() => {
-    start()
+    start();
     return () => {
-      stop()
-    }
-  }, [start, stop])
+      stop();
+    };
+  }, [start, stop]);
 
   return (
     <div>
@@ -28,7 +28,7 @@ const SampleComponent: React.FC<IOwnProps> = observer((props) => {
         <Link href={props.linkTo}>Navigate</Link>
       </nav>
     </div>
-  )
-})
+  );
+});
 
-export default SampleComponent
+export default SampleComponent;

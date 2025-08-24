@@ -1,5 +1,4 @@
 import type { I18NConfig } from '../../config-shared'
-import type { RequestData } from '../types'
 import { NextURL } from '../next-url'
 import { toNodeOutgoingHttpHeaders, validateURL } from '../utils'
 import { RemovedUAError, RemovedPageError } from '../error'
@@ -7,11 +6,15 @@ import { RequestCookies } from './cookies'
 
 export const INTERNALS = Symbol('internal request')
 
+/**
+ * This class extends the [Web `Request` API](https://developer.mozilla.org/docs/Web/API/Request) with additional convenience methods.
+ *
+ * Read more: [Next.js Docs: `NextRequest`](https://nextjs.org/docs/app/api-reference/functions/next-request)
+ */
 export class NextRequest extends Request {
+  /** @internal */
   [INTERNALS]: {
     cookies: RequestCookies
-    geo: RequestData['geo']
-    ip?: string
     url: string
     nextUrl: NextURL
   }
@@ -19,17 +22,28 @@ export class NextRequest extends Request {
   constructor(input: URL | RequestInfo, init: RequestInit = {}) {
     const url =
       typeof input !== 'string' && 'url' in input ? input.url : String(input)
+
     validateURL(url)
+
+    // node Request instance requires duplex option when a body
+    // is present or it errors, we don't handle this for
+    // Request being passed in since it would have already
+    // errored if this wasn't configured
+    if (process.env.NEXT_RUNTIME !== 'edge') {
+      if (init.body && init.duplex !== 'half') {
+        init.duplex = 'half'
+      }
+    }
+
     if (input instanceof Request) super(input, init)
     else super(url, init)
+
     const nextUrl = new NextURL(url, {
       headers: toNodeOutgoingHttpHeaders(this.headers),
       nextConfig: init.nextConfig,
     })
     this[INTERNALS] = {
       cookies: new RequestCookies(this.headers),
-      geo: init.geo || {},
-      ip: init.ip,
       nextUrl,
       url: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
         ? url
@@ -40,8 +54,6 @@ export class NextRequest extends Request {
   [Symbol.for('edge-runtime.inspect.custom')]() {
     return {
       cookies: this.cookies,
-      geo: this.geo,
-      ip: this.ip,
       nextUrl: this.nextUrl,
       url: this.url,
       // rest of props come from Request
@@ -63,14 +75,6 @@ export class NextRequest extends Request {
 
   public get cookies() {
     return this[INTERNALS].cookies
-  }
-
-  public get geo() {
-    return this[INTERNALS].geo
-  }
-
-  public get ip() {
-    return this[INTERNALS].ip
   }
 
   public get nextUrl() {
@@ -101,16 +105,12 @@ export class NextRequest extends Request {
 }
 
 export interface RequestInit extends globalThis.RequestInit {
-  geo?: {
-    city?: string
-    country?: string
-    region?: string
-  }
-  ip?: string
   nextConfig?: {
     basePath?: string
     i18n?: I18NConfig | null
     trailingSlash?: boolean
   }
   signal?: AbortSignal
+  // see https://github.com/whatwg/fetch/pull/1457
+  duplex?: 'half'
 }

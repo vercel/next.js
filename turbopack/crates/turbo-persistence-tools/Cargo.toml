@@ -1,0 +1,12 @@
+[package]
+name = "turbo-persistence-tools"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+anyhow = { workspace = true }
+turbo-persistence = { workspace = true }
+
+[lints]
+workspace = true

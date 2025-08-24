@@ -1,17 +1,22 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
   CacheNodeSeedData,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 import { createRouterCacheKey } from './create-router-cache-key'
+import {
+  PrefetchCacheEntryStatus,
+  type PrefetchCacheEntry,
+} from './router-reducer-types'
 
 export function fillLazyItemsTillLeafWithHead(
+  navigatedAt: number,
   newCache: CacheNode,
   existingCache: CacheNode | undefined,
   routerState: FlightRouterState,
   cacheNodeSeedData: CacheNodeSeedData | null,
   head: React.ReactNode,
-  wasPrefetched?: boolean
+  prefetchEntry: PrefetchCacheEntry | undefined
 ): void {
   const isLastSegment = Object.keys(routerState[1]).length === 0
   if (isLastSegment) {
@@ -35,19 +40,24 @@ export function fillLazyItemsTillLeafWithHead(
     // in the response format, so that we don't have to send the keys twice.
     // Then the client can convert them into separate representations.
     const parallelSeedData =
-      cacheNodeSeedData !== null && cacheNodeSeedData[1][key] !== undefined
-        ? cacheNodeSeedData[1][key]
+      cacheNodeSeedData !== null && cacheNodeSeedData[2][key] !== undefined
+        ? cacheNodeSeedData[2][key]
         : null
     if (existingCache) {
       const existingParallelRoutesCacheNode =
         existingCache.parallelRoutes.get(key)
       if (existingParallelRoutesCacheNode) {
+        const hasReusablePrefetch =
+          prefetchEntry?.kind === 'auto' &&
+          prefetchEntry.status === PrefetchCacheEntryStatus.reusable
+
         let parallelRouteCacheNode = new Map(existingParallelRoutesCacheNode)
         const existingCacheNode = parallelRouteCacheNode.get(cacheKey)
         let newCacheNode: CacheNode
         if (parallelSeedData !== null) {
           // New data was sent from the server.
-          const seedNode = parallelSeedData[2]
+          const seedNode = parallelSeedData[1]
+          const loading = parallelSeedData[3]
           newCacheNode = {
             lazyData: null,
             rsc: seedNode,
@@ -57,9 +67,13 @@ export function fillLazyItemsTillLeafWithHead(
             // `prefetchRsc`. As an incremental step, we'll just de-opt to the
             // old behavior — no PPR value.
             prefetchRsc: null,
+            head: null,
+            prefetchHead: null,
+            loading,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
+            navigatedAt,
           }
-        } else if (wasPrefetched && existingCacheNode) {
+        } else if (hasReusablePrefetch && existingCacheNode) {
           // No new data was sent from the server, but the existing cache node
           // was prefetched, so we should reuse that.
           newCacheNode = {
@@ -69,7 +83,10 @@ export function fillLazyItemsTillLeafWithHead(
             // just cloning the existing cache node, we might as well keep the
             // PPR value, if it exists.
             prefetchRsc: existingCacheNode.prefetchRsc,
+            head: existingCacheNode.head,
+            prefetchHead: existingCacheNode.prefetchHead,
             parallelRoutes: new Map(existingCacheNode.parallelRoutes),
+            loading: existingCacheNode.loading,
           } as CacheNode
         } else {
           // No data available for this node. This will trigger a lazy fetch
@@ -78,7 +95,11 @@ export function fillLazyItemsTillLeafWithHead(
             lazyData: null,
             rsc: null,
             prefetchRsc: null,
+            head: null,
+            prefetchHead: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
+            loading: null,
+            navigatedAt,
           }
         }
 
@@ -86,12 +107,13 @@ export function fillLazyItemsTillLeafWithHead(
         parallelRouteCacheNode.set(cacheKey, newCacheNode)
         // Traverse deeper to apply the head / fill lazy items till the head.
         fillLazyItemsTillLeafWithHead(
+          navigatedAt,
           newCacheNode,
           existingCacheNode,
           parallelRouteState,
           parallelSeedData ? parallelSeedData : null,
           head,
-          wasPrefetched
+          prefetchEntry
         )
 
         newCache.parallelRoutes.set(key, parallelRouteCacheNode)
@@ -102,12 +124,17 @@ export function fillLazyItemsTillLeafWithHead(
     let newCacheNode: CacheNode
     if (parallelSeedData !== null) {
       // New data was sent from the server.
-      const seedNode = parallelSeedData[2]
+      const seedNode = parallelSeedData[1]
+      const loading = parallelSeedData[3]
       newCacheNode = {
         lazyData: null,
         rsc: seedNode,
         prefetchRsc: null,
+        head: null,
+        prefetchHead: null,
         parallelRoutes: new Map(),
+        loading,
+        navigatedAt,
       }
     } else {
       // No data available for this node. This will trigger a lazy fetch
@@ -116,7 +143,11 @@ export function fillLazyItemsTillLeafWithHead(
         lazyData: null,
         rsc: null,
         prefetchRsc: null,
+        head: null,
+        prefetchHead: null,
         parallelRoutes: new Map(),
+        loading: null,
+        navigatedAt,
       }
     }
 
@@ -128,12 +159,13 @@ export function fillLazyItemsTillLeafWithHead(
     }
 
     fillLazyItemsTillLeafWithHead(
+      navigatedAt,
       newCacheNode,
       undefined,
       parallelRouteState,
       parallelSeedData,
       head,
-      wasPrefetched
+      prefetchEntry
     )
   }
 }

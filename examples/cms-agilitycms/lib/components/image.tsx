@@ -1,13 +1,13 @@
-import React, { useCallback, useState } from 'react'
-import { useInView } from 'react-intersection-observer'
+import React, { useCallback, useState } from "react";
+import { useInView } from "react-intersection-observer";
 
 type State = {
-  lazyLoad: boolean
-  isSsr: boolean
-  isIntersectionObserverAvailable: boolean
-  inView?: boolean
-  loaded: boolean
-}
+  lazyLoad: boolean;
+  isSsr: boolean;
+  isIntersectionObserverAvailable: boolean;
+  inView?: boolean;
+  loaded: boolean;
+};
 
 const imageAddStrategy = ({
   lazyLoad,
@@ -17,19 +17,19 @@ const imageAddStrategy = ({
   loaded,
 }: State) => {
   if (!lazyLoad) {
-    return true
+    return true;
   }
 
   if (isSsr) {
-    return false
+    return false;
   }
 
   if (isIntersectionObserverAvailable) {
-    return inView || loaded
+    return inView || loaded;
   }
 
-  return true
-}
+  return true;
+};
 
 const imageShowStrategy = ({
   lazyLoad,
@@ -38,47 +38,47 @@ const imageShowStrategy = ({
   loaded,
 }: State) => {
   if (!lazyLoad) {
-    return true
+    return true;
   }
 
   if (isSsr) {
-    return false
+    return false;
   }
 
   if (isIntersectionObserverAvailable) {
-    return loaded
+    return loaded;
   }
 
-  return true
-}
+  return true;
+};
 
 type ImageData = {
-  aspectRatio: number
-  base64?: string
-  height?: number
-  width: number
-  sizes?: string
-  src?: string
-  srcSet?: string
-  webpSrcSet?: string
-  bgColor?: string
-  alt?: string
-  title?: string
-}
+  aspectRatio: number;
+  base64?: string;
+  height?: number;
+  width: number;
+  sizes?: string;
+  src?: string;
+  srcSet?: string;
+  webpSrcSet?: string;
+  bgColor?: string;
+  alt?: string;
+  title?: string;
+};
 
 type ImageProps = {
-  data: ImageData
-  className?: string
-  pictureClassName?: string
-  fadeInDuration?: number
-  intersectionTreshold?: number
-  intersectionThreshold?: number
-  intersectionMargin?: string
-  lazyLoad?: boolean
-  style?: React.CSSProperties
-  pictureStyle?: React.CSSProperties
-  explicitWidth?: boolean
-}
+  data: ImageData;
+  className?: string;
+  pictureClassName?: string;
+  fadeInDuration?: number;
+  intersectionTreshold?: number;
+  intersectionThreshold?: number;
+  intersectionMargin?: string;
+  lazyLoad?: boolean;
+  style?: React.CSSProperties;
+  pictureStyle?: React.CSSProperties;
+  explicitWidth?: boolean;
+};
 
 const Image = function ({
   className,
@@ -92,31 +92,31 @@ const Image = function ({
   explicitWidth,
   data,
 }: ImageProps) {
-  const [loaded, setLoaded] = useState(false)
+  const [loaded, setLoaded] = useState(false);
 
   const handleLoad = useCallback(() => {
-    setLoaded(true)
-  }, [])
+    setLoaded(true);
+  }, []);
 
   const [ref, inView] = useInView({
     threshold: intersectionTreshold || 0,
-    rootMargin: intersectionMargin || '0px 0px 0px 0px',
+    rootMargin: intersectionMargin || "0px 0px 0px 0px",
     triggerOnce: true,
-  })
+  });
 
-  const isSsr = typeof window === 'undefined'
+  const isSsr = typeof window === "undefined";
 
   const isIntersectionObserverAvailable = isSsr
     ? false
-    : !!window.IntersectionObserver
+    : !!window.IntersectionObserver;
 
   const absolutePositioning: React.CSSProperties = {
-    position: 'absolute',
+    position: "absolute",
     left: 0,
     top: 0,
     bottom: 0,
     right: 0,
-  }
+  };
 
   const addImage = imageAddStrategy({
     lazyLoad,
@@ -124,29 +124,29 @@ const Image = function ({
     isIntersectionObserverAvailable,
     inView,
     loaded,
-  })
+  });
   const showImage = imageShowStrategy({
     lazyLoad,
     isSsr,
     isIntersectionObserverAvailable,
     inView,
     loaded,
-  })
+  });
 
   const webpSource = data.webpSrcSet && (
     <source srcSet={data.webpSrcSet} sizes={data.sizes} type="image/webp" />
-  )
+  );
 
   const regularSource = data.srcSet && (
     <source srcSet={data.srcSet} sizes={data.sizes} />
-  )
+  );
 
   const placeholder = (
     <div
       style={{
         backgroundImage: data.base64 ? `url(${data.base64})` : null,
         backgroundColor: data.bgColor,
-        backgroundSize: 'cover',
+        backgroundSize: "cover",
         opacity: showImage ? 0 : 1,
         transition:
           !fadeInDuration || fadeInDuration > 0
@@ -155,34 +155,34 @@ const Image = function ({
         ...absolutePositioning,
       }}
     />
-  )
+  );
 
-  const { width, aspectRatio } = data
-  const height = data.height || width / aspectRatio
+  const { width, aspectRatio } = data;
+  const height = data.height || width / aspectRatio;
 
   const sizer = (
     <svg
       className={pictureClassName}
       style={{
-        width: explicitWidth ? `${width}px` : '100%',
-        height: 'auto',
-        display: 'block',
+        width: explicitWidth ? `${width}px` : "100%",
+        height: "auto",
+        display: "block",
         ...pictureStyle,
       }}
       height={height}
       width={width}
     />
-  )
+  );
 
   return (
     <div
       ref={ref}
       className={className}
       style={{
-        display: 'inline-block',
-        overflow: 'hidden',
+        display: "inline-block",
+        overflow: "hidden",
         ...style,
-        position: 'relative',
+        position: "relative",
       }}
     >
       {sizer}
@@ -206,7 +206,7 @@ const Image = function ({
               alt={data.alt}
               title={data.title}
               onLoad={handleLoad}
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
             />
           )}
         </picture>
@@ -219,7 +219,7 @@ const Image = function ({
         </picture>
       </noscript>
     </div>
-  )
-}
+  );
+};
 
-export default Image
+export default Image;

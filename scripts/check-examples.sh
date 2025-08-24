@@ -8,7 +8,11 @@ for folder in examples/* ; do
     ' | sponge $folder/package.json
   fi
   if [ -f "$folder/tsconfig.json" ]; then
-    cp packages/create-next-app/templates/default/ts/next-env.d.ts $folder/next-env.d.ts
+    if [ -d "$folder/app" ] || [ -d "$folder/src/app" ]; then
+      cp packages/create-next-app/templates/app/ts/next-env.d.ts $folder/next-env.d.ts
+    else
+      cp packages/create-next-app/templates/default/ts/next-env.d.ts $folder/next-env.d.ts
+    fi
   fi
   if [ ! -f "$folder/.gitignore" ]; then
     cp packages/create-next-app/templates/default/js/gitignore $folder/.gitignore;

@@ -1,13 +1,13 @@
-import React from 'react'
-import { GetServerSideProps } from 'next'
-import Layout from '../components/Layout'
-import Post from '../components/Post'
-import { PostProps } from './blog/[id]'
-import { client, e } from '../client'
+import React from "react";
+import { GetServerSideProps } from "next";
+import Layout from "../components/Layout";
+import Post from "../components/Post";
+import { PostProps } from "./blog/[id]";
+import { client, e } from "../client";
 
 type Props = {
-  feed: PostProps[]
-}
+  feed: PostProps[];
+};
 
 const Blog: React.FC<Props> = (props) => {
   return (
@@ -43,8 +43,8 @@ const Blog: React.FC<Props> = (props) => {
         }
       `}</style>
     </Layout>
-  )
-}
+  );
+};
 
 export const getServerSideProps: GetServerSideProps = async () => {
   const feed = await e
@@ -54,12 +54,12 @@ export const getServerSideProps: GetServerSideProps = async () => {
       content: true,
       authorName: true,
       publishedISO: true,
-      filter: e.op('exists', post.published),
+      filter: e.op("exists", post.published),
     }))
-    .run(client)
+    .run(client);
   return {
     props: { feed },
-  }
-}
+  };
+};
 
-export default Blog
+export default Blog;

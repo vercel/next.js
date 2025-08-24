@@ -1,8 +1,4 @@
-import dynamic from 'next/dynamic'
-
-const DynamicStaticImg = dynamic(() => import('../../components/static-img'), {
-  ssr: false,
-})
+import { DynamicStaticImg } from './async-image'
 
 export default () => {
   return (

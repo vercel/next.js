@@ -1,0 +1,13 @@
+  x Font loader calls must be assigned to a const
+   ,-[input.js:4:1]
+ 3 | 
+ 4 | export let firaCode = Abel()
+   :        ^^^^^^^^^^^^^^^^^^^^^
+ 5 | export var inter = Inter()
+   `----
+  x Font loader calls must be assigned to a const
+   ,-[input.js:5:1]
+ 4 | export let firaCode = Abel()
+ 5 | export var inter = Inter()
+   :        ^^^^^^^^^^^^^^^^^^^
+   `----

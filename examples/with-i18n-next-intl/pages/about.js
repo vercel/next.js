@@ -1,30 +1,30 @@
-import { useIntl, useTranslations } from 'next-intl'
-import { useRouter } from 'next/router'
-import Code from '../components/Code'
-import PageLayout from '../components/PageLayout'
+import { useIntl, useTranslations } from "next-intl";
+import { useRouter } from "next/router";
+import Code from "../components/Code";
+import PageLayout from "../components/PageLayout";
 
 export default function About() {
-  const t = useTranslations('About')
-  const { locale } = useRouter()
-  const intl = useIntl()
-  const lastUpdated = new Date(2021, 0, 26, 17, 4, 45)
+  const t = useTranslations("About");
+  const { locale } = useRouter();
+  const intl = useIntl();
+  const lastUpdated = new Date(2021, 0, 26, 17, 4, 45);
 
   return (
-    <PageLayout title={t('title')}>
+    <PageLayout title={t("title")}>
       <p>
-        {t('description', {
+        {t("description", {
           locale,
           code: (children) => <Code>{children}</Code>,
         })}
       </p>
       <p>
-        {t('lastUpdated', {
+        {t("lastUpdated", {
           lastUpdated,
           lastUpdatedRelative: intl.formatRelativeTime(lastUpdated),
         })}
       </p>
     </PageLayout>
-  )
+  );
 }
 
 export function getStaticProps({ locale }) {
@@ -36,5 +36,5 @@ export function getStaticProps({ locale }) {
       },
       now: new Date().getTime(),
     },
-  }
+  };
 }

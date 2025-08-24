@@ -88,7 +88,8 @@ export async function handleFetch(
 ): Promise<Response> {
   const testInfo = getTestReqInfo(request, reader)
   if (!testInfo) {
-    throw new Error(`No test info for ${request.method} ${request.url}`)
+    // Passthrough non-test requests.
+    return originalFetch(request)
   }
 
   const { testData, proxyPort } = testInfo
@@ -116,10 +117,11 @@ export async function handleFetch(
       throw new Error(
         `Proxy request aborted [${request.method} ${request.url}]`
       )
+    case 'fetch':
+      return buildResponse(proxyResponse)
     default:
-      break
+      return api satisfies never
   }
-  return buildResponse(proxyResponse)
 }
 
 export function interceptFetch(originalFetch: Fetch) {

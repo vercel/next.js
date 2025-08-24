@@ -45,6 +45,7 @@ export default async function nextFontLoader(this: any) {
       assetPrefix,
       fontLoaderPath,
       postcss: getPostcss,
+      deploymentId,
     } = this.getOptions()
 
     if (assetPrefix && !/^\/|https?:\/\//.test(assetPrefix)) {
@@ -66,7 +67,7 @@ export default async function nextFontLoader(this: any) {
      * NextFontManifestPlugin uses this to see if fallback fonts are being used.
      * This is used to collect stats on fallback fonts usage by the Google Aurora team.
      */
-    const emitFontFile = (
+    const emitFontFile: Parameters<FontLoader>[0]['emitFontFile'] = (
       content: Buffer,
       ext: string,
       preload: boolean,
@@ -109,6 +110,7 @@ export default async function nextFontLoader(this: any) {
               ),
             isDev,
             isServer,
+            deploymentId,
             loaderContext: this,
           })
         )
@@ -118,7 +120,7 @@ export default async function nextFontLoader(this: any) {
       // Exports will be exported as is from css-loader instead of a CSS module export
       const exports: { name: any; value: any }[] = []
 
-      // Generate a hash from the CSS content. Used to generate classnames and font families
+      // Generate a hash from the CSS content. Used to generate classnames
       const fontFamilyHash = loaderUtils.getHashDigest(
         Buffer.from(css),
         'sha1',
@@ -133,7 +135,6 @@ export default async function nextFontLoader(this: any) {
           postcss(
             postcssNextFontPlugin({
               exports,
-              fontFamilyHash,
               fallbackFonts,
               weight,
               style,

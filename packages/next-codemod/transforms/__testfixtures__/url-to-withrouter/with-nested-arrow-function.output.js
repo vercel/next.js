@@ -6,7 +6,7 @@ export default withRouter(withAppContainer(withAuth(
       const { props, state } = this
 
       return (
-        <Header
+        (<Header
           inverse={true}
           user={props.user}
           pathname={props.router.pathname}
@@ -15,7 +15,7 @@ export default withRouter(withAppContainer(withAuth(
             props.router.push('/login')
           }}
           onLogoRightClick={() => props.router.push('/logos')}
-        />
+        />)
       );
     }
   }

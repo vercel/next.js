@@ -1,4 +1,4 @@
-@use '../../css/queries.scss' as *;
+@use "../../css/queries.scss" as *;
 
 .header {
   padding: var(--base) 0;
@@ -26,7 +26,7 @@
   cursor: pointer;
   display: none;
 
-  &[aria-expanded='true'] {
+  &[aria-expanded="true"] {
     transform: rotate(-25deg);
   }
 

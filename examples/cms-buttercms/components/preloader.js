@@ -16,5 +16,5 @@ export default function Preloader() {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,0 +1,29 @@
+a = (x && y)
+
+b = (x || y)
+
+c = (x ?? y)
+
+chain1 = (1 && 2 && 3 && FreeVar(global))
+
+chain2 = ((1 && 2 && FreeVar(global)) || 3 || 4)
+
+d = !(x)
+
+e = !(!(x))
+
+resolve1 = (1 && 2 && FreeVar(global) && 3 && 4)
+
+resolve2 = (1 && 2 && 0 && FreeVar(global) && 4)
+
+resolve3 = (FreeVar(global) || true)
+
+resolve4 = (true || FreeVar(global))
+
+resolve5 = (FreeVar(global) && false)
+
+resolve6 = (false && FreeVar(global))
+
+x = true
+
+y = false

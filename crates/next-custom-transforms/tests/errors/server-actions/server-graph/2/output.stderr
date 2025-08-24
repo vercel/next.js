@@ -1,0 +1,7 @@
+  x Server Actions must be async functions.
+  | 
+   ,-[input.js:7:1]
+ 6 | 
+ 7 | export function bar() {}
+   :                 ^^^
+   `----

@@ -19,7 +19,7 @@ export const inter = Inter({
 export const roboto = Roboto({ weight: '400', subsets: ['latin'] })
 
 export const myLocalFont = localFont({
-  src: './my-font.woff2',
+  src: './my-font-roboto.woff2',
 })
 
 export { openSans, sourceCodePro, abel }

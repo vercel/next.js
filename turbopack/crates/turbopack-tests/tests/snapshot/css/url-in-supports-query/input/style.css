@@ -1,0 +1,5 @@
+@supports ((-webkit-mask: url('')) or (mask: url(''))) {
+  .supports-url-in-query {
+    color: red;
+  }
+}
