@@ -1,5 +1,7 @@
 import { useMemo, useRef, type Ref } from 'react'
 
+const noop = () => {}
+
 // This is a compatibility hook to support React 18 and 19 refs. In 19, a
 // cleanup function from refs may be returned. In 18, returning a cleanup
 // function creates a warning. Since we take userspace refs, we don't know ahead
@@ -11,8 +13,8 @@ export function useMergedRef<TElement>(
   refA: Ref<TElement>,
   refB: Ref<TElement>
 ): Ref<TElement> {
-  const cleanupA = useRef<() => void>(() => {})
-  const cleanupB = useRef<() => void>(() => {})
+  const cleanupA = useRef<() => void>(noop)
+  const cleanupB = useRef<() => void>(noop)
 
   return useMemo(() => {
     if (!refA || !refB) {
