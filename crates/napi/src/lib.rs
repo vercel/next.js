@@ -75,7 +75,6 @@ fn init() {
         panic::{set_hook, take_hook},
         thread::available_parallelism,
         time::{Duration, Instant},
-        usize,
     };
 
     thread_local! {
