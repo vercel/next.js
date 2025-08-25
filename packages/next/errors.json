@@ -788,5 +788,8 @@
   "787": "\\`experimental.clientParamParsing\\` can not be \\`true\\` when \\`experimental.clientSegmentCache\\` is \\`false\\`. Client param parsing is only relevant when client segment cache is enabled.",
   "788": "Unexpected dynamic param type: %s",
   "789": "Expected RSC response, got %s",
-  "790": "Invariant: Expected RSC response, got %s"
+  "790": "Invariant: Expected RSC response, got %s",
+  "791": "Unexpected match for a pathname \"%s\" with a param \"%s\" of type \"%s\"",
+  "792": "Unexpected empty path segments match for a pathname \"%s\" with param \"%s\" of type \"%s\"",
+  "793": "No value found for segment key: \"%s\""
 }

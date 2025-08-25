@@ -26,6 +26,7 @@ import { createIncrementalCache } from '../../export/helpers/create-incremental-
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -596,18 +597,28 @@ export function resolveParallelRouteParams(
       // This mimics the behavior in getDynamicParam where the pagePath
       // is split and used to populate catchall values
       if (pathSegments.length > 0) {
+        // FIXME: (NAR-335) this should handle prefixed segments
         params[paramName] = pathSegments
       } else if (paramType === 'optional-catchall') {
         params[paramName] = []
       } else {
-        // For regular catchall and catchall-intercepted with no segments
-        fallbackRouteParams.push(
-          createFallbackRouteParam(paramName, paramType, true)
+        // We shouldn't be able to match a catchall segment without any path
+        // segments if it's not an optional catchall.
+        throw new InvariantError(
+          `Unexpected empty path segments match for a pathname "${pathname}" with param "${paramName}" of type "${paramType}"`
         )
       }
-    } else {
+    } else if (paramType === 'dynamic') {
+      // We can't resolve dynamic param values at build time because they're
+      // inferred from the request pathname.
       fallbackRouteParams.push(
         createFallbackRouteParam(paramName, paramType, true)
+      )
+    } else {
+      // This is some other type of route param that shouldn't get resolved
+      // statically.
+      throw new InvariantError(
+        `Unexpected match for a pathname "${pathname}" with a param "${paramName}" of type "${paramType}"`
       )
     }
   }

@@ -77,6 +77,7 @@ export function getDynamicParam(
 
       // handle the case where a catchall or optional catchall does not have a value,
       // e.g. `/foo/bar/hello` and `@slot/[...catchall]` or `@slot/[[...catchall]]` is matched
+      // FIXME: (NAR-335) this should handle prefixed segments
       value = pagePath
         .split('/')
         // remove the first empty string
@@ -91,6 +92,12 @@ export function getDynamicParam(
             getParamValue(params, param.key, fallbackRouteParams) ?? param.key
           )
         })
+
+      if (!value) {
+        throw new InvariantError(
+          `No value found for segment key: "${segmentKey}"`
+        )
+      }
 
       return {
         param: segmentKey,

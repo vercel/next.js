@@ -1,6 +1,7 @@
 import { collectFallbackRouteParams } from '../../build/segment-config/app/app-segments'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type { DynamicParamTypesShort } from '../../shared/lib/app-router-types'
+import { InvariantError } from '../../shared/lib/invariant-error'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { dynamicParamTypes } from '../app-render/get-short-dynamic-param-type'
@@ -139,14 +140,15 @@ export function getFallbackRouteParams(
           continue
         }
 
-        // If there are no path segments and this is not an optional catchall,
-        // we can add it to the fallback route params as the value is unknown.
         if (
           pathSegments.length === 0 &&
           fallbackRouteParam.paramType !== 'optional-catchall'
         ) {
-          fallbackRouteParams.push(fallbackRouteParam)
-          continue
+          // We shouldn't be able to match a catchall segment without any path
+          // segments if it's not an optional catchall.
+          throw new InvariantError(
+            `Unexpected empty path segments match for a pathname "${page}" with param "${fallbackRouteParam.paramName}" of type "${fallbackRouteParam.paramType}"`
+          )
         }
 
         // The path segments are not empty, and the segments didn't contain any
@@ -154,9 +156,11 @@ export function getFallbackRouteParams(
         // route param is not actually unknown, and is known. We can skip adding
         // it to the fallback route params.
       } else {
-        // This is some other type of route param, but it wasn't already
-        // resolved, so we can add it to the fallback route params.
-        fallbackRouteParams.push(fallbackRouteParam)
+        // This is some other type of route param that shouldn't get resolved
+        // statically.
+        throw new InvariantError(
+          `Unexpected match for a pathname "${page}" with a param "${fallbackRouteParam.paramName}" of type "${fallbackRouteParam.paramType}"`
+        )
       }
     } else if (unknownParamKeys.has(fallbackRouteParam.paramName)) {
       // As this is a non-parallel route segment, and it exists in the unknown

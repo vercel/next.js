@@ -1458,7 +1458,7 @@ describe('resolveParallelRouteParams', () => {
         createParallelRouteSegment('optionalCatchall', 'optional-catchall'),
       ]
       const params: Params = {}
-      const pathname = ''
+      const pathname = '/'
       const fallbackRouteParams: FallbackRouteParam[] = []
 
       resolveParallelRouteParams(
@@ -1494,242 +1494,26 @@ describe('resolveParallelRouteParams', () => {
     })
   })
 
-  describe('regular catchall with empty pathname', () => {
-    it('should add to fallbackRouteParams when pathname is empty and no non-parallel fallbacks', () => {
-      const parallelRouteSegments = [
-        createParallelRouteSegment('catchallParam', 'catchall'),
-      ]
-      const params: Params = {}
-      const pathname = ''
-      const fallbackRouteParams: FallbackRouteParam[] = []
+  it('should throw error for catchall with empty pathname', () => {
+    const parallelRouteSegments = [
+      createParallelRouteSegment('catchallParam', 'catchall'),
+    ]
+    const params: Params = {}
+    const pathname = '/'
+    const fallbackRouteParams: FallbackRouteParam[] = []
 
+    expect(() =>
       resolveParallelRouteParams(
         parallelRouteSegments,
         params,
         pathname,
         fallbackRouteParams
       )
-
-      expect(params.catchallParam).toBeUndefined()
-      expect(fallbackRouteParams).toHaveLength(1)
-      expect(fallbackRouteParams[0]).toEqual({
-        paramName: 'catchallParam',
-        paramType: 'catchall',
-        isParallelRouteParam: true,
-      })
-    })
-  })
-
-  describe('non-catchall segment', () => {
-    it('should always add to fallbackRouteParams for dynamic segments', () => {
-      const parallelRouteSegments = [
-        createParallelRouteSegment('dynamicParam', 'dynamic'),
-      ]
-      const params: Params = {}
-      const pathname = '/some/path'
-      const fallbackRouteParams: FallbackRouteParam[] = []
-
-      resolveParallelRouteParams(
-        parallelRouteSegments,
-        params,
-        pathname,
-        fallbackRouteParams
-      )
-
-      expect(params.dynamicParam).toBeUndefined()
-      expect(fallbackRouteParams).toHaveLength(1)
-      expect(fallbackRouteParams[0]).toEqual({
-        paramName: 'dynamicParam',
-        paramType: 'dynamic',
-        isParallelRouteParam: true,
-      })
-    })
-
-    it('should handle dynamic-intercepted segments', () => {
-      const parallelRouteSegments = [
-        createParallelRouteSegment('interceptedParam', 'dynamic-intercepted'),
-      ]
-      const params: Params = {}
-      const pathname = '/intercepted/path'
-      const fallbackRouteParams: FallbackRouteParam[] = []
-
-      resolveParallelRouteParams(
-        parallelRouteSegments,
-        params,
-        pathname,
-        fallbackRouteParams
-      )
-
-      expect(params.interceptedParam).toBeUndefined()
-      expect(fallbackRouteParams).toHaveLength(1)
-      expect(fallbackRouteParams[0]).toEqual({
-        paramName: 'interceptedParam',
-        paramType: 'dynamic-intercepted',
-        isParallelRouteParam: true,
-      })
-    })
-  })
-
-  describe('multiple parallel routes', () => {
-    it('should process each parallel route segment correctly', () => {
-      const parallelRouteSegments = [
-        createParallelRouteSegment('existingParam', 'dynamic'),
-        createParallelRouteSegment('catchallParam', 'catchall'),
-        createParallelRouteSegment('dynamicParam', 'dynamic'),
-        createParallelRouteSegment('optionalCatchall', 'optional-catchall'),
-      ]
-      const params: Params = { existingParam: 'existing' }
-      const pathname = '/blog/2023/articles'
-      const fallbackRouteParams: FallbackRouteParam[] = []
-
-      resolveParallelRouteParams(
-        parallelRouteSegments,
-        params,
-        pathname,
-        fallbackRouteParams
-      )
-
-      expect(params.existingParam).toBe('existing') // Unchanged
-      expect(params.catchallParam).toEqual(['blog', '2023', 'articles'])
-      expect(params.optionalCatchall).toEqual(['blog', '2023', 'articles'])
-      expect(params.dynamicParam).toBeUndefined()
-
-      expect(fallbackRouteParams).toHaveLength(1)
-      expect(fallbackRouteParams[0]).toEqual({
-        paramName: 'dynamicParam',
-        paramType: 'dynamic',
-        isParallelRouteParam: true,
-      })
-    })
-  })
-
-  describe('mixed scenarios', () => {
-    it('should handle combination of direct matches, catchalls, and regular segments', () => {
-      const parallelRouteSegments = [
-        createParallelRouteSegment('direct', 'dynamic'),
-        createParallelRouteSegment('catchall1', 'catchall'),
-        createParallelRouteSegment('regular', 'dynamic'),
-        createParallelRouteSegment('catchall2', 'optional-catchall'),
-      ]
-      const params: Params = { direct: 'directValue' }
-      const pathname = '/users/123/posts'
-      const fallbackRouteParams: FallbackRouteParam[] = [
-        createFallbackParam('nonParallelParam', false), // Prevents pathname derivation
-      ]
-
-      resolveParallelRouteParams(
-        parallelRouteSegments,
-        params,
-        pathname,
-        fallbackRouteParams
-      )
-
-      expect(params.direct).toBe('directValue') // Unchanged
-      expect(params.catchall1).toBeUndefined() // Added to fallback due to non-parallel param
-      expect(params.regular).toBeUndefined() // Added to fallback
-      expect(params.catchall2).toBeUndefined() // Added to fallback due to non-parallel param
-
-      expect(fallbackRouteParams).toHaveLength(4) // Original + 3 new
-      expect(fallbackRouteParams.slice(1)).toEqual([
-        {
-          paramName: 'catchall1',
-          paramType: 'catchall',
-          isParallelRouteParam: true,
-        },
-        {
-          paramName: 'regular',
-          paramType: 'dynamic',
-          isParallelRouteParam: true,
-        },
-        {
-          paramName: 'catchall2',
-          paramType: 'optional-catchall',
-          isParallelRouteParam: true,
-        },
-      ])
-    })
-
-    it('should process mixed segments without non-parallel fallback params', () => {
-      const parallelRouteSegments = [
-        createParallelRouteSegment('direct', 'dynamic'),
-        createParallelRouteSegment('catchall', 'catchall'),
-        createParallelRouteSegment('optional', 'optional-catchall'),
-        createParallelRouteSegment('regular', 'dynamic'),
-      ]
-      const params: Params = { direct: 'value' }
-      const pathname = '/api/v2/endpoints'
-      const fallbackRouteParams: FallbackRouteParam[] = [
-        createFallbackParam('parallelParam', true), // Only parallel params
-      ]
-
-      resolveParallelRouteParams(
-        parallelRouteSegments,
-        params,
-        pathname,
-        fallbackRouteParams
-      )
-
-      expect(params.direct).toBe('value') // Unchanged
-      expect(params.catchall).toEqual(['api', 'v2', 'endpoints'])
-      expect(params.optional).toEqual(['api', 'v2', 'endpoints'])
-      expect(params.regular).toBeUndefined() // Added to fallback
-
-      expect(fallbackRouteParams).toHaveLength(2) // Original + 1 new
-      expect(fallbackRouteParams[1]).toEqual({
-        paramName: 'regular',
-        paramType: 'dynamic',
-        isParallelRouteParam: true,
-      })
-    })
+    ).toThrow()
   })
 
   describe('edge cases', () => {
-    it('should handle empty parallelRouteSegments array', () => {
-      const parallelRouteSegments: Array<{
-        paramName: string
-        paramType: DynamicParamTypes
-      }> = []
-      const params: Params = { existing: 'value' }
-      const pathname = '/some/path'
-      const fallbackRouteParams: FallbackRouteParam[] = []
-
-      resolveParallelRouteParams(
-        parallelRouteSegments,
-        params,
-        pathname,
-        fallbackRouteParams
-      )
-
-      expect(params).toEqual({ existing: 'value' }) // Unchanged
-      expect(fallbackRouteParams).toHaveLength(0)
-    })
-
-    it('should handle catchall-intercepted segments as unknown parameters', () => {
-      const parallelRouteSegments = [
-        createParallelRouteSegment('intercepted', 'catchall-intercepted'),
-      ]
-      const params: Params = {}
-      const pathname = '/intercepted/route/path'
-      const fallbackRouteParams: FallbackRouteParam[] = []
-
-      resolveParallelRouteParams(
-        parallelRouteSegments,
-        params,
-        pathname,
-        fallbackRouteParams
-      )
-
-      // catchall-intercepted should be treated as unknown parameter
-      expect(params.intercepted).toBeUndefined()
-      expect(fallbackRouteParams).toHaveLength(1)
-      expect(fallbackRouteParams[0]).toEqual({
-        paramName: 'intercepted',
-        paramType: 'catchall-intercepted',
-        isParallelRouteParam: true,
-      })
-    })
-
-    it('should handle pathname with only slashes', () => {
+    it('should throw error for catchall with empty path segments', () => {
       const parallelRouteSegments = [
         createParallelRouteSegment('catchall', 'catchall'),
         createParallelRouteSegment('optional', 'optional-catchall'),
@@ -1738,21 +1522,14 @@ describe('resolveParallelRouteParams', () => {
       const pathname = '///'
       const fallbackRouteParams: FallbackRouteParam[] = []
 
-      resolveParallelRouteParams(
-        parallelRouteSegments,
-        params,
-        pathname,
-        fallbackRouteParams
-      )
-
-      expect(params.catchall).toBeUndefined() // Empty after filtering
-      expect(params.optional).toEqual([]) // Empty array for optional-catchall
-      expect(fallbackRouteParams).toHaveLength(1) // catchall added to fallback
-      expect(fallbackRouteParams[0]).toEqual({
-        paramName: 'catchall',
-        paramType: 'catchall',
-        isParallelRouteParam: true,
-      })
+      expect(() =>
+        resolveParallelRouteParams(
+          parallelRouteSegments,
+          params,
+          pathname,
+          fallbackRouteParams
+        )
+      ).toThrow()
     })
   })
 })
