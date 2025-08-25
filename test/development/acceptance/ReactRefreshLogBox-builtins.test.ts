@@ -2,12 +2,18 @@ import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { outdent } from 'outdent'
 import path from 'path'
+import {
+  getRedboxDescription,
+  getRedboxLabel,
+  getRedboxSource,
+} from 'next-test-utils'
 
 describe('ReactRefreshLogBox', () => {
   const { isTurbopack, next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
+  const isRspack = Boolean(process.env.NEXT_RSPACK)
 
   // Module trace is only available with webpack 5
   test('Node.js builtins', async () => {
@@ -57,6 +63,16 @@ describe('ReactRefreshLogBox', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await session.assertHasRedbox()
+      const redboxContent = await getRedboxDescription(browser)
+      const redboxLabel = await getRedboxLabel(browser)
+      const redboxSource = await getRedboxSource(browser)
+      expect(redboxContent).toContain("Module not found: Can't resolve 'dns'")
+      expect(redboxLabel).toContain('Build Error')
+      expect(redboxSource).toContain('./node_modules/my-package/index.js')
+      expect(redboxSource).toContain("const dns = require('dns')")
+      expect(redboxSource).toContain('module.exports = dns')
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -105,6 +121,16 @@ describe('ReactRefreshLogBox', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await session.assertHasRedbox()
+      const redboxContent = await getRedboxDescription(browser)
+      const redboxLabel = await getRedboxLabel(browser)
+      const redboxSource = await getRedboxSource(browser)
+      expect(redboxContent).toContain("Module not found: Can't resolve 'b'")
+      expect(redboxLabel).toContain('Build Error')
+      expect(redboxSource).toContain('./index.js')
+      expect(redboxSource).toContain("import Comp from 'b'")
+      expect(redboxSource).toContain('export default function Oops()')
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -153,6 +179,16 @@ describe('ReactRefreshLogBox', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await session.assertHasRedbox()
+      const redboxContent = await getRedboxDescription(browser)
+      const redboxLabel = await getRedboxLabel(browser)
+      const redboxSource = await getRedboxSource(browser)
+      expect(redboxContent).toContain("Module not found: Can't resolve 'b'")
+      expect(redboxLabel).toContain('Build Error')
+      expect(redboxSource).toContain('./pages/index.js')
+      expect(redboxSource).toContain("import Comp from 'b'")
+      expect(redboxSource).toContain('export default function Oops()')
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -208,6 +244,18 @@ describe('ReactRefreshLogBox', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await session.assertHasRedbox()
+      const redboxContent = await getRedboxDescription(browser)
+      const redboxLabel = await getRedboxLabel(browser)
+      const redboxSource = await getRedboxSource(browser)
+      expect(redboxContent).toContain(
+        "Module not found: Can't resolve './non-existent.css'"
+      )
+      expect(redboxLabel).toContain('Build Error')
+      expect(redboxSource).toContain('./pages/_app.js')
+      expect(redboxSource).toContain("import './non-existent.css'")
+      expect(redboxSource).toContain('export default function App')
     } else {
       await expect(browser).toDisplayRedbox(`
        {
