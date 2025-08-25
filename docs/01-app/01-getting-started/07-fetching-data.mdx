@@ -504,7 +504,7 @@ export default async function Page({ params }) {
 }
 ```
 
-Initiate multiple requests by calling fetch and await them together with [`Promise.all`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all). Requests start immediately when fetch is called. `Promise.all` only waits for all of them to resolve, if any rejects `Promise.all` rejects too. If some failures are acceptable, use [`Promise.allSettled`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled) to handle successes and errors together.
+Start multiple requests by calling `fetch`, then await them with [`Promise.all`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all). Requests begin as soon as `fetch` is called. `Promise.all` waits for all to resolve, but rejects if any fail. If some failures are acceptable, use [`Promise.allSettled`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/allSettled) to handle successes and errors together.
 
 ```tsx filename="app/artist/[username]/page.tsx" highlight={3,8,23} switcher
 import Albums from './albums'
