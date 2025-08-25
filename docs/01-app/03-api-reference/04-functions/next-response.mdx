@@ -159,7 +159,7 @@ async function middleware(request: NextRequest) {
 }
 ```
 
-In general, avoid copying all incoming request header because doing so can leak sensitive data to clients or upstream services.
+In general, avoid copying all incoming request headers because doing so can leak sensitive data to clients or upstream services.
 
 Prefer a defensive approach by creating a subset of incoming request headers using an allow-list. For example, you might discard custom `x-*` headers and only forward known-safe headers:
 
