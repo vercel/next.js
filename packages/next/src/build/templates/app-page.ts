@@ -67,6 +67,7 @@ declare const tree: LoaderTree
 // We inject the tree and pages here so that we can use them in the route
 // module.
 // INJECT:tree
+// INJECT:pages
 
 import GlobalError from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-utility' }
 
