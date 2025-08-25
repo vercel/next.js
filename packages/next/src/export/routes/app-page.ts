@@ -30,6 +30,10 @@ import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
 import { stringifyResumeDataCache } from '../../server/resume-data-cache/resume-data-cache'
+import {
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+} from '../../shared/lib/entry-constants'
 
 /**
  * Renders & exports a page associated with the /app directory
@@ -59,11 +63,16 @@ export async function exportAppPage(
   }
 
   let isDefaultNotFound = false
+  let isDefaultGlobalError = false
   // If the page is `/_not-found`, then we should update the page to be `/404`.
-  // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
-  if (page === '/_not-found/page') {
+  if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) {
     isDefaultNotFound = true
     pathname = '/404'
+  }
+  // If the page is `/_global-error`, then we should update the page to be `/500`.
+  if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY) {
+    isDefaultGlobalError = true
+    pathname = '/500'
   }
 
   try {
@@ -197,6 +206,9 @@ export async function exportAppPage(
     if (isDefaultNotFound) {
       // Override the default /_not-found page status code to 404
       status = 404
+    } else if (isDefaultGlobalError) {
+      // Override the default /_global-error page status code to 500
+      status = 500
     } else if (isNonSuccessfulStatusCode && !isParallelRoute) {
       // If it's parallel route the status from mock response is 404
       status = res.statusCode

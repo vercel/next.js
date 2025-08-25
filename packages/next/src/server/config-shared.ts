@@ -261,6 +261,15 @@ export type TurbopackLoaderItem =
       options: Record<string, JSONValue>
     }
 
+export type TurbopackLoaderBuiltinCondition =
+  | 'default'
+  | 'browser'
+  | 'foreign'
+  | 'development'
+  | 'production'
+  | 'node'
+  | 'edge-light'
+
 export type TurbopackRuleCondition = {
   path?: string | RegExp
   content?: RegExp
@@ -277,7 +286,7 @@ export type TurbopackRuleConfigItemOptions = {
 
 export type TurbopackRuleConfigItem =
   | TurbopackRuleConfigItemOptions
-  | { [condition: string]: TurbopackRuleConfigItem }
+  | { [condition in TurbopackLoaderBuiltinCondition]?: TurbopackRuleConfigItem }
   | false
 
 export interface TurbopackOptions {
@@ -446,7 +455,6 @@ export interface ExperimentalConfig {
   clientSegmentCache?: boolean | 'client-only'
   clientParamParsing?: boolean
   dynamicOnHover?: boolean
-  appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -554,6 +562,7 @@ export interface ExperimentalConfig {
 
   /**
    * @deprecated Use `config.turbopack` instead.
+   * Run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .` to migrate automatically.
    */
   turbo?: DeprecatedExperimentalTurboOptions
 
@@ -608,8 +617,9 @@ export interface ExperimentalConfig {
       }
 
   /**
-   * Generate Route types and enable type checking for Link and Router.push, etc.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
+   * Enable type checking for Link and Router.push, etc.
+   * @deprecated Use `typedRoutes` instead — this feature is now stable.
+   * @see https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links
    */
   typedRoutes?: boolean
 
@@ -998,6 +1008,14 @@ export interface NextConfig extends Record<string, any> {
    * @see [Next.js TypeScript documentation](https://nextjs.org/docs/app/api-reference/config/typescript)
    */
   typescript?: TypeScriptConfig
+
+  /**
+   * Enable type checking for Link and Router.push, etc.
+   * This feature requires TypeScript in your project.
+   *
+   * @see [Typed Links documentation](https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links)
+   */
+  typedRoutes?: boolean
 
   /**
    * Headers allow you to set custom HTTP headers for an incoming request path.
@@ -1415,6 +1433,7 @@ export const defaultConfig = Object.freeze({
     ignoreBuildErrors: false,
     tsconfigPath: 'tsconfig.json',
   },
+  typedRoutes: false,
   distDir: '.next',
   cleanDistDir: true,
   assetPrefix: '',
@@ -1521,7 +1540,6 @@ export const defaultConfig = Object.freeze({
     clientSegmentCache: false,
     clientParamParsing: false,
     dynamicOnHover: false,
-    appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -1560,7 +1578,6 @@ export const defaultConfig = Object.freeze({
     amp: undefined,
     urlImports: undefined,
     turbo: undefined,
-    typedRoutes: false,
     typedEnv: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,

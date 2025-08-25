@@ -11,7 +11,7 @@ import type {
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
 import { applyFlightData } from '../apply-flight-data'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-types'
 import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'

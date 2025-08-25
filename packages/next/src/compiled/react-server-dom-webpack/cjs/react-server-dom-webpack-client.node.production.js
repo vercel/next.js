@@ -1948,10 +1948,10 @@ function createResponseFromOptions(options) {
       : void 0
   );
 }
-function startReadingFromStream(response, stream) {
+function startReadingFromStream$1(response, stream, isSecondaryStream) {
   function progress(_ref) {
     var value = _ref.value;
-    if (_ref.done) close(response);
+    if (_ref.done) isSecondaryStream || close(response);
     else
       return (
         processBinaryChunk(response, streamState, value),
@@ -1970,33 +1970,8 @@ function noServerCall() {
     "Server Functions cannot be called during initial render. This would create a fetch waterfall. Try to use a Server Component to pass data to Client Components instead."
   );
 }
-exports.createFromFetch = function (promiseForResponse, options) {
-  var response = createResponseFromOptions(options);
-  promiseForResponse.then(
-    function (r) {
-      startReadingFromStream(response, r.body);
-    },
-    function (e) {
-      reportGlobalError(response, e);
-    }
-  );
-  return getChunk(response, 0);
-};
-exports.createFromNodeStream = function (
-  stream,
-  serverConsumerManifest,
-  options
-) {
-  var response = new ResponseInstance(
-      serverConsumerManifest.moduleMap,
-      serverConsumerManifest.serverModuleMap,
-      serverConsumerManifest.moduleLoading,
-      noServerCall,
-      options ? options.encodeFormAction : void 0,
-      options && "string" === typeof options.nonce ? options.nonce : void 0,
-      void 0
-    ),
-    streamState = createStreamState();
+function startReadingFromStream(response, stream, isSecondaryStream) {
+  var streamState = createStreamState();
   stream.on("data", function (chunk) {
     if ("string" === typeof chunk) {
       for (
@@ -2090,13 +2065,41 @@ exports.createFromNodeStream = function (
     reportGlobalError(response, error);
   });
   stream.on("end", function () {
-    return close(response);
+    isSecondaryStream || close(response);
   });
+}
+exports.createFromFetch = function (promiseForResponse, options) {
+  var response = createResponseFromOptions(options);
+  promiseForResponse.then(
+    function (r) {
+      startReadingFromStream$1(response, r.body, !1);
+    },
+    function (e) {
+      reportGlobalError(response, e);
+    }
+  );
   return getChunk(response, 0);
+};
+exports.createFromNodeStream = function (
+  stream,
+  serverConsumerManifest,
+  options
+) {
+  serverConsumerManifest = new ResponseInstance(
+    serverConsumerManifest.moduleMap,
+    serverConsumerManifest.serverModuleMap,
+    serverConsumerManifest.moduleLoading,
+    noServerCall,
+    options ? options.encodeFormAction : void 0,
+    options && "string" === typeof options.nonce ? options.nonce : void 0,
+    void 0
+  );
+  startReadingFromStream(serverConsumerManifest, stream, !1);
+  return getChunk(serverConsumerManifest, 0);
 };
 exports.createFromReadableStream = function (stream, options) {
   options = createResponseFromOptions(options);
-  startReadingFromStream(options, stream);
+  startReadingFromStream$1(options, stream, !1);
   return getChunk(options, 0);
 };
 exports.createServerReference = function (id) {

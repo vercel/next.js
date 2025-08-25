@@ -1,3 +1,5 @@
+use std::{collections::BTreeSet, str::FromStr};
+
 use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -27,8 +29,12 @@ use turbopack_ecmascript_plugins::transform::{
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems};
 
 use crate::{
-    mode::NextMode, next_import_map::mdx_import_source_file,
-    next_shared::transforms::ModularizeImportPackageConfig,
+    app_structure::FileSystemPathVec,
+    mode::NextMode,
+    next_import_map::mdx_import_source_file,
+    next_shared::{
+        transforms::ModularizeImportPackageConfig, webpack_rules::WebpackLoaderBuiltinCondition,
+    },
 };
 
 #[turbo_tasks::value]
@@ -795,10 +801,7 @@ pub struct ExperimentalConfig {
     swc_trace_profiling: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
-    /// Generate Route types and enable type checking for Link and Router.push,
-    /// etc. This option requires `appDir` to be enabled first.
-    /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes)
-    typed_routes: Option<bool>,
+
     url_imports: Option<serde_json::Value>,
     view_transition: Option<bool>,
     /// This option is to enable running the Webpack build in a worker thread
@@ -1126,6 +1129,9 @@ pub struct OptionalMdxTransformOptions(Option<ResolvedVc<MdxTransformOptions>>);
 pub struct OptionSubResourceIntegrity(Option<SubResourceIntegrity>);
 
 #[turbo_tasks::value(transparent)]
+pub struct OptionFileSystemPath(Option<FileSystemPath>);
+
+#[turbo_tasks::value(transparent)]
 pub struct OptionServerActions(Option<ServerActions>);
 
 #[turbo_tasks::value(transparent)]
@@ -1224,8 +1230,12 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn cache_handler(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(self.cache_handler.clone())
+    pub fn cache_handler(&self, project_path: FileSystemPath) -> Result<Vc<OptionFileSystemPath>> {
+        if let Some(handler) = &self.cache_handler {
+            Ok(Vc::cell(Some(project_path.join(handler)?)))
+        } else {
+            Ok(Vc::cell(None))
+        }
     }
 
     #[turbo_tasks::function]
@@ -1280,7 +1290,7 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub async fn webpack_rules(
         &self,
-        active_conditions: Vec<RcStr>,
+        active_conditions: BTreeSet<WebpackLoaderBuiltinCondition>,
         project_path: FileSystemPath,
     ) -> Result<Vc<OptionWebpackRules>> {
         let Some(turbo_rules) = self.turbopack.as_ref().and_then(|t| t.rules.as_ref()) else {
@@ -1289,7 +1299,6 @@ impl NextConfig {
         if turbo_rules.is_empty() {
             return Ok(Vc::cell(None));
         }
-        let active_conditions = active_conditions.into_iter().collect::<FxHashSet<_>>();
         let mut rules = FxIndexMap::default();
         for (ext, rule) in turbo_rules.iter() {
             fn transform_loaders(loaders: &[LoaderItem]) -> ResolvedVc<WebpackLoaderItems> {
@@ -1313,13 +1322,17 @@ impl NextConfig {
             }
             fn find_rule<'a>(
                 rule: &'a RuleConfigItem,
-                active_conditions: &FxHashSet<RcStr>,
+                active_conditions: &BTreeSet<WebpackLoaderBuiltinCondition>,
             ) -> FindRuleResult<'a> {
                 match rule {
                     RuleConfigItem::Options(rule) => FindRuleResult::Found(rule),
                     RuleConfigItem::Conditional(map) => {
                         for (condition, rule) in map.iter() {
-                            if condition == "default" || active_conditions.contains(condition) {
+                            let condition = WebpackLoaderBuiltinCondition::from_str(condition);
+                            if let Ok(condition) = condition
+                                && (condition == WebpackLoaderBuiltinCondition::Default
+                                    || active_conditions.contains(&condition))
+                            {
                                 match find_rule(rule, active_conditions) {
                                     FindRuleResult::Found(rule) => {
                                         return FindRuleResult::Found(rule);
@@ -1354,8 +1367,7 @@ impl NextConfig {
                         // emit an issue to prevent users from encountering duplicate module names.
                         if ext.contains("*") && rename_as.as_ref().is_some_and(|r| !r.contains("*"))
                         {
-                            let config_file_path =
-                                project_path.join(&format!("./{}", self.config_file_name))?;
+                            let config_file_path = project_path.join(&self.config_file_name)?;
 
                             InvalidLoaderRuleError {
                                 ext: ext.clone(),
@@ -1474,6 +1486,23 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn modularize_imports(&self) -> Vc<ModularizeImports> {
         Vc::cell(self.modularize_imports.clone().unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental_cache_handlers(
+        &self,
+        project_path: FileSystemPath,
+    ) -> Result<Vc<FileSystemPathVec>> {
+        if let Some(handlers) = &self.experimental.cache_handlers {
+            Ok(Vc::cell(
+                handlers
+                    .values()
+                    .map(|h| project_path.join(h))
+                    .collect::<Result<Vec<_>>>()?,
+            ))
+        } else {
+            Ok(Vc::cell(vec![]))
+        }
     }
 
     #[turbo_tasks::function]

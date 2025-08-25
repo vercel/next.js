@@ -136,8 +136,8 @@ impl Default for CompactConfig {
             optimal_merge_count: 8,
             max_merge_count: 32,
             max_merge_bytes: 500 * MB,
-            min_merge_duplication_bytes: MB,
-            optimal_merge_duplication_bytes: 10 * MB,
+            min_merge_duplication_bytes: 50 * MB,
+            optimal_merge_duplication_bytes: 100 * MB,
             max_merge_segment_count: 8,
         }
     }
@@ -236,13 +236,20 @@ pub fn get_merge_segments<T: Compactable>(
             // We have reached the maximum number of merge jobs, so we stop here.
             break;
         }
-        let mut current_range = start_compactable.range();
+        let start_compactable_range = start_compactable.range();
+        let start_compactable_size = start_compactable.size();
+        let mut current_range = start_compactable_range.clone();
 
         // We might need to restart the search if we need to extend the range.
         'search: loop {
             let mut current_set = smallvec![start_index];
-            let mut current_size = start_compactable.size();
+            let mut current_size = start_compactable_size;
             let mut duplication = IntervalMap::<Option<DuplicationInfo>>::new();
+            duplication.update(start_compactable_range.clone(), |dup_info| {
+                dup_info
+                    .get_or_insert_default()
+                    .add(start_compactable_size, &start_compactable_range);
+            });
             let mut current_skip = 0;
 
             // We will capture compactables in the current_range until we find a optimal merge
@@ -612,8 +619,8 @@ mod tests {
                 min_merge_count: 2,
                 optimal_merge_count: 4,
                 max_merge_bytes: 5000,
-                min_merge_duplication_bytes: 200,
-                optimal_merge_duplication_bytes: 500,
+                min_merge_duplication_bytes: 500,
+                optimal_merge_duplication_bytes: 1000,
                 max_merge_segment_count: 4,
             };
             let (jobs, _) = get_merge_segments(&containers, &config);
@@ -656,7 +663,7 @@ mod tests {
         println!("Number of compactions: {number_of_compactions}");
 
         let metrics = compute_metrics(&containers, 0..=KEY_RANGE);
-        assert!(number_of_compactions < 40);
+        assert!(number_of_compactions < 30);
         assert!(containers.len() < 30);
         assert!(metrics.duplication < 0.5);
     }

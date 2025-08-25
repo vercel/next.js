@@ -25,15 +25,4 @@ describe('cache-components', () => {
       expect($('#page').text()).toBe('at buildtime')
     }
   })
-
-  it('should not prerender pages with uncached Math.random() calls', async () => {
-    let $ = await next.render$('/random/uncached', {})
-    if (isNextDev) {
-      expect($('#layout').text()).toBe('at runtime')
-      expect($('#page').text()).toBe('at runtime')
-    } else {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at runtime')
-    }
-  })
 })

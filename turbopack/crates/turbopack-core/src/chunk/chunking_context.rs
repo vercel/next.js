@@ -14,7 +14,7 @@ use crate::{
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroup, export_usage::ModuleExportUsageInfo,
+        ModuleGraph, chunk_group_info::ChunkGroup, export_usage::ModuleExportUsage,
         module_batches::BatchingConfig,
     },
     output::{OutputAsset, OutputAssets},
@@ -295,7 +295,7 @@ pub trait ChunkingContext {
     async fn module_export_usage(
         self: Vc<Self>,
         module: Vc<Box<dyn Module>>,
-    ) -> Result<Vc<ModuleExportUsageInfo>>;
+    ) -> Result<Vc<ModuleExportUsage>>;
 }
 
 pub trait ChunkingContextExt {

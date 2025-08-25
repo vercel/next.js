@@ -5,6 +5,7 @@
  * - next/script with `beforeInteractive` strategy
  */
 
+import { getAssetPrefix } from './asset-prefix'
 import { setAttributesFromProps } from './set-attributes-from-props'
 
 const version = process.env.__NEXT_VERSION
@@ -54,7 +55,9 @@ function loadScriptsInSequence(
     })
 }
 
-export function appBootstrap(hydrate: () => void) {
+export function appBootstrap(hydrate: (assetPrefix: string) => void) {
+  const assetPrefix = getAssetPrefix()
+
   loadScriptsInSequence((self as any).__next_s, () => {
     // If the static shell is being debugged, skip hydration if the
     // `__nextppronly` query is present. This is only enabled when the
@@ -73,6 +76,6 @@ export function appBootstrap(hydrate: () => void) {
       }
     }
 
-    hydrate()
+    hydrate(assetPrefix)
   })
 }

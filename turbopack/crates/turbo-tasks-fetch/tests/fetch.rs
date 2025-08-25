@@ -18,7 +18,7 @@ static REGISTRATION: Registration = register!(turbo_tasks_fetch::register);
 /// acquire and hold this lock to prevent potential flakiness.
 static GLOBAL_TEST_LOCK: TokioMutex<()> = TokioMutex::const_new(());
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn basic_get() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
     run(&REGISTRATION, || async {
@@ -49,7 +49,7 @@ async fn basic_get() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sends_user_agent() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
     run(&REGISTRATION, || async {
@@ -85,7 +85,7 @@ async fn sends_user_agent() {
 
 // This is temporary behavior.
 // TODO: Implement invalidation that respects Cache-Control headers.
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn invalidation_does_not_invalidate() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
     run(&REGISTRATION, || async {
@@ -130,7 +130,7 @@ fn get_issue_context() -> Vc<FileSystemPath> {
     DiskFileSystem::new(rcstr!("root"), rcstr!("/")).root()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn errors_on_failed_connection() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
     run(&REGISTRATION, || async {
@@ -161,7 +161,7 @@ async fn errors_on_failed_connection() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn errors_on_404() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
     run(&REGISTRATION, || async {
@@ -196,7 +196,7 @@ async fn errors_on_404() {
     .unwrap()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn client_cache() {
     // a simple fetch that should always succeed
     async fn simple_fetch(path: &str, client: FetchClient) -> anyhow::Result<()> {

@@ -47,7 +47,10 @@ export type DynamicHTMLPostponedState = {
   /**
    * The postponed data used by React.
    */
-  readonly data: object
+  readonly data: [
+    preludeState: DynamicHTMLPreludeState,
+    postponed: ReactPostponed,
+  ]
 
   /**
    * The immutable resume data cache.
@@ -55,27 +58,37 @@ export type DynamicHTMLPostponedState = {
   readonly renderResumeDataCache: RenderResumeDataCache
 }
 
+export const enum DynamicHTMLPreludeState {
+  Empty = 0,
+  Full = 1,
+}
+
+type ReactPostponed = NonNullable<
+  import('react-dom/static').PrerenderResult['postponed']
+>
+
 export type PostponedState =
   | DynamicDataPostponedState
   | DynamicHTMLPostponedState
 
 export async function getDynamicHTMLPostponedState(
-  data: object,
+  postponed: ReactPostponed,
+  preludeState: DynamicHTMLPreludeState,
   fallbackRouteParams: FallbackRouteParams | null,
   resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache
 ): Promise<string> {
-  if (!fallbackRouteParams || fallbackRouteParams.size === 0) {
-    const postponedString = JSON.stringify(data)
+  const data: DynamicHTMLPostponedState['data'] = [preludeState, postponed]
+  const dataString = JSON.stringify(data)
 
+  if (!fallbackRouteParams || fallbackRouteParams.size === 0) {
     // Serialized as `<postponedString.length>:<postponedString><renderResumeDataCache>`
-    return `${postponedString.length}:${postponedString}${await stringifyResumeDataCache(
+    return `${dataString.length}:${dataString}${await stringifyResumeDataCache(
       createRenderResumeDataCache(resumeDataCache)
     )}`
   }
 
   const replacements: Array<[string, string]> = Array.from(fallbackRouteParams)
   const replacementsString = JSON.stringify(replacements)
-  const dataString = JSON.stringify(data)
 
   // Serialized as `<replacements.length><replacements><data>`
   const postponedString = `${replacementsString.length}${replacementsString}${dataString}`
@@ -168,10 +181,7 @@ export function parsePostponedState(
   }
 }
 
-export function getPostponedFromState(state: PostponedState): any {
-  if (state.type === DynamicState.DATA) {
-    return null
-  }
-
-  return state.data
+export function getPostponedFromState(state: DynamicHTMLPostponedState) {
+  const [preludeState, postponed] = state.data
+  return { preludeState, postponed }
 }

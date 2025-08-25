@@ -504,7 +504,7 @@ export default async function Page({ params }) {
 }
 ```
 
-You can initiate requests in parallel by defining them outside the components that use the data, and resolving them together, for example, with [`Promise.all`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all):
+Start multiple requests by calling `fetch`, then await them with [`Promise.all`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise/all). Requests begin as soon as `fetch` is called.
 
 ```tsx filename="app/artist/[username]/page.tsx" highlight={3,8,23} switcher
 import Albums from './albums'
@@ -525,10 +525,11 @@ export default async function Page({
   params: Promise<{ username: string }>
 }) {
   const { username } = await params
+
+  // Initiate requests
   const artistData = getArtist(username)
   const albumsData = getAlbums(username)
 
-  // Initiate both requests in parallel
   const [artist, albums] = await Promise.all([artistData, albumsData])
 
   return (
@@ -555,10 +556,11 @@ async function getAlbums(username) {
 
 export default async function Page({ params }) {
   const { username } = await params
+
+  // Initiate requests
   const artistData = getArtist(username)
   const albumsData = getAlbums(username)
 
-  // Initiate both requests in parallel
   const [artist, albums] = await Promise.all([artistData, albumsData])
 
   return (

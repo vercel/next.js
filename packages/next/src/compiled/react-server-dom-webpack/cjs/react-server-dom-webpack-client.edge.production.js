@@ -1862,10 +1862,12 @@ function createResponseFromOptions(options) {
       : void 0
   );
 }
-function startReadingFromStream(response, stream) {
+function startReadingFromStream(response, stream, isSecondaryStream) {
   function progress(_ref) {
     var value = _ref.value;
-    if (_ref.done) reportGlobalError(response, Error("Connection closed."));
+    if (_ref.done)
+      isSecondaryStream ||
+        reportGlobalError(response, Error("Connection closed."));
     else {
       var i = 0,
         rowState = streamState._rowState;
@@ -1964,7 +1966,7 @@ exports.createFromFetch = function (promiseForResponse, options) {
   var response = createResponseFromOptions(options);
   promiseForResponse.then(
     function (r) {
-      startReadingFromStream(response, r.body);
+      startReadingFromStream(response, r.body, !1);
     },
     function (e) {
       reportGlobalError(response, e);
@@ -1974,7 +1976,7 @@ exports.createFromFetch = function (promiseForResponse, options) {
 };
 exports.createFromReadableStream = function (stream, options) {
   options = createResponseFromOptions(options);
-  startReadingFromStream(options, stream);
+  startReadingFromStream(options, stream, !1);
   return getChunk(options, 0);
 };
 exports.createServerReference = function (id) {

@@ -5,7 +5,7 @@ import type {
   DynamicParamTypesShort,
   FlightRouterState,
   FlightSegmentPath,
-} from '../app-render/types'
+} from '../../shared/lib/app-router-types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type HotReloaderWebpack from './hot-reloader-webpack'

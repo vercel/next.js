@@ -171,6 +171,7 @@ impl AppProject {
             self.app_dir.clone(),
             conf.page_extensions(),
             conf.is_global_not_found_enabled(),
+            self.project.next_mode(),
         )
     }
 
@@ -1133,8 +1134,8 @@ impl AppEndpoint {
         next_config: Vc<NextConfig>,
     ) -> Result<Vc<AppEntry>> {
         Ok(get_app_metadata_route_entry(
-            self.app_project.rsc_module_context(),
-            self.app_project.edge_rsc_module_context(),
+            self.app_project.route_module_context(),
+            self.app_project.edge_route_module_context(),
             self.app_project.project().project_path().owned().await?,
             self.page.clone(),
             *self.app_project.project().next_mode().await?,
@@ -1193,11 +1194,7 @@ impl AppEndpoint {
                 AppEndpointType::Metadata { metadata } => (
                     false,
                     false,
-                    if matches!(metadata, MetadataItem::Dynamic { .. }) {
-                        EmitManifests::Full
-                    } else {
-                        EmitManifests::Minimal
-                    },
+                    EmitManifests::Minimal,
                     matches!(metadata, MetadataItem::Dynamic { .. }),
                 ),
             };
@@ -1984,7 +1981,7 @@ impl Endpoint for AppEndpoint {
                     server_entry_path: node_root
                         .get_path_to(&*rsc_chunk.path().await?)
                         .context("Node.js chunk entry path must be inside the node root")?
-                        .to_string(),
+                        .into(),
                     server_paths,
                     client_paths,
                 },

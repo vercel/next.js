@@ -292,32 +292,6 @@ export default class NextNodeServer extends BaseServer<
       this.imageResponseCache = new ResponseCache(this.minimalMode)
     }
 
-    const { appDocumentPreloading } = this.nextConfig.experimental
-    const isDefaultEnabled = typeof appDocumentPreloading === 'undefined'
-
-    if (
-      !options.dev &&
-      (appDocumentPreloading === true ||
-        !(this.minimalMode && isDefaultEnabled))
-    ) {
-      // pre-warm _document and _app as these will be
-      // needed for most requests
-      loadComponents({
-        distDir: this.distDir,
-        page: '/_document',
-        isAppPath: false,
-        isDev: this.isDev,
-        sriEnabled: this.sriEnabled,
-      }).catch(() => {})
-      loadComponents({
-        distDir: this.distDir,
-        page: '/_app',
-        isAppPath: false,
-        isDev: this.isDev,
-        sriEnabled: this.sriEnabled,
-      }).catch(() => {})
-    }
-
     if (
       !options.dev &&
       !this.minimalMode &&

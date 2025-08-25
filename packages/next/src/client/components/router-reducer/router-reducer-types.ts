@@ -1,8 +1,8 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
   FlightSegmentPath,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 import type { FetchServerResponseResult } from './fetch-server-response'
 
 export const ACTION_REFRESH = 'refresh'

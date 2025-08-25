@@ -1,6 +1,5 @@
 use std::{
     any::{Any, TypeId},
-    borrow::Cow,
     future::Future,
     mem::replace,
     panic,
@@ -8,20 +7,20 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use auto_hash_map::AutoSet;
 use futures::{StreamExt, TryStreamExt};
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tokio::task_local;
-use tracing::{Instrument, Span};
+use tracing::Instrument;
 
 use crate::{
     self as turbo_tasks, CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt,
     debug::ValueDebugFormat,
     emit,
     event::{Event, EventListener},
-    manager::turbo_tasks_future_scope,
+    spawn,
     trace::TraceRawVcs,
     util::SharedError,
 };
@@ -98,28 +97,10 @@ impl EffectInstance {
                     listener.await;
                 }
                 State::NotStarted(EffectInner { future }) => {
-                    let join_handle = tokio::spawn(ApplyEffectsContext::in_current_scope(
-                        turbo_tasks_future_scope(turbo_tasks::turbo_tasks(), future)
-                            .instrument(Span::current()),
-                    ));
+                    let join_handle = spawn(ApplyEffectsContext::in_current_scope(future));
                     let result = match join_handle.await {
-                        Ok(Err(err)) => Err(SharedError::new(err)),
-                        Err(err) => {
-                            let any = err.into_panic();
-                            let panic = match any.downcast::<String>() {
-                                Ok(owned) => Some(Cow::Owned(*owned)),
-                                Err(any) => match any.downcast::<&'static str>() {
-                                    Ok(str) => Some(Cow::Borrowed(*str)),
-                                    Err(_) => None,
-                                },
-                            };
-                            Err(SharedError::new(if let Some(panic) = panic {
-                                anyhow!("Task effect panicked: {panic}")
-                            } else {
-                                anyhow!("Task effect panicked")
-                            }))
-                        }
-                        Ok(Ok(())) => Ok(()),
+                        Err(err) => Err(SharedError::new(err)),
+                        Ok(()) => Ok(()),
                     };
                     let event = {
                         let mut guard = self.inner.lock();

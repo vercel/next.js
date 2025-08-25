@@ -277,7 +277,7 @@ export function calculateFallbackMode(
       // perform a blocking static render.
       fallbackRootParams.length > 0
       ? FallbackMode.BLOCKING_STATIC_RENDER
-      : baseFallbackMode ?? FallbackMode.NOT_FOUND
+      : (baseFallbackMode ?? FallbackMode.NOT_FOUND)
     : FallbackMode.NOT_FOUND
 }
 

@@ -25,7 +25,10 @@ import { imageConfigDefault } from '../shared/lib/image-config'
 import type { ImageConfig } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
-import { findRootDir } from '../lib/find-root'
+import {
+  findRootDirAndLockFiles,
+  warnDuplicatedLockFiles,
+} from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
@@ -656,6 +659,13 @@ function assignDefaults(
   )
   warnOptionHasBeenMovedOutOfExperimental(
     result,
+    'typedRoutes',
+    'typedRoutes',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
     'outputFileTracingRoot',
     'outputFileTracingRoot',
     configFileName,
@@ -757,7 +767,14 @@ function assignDefaults(
     )
   }
 
-  const rootDir = tracingRoot || turbopackRoot || findRootDir(dir)
+  let rootDir = tracingRoot || turbopackRoot
+  if (!rootDir) {
+    const { rootDir: foundRootDir, lockFiles } = findRootDirAndLockFiles(dir)
+    rootDir = foundRootDir
+    if (!silent) {
+      warnDuplicatedLockFiles(lockFiles)
+    }
+  }
 
   if (!rootDir) {
     throw new Error(
@@ -1425,43 +1442,9 @@ export default async function loadConfig(
     // Check deprecation warnings on the actual user config before merging with defaults
     checkDeprecations(userConfig, configFileName, silent, dir)
 
-    // Always validate the config against schema in non minimal mode.
-    // Only validate once in the root Next.js process, not in forked processes.
-    const isRootProcess = typeof process.send !== 'function'
-    if (!process.env.NEXT_MINIMAL && isRootProcess) {
-      // We only validate the config against schema in non minimal mode
-      const { configSchema } =
-        require('./config-schema') as typeof import('./config-schema')
-      const state = configSchema.safeParse(userConfig)
-
-      if (!state.success) {
-        // error message header
-        const messages = [`Invalid ${configFileName} options detected: `]
-
-        const [errorMessages, shouldExit] = normalizeNextConfigZodErrors(
-          state.error
-        )
-        // ident list item
-        for (const error of errorMessages) {
-          messages.push(`    ${error}`)
-        }
-
-        // error message footer
-        messages.push(
-          'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
-        )
-
-        if (shouldExit) {
-          for (const message of messages) {
-            console.error(message)
-          }
-          await flushAndExit(1)
-        } else {
-          for (const message of messages) {
-            curLog.warn(message)
-          }
-        }
-      }
+    // Always validate the config against schema in non minimal mode
+    if (!process.env.NEXT_MINIMAL && !silent) {
+      validateConfigSchema(userConfig, configFileName, curLog.warn)
     }
 
     if (userConfig.target && userConfig.target !== 'server') {
@@ -1889,4 +1872,44 @@ function cloneObject(obj: any): any {
   }
 
   return result
+}
+
+async function validateConfigSchema(
+  userConfig: NextConfig,
+  configFileName: string,
+  warn: (message: string) => void
+) {
+  // We only validate the config against schema in non minimal mode
+  const { configSchema } =
+    require('./config-schema') as typeof import('./config-schema')
+  const state = configSchema.safeParse(userConfig)
+
+  if (!state.success) {
+    // error message header
+    const messages = [`Invalid ${configFileName} options detected: `]
+
+    const [errorMessages, shouldExit] = normalizeNextConfigZodErrors(
+      state.error
+    )
+    // ident list item
+    for (const error of errorMessages) {
+      messages.push(`    ${error}`)
+    }
+
+    // error message footer
+    messages.push(
+      'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
+    )
+
+    if (shouldExit) {
+      for (const message of messages) {
+        console.error(message)
+      }
+      await flushAndExit(1)
+    } else {
+      for (const message of messages) {
+        warn(message)
+      }
+    }
+  }
 }

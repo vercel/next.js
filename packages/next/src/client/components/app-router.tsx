@@ -12,7 +12,10 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import type { CacheNode } from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  CacheNode,
+  FlightRouterState,
+} from '../../shared/lib/app-router-types'
 import { ACTION_RESTORE } from './router-reducer/router-reducer-types'
 import type { AppRouterState } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
@@ -31,7 +34,6 @@ import { unresolvedThenable } from './unresolved-thenable'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import { getSelectedParams } from './router-reducer/compute-changed-path'
-import type { FlightRouterState } from '../../server/app-render/types'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,
@@ -45,6 +47,7 @@ import { pingVisibleLinks } from './links'
 import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
+import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -194,12 +197,14 @@ function Head({
  */
 function Router({
   actionQueue,
-  assetPrefix,
   globalError,
+  webSocket,
+  staticIndicatorState,
 }: {
   actionQueue: AppRouterActionQueue
-  assetPrefix: string
   globalError: GlobalErrorState
+  webSocket: WebSocket | undefined
+  staticIndicatorState: StaticIndicatorState | undefined
 }) {
   const state = useActionQueue(actionQueue)
   const { canonicalUrl } = state
@@ -522,7 +527,11 @@ function Router({
       ).default
 
     content = (
-      <HotReloader assetPrefix={assetPrefix} globalError={globalError}>
+      <HotReloader
+        globalError={globalError}
+        webSocket={webSocket}
+        staticIndicatorState={staticIndicatorState}
+      >
         {content}
       </HotReloader>
     )
@@ -568,19 +577,22 @@ function Router({
 export default function AppRouter({
   actionQueue,
   globalErrorState,
-  assetPrefix,
+  webSocket,
+  staticIndicatorState,
 }: {
   actionQueue: AppRouterActionQueue
   globalErrorState: GlobalErrorState
-  assetPrefix: string
+  webSocket?: WebSocket
+  staticIndicatorState?: StaticIndicatorState
 }) {
   useNavFailureHandler()
 
   const router = (
     <Router
       actionQueue={actionQueue}
-      assetPrefix={assetPrefix}
       globalError={globalErrorState}
+      webSocket={webSocket}
+      staticIndicatorState={staticIndicatorState}
     />
   )
 

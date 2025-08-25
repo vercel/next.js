@@ -1,4 +1,4 @@
-import type { FlightRouterState } from '../../server/app-render/types'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { getCurrentAppRouterState } from './app-router-instance'
 import { createPrefetchURL } from './app-router'

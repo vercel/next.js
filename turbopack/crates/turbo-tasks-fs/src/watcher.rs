@@ -16,13 +16,12 @@ use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
     event::{MetadataKind, ModifyKind, RenameMode},
 };
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, spawn_thread,
+    FxIndexSet, InvalidationReason, InvalidationReasonKind, Invalidator, parallel, spawn_thread,
     util::StaticOrArc,
 };
 
@@ -397,40 +396,30 @@ impl DiskWatcher {
         //
         // Best is to start_watching before starting to read
         {
-            let span = tracing::info_span!("invalidate filesystem");
-            let _span = span.clone().entered();
+            let _span = tracing::info_span!("invalidate filesystem").entered();
             let invalidator_map = take(&mut *fs_inner.invalidator_map.lock().unwrap());
             let dir_invalidator_map = take(&mut *fs_inner.dir_invalidator_map.lock().unwrap());
-            let iter = invalidator_map
-                .into_par_iter()
-                .chain(dir_invalidator_map.into_par_iter());
-            let handle = tokio::runtime::Handle::current();
+            let iter = invalidator_map.into_iter().chain(dir_invalidator_map);
             if report_invalidation_reason {
-                iter.flat_map(|(path, invalidators)| {
-                    let _span = span.clone().entered();
-                    let reason = WatchStart {
-                        name: fs_inner.name.clone(),
-                        // this path is just used for display purposes
-                        path: RcStr::from(path.to_string_lossy()),
-                    };
-                    invalidators
-                        .into_par_iter()
-                        .map(move |i| (reason.clone(), i))
-                })
-                .for_each(|(reason, (invalidator, _))| {
-                    let _span = span.clone().entered();
-                    let _guard = handle.enter();
-                    invalidator.invalidate_with_reason(reason)
+                let invalidators = iter
+                    .flat_map(|(path, invalidators)| {
+                        let reason = WatchStart {
+                            name: fs_inner.name.clone(),
+                            // this path is just used for display purposes
+                            path: RcStr::from(path.to_string_lossy()),
+                        };
+                        invalidators.into_iter().map(move |i| (reason.clone(), i))
+                    })
+                    .collect::<Vec<_>>();
+                parallel::for_each_owned(invalidators, |(reason, (invalidator, _))| {
+                    invalidator.invalidate_with_reason(reason);
                 });
             } else {
-                iter.flat_map(|(_, invalidators)| {
-                    let _span = span.clone().entered();
-                    invalidators.into_par_iter().map(move |i| i)
-                })
-                .for_each(|(invalidator, _)| {
-                    let _span = span.clone().entered();
-                    let _guard = handle.enter();
-                    invalidator.invalidate()
+                let invalidators = iter
+                    .flat_map(|(_, invalidators)| invalidators.into_keys())
+                    .collect::<Vec<_>>();
+                parallel::for_each_owned(invalidators, |invalidator| {
+                    invalidator.invalidate();
                 });
             }
         }

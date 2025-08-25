@@ -3,14 +3,16 @@ import type {
   FlightRouterState,
   FlightSegmentPath,
   Segment,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 import type {
   CacheNode,
   ChildSegmentMap,
+  ReadyCacheNode,
+} from '../../../shared/lib/app-router-types'
+import type {
   HeadData,
   LoadingModuleData,
-  ReadyCacheNode,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+} from '../../../shared/lib/app-router-types'
 import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 import { createRouterCacheKey } from './create-router-cache-key'
