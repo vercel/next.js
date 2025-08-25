@@ -583,18 +583,18 @@ export function generateValidatorFile(
   // Build import statement based on what's actually needed
   const routeImports = []
 
-  // Only import AppRoutes if there are app pages
-  if (appPageValidations) {
+  // Only include AppRoutes if appPageValidations is non-empty
+  if (appPageValidations.trim()) {
     routeImports.push('AppRoutes')
   }
 
-  // Only import LayoutRoutes if there are layouts
-  if (layoutValidations) {
+    // Only include LayoutRoutes if layoutValidations is non-empty
+  if (layoutValidations.trim()) {
     routeImports.push('LayoutRoutes')
   }
 
-  // Only import ParamMap if there are routes that use it
-  if (appPageValidations || layoutValidations || appRouteHandlerValidations) {
+    // Only include ParamMap if there are routes that use it
+  if (appPageValidations.trim() || layoutValidations.trim() || appRouteHandlerValidations.trim()) {
     routeImports.push('ParamMap')
   }
 
@@ -611,9 +611,9 @@ export function generateValidatorFile(
     ? "import type { NextRequest } from 'next/server.js'\n"
     : ''
 
-  // Only import metadata types if there are App Router pages or layouts that might use them
+    // Only import metadata types if there are non-empty validations for App Router pages or layouts
   const metadataImport =
-    appPageValidations || layoutValidations
+    appPageValidations.trim() || layoutValidations.trim()
       ? 'import type { ResolvingMetadata, ResolvingViewport } from "next/dist/lib/metadata/types/metadata-interface.js"\n'
       : ''
 
