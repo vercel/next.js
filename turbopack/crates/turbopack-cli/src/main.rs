@@ -56,7 +56,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
     if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
         // Trace presets
         match trace.as_str() {
-            "overview" => {
+            "overview" | "1" => {
                 trace = TRACING_OVERVIEW_TARGETS.join(",");
             }
             "turbopack" => {

@@ -49,6 +49,8 @@ import {
 } from '../lib/constants'
 import {
   MODERN_BROWSERSLIST_TARGET,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -318,8 +320,13 @@ const filterAndSortList = (
 ) => {
   let pages: string[]
   if (routeType === 'app') {
-    // filter out static app route of /favicon.ico
-    pages = list.filter((e) => e !== '/favicon.ico')
+    // filter out static app route of /favicon.ico and /_global-error
+    pages = list.filter((e) => {
+      if (e === '/favicon.ico') return false
+      // Hide static /_global-error from build output
+      if (e === '/_global-error') return false
+      return true
+    })
   } else {
     // filter built-in pages
     pages = list
@@ -683,7 +690,7 @@ export async function printTreeView(
 
     const sharedFiles = process.env.__NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT
       ? []
-      : stats.router[routerType]?.common.files ?? []
+      : (stats.router[routerType]?.common.files ?? [])
 
     messages.push([
       '+ First Load JS shared by all',
@@ -1067,6 +1074,23 @@ export async function isPageStatic({
   buildId: string
   sriEnabled: boolean
 }): Promise<PageIsStaticResult> {
+  // Skip page data collection for synthetic _global-error routes
+  if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
+    return {
+      isStatic: true,
+      isRoutePPREnabled: false,
+      isHybridAmp: false,
+      isAmpOnly: false,
+      prerenderFallbackMode: undefined,
+      prerenderedRoutes: undefined,
+      rootParamKeys: undefined,
+      hasStaticProps: false,
+      hasServerProps: false,
+      isNextImageImported: false,
+      appConfig: {},
+    }
+  }
+
   await createIncrementalCache({
     cacheHandler,
     cacheHandlers,
@@ -1159,7 +1183,10 @@ export async function isPageStatic({
           })
         }
 
-        appConfig = reduceAppConfig(segments)
+        appConfig =
+          originalAppPath === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+            ? {}
+            : reduceAppConfig(segments)
 
         if (appConfig.dynamic === 'force-static' && pathIsEdgeRuntime) {
           Log.warn(
@@ -1755,8 +1782,8 @@ export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
 }
 
-export function isAppBuiltinNotFoundPage(page: string) {
-  return /next[\\/]dist[\\/]client[\\/]components[\\/]builtin[\\/](not-found|global-not-found)/.test(
+export function isAppBuiltinPage(page: string) {
+  return /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/]builtin[\\/]/.test(
     page
   )
 }

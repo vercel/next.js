@@ -73,10 +73,10 @@ const nextFontLocalFontLoader: FontLoader = async ({
         ...(hasCustomFontFamily ? [] : [['font-family', variableName]]),
         ['src', `url(${fontUrl + qs}) format('${format}')`],
         ['font-display', display],
-        ...(weight ?? defaultWeight
+        ...((weight ?? defaultWeight)
           ? [['font-weight', weight ?? defaultWeight]]
           : []),
-        ...(style ?? defaultStyle
+        ...((style ?? defaultStyle)
           ? [['font-style', style ?? defaultStyle]]
           : []),
       ]

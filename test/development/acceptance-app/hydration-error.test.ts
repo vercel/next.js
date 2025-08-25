@@ -214,7 +214,7 @@ describe('Error overlay for hydration errors in App router', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "componentStack": "...
-           <HotReload assetPrefix="" globalError={[...]}>
+           <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
              <AppDevOverlayErrorBoundary globalError={[...]}>
                <ReplaySsrOnlyErrors>
                <DevRootHTTPAccessFallbackBoundary>
@@ -251,7 +251,7 @@ describe('Error overlay for hydration errors in App router', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "componentStack": "...
-           <HotReload assetPrefix="" globalError={[...]}>
+           <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
              <AppDevOverlayErrorBoundary globalError={[...]}>
                <ReplaySsrOnlyErrors>
                <DevRootHTTPAccessFallbackBoundary>
@@ -1092,7 +1092,7 @@ describe('Error overlay for hydration errors in App router', () => {
          },
          {
            "componentStack": "...
-           <HotReload assetPrefix="" globalError={[...]}>
+           <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
              <AppDevOverlayErrorBoundary globalError={[...]}>
                <ReplaySsrOnlyErrors>
                <DevRootHTTPAccessFallbackBoundary>
@@ -1155,7 +1155,7 @@ describe('Error overlay for hydration errors in App router', () => {
          },
          {
            "componentStack": "...
-           <HotReload assetPrefix="" globalError={[...]}>
+           <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
              <AppDevOverlayErrorBoundary globalError={[...]}>
                <ReplaySsrOnlyErrors>
                <DevRootHTTPAccessFallbackBoundary>

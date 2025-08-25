@@ -13,7 +13,7 @@ use turbo_tasks_testing::{Registration, register, run_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_simple_task() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         enable_stats();
@@ -39,7 +39,7 @@ async fn test_simple_task() -> Result<()> {
     .await
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_await_same_vc_multiple_times() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         enable_stats();
@@ -61,7 +61,7 @@ async fn test_await_same_vc_multiple_times() -> Result<()> {
     .await
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_vc_receiving_task() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         enable_stats();
@@ -93,7 +93,7 @@ async fn test_vc_receiving_task() -> Result<()> {
     .await
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_methods() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         enable_stats();
@@ -130,7 +130,7 @@ async fn test_trait_methods() -> Result<()> {
     .await
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_dyn_trait_methods() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         enable_stats();
@@ -174,7 +174,7 @@ async fn test_dyn_trait_methods() -> Result<()> {
 }
 
 // creates Vcs, but doesn't ever execute them
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_no_execution() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         enable_stats();

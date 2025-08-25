@@ -144,10 +144,6 @@ impl MetaEntry {
         self.sst_data.key_compression_dictionary_length
     }
 
-    pub fn value_compression_dictionary_length(&self) -> u16 {
-        self.sst_data.value_compression_dictionary_length
-    }
-
     pub fn block_count(&self) -> u16 {
         self.sst_data.block_count
     }
@@ -222,7 +218,6 @@ impl MetaFile {
                 sst_data: StaticSortedFileMetaData {
                     sequence_number: file.read_u32::<BE>()?,
                     key_compression_dictionary_length: file.read_u16::<BE>()?,
-                    value_compression_dictionary_length: file.read_u16::<BE>()?,
                     block_count: file.read_u16::<BE>()?,
                 },
                 family,

@@ -2133,58 +2133,70 @@ async fn resolve_into_folder(
     package_path: FileSystemPath,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
-    let package_json_path = package_path.join("package.json")?;
     let options_value = options.await?;
 
-    for resolve_into_package in options_value.into_package.iter() {
-        match resolve_into_package {
-            ResolveIntoPackage::MainField { field: name } => {
-                if let Some(package_json) =
-                    &*read_package_json(Vc::upcast(FileSource::new(package_json_path.clone())))
-                        .await?
-                    && let Some(field_value) = package_json[name.as_str()].as_str()
-                {
-                    let normalized_request = RcStr::from(normalize_request(field_value));
-                    if normalized_request.is_empty()
-                        || &*normalized_request == "."
-                        || &*normalized_request == "./"
+    let mut affecting_sources = vec![];
+    if let Some(package_json_path) =
+        exists(&package_path.join("package.json")?, &mut affecting_sources).await?
+    {
+        for resolve_into_package in options_value.into_package.iter() {
+            match resolve_into_package {
+                ResolveIntoPackage::MainField { field: name } => {
+                    if let Some(package_json) =
+                        &*read_package_json(Vc::upcast(FileSource::new(package_json_path.clone())))
+                            .await?
+                        && let Some(field_value) = package_json[name.as_str()].as_str()
                     {
-                        continue;
-                    }
-                    let request = Request::parse_string(normalized_request);
+                        let normalized_request = RcStr::from(normalize_request(field_value));
+                        if normalized_request.is_empty()
+                            || &*normalized_request == "."
+                            || &*normalized_request == "./"
+                        {
+                            continue;
+                        }
+                        let request = Request::parse_string(normalized_request);
 
-                    // main field will always resolve not fully specified
-                    let options = if options_value.fully_specified {
-                        options.with_fully_specified(false).resolve().await?
-                    } else {
-                        options
+                        // main field will always resolve not fully specified
+                        let options = if options_value.fully_specified {
+                            options.with_fully_specified(false).resolve().await?
+                        } else {
+                            options
+                        };
+                        let result =
+                            &*resolve_internal_inline(package_path.clone(), request, options)
+                                .await?
+                                .await?;
+                        // we are not that strict when a main field fails to resolve
+                        // we continue to try other alternatives
+                        if !result.is_unresolvable_ref() {
+                            let mut result: ResolveResultBuilder =
+                                result.with_request_ref(rcstr!(".")).into();
+                            result.affecting_sources.push(ResolvedVc::upcast(
+                                FileSource::new(package_json_path).to_resolved().await?,
+                            ));
+                            result.affecting_sources.extend(affecting_sources);
+                            return Ok(ResolveResult::from(result).cell());
+                        }
                     };
-                    let result = &*resolve_internal_inline(package_path.clone(), request, options)
-                        .await?
-                        .await?;
-                    // we are not that strict when a main field fails to resolve
-                    // we continue to try other alternatives
-                    if !result.is_unresolvable_ref() {
-                        let mut result: ResolveResultBuilder =
-                            result.with_request_ref(rcstr!(".")).into();
-                        result.affecting_sources.push(ResolvedVc::upcast(
-                            FileSource::new(package_json_path).to_resolved().await?,
-                        ));
-                        return Ok(ResolveResult::from(result).cell());
-                    }
-                };
+                }
+                ResolveIntoPackage::ExportsField { .. } => {}
             }
-            ResolveIntoPackage::ExportsField { .. } => {}
         }
     }
 
     if options_value.fully_specified {
-        return Ok(*ResolveResult::unresolvable());
+        return Ok(*ResolveResult::unresolvable_with_affecting_sources(
+            affecting_sources,
+        ));
     }
 
     // fall back to dir/index.[js,ts,...]
     let pattern = match &options_value.default_files[..] {
-        [] => return Ok(*ResolveResult::unresolvable()),
+        [] => {
+            return Ok(*ResolveResult::unresolvable_with_affecting_sources(
+                affecting_sources,
+            ));
+        }
         [file] => Pattern::Constant(format!("./{file}").into()),
         files => Pattern::Alternatives(
             files
@@ -2199,7 +2211,8 @@ async fn resolve_into_folder(
     Ok(
         resolve_internal_inline(package_path.clone(), request, options)
             .await?
-            .with_request(rcstr!(".")),
+            .with_request(rcstr!("."))
+            .with_affecting_sources(ResolvedVc::deref_vec(affecting_sources)),
     )
 }
 

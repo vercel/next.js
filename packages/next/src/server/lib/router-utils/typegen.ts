@@ -201,18 +201,24 @@ export function generateLinkTypesFile(
   routesManifest: RouteTypesManifest
 ): string {
   // Generate serialized static and dynamic routes for the internal namespace
-  const allRoutes = {
-    ...routesManifest.appRoutes,
-    ...routesManifest.pageRoutes,
-    ...routesManifest.redirectRoutes,
-    ...routesManifest.rewriteRoutes,
-  }
+  // Build a unified set of routes across app/pages/redirect/rewrite as well as
+  // app route handlers and Pages Router API routes.
+  const allRoutesSet = new Set<string>([
+    ...Object.keys(routesManifest.appRoutes),
+    ...Object.keys(routesManifest.pageRoutes),
+    ...Object.keys(routesManifest.redirectRoutes),
+    ...Object.keys(routesManifest.rewriteRoutes),
+    // Allow linking to App Route Handlers (e.g. `/logout/route.ts`)
+    ...Object.keys(routesManifest.appRouteHandlerRoutes),
+    // Allow linking to Pages Router API routes (e.g. `/api/*`)
+    ...Array.from(routesManifest.pageApiRoutes),
+  ])
 
   const staticRouteTypes: string[] = []
   const dynamicRouteTypes: string[] = []
 
   // Process each route using the same logic as the plugin
-  for (const route of Object.keys(allRoutes)) {
+  for (const route of allRoutesSet) {
     const { isDynamic, routeType } = formatRouteToRouteType(route)
     if (isDynamic) {
       dynamicRouteTypes.push(routeType)
@@ -325,6 +331,8 @@ declare module 'next/navigation' {
   export * from 'next/dist/client/components/navigation.js'
 
   import type { NavigateOptions, AppRouterInstance as OriginalAppRouterInstance } from 'next/dist/shared/lib/app-router-context.shared-runtime.js'
+  import type { RedirectType } from 'next/dist/client/components/redirect-error.js'
+  
   interface AppRouterInstance extends OriginalAppRouterInstance {
     /**
      * Navigate to the provided href.
@@ -343,6 +351,41 @@ declare module 'next/navigation' {
   }
 
   export function useRouter(): AppRouterInstance;
+  
+  /**
+   * This function allows you to redirect the user to another URL. It can be used in
+   * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
+   * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
+   * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+   *
+   * - In a Server Component, this will insert a meta tag to redirect the user to the target page.
+   * - In a Route Handler or Server Action, it will serve a 307/303 to the caller.
+   * - In a Server Action, type defaults to 'push' and 'replace' elsewhere.
+   *
+   * Read more: [Next.js Docs: redirect](https://nextjs.org/docs/app/api-reference/functions/redirect)
+   */
+  export function redirect<RouteType>(
+    /** The URL to redirect to */
+    url: __next_route_internal_types__.RouteImpl<RouteType>,
+    type?: RedirectType
+  ): never;
+  
+  /**
+   * This function allows you to redirect the user to another URL. It can be used in
+   * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
+   * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
+   * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+   *
+   * - In a Server Component, this will insert a meta tag to redirect the user to the target page.
+   * - In a Route Handler or Server Action, it will serve a 308/303 to the caller.
+   *
+   * Read more: [Next.js Docs: redirect](https://nextjs.org/docs/app/api-reference/functions/redirect)
+   */
+  export function permanentRedirect<RouteType>(
+    /** The URL to redirect to */
+    url: __next_route_internal_types__.RouteImpl<RouteType>,
+    type?: RedirectType
+  ): never;
 }
 
 declare module 'next/form' {

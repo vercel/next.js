@@ -16,7 +16,10 @@ use crate::{
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
     },
     data_storage::{AutoMapStorage, OptionStorage},
-    utils::dash_map_multi::{RefMut, get_multiple_mut},
+    utils::{
+        dash_map_drop_contents::drop_contents,
+        dash_map_multi::{RefMut, get_multiple_mut},
+    },
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -805,6 +808,11 @@ impl Storage {
                 inner: b,
             },
         )
+    }
+
+    pub fn drop_contents(&self) {
+        drop_contents(&self.map);
+        drop_contents(&self.modified);
     }
 }
 

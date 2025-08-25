@@ -59,8 +59,14 @@ export const COMPILER_INDEXES: {
   [COMPILER_NAMES.edgeServer]: 2,
 } as const
 
-export const UNDERSCORE_NOT_FOUND_ROUTE = '/_not-found'
-export const UNDERSCORE_NOT_FOUND_ROUTE_ENTRY = `${UNDERSCORE_NOT_FOUND_ROUTE}/page`
+// Re-export entry constants for backward compatibility
+export {
+  UNDERSCORE_NOT_FOUND_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+} from './entry-constants'
+
 export const PHASE_EXPORT = 'phase-export'
 export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'

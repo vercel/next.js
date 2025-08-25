@@ -508,6 +508,7 @@ export abstract class RouteModule<
         pageIsDynamic: boolean
         isDraftMode: boolean
         resolvedPathname: string
+        encodedResolvedPathname: string
         isNextDataRequest: boolean
         buildManifest: DeepReadonly<BuildManifest>
         fallbackBuildManifest: DeepReadonly<BuildManifest>
@@ -624,15 +625,24 @@ export abstract class RouteModule<
     const locale =
       getRequestMeta(req, 'locale') || detectedLocale || defaultLocale
 
+    // we apply rewrites against cloned URL so that we don't
+    // modify the original with the rewrite destination
+    const clonedParsedUrl = structuredClone(parsedUrl)
     const rewriteParamKeys = Object.keys(
-      serverUtils.handleRewrites(req, parsedUrl)
+      serverUtils.handleRewrites(req, clonedParsedUrl)
     )
+    Object.assign(parsedUrl.query, clonedParsedUrl.query)
 
     // after processing rewrites we want to remove locale
     // from parsedUrl pathname
     if (i18n) {
       parsedUrl.pathname = normalizeLocalePath(
         parsedUrl.pathname || '/',
+        i18n.locales
+      ).pathname
+
+      clonedParsedUrl.pathname = normalizeLocalePath(
+        clonedParsedUrl.pathname || '/',
         i18n.locales
       ).pathname
     }
@@ -643,7 +653,9 @@ export abstract class RouteModule<
     // attempt parsing from pathname
     if (!params && serverUtils.dynamicRouteMatcher) {
       const paramsMatch = serverUtils.dynamicRouteMatcher(
-        normalizeDataPath(localeResult?.pathname || parsedUrl.pathname || '/')
+        normalizeDataPath(
+          clonedParsedUrl?.pathname || parsedUrl.pathname || '/'
+        )
       )
       const paramsResult = serverUtils.normalizeDynamicRouteParams(
         paramsMatch || {},
@@ -809,6 +821,10 @@ export abstract class RouteModule<
     if (resolvedPathname === '/index') {
       resolvedPathname = '/'
     }
+    const encodedResolvedPathname = resolvedPathname
+
+    // we decode for cache key/manifest usage encoded is
+    // for URL building
     try {
       resolvedPathname = decodePathParams(resolvedPathname)
     } catch (_) {}
@@ -829,6 +845,7 @@ export abstract class RouteModule<
       previewData,
       pageIsDynamic,
       resolvedPathname,
+      encodedResolvedPathname,
       isOnDemandRevalidate,
       revalidateOnlyGenerated,
       ...manifests,

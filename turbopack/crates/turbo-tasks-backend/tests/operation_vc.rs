@@ -26,7 +26,7 @@ fn use_operations() -> Vc<i32> {
     forty_two.connect()
 }
 
-#[tokio::test(flavor = "multi_thread")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_use_operations() -> Result<()> {
     run(&REGISTRATION, || async {
         assert_eq!(*use_operations().await?, 42);

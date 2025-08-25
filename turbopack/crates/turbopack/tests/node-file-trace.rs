@@ -338,9 +338,10 @@ async fn node_file_trace_operation(
     ));
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
-        // TODO It's easy to make a mistake here as this should match the config in the
-        // binary. TODO These test cases should move into the
-        // `node-file-trace` crate and use the same config.
+        // TODO These test cases should move into the `node-file-trace` crate and use the same
+        // config.
+        // It's easy to make a mistake here as this should match the config in the binary from
+        // turbopack/crates/turbopack/src/lib.rs
         CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {

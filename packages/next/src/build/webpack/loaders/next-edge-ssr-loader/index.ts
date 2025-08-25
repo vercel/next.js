@@ -121,18 +121,24 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       this.context || this.rootContext,
       absolutePagePath
     )
-    const appPath = this.utils.contextify(
-      this.context || this.rootContext,
-      swapDistFolderWithEsmDistFolder(absoluteAppPath)
-    )
-    const errorPath = this.utils.contextify(
-      this.context || this.rootContext,
-      swapDistFolderWithEsmDistFolder(absoluteErrorPath)
-    )
-    const documentPath = this.utils.contextify(
-      this.context || this.rootContext,
-      swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
-    )
+    const appPath = absoluteAppPath
+      ? this.utils.contextify(
+          this.context || this.rootContext,
+          swapDistFolderWithEsmDistFolder(absoluteAppPath)
+        )
+      : ''
+    const errorPath = absoluteErrorPath
+      ? this.utils.contextify(
+          this.context || this.rootContext,
+          swapDistFolderWithEsmDistFolder(absoluteErrorPath)
+        )
+      : ''
+    const documentPath = absoluteDocumentPath
+      ? this.utils.contextify(
+          this.context || this.rootContext,
+          swapDistFolderWithEsmDistFolder(absoluteDocumentPath)
+        )
+      : ''
     const userland500Path = absolute500Path
       ? this.utils.contextify(
           this.context || this.rootContext,
