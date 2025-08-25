@@ -302,6 +302,13 @@
       "react-is": "19.2.0-canary-6de32a5a-20250822",
       "scheduler": "0.27.0-canary-6de32a5a-20250822"
     },
+    "packageExtensions": {
+      "eslint-plugin-react-hooks@0.0.0-experimental-6de32a5a-20250822": {
+        "dependencies": {
+          "@babel/plugin-proposal-private-methods": "^7.18.6"
+        }
+      }
+    },
     "patchedDependencies": {
       "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch",
       "stacktrace-parser@0.1.10": "patches/stacktrace-parser@0.1.10.patch",

@@ -22,6 +22,8 @@ overrides:
   react-is: 19.2.0-canary-6de32a5a-20250822
   scheduler: 0.27.0-canary-6de32a5a-20250822
 
+packageExtensionsChecksum: 2c0398c5f3e8ad5816061c5823d227e9
+
 patchedDependencies:
   '@ampproject/toolbox-optimizer@2.8.3':
     hash: baeiwbdq3sqmjnnh2lznmpb5bu
@@ -2161,6 +2163,13 @@ packages:
   '@babel/plugin-proposal-class-properties@7.12.1':
     resolution: {integrity: sha512-cKp3dlQsFsEs5CWKnN7BnSHOd0EOW8EKpEjkoz1pO2E5KzIDNV9Ros1b0CnmbVgAGXJubOYVBOGCT1OmJwOI7w==}
     deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-class-properties instead.
+    peerDependencies:
+      '@babel/core': 7.26.10
+
+  '@babel/plugin-proposal-private-methods@7.18.6':
+    resolution: {integrity: sha512-nutsvktDItsNn4rpGItSNV2sz1XwS+nfU0Rg8aCx3W3NOKVzdMjJRu0O5OkgDp3ZGICSTbgRpxZoWsxoKRvbeA==}
+    engines: {node: '>=6.9.0'}
+    deprecated: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-private-methods instead.
     peerDependencies:
       '@babel/core': 7.26.10
 
@@ -17329,6 +17338,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@babel/plugin-proposal-private-methods@7.18.6(@babel/core@7.26.10)':
+    dependencies:
+      '@babel/core': 7.26.10
+      '@babel/helper-create-class-features-plugin': 7.27.0(@babel/core@7.26.10)
+      '@babel/helper-plugin-utils': 7.26.5
+    transitivePeerDependencies:
+      - supports-color
+
   '@babel/plugin-proposal-private-property-in-object@7.21.0-placeholder-for-preset-env.2(@babel/core@7.26.10)':
     dependencies:
       '@babel/core': 7.26.10
@@ -25607,6 +25624,7 @@ snapshots:
     dependencies:
       '@babel/core': 7.26.10
       '@babel/parser': 7.27.0
+      '@babel/plugin-proposal-private-methods': 7.18.6(@babel/core@7.26.10)
       '@babel/plugin-transform-private-methods': 7.25.9(@babel/core@7.26.10)
       eslint: 9.12.0
       hermes-parser: 0.25.1
