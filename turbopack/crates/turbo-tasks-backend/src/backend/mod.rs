@@ -1223,6 +1223,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             self.is_idle.store(false, Ordering::Release);
             self.verify_aggregation_graph(turbo_tasks, false);
         }
+        if self.should_persist() {
+            self.snapshot();
+        }
         self.task_cache.drop_contents();
         drop_contents(&self.transient_tasks);
         self.storage.drop_contents();
