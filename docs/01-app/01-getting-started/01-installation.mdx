@@ -274,7 +274,7 @@ See the [TypeScript reference](/docs/app/api-reference/config/next-config-js/typ
 
 ## Set up linting
 
-Next.js 15.5 deprecates the `next lint` command and it will be removed in Next.js 16. New projects should choose and run a linter directly.
+Next.js supports linting with either ESLint or Biome. Choose a linter and run it directly via `package.json` scripts.
 
 - Use **ESLint** (comprehensive rules):
 
@@ -298,7 +298,7 @@ Next.js 15.5 deprecates the `next lint` command and it will be removed in Next.j
 }
 ```
 
-For existing projects using `next lint`, migrate with the codemod:
+If your project previously used `next lint`, migrate your scripts to the ESLint CLI with the codemod:
 
 ```bash filename="Terminal"
 npx @next/codemod@latest next-lint-to-eslint-cli .
