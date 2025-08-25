@@ -20,7 +20,7 @@ use swc_core::{
         visit::{fields::*, *},
     },
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::ResolvedVc;
 use turbopack_core::source::Source;
 
@@ -365,13 +365,18 @@ impl EvalContext {
             if idx.is_multiple_of(2) {
                 let idx = idx / 2;
                 let e = &e.quasis[idx];
-
                 if raw {
-                    values.push(JsValue::from(e.raw.clone()));
+                    // Ignore empty strings quasis, happens frequently with e.g. after the
+                    // placeholder in `something${v}`.
+                    if !e.raw.is_empty() {
+                        values.push(JsValue::from(e.raw.clone()));
+                    }
                 } else {
                     match &e.cooked {
                         Some(v) => {
-                            values.push(JsValue::from(v.clone()));
+                            if !v.is_empty() {
+                                values.push(JsValue::from(v.clone()));
+                            }
                         }
                         // This is actually unreachable
                         None => return JsValue::unknown_empty(true, ""),
@@ -385,11 +390,11 @@ impl EvalContext {
             }
         }
 
-        if values.len() == 1 {
-            return values.into_iter().next().unwrap();
+        match values.len() {
+            0 => JsValue::Constant(ConstantValue::Str(rcstr!("").into())),
+            1 => values.into_iter().next().unwrap(),
+            _ => JsValue::concat(values),
         }
-
-        JsValue::concat(values)
     }
 
     fn eval_ident(&self, i: &Ident) -> JsValue {
