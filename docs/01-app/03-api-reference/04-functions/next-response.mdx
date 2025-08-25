@@ -152,7 +152,7 @@ In contrast, the `NextResponse.next({ headers })` pattern makes these headers av
 ```ts
 import { type NextRequest, NextResponse } from 'next/server'
 
-function middleware(request: NextRequest) {
+async function middleware(request: NextRequest) {
   const headers = await injectAuth(request.headers)
   // DO NOT forward headers like this
   return NextResponse.next({ headers })
