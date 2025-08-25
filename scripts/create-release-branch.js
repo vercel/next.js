@@ -39,7 +39,7 @@ async function main() {
     stdio: 'inherit',
     shell: true,
   })
-  await execa(`git fetch origin ${tagName}`, {
+  await execa(`git fetch origin ${tagName} --tags`, {
     stdio: 'inherit',
     shell: true,
   })
