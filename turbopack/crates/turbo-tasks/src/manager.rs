@@ -250,8 +250,8 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
     unsafe fn reuse_transient_task_id(&self, id: Unused<TaskId>);
 
     fn schedule(&self, task: TaskId);
-    fn schedule_backend_background_job(&self, id: BackendJobId);
-    fn schedule_backend_foreground_job(&self, id: BackendJobId);
+    fn schedule_backend_background_job(&self, id: BackendJobId, data: Option<Box<dyn Any + Send>>);
+    fn schedule_backend_foreground_job(&self, id: BackendJobId, data: Option<Box<dyn Any + Send>>);
 
     fn try_foreground_done(&self) -> Result<(), EventListener>;
     fn wait_foreground_done_excluding_own<'a>(
@@ -1478,16 +1478,16 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
     }
 
     #[track_caller]
-    fn schedule_backend_background_job(&self, id: BackendJobId) {
+    fn schedule_backend_background_job(&self, id: BackendJobId, data: Option<Box<dyn Any + Send>>) {
         self.schedule_background_job(move |this| async move {
-            this.backend.run_backend_job(id, &*this).await;
+            this.backend.run_backend_job(id, data, &*this).await;
         })
     }
 
     #[track_caller]
-    fn schedule_backend_foreground_job(&self, id: BackendJobId) {
+    fn schedule_backend_foreground_job(&self, id: BackendJobId, data: Option<Box<dyn Any + Send>>) {
         self.schedule_foreground_job(move |this| async move {
-            this.backend.run_backend_job(id, &*this).await;
+            this.backend.run_backend_job(id, data, &*this).await;
         })
     }
 
