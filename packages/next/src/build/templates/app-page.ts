@@ -63,14 +63,10 @@ import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
  * and I've updated it.
  */
 declare const tree: LoaderTree
-declare const pages: any
 
 // We inject the tree and pages here so that we can use them in the route
 // module.
 // INJECT:tree
-// INJECT:pages
-
-export { pages }
 
 import GlobalError from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -334,7 +330,6 @@ export async function handler(
   const ComponentMod = {
     ...entryBase,
     tree,
-    pages,
     GlobalError,
     handler,
     routeModule,
