@@ -1,10 +1,7 @@
-use std::{
-    sync::atomic::{AtomicU32, Ordering},
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
-use criterion::{BatchSize, BenchmarkId, Criterion, black_box};
-use turbo_tasks::{ReadConsistency, TurboTasks};
+use criterion::{BenchmarkId, Criterion, black_box};
+use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
 use super::register;
@@ -20,7 +17,7 @@ fn busy_task(duration: Duration) {
 
 // Simulate running the task inside turbo-tasks (replace with actual turbo-tasks API)
 #[turbo_tasks::function]
-fn busy_turbo(key: u64, duration: Duration) -> () {
+fn busy_turbo(key: u64, duration: Duration) {
     busy_task(duration);
     black_box(key);
 }
