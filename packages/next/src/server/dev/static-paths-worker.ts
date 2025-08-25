@@ -107,13 +107,14 @@ export async function loadStaticPaths({
   })
 
   if (isAppPath) {
-    const segments = await collectSegments(components)
+    const routeModule = components.routeModule
+    const segments = await collectSegments(routeModule)
 
     const isRoutePPREnabled =
-      isAppPageRouteModule(components.routeModule) &&
+      isAppPageRouteModule(routeModule) &&
       checkIsRoutePPREnabled(config.pprConfig, reduceAppConfig(segments))
 
-    const rootParamKeys = collectRootParamKeys(components)
+    const rootParamKeys = collectRootParamKeys(routeModule)
 
     return buildAppStaticPaths({
       dir,

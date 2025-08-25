@@ -1,13 +1,6 @@
-import type { LoadComponentsReturnType } from '../../../server/load-components'
 import type { Params } from '../../../server/request/params'
-import type {
-  AppPageRouteModule,
-  AppPageModule,
-} from '../../../server/route-modules/app-page/module.compiled'
-import type {
-  AppRouteRouteModule,
-  AppRouteModule,
-} from '../../../server/route-modules/app-route/module.compiled'
+import type { AppPageRouteModule } from '../../../server/route-modules/app-page/module.compiled'
+import type { AppRouteRouteModule } from '../../../server/route-modules/app-route/module.compiled'
 import {
   type AppSegmentConfig,
   parseAppSegmentConfig,
@@ -25,6 +18,7 @@ import {
   type LoaderTree,
 } from '../../../server/lib/app-dir-module'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
+import type { RouteModule } from '../../../server/route-modules/route-module'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 
@@ -187,11 +181,9 @@ function collectAppRouteSegments(
  * @param components the loaded components
  * @returns the segments for the route module
  */
-export function collectSegments({
-  routeModule,
-}: LoadComponentsReturnType<AppPageModule | AppRouteModule>):
-  | Promise<AppSegment[]>
-  | AppSegment[] {
+export function collectSegments(
+  routeModule: RouteModule
+): Promise<AppSegment[]> | AppSegment[] {
   if (isAppRouteRouteModule(routeModule)) {
     return collectAppRouteSegments(routeModule)
   }

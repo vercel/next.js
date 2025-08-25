@@ -3547,7 +3547,7 @@
       "app-dir static/dynamic handling useSearchParams client should have empty search params on force-static"
     ],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app-validation/validation.test.ts": {
     "passed": [
