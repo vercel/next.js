@@ -316,7 +316,7 @@ function MetaKey() {
   useEffect(() => {
     // Meta is Command on Apple devices, otherwise Control
     if (apple === true) {
-      // eslint-disable-next-line react-hooks/react-compiler -- TODO
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO
       setLabel('⌘')
     }
 
