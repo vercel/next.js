@@ -39,6 +39,10 @@ async function main() {
     stdio: 'inherit',
     shell: true,
   })
+  await execa(`git fetch origin ${tagName}`, {
+    stdio: 'inherit',
+    shell: true,
+  })
   await execa(`git reset --hard ${tagName}`, {
     stdio: 'inherit',
     shell: true,

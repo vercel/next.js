@@ -1171,7 +1171,6 @@ async function getRSCPayload(
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: <Preloads preloadCallbacks={preloadCallbacks} />,
     b: ctx.sharedContext.buildId,
-    p: ctx.assetPrefix,
     c: prepareInitialCanonicalUrl(url),
     i: !!couldBeIntercepted,
     f: [
@@ -1293,7 +1292,6 @@ async function getErrorRSCPayload(
 
   return {
     b: ctx.sharedContext.buildId,
-    p: ctx.assetPrefix,
     c: prepareInitialCanonicalUrl(url),
     m: undefined,
     i: false,
@@ -1372,11 +1370,7 @@ function App<T>({
       }}
     >
       <ServerInsertedHTMLProvider>
-        <AppRouter
-          actionQueue={actionQueue}
-          globalErrorState={response.G}
-          assetPrefix={response.p}
-        />
+        <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
       </ServerInsertedHTMLProvider>
     </HeadManagerContext.Provider>
   )
@@ -1426,11 +1420,7 @@ function ErrorApp<T>({
 
   return (
     <ServerInsertedHTMLProvider>
-      <AppRouter
-        actionQueue={actionQueue}
-        globalErrorState={response.G}
-        assetPrefix={response.p}
-      />
+      <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
     </ServerInsertedHTMLProvider>
   )
 }
@@ -1542,7 +1532,7 @@ async function renderToHTMLOrFlightImpl(
   if (process.env.NODE_ENV === 'development') {
     // reset isr status at start of request
     const { pathname } = new URL(req.url || '/', 'http://n')
-    renderOpts.setIsrStatus?.(pathname, null)
+    renderOpts.setIsrStatus?.(pathname, false)
   }
 
   if (

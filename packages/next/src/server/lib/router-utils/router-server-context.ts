@@ -39,7 +39,7 @@ export type RouterServerContext = Record<
     // allow dev server to log with original stack
     logErrorWithOriginalStack?: (err: unknown, type: string) => void
     // allow setting ISR status in dev
-    setIsrStatus?: (key: string, value: boolean | null) => void
+    setIsrStatus?: (key: string, value: boolean) => void
   }
 >
 

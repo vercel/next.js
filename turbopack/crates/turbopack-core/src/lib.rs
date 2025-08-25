@@ -25,6 +25,7 @@ pub mod introspect;
 pub mod issue;
 pub mod module;
 pub mod module_graph;
+pub mod node_addon_module;
 pub mod output;
 pub mod package_json;
 pub mod proxied_asset;

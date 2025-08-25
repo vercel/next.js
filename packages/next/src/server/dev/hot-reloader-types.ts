@@ -119,7 +119,7 @@ export interface TurbopackConnectedAction {
 
 export interface AppIsrManifestAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST
-  data: Record<string, boolean>
+  data: Record<string, true>
 }
 
 export interface DevToolsConfigAction {

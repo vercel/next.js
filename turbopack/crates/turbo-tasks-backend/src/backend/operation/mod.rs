@@ -11,6 +11,7 @@ mod update_output;
 use std::{
     fmt::{Debug, Formatter},
     mem::transmute,
+    sync::atomic::Ordering,
 };
 
 use serde::{Deserialize, Serialize};
@@ -113,6 +114,12 @@ where
         category: TaskDataCategory,
     ) -> Vec<CachedDataItem> {
         if matches!(self.transaction, TransactionState::None) {
+            let check_backing_storage = self.backend.should_restore()
+                && self.backend.local_is_partial.load(Ordering::Acquire);
+            if !check_backing_storage {
+                // If we don't need to restore, we can just return an empty vector
+                return Vec::new();
+            }
             let tx = self.backend.backing_storage.start_read_transaction();
             let tx = tx.map(|tx| {
                 // Safety: self is actually valid for 'a, so it's safe to transmute 'l to 'a
