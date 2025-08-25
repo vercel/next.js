@@ -63,10 +63,7 @@ pub async fn all_server_paths(
         span.record("assets_count", all_assets.len());
         let server_paths = all_assets
             .iter()
-            .map(|&asset| {
-                let node_root = &node_root;
-                async move { Ok(server_path(*asset, node_root.clone()).owned().await?) }
-            })
+            .map(|&asset| server_path(*asset, node_root.clone()).owned())
             .try_flat_join()
             .await?;
         span.record("server_assets_count", server_paths.len());
