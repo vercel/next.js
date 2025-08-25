@@ -109,7 +109,7 @@ fn init() {
         .worker_threads(worker_threads)
         // Avoid a limit on threads to avoid deadlocks due to usage of block_in_place
         .max_blocking_threads(usize::MAX - worker_threads)
-        // Avoid the extra lifo slot to avoid staling tasks when doing cpu-heavy work
+        // Avoid the extra lifo slot to avoid stalling tasks when doing cpu-heavy work
         .disable_lifo_slot()
         .build()
         .unwrap();
