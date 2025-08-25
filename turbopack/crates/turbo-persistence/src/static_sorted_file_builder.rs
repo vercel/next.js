@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    cmp::min,
+    cmp::{max, min},
     fs::File,
     io::{BufWriter, Seek, Write},
     path::Path,
@@ -35,11 +35,9 @@ const AMQF_FALSE_POSITIVE_RATE: f64 = 0.01;
 const KEY_COMPRESSION_DICTIONARY_SIZE: usize = 64 * 1024 - 1;
 /// The maximum bytes that should be selected as key samples to create a compression dictionary
 const KEY_COMPRESSION_SAMPLES_SIZE: usize = 256 * 1024;
-/// The minimum bytes that should be selected as keys samples. Below that no compression dictionary
+/// The minimum bytes that should be selected as key samples. Below that no compression dictionary
 /// is used.
 const MIN_KEY_COMPRESSION_SAMPLES_SIZE: usize = 1024;
-/// The bytes that are used per key entry for a sample.
-const COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY: usize = 100;
 /// The minimum bytes that are used per key entry for a sample.
 const MIN_COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY: usize = 16;
 
@@ -147,12 +145,10 @@ pub fn write_static_stored_file<E: Entry>(
 }
 
 fn get_compression_buffer_capacity(total_key_size: usize) -> usize {
-    let mut size = 0;
-    if total_key_size >= MIN_KEY_COMPRESSION_SAMPLES_SIZE {
-        let key_compression_samples_size = min(KEY_COMPRESSION_SAMPLES_SIZE, total_key_size / 16);
-        size = key_compression_samples_size;
+    if total_key_size < MIN_KEY_COMPRESSION_SAMPLES_SIZE {
+        return 0;
     }
-    size
+    min(KEY_COMPRESSION_SAMPLES_SIZE, total_key_size / 16)
 }
 
 /// Computes compression dictionaries from keys of all entries
@@ -162,23 +158,28 @@ fn compute_key_compression_dictionary<E: Entry>(
     total_key_size: usize,
     buffer: &mut Vec<u8>,
 ) -> Result<Vec<u8>> {
-    if total_key_size < MIN_KEY_COMPRESSION_SAMPLES_SIZE {
+    let key_compression_samples_size = get_compression_buffer_capacity(total_key_size);
+    if key_compression_samples_size == 0 {
         return Ok(Vec::new());
     }
-    let key_compression_samples_size = min(KEY_COMPRESSION_SAMPLES_SIZE, total_key_size / 16);
+
+    let max_sample_size = max(
+        MIN_COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY,
+        key_compression_samples_size / 1024,
+    );
+
     let mut sample_sizes = Vec::new();
 
-    // Limit the number of iterations to avoid infinite loops
-    let max_iterations = total_key_size / COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY * 2;
-    for i in 0..max_iterations {
-        let entry = &entries[i % entries.len()];
+    for entry in entries {
         let key_remaining = key_compression_samples_size - buffer.len();
         if key_remaining < MIN_COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY {
             break;
         }
         let len = entry.key_len();
         if len >= MIN_COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY {
-            let used_len = min(key_remaining, COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY);
+            let optimal_len =
+                (len / 8).clamp(MIN_COMPRESSION_DICTIONARY_SAMPLE_PER_ENTRY, max_sample_size);
+            let used_len = min(key_remaining, optimal_len);
             if len <= used_len {
                 sample_sizes.push(len);
                 entry.write_key_to(buffer);
@@ -193,10 +194,12 @@ fn compute_key_compression_dictionary<E: Entry>(
             }
         }
     }
-    debug_assert!(buffer.len() == sample_sizes.iter().sum::<usize>());
-    let result = if buffer.len() > MIN_KEY_COMPRESSION_SAMPLES_SIZE && sample_sizes.len() > 5 {
-        zstd::dict::from_continuous(buffer, &sample_sizes, KEY_COMPRESSION_DICTIONARY_SIZE)
-            .context("Key dictionary creation failed")?
+    /// The zlib dict builder requires at least 7 samples
+    const MIN_SAMPLE_SIZE: usize = 7;
+    let result = if buffer.len() > MIN_KEY_COMPRESSION_SAMPLES_SIZE
+        && sample_sizes.len() > MIN_SAMPLE_SIZE
+    {
+        zstd::dict::from_continuous(buffer, &sample_sizes, KEY_COMPRESSION_DICTIONARY_SIZE)?
     } else {
         Vec::new()
     };
