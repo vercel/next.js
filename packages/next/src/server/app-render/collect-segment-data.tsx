@@ -281,8 +281,7 @@ function collectSegmentDataImpl(
     slotMetadata[parallelRouteKey] = childTree
   }
 
-  // TODO
-  const shouldUseRuntimePrefetch = false
+  const shouldUseRuntimePrefetch = seedData !== null ? seedData[5] : false
 
   if (seedData !== null) {
     // Spawn a task to write the segment data to a new Flight stream.
