@@ -27,7 +27,7 @@ use crate::{
     next_edge::entry::wrap_edge_entry,
     next_server_component::NextServerComponentTransition,
     parse_segment_config_from_loader_tree,
-    util::{NextRuntime, app_middleware_function_name, file_content_rope, load_next_js_template},
+    util::{NextRuntime, app_function_name, file_content_rope, load_next_js_template},
 };
 
 /// Computes the entry for a Next.js app page.
@@ -186,6 +186,6 @@ async fn wrap_edge_page(
         asset_context,
         project_root,
         wrapped,
-        app_middleware_function_name(&page).into(),
+        app_function_name(&page).into(),
     ))
 }
