@@ -100,8 +100,9 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::express("integration/express.js")]
 #[case::fast_glob("integration/fast-glob.js")]
 #[case::fetch_h2("integration/fetch-h2.js")]
-#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js"))]
 // Could not find ffmpeg executable
+#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js"))]
+#[case::ffmpeg_static("integration/ffmpeg-static.js")]
 #[case::firebase_admin("integration/firebase-admin.js")]
 #[case::firebase("integration/firebase.js")]
 #[case::firestore("integration/firestore.js")]
