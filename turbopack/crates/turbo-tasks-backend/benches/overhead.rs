@@ -19,7 +19,7 @@ fn busy_task(duration: Duration) {
 #[turbo_tasks::function]
 fn busy_turbo(key: u64, duration: Duration) {
     busy_task(duration);
-    black_box(key);
+    black_box(key); // consume the key, we need it to be part of the cache key.
 }
 
 pub fn overhead(c: &mut Criterion) {
@@ -36,66 +36,49 @@ pub fn overhead(c: &mut Criterion) {
         });
 
         group.bench_with_input(BenchmarkId::new("turbo", micros), &duration, |b, &d| {
-            let rt = tokio::runtime::Builder::new_multi_thread()
-                .enable_all()
-                .build()
-                .unwrap();
-
-            b.to_async(rt).iter_custom(|iters| {
-                let tt = TurboTasks::new(TurboTasksBackend::new(
-                    BackendOptions {
-                        storage_mode: None,
-                        ..Default::default()
-                    },
-                    noop_backing_storage(),
-                ));
-                let tt = tt.clone();
-                async move {
-                    tt.run_once(async move {
-                        let start = Instant::now();
-                        for i in 0..iters {
-                            busy_turbo(i, d).await?;
-                        }
-                        Ok(start.elapsed())
-                    })
-                    .await
-                    .unwrap()
-                }
-            });
+            run_turbo::<false>(b, d);
         });
 
         group.bench_with_input(
             BenchmarkId::new("turbo-cached", micros),
             &duration,
             |b, &d| {
-                let rt = tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap();
-
-                b.to_async(rt).iter_custom(|iters| {
-                    let tt = TurboTasks::new(TurboTasksBackend::new(
-                        BackendOptions {
-                            storage_mode: None,
-                            ..Default::default()
-                        },
-                        noop_backing_storage(),
-                    ));
-                    let tt = tt.clone();
-                    async move {
-                        tt.run_once(async move {
-                            let start = Instant::now();
-                            for _ in 0..iters {
-                                busy_turbo(0, d).await?;
-                            }
-                            Ok(start.elapsed())
-                        })
-                        .await
-                        .unwrap()
-                    }
-                });
+                run_turbo::<true>(b, d);
             },
         );
     }
     group.finish();
+}
+
+fn run_turbo<const CACHED: bool>(b: &mut criterion::Bencher<'_>, d: Duration) {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    b.to_async(rt).iter_custom(|iters| {
+        let tt = TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions {
+                storage_mode: None,
+                ..Default::default()
+            },
+            noop_backing_storage(),
+        ));
+
+        async move {
+            tt.run_once(async move {
+                // If cached run once outside the loop to ensure the task is cached.
+                if CACHED {
+                    busy_turbo(0, black_box(d)).await?;
+                }
+                let start = Instant::now();
+                for i in 0..iters {
+                    black_box(busy_turbo(if CACHED { 0 } else { i }, black_box(d)).await?);
+                }
+                Ok(start.elapsed())
+            })
+            .await
+            .unwrap()
+        }
+    });
 }
