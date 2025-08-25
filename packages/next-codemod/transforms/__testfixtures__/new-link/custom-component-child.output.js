@@ -6,8 +6,8 @@ function Comp({children}) {
 
 export default function Page() {
     return (
-        (<Link href="/" legacyBehavior>
+        <Link href="/">
             <Comp>Home</Comp>
-        </Link>)
+        </Link>
     );
 }
