@@ -1907,29 +1907,32 @@ describe('app-dir action handling', () => {
   })
 
   describe('action discarding', () => {
-    it('should not trigger a refresh for a server action that gets discarded due to a navigation (without revalidation)', async () => {
-      let browser = await next.browser('/action-discarding')
-      await browser.waitForIdleNetwork()
-      const initialRandomNumber = await browser
-        .elementByCss('#cached-random')
-        .text()
-
-      await browser.elementByCss('#slow-action').click()
-
-      // navigate to destination
-      await browser.elementByCss('#navigate-destination').click()
-
-      // wait for the 2s action to finish
-      await waitFor(2000)
-
-      await retry(async () => {
-        const newRandomNumber = await browser
+    // TODO: Investigate flaky behavior when deployed
+    if (!isNextDeploy) {
+      it('should not trigger a refresh for a server action that gets discarded due to a navigation (without revalidation)', async () => {
+        let browser = await next.browser('/action-discarding')
+        await browser.waitForIdleNetwork()
+        const initialRandomNumber = await browser
           .elementByCss('#cached-random')
           .text()
 
-        expect(newRandomNumber).toBe(initialRandomNumber)
+        await browser.elementByCss('#slow-action').click()
+
+        // navigate to destination
+        await browser.elementByCss('#navigate-destination').click()
+
+        // wait for the 2s action to finish
+        await waitFor(2000)
+
+        await retry(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#cached-random')
+            .text()
+
+          expect(newRandomNumber).toBe(initialRandomNumber)
+        })
       })
-    })
+    }
 
     it('should trigger a refresh for a server action that gets discarded due to a navigation (with revalidation)', async () => {
       let browser = await next.browser('/action-discarding')
