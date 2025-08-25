@@ -590,7 +590,7 @@ where
                         } else {
                             return Some(Err(anyhow::anyhow!(
                                 "complex patterns into wildcard exports fields are not \
-                                 implemented yet: '{}' into '{}*{}'",
+                                 implemented yet: {} into '{}*{}'",
                                 self.request.describe_as_string(),
                                 prefix,
                                 suffix,
