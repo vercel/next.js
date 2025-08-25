@@ -5,28 +5,36 @@ import findUp from 'next/dist/compiled/find-up'
 import nextPkgJson from 'next/package.json'
 import type { UnwrapPromise } from './coalesced-function'
 import { isCI } from '../server/ci-info'
-import { getRegistry } from './helpers/get-registry'
+import { getPkgManager } from './helpers/get-pkg-manager'
+import { execSync } from 'node:child_process'
 
-let registry: string | undefined
+export async function fetchPkgInfo(dir: string, pkg: string) {
+  const pkgManager = getPkgManager(dir)
 
-async function fetchPkgInfo(pkg: string) {
-  if (!registry) registry = getRegistry()
-  const res = await fetch(`${registry}${pkg}`)
+  const command = pkgManager === 'yarn' ? 'info' : 'show'
 
-  if (!res.ok) {
+  try {
+    const pkgSpec = `${pkg}@${nextPkgJson.version}`
+
+    const output = execSync(`${pkgManager} ${command} ${pkgSpec} --json`, {
+      encoding: 'utf8',
+    })
+
+    const rawData = JSON.parse(output)
+    const pkgData = pkgManager === 'yarn' ? rawData.data : rawData
+
+    return {
+      os: pkgData.os,
+      cpu: pkgData.cpu,
+      engines: pkgData.engines,
+      tarball: pkgData.dist?.tarball,
+      integrity: pkgData.dist?.integrity,
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
     throw new Error(
-      `Failed to fetch registry info for ${pkg}, got status ${res.status}`
+      `Failed to fetch package info for ${pkg} using ${pkgManager}. Cause: ${message}`
     )
-  }
-  const data = await res.json()
-  const versionData = data.versions[nextPkgJson.version]
-
-  return {
-    os: versionData.os,
-    cpu: versionData.cpu,
-    engines: versionData.engines,
-    tarball: versionData.dist.tarball,
-    integrity: versionData.dist.integrity,
   }
 }
 
@@ -146,7 +154,7 @@ export async function patchIncorrectLockfile(dir: string) {
       return
     }
     const pkgsData = await Promise.all(
-      missingSwcPkgs.map((pkg) => fetchPkgInfo(pkg))
+      missingSwcPkgs.map((pkg) => fetchPkgInfo(dir, pkg))
     )
 
     for (let i = 0; i < pkgsData.length; i++) {

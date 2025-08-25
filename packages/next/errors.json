@@ -170,7 +170,7 @@
   "169": "invariant: invalid previewModeId",
   "170": "The key \"%s\" under \"env\" in %s is not allowed. https://nextjs.org/docs/messages/env-key-not-allowed",
   "171": "Specified images should be an object received %s.\\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config",
-  "172": "Failed to fetch registry info for %s, got status %s",
+  "172": "Failed to fetch package info for %s using %s. Cause: %s",
   "173": "The packages specified in the 'transpilePackages' conflict with the 'serverExternalPackages': %s",
   "174": "Invariant: required internal revalidate method not passed to api-utils",
   "175": "Invalid response %s",
