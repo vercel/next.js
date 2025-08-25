@@ -5,12 +5,15 @@ const nextConfig = {
     buildHooks: {
       pre: () => {
         console.log(">>>>>>>>> runs on build start");
+        return Promise.resolve();
       },
       post: () => {
         console.log(">>>>>>>>> runs after build");
+        return Promise.resolve();
       },
       error: () => {
         console.log(">>>>>>>>> runs on error");
+        return Promise.resolve();
       },
     },
   },
