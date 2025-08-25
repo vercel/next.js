@@ -107,7 +107,7 @@ module.exports = {
     '/*': ['src/config/runtime/**/*.json'],
   },
   outputFileTracingExcludes: {
-    '/api/*': ['src/temp/**/*', 'public/large-dumps/**/*'],
+    '/api/*': ['src/temp/**/*', 'public/large-logs/**/*'],
   },
 }
 ```
@@ -117,7 +117,7 @@ You can also target all routes using a global key like `'/*'`:
 ```js filename="next.config.js"
 module.exports = {
   outputFileTracingIncludes: {
-    '/*': ['include-me-global.txt'],
+    '/*': ['src/i18n/locales/**/*.json'],
   },
 }
 ```
@@ -151,11 +151,7 @@ Common include patterns for native/runtime assets:
 ```js filename="next.config.js"
 module.exports = {
   outputFileTracingIncludes: {
-    '/*': [
-      'node_modules/@prisma/engines/**',
-      'node_modules/sharp/**/*',
-      'node_modules/aws-crt/dist/bin/**/*',
-    ],
+    '/*': ['node_modules/sharp/**/*', 'node_modules/aws-crt/dist/bin/**/*'],
   },
 }
 ```
