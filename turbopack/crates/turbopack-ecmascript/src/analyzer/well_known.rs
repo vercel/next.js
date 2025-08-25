@@ -43,6 +43,21 @@ pub async fn replace_well_known(
         JsValue::Member(_, box JsValue::WellKnownFunction(kind), box prop) => {
             well_known_function_member(kind, prop)
         }
+        JsValue::Member(_, box JsValue::Array { .. }, box ref prop) => match prop.as_str() {
+            Some("filter") => (
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ArrayFilter),
+                true,
+            ),
+            Some("forEach") => (
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ArrayForEach),
+                true,
+            ),
+            Some("map") => (
+                JsValue::WellKnownFunction(WellKnownFunctionKind::ArrayMap),
+                true,
+            ),
+            _ => (value, false),
+        },
         _ => (value, false),
     })
 }

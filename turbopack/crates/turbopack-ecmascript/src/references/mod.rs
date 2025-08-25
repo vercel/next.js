@@ -1218,7 +1218,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         &ast_path,
                         span,
                         func,
-                        JsValue::unknown_empty(false, "no this provided"),
                         args,
                         &analysis_state,
                         &add_effects,
@@ -1242,21 +1241,31 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     {
                         continue;
                     }
-                    let mut obj = analysis_state
-                        .link_value(*obj, ImportAttributes::empty_ref())
-                        .await?;
-                    let prop = analysis_state
-                        .link_value(*prop, ImportAttributes::empty_ref())
+
+                    let func = analysis_state
+                        .link_value(
+                            JsValue::member(obj.clone(), prop),
+                            eval_context.imports.get_attributes(span),
+                        )
                         .await?;
 
                     if !new
+                        && matches!(
+                            func,
+                            JsValue::WellKnownFunction(
+                                WellKnownFunctionKind::ArrayFilter
+                                    | WellKnownFunctionKind::ArrayForEach
+                                    | WellKnownFunctionKind::ArrayMap
+                            )
+                        )
+                        && let [EffectArg::Closure(value, block)] = &mut args[..]
                         && let JsValue::Array {
                             items: ref mut values,
                             mutable,
                             ..
-                        } = obj
-                        && matches!(prop.as_str(), Some("map" | "forEach" | "filter"))
-                        && let [EffectArg::Closure(value, block)] = &mut args[..]
+                        } = analysis_state
+                            .link_value(*obj, eval_context.imports.get_attributes(span))
+                            .await?
                     {
                         *value = analysis_state
                             .link_value(take(value), ImportAttributes::empty_ref())
@@ -1281,18 +1290,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         }
                     }
 
-                    let func = analysis_state
-                        .link_value(
-                            JsValue::member(Box::new(obj.clone()), Box::new(prop)),
-                            eval_context.imports.get_attributes(span),
-                        )
-                        .await?;
-
                     handle_call(
                         &ast_path,
                         span,
                         func,
-                        obj,
                         args,
                         &analysis_state,
                         &add_effects,
@@ -1564,7 +1565,6 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     ast_path: &[AstParentKind],
     span: Span,
     func: JsValue,
-    this: JsValue,
     args: Vec<EffectArg>,
     state: &AnalysisState<'_>,
     add_effects: &G,
@@ -1706,7 +1706,6 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     ast_path,
                     span,
                     alt,
-                    this.clone(),
                     args.clone(),
                     state,
                     add_effects,

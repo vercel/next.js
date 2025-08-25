@@ -1810,7 +1810,19 @@ impl JsValue {
             }
             JsValue::WellKnownFunction(func) => {
                 let (name, explainer) = match func {
-                   WellKnownFunctionKind::ObjectAssign => (
+                    WellKnownFunctionKind::ArrayFilter => (
+                      "Array.prototype.filter".to_string(),
+                      "The standard Array.prototype.filter method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter"
+                    ),
+                    WellKnownFunctionKind::ArrayForEach => (
+                      "Array.prototype.forEach".to_string(),
+                      "The standard Array.prototype.forEach method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach"
+                    ),
+                    WellKnownFunctionKind::ArrayMap => (
+                      "Array.prototype.map".to_string(),
+                      "The standard Array.prototype.map method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map"
+                    ),
+                    WellKnownFunctionKind::ObjectAssign => (
                         "Object.assign".to_string(),
                         "Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign",
                     ),
@@ -3533,6 +3545,9 @@ impl Hash for RequireContextValue {
 /// A list of well-known functions that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownFunctionKind {
+    ArrayFilter,
+    ArrayForEach,
+    ArrayMap,
     ObjectAssign,
     PathJoin,
     PathDirname,
