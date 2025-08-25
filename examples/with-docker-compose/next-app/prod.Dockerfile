@@ -1,6 +1,6 @@
 # syntax=docker.io/docker/dockerfile:1
 
-FROM node:18-alpine AS base
+FROM node:lts-alpine AS base
 
 # Step 1. Rebuild the source code only when needed
 FROM base AS builder
