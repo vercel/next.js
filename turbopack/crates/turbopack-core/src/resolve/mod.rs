@@ -2965,14 +2965,14 @@ async fn handle_exports_imports_field(
         if let Some(result_path) = result_path.with_normalized_path() {
             let request = Request::parse(Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!("./")),
-                result_path,
+                result_path.clone(),
             ]))
-            .to_resolved()
+            .resolve()
             .await?;
 
             let resolve_result = Box::pin(resolve_internal_inline(
                 package_path.clone(),
-                *request,
+                request,
                 options,
             ))
             .await?;
@@ -2982,14 +2982,24 @@ async fn handle_exports_imports_field(
             } else {
                 match map_key {
                     AliasKey::Exact => resolve_result.with_request(map_prefix.clone().into()),
-                    AliasKey::Wildcard { suffix } => {
-                        // Because of the assertion in AliasMapLookupIterator, `req` is of the form:
+                    AliasKey::Wildcard { .. } => {
+                        // - `req` is the user's request (key of the export map)
+                        // - `result_path` is the final request (value of the export map), so
+                        //   effectively `'{foo}*{bar}'`
+
+                        // Because of the assertion in AliasMapLookupIterator, `req` is of the
+                        // form:
                         // - "prefix...<dynamic>" or
                         // - "prefix...<dynamic>...suffix"
-                        bail!(
-                            "unimplemented pattern {} into wildcard exports field \
-                             '{map_prefix}*{suffix}'",
-                            req.describe_as_string()
+
+                        let mut old_request_key = result_path;
+                        // Remove the Pattern::Constant(rcstr!("./")), from above again
+                        old_request_key.push_front(rcstr!("./").into());
+                        let new_request_key = req.clone();
+
+                        resolve_result.with_replaced_request_key_pattern(
+                            Pattern::new(old_request_key),
+                            Pattern::new(new_request_key),
                         )
                     }
                 }

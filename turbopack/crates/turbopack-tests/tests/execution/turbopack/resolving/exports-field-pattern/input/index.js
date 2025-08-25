@@ -4,14 +4,12 @@ function requireRoot(s) {
 function requireExact(s) {
   return require(`pkg/exact-${s}`)
 }
-// TODO unimplemented pattern './wildcard-' <dynamic> into wildcard exports field './wildcard-*'
-// function requireWildcardSuffix(s) {
-//   return require(`pkg/wildcard-suffix-${s}`)
-// }
-// TODO unimplemented pattern './wildcard-' <dynamic> into wildcard exports field './wildcard-*'
-// function requireWildcard(s) {
-//   return require(`pkg/wildcard-${s}`)
-// }
+function requireWildcardSuffix(s) {
+  return require(`pkg/wildcard-suffix-${s}`)
+}
+function requireWildcard(s) {
+  return require(`pkg/wildcard-${s}`)
+}
 function requireExactAConstantSuffix(s) {
   return require(`pkg/${s}exact-a`)
 }
@@ -23,17 +21,17 @@ it('should correctly handle dynamic requests into exports field (exact)', () => 
   expect(requireExact('c').default).toBe('c')
 })
 
-// it('should correctly handle dynamic requests into exports field (wildcard with suffix)', () => {
-//   expect(requireWildcardSuffix('a').default).toBe('a')
-//   expect(requireWildcardSuffix('b').default).toBe('b')
-//   expect(requireWildcardSuffix('c').default).toBe('c')
-// })
+it('should correctly handle dynamic requests into exports field (wildcard with suffix)', () => {
+  expect(requireWildcardSuffix('a').default).toBe('a')
+  expect(requireWildcardSuffix('b').default).toBe('b')
+  expect(requireWildcardSuffix('c').default).toBe('c')
+})
 
-// it('should correctly handle dynamic requests into exports field (wildcard)', () => {
-//   expect(requireWildcard('a').default).toBe('a')
-//   expect(requireWildcard('b').default).toBe('b')
-//   expect(requireWildcard('c').default).toBe('c')
-// })
+it('should correctly handle dynamic requests into exports field (wildcard)', () => {
+  expect(requireWildcard('a').default).toBe('a')
+  expect(requireWildcard('b').default).toBe('b')
+  expect(requireWildcard('c').default).toBe('c')
+})
 
 it('should correctly handle dynamic requests into exports field (empty dynamic prefix)', () => {
   // TODO it currently only returns a single entry
