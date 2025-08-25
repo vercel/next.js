@@ -1,8 +1,8 @@
-import { runInternal } from 'internal-pkg'
-import { runInternalSourceMapped } from 'internal-pkg/sourcemapped'
-import { runInternalIgnored } from 'internal-pkg/ignored'
-import { runExternal } from 'external-pkg'
-import { runExternalSourceMapped } from 'external-pkg/sourcemapped'
+import { runInternal } from '@next-test-server-source-maps/internal-pkg'
+import { runInternalSourceMapped } from '@next-test-server-source-maps/internal-pkg/sourcemapped'
+import { runInternalIgnored } from '@next-test-server-source-maps/internal-pkg/ignored'
+import { runExternal } from '@next-test-server-source-maps/external-pkg'
+import { runExternalSourceMapped } from '@next-test-server-source-maps/external-pkg/sourcemapped'
 
 function logError() {
   const error = new Error('rsc-error-log-ignore-listed')

@@ -4,10 +4,10 @@ describe('self-importing-package-monorepo', () => {
   const dependencies = (global as any).isNextDeploy
     ? // `link` is incompatible with the npm version used when this test is deployed
       {
-        'internal-pkg': 'file:./internal-pkg',
+        '@next-test-self-importing-package-monorepo/internal-pkg': 'file:./internal-pkg',
       }
     : {
-        'internal-pkg': 'link:./internal-pkg',
+        '@next-test-self-importing-package-monorepo/internal-pkg': 'link:./internal-pkg',
       }
   const { next } = nextTestSetup({
     files: __dirname,

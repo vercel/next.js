@@ -14,7 +14,7 @@ describe('Does not override tsconfig moduleResolution field during build', () =>
       typescript: 'latest',
       '@types/react': 'latest',
       '@types/node': 'latest',
-      pkg: './pkg',
+      '@next-test-supports-module-resolution-nodenext/pkg': './pkg',
     },
   })
 

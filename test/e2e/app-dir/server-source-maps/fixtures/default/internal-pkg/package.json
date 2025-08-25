@@ -1,5 +1,5 @@
 {
-  "name": "internal-pkg",
+  "name": "@next-test-server-source-maps/internal-pkg",
   "private": true,
   "type": "module",
   "exports": {

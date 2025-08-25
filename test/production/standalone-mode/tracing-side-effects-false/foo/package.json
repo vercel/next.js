@@ -1,5 +1,5 @@
 {
-  "name": "foo",
+  "name": "@next-test-tracing-side-effects-false/foo",
   "type": "module",
   "version": "0.0.0",
   "sideEffects": false

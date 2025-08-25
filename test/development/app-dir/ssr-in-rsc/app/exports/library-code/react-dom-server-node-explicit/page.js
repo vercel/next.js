@@ -1,4 +1,4 @@
-import * as ReactDOMServerNode from 'internal-pkg/server.node'
+import * as ReactDOMServerNode from '@next-test-ssr-in-rsc/internal-pkg/server.node'
 
 export default function Page() {
   return (

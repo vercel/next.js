@@ -19,7 +19,18 @@ const customJestConfig = {
     '<rootDir>/../packages/font/src/',
     '<rootDir>/../packages/next-routing/',
   ],
-  modulePathIgnorePatterns: ['/\\.next/'],
+  haste: {
+    // Throwing to avoid warnings creeping up over time polluting log output.
+    throwOnModuleCollision: true,
+  },
+  modulePathIgnorePatterns: [
+    '/\\.next/',
+    // Prevents jest-haste-map warnings due to multiple versions of the same
+    // package being vendored. Also means tests in `compiled` will be ignored.
+    // Jest does not normalize/resolve paths in modulePathIgnorePatterns so we can't
+    // prefix with <rootDir>/../ like we do in roots.
+    'packages/next/src/compiled/',
+  ],
   modulePaths: ['<rootDir>/lib'],
   transformIgnorePatterns: ['/next[/\\\\]dist/', '/\\.next/'],
   moduleNameMapper: {

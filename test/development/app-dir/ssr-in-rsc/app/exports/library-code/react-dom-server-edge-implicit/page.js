@@ -1,4 +1,4 @@
-import * as ReactDOMServerEdge from 'internal-pkg/server'
+import * as ReactDOMServerEdge from '@next-test-ssr-in-rsc/internal-pkg/server'
 
 export const runtime = 'edge'
 

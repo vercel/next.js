@@ -1,5 +1,5 @@
 {
-  "name": "internal-pkg",
+  "name": "@next-test-self-importing-package-monorepo/internal-pkg",
   "private": true,
   "type": "module",
   "exports": {
