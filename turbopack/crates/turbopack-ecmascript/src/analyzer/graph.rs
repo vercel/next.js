@@ -1818,7 +1818,7 @@ impl VisitAstPath for Analyzer<'_> {
     fn visit_private_method<'ast: 'r, 'r>(
         &mut self,
         node: &'ast PrivateMethod,
-        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         self.enter_fn(node.span.lo.0, false, |this| {
             node.visit_children_with_ast_path(this, ast_path);

@@ -2404,7 +2404,11 @@
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
+<<<<<<< HEAD
 0 -> 413 member call = {}["hasOwnProperty"](
+=======
+0 -> 189 member call = {}["hasOwnProperty"](
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     (???*0* | (???*1* ? ???*4* : null)["attributeName"] | ???*6*)
 )
 - *0* arguments[1]
@@ -2427,7 +2431,11 @@
 - *8* e
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 0 -> 414 conditional = ???*0*
+=======
+0 -> 190 conditional = ???*0*
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* (undefined | ???*1*)(
         (???*2* | (???*3* ? ???*6* : null)["attributeName"] | ???*8*)
     )
@@ -2455,7 +2463,11 @@
 - *10* e
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 0 -> 416 conditional = (null !== (???*0* | ???*8*))
+=======
+0 -> 192 conditional = (null !== (???*0* | ???*8*))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* (???*1* ? ???*6* : null)
   ⚠️  nested operation
 - *1* (undefined | ???*2*)((???*3* | ???*4*))
@@ -2478,7 +2490,11 @@
 - *9* e
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 0 -> 423 conditional = (???*0* ? ???*11* : (???*20* | ???*21* | ???*30*))
+=======
+0 -> 199 conditional = (???*0* ? ???*11* : (???*20* | ???*21* | ???*30*))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* (null !== (???*1* | ???*9*))
   ⚠️  nested operation
 - *1* (???*2* ? ???*7* : null)
@@ -2547,7 +2563,11 @@
 - *31* unsupported expression
   ⚠️  This value might have side effects
 
+<<<<<<< HEAD
 423 -> 424 call = (...) => (!(0) | !(1) | !(b) | (!(1) === b) | FreeVar(isNaN)(b) | (FreeVar(isNaN)(b) || ???*0*))(
+=======
+199 -> 200 call = (...) => (!(0) | !(1) | !(b) | (!(1) === b) | FreeVar(isNaN)(b) | (FreeVar(isNaN)(b) || ???*0*))(
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     (???*1* | (???*2* ? ???*5* : null)["attributeName"] | ???*7*),
     (???*10* | null | (???*11* ? "" : ???*22*)),
     ((???*23* ? ???*28* : null) | ???*30*),
@@ -2644,7 +2664,11 @@
 - *42* e
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 423 -> 425 conditional = (???*0* | (???*1* ? ???*6* : null)["attributeNamespace"] | ???*8* | (null === (???*11* | ???*19*)))
+=======
+199 -> 201 conditional = (???*0* | (???*1* ? ???*6* : null)["attributeNamespace"] | ???*8* | (null === (???*11* | ???*19*)))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 - *1* (undefined | ???*2*)((???*3* | ???*4*))
@@ -2690,6 +2714,7 @@
 - *20* e
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 425 -> 426 call = (...) => (!(0) | !(1))(
     (???*0* | (???*1* ? ???*4* : null)["attributeName"] | ???*6*)
 )
@@ -2714,6 +2739,34 @@
   ⚠️  circular variable reference
 
 425 -> 427 conditional = (null === (???*0* | null | ???*1*))
+=======
+201 -> 202 call = (...) => (!(0) | !(1) | ???*0*)(
+    (???*1* | (???*2* ? ???*5* : null)["attributeName"] | ???*7*)
+)
+- *0* unsupported expression
+  ⚠️  This value might have side effects
+- *1* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *2* (undefined | ???*3*)(???*4*)
+  ⚠️  non-function callee
+- *3* unknown mutation
+  ⚠️  This value might have side effects
+- *4* b
+  ⚠️  circular variable reference
+- *5* {}[???*6*]
+  ⚠️  unknown object prototype methods or values
+  ⚠️  This value might have side effects
+- *6* b
+  ⚠️  circular variable reference
+- *7* ???*8*["attributeName"]
+  ⚠️  unknown object
+- *8* ???*9*["type"]
+  ⚠️  unknown object
+- *9* e
+  ⚠️  circular variable reference
+
+201 -> 203 conditional = (null === (???*0* | null | ???*1*))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* (???*2* ? "" : ???*12*)
@@ -2742,7 +2795,11 @@
 - *12* c
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 427 -> 429 member call = ???*0*["removeAttribute"](
+=======
+203 -> 205 member call = ???*0*["removeAttribute"](
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     (???*1* | (???*2* ? ???*5* : null)["attributeName"] | ???*7*)
 )
 - *0* arguments[0]
@@ -2767,7 +2824,11 @@
 - *9* e
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 427 -> 431 member call = ???*0*["setAttribute"](
+=======
+203 -> 207 member call = ???*0*["setAttribute"](
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     (???*1* | (???*2* ? ???*5* : null)["attributeName"] | ???*7*),
     (???*10* | null | (???*11* ? "" : ???*22*))
 )
@@ -2820,7 +2881,11 @@
 - *22* c
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 425 -> 433 conditional = ((???*0* ? ???*5* : null)["mustUseProperty"] | ???*7*)
+=======
+201 -> 209 conditional = ((???*0* ? ???*5* : null)["mustUseProperty"] | ???*7*)
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* (undefined | ???*1*)((???*2* | ???*3*))
   ⚠️  non-function callee
 - *1* unknown mutation
@@ -2843,7 +2908,11 @@
 - *9* e
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 433 -> 436 conditional = (null === (???*0* | null | ???*1*))
+=======
+209 -> 212 conditional = (null === (???*0* | null | ???*1*))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* (???*2* ? "" : ???*12*)
@@ -2872,7 +2941,11 @@
 - *12* c
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 436 -> 438 conditional = (3 === ???*0*)
+=======
+212 -> 214 conditional = (3 === ???*0*)
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* ???*1*["type"]
   ⚠️  unknown object
 - *1* (???*2* ? ???*7* : null)
@@ -2893,7 +2966,11 @@
 - *8* arguments[1]
   ⚠️  function calls are not analysed yet
 
+<<<<<<< HEAD
 433 -> 441 conditional = (null === (???*0* | null | ???*1*))
+=======
+209 -> 217 conditional = (null === (???*0* | null | ???*1*))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* (???*2* ? "" : ???*12*)
@@ -2922,7 +2999,11 @@
 - *12* c
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 441 -> 443 member call = ???*0*["removeAttribute"](
+=======
+217 -> 219 member call = ???*0*["removeAttribute"](
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     (???*1* | (???*2* ? ???*5* : null)["attributeName"] | ???*7*)
 )
 - *0* arguments[0]
@@ -2947,7 +3028,11 @@
 - *9* e
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 441 -> 445 conditional = ((3 === (???*0* | ???*8*)) | (4 === (???*10* | ???*18*)) | (true === (???*20* | null | ???*21*)))
+=======
+217 -> 221 conditional = ((3 === (???*0* | ???*8*)) | (4 === (???*10* | ???*18*)) | (true === (???*20* | null | ???*21*)))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* (???*1* ? ???*6* : null)
   ⚠️  nested operation
 - *1* (undefined | ???*2*)((???*3* | ???*4*))
@@ -3018,7 +3103,11 @@
 - *32* c
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 441 -> 446 conditional = (???*0* | (???*1* ? ???*6* : null)["attributeNamespace"] | ???*8*)
+=======
+217 -> 222 conditional = (???*0* | (???*1* ? ???*6* : null)["attributeNamespace"] | ???*8*)
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
 - *1* (undefined | ???*2*)((???*3* | ???*4*))
@@ -3043,7 +3132,11 @@
 - *10* e
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 446 -> 448 member call = ???*0*["setAttributeNS"](
+=======
+222 -> 224 member call = ???*0*["setAttributeNS"](
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     (???*1* | (???*2* ? ???*7* : null)["attributeNamespace"] | ???*9*),
     (???*12* | (???*13* ? ???*16* : null)["attributeName"] | ???*18*),
     (???*21* | null | (???*22* ? "" : ???*33*))
@@ -3120,7 +3213,11 @@
 - *33* c
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 446 -> 450 member call = ???*0*["setAttribute"](
+=======
+222 -> 226 member call = ???*0*["setAttribute"](
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     (???*1* | (???*2* ? ???*5* : null)["attributeName"] | ???*7*),
     (???*10* | null | (???*11* ? "" : ???*22*))
 )
@@ -5382,7 +5479,11 @@ ${La}${a}`("SuspenseList")
 - *2* c
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 862 -> 881 conditional = (???*0* === (???*15* | 0 | ???*16* | undefined | ???*17* | ""))
+=======
+637 -> 656 conditional = (???*0* === (???*15* | 0 | ???*16* | ???*17* | "" | undefined))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* ???*1*["value"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
@@ -5412,7 +5513,11 @@ ${La}${a}`("SuspenseList")
 - *10* ???*11*["value"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
+<<<<<<< HEAD
 - *11* ???[(??? | 0 | ??? | undefined | ??? | "")]
+=======
+- *11* ???[(??? | 0 | ??? | ??? | "" | undefined)]
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *12* `$${???*13*}`
@@ -5420,7 +5525,11 @@ ${La}${a}`("SuspenseList")
 - *13* ???*14*["value"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
+<<<<<<< HEAD
 - *14* ???[(??? | 0 | ??? | undefined | ??? | "")]
+=======
+- *14* ???[(??? | 0 | ??? | ??? | "" | undefined)]
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *15* arguments[2]
@@ -5960,7 +6069,11 @@ ${La}${a}`("SuspenseList")
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
+<<<<<<< HEAD
 994 -> 999 conditional = (???*0* | ("number" !== ???*1*) | (0 === ???*3*) | ???*4* | true | ???*7*)
+=======
+758 -> 763 conditional = (???*0* | ("number" !== ???*1*) | (0 === ???*3*) | ???*4* | true | ???*7*)
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* typeof(???*2*)
@@ -13463,7 +13576,11 @@ ${La}${a}`("SuspenseList")
   ⚠️  pattern without value
 - *3* for-in variable currently not analyzed
 
+<<<<<<< HEAD
 2075 -> 2080 conditional = (???*0* | ???*4* | ???*9*)
+=======
+1833 -> 1838 conditional = (???*0* | ???*4* | ???*9*)
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* (undefined | ???*1*)((???*2* | ???*3*))
   ⚠️  non-function callee
 - *1* unknown mutation
@@ -13589,6 +13706,7 @@ ${La}${a}`("SuspenseList")
 - *14* undefined["slice"](1)
   ⚠️  nested operation
 
+<<<<<<< HEAD
 0 -> 2106 call = (...) => undefined(
     (undefined | ???*0* | "animationend" | ???*1* | ???*3*),
     "onAnimationEnd"
@@ -13644,6 +13762,39 @@ ${La}${a}`("SuspenseList")
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *4* unknown mutation
+=======
+0 -> 1864 call = (...) => undefined((undefined | ???*0* | "animationend" | ???*1*), "onAnimationEnd")
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+
+0 -> 1865 call = (...) => undefined(
+    (undefined | ???*0* | "animationiteration" | ???*1*),
+    "onAnimationIteration"
+)
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+
+0 -> 1866 call = (...) => undefined((undefined | ???*0* | "animationstart" | ???*1*), "onAnimationStart")
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
+
+0 -> 1867 call = (...) => undefined("dblclick", "onDoubleClick")
+
+0 -> 1868 call = (...) => undefined("focusin", "onFocus")
+
+0 -> 1869 call = (...) => undefined("focusout", "onBlur")
+
+0 -> 1870 call = (...) => undefined((undefined | ???*0* | "transitionend" | ???*1*), "onTransitionEnd")
+- *0* unknown mutation
+  ⚠️  This value might have side effects
+- *1* unsupported expression
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  This value might have side effects
 - *5* c
   ⚠️  pattern without value
@@ -17703,7 +17854,11 @@ ${La}${a}`("SuspenseList")
 - *0* unreachable
   ⚠️  This value might have side effects
 
+<<<<<<< HEAD
 0 -> 2586 conditional = !((???*0* | undefined | ???*2* | ???*3*))
+=======
+0 -> 2338 conditional = !((???*0* | undefined | ???*2* | ???*3*))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* ???*1*["stateNode"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -18697,6 +18852,7 @@ ${La}${a}`("SuspenseList")
 - *2* unsupported assign operation
   ⚠️  This value might have side effects
 
+<<<<<<< HEAD
 0 -> 2862 conditional = (
   | (null !== (???*0* | null["alternate"] | undefined["alternate"] | undefined | ???*2* | ???*3*))
   | ((
@@ -18733,6 +18889,11 @@ ${La}${a}`("SuspenseList")
             "effects": ???*35*
         }
     ) === (???*38* | null["alternate"] | undefined["alternate"] | undefined | ???*40* | ???*41*))
+=======
+0 -> 2613 conditional = (
+  | (null !== (???*0* | null["alternate"] | undefined["alternate"] | undefined | ???*2* | ???*3*))
+  | ???*5*
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 )
 - *0* ???*1*["alternate"]
   ⚠️  unknown object
@@ -18743,6 +18904,7 @@ ${La}${a}`("SuspenseList")
 - *3* ???*4*["alternate"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
+<<<<<<< HEAD
 - *4* unknown mutation
   ⚠️  This value might have side effects
 - *5* ???*6*["updateQueue"]
@@ -18821,6 +18983,12 @@ ${La}${a}`("SuspenseList")
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *42* unknown mutation
+=======
+- *4* unsupported expression
+  ⚠️  This value might have side effects
+- *5* (c === d)
+  ⚠️  sequence with side effects
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  This value might have side effects
 
 2862 -> 2864 conditional = (null !== (
@@ -18992,6 +19160,10 @@ ${La}${a}`("SuspenseList")
         "next": null
     }
   | ???*20*
+<<<<<<< HEAD
+=======
+  | ???*21*
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 ))
 - *0* ???*1*["eventTime"]
   ⚠️  unknown object
@@ -19033,10 +19205,78 @@ ${La}${a}`("SuspenseList")
   ⚠️  function calls are not analysed yet
 - *19* unknown mutation
   ⚠️  This value might have side effects
+<<<<<<< HEAD
 - *20* arguments[1]
   ⚠️  function calls are not analysed yet
 
 2862 -> 2879 unreachable = ???*0*
+=======
+- *20* unsupported expression
+  ⚠️  This value might have side effects
+- *21* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+2615 -> 2624 conditional = (null === (
+  | null
+  | undefined
+  | {
+        "eventTime": (???*0* | undefined | ???*3*),
+        "lane": (???*4* | undefined | ???*7*),
+        "tag": (???*8* | undefined | ???*11*),
+        "payload": (???*12* | undefined | ???*15*),
+        "callback": (???*16* | undefined | ???*19*),
+        "next": null
+    }
+  | ???*20*
+  | ???*21*
+))
+- *0* ???*1*["eventTime"]
+  ⚠️  unknown object
+- *1* ???*2*["updateQueue"]
+  ⚠️  unknown object
+- *2* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *3* unknown mutation
+  ⚠️  This value might have side effects
+- *4* ???*5*["lane"]
+  ⚠️  unknown object
+- *5* ???*6*["updateQueue"]
+  ⚠️  unknown object
+- *6* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *7* unknown mutation
+  ⚠️  This value might have side effects
+- *8* ???*9*["tag"]
+  ⚠️  unknown object
+- *9* ???*10*["updateQueue"]
+  ⚠️  unknown object
+- *10* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *11* unknown mutation
+  ⚠️  This value might have side effects
+- *12* ???*13*["payload"]
+  ⚠️  unknown object
+- *13* ???*14*["updateQueue"]
+  ⚠️  unknown object
+- *14* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *15* unknown mutation
+  ⚠️  This value might have side effects
+- *16* ???*17*["callback"]
+  ⚠️  unknown object
+- *17* ???*18*["updateQueue"]
+  ⚠️  unknown object
+- *18* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *19* unknown mutation
+  ⚠️  This value might have side effects
+- *20* unsupported expression
+  ⚠️  This value might have side effects
+- *21* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+2613 -> 2630 unreachable = ???*0*
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* unreachable
   ⚠️  This value might have side effects
 
@@ -19120,10 +19360,14 @@ ${La}${a}`("SuspenseList")
   | null["lastBaseUpdate"]["payload"]
   | undefined["payload"]
   | ???*6*
+  | undefined["payload"]
   | undefined["next"]["payload"]
   | null["next"]["payload"]
+<<<<<<< HEAD
   | null["payload"]
   | ???*8*
+=======
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   | (???*9* ? ???*12* : ???*14*)["next"]["payload"]
 ))
 - *0* arguments[0]
@@ -19167,10 +19411,14 @@ ${La}${a}`("SuspenseList")
       | null["lastBaseUpdate"]["payload"]
       | undefined["payload"]
       | ???*6*
+      | undefined["payload"]
       | undefined["next"]["payload"]
       | null["next"]["payload"]
+<<<<<<< HEAD
       | null["payload"]
       | ???*8*
+=======
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     ))
   ⚠️  nested operation
 - *1* arguments[0]
@@ -19199,10 +19447,14 @@ ${La}${a}`("SuspenseList")
   | null["lastBaseUpdate"]["payload"]
   | undefined["payload"]
   | ???*6*
+  | undefined["payload"]
   | undefined["next"]["payload"]
   | null["next"]["payload"]
+<<<<<<< HEAD
   | null["payload"]
   | ???*8*
+=======
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   | (???*9* ? ???*12* : ???*14*)["next"]["payload"]
 )["call"](???*15*, ???*16*, ???*17*)
 - *0* arguments[0]
@@ -19251,10 +19503,14 @@ ${La}${a}`("SuspenseList")
   | null["lastBaseUpdate"]["payload"]
   | undefined["payload"]
   | ???*6*
+  | undefined["payload"]
   | undefined["next"]["payload"]
   | null["next"]["payload"]
+<<<<<<< HEAD
   | null["payload"]
   | ???*8*
+=======
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   | (???*9* ? ???*12* : ???*14*)["next"]["payload"]
 ))
 - *0* arguments[0]
@@ -19298,10 +19554,14 @@ ${La}${a}`("SuspenseList")
       | null["lastBaseUpdate"]["payload"]
       | undefined["payload"]
       | ???*6*
+      | undefined["payload"]
       | undefined["next"]["payload"]
       | null["next"]["payload"]
+<<<<<<< HEAD
       | null["payload"]
       | ???*8*
+=======
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     ))
   ⚠️  nested operation
 - *1* arguments[0]
@@ -19330,10 +19590,14 @@ ${La}${a}`("SuspenseList")
   | null["lastBaseUpdate"]["payload"]
   | undefined["payload"]
   | ???*6*
+  | undefined["payload"]
   | undefined["next"]["payload"]
   | null["next"]["payload"]
+<<<<<<< HEAD
   | null["payload"]
   | ???*8*
+=======
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   | (???*9* ? ???*12* : ???*14*)["next"]["payload"]
 )["call"](???*15*, ???*16*, ???*17*)
 - *0* arguments[0]
@@ -21320,7 +21584,11 @@ ${La}${a}`("SuspenseList")
   | new ???*2*(???*3*, ???*4*)["contextType"]
   | undefined
   | ???*5*
+<<<<<<< HEAD
   | (???*6* ? ({} | ???*11*) : {})
+=======
+  | (???*6* ? ({} | ???*7*) : {})
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 ))
 - *0* ???*1*["contextType"]
   ⚠️  unknown object
@@ -21334,6 +21602,7 @@ ${La}${a}`("SuspenseList")
   ⚠️  circular variable reference
 - *5* unknown mutation
   ⚠️  This value might have side effects
+<<<<<<< HEAD
 - *6* (null !== (false | ???*7* | ???*9*))
   ⚠️  nested operation
 - *7* ???*8*["contextTypes"]
@@ -21404,6 +21673,54 @@ ${La}${a}`("SuspenseList")
 - *23* ???*24*["stateNode"]
   ⚠️  unknown object
 - *24* arguments[0]
+=======
+- *6* unsupported expression
+  ⚠️  This value might have side effects
+- *7* ???*8*["__reactInternalMemoizedMaskedChildContext"]
+  ⚠️  unknown object
+- *8* ???*9*["stateNode"]
+  ⚠️  unknown object
+- *9* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+0 -> 2785 conditional = (
+  | ("object" === ???*0*)
+  | (null !== (???*9* | undefined | ???*11* | ???*12*))
+)
+- *0* typeof((???*1* | undefined | ???*3* | ???*4*))
+  ⚠️  nested operation
+- *1* ???*2*["contextType"]
+  ⚠️  unknown object
+- *2* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *3* unknown mutation
+  ⚠️  This value might have side effects
+- *4* (???*5* ? ({} | ???*6*) : {})
+  ⚠️  nested operation
+- *5* unsupported expression
+  ⚠️  This value might have side effects
+- *6* ???*7*["__reactInternalMemoizedMaskedChildContext"]
+  ⚠️  unknown object
+- *7* ???*8*["stateNode"]
+  ⚠️  unknown object
+- *8* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *9* ???*10*["contextType"]
+  ⚠️  unknown object
+- *10* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *11* unknown mutation
+  ⚠️  This value might have side effects
+- *12* (???*13* ? ({} | ???*14*) : {})
+  ⚠️  nested operation
+- *13* unsupported expression
+  ⚠️  This value might have side effects
+- *14* ???*15*["__reactInternalMemoizedMaskedChildContext"]
+  ⚠️  unknown object
+- *15* ???*16*["stateNode"]
+  ⚠️  unknown object
+- *16* arguments[0]
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  function calls are not analysed yet
 
 3036 -> 3037 call = (...) => b(
@@ -21412,7 +21729,11 @@ ${La}${a}`("SuspenseList")
       | new ???*2*(???*3*, ???*4*)["contextType"]
       | undefined
       | ???*5*
+<<<<<<< HEAD
       | (???*6* ? ({} | ???*11*) : {})
+=======
+      | (???*6* ? ({} | ???*7*) : {})
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     )
 )
 - *0* ???*1*["contextType"]
@@ -21427,9 +21748,44 @@ ${La}${a}`("SuspenseList")
   ⚠️  circular variable reference
 - *5* unknown mutation
   ⚠️  This value might have side effects
+<<<<<<< HEAD
 - *6* (null !== (false | ???*7* | ???*9*))
   ⚠️  nested operation
 - *7* ???*8*["contextTypes"]
+=======
+- *6* unsupported expression
+  ⚠️  This value might have side effects
+- *7* ???*8*["__reactInternalMemoizedMaskedChildContext"]
+  ⚠️  unknown object
+- *8* ???*9*["stateNode"]
+  ⚠️  unknown object
+- *9* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+2785 -> 2787 call = (...) => ((null !== a) && (undefined !== a))(
+    (
+      | ???*0*
+      | new ???*1*(???*2*, (???*3* | undefined | ???*5* | ???*6*))
+    )
+)
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *1* b
+  ⚠️  circular variable reference
+- *2* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *3* ???*4*["contextType"]
+  ⚠️  unknown object
+- *4* b
+  ⚠️  circular variable reference
+- *5* unknown mutation
+  ⚠️  This value might have side effects
+- *6* (???*7* ? ({} | ???*8*) : {})
+  ⚠️  nested operation
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* ???*9*["__reactInternalMemoizedMaskedChildContext"]
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  unknown object
 - *8* arguments[1]
   ⚠️  function calls are not analysed yet
@@ -21444,6 +21800,7 @@ ${La}${a}`("SuspenseList")
 - *13* arguments[0]
   ⚠️  function calls are not analysed yet
 
+<<<<<<< HEAD
 3036 -> 3038 call = (...) => ((null !== a) && (undefined !== a))(
     (
       | ???*0*
@@ -21484,6 +21841,11 @@ ${La}${a}`("SuspenseList")
 3036 -> 3039 conditional = ((null !== (???*0* | ???*1* | ???*16*)) | (undefined !== (???*18* | ???*19* | ???*34*)))
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
+=======
+2785 -> 2788 conditional = ((null !== (???*0* | ???*1* | ???*12*)) | (undefined !== (???*14* | ???*15* | ???*26*)))
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *1* new ???*2*(???*3*, (???*4* | undefined | ???*6* | ???*7*))
   ⚠️  nested operation
 - *2* b
@@ -21496,6 +21858,7 @@ ${La}${a}`("SuspenseList")
   ⚠️  circular variable reference
 - *6* unknown mutation
   ⚠️  This value might have side effects
+<<<<<<< HEAD
 - *7* (???*8* ? ({} | ???*13*) : {})
   ⚠️  nested operation
 - *8* (null !== (false | ???*9* | ???*11*))
@@ -21643,11 +22006,15 @@ ${La}${a}`("SuspenseList")
 - *5* unknown mutation
   ⚠️  This value might have side effects
 - *6* (???*7* ? ({} | ???*12*) : {})
+=======
+- *7* (???*8* ? ({} | ???*9*) : {})
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  nested operation
 - *7* (null !== (false | ???*8* | ???*10*))
   ⚠️  nested operation
 - *8* ???*9*["contextTypes"]
   ⚠️  unknown object
+<<<<<<< HEAD
 - *9* b
   ⚠️  circular variable reference
 - *10* (null !== ???*11*)
@@ -21689,6 +22056,141 @@ ${La}${a}`("SuspenseList")
 - *28* ???*29*["stateNode"]
   ⚠️  unknown object
 - *29* arguments[0]
+=======
+- *10* ???*11*["stateNode"]
+  ⚠️  unknown object
+- *11* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *12* ???*13*["childContextTypes"]
+  ⚠️  unknown object
+- *13* a
+  ⚠️  circular variable reference
+- *14* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *15* new ???*16*(???*17*, (???*18* | undefined | ???*20* | ???*21*))
+  ⚠️  nested operation
+- *16* b
+  ⚠️  circular variable reference
+- *17* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *18* ???*19*["contextType"]
+  ⚠️  unknown object
+- *19* b
+  ⚠️  circular variable reference
+- *20* unknown mutation
+  ⚠️  This value might have side effects
+- *21* (???*22* ? ({} | ???*23*) : {})
+  ⚠️  nested operation
+- *22* unsupported expression
+  ⚠️  This value might have side effects
+- *23* ???*24*["__reactInternalMemoizedMaskedChildContext"]
+  ⚠️  unknown object
+- *24* ???*25*["stateNode"]
+  ⚠️  unknown object
+- *25* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *26* ???*27*["childContextTypes"]
+  ⚠️  unknown object
+- *27* a
+  ⚠️  circular variable reference
+
+2785 -> 2791 call = (...) => (Vf | d["__reactInternalMemoizedMaskedChildContext"] | e)((???*0* | ???*1*), ({} | (???*3* ? ({} | ???*17*) : ({} | ???*18*))))
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *1* ???*2*["stateNode"]
+  ⚠️  unknown object
+- *2* a
+  ⚠️  circular variable reference
+- *3* (null !== (???*4* | ???*5* | ???*15*))
+  ⚠️  nested operation
+- *4* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *5* new ???*6*(???*7*, (???*8* | undefined | ???*10* | ???*11*))
+  ⚠️  nested operation
+- *6* b
+  ⚠️  circular variable reference
+- *7* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *8* ???*9*["contextType"]
+  ⚠️  unknown object
+- *9* b
+  ⚠️  circular variable reference
+- *10* unknown mutation
+  ⚠️  This value might have side effects
+- *11* (???*12* ? ({} | ???*13*) : {})
+  ⚠️  nested operation
+- *12* unsupported expression
+  ⚠️  This value might have side effects
+- *13* ???*14*["__reactInternalMemoizedMaskedChildContext"]
+  ⚠️  unknown object
+- *14* ...[...]
+  ⚠️  unknown object
+- *15* ???*16*["childContextTypes"]
+  ⚠️  unknown object
+- *16* a
+  ⚠️  circular variable reference
+- *17* unknown mutation
+  ⚠️  This value might have side effects
+- *18* unknown mutation
+  ⚠️  This value might have side effects
+
+0 -> 2792 call = new (
+  | ???*0*
+  | new ???*1*(???*2*, (???*3* | undefined | ???*5* | ???*6*))
+)(
+    ???*11*,
+    (
+      | ???*12*
+      | new ???*14*(???*15*, ???*16*)["contextType"]
+      | undefined
+      | ???*17*
+      | (???*18* ? ({} | ???*19*) : {})
+    )
+)
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *1* b
+  ⚠️  circular variable reference
+- *2* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *3* ???*4*["contextType"]
+  ⚠️  unknown object
+- *4* b
+  ⚠️  circular variable reference
+- *5* unknown mutation
+  ⚠️  This value might have side effects
+- *6* (???*7* ? ({} | ???*8*) : {})
+  ⚠️  nested operation
+- *7* unsupported expression
+  ⚠️  This value might have side effects
+- *8* ???*9*["__reactInternalMemoizedMaskedChildContext"]
+  ⚠️  unknown object
+- *9* ???*10*["stateNode"]
+  ⚠️  unknown object
+- *10* arguments[0]
+  ⚠️  function calls are not analysed yet
+- *11* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *12* ???*13*["contextType"]
+  ⚠️  unknown object
+- *13* arguments[1]
+  ⚠️  function calls are not analysed yet
+- *14* b
+  ⚠️  circular variable reference
+- *15* arguments[2]
+  ⚠️  function calls are not analysed yet
+- *16* f
+  ⚠️  circular variable reference
+- *17* unknown mutation
+  ⚠️  This value might have side effects
+- *18* unsupported expression
+  ⚠️  This value might have side effects
+- *19* ???*20*["__reactInternalMemoizedMaskedChildContext"]
+  ⚠️  unknown object
+- *20* ???*21*["stateNode"]
+  ⚠️  unknown object
+- *21* arguments[0]
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  function calls are not analysed yet
 
 0 -> 3048 conditional = ((null !== ???*0*) | (undefined !== ???*2*))
@@ -34757,6 +35259,7 @@ ${La}${a}`("SuspenseList")
 - *9* unknown mutation
   ⚠️  This value might have side effects
 - *10* (null !== (???*11* | ???*12*))
+<<<<<<< HEAD
   ⚠️  nested operation
 - *11* arguments[2]
   ⚠️  function calls are not analysed yet
@@ -34807,18 +35310,20 @@ ${La}${a}`("SuspenseList")
 - *10* unknown mutation
   ⚠️  This value might have side effects
 - *11* (null !== (???*12* | ???*13*))
+=======
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  nested operation
-- *12* arguments[2]
+- *11* arguments[2]
   ⚠️  function calls are not analysed yet
-- *13* ???*14*["childContextTypes"]
+- *12* ???*13*["childContextTypes"]
   ⚠️  unknown object
-- *14* a
+- *13* a
   ⚠️  circular variable reference
+- *14* unknown mutation
+  ⚠️  This value might have side effects
 - *15* unknown mutation
   ⚠️  This value might have side effects
-- *16* unknown mutation
-  ⚠️  This value might have side effects
-- *17* max number of linking steps reached
+- *16* max number of linking steps reached
   ⚠️  This value might have side effects
 - *18* (???*19* ? ???*21* : true)
   ⚠️  nested operation
@@ -34946,9 +35451,15 @@ ${La}${a}`("SuspenseList")
 - *7* a
   ⚠️  circular variable reference
 - *8* unknown mutation
+<<<<<<< HEAD
   ⚠️  This value might have side effects
 - *9* unknown mutation
   ⚠️  This value might have side effects
+=======
+  ⚠️  This value might have side effects
+- *9* unknown mutation
+  ⚠️  This value might have side effects
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 
 4394 -> 4466 conditional = (
   | ("object" === ???*0*)
@@ -35028,9 +35539,15 @@ ${La}${a}`("SuspenseList")
 - *7* a
   ⚠️  circular variable reference
 - *8* unknown mutation
+<<<<<<< HEAD
   ⚠️  This value might have side effects
 - *9* unknown mutation
   ⚠️  This value might have side effects
+=======
+  ⚠️  This value might have side effects
+- *9* unknown mutation
+  ⚠️  This value might have side effects
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 
 4466 -> 4468 call = (...) => ((null !== a) && (undefined !== a))(???*0*)
 - *0* arguments[2]
@@ -35080,9 +35597,15 @@ ${La}${a}`("SuspenseList")
 - *8* a
   ⚠️  circular variable reference
 - *9* unknown mutation
+<<<<<<< HEAD
   ⚠️  This value might have side effects
 - *10* unknown mutation
   ⚠️  This value might have side effects
+=======
+  ⚠️  This value might have side effects
+- *10* unknown mutation
+  ⚠️  This value might have side effects
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 
 4394 -> 4473 typeof = typeof((???*0* | undefined))
 - *0* ???*1*["getDerivedStateFromProps"]
@@ -35152,9 +35675,15 @@ ${La}${a}`("SuspenseList")
 - *11* a
   ⚠️  circular variable reference
 - *12* unknown mutation
+<<<<<<< HEAD
   ⚠️  This value might have side effects
 - *13* unknown mutation
   ⚠️  This value might have side effects
+=======
+  ⚠️  This value might have side effects
+- *13* unknown mutation
+  ⚠️  This value might have side effects
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 
 4394 -> 4483 call = (...) => undefined(???*0*, ???*1*, (???*2* | undefined), ???*4*)
 - *0* arguments[1]
@@ -35265,6 +35794,7 @@ ${La}${a}`("SuspenseList")
 - *11* unknown mutation
   ⚠️  This value might have side effects
 - *12* (null !== (???*13* | ???*14*))
+<<<<<<< HEAD
   ⚠️  nested operation
 - *13* arguments[2]
   ⚠️  function calls are not analysed yet
@@ -35317,16 +35847,18 @@ ${La}${a}`("SuspenseList")
 - *12* unknown mutation
   ⚠️  This value might have side effects
 - *13* (null !== (???*14* | ???*15*))
+=======
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  nested operation
-- *14* arguments[2]
+- *13* arguments[2]
   ⚠️  function calls are not analysed yet
-- *15* ???*16*["childContextTypes"]
+- *14* ???*15*["childContextTypes"]
   ⚠️  unknown object
-- *16* a
+- *15* a
   ⚠️  circular variable reference
-- *17* unknown mutation
+- *16* unknown mutation
   ⚠️  This value might have side effects
-- *18* unknown mutation
+- *17* unknown mutation
   ⚠️  This value might have side effects
 - *19* (???*20* ? ???*22* : true)
   ⚠️  nested operation
@@ -35400,9 +35932,15 @@ ${La}${a}`("SuspenseList")
 - *12* a
   ⚠️  circular variable reference
 - *13* unknown mutation
+<<<<<<< HEAD
   ⚠️  This value might have side effects
 - *14* unknown mutation
   ⚠️  This value might have side effects
+=======
+  ⚠️  This value might have side effects
+- *14* unknown mutation
+  ⚠️  This value might have side effects
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 
 4491 -> 4500 typeof = typeof((???*0* | undefined["UNSAFE_componentWillUpdate"]))
 - *0* ???*1*["UNSAFE_componentWillUpdate"]
@@ -35451,9 +35989,15 @@ ${La}${a}`("SuspenseList")
 - *12* a
   ⚠️  circular variable reference
 - *13* unknown mutation
+<<<<<<< HEAD
   ⚠️  This value might have side effects
 - *14* unknown mutation
   ⚠️  This value might have side effects
+=======
+  ⚠️  This value might have side effects
+- *14* unknown mutation
+  ⚠️  This value might have side effects
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 
 4491 -> 4504 typeof = typeof((???*0* | undefined["componentDidUpdate"]))
 - *0* ???*1*["componentDidUpdate"]
@@ -38038,7 +38582,11 @@ ${La}${a}`("SuspenseList")
 - *1* f
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 4991 -> 4998 conditional = ???*0*
+=======
+4734 -> 4741 conditional = ???*0*
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* (undefined | ???*1*)((???*2* | null | undefined | [] | ???*3*))
   ⚠️  non-function callee
 - *1* unknown mutation
@@ -39307,7 +39855,11 @@ ${La}${a}`("SuspenseList")
 - *1* f
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 5029 -> 5036 conditional = ???*0*
+=======
+4772 -> 4779 conditional = ???*0*
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* (undefined | ???*1*)((???*2* | null | undefined | [] | ???*3*))
   ⚠️  non-function callee
 - *1* unknown mutation
@@ -40088,7 +40640,11 @@ ${La}${a}`("SuspenseList")
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
+<<<<<<< HEAD
 5258 -> 5266 conditional = ???*0*
+=======
+5000 -> 5008 conditional = ???*0*
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* (undefined | ???*1*)(???*2*)
   ⚠️  non-function callee
   ⚠️  This value might have side effects
@@ -49773,7 +50329,11 @@ ${La}${a}`("SuspenseList")
 - *1* unsupported expression
   ⚠️  This value might have side effects
 
+<<<<<<< HEAD
 0 -> 7399 call = (...) => (1 | ???*0* | ???*1* | a)((???*2* | undefined | ???*4*))
+=======
+0 -> 7137 call = (...) => (1 | ???*0* | ???*1* | a)((???*2* | undefined | ???*4*))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* Ck
@@ -49816,7 +50376,11 @@ ${La}${a}`("SuspenseList")
 - *12* d
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 0 -> 7402 conditional = (null === (???*0* | undefined | ???*2*))
+=======
+0 -> 7140 conditional = (null === (???*0* | undefined | ???*2*))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 - *0* ???*1*["context"]
   ⚠️  unknown object
 - *1* arguments[1]
@@ -49840,7 +50404,11 @@ ${La}${a}`("SuspenseList")
       | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
       | ???*32*
       | ???*33*
+<<<<<<< HEAD
       | (???*35* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+=======
+      | (???*35* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     )
 )
 - *0* (0 !== ???*1*)
@@ -49933,7 +50501,11 @@ ${La}${a}`("SuspenseList")
 - *4* d
   ⚠️  circular variable reference
 
+<<<<<<< HEAD
 0 -> 7409 call = (...) => (null | Zg(a, c))(
+=======
+0 -> 7147 call = (...) => (null | Zg(a, c))(
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     (???*0* | undefined | ???*2*),
     (
       | ???*3*
@@ -49952,7 +50524,11 @@ ${La}${a}`("SuspenseList")
               | (???*24* ? 16 : (???*25* | undefined | null | ???*32* | ???*33*))
               | ???*35*
               | ???*36*
+<<<<<<< HEAD
               | (???*38* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+=======
+              | (???*38* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
             ),
             "tag": 0,
             "payload": null,
@@ -49974,7 +50550,11 @@ ${La}${a}`("SuspenseList")
       | (???*50* ? 16 : (???*51* | undefined | null | ???*58* | ???*59*))
       | ???*61*
       | ???*62*
+<<<<<<< HEAD
       | (???*64* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+=======
+      | (???*64* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     )
 )
 - *0* ???*1*["current"]
@@ -50004,9 +50584,14 @@ ${La}${a}`("SuspenseList")
 - *12* unsupported expression
   ⚠️  This value might have side effects
 - *13* module<scheduler, {}>["unstable_now"]()
+<<<<<<< HEAD
   ⚠️  nested operation
 - *14* module<scheduler, {}>["unstable_now"]()
+=======
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  nested operation
+- *14* unsupported expression
+  ⚠️  This value might have side effects
 - *15* unsupported expression
   ⚠️  This value might have side effects
 - *16* Ck
@@ -50133,7 +50718,11 @@ ${La}${a}`("SuspenseList")
       | (???*14* ? 16 : (???*15* | undefined | null | ???*22* | ???*23*))
       | ???*25*
       | ???*26*
+<<<<<<< HEAD
       | (???*28* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+=======
+      | (???*28* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     ),
     (???*30* ? ???*32* : ???*33*)
 )
@@ -50220,8 +50809,13 @@ ${La}${a}`("SuspenseList")
   ⚠️  This value might have side effects
 - *39* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
+<<<<<<< HEAD
 - *40* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
+=======
+- *40* unsupported expression
+  ⚠️  This value might have side effects
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 
 0 -> 7411 call = (...) => undefined(
     ???*0*,
@@ -50240,7 +50834,11 @@ ${La}${a}`("SuspenseList")
       | (???*14* ? 16 : (???*15* | undefined | null | ???*22* | ???*23*))
       | ???*25*
       | ???*26*
+<<<<<<< HEAD
       | (???*28* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+=======
+      | (???*28* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
+>>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
     )
 )
 - *0* max number of linking steps reached
