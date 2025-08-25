@@ -231,6 +231,13 @@ impl SubpathValue {
     }
 }
 
+pub struct ReplacedSubpathValueResult<'a, 'b> {
+    pub result_path: Pattern,
+    pub conditions: Vec<(RcStr, bool)>,
+    pub map_prefix: Cow<'a, str>,
+    pub map_key: &'b AliasKey,
+}
+
 impl ReplacedSubpathValue {
     // TODO
     #[allow(clippy::type_complexity)]
@@ -245,7 +252,7 @@ impl ReplacedSubpathValue {
         conditions: &BTreeMap<RcStr, ConditionValue>,
         unspecified_condition: &ConditionValue,
         condition_overrides: &mut FxHashMap<RcStr, ConditionValue>,
-        target: &mut Vec<(Pattern, Vec<(RcStr, bool)>, Cow<'a, str>, &'b AliasKey)>,
+        target: &mut Vec<ReplacedSubpathValueResult<'a, 'b>>,
     ) -> bool {
         match self {
             ReplacedSubpathValue::Alternatives(list) => {
@@ -307,9 +314,9 @@ impl ReplacedSubpathValue {
                 false
             }
             ReplacedSubpathValue::Result(r) => {
-                target.push((
-                    r,
-                    condition_overrides
+                target.push(ReplacedSubpathValueResult {
+                    result_path: r,
+                    conditions: condition_overrides
                         .iter()
                         .filter_map(|(k, v)| match v {
                             ConditionValue::Set => Some((k.clone(), true)),
@@ -317,9 +324,9 @@ impl ReplacedSubpathValue {
                             ConditionValue::Unknown => None,
                         })
                         .collect(),
-                    prefix,
-                    key,
-                ));
+                    map_prefix: prefix,
+                    map_key: key,
+                });
                 true
             }
             ReplacedSubpathValue::Excluded => true,

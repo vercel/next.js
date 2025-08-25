@@ -47,6 +47,7 @@ use crate::{
         parse::stringify_data_uri,
         pattern::{PatternMatch, read_matches},
         plugin::AfterResolvePlugin,
+        remap::ReplacedSubpathValueResult,
     },
     source::{OptionSource, Source, Sources},
 };
@@ -2954,7 +2955,13 @@ async fn handle_exports_imports_field(
     }
 
     let mut resolved_results = Vec::new();
-    for (result_path, conditions, prefix, key) in results {
+    for ReplacedSubpathValueResult {
+        result_path,
+        conditions,
+        map_prefix,
+        map_key,
+    } in results
+    {
         if let Some(result_path) = result_path.with_normalized_path() {
             let request = Request::parse(Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!("./")),
@@ -2973,15 +2980,15 @@ async fn handle_exports_imports_field(
             let resolve_result = if let Some(req) = req.as_constant_string() {
                 resolve_result.with_request(req.clone())
             } else {
-                match key {
-                    AliasKey::Exact => resolve_result.with_request(prefix.clone().into()),
+                match map_key {
+                    AliasKey::Exact => resolve_result.with_request(map_prefix.clone().into()),
                     AliasKey::Wildcard { suffix } => {
                         // Because of the assertion in AliasMapLookupIterator, `req` is of the form:
                         // - "prefix...<dynamic>" or
                         // - "prefix...<dynamic>...suffix"
                         bail!(
                             "unimplemented pattern {} into wildcard exports field \
-                             '{prefix}*{suffix}'",
+                             '{map_prefix}*{suffix}'",
                             req.describe_as_string()
                         )
                     }
