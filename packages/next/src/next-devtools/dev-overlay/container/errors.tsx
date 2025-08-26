@@ -82,6 +82,7 @@ export function useErrorDetails(
   notes: string | null
   reactOutputComponentDiff: string | null
 } {
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- compiler bug
   return useMemo(() => {
     if (error === undefined) {
       return noErrorDetails
@@ -149,6 +150,7 @@ export function Errors({
     return frames[firstFirstPartyFrameIndex] ?? null
   }, [frames])
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- compiler bug
   const generateErrorInfo = useCallback(() => {
     if (!activeError) return ''
 
