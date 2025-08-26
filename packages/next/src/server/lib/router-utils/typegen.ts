@@ -446,10 +446,13 @@ export function generateValidatorFile(
             : type
         return `// Validate ${filePath}
 {
+  type __IsExpected<Specific extends ${typeWithRoute}> = Specific
   const handler = {} as typeof import(${JSON.stringify(
     importPath.replace(/\.tsx?$/, '.js')
   )})
-  handler satisfies ${typeWithRoute}
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
 }`
       })
       .join('\n\n')
