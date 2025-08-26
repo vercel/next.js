@@ -4289,15 +4289,12 @@
         void 0
       )._weakResponse;
     }
-    function startReadingFromStream$1(response, stream, isSecondaryStream) {
+    function startReadingFromStream$1(response, stream, onDone) {
       function progress(_ref) {
         var value = _ref.value;
-        if (_ref.done) isSecondaryStream || close(response);
-        else
-          return (
-            processBinaryChunk(response, streamState, value),
-            reader.read().then(progress).catch(error)
-          );
+        if (_ref.done) return onDone();
+        processBinaryChunk(response, streamState, value);
+        return reader.read().then(progress).catch(error);
       }
       function error(e) {
         reportGlobalError(response, e);
@@ -4311,11 +4308,7 @@
         "Server Functions cannot be called during initial render. This would create a fetch waterfall. Try to use a Server Component to pass data to Client Components instead."
       );
     }
-    function startReadingFromStream(
-      response$jscomp$0,
-      stream,
-      isSecondaryStream
-    ) {
+    function startReadingFromStream(response$jscomp$0, stream, onEnd) {
       var streamState = createStreamState();
       stream.on("data", function (chunk) {
         if ("string" === typeof chunk) {
@@ -4413,9 +4406,7 @@
       stream.on("error", function (error) {
         reportGlobalError(response$jscomp$0, error);
       });
-      stream.on("end", function () {
-        isSecondaryStream || close(response$jscomp$0);
-      });
+      stream.on("end", onEnd);
     }
     var util = require("util"),
       ReactDOM = require("react-dom"),
@@ -4624,14 +4615,27 @@
       var response = createResponseFromOptions(options);
       promiseForResponse.then(
         function (r) {
-          options && options.debugChannel && options.debugChannel.readable
-            ? (startReadingFromStream$1(
-                response,
-                options.debugChannel.readable,
-                !1
-              ),
-              startReadingFromStream$1(response, r.body, !0))
-            : startReadingFromStream$1(response, r.body, !1);
+          if (
+            options &&
+            options.debugChannel &&
+            options.debugChannel.readable
+          ) {
+            var streamDoneCount = 0,
+              handleDone = function () {
+                2 === ++streamDoneCount && close(response);
+              };
+            startReadingFromStream$1(
+              response,
+              options.debugChannel.readable,
+              handleDone
+            );
+            startReadingFromStream$1(response, r.body, handleDone);
+          } else
+            startReadingFromStream$1(
+              response,
+              r.body,
+              close.bind(null, response)
+            );
         },
         function (e) {
           reportGlobalError(response, e);
@@ -4644,7 +4648,7 @@
       serverConsumerManifest,
       options
     ) {
-      serverConsumerManifest = new ResponseInstance(
+      var response = new ResponseInstance(
         serverConsumerManifest.moduleMap,
         serverConsumerManifest.serverModuleMap,
         serverConsumerManifest.moduleLoading,
@@ -4657,26 +4661,36 @@
         options && options.environmentName ? options.environmentName : void 0,
         void 0
       )._weakResponse;
-      options && options.debugChannel
-        ? (startReadingFromStream(
-            serverConsumerManifest,
-            options.debugChannel,
-            !1
-          ),
-          startReadingFromStream(serverConsumerManifest, stream, !0))
-        : startReadingFromStream(serverConsumerManifest, stream, !1);
-      return getRoot(serverConsumerManifest);
+      if (options && options.debugChannel) {
+        var streamEndedCount = 0;
+        serverConsumerManifest = function () {
+          2 === ++streamEndedCount && close(response);
+        };
+        startReadingFromStream(
+          response,
+          options.debugChannel,
+          serverConsumerManifest
+        );
+        startReadingFromStream(response, stream, serverConsumerManifest);
+      } else
+        startReadingFromStream(response, stream, close.bind(null, response));
+      return getRoot(response);
     };
     exports.createFromReadableStream = function (stream, options) {
       var response = createResponseFromOptions(options);
-      options && options.debugChannel && options.debugChannel.readable
-        ? (startReadingFromStream$1(
-            response,
-            options.debugChannel.readable,
-            !1
-          ),
-          startReadingFromStream$1(response, stream, !0))
-        : startReadingFromStream$1(response, stream, !1);
+      if (options && options.debugChannel && options.debugChannel.readable) {
+        var streamDoneCount = 0,
+          handleDone = function () {
+            2 === ++streamDoneCount && close(response);
+          };
+        startReadingFromStream$1(
+          response,
+          options.debugChannel.readable,
+          handleDone
+        );
+        startReadingFromStream$1(response, stream, handleDone);
+      } else
+        startReadingFromStream$1(response, stream, close.bind(null, response));
       return getRoot(response);
     };
     exports.createServerReference = function (id) {

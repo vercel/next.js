@@ -1859,6 +1859,9 @@ function createFromJSONCallback(response) {
     return value;
   };
 }
+function close(weakResponse) {
+  reportGlobalError(weakResponse, Error("Connection closed."));
+}
 function noServerCall() {
   throw Error(
     "Server Functions cannot be called during initial render. This would create a fetch waterfall. Try to use a Server Component to pass data to Client Components instead."
@@ -1877,92 +1880,88 @@ function createResponseFromOptions(options) {
       : void 0
   );
 }
-function startReadingFromStream(response, stream, isSecondaryStream) {
+function startReadingFromStream(response, stream, onDone) {
   function progress(_ref) {
     var value = _ref.value;
-    if (_ref.done)
-      isSecondaryStream ||
-        reportGlobalError(response, Error("Connection closed."));
-    else {
-      var i = 0,
-        rowState = streamState._rowState;
-      _ref = streamState._rowID;
-      for (
-        var rowTag = streamState._rowTag,
-          rowLength = streamState._rowLength,
-          buffer = streamState._buffer,
-          chunkLength = value.length;
-        i < chunkLength;
+    if (_ref.done) return onDone();
+    var i = 0,
+      rowState = streamState._rowState;
+    _ref = streamState._rowID;
+    for (
+      var rowTag = streamState._rowTag,
+        rowLength = streamState._rowLength,
+        buffer = streamState._buffer,
+        chunkLength = value.length;
+      i < chunkLength;
 
-      ) {
-        var lastIdx = -1;
-        switch (rowState) {
-          case 0:
-            lastIdx = value[i++];
-            58 === lastIdx
-              ? (rowState = 1)
-              : (_ref =
-                  (_ref << 4) | (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-            continue;
-          case 1:
-            rowState = value[i];
-            84 === rowState ||
-            65 === rowState ||
-            79 === rowState ||
-            111 === rowState ||
-            85 === rowState ||
-            83 === rowState ||
-            115 === rowState ||
-            76 === rowState ||
-            108 === rowState ||
-            71 === rowState ||
-            103 === rowState ||
-            77 === rowState ||
-            109 === rowState ||
-            86 === rowState
-              ? ((rowTag = rowState), (rowState = 2), i++)
-              : (64 < rowState && 91 > rowState) ||
-                  35 === rowState ||
-                  114 === rowState ||
-                  120 === rowState
-                ? ((rowTag = rowState), (rowState = 3), i++)
-                : ((rowTag = 0), (rowState = 3));
-            continue;
-          case 2:
-            lastIdx = value[i++];
-            44 === lastIdx
-              ? (rowState = 4)
-              : (rowLength =
-                  (rowLength << 4) |
-                  (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-            continue;
-          case 3:
-            lastIdx = value.indexOf(10, i);
-            break;
-          case 4:
-            (lastIdx = i + rowLength), lastIdx > value.length && (lastIdx = -1);
-        }
-        var offset = value.byteOffset + i;
-        if (-1 < lastIdx)
-          (rowLength = new Uint8Array(value.buffer, offset, lastIdx - i)),
-            processFullBinaryRow(response, _ref, rowTag, buffer, rowLength),
-            (i = lastIdx),
-            3 === rowState && i++,
-            (rowLength = _ref = rowTag = rowState = 0),
-            (buffer.length = 0);
-        else {
-          value = new Uint8Array(value.buffer, offset, value.byteLength - i);
-          buffer.push(value);
-          rowLength -= value.byteLength;
+    ) {
+      var lastIdx = -1;
+      switch (rowState) {
+        case 0:
+          lastIdx = value[i++];
+          58 === lastIdx
+            ? (rowState = 1)
+            : (_ref =
+                (_ref << 4) | (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+          continue;
+        case 1:
+          rowState = value[i];
+          84 === rowState ||
+          65 === rowState ||
+          79 === rowState ||
+          111 === rowState ||
+          85 === rowState ||
+          83 === rowState ||
+          115 === rowState ||
+          76 === rowState ||
+          108 === rowState ||
+          71 === rowState ||
+          103 === rowState ||
+          77 === rowState ||
+          109 === rowState ||
+          86 === rowState
+            ? ((rowTag = rowState), (rowState = 2), i++)
+            : (64 < rowState && 91 > rowState) ||
+                35 === rowState ||
+                114 === rowState ||
+                120 === rowState
+              ? ((rowTag = rowState), (rowState = 3), i++)
+              : ((rowTag = 0), (rowState = 3));
+          continue;
+        case 2:
+          lastIdx = value[i++];
+          44 === lastIdx
+            ? (rowState = 4)
+            : (rowLength =
+                (rowLength << 4) |
+                (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+          continue;
+        case 3:
+          lastIdx = value.indexOf(10, i);
           break;
-        }
+        case 4:
+          (lastIdx = i + rowLength), lastIdx > value.length && (lastIdx = -1);
       }
-      streamState._rowState = rowState;
-      streamState._rowID = _ref;
-      streamState._rowTag = rowTag;
-      streamState._rowLength = rowLength;
-      return reader.read().then(progress).catch(error);
+      var offset = value.byteOffset + i;
+      if (-1 < lastIdx)
+        (rowLength = new Uint8Array(value.buffer, offset, lastIdx - i)),
+          processFullBinaryRow(response, _ref, rowTag, buffer, rowLength),
+          (i = lastIdx),
+          3 === rowState && i++,
+          (rowLength = _ref = rowTag = rowState = 0),
+          (buffer.length = 0);
+      else {
+        value = new Uint8Array(value.buffer, offset, value.byteLength - i);
+        buffer.push(value);
+        rowLength -= value.byteLength;
+        break;
+      }
     }
+    streamState._rowState = rowState;
+    streamState._rowID = _ref;
+    streamState._rowTag = rowTag;
+    streamState._rowLength = rowLength;
+    return reader.read().then(progress).catch(error);
   }
   function error(e) {
     reportGlobalError(response, e);
@@ -1981,7 +1980,7 @@ exports.createFromFetch = function (promiseForResponse, options) {
   var response = createResponseFromOptions(options);
   promiseForResponse.then(
     function (r) {
-      startReadingFromStream(response, r.body, !1);
+      startReadingFromStream(response, r.body, close.bind(null, response));
     },
     function (e) {
       reportGlobalError(response, e);
@@ -1991,7 +1990,7 @@ exports.createFromFetch = function (promiseForResponse, options) {
 };
 exports.createFromReadableStream = function (stream, options) {
   options = createResponseFromOptions(options);
-  startReadingFromStream(options, stream, !1);
+  startReadingFromStream(options, stream, close.bind(null, options));
   return getChunk(options, 0);
 };
 exports.createServerReference = function (id) {

@@ -19301,7 +19301,13 @@ function canHydrateTextInstance(instance, text, inRootOrSingleton) {
 }
 function canHydrateHydrationBoundary(instance, inRootOrSingleton) {
   for (; 8 !== instance.nodeType; ) {
-    if (!inRootOrSingleton) return null;
+    if (
+      (1 !== instance.nodeType ||
+        "INPUT" !== instance.nodeName ||
+        "hidden" !== instance.type) &&
+      !inRootOrSingleton
+    )
+      return null;
     instance = getNextHydratable(instance.nextSibling);
     if (null === instance) return null;
   }
@@ -21027,14 +21033,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2421 = React.version;
 if (
-  "19.2.0-experimental-6de32a5a-20250822" !==
+  "19.2.0-experimental-4123f6b7-20250826" !==
   isomorphicReactPackageVersion$jscomp$inline_2421
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2421,
-      "19.2.0-experimental-6de32a5a-20250822"
+      "19.2.0-experimental-4123f6b7-20250826"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -21056,10 +21062,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_3120 = {
   bundleType: 0,
-  version: "19.2.0-experimental-6de32a5a-20250822",
+  version: "19.2.0-experimental-4123f6b7-20250826",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-6de32a5a-20250822"
+  reconcilerVersion: "19.2.0-experimental-4123f6b7-20250826"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_3121 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -21327,7 +21333,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-experimental-6de32a5a-20250822";
+exports.version = "19.2.0-experimental-4123f6b7-20250826";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
