@@ -405,6 +405,8 @@ async function exportAppImpl(
           ? 'client-only'
           : Boolean(nextConfig.experimental.clientSegmentCache),
       clientParamParsing: nextConfig.experimental.clientParamParsing ?? false,
+      clientParamParsingOrigins:
+        nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,

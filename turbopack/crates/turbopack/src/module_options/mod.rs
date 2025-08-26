@@ -414,7 +414,7 @@ impl ModuleOptions {
                 RuleCondition::any(vec![RuleCondition::ResourcePathEndsWith(
                     ".node".to_string(),
                 )]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::NodeAddon)],
             ),
             // WebAssembly
             ModuleRule::new(

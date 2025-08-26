@@ -1,6 +1,39 @@
 import type { DynamicParam } from '../../../../server/app-render/app-render'
+import type { OpaqueFallbackRouteParams } from '../../../../server/request/fallback-params'
+import type { Params } from '../../../../server/request/params'
 import type { DynamicParamTypesShort } from '../../app-router-types'
-import type { FallbackRouteParams } from '../../../../server/request/fallback-params'
+import { InvariantError } from '../../invariant-error'
+
+/**
+ * Gets the value of a param from the params object. This correctly handles the
+ * case where the param is a fallback route param and encodes the resulting
+ * value.
+ *
+ * @param params - The params object.
+ * @param segmentKey - The key of the segment.
+ * @param fallbackRouteParams - The fallback route params.
+ * @returns The value of the param.
+ */
+function getParamValue(
+  params: Params,
+  segmentKey: string,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
+) {
+  let value = params[segmentKey]
+
+  if (fallbackRouteParams && fallbackRouteParams.has(segmentKey)) {
+    // We know that the fallback route params has the segment key because we
+    // checked that above.
+    const [searchValue] = fallbackRouteParams.get(segmentKey)!
+    value = searchValue
+  } else if (Array.isArray(value)) {
+    value = value.map((i) => encodeURIComponent(i))
+  } else if (typeof value === 'string') {
+    value = encodeURIComponent(value)
+  }
+
+  return value
+}
 
 /**
  *
@@ -14,21 +47,17 @@ import type { FallbackRouteParams } from '../../../../server/request/fallback-pa
  * and optional is, alas, unfortunate.
  */
 export function getDynamicParam(
-  params: { [key: string]: any },
+  params: Params,
   segmentKey: string,
   dynamicParamType: DynamicParamTypesShort,
   pagePath: string,
-  fallbackRouteParams: FallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): DynamicParam {
-  let value = params[segmentKey]
-
-  if (fallbackRouteParams && fallbackRouteParams.has(segmentKey)) {
-    value = fallbackRouteParams.get(segmentKey)
-  } else if (Array.isArray(value)) {
-    value = value.map((i) => encodeURIComponent(i))
-  } else if (typeof value === 'string') {
-    value = encodeURIComponent(value)
-  }
+  let value: string | string[] | undefined = getParamValue(
+    params,
+    segmentKey,
+    fallbackRouteParams
+  )
 
   if (!value) {
     const isCatchall = dynamicParamType === 'c'
@@ -48,6 +77,7 @@ export function getDynamicParam(
 
       // handle the case where a catchall or optional catchall does not have a value,
       // e.g. `/foo/bar/hello` and `@slot/[...catchall]` or `@slot/[[...catchall]]` is matched
+      // FIXME: (NAR-335) this should handle prefixed segments
       value = pagePath
         .split('/')
         // remove the first empty string
@@ -55,10 +85,19 @@ export function getDynamicParam(
         // replace any dynamic params with the actual values
         .flatMap((pathSegment) => {
           const param = parseParameter(pathSegment)
+
           // if the segment matches a param, return the param value
           // otherwise, it's a static segment, so just return that
-          return params[param.key] ?? param.key
+          return (
+            getParamValue(params, param.key, fallbackRouteParams) ?? param.key
+          )
         })
+
+      if (!value) {
+        throw new InvariantError(
+          `No value found for segment key: "${segmentKey}"`
+        )
+      }
 
       return {
         param: segmentKey,
@@ -67,13 +106,17 @@ export function getDynamicParam(
         // This value always has to be a string.
         treeSegment: [segmentKey, value.join('/'), dynamicParamType],
       }
+    } else {
+      throw new InvariantError(
+        `Unexpected dynamic param type: ${dynamicParamType}`
+      )
     }
   }
 
   return {
     param: segmentKey,
     // The value that is passed to user code.
-    value: value,
+    value,
     // The value that is rendered in the router tree.
     treeSegment: [
       segmentKey,

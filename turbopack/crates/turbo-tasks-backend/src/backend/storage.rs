@@ -101,6 +101,8 @@ bitfield! {
     /// Item was modified after snapshot mode was entered. A snapshot was taken.
     pub meta_snapshot, set_meta_snapshot: 4;
     pub data_snapshot, set_data_snapshot: 5;
+    /// Prefetched dependencies
+    pub prefetched, set_prefetched: 6;
 }
 
 impl InnerStorageState {

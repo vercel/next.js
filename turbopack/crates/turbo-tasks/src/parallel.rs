@@ -4,18 +4,10 @@
 //! tokio. It also avoid having multiple thread pools.
 //! see also https://pwy.io/posts/mimalloc-cigarette/
 
-use std::{sync::LazyLock, thread::available_parallelism};
-
-use crate::{scope::scope_and_block, util::into_chunks};
-
-/// Calculates a good chunk size for parallel processing based on the number of available threads.
-/// This is used to ensure that the workload is evenly distributed across the threads.
-fn good_chunk_size(len: usize) -> usize {
-    static GOOD_CHUNK_COUNT: LazyLock<usize> =
-        LazyLock::new(|| available_parallelism().map_or(16, |c| c.get() * 4));
-    let min_chunk_count = *GOOD_CHUNK_COUNT;
-    len.div_ceil(min_chunk_count)
-}
+use crate::{
+    scope::scope_and_block,
+    util::{good_chunk_size, into_chunks},
+};
 
 pub fn for_each<'l, T, F>(items: &'l [T], f: F)
 where

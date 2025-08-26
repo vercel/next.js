@@ -595,6 +595,7 @@ export function useDynamicRouteParams(expression: string) {
       case 'prerender-client':
       case 'prerender': {
         const fallbackParams = workUnitStore.fallbackRouteParams
+
         if (fallbackParams && fallbackParams.size > 0) {
           // We are in a prerender with cacheComponents semantics. We are going to
           // hang here and never resolve. This will cause the currently
