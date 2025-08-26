@@ -12,5 +12,7 @@ export default function Page({ params }: Params) {
   return <>
     <h1>Slug: {params.slug}</h1>
     <p>lorem ipsum</p>
+    <p>pretend to update</p>
+    <p>another update</p>
   </>;
 }
