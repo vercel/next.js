@@ -31,6 +31,7 @@ enum Task {
     Finished(Result<RawVc, SharedError>),
 }
 
+#[derive(Default)]
 pub struct VcStorage {
     this: Weak<Self>,
     cells: Mutex<FxHashMap<(TaskId, CellId), CellContent>>,
@@ -326,19 +327,15 @@ impl TurboTasksApi for VcStorage {
 }
 
 impl VcStorage {
-    pub fn new() -> Arc<Self> {
-        Arc::new_cyclic(|weak| VcStorage {
-            this: weak.clone(),
-            cells: Default::default(),
-            tasks: Default::default(),
-        })
-    }
-
-    pub fn run<T>(self: Arc<Self>, f: impl Future<Output = T>) -> impl Future<Output = T> {
-        with_turbo_tasks_for_testing(self, TaskId::MAX, ExecutionId::MIN, f)
-    }
-
     pub fn with<T>(f: impl Future<Output = T>) -> impl Future<Output = T> {
-        Self::new().run(f)
+        with_turbo_tasks_for_testing(
+            Arc::new_cyclic(|weak| VcStorage {
+                this: weak.clone(),
+                ..Default::default()
+            }),
+            TaskId::MAX,
+            ExecutionId::MIN,
+            f,
+        )
     }
 }
