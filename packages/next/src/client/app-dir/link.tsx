@@ -199,8 +199,8 @@ export type LinkProps<RouteInferType = any> = InternalLinkProps
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<Omit<InternalLinkProps, 'locale'>>
 
-function isModifiedEvent(event: React.MouseEvent): boolean {
-  const eventTarget = event.currentTarget as HTMLAnchorElement
+function isModifiedEvent(event: React.MouseEvent<HTMLAnchorElement>): boolean {
+  const eventTarget = event.currentTarget
   const target = eventTarget.getAttribute('target')
   return (
     (target && target !== '_self') ||
@@ -213,7 +213,7 @@ function isModifiedEvent(event: React.MouseEvent): boolean {
 }
 
 function linkClicked(
-  e: React.MouseEvent,
+  e: React.MouseEvent<HTMLAnchorElement>,
   href: string,
   as: string,
   linkInstanceRef: React.RefObject<LinkInstance | null>,
