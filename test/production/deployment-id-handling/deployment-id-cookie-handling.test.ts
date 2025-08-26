@@ -45,7 +45,11 @@ describe('deployment-id-handling disabled', () => {
 
       for (const link of links) {
         if (link.attribs.href) {
-          expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
+          if (link.attribs.as === 'font') {
+            expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
+          } else {
+            expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
+          }
         }
       }
 
