@@ -1,3 +1,4 @@
+"use client"
 import type { Container, Engine, ISourceOptions } from "tsparticles-engine";
 import Particles from "react-tsparticles";
 
