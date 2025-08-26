@@ -400,6 +400,13 @@ export function middleware(request) {
 }
 ```
 
+Note that the snippet uses:
+
+- `NextResponse.next({ request: { headers: requestHeaders } })` to make `requestHeaders` available upstream
+- **NOT** `NextResponse.next({ headers: requestHeaders })` which makes `requestHeaders` available to clients
+
+Learn more in [NextResponse headers in Middleware](/docs/app/api-reference/functions/next-response#next).
+
 > **Good to know**: Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
 
 ### CORS
