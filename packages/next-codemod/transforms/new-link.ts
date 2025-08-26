@@ -41,6 +41,12 @@ export default function transformer(file: FileInfo, _api: API) {
           })
           .remove()
 
+        $link
+          .find(j.JSXAttribute, {
+            name: { type: 'JSXIdentifier', name: 'passHref' },
+          })
+          .remove()
+
         const linkChildrenNodes = $link.get('children')
 
         // Text-only link children are already correct with the new behavior
