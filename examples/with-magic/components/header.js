@@ -17,7 +17,7 @@ const Header = () => {
                 <Link href="/profile">Profile</Link>
               </li>
               <li>
-                <Link href="/api/logout">Logout</Link>
+                <a href="/api/logout">Logout</a>
               </li>
             </>
           ) : (
