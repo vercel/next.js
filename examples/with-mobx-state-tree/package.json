@@ -6,17 +6,17 @@
     "start": "next start"
   },
   "dependencies": {
-    "mobx": "^6.6.1",
-    "mobx-react": "^7.5.2",
-    "mobx-react-lite": "^3.4.0",
-    "mobx-state-tree": "^5.1.6",
+    "mobx": "^6.13.6",
+    "mobx-react": "^9.2.0",
+    "mobx-react-lite": "^4.1.0",
+    "mobx-state-tree": "^7.0.2",
     "next": "latest",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@types/node": "^18.7.15",
-    "@types/react": "^18.0.18",
-    "typescript": "^4.8.2"
+    "@types/node": "^22.13.9",
+    "@types/react": "^19.0.10",
+    "typescript": "^5.8.2"
   }
 }

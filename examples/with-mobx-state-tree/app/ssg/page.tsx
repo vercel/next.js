@@ -1,6 +1,6 @@
 import { getSnapshot } from "mobx-state-tree";
-import SampleComponent from "../components/SampleComponent";
-import { initializeStore } from "../store";
+import SampleComponent from "../../components/SampleComponent";
+import { initializeStore } from "../../store";
 
 export default function Ssg({ initialState }) {
   return <SampleComponent title={"SSG Page"} linkTo="/" store={initialState} />;
