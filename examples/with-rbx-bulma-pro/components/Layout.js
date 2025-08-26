@@ -20,15 +20,15 @@ const Layout = ({ children }) => {
         </Navbar.Brand>
         <Navbar.Menu>
           <Navbar.Segment align="start">
-            <Link href="/">
-              <Navbar.Item>Home</Navbar.Item>
-            </Link>
-            <Link href="/about">
-              <Navbar.Item>About</Navbar.Item>
-            </Link>
-            <Link href="/contact">
-              <Navbar.Item>Contact</Navbar.Item>
-            </Link>
+            <Navbar.Item as={Link} href="/">
+              Home
+            </Navbar.Item>
+            <Navbar.Item as={Link} href="/about">
+              About
+            </Navbar.Item>
+            <Navbar.Item as={Link} href="/contact">
+              Contact
+            </Navbar.Item>
           </Navbar.Segment>
         </Navbar.Menu>
       </Navbar>
