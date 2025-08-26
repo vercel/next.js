@@ -1,10 +1,12 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc, time::Duration};
 
 use criterion::{Bencher, BenchmarkId, Criterion};
 use turbo_rcstr::rcstr;
-use turbo_tasks::ResolvedVc;
+use turbo_tasks::{ResolvedVc, TurboTasks};
+use turbo_tasks_backend::{
+    BackendOptions, BackingStorage, TurboTasksBackend, noop_backing_storage,
+};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
-use turbo_tasks_testing::VcStorage;
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -25,29 +27,25 @@ pub fn benchmark(c: &mut Criterion) {
         .build()
         .unwrap();
 
-    let storage = VcStorage::new();
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions {
+            dependency_tracking: false,
+            storage_mode: None,
+            ..Default::default()
+        },
+        noop_backing_storage(),
+    ));
 
     let cases = rt
-        .block_on(storage.clone().run(async {
+        .block_on(tt.run_once(async {
             let root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../");
             let fs = DiskFileSystem::new(rcstr!("project"), root_dir.to_str().unwrap().into());
 
             let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
                 NodeJsEnvironment::default().resolved_cell(),
-            ))
-            .resolve()
-            .await?;
+            ));
             let compile_time_info = CompileTimeInfo::new(environment).to_resolved().await?;
             let layer = Layer::new(rcstr!("test"));
-            // let module_asset_context = ModuleAssetContext::new(
-            //     Default::default(),
-            //     CompileTimeInfo::new(environment),
-            //     ModuleOptionsContext::value_default(),
-            //     ResolveOptionsContext::value_default(),
-            //     layer,
-            // )
-            // .to_resolved()
-            // .await?;
             let module_asset_context = NoopAssetContext {
                 compile_time_info,
                 layer,
@@ -55,7 +53,10 @@ pub fn benchmark(c: &mut Criterion) {
             .resolved_cell();
 
             let mut cases = vec![];
-            for file in ["packages/next/dist/compiled/babel-packages/packages-bundle.js"] {
+            for file in [
+                r#"packages/next/dist/compiled/babel-packages/packages-bundle.js"#,
+                r#"node_modules/.pnpm/react-dom@19.2.0-canary-03fda05d-20250820_react@19.2.0-canary-03fda05d-20250820/node_modules/react-dom/cjs/react-dom-client.development.js"#,
+            ] {
                 let module = EcmascriptModuleAsset::builder(
                     ResolvedVc::upcast(
                         FileSource::new(fs.root().await?.join(file).unwrap())
@@ -75,29 +76,40 @@ pub fn benchmark(c: &mut Criterion) {
                 .to_resolved()
                 .await?;
 
-                let input = BenchInput {
-                    storage: storage.clone(),
-                    module,
-                };
-                cases.push((file, input));
+                cases.push((file, module));
             }
             anyhow::Ok(cases)
         }))
         .unwrap();
 
     let mut group = c.benchmark_group("full");
+    group.warm_up_time(Duration::from_secs(1));
+    group.measurement_time(Duration::from_secs(20));
 
     for case in cases {
-        group.bench_with_input(BenchmarkId::new("full", case.0), &case.1, bench_full);
+        group.bench_with_input(
+            BenchmarkId::new("full", case.0),
+            &BenchInput {
+                module: case.1,
+                storage: tt.clone(),
+            },
+            bench_full,
+        );
     }
 }
 
-struct BenchInput {
-    storage: Arc<VcStorage>,
+struct BenchInput<B>
+where
+    B: BackingStorage,
+{
+    storage: Arc<TurboTasks<TurboTasksBackend<B>>>,
     module: ResolvedVc<EcmascriptModuleAsset>,
 }
 
-fn bench_full(b: &mut Bencher, input: &BenchInput) {
+fn bench_full<B>(b: &mut Bencher, input: &BenchInput<B>)
+where
+    B: BackingStorage,
+{
     let rt = tokio::runtime::Builder::new_current_thread()
         .build()
         .unwrap();
@@ -105,7 +117,6 @@ fn bench_full(b: &mut Bencher, input: &BenchInput) {
     b.to_async(rt).iter(|| {
         input
             .storage
-            .clone()
-            .run(async { analyse_ecmascript_module_internal(input.module, None).await })
+            .run_once(analyse_ecmascript_module_internal(input.module, None))
     });
 }
