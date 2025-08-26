@@ -1,5 +1,5 @@
 use anyhow::Result;
-use tracing::Instrument;
+use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
@@ -114,9 +114,11 @@ async fn emit_rebase(
     Ok(())
 }
 
-struct OutputAssetVisit {}
-impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>)> for OutputAssetVisit {
-    type Edge = (ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>);
+struct OutputAssetVisit {
+    emit_spans: bool,
+}
+impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)> for OutputAssetVisit {
+    type Edge = (ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>);
     type EdgesIntoIter = Vec<Self::Edge>;
     type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
 
@@ -126,13 +128,20 @@ impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>)> for OutputAssetVi
 
     fn edges(
         &mut self,
-        node: &(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>),
+        node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
     ) -> Self::EdgesFuture {
-        get_referenced_assets(node.0)
+        get_referenced_assets(self.emit_spans, node.0)
     }
 
-    fn span(&mut self, node: &(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>)) -> tracing::Span {
-        tracing::info_span!("asset", name = display(&node.1))
+    fn span(
+        &mut self,
+        node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
+    ) -> tracing::Span {
+        if let Some(ident) = &node.1 {
+            tracing::info_span!("asset", name = display(ident))
+        } else {
+            Span::current()
+        }
     }
 }
 
@@ -140,6 +149,7 @@ impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>)> for OutputAssetVi
 /// assets.
 #[turbo_tasks::function]
 pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<OutputAssets>> {
+    let emit_spans = tracing::enabled!(Level::INFO);
     Ok(Vc::cell(
         AdjacencyMap::new()
             .skip_duplicates()
@@ -148,11 +158,18 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
                     .await?
                     .iter()
                     .map(async |asset| {
-                        Ok((ResolvedVc::upcast(*asset), asset.path().to_string().await?))
+                        Ok((
+                            ResolvedVc::upcast(*asset),
+                            if emit_spans {
+                                Some(asset.path().to_string().await?)
+                            } else {
+                                None
+                            },
+                        ))
                     })
                     .try_join()
                     .await?,
-                OutputAssetVisit {},
+                OutputAssetVisit { emit_spans },
             )
             .await
             .completed()?
@@ -167,13 +184,23 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
 
 /// Computes the list of all chunk children of a given chunk.
 async fn get_referenced_assets(
+    emit_spans: bool,
     asset: ResolvedVc<Box<dyn OutputAsset>>,
-) -> Result<Vec<(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>)>> {
+) -> Result<Vec<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>> {
     asset
         .references()
         .await?
         .iter()
-        .map(async |asset| Ok((*asset, asset.path().to_string().await?)))
+        .map(async |asset| {
+            Ok((
+                *asset,
+                if emit_spans {
+                    Some(asset.path().to_string().await?)
+                } else {
+                    None
+                },
+            ))
+        })
         .try_join()
         .await
 }

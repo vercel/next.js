@@ -2,6 +2,7 @@ use std::collections::{BTreeSet, VecDeque};
 
 use anyhow::{Result, bail};
 use serde_json::json;
+use tracing::{Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
@@ -383,6 +384,7 @@ pub async fn all_assets_from_entries_filtered(
     } else {
         None
     };
+    let emit_spans = tracing::enabled!(Level::INFO);
     Ok(Vc::cell(
         AdjacencyMap::new()
             .skip_duplicates()
@@ -391,13 +393,21 @@ pub async fn all_assets_from_entries_filtered(
                     .await?
                     .iter()
                     .map(async |asset| {
-                        Ok((ResolvedVc::upcast(*asset), asset.path().to_string().await?))
+                        Ok((
+                            ResolvedVc::upcast(*asset),
+                            if emit_spans {
+                                Some(asset.path().to_string().await?)
+                            } else {
+                                None
+                            },
+                        ))
                     })
                     .try_join()
                     .await?,
                 OutputAssetFilteredVisit {
                     client_root,
                     exclude_glob,
+                    emit_spans,
                 },
             )
             .await
@@ -412,9 +422,12 @@ pub async fn all_assets_from_entries_filtered(
 struct OutputAssetFilteredVisit {
     client_root: Option<FileSystemPath>,
     exclude_glob: Option<ReadRef<Glob>>,
+    emit_spans: bool,
 }
-impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>)> for OutputAssetFilteredVisit {
-    type Edge = (ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>);
+impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>
+    for OutputAssetFilteredVisit
+{
+    type Edge = (ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>);
     type EdgesIntoIter = Vec<Self::Edge>;
     type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
 
@@ -424,26 +437,33 @@ impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>)> for OutputAssetFi
 
     fn edges(
         &mut self,
-        node: &(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>),
+        node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
     ) -> Self::EdgesFuture {
         let client_root = self.client_root.clone();
         let exclude_glob = self.exclude_glob.clone();
-        let node = node.0;
-        get_referenced_server_assets(node, client_root, exclude_glob)
+        get_referenced_server_assets(self.emit_spans, node.0, client_root, exclude_glob)
     }
 
-    fn span(&mut self, node: &(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>)) -> tracing::Span {
-        tracing::info_span!("asset", name = display(&node.1))
+    fn span(
+        &mut self,
+        node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
+    ) -> tracing::Span {
+        if let Some(ident) = &node.1 {
+            tracing::info_span!("asset", name = display(ident))
+        } else {
+            Span::current()
+        }
     }
 }
 
 /// Computes the list of all chunk children of a given chunk, but filters out all client assets and
 /// glob matches.
 async fn get_referenced_server_assets(
+    emit_spans: bool,
     asset: ResolvedVc<Box<dyn OutputAsset>>,
     client_root: Option<FileSystemPath>,
     exclude_glob: Option<ReadRef<Glob>>,
-) -> Result<Vec<(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>)>> {
+) -> Result<Vec<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>> {
     asset
         .references()
         .await?
@@ -463,7 +483,14 @@ async fn get_referenced_server_assets(
                 return Ok(None);
             }
 
-            Ok(Some((*asset, asset.path().to_string().await?)))
+            Ok(Some((
+                *asset,
+                if emit_spans {
+                    Some(asset.path().to_string().await?)
+                } else {
+                    None
+                },
+            )))
         })
         .try_flat_join()
         .await
