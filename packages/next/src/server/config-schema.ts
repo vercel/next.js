@@ -11,7 +11,6 @@ import type {
   DeprecatedExperimentalTurboOptions,
   TurbopackOptions,
   TurbopackRuleConfigItem,
-  TurbopackRuleConfigItemOptions,
   TurbopackRuleConfigCollection,
   TurbopackRuleCondition,
   TurbopackLoaderBuiltinCondition,
@@ -135,26 +134,17 @@ const zTurbopackCondition: zod.ZodType<TurbopackRuleCondition> = z.union([
   }),
 ])
 
-const zTurbopackRuleConfigItemOptions: zod.ZodType<TurbopackRuleConfigItemOptions> =
+const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> =
   z.strictObject({
     loaders: z.array(zTurbopackLoaderItem),
     as: z.string().optional(),
     condition: zTurbopackCondition.optional(),
   })
 
-const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> = z.union([
-  z.literal(false),
-  z.record(
-    zTurbopackLoaderBuiltinCondition,
-    z.lazy(() => zTurbopackRuleConfigItem)
-  ),
-  zTurbopackRuleConfigItemOptions,
-])
-
 const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection> =
   z.union([
     zTurbopackRuleConfigItem,
-    z.array(z.union([zTurbopackLoaderItem, zTurbopackRuleConfigItemOptions])),
+    z.array(z.union([zTurbopackLoaderItem, zTurbopackRuleConfigItem])),
   ])
 
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
