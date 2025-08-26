@@ -1748,7 +1748,7 @@ impl AppEndpoint {
                     assets,
                     availability_info,
                 } = *chunking_context
-                    .evaluated_chunk_group(
+                    .chunk_group(
                         server_action_manifest_loader.ident(),
                         ChunkGroup::Entry(
                             [ResolvedVc::upcast(server_action_manifest_loader)]
