@@ -27,7 +27,7 @@ describe('DevErrorOverlay', () => {
       '[data-nextjs-error-code]'
     )
     const code = await errorCode.getAttribute('data-nextjs-error-code')
-    expect(code).toBe('E209')
+    expect(code).toBe('E794')
   })
 
   it('loads fonts successfully', async () => {
