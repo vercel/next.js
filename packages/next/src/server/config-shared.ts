@@ -251,9 +251,6 @@ type JSONValue =
   | JSONValue[]
   | { [k: string]: JSONValue }
 
-/**
- * @deprecated Use `TurbopackRuleConfigItem` instead.
- */
 export type TurbopackLoaderItem =
   | string
   | {
