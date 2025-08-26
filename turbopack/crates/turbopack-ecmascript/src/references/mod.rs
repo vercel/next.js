@@ -1034,9 +1034,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
             match effect {
                 Effect::Unreachable { start_ast_path } => {
-                    analysis.add_code_gen(Unreachable::new(AstPathRange::StartAfter(
-                        start_ast_path.to_vec(),
-                    )));
+                    analysis
+                        .add_code_gen(Unreachable::new(AstPathRange::StartAfter(start_ast_path)));
                 }
                 Effect::Conditional {
                     condition,
