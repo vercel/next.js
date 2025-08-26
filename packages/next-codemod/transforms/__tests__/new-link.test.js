@@ -6,6 +6,7 @@ const fixtures = [
   'link-a',
   'move-props',
   'custom-component-child',
+  'custom-component-child-legacy-behavior',
   'links-with-legacybehavior-prop',
   'children-interpolation',
   'spread-props',

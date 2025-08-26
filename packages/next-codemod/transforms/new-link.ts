@@ -3,6 +3,7 @@
 
 import type { API, Collection, FileInfo, JSXElement } from 'jscodeshift'
 import { createParserFromPath } from '../lib/parser'
+import { NEXT_CODEMOD_ERROR_PREFIX } from './lib/async-request-api/utils'
 
 export default function transformer(file: FileInfo, _api: API) {
   const j = createParserFromPath(file.path)
@@ -34,7 +35,7 @@ export default function transformer(file: FileInfo, _api: API) {
           return
         }
 
-        $link
+        const $legacyBehaviorProp = $link
           .find(j.JSXAttribute, {
             name: { type: 'JSXIdentifier', name: 'legacyBehavior' },
           })
@@ -61,7 +62,22 @@ export default function transformer(file: FileInfo, _api: API) {
           )
         })
 
-        if ($childrenWithA.length > 0) {
+        if ($childrenWithA.length === 0) {
+          if ($legacyBehaviorProp.length > 0) {
+            linkPath.node.children.unshift(
+              j.jsxText('\n'),
+              j.jsxExpressionContainer.from({
+                expression: j.jsxEmptyExpression.from({
+                  comments: [
+                    j.commentBlock.from({
+                      value: ` ${NEXT_CODEMOD_ERROR_PREFIX} This Link previously used the now removed \`legacyBehavior\` prop, and has a child that might not be an anchor. The codemod bailed out of lifting the child props to the Link. Check that the child component does not render an anchor, and potentially move the props manually to Link. `,
+                    }),
+                  ],
+                }),
+              })
+            )
+          }
+        } else {
           const props = $childrenWithA.get('attributes').value
           const hasProps = props.length > 0
 
