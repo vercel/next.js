@@ -1,3 +1,5 @@
+import 'client-only'
+
 import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { Params } from '../../server/request/params'
 
