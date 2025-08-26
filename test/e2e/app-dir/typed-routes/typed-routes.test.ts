@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 
 const expectedDts = `
 type AppRoutes = "/" | "/_shop/[[...category]]" | "/dashboard" | "/dashboard/settings" | "/docs/[...slug]" | "/gallery/photo/[id]" | "/project/[slug]"
-type AppRouteHandlerRoutes = "/api/docs/[...slug]" | "/api/shop/[[...category]]" | "/api/users/[id]"
+type AppRouteHandlerRoutes = "/api-test" | "/api/docs/[...slug]" | "/api/shop/[[...category]]" | "/api/users/[id]"
 type PageRoutes = "/about" | "/users/[id]"
 type LayoutRoutes = "/" | "/dashboard"
 type RedirectRoutes = "/blog/[category]/[[...slug]]" | "/project/[slug]"
@@ -79,6 +79,8 @@ type InvalidRoute = RouteContext<'/api/users/invalid'>`
       )
 
       const { cliOutput } = await next.build()
+      // clean up for future tests
+      await next.deleteFile('app/type-testing.ts')
 
       expect(cliOutput).toContain(
         `Type '"/dasboard"' does not satisfy the constraint 'AppRoutes'.`

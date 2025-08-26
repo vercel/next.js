@@ -37,8 +37,9 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
   z.object({
     page: z.string(),
     query: z.any(), // NextParsedUrlQuery
+
     // private optional properties
-    _fallbackRouteParams: z.array(z.string()).optional(),
+    _fallbackRouteParams: z.array(z.any()).optional(),
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
     _isRoutePPREnabled: z.boolean().optional(),
@@ -333,7 +334,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         adapterPath: z.string().optional(),
         useSkewCookie: z.boolean().optional(),
         after: z.boolean().optional(),
-        appDocumentPreloading: z.boolean().optional(),
         appNavFailHandling: z.boolean().optional(),
         preloadEntriesOnStart: z.boolean().optional(),
         allowedRevalidateHeaderKeys: z.array(z.string()).optional(),
@@ -372,6 +372,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .union([z.boolean(), z.literal('client-only')])
           .optional(),
         clientParamParsing: z.boolean().optional(),
+        clientParamParsingOrigins: z.array(z.string()).optional(),
         dynamicOnHover: z.boolean().optional(),
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),

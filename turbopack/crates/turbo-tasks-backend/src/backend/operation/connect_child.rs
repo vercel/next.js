@@ -25,16 +25,14 @@ pub enum ConnectChildOperation {
 impl ConnectChildOperation {
     pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: impl ExecuteContext) {
         if !ctx.should_track_children() {
-            let mut task = ctx.task(child_task_id, TaskDataCategory::All);
-            if !task.has_key(&CachedDataItemKey::Output {}) {
-                let should_schedule = task.add(CachedDataItem::new_scheduled(
+            let mut child_task = ctx.task(child_task_id, TaskDataCategory::All);
+            if !child_task.has_key(&CachedDataItemKey::Output {})
+                && child_task.add(CachedDataItem::new_scheduled(
                     TaskExecutionReason::Connect,
                     || ctx.get_task_desc_fn(child_task_id),
-                ));
-                drop(task);
-                if should_schedule {
-                    ctx.schedule(child_task_id);
-                }
+                ))
+            {
+                ctx.schedule_task(child_task);
             }
             return;
         }
@@ -76,17 +74,15 @@ impl ConnectChildOperation {
                 task: child_task_id,
             });
         } else {
-            let mut task = ctx.task(child_task_id, TaskDataCategory::All);
+            let mut child_task = ctx.task(child_task_id, TaskDataCategory::All);
 
-            if !task.has_key(&CachedDataItemKey::Output {}) {
-                let should_schedule = task.add(CachedDataItem::new_scheduled(
+            if !child_task.has_key(&CachedDataItemKey::Output {})
+                && child_task.add(CachedDataItem::new_scheduled(
                     TaskExecutionReason::Connect,
                     || ctx.get_task_desc_fn(child_task_id),
-                ));
-                drop(task);
-                if should_schedule {
-                    ctx.schedule(child_task_id);
-                }
+                ))
+            {
+                ctx.schedule_task(child_task);
             }
         }
 

@@ -15,8 +15,10 @@ import type {
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
 import type { WebpackLayerName } from '../lib/constants'
-import type { AppPageModule } from '../server/route-modules/app-page/module'
-import type { RouteModule } from '../server/route-modules/route-module'
+import type {
+  AppPageModule,
+  AppPageRouteModule,
+} from '../server/route-modules/app-page/module'
 import type { NextComponentType } from '../shared/lib/utils'
 
 import '../server/require-hook'
@@ -49,6 +51,8 @@ import {
 } from '../lib/constants'
 import {
   MODERN_BROWSERSLIST_TARGET,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import prettyBytes from '../lib/pretty-bytes'
@@ -82,6 +86,7 @@ import { buildPagesStaticPaths } from './static-paths/pages'
 import type { PrerenderedRoute } from './static-paths/types'
 import type { CacheControl } from '../server/lib/cache-control'
 import { formatExpire, formatRevalidate } from './output/format'
+import type { AppRouteRouteModule } from '../server/route-modules/app-route/module'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -318,8 +323,13 @@ const filterAndSortList = (
 ) => {
   let pages: string[]
   if (routeType === 'app') {
-    // filter out static app route of /favicon.ico
-    pages = list.filter((e) => e !== '/favicon.ico')
+    // filter out static app route of /favicon.ico and /_global-error
+    pages = list.filter((e) => {
+      if (e === '/favicon.ico') return false
+      // Hide static /_global-error from build output
+      if (e === '/_global-error') return false
+      return true
+    })
   } else {
     // filter built-in pages
     pages = list
@@ -683,7 +693,7 @@ export async function printTreeView(
 
     const sharedFiles = process.env.__NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT
       ? []
-      : stats.router[routerType]?.common.files ?? []
+      : (stats.router[routerType]?.common.files ?? [])
 
     messages.push([
       '+ First Load JS shared by all',
@@ -1067,6 +1077,23 @@ export async function isPageStatic({
   buildId: string
   sriEnabled: boolean
 }): Promise<PageIsStaticResult> {
+  // Skip page data collection for synthetic _global-error routes
+  if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
+    return {
+      isStatic: true,
+      isRoutePPREnabled: false,
+      isHybridAmp: false,
+      isAmpOnly: false,
+      prerenderFallbackMode: undefined,
+      prerenderedRoutes: undefined,
+      rootParamKeys: undefined,
+      hasStaticProps: false,
+      hasServerProps: false,
+      isNextImageImported: false,
+      appConfig: {},
+    }
+  }
+
   await createIncrementalCache({
     cacheHandler,
     cacheHandlers,
@@ -1139,9 +1166,10 @@ export async function isPageStatic({
           sriEnabled,
         })
       }
-      const Comp = componentsResult.Component as NextComponentType | undefined
 
-      const routeModule: RouteModule = componentsResult.routeModule
+      const { Component, routeModule } = componentsResult
+
+      const Comp = Component as NextComponentType | undefined
 
       let isRoutePPREnabled: boolean = false
 
@@ -1150,16 +1178,23 @@ export async function isPageStatic({
 
         isClientComponent = isClientReference(componentsResult.ComponentMod)
 
-        let segments
+        let segments: AppSegment[]
         try {
-          segments = await collectSegments(componentsResult)
+          segments = await collectSegments(
+            // We know this is an app page or app route module because we
+            // checked above that the page type is 'app'.
+            routeModule as AppPageRouteModule | AppRouteRouteModule
+          )
         } catch (err) {
           throw new Error(`Failed to collect configuration for ${page}`, {
             cause: err,
           })
         }
 
-        appConfig = reduceAppConfig(segments)
+        appConfig =
+          originalAppPath === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+            ? {}
+            : reduceAppConfig(segments)
 
         if (appConfig.dynamic === 'force-static' && pathIsEdgeRuntime) {
           Log.warn(
@@ -1167,7 +1202,7 @@ export async function isPageStatic({
           )
         }
 
-        rootParamKeys = collectRootParamKeys(componentsResult)
+        rootParamKeys = collectRootParamKeys(routeModule)
 
         // A page supports partial prerendering if it is an app page and either
         // the whole app has PPR enabled or this page has PPR enabled when we're
@@ -1395,14 +1430,14 @@ export async function hasCustomGetInitialProps({
     require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
   ).setConfig(runtimeEnvConfig)
 
-  const components = await loadComponents({
+  const { ComponentMod } = await loadComponents({
     distDir,
     page: page,
     isAppPath: false,
     isDev: false,
     sriEnabled,
   })
-  let mod = components.ComponentMod
+  let mod = ComponentMod
 
   if (checkingApp) {
     mod = (await mod._app) || mod.default || mod
@@ -1427,7 +1462,7 @@ export async function getDefinedNamedExports({
   ;(
     require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
   ).setConfig(runtimeEnvConfig)
-  const components = await loadComponents({
+  const { ComponentMod } = await loadComponents({
     distDir,
     page: page,
     isAppPath: false,
@@ -1435,8 +1470,8 @@ export async function getDefinedNamedExports({
     sriEnabled,
   })
 
-  return Object.keys(components.ComponentMod).filter((key) => {
-    return typeof components.ComponentMod[key] !== 'undefined'
+  return Object.keys(ComponentMod).filter((key) => {
+    return typeof ComponentMod[key] !== 'undefined'
   })
 }
 
@@ -1755,8 +1790,8 @@ export function isReservedPage(page: string) {
   return RESERVED_PAGE.test(page)
 }
 
-export function isAppBuiltinNotFoundPage(page: string) {
-  return /next[\\/]dist[\\/]client[\\/]components[\\/]builtin[\\/](not-found|global-not-found)/.test(
+export function isAppBuiltinPage(page: string) {
+  return /next[\\/]dist[\\/](esm[\\/])?client[\\/]components[\\/]builtin[\\/]/.test(
     page
   )
 }

@@ -47,6 +47,7 @@ import { pingVisibleLinks } from './links'
 import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
+import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -196,12 +197,14 @@ function Head({
  */
 function Router({
   actionQueue,
-  assetPrefix,
   globalError,
+  webSocket,
+  staticIndicatorState,
 }: {
   actionQueue: AppRouterActionQueue
-  assetPrefix: string
   globalError: GlobalErrorState
+  webSocket: WebSocket | undefined
+  staticIndicatorState: StaticIndicatorState | undefined
 }) {
   const state = useActionQueue(actionQueue)
   const { canonicalUrl } = state
@@ -524,7 +527,11 @@ function Router({
       ).default
 
     content = (
-      <HotReloader assetPrefix={assetPrefix} globalError={globalError}>
+      <HotReloader
+        globalError={globalError}
+        webSocket={webSocket}
+        staticIndicatorState={staticIndicatorState}
+      >
         {content}
       </HotReloader>
     )
@@ -570,19 +577,22 @@ function Router({
 export default function AppRouter({
   actionQueue,
   globalErrorState,
-  assetPrefix,
+  webSocket,
+  staticIndicatorState,
 }: {
   actionQueue: AppRouterActionQueue
   globalErrorState: GlobalErrorState
-  assetPrefix: string
+  webSocket?: WebSocket
+  staticIndicatorState?: StaticIndicatorState
 }) {
   useNavFailureHandler()
 
   const router = (
     <Router
       actionQueue={actionQueue}
-      assetPrefix={assetPrefix}
       globalError={globalErrorState}
+      webSocket={webSocket}
+      staticIndicatorState={staticIndicatorState}
     />
   )
 

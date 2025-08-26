@@ -406,8 +406,14 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
             typeof input !== 'string' && 'url' in input
               ? input.url
               : String(input)
-          validateURL(url)
-          super(url, init)
+
+          if (typeof input === 'string') {
+            validateURL(url)
+            super(input, init)
+          } else {
+            super(input, init)
+            validateURL(url)
+          }
           this.next = init?.next
         }
       }

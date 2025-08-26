@@ -73,6 +73,7 @@ fn init() {
     use std::{
         cell::RefCell,
         panic::{set_hook, take_hook},
+        thread::available_parallelism,
         time::{Duration, Instant},
     };
 
@@ -90,6 +91,8 @@ fn init() {
         prev_hook(info);
     }));
 
+    let worker_threads = available_parallelism().map(|n| n.get()).unwrap_or(1);
+
     let rt = Builder::new_multi_thread()
         .enable_all()
         .on_thread_stop(|| {
@@ -103,6 +106,10 @@ fn init() {
                 }
             });
         })
+        .worker_threads(worker_threads)
+        // Avoid a limit on threads to avoid deadlocks due to usage of block_in_place
+        .max_blocking_threads(usize::MAX - worker_threads)
+        // Avoid the extra lifo slot to avoid stalling tasks when doing cpu-heavy work
         .disable_lifo_slot()
         .build()
         .unwrap();

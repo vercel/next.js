@@ -72,3 +72,18 @@ test/e2e/async-modules/amp-validator-wasm.js
 /turbopack/crates/turbopack-tests/tests/**/static
 
 /apps/docs/.source/*
+
+# Symlink files
+readme.md
+test/development/app-dir/hmr-symlink/app/symlink-chain/page.tsx
+test/development/app-dir/hmr-symlink/app/symlink-link/page.tsx
+test/development/app-dir/ssr-in-rsc/node_modules/random-react-library
+test/integration/build-trace-extra-entries/app/node_modules/pkg-behind-symlink
+test/integration/edge-runtime-configurable-guards/node_modules/lib
+test/production/app-dir/symbolic-file-links/src/i18n.ts
+test/production/app-dir/symbolic-file-links/src/app/layout.tsx
+test/production/app-dir/symbolic-file-links/src/app/page.tsx
+turbopack/crates/turbopack/tests/node-file-trace/integration/pnpm/node_modules/foo
+turbopack/crates/turbopack/tests/node-file-trace/integration/pnpm/node_modules/.pnpm/foo@2.1.0/node_modules/lodash-pnpm-test
+turbopack/crates/turbopack/tests/node-file-trace/integration/symlink-to-file/linked.js
+turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/node_modules/component

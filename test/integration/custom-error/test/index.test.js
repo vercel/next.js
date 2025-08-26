@@ -41,7 +41,8 @@ describe('Custom _error', () => {
         await retry(async () => {
           // retry because the page might not be built yet
           const html = await renderViaHTTP(appPort, '/404')
-          expect(html).toContain('Unexpected eof')
+          // Expected '</', got '<eof>'
+          expect(html).toContain("Expected '\\u003c/', got '\\u003ceof\\u003e'")
           expect(stderr).not.toMatch(customErrNo404Match)
         })
       } finally {

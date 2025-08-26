@@ -93,7 +93,7 @@ export interface RenderOptsPartial {
   }
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
-  setIsrStatus?: (key: string, value: boolean | null) => void
+  setIsrStatus?: (key: string, value: boolean) => void
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
@@ -127,6 +127,13 @@ export interface RenderOptsPartial {
     cacheComponents: boolean
     clientSegmentCache: boolean | 'client-only'
     clientParamParsing: boolean
+
+    /**
+     * The origins that are allowed to write the rewritten headers when
+     * performing a non-relative rewrite. When undefined, no non-relative
+     * rewrites will get the rewrite headers.
+     */
+    clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
     inlineCss: boolean
     authInterrupts: boolean

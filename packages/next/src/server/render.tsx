@@ -265,7 +265,7 @@ export type RenderOptsPartial = {
   assetQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
-  setIsrStatus?: (key: string, value: boolean | null) => void
+  setIsrStatus?: (key: string, value: boolean) => void
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   nextFontManifest?: DeepReadonly<NextFontManifest>
   distDir?: string
@@ -662,7 +662,7 @@ export async function renderToHTMLImpl(
     }
 
     if (renderOpts?.setIsrStatus) {
-      renderOpts.setIsrStatus(asPath, isSSG || isAutoExport ? true : null)
+      renderOpts.setIsrStatus(asPath, isSSG || isAutoExport)
     }
   }
 

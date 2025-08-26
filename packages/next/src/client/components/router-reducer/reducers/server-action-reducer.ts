@@ -290,6 +290,14 @@ export function serverActionReducer(
         revalidatedParts.tag ||
         revalidatedParts.cookie
 
+      // Store whether this action triggered any revalidation
+      // The action queue will use this information to potentially
+      // trigger a refresh action if the action was discarded
+      // (ie, due to a navigation, before the action completed)
+      if (actionRevalidated) {
+        action.didRevalidate = true
+      }
+
       for (const normalizedFlightData of flightData) {
         const {
           tree: treePatch,

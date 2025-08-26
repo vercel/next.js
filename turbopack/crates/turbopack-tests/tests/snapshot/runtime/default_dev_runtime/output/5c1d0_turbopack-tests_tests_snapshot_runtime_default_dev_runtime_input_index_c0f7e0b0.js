@@ -57,9 +57,10 @@ function getOverwrittenModule(moduleCache, id) {
         namespaceObject: undefined
     };
 }
+const BindingTag_Value = 0;
 /**
  * Adds the getters to the exports object.
- */ function esm(exports, getters) {
+ */ function esm(exports, bindings) {
     defineProp(exports, '__esModule', {
         value: true
     });
@@ -67,29 +68,41 @@ function getOverwrittenModule(moduleCache, id) {
         value: 'Module'
     });
     let i = 0;
-    while(i < getters.length){
-        const propName = getters[i++];
-        // TODO(luke.sandberg): we could support raw values here, but would need a discriminator beyond 'not a function'
-        const getter = getters[i++];
-        if (typeof getters[i] === 'function') {
-            // a setter
-            defineProp(exports, propName, {
-                get: getter,
-                set: getters[i++],
-                enumerable: true
-            });
+    while(i < bindings.length){
+        const propName = bindings[i++];
+        const tagOrFunction = bindings[i++];
+        if (typeof tagOrFunction === 'number') {
+            if (tagOrFunction === BindingTag_Value) {
+                defineProp(exports, propName, {
+                    value: bindings[i++],
+                    enumerable: true,
+                    writable: false
+                });
+            } else {
+                throw new Error(`unexpected tag: ${tagOrFunction}`);
+            }
         } else {
-            defineProp(exports, propName, {
-                get: getter,
-                enumerable: true
-            });
+            const getterFn = tagOrFunction;
+            if (typeof bindings[i] === 'function') {
+                const setterFn = bindings[i++];
+                defineProp(exports, propName, {
+                    get: getterFn,
+                    set: setterFn,
+                    enumerable: true
+                });
+            } else {
+                defineProp(exports, propName, {
+                    get: getterFn,
+                    enumerable: true
+                });
+            }
         }
     }
     Object.seal(exports);
 }
 /**
  * Makes the module an ESM with exports
- */ function esmExport(getters, id) {
+ */ function esmExport(bindings, id) {
     let module;
     let exports;
     if (id != null) {
@@ -100,7 +113,7 @@ function getOverwrittenModule(moduleCache, id) {
         exports = this.e;
     }
     module.namespaceObject = exports;
-    esm(exports, getters);
+    esm(exports, bindings);
 }
 contextPrototype.s = esmExport;
 function ensureDynamicExports(module, exports) {
@@ -188,14 +201,13 @@ function createGetter(obj, key) {
  *   * `false`: will have the raw module as default export
  *   * `true`: will have the default property as default export
  */ function interopEsm(raw, ns, allowExportDefault) {
-    const getters = [];
-    // The index of the `default` export if any
+    const bindings = [];
     let defaultLocation = -1;
     for(let current = raw; (typeof current === 'object' || typeof current === 'function') && !LEAF_PROTOTYPES.includes(current); current = getProto(current)){
         for (const key of Object.getOwnPropertyNames(current)){
-            getters.push(key, createGetter(raw, key));
+            bindings.push(key, createGetter(raw, key));
             if (defaultLocation === -1 && key === 'default') {
-                defaultLocation = getters.length - 1;
+                defaultLocation = bindings.length - 1;
             }
         }
     }
@@ -204,12 +216,13 @@ function createGetter(obj, key) {
     if (!(allowExportDefault && defaultLocation >= 0)) {
         // Replace the binding with one for the namespace itself in order to preserve iteration order.
         if (defaultLocation >= 0) {
-            getters[defaultLocation] = ()=>raw;
+            // Replace the getter with the value
+            bindings.splice(defaultLocation, 1, BindingTag_Value, raw);
         } else {
-            getters.push('default', ()=>raw);
+            bindings.push('default', BindingTag_Value, raw);
         }
     }
-    esm(ns, getters);
+    esm(ns, bindings);
     return ns;
 }
 function createNS(raw) {
@@ -232,7 +245,7 @@ function esmImport(id) {
 contextPrototype.i = esmImport;
 function asyncLoader(moduleId) {
     const loader = this.r(moduleId);
-    return loader(this.i.bind(this));
+    return loader(esmImport.bind(this));
 }
 contextPrototype.A = asyncLoader;
 // Add a simple runtime require so that environments without one can still pass

@@ -198,6 +198,11 @@ export function parseDestination(args: {
     search = unescapeSegments(search)
   }
 
+  let origin = parsed.origin
+  if (origin) {
+    origin = unescapeSegments(origin)
+  }
+
   return {
     ...parsed,
     pathname,
@@ -205,6 +210,7 @@ export function parseDestination(args: {
     href,
     hash,
     search,
+    origin,
   }
 }
 

@@ -119,6 +119,7 @@ pub enum ModuleType {
     },
     Json,
     Raw,
+    NodeAddon,
     CssModule,
     Css {
         ty: CssModuleAssetType,

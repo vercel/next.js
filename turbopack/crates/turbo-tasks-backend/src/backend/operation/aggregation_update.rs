@@ -1218,24 +1218,26 @@ impl AggregationUpdateQueue {
         } else {
             None
         };
-        if let Some(reason) = should_schedule {
-            let description = || ctx.get_task_desc_fn(task_id);
-            if task.add(CachedDataItem::new_scheduled(reason, description)) {
-                ctx.schedule(task_id);
-            }
-        }
+
         // if it has `Activeness` we can skip visiting the nested nodes since
         // this would already be scheduled by the `Activeness`
         let is_active_until_clean = get!(task, Activeness).is_some_and(|a| a.active_until_clean);
         if !is_active_until_clean {
-            let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task);
-            if !dirty_containers.is_empty() || dirty {
+            let mut dirty_containers = iter_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task).peekable();
+            let is_empty = dirty_containers.peek().is_none();
+            if !is_empty || dirty {
+                self.extend_find_and_schedule_dirty(dirty_containers);
+
                 let activeness_state =
                     get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
                 activeness_state.set_active_until_clean();
+            }
+        }
+        if let Some(reason) = should_schedule {
+            let description = || ctx.get_task_desc_fn(task_id);
+            if task.add(CachedDataItem::new_scheduled(reason, description)) {
                 drop(task);
-
-                self.extend_find_and_schedule_dirty(dirty_containers);
+                ctx.schedule(task_id);
             }
         }
     }

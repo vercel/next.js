@@ -5,7 +5,10 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{self, FileJsonContent, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    self, FileJsonContent, FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -67,7 +70,10 @@ impl ExternalCjsModulesResolvePlugin {
 
 #[turbo_tasks::function]
 fn condition(root: FileSystemPath) -> Vc<AfterResolvePluginCondition> {
-    AfterResolvePluginCondition::new(root, Glob::new(rcstr!("**/node_modules/**")))
+    AfterResolvePluginCondition::new(
+        root,
+        Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
+    )
 }
 
 #[turbo_tasks::value_impl]
@@ -441,9 +447,14 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
     if packages.is_empty() {
         return Ok(Vc::cell(None));
     }
-    let path_glob = Glob::new(format!("**/node_modules/{{{}}}/**", packages.join(",")).into());
-    let request_glob =
-        Glob::new(format!("{{{},{}/**}}", packages.join(","), packages.join("/**,")).into());
+    let path_glob = Glob::new(
+        format!("**/node_modules/{{{}}}/**", packages.join(",")).into(),
+        GlobOptions::default(),
+    );
+    let request_glob = Glob::new(
+        format!("{{{},{}/**}}", packages.join(","), packages.join("/**,")).into(),
+        GlobOptions::default(),
+    );
     Ok(Vc::cell(Some(PackagesGlobs {
         path_glob: path_glob.to_resolved().await?,
         request_glob: request_glob.to_resolved().await?,
