@@ -35,7 +35,8 @@ pub struct NftJsonAsset {
     /// An example of this is the two-phase approach used by the `ClientReferenceManifest` in
     /// next.js.
     additional_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
-    page_name: Option<RcStr>,
+    // The page name, e.g. `pages/index` or `app/route1`
+    page_name: Option<String>,
 }
 
 #[turbo_tasks::value_impl]
@@ -51,7 +52,7 @@ impl NftJsonAsset {
             chunk,
             project,
             additional_assets,
-            page_name,
+            page_name: page_name.map(|page_name| format!("/{page_name}")),
         }
         .cell()
     }

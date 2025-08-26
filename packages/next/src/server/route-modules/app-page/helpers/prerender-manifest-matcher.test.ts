@@ -34,6 +34,7 @@ function createMockDynamicRoute(
     fallbackExpire: undefined,
     fallbackHeaders: undefined,
     fallbackStatus: undefined,
+    fallbackRouteParams: undefined,
     fallbackRootParams: undefined,
     fallbackSourceRoute: undefined,
     prefetchDataRoute: undefined,

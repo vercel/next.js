@@ -5,6 +5,44 @@ description: Learn how to create a new Next.js application with the `create-next
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
+<AppOnly>
+
+Create a new Next.js app and run it locally.
+
+## Quick start
+
+1. Create a new Next.js app named `my-app`
+2. `cd my-app` and start the dev server.
+3. Visit `http://localhost:3000`.
+
+```bash package="pnpm"
+pnpm create next-app@latest my-app --yes
+cd my-app
+pnpm dev
+```
+
+```bash package="npm"
+npx create-next-app@latest my-app --yes
+cd my-app
+npm run dev
+```
+
+```bash package="yarn"
+yarn create next-app@latest my-app --yes
+cd my-app
+yarn dev
+```
+
+```bash package="bun"
+bun create next-app@latest my-app --yes
+cd my-app
+bun dev
+```
+
+- `--yes` skips prompts using saved preferences or defaults. The default setup enables TypeScript, Tailwind, App Router, and Turbopack, with import alias `@/*`.
+
+</AppOnly>
+
 ## System requirements
 
 Before you begin, make sure your system meets the following requirements:
@@ -12,7 +50,7 @@ Before you begin, make sure your system meets the following requirements:
 - [Node.js 18.18](https://nodejs.org/) or later.
 - macOS, Windows (including WSL), or Linux.
 
-## Automatic installation
+## Create with the CLI
 
 The quickest way to create a new Next.js app is using [`create-next-app`](/docs/app/api-reference/cli/create-next-app), which sets up everything automatically for you. To create a project, run:
 

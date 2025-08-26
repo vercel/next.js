@@ -29,6 +29,7 @@ import type { RenderingMode } from '../build/rendering-mode'
 import type { Revalidate } from './lib/cache-control'
 import type { AdapterOutputType } from '../shared/lib/constants'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { FallbackRouteParam } from '../build/static-paths/types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -454,6 +455,13 @@ export interface ExperimentalConfig {
   caseSensitiveRoutes?: boolean
   clientSegmentCache?: boolean | 'client-only'
   clientParamParsing?: boolean
+
+  /**
+   * The origins that are allowed to write the rewritten headers when
+   * performing a non-relative rewrite. When undefined, no non-relative
+   * rewrites will get the rewrite headers.
+   */
+  clientParamParsingOrigins?: string[]
   dynamicOnHover?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
@@ -940,7 +948,7 @@ export type ExportPathMap = {
      *
      * @internal
      */
-    _fallbackRouteParams?: readonly string[]
+    _fallbackRouteParams?: readonly FallbackRouteParam[]
 
     /**
      * @internal
@@ -1539,6 +1547,7 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientSegmentCache: false,
     clientParamParsing: false,
+    clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,

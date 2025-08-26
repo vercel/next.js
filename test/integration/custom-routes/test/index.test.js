@@ -2428,6 +2428,7 @@ const runTests = (isDev = false) => {
            "fallback": [],
          },
          "rsc": {
+           "clientParamParsing": false,
            "contentTypeHeader": "text/x-component",
            "didPostponeHeader": "x-nextjs-postponed",
            "header": "rsc",

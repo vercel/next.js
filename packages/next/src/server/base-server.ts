@@ -147,6 +147,7 @@ import { computeCacheBustingSearchParam } from '../shared/lib/router/utils/cache
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
 import type { PrerenderedRoute } from '../build/static-paths/types'
+import { createOpaqueFallbackRouteParams } from './request/fallback-params'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -570,6 +571,8 @@ export default abstract class Server<
             : Boolean(this.nextConfig.experimental.clientSegmentCache),
         clientParamParsing:
           this.nextConfig.experimental.clientParamParsing ?? false,
+        clientParamParsingOrigins:
+          this.nextConfig.experimental.clientParamParsingOrigins,
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
@@ -2319,13 +2322,10 @@ export default abstract class Server<
             }
           }
           if (smallestFallbackRouteParams) {
-            const devValidatingFallbackParams = new Map<string, string>(
-              smallestFallbackRouteParams.map((v) => [v, ''])
-            )
             addRequestMeta(
               req,
               'devValidatingFallbackParams',
-              devValidatingFallbackParams
+              createOpaqueFallbackRouteParams(smallestFallbackRouteParams)!
             )
           }
         }

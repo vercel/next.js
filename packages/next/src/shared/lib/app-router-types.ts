@@ -125,16 +125,16 @@ export type Segment =
   | string
   | [
       // Param name
-      string,
+      paramName: string,
       // Param cache key (almost the same as the value, but arrays are
       // concatenated into strings)
       // TODO: We should change this to just be the value. Currently we convert
       // it back to a value when passing to useParams. It only needs to be
       // a string when converted to a a cache key, but that doesn't mean we
       // need to store it as that representation.
-      string,
+      paramCacheKey: string,
       // Dynamic param type
-      DynamicParamTypesShort,
+      dynamicParamType: DynamicParamTypesShort,
     ]
 
 /**

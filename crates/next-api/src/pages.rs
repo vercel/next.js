@@ -24,8 +24,7 @@ use next_core::{
         PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
     util::{
-        NextRuntime, get_asset_prefix_from_pathname, pages_middleware_function_name,
-        parse_config_from_source,
+        NextRuntime, get_asset_prefix_from_pathname, pages_function_name, parse_config_from_source,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -1176,7 +1175,7 @@ impl PageEndpoint {
                     ResolvedVc::cell(Some(ResolvedVc::upcast(
                         NftJsonAsset::new(
                             project,
-                            Some(this.original_name.clone()),
+                            Some(pages_function_name(&this.original_name).into()),
                             *ssr_entry_chunk,
                             additional_assets,
                         )
@@ -1585,7 +1584,7 @@ impl PageEndpoint {
                         files: file_paths_from_root.into_iter().collect(),
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
-                        name: pages_middleware_function_name(&this.original_name).into(),
+                        name: pages_function_name(&this.original_name).into(),
                         page: this.original_name.clone(),
                         regions,
                         matchers: vec![matchers],

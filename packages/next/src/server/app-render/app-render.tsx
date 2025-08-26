@@ -153,7 +153,7 @@ import { createInitialRouterState } from '../../client/components/router-reducer
 import { createMutableActionQueue } from '../../client/components/app-router-instance'
 import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import type { FallbackRouteParams } from '../request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import {
   prerenderAndAbortInSequentialTasksWithStages,
   processPrelude,
@@ -365,7 +365,7 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
 function makeGetDynamicParamFromSegment(
   params: { [key: string]: any },
   pagePath: string,
-  fallbackRouteParams: FallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): GetDynamicParamFromSegment {
   return function getDynamicParamFromSegment(
     // [slug] / [[slug]] / [...slug]
@@ -430,7 +430,9 @@ async function generateDynamicRSCPayload(
 
   const {
     componentMod: {
-      tree: loaderTree,
+      routeModule: {
+        userland: { loaderTree },
+      },
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -619,10 +621,14 @@ async function generateRuntimePrefetchResult(
   const generatePayload = () => generateDynamicRSCPayload(ctx, undefined)
 
   const {
-    componentMod: { tree },
+    componentMod: {
+      routeModule: {
+        userland: { loaderTree },
+      },
+    },
     getDynamicParamFromSegment,
   } = ctx
-  const rootParams = getRootParams(tree, getDynamicParamFromSegment)
+  const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
 
   // We need to share caches between the prospective prerender and the final prerender,
   // but we're not going to persist this anywhere.
@@ -953,7 +959,7 @@ async function warmupDevRender(
   }
 
   const rootParams = getRootParams(
-    ComponentMod.tree,
+    ComponentMod.routeModule.userland.loaderTree,
     getDynamicParamFromSegment
   )
 
@@ -1444,7 +1450,7 @@ async function renderToHTMLOrFlightImpl(
   postponedState: PostponedState | null,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
   sharedContext: AppSharedContext,
-  fallbackRouteParams: FallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 ) {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -1589,7 +1595,12 @@ async function renderToHTMLOrFlightImpl(
   ComponentMod.patchFetch()
 
   // Pull out the hooks/references from the component.
-  const { tree: loaderTree, taintObjectReference } = ComponentMod
+  const {
+    routeModule: {
+      userland: { loaderTree },
+    },
+    taintObjectReference,
+  } = ComponentMod
   if (enableTainting) {
     taintObjectReference(
       'Do not pass process.env to Client Components since it will leak sensitive data',
@@ -1927,7 +1938,7 @@ export type AppPageRender = (
   res: BaseNextResponse,
   pagePath: string,
   query: NextParsedUrlQuery,
-  fallbackRouteParams: FallbackRouteParams | null,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
   renderOpts: RenderOpts,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
   isDevWarmup: boolean,
@@ -1974,6 +1985,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
 
     postponedState = parsePostponedState(
       renderOpts.postponed,
+      pagePath,
       renderOpts.params
     )
   }
@@ -2072,7 +2084,7 @@ async function renderToStream(
   formState: any,
   postponedState: PostponedState | null,
   metadata: AppPageRenderResultMetadata,
-  devValidatingFallbackParams: FallbackRouteParams | null
+  devValidatingFallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<ReadableStream<Uint8Array>> {
   const { assetPrefix, nonce, pagePath, renderOpts } = ctx
 
@@ -2581,7 +2593,7 @@ async function spawnDynamicValidationInDev(
   isNotFound: boolean,
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>,
   requestStore: RequestStore,
-  fallbackRouteParams: FallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): Promise<void> {
   const {
     componentMod: ComponentMod,
@@ -2600,7 +2612,7 @@ async function spawnDynamicValidationInDev(
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
 
   const rootParams = getRootParams(
-    ComponentMod.tree,
+    ComponentMod.routeModule.userland.loaderTree,
     getDynamicParamFromSegment
   )
 
@@ -3193,7 +3205,7 @@ async function prerenderToStream(
   ctx: AppRenderContext,
   metadata: AppPageRenderResultMetadata,
   tree: LoaderTree,
-  fallbackRouteParams: FallbackRouteParams | null
+  fallbackRouteParams: OpaqueFallbackRouteParams | null
 ): Promise<PrerenderToStreamResult> {
   // When prerendering formState is always null. We still include it
   // because some shared APIs expect a formState value and this is slightly
