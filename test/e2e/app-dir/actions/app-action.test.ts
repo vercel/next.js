@@ -44,7 +44,7 @@ describe('app-dir action handling', () => {
 
           expect(itemInfo.filename).toBeString()
           // can be outside app dir but this test suite has them all in app
-          expect(itemInfo.filename.startsWith('app/')).toBe(true)
+          expect(itemInfo.filename).toStartWith('app/')
           expect(itemInfo.exportedName).toBeString()
         } catch (err) {
           require('console').error(`Invalid action entry ${item}`, err)
