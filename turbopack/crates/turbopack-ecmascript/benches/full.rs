@@ -1,0 +1,111 @@
+use std::{path::PathBuf, sync::Arc};
+
+use criterion::{Bencher, BenchmarkId, Criterion};
+use turbo_rcstr::rcstr;
+use turbo_tasks::ResolvedVc;
+use turbo_tasks_fs::{DiskFileSystem, FileSystem};
+use turbo_tasks_testing::VcStorage;
+use turbopack_core::{
+    compile_time_info::CompileTimeInfo,
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    file_source::FileSource,
+    ident::Layer,
+};
+use turbopack_ecmascript::{
+    EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptOptions, TreeShakingMode,
+    references::analyse_ecmascript_module_internal,
+};
+use turbopack_test_utils::noop_asset_context::NoopAssetContext;
+
+pub fn benchmark(c: &mut Criterion) {
+    turbopack_ecmascript::register();
+    turbopack_test_utils::register();
+
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+
+    let storage = VcStorage::new();
+
+    let cases = rt
+        .block_on(storage.clone().run(async {
+            let root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../");
+            let fs = DiskFileSystem::new(rcstr!("project"), root_dir.to_str().unwrap().into());
+
+            let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
+                NodeJsEnvironment::default().resolved_cell(),
+            ))
+            .resolve()
+            .await?;
+            let compile_time_info = CompileTimeInfo::new(environment).to_resolved().await?;
+            let layer = Layer::new(rcstr!("test"));
+            // let module_asset_context = ModuleAssetContext::new(
+            //     Default::default(),
+            //     CompileTimeInfo::new(environment),
+            //     ModuleOptionsContext::value_default(),
+            //     ResolveOptionsContext::value_default(),
+            //     layer,
+            // )
+            // .to_resolved()
+            // .await?;
+            let module_asset_context = NoopAssetContext {
+                compile_time_info,
+                layer,
+            }
+            .resolved_cell();
+
+            let mut cases = vec![];
+            for file in ["packages/next/dist/compiled/babel-packages/packages-bundle.js"] {
+                let module = EcmascriptModuleAsset::builder(
+                    ResolvedVc::upcast(
+                        FileSource::new(fs.root().await?.join(file).unwrap())
+                            .to_resolved()
+                            .await?,
+                    ),
+                    ResolvedVc::upcast(module_asset_context),
+                    EcmascriptInputTransforms::empty().to_resolved().await?,
+                    EcmascriptOptions {
+                        tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+                        ..Default::default()
+                    }
+                    .resolved_cell(),
+                    compile_time_info,
+                )
+                .build()
+                .to_resolved()
+                .await?;
+
+                let input = BenchInput {
+                    storage: storage.clone(),
+                    module,
+                };
+                cases.push((file, input));
+            }
+            anyhow::Ok(cases)
+        }))
+        .unwrap();
+
+    let mut group = c.benchmark_group("full");
+
+    for case in cases {
+        group.bench_with_input(BenchmarkId::new("full", case.0), &case.1, bench_full);
+    }
+}
+
+struct BenchInput {
+    storage: Arc<VcStorage>,
+    module: ResolvedVc<EcmascriptModuleAsset>,
+}
+
+fn bench_full(b: &mut Bencher, input: &BenchInput) {
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .build()
+        .unwrap();
+
+    b.to_async(rt).iter(|| {
+        input
+            .storage
+            .clone()
+            .run(async { analyse_ecmascript_module_internal(input.module, None).await })
+    });
+}

@@ -499,7 +499,7 @@ pub(crate) async fn analyse_ecmascript_module(
     }
 }
 
-pub(crate) async fn analyse_ecmascript_module_internal(
+pub async fn analyse_ecmascript_module_internal(
     module: ResolvedVc<EcmascriptModuleAsset>,
     part: Option<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
