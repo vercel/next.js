@@ -230,7 +230,7 @@ impl AppPageLoaderTreeBuilder {
 
         self.base
             .imports
-            .push(format!("import {identifier} from \"{inner_module_id}\";").into());
+            .push(format!("const {identifier} = () => import(\"{inner_module_id}\");").into());
         let module = Vc::upcast(StructuredImageModuleType::create_module(
             Vc::upcast(FileSource::new(path.clone())),
             BlurPlaceholderMode::None,
