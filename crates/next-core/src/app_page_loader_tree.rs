@@ -184,9 +184,9 @@ impl AppPageLoaderTreeBuilder {
                 let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
                 let inner_module_id = format!("METADATA_{i}");
 
-                self.base.imports.push(
-                    format!("const {identifier} = () => import(\"{inner_module_id}\");").into(),
-                );
+                self.base
+                    .imports
+                    .push(format!("import {identifier} from \"{inner_module_id}\";").into());
 
                 let source = dynamic_image_metadata_source(
                     *ResolvedVc::upcast(self.base.module_asset_context),
@@ -230,7 +230,7 @@ impl AppPageLoaderTreeBuilder {
 
         self.base
             .imports
-            .push(format!("const {identifier} = () => import(\"{inner_module_id}\");").into());
+            .push(format!("import {identifier} from \"{inner_module_id}\";").into());
         let module = Vc::upcast(StructuredImageModuleType::create_module(
             Vc::upcast(FileSource::new(path.clone())),
             BlurPlaceholderMode::None,
@@ -282,7 +282,7 @@ impl AppPageLoaderTreeBuilder {
 
             self.base
                 .imports
-                .push(format!("const {identifier} = () => import(\"{inner_module_id}\");").into());
+                .push(format!("import {identifier} from \"{inner_module_id}\";").into());
 
             let module = self
                 .base
