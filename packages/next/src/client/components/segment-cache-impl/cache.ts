@@ -121,6 +121,12 @@ export type RouteTree = {
   // this value is disregarded, because in that model `loading.tsx` is treated
   // like any other Suspense boundary.)
   hasLoadingBoundary: HasLoadingBoundary
+
+  // Indicates whether this route has a runtime prefetch that we can request.
+  // This is determined by the server; it's not purely a user configuration
+  // because the server may determine that a route is fully static and doesn't
+  // need runtime prefetching regardless of the configuration.
+  hasRuntimePrefetch: boolean
 }
 
 type RouteCacheEntryShared = {
@@ -1158,6 +1164,7 @@ function convertTreePrefetchToRouteTree(
     // This field is only relevant to dynamic routes. For a PPR/static route,
     // there's always some partial loading state we can fetch.
     hasLoadingBoundary: HasLoadingBoundary.SegmentHasLoadingBoundary,
+    hasRuntimePrefetch: prefetch.hasRuntimePrefetch,
   }
 }
 
@@ -1251,6 +1258,10 @@ function convertFlightRouterStateToRouteTree(
       flightRouterState[5] !== undefined
         ? flightRouterState[5]
         : HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
+
+    // Non-static tree responses are only used by apps that haven't adopted
+    // Cache Components. So this is always false.
+    hasRuntimePrefetch: false,
   }
 }
 

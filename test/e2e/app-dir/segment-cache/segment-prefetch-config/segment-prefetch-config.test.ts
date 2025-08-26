@@ -64,15 +64,15 @@ describe('export const unstable_prefetch = ...', () => {
     expect(parseRouteTreeFromTreePrefetchResponse(response)).toEqual(
       expect.objectContaining({
         name: '',
-        shouldUseRuntimePrefetch: false,
+        hasRuntimePrefetch: false,
         slots: {
           children: expect.objectContaining({
             name: 'prefetch-static',
-            shouldUseRuntimePrefetch: false,
+            hasRuntimePrefetch: false,
             slots: {
               children: expect.objectContaining({
                 name: '__PAGE__',
-                shouldUseRuntimePrefetch: false, // <-----------------
+                hasRuntimePrefetch: false, // <-----------------
               }),
             },
           }),
@@ -99,15 +99,15 @@ describe('export const unstable_prefetch = ...', () => {
     expect(parseRouteTreeFromTreePrefetchResponse(response)).toEqual(
       expect.objectContaining({
         name: '',
-        shouldUseRuntimePrefetch: false,
+        hasRuntimePrefetch: false,
         slots: {
           children: expect.objectContaining({
             name: 'prefetch-runtime',
-            shouldUseRuntimePrefetch: false,
+            hasRuntimePrefetch: false,
             slots: {
               children: expect.objectContaining({
                 name: '__PAGE__',
-                shouldUseRuntimePrefetch: true, // <-----------------
+                hasRuntimePrefetch: true, // <-----------------
                 slots: null,
               }),
             },
@@ -135,15 +135,15 @@ describe('export const unstable_prefetch = ...', () => {
     expect(parseRouteTreeFromTreePrefetchResponse(response)).toEqual(
       expect.objectContaining({
         name: '',
-        shouldUseRuntimePrefetch: false,
+        hasRuntimePrefetch: false,
         slots: {
           children: expect.objectContaining({
             name: 'no-prefetch',
-            shouldUseRuntimePrefetch: false,
+            hasRuntimePrefetch: false,
             slots: {
               children: expect.objectContaining({
                 name: '__PAGE__',
-                shouldUseRuntimePrefetch: false, // <-----------------
+                hasRuntimePrefetch: false, // <-----------------
                 slots: null,
               }),
             },
@@ -170,15 +170,15 @@ describe('export const unstable_prefetch = ...', () => {
     expect(parseRouteTreeFromTreePrefetchResponse(response)).toEqual(
       expect.objectContaining({
         name: '',
-        shouldUseRuntimePrefetch: false,
+        hasRuntimePrefetch: false,
         slots: {
           children: expect.objectContaining({
             name: 'nested-prefetch-static',
-            shouldUseRuntimePrefetch: true, // <-----------------
+            hasRuntimePrefetch: true, // <-----------------
             slots: {
               children: expect.objectContaining({
                 name: '__PAGE__',
-                shouldUseRuntimePrefetch: false, // <-----------------
+                hasRuntimePrefetch: false, // <-----------------
                 slots: null,
               }),
             },
