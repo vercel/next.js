@@ -16,7 +16,7 @@ let app
 let appPort
 const appDir = join(__dirname, '..')
 
-const collectErrors = async (pathname) => {
+const noError = async (pathname) => {
   const browser = await webdriver(appPort, '/')
   await browser.eval(`(function() {
     window.caughtErrors = []
@@ -29,14 +29,8 @@ const collectErrors = async (pathname) => {
   })()`)
   await waitFor(1000)
   const errors = await browser.eval(`window.caughtErrors`)
-  await browser.close()
-  return errors
-}
-
-const noError = async (pathname) => {
-  const errors = await collectErrors(pathname)
   expect(errors).toEqual([])
-  return errors
+  await browser.close()
 }
 
 const didPrefetch = async (pathname) => {
@@ -86,21 +80,11 @@ describe('Invalid hrefs', () => {
       runCommonTests()
 
       it('should not show error for function component with forwardRef', async () => {
-        const errors = await collectErrors('/function')
-        const legacyBehaviorDeprecation =
-          '`legacyBehavior` is deprecated and will be removed in a future release.'
-        errors.forEach((error) => {
-          expect(error).toContain(legacyBehaviorDeprecation)
-        })
+        await noError('/function')
       })
 
       it('should not show error for class component as child of next/link', async () => {
-        const errors = await collectErrors('/class')
-        const legacyBehaviorDeprecation =
-          '`legacyBehavior` is deprecated and will be removed in a future release.'
-        errors.forEach((error) => {
-          expect(error).toContain(legacyBehaviorDeprecation)
-        })
+        await noError('/class')
       })
 
       it('should handle child ref with React.createRef', async () => {

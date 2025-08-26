@@ -791,5 +791,6 @@
   "790": "Invariant: Expected RSC response, got %s",
   "791": "Unexpected match for a pathname \"%s\" with a param \"%s\" of type \"%s\"",
   "792": "Unexpected empty path segments match for a pathname \"%s\" with param \"%s\" of type \"%s\"",
-  "793": "No value found for segment key: \"%s\""
+  "793": "No value found for segment key: \"%s\"",
+  "794": "Invalid <Link> with <a> child. Please remove <a>.\nLearn more: https://nextjs.org/docs/messages/invalid-new-link-with-extra-anchor"
 }

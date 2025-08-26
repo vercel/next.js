@@ -70,7 +70,7 @@ declare const pages: any
 // INJECT:tree
 // INJECT:pages
 
-export { tree, pages }
+export { pages }
 
 import GlobalError from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-utility' }
 
