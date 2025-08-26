@@ -1308,13 +1308,13 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     span,
                     in_try: _,
                 } => {
+                    let var: JsValue = JsValue::FreeVar(var);
                     // FreeVar("require") might be turbopackIgnore-d
-                    if !analysis_state
-                        .link_value(*var.clone(), eval_context.imports.get_attributes(span))
-                        .await?
-                        .is_unknown()
-                    {
-                        handle_free_var(&ast_path, *var, span, &analysis_state, &mut analysis)
+                    let var = analysis_state
+                        .link_value(var, eval_context.imports.get_attributes(span))
+                        .await?;
+                    if !var.is_unknown() {
+                        handle_free_var(&ast_path, var, span, &analysis_state, &mut analysis)
                             .await?;
                     }
                 }

@@ -4058,7 +4058,10 @@ mod tests {
                                 steps
                             }
                             Effect::FreeVar { var, .. } => {
-                                resolved.push((format!("{parent} -> {i} free var"), *var));
+                                resolved.push((
+                                    format!("{parent} -> {i} free var"),
+                                    JsValue::FreeVar(var),
+                                ));
                                 0
                             }
                             Effect::TypeOf { arg, .. } => {
