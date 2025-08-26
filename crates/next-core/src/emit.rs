@@ -1,8 +1,9 @@
 use anyhow::Result;
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, Vc,
-    graph::{AdjacencyMap, GraphTraversal},
+    FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
 };
 use turbo_tasks_fs::{FileSystemPath, rebase};
 use turbopack_core::{
@@ -113,6 +114,28 @@ async fn emit_rebase(
     Ok(())
 }
 
+struct OutputAssetVisit {}
+impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>)> for OutputAssetVisit {
+    type Edge = (ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>);
+    type EdgesIntoIter = Vec<Self::Edge>;
+    type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
+
+    fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<Self::Edge> {
+        VisitControlFlow::Continue(edge)
+    }
+
+    fn edges(
+        &mut self,
+        node: &(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>),
+    ) -> Self::EdgesFuture {
+        get_referenced_assets(node.0)
+    }
+
+    fn span(&mut self, node: &(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>)) -> tracing::Span {
+        tracing::info_span!("asset", name = display(&node.1))
+    }
+}
+
 /// Walks the asset graph from multiple assets and collect all referenced
 /// assets.
 #[turbo_tasks::function]
@@ -120,11 +143,22 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
     Ok(Vc::cell(
         AdjacencyMap::new()
             .skip_duplicates()
-            .visit(entries.await?.iter().copied(), get_referenced_assets)
+            .visit(
+                entries
+                    .await?
+                    .iter()
+                    .map(async |asset| {
+                        Ok((ResolvedVc::upcast(*asset), asset.path().to_string().await?))
+                    })
+                    .try_join()
+                    .await?,
+                OutputAssetVisit {},
+            )
             .await
             .completed()?
             .into_inner()
             .into_postorder_topological()
+            .map(|(asset, _)| asset)
             .collect::<FxIndexSet<_>>()
             .into_iter()
             .collect(),
@@ -134,12 +168,12 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
 /// Computes the list of all chunk children of a given chunk.
 async fn get_referenced_assets(
     asset: ResolvedVc<Box<dyn OutputAsset>>,
-) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn OutputAsset>>> + Send> {
-    Ok(asset
+) -> Result<Vec<(ResolvedVc<Box<dyn OutputAsset>>, ReadRef<RcStr>)>> {
+    asset
         .references()
         .await?
         .iter()
-        .copied()
-        .collect::<Vec<_>>()
-        .into_iter())
+        .map(async |asset| Ok((*asset, asset.path().to_string().await?)))
+        .try_join()
+        .await
 }
