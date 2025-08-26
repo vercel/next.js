@@ -2250,7 +2250,7 @@ export default async function getBaseWebpackConfig(
     // TODO: Remove this workaround after Rspack 1.5.1 release
     webpack5Config.experiments.incremental = {
       buildChunkGraph: false,
-    };
+    }
   }
 
   webpack5Config.module!.parser = {
