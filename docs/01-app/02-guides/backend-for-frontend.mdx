@@ -403,10 +403,6 @@ Both provide methods for reading and manipulating cookies.
 
 You can pass `NextRequest` to any function expecting `Request`. Likewise, you can return `NextResponse` where a `Response` is expected.
 
-It is possible to set headers on a `Response` or `NextResponse` using `new Response(..., { headers })` or `NextResponse.json(..., { headers })`.
-
-Avoid echoing incoming request headers in responses. Middleware or libraries may append headers to incoming requests, and echoing these can leak sensitive information.
-
 ```ts filename="/app/echo-pathname/route.ts" switcher
 import { type NextRequest, NextResponse } from 'next/server'
 
