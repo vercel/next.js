@@ -35,7 +35,6 @@ fn main() -> Result<()> {
             amqf_entries,
             sst_size,
             key_compression_dictionary_size,
-            value_compression_dictionary_size,
             block_count,
         } in meta_file.entries
         {
@@ -45,15 +44,11 @@ fn main() -> Result<()> {
             );
             println!("    AMQF {amqf_entries} entries = {} KiB", amqf_size / 1024);
             println!(
-                "    {} KiB = {} kiB key compression dict + {} KiB value compression dict + \
-                 {block_count} blocks (avg {} bytes/block)",
+                "    {} KiB = {} kiB key compression dict + {block_count} blocks (avg {} \
+                 bytes/block)",
                 sst_size / 1024,
                 key_compression_dictionary_size / 1024,
-                value_compression_dictionary_size / 1024,
-                (sst_size
-                    - key_compression_dictionary_size as u64
-                    - value_compression_dictionary_size as u64)
-                    / block_count as u64
+                (sst_size - key_compression_dictionary_size as u64) / block_count as u64
             );
         }
         if !meta_file.obsolete_sst_files.is_empty() {

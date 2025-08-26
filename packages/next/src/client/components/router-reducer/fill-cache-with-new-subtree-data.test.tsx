@@ -1,5 +1,5 @@
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
 
 const getFlightData = (): NormalizedFlightData[] => {

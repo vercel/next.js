@@ -234,7 +234,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                 ImportMapping::External(name, ty, traced) => {
                     if let Some(name) = name {
                         ReplacedImportMapping::External(
-                            capture.spread_into_star(name).as_string().map(|s| s.into()),
+                            capture.spread_into_star(name).as_constant_string().cloned(),
                             *ty,
                             *traced,
                         )
@@ -250,7 +250,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                 } => {
                     if let Some(name) = name {
                         ReplacedImportMapping::PrimaryAlternativeExternal {
-                            name: capture.spread_into_star(name).as_string().map(|s| s.into()),
+                            name: capture.spread_into_star(name).as_constant_string().cloned(),
                             ty: *ty,
                             traced: *traced,
                             lookup_dir: lookup_dir.clone(),
@@ -418,7 +418,10 @@ async fn import_mapping_to_result(
             } else if let Some(request) = request.await?.request() {
                 request
             } else {
-                bail!("Cannot resolve external reference without request")
+                bail!(
+                    "Cannot resolve external reference with dynamic request {:?}",
+                    request.request_pattern().await?.describe_as_string()
+                )
             },
             *ty,
             *traced,
@@ -434,7 +437,10 @@ async fn import_mapping_to_result(
             } else if let Some(request) = request.await?.request() {
                 request
             } else {
-                bail!("Cannot resolve external reference without request")
+                bail!(
+                    "Cannot resolve external reference with dynamic request {:?}",
+                    request.request_pattern().await?.describe_as_string()
+                )
             },
             ty: *ty,
             traced: *traced,
@@ -517,6 +523,12 @@ impl ImportMap {
         // relative requests must not match global wildcard aliases.
 
         let request_pattern = request.request_pattern().await?;
+        if matches!(*request_pattern, Pattern::Dynamic | Pattern::DynamicNoSlash) {
+            // You could probably conceive of cases where this isn't correct. But the dynamic will
+            // just match every single entry in the import map, which is not what we want.
+            return Ok(ImportMapResult::NoEntry);
+        }
+
         let (req_rel, rest) = request_pattern.split_could_match("./");
         let (req_rel_parent, req_rest) =
             rest.map(|r| r.split_could_match("../")).unwrap_or_default();
@@ -540,12 +552,7 @@ impl ImportMap {
             .chain(lookup_rel_parent.into_iter())
             .chain(lookup.into_iter())
             .map(async |result| {
-                import_mapping_to_result(
-                    *result.try_join_into_self().await?,
-                    lookup_path.clone(),
-                    request,
-                )
-                .await
+                import_mapping_to_result(*result?.output.await?, lookup_path.clone(), request).await
             })
             .try_join()
             .await?;

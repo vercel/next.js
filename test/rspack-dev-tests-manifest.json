@@ -1,2036 +1,4 @@
 {
-  "packages/font/src/google/find-font-files-in-css.test.ts": {
-    "passed": [
-      "findFontFilesInCss should find all font files and preload requested subsets",
-      "findFontFilesInCss should not return duplicate font files when several variants use the same font file"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/font/src/google/get-font-axes.test.ts": {
-    "passed": [
-      "getFontAxes errors Invalid axes value",
-      "getFontAxes errors Invalid value in axes array",
-      "getFontAxes errors Setting axes on font without definable axes"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/font/src/google/loader.test.ts": {
-    "passed": [
-      "next/font/google loader URL from options Albert_Sans",
-      "next/font/google loader URL from options Ballet",
-      "next/font/google loader URL from options Fraunces",
-      "next/font/google loader URL from options Inter",
-      "next/font/google loader URL from options Molle",
-      "next/font/google loader URL from options Nabla",
-      "next/font/google loader URL from options Oooh_Baby",
-      "next/font/google loader URL from options Poppins",
-      "next/font/google loader URL from options Roboto",
-      "next/font/google loader URL from options Roboto Mono",
-      "next/font/google loader URL from options Roboto_Flex",
-      "next/font/google loader URL from options Source_Sans_3"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/font/src/google/sort-fonts-variant-values.test.ts": {
-    "passed": [
-      "sortFontsVariantValues should correctly compare and return result for comma-separated values",
-      "sortFontsVariantValues should correctly compare and return result for plain integer values",
-      "sortFontsVariantValues should sort an array of plain integer values correctly",
-      "sortFontsVariantValues should sort an array of values with comma-separated values correctly"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/font/src/google/validate-google-font-function-call.test.ts": {
-    "passed": [
-      "validateFontFunctionCall errors Invalid display value",
-      "validateFontFunctionCall errors Invalid subset in call",
-      "validateFontFunctionCall errors Missing function name",
-      "validateFontFunctionCall errors Missing subsets in config and call",
-      "validateFontFunctionCall errors Missing weight for non variable font",
-      "validateFontFunctionCall errors Setting axes on non variable font",
-      "validateFontFunctionCall errors Setting axes on variable font with incorrect weight",
-      "validateFontFunctionCall errors Unknown font",
-      "validateFontFunctionCall errors Unknown style",
-      "validateFontFunctionCall errors Unknown weight",
-      "validateFontFunctionCall errors Variable in weight array"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/font/src/local/loader.test.ts": {
-    "passed": [
-      "next/font/local loader generated CSS Custom font-family in declarations",
-      "next/font/local loader generated CSS Default CSS",
-      "next/font/local loader generated CSS Multiple styles default weight",
-      "next/font/local loader generated CSS Multiple weights default style",
-      "next/font/local loader generated CSS Other properties",
-      "next/font/local loader generated CSS Weight and style",
-      "next/font/local loader generated CSS with dpl query string"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/font/src/local/pick-font-file-for-fallback-generation.test.ts": {
-    "passed": [
-      "pickFontFileForFallbackGeneration Invalid variable weight in array",
-      "pickFontFileForFallbackGeneration should error on invalid weight in array",
-      "pickFontFileForFallbackGeneration should pick the thinner weight if both have the same distance to 400",
-      "pickFontFileForFallbackGeneration should pick the weight closest to 400",
-      "pickFontFileForFallbackGeneration should pick variable range closest to 400",
-      "pickFontFileForFallbackGeneration should prefer normal style over italic"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/font/src/local/validate-local-font-function-call.test.ts": {
-    "passed": [
-      "validateLocalFontFunctionCall Empty src array",
-      "validateLocalFontFunctionCall Invalid declaration",
-      "validateLocalFontFunctionCall Invalid display value",
-      "validateLocalFontFunctionCall Invalid file extension",
-      "validateLocalFontFunctionCall Missing src",
-      "validateLocalFontFunctionCall Not using default export",
-      "validateLocalFontFunctionCall Valid font-family declaration"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/add-missing-react-import.test.js": {
-    "passed": [
-      "add-missing-react-import transforms correctly using \"add-missing-react-import/missing-react-import-in-component\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/app-dir-runtime-config-experimental-edge.test.js": {
-    "passed": [
-      "app-dir-runtime-config-experimental-edge transforms correctly using \"app-dir-runtime-config-experimental-edge/already-edge\" data",
-      "app-dir-runtime-config-experimental-edge transforms correctly using \"app-dir-runtime-config-experimental-edge/basic\" data",
-      "app-dir-runtime-config-experimental-edge transforms correctly using \"app-dir-runtime-config-experimental-edge/no-runtime\" data",
-      "app-dir-runtime-config-experimental-edge transforms correctly using \"app-dir-runtime-config-experimental-edge/nodejs\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/built-in-next-font.test.js": {
-    "passed": [
-      "built-in-next-font transforms correctly using \"built-in-next-font/page\" data",
-      "built-in-next-font transforms correctly using \"built-in-next-font/should-not-add-semicolon\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/metadata-to-viewport-export.test.js": {
-    "passed": [
-      "metadata-to-viewport-export transforms correctly using \"metadata-to-viewport-export/metadata-empty\" data",
-      "metadata-to-viewport-export transforms correctly using \"metadata-to-viewport-export/metadata-with-viewport\" data",
-      "metadata-to-viewport-export transforms correctly using \"metadata-to-viewport-export/metadata-without-mixed\" data",
-      "metadata-to-viewport-export transforms correctly using \"metadata-to-viewport-export/metadata-without-viewport\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/name-default-component.test.js": {
-    "passed": [
-      "name-default-component transforms correctly using \"name-default-component/1-starts-with-number\" data",
-      "name-default-component transforms correctly using \"name-default-component/existing-name\" data",
-      "name-default-component transforms correctly using \"name-default-component/existing-name-2\" data",
-      "name-default-component transforms correctly using \"name-default-component/existing-name-3\" data",
-      "name-default-component transforms correctly using \"name-default-component/existing-name-ignore\" data",
-      "name-default-component transforms correctly using \"name-default-component/function-component\" data",
-      "name-default-component transforms correctly using \"name-default-component/function-component-2\" data",
-      "name-default-component transforms correctly using \"name-default-component/function-component-ignore\" data",
-      "name-default-component transforms correctly using \"name-default-component/function-expression\" data",
-      "name-default-component transforms correctly using \"name-default-component/function-expression-ignore\" data",
-      "name-default-component transforms correctly using \"name-default-component/special-ch@racter\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/new-link.test.js": {
-    "passed": [
-      "new-link transforms correctly using \"new-link/add-legacy-behavior\" data",
-      "new-link transforms correctly using \"new-link/children-interpolation\" data",
-      "new-link transforms correctly using \"new-link/excludes-links-with-legacybehavior-prop\" data",
-      "new-link transforms correctly using \"new-link/handle-duplicate-props\" data",
-      "new-link transforms correctly using \"new-link/link-a\" data",
-      "new-link transforms correctly using \"new-link/link-string\" data",
-      "new-link transforms correctly using \"new-link/move-props\" data",
-      "new-link transforms correctly using \"new-link/spread-props\" data",
-      "new-link transforms correctly using \"new-link/styled-jsx\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/next-async-request-api-dynamic-apis.test.js": {
-    "passed": [
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-01",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-02",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-03",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-04",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-05",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-06",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-07",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-08",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-10",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-11",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-12",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-13",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-14",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-15",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-16",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-17",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-18",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-19",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-20",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-21",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-22",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-23",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-24",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-25",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-type-cast-01",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/async-api-type-cast-02",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/custom-routes-access-api-prop-01",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/generate-metadata-access-api-prop-01",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/generate-metadata-access-api-prop-02",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/generate-metadata-access-api-prop-03",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/no-transform-local-call",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/no-transform-non-nextjs-cookies",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/origin-name-01-util",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/origin-name-02-util",
-      "next-async-request-api - dynamic-apis transforms correctly next-async-request-api-dynamic-apis/origin-name-03-env.d"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/next-async-request-api-dynamic-props.test.js": {
-    "passed": [
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-01",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-02",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-03",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-04",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-05",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-06",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-07",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-08",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-09",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-10",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-11",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-12",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-13",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-14",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-15",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-16",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-17",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-18",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-19",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-20",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-21",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-22",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-23",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-24",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-25",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-26",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-27",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-28",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-29",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-30",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-31",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-32",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-33",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-34",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-35",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-36",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-37",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-38",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-39",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/access-props-40",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/generate-metadata-access-prop-01",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/generate-metadata-access-prop-02",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/generate-metadata-access-prop-03",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/generate-metadata-access-prop-04",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/no-transform-non-default-function",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/origin-name-01-route",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/origin-name-02-somefile",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/origin-name-03-default",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/route-access-prop-01",
-      "next-async-request-api - dynamic-props transforms correctly next-async-request-api-dynamic-props/route-access-props-02"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/next-experimental-turbo-to-turbopack.test.js": {
-    "passed": [
-      "next-experimental-turbo-to-turbopack transforms correctly using \"next-experimental-turbo-to-turbopack/commonjs-var\" data",
-      "next-experimental-turbo-to-turbopack transforms correctly using \"next-experimental-turbo-to-turbopack/esm\" data",
-      "next-experimental-turbo-to-turbopack transforms correctly using \"next-experimental-turbo-to-turbopack/mixed-config\" data",
-      "next-experimental-turbo-to-turbopack transforms correctly using \"next-experimental-turbo-to-turbopack/modified-var\" data",
-      "next-experimental-turbo-to-turbopack transforms correctly using \"next-experimental-turbo-to-turbopack/no-change\" data",
-      "next-experimental-turbo-to-turbopack transforms correctly using \"next-experimental-turbo-to-turbopack/property-assignment\" data",
-      "next-experimental-turbo-to-turbopack transforms correctly using \"next-experimental-turbo-to-turbopack/typescript\" data",
-      "next-experimental-turbo-to-turbopack transforms correctly using \"next-experimental-turbo-to-turbopack/typescript-as-const\" data",
-      "next-experimental-turbo-to-turbopack transforms correctly using \"next-experimental-turbo-to-turbopack/typescript-satisfies\" data",
-      "next-experimental-turbo-to-turbopack transforms correctly using \"next-experimental-turbo-to-turbopack/typescript-satisfies-wrapped\" data",
-      "next-experimental-turbo-to-turbopack transforms correctly using \"next-experimental-turbo-to-turbopack/wrapped-function\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/next-image-experimental-loader.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "should transform loader akamai",
-      "should transform loader cloudinary",
-      "should transform loader imgix",
-      "should transform loader many-keys",
-      "should transform loader monorepo",
-      "should transform loader wrapped-with-pwa"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/next-image-experimental.test.js": {
-    "passed": [
-      "next-image-experimental transforms correctly using \"next-image-experimental/general\" data",
-      "next-image-experimental transforms correctly using \"next-image-experimental/require\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/next-image-to-legacy-image.test.js": {
-    "passed": [
-      "next-image-to-legacy-image transforms correctly using \"next-image-to-legacy-image/dynamic\" data",
-      "next-image-to-legacy-image transforms correctly using \"next-image-to-legacy-image/general\" data",
-      "next-image-to-legacy-image transforms correctly using \"next-image-to-legacy-image/require\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/next-og-import.test.js": {
-    "passed": [
-      "next-og-import transforms correctly using \"next-og-import/mixed-import\" data",
-      "next-og-import transforms correctly using \"next-og-import/next-server-only-import\" data",
-      "next-og-import transforms correctly using \"next-og-import/og-only-import\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/next-request-geo-ip.test.js": {
-    "passed": [
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/destructure\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/destructure-alias\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/direct-access\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/duplicate-identifiers\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/function-param\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/geo-properties\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/geo-type-import\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/has-imports\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/has-imports-alias\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/has-other-import\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/multiple-imports\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/replace-type\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/replace-type-geo-only\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/replace-type-ip-only\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/skip-empty-ast\" data",
-      "next-request-geo-ip transforms correctly using \"next-request-geo-ip/skip-no-next-request\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/url-to-withrouter.test.js": {
-    "passed": [
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/already-using-withrouter\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/arrow-function-component\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/componentdidupdate\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/componentwillreceiveprops\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/destructuring-this\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/destructuring-this-class\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/destructuring-this-props\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/destructuring-this-props-nested\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/export-default-variable\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/export-default-variable-wrapping\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/first-parameter-hoc\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/no-transform\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/no-transform-method\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/url-property-not-part-of-this-props\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/using-inline-class\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/variable-export\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/with-nested-arrow-function\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/with-router-import\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/without-import\" data",
-      "url-to-withrouter transforms correctly using \"url-to-withrouter/wrapping-export\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/withamp-to-config.test.js": {
-    "passed": [
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-inline\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-with-config\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-with-config-dupe\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-with-config-var\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/hybrid-amp\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/hybrid-amp-with-config\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/remove-import\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/remove-import-renamed\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/remove-import-single\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/build/analysis/get-page-static-info.test.ts": {
-    "passed": [
-      "get-page-static-infos getMiddlewareMatchers matches /:id and /:id.json",
-      "get-page-static-infos getMiddlewareMatchers sets originalSource with multiple matchers",
-      "get-page-static-infos getMiddlewareMatchers sets originalSource with one matcher"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/build/normalize-catchall-routes.test.ts": {
-    "passed": [
-      "normalizeCatchallRoutes should add the catch-all route to all matched paths at the root",
-      "normalizeCatchallRoutes should add the catch-all route to all matched paths when nested",
-      "normalizeCatchallRoutes should not add the catch-all route to a path that has a @children slot",
-      "normalizeCatchallRoutes should not add the catch-all route to non-catchall segments that are more specific",
-      "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific [dynamicRoute]",
-      "normalizeCatchallRoutes should not add the catch-all route to segments that have a more specific default",
-      "normalizeCatchallRoutes should not add the catch-all to the interception route"
-    ],
-    "failed": [],
-    "pending": [
-      "normalizeCatchallRoutes should only match optional catch-all paths to the \"index\" of a segment"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/build/static-paths/app.test.ts": {
-    "passed": [
-      "assignErrorIfEmpty should assign throwOnEmptyStaticShell based on route hierarchy",
-      "assignErrorIfEmpty should assign throwOnEmptyStaticShell true for a static route with no children",
-      "assignErrorIfEmpty should handle blog/[slug] not throwing when concrete routes exist (from docs example)",
-      "assignErrorIfEmpty should handle catch-all routes with different fallback parameter counts (from docs example)",
-      "assignErrorIfEmpty should handle empty input",
-      "assignErrorIfEmpty should handle more complex routes",
-      "assignErrorIfEmpty should handle multiple routes at the same trie node",
-      "assignErrorIfEmpty should handle nested routes with multiple parameter depths",
-      "assignErrorIfEmpty should handle routes at same trie node with different fallback parameter lengths",
-      "calculateFallbackMode should handle single root param correctly",
-      "calculateFallbackMode should prioritize root params over base fallback mode",
-      "calculateFallbackMode should return BLOCKING_STATIC_RENDER when dynamic params are enabled and root params exist",
-      "calculateFallbackMode should return NOT_FOUND when dynamic params are disabled",
-      "calculateFallbackMode should return NOT_FOUND when dynamic params are disabled regardless of root params",
-      "calculateFallbackMode should return NOT_FOUND when dynamic params are enabled but no base fallback mode provided",
-      "calculateFallbackMode should return base fallback mode when dynamic params are enabled and empty root params",
-      "calculateFallbackMode should return base fallback mode when dynamic params are enabled and no root params",
-      "filterUniqueParams should filter out duplicate parameters",
-      "filterUniqueParams should handle more complex routes",
-      "generateParamPrefixCombinations should handle deep parameter hierarchies",
-      "generateParamPrefixCombinations should handle empty inputs",
-      "generateParamPrefixCombinations should handle empty routeParams with root params",
-      "generateParamPrefixCombinations should handle missing parameter keys in objects",
-      "generateParamPrefixCombinations should handle missing root params gracefully",
-      "generateParamPrefixCombinations should handle multiple route parameters",
-      "generateParamPrefixCombinations should handle parameter value collisions",
-      "generateParamPrefixCombinations should handle parameters with pipe characters",
-      "generateParamPrefixCombinations should handle root params not in route params",
-      "generateParamPrefixCombinations should handle routes without root params normally",
-      "generateParamPrefixCombinations should handle single root param",
-      "generateParamPrefixCombinations should handle test case scenario: route with extra param but missing value",
-      "generateParamPrefixCombinations should handle undefined parameters",
-      "generateParamPrefixCombinations should only generate combinations with complete root params",
-      "generateParamPrefixCombinations should prevent collisions with special characters",
-      "generateParamPrefixCombinations should return only the route parameters",
-      "generateRouteStaticParams Array parameter values should handle array parameter values",
-      "generateRouteStaticParams Array parameter values should handle mixed array and string parameters",
-      "generateRouteStaticParams Basic functionality should process multiple segments with generateStaticParams",
-      "generateRouteStaticParams Basic functionality should process single segment with generateStaticParams",
-      "generateRouteStaticParams Basic functionality should return empty array for empty segments",
-      "generateRouteStaticParams Basic functionality should return empty array for segments without generateStaticParams",
-      "generateRouteStaticParams Complex real-world scenarios should handle blog with optional catch-all",
-      "generateRouteStaticParams Complex real-world scenarios should handle e-commerce routing pattern",
-      "generateRouteStaticParams Complex real-world scenarios should handle i18n routing pattern",
-      "generateRouteStaticParams Deep nesting scenarios should handle deeply nested segments",
-      "generateRouteStaticParams Deep nesting scenarios should handle many parameter combinations",
-      "generateRouteStaticParams Empty and undefined handling should handle empty generateStaticParams results",
-      "generateRouteStaticParams Empty and undefined handling should handle generateStaticParams returning empty array with parent params",
-      "generateRouteStaticParams Empty and undefined handling should handle missing parameters in parent params",
-      "generateRouteStaticParams Error handling should handle generateStaticParams returning a rejected promise",
-      "generateRouteStaticParams Error handling should handle generateStaticParams throwing an error",
-      "generateRouteStaticParams Error handling should handle partially failing generateStaticParams",
-      "generateRouteStaticParams FetchCache configuration should not modify fetchCache when segment has no fetchCache config",
-      "generateRouteStaticParams FetchCache configuration should set fetchCache on store when segment has fetchCache config",
-      "generateRouteStaticParams FetchCache configuration should update fetchCache for multiple segments",
-      "generateRouteStaticParams Parameter inheritance should handle mixed segments (some with generateStaticParams, some without)",
-      "generateRouteStaticParams Parameter inheritance should inherit parent parameters",
-      "generateRouteStaticParams Performance considerations should handle recursive calls without stack overflow"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/build/webpack/loaders/metadata/resolve-route-data.test.ts": {
-    "passed": [
-      "resolveRouteData resolveRobots should error with ts when specify both wildcard userAgent and specific userAgent",
-      "resolveRouteData resolveRobots should resolve robots.txt",
-      "resolveRouteData resolveSitemap should resolve sitemap.xml",
-      "resolveRouteData resolveSitemap should resolve sitemap.xml with alternates",
-      "resolveRouteData resolveSitemap should resolve sitemap.xml with images",
-      "resolveRouteData resolveSitemap should resolve sitemap.xml with videos"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/build/webpack/plugins/next-types-plugin/index.test.ts": {
-    "passed": [
-      "next-types-plugin should generate correct base import path",
-      "next-types-plugin should generate correct base import path for custom projects",
-      "next-types-plugin should generate correct base import path for nx monorepos"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/bundles/cssnano-simple/cssnano-preset-simple.test.ts": {
-    "passed": [
-      "cssnano accepts plugin configuration should not remove all comments",
-      "cssnano accepts plugin configuration should remove all comments",
-      "https://github.com/Timer/cssnano-preset-simple/issues/1 evaluates without error",
-      "property sorting should result in correct border width",
-      "with escaped selector should not misplace the backslash"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/is-next-router-error.test.ts": {
-    "passed": ["isNextRouterError returns true for a navigation error"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/navigation.test.ts": {
-    "passed": [
-      "next/navigation should be able to construct URLSearchParams from ReadonlyURLSearchParams"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/promise-queue.test.ts": {
-    "passed": [
-      "PromiseQueue should allow bumping a promise to be next in the queue",
-      "PromiseQueue should limit the number of concurrent promises"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/redirect.test.ts": {
-    "passed": ["test should throw a redirect error"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/apply-router-state-patch-to-tree.test.tsx": {
-    "passed": ["applyRouterStatePatchToTree should apply a patch to the tree"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/clear-cache-node-data-for-segment-path.test.tsx": {
-    "passed": [
-      "clearCacheNodeDataForSegmentPath should clear the data property"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/compute-changed-path.test.ts": {
-    "passed": ["computeChangedPath should return the correct path"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/create-href-from-url.test.ts": {
-    "passed": [
-      "createHrefFromUrl adds hash",
-      "createHrefFromUrl adds pathname",
-      "createHrefFromUrl adds pathname, searchParams, and hash",
-      "createHrefFromUrl adds searchParams",
-      "createHrefFromUrl returns a string"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/create-initial-router-state.test.tsx": {
-    "passed": [
-      "createInitialRouterState should return the correct initial router state"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/create-router-cache-key.test.ts": {
-    "passed": [
-      "createRouterCacheKey should support catch all segment",
-      "createRouterCacheKey should support dynamic segment",
-      "createRouterCacheKey should support string segment"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/fill-cache-with-new-subtree-data.test.tsx": {
-    "passed": [
-      "fillCacheWithNewSubtreeData should apply rsc and head property"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/fill-lazy-items-till-leaf-with-head.test.tsx": {
-    "passed": [
-      "fillLazyItemsTillLeafWithHead should fill lazy items till leaf with head"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/get-segment-value.test.ts": {
-    "passed": [
-      "getSegmentValue should support catch all segment",
-      "getSegmentValue should support dynamic segment",
-      "getSegmentValue should support string segment"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/invalidate-cache-below-flight-segmentpath.test.tsx": {
-    "passed": [
-      "invalidateCacheBelowFlightSegmentPath should invalidate cache below flight segment path"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/invalidate-cache-by-router-state.test.tsx": {
-    "passed": [
-      "invalidateCacheByRouterState should invalidate the cache by router state"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/is-navigating-to-new-root-layout.test.ts": {
-    "passed": [
-      "isNavigatingToNewRootLayout should return false if there is no new root layout",
-      "isNavigatingToNewRootLayout should return true if there is a mismatch between the root layouts"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/reducers/find-head-in-cache.test.tsx": {
-    "passed": ["findHeadInCache should find the head"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/components/router-reducer/should-hard-navigate.test.tsx": {
-    "passed": [
-      "shouldHardNavigate should return false if segments are dynamic and match",
-      "shouldHardNavigate should return false if the segments match",
-      "shouldHardNavigate should return true if segments are dynamic and mismatch"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/client/flight-data-helpers.test.ts": {
-    "passed": [
-      "prepareFlightRouterStateForRequest HMR refresh handling should preserve complete state for HMR refresh requests",
-      "prepareFlightRouterStateForRequest URL stripping should always set URL (index 2) to null",
-      "prepareFlightRouterStateForRequest __PAGE__ segment handling should preserve dynamic segments",
-      "prepareFlightRouterStateForRequest __PAGE__ segment handling should preserve non-page segments",
-      "prepareFlightRouterStateForRequest __PAGE__ segment handling should strip search params from __PAGE__ segments",
-      "prepareFlightRouterStateForRequest optional fields preservation should handle minimal FlightRouterState (only segment and parallelRoutes)",
-      "prepareFlightRouterStateForRequest optional fields preservation should preserve hasLoadingBoundary",
-      "prepareFlightRouterStateForRequest optional fields preservation should preserve isRootLayout when false",
-      "prepareFlightRouterStateForRequest optional fields preservation should preserve isRootLayout when true",
-      "prepareFlightRouterStateForRequest real-world scenarios should handle complex FlightRouterState with all features",
-      "prepareFlightRouterStateForRequest recursive processing of parallel routes should handle deeply nested parallel routes",
-      "prepareFlightRouterStateForRequest recursive processing of parallel routes should recursively process nested parallel routes",
-      "prepareFlightRouterStateForRequest refresh marker handling should preserve \"inside-shared-layout\" marker",
-      "prepareFlightRouterStateForRequest refresh marker handling should preserve \"refetch\" marker",
-      "prepareFlightRouterStateForRequest refresh marker handling should strip \"refresh\" marker (client-only)",
-      "prepareFlightRouterStateForRequest refresh marker handling should strip null refresh marker"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/diagnostics/build-diagnostics.test.ts": {
-    "passed": [
-      "build-diagnostics records build diagnostics to a file correctly",
-      "build-diagnostics records framework version to framework.json correctly"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/experimental/testing/server/config-testing-utils.test.ts": {
-    "passed": [
-      "config-testing-utils basePath",
-      "config-testing-utils headers simple match",
-      "config-testing-utils redirects handles redirect",
-      "config-testing-utils redirects handles redirect with params",
-      "config-testing-utils redirects handles redirect with query params",
-      "config-testing-utils redirects ignores redirect that doesn't match has",
-      "config-testing-utils redirects redirects take precedence over rewrites",
-      "config-testing-utils redirects redirects with has and missing",
-      "config-testing-utils returns 200 for paths that do not match",
-      "config-testing-utils rewrites beforeFiles rewrites take precedence over afterFiles and fallback",
-      "config-testing-utils rewrites handles rewrite"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/experimental/testing/server/middleware-testing-utils.test.ts": {
-    "passed": [
-      "unstable_doesMiddlewareMatch basePath correctly picks up basePath from nextConfig",
-      "unstable_doesMiddlewareMatch has condition cookies matches only when the cookie is present",
-      "unstable_doesMiddlewareMatch has condition header matches only when the header is present",
-      "unstable_doesMiddlewareMatch has condition query params matches only when the query parameter is present",
-      "unstable_doesMiddlewareMatch matches everything when no matcher is provided",
-      "unstable_doesMiddlewareMatch matches only valid paths in the config",
-      "unstable_doesMiddlewareMatch matches regular expressions",
-      "unstable_doesMiddlewareMatch missing condition cookies matches only when the cookie is missing",
-      "unstable_doesMiddlewareMatch missing condition header matches only when the header is missing",
-      "unstable_doesMiddlewareMatch missing condition query params matches only when the query parameter is missing"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/lib/batcher.test.ts": {
-    "passed": [
-      "Batcher batch should batch multiple calls to the same key",
-      "Batcher batch should execute the work function immediately",
-      "Batcher batch should not batch calls to different keys",
-      "Batcher batch should use the cacheKeyFn to generate cache keys",
-      "Batcher batch should use the schedulerFn to schedule work"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/lib/find-config.test.ts": {
-    "passed": [
-      "findConfig() should load config properly from *.config.* file (type: \"commonjs\", config: awsome.config.cjs)",
-      "findConfig() should load config properly from *.config.* file (type: \"commonjs\", config: awsome.config.js)",
-      "findConfig() should load config properly from *.config.* file (type: \"commonjs\", config: awsome.config.mjs)",
-      "findConfig() should load config properly from *.config.* file (type: \"module\", config: awsome.config.cjs)",
-      "findConfig() should load config properly from *.config.* file (type: \"module\", config: awsome.config.js)",
-      "findConfig() should load config properly from *.config.* file (type: \"module\", config: awsome.config.mjs)",
-      "findConfig() should load config properly from the config in package.json)"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/lib/format-server-error.test.ts": {
-    "passed": ["formatServerError should not append message several times"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/lib/load-custom-routes.test.ts": {
-    "passed": [
-      "loadCustomRoutes rewrites array rewrites should be added to afterFiles",
-      "loadCustomRoutes rewrites assetPrefix automatically insert assetPrefix rewrite for /_next/ paths when assetPrefix is absolute URL with a path",
-      "loadCustomRoutes rewrites assetPrefix automatically inserts assetPrefix rewrite for /_next/ paths",
-      "loadCustomRoutes rewrites assetPrefix automatically inserts assetPrefix rewrite for /_next/ paths for basePath",
-      "loadCustomRoutes rewrites assetPrefix automatically inserts assetPrefix rewrite for /_next/ paths when rewrites() is not present",
-      "loadCustomRoutes rewrites assetPrefix does not add rewrite when assetPrefix === basePath",
-      "loadCustomRoutes rewrites assetPrefix does not insert assetPrefix rewrite for /_next/ paths when assetPrefix is absolute URL",
-      "loadCustomRoutes rewrites missing rewrites should not throw",
-      "loadCustomRoutes rewrites rewrites should be preserved correctly"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/lib/metadata/is-metadata-route.test.ts": {
-    "passed": [
-      "getExtensionRegexString with dynamic extensions should not handle js extensions with empty dynamic extensions",
-      "getExtensionRegexString with dynamic extensions should not handle js extensions with passing null for dynamic extensions",
-      "getExtensionRegexString with dynamic extensions should return the correct regex",
-      "getExtensionRegexString without dynamic extensions should return the correct regex",
-      "isMetadataPage should match metadata page path",
-      "isMetadataPage should not match app router page path or error boundary path",
-      "isMetadataRoute should match grouped metadata routes",
-      "isMetadataRoute should match metadata routes",
-      "isMetadataRoute should require suffix for metadata routes",
-      "isMetadataRoute should support metadata variant numeric suffix",
-      "isMetadataRouteFile match file - with extension should match dynamic metadata routes",
-      "isMetadataRouteFile match file - with extension should match static metadata route files",
-      "isMetadataRouteFile match route - without extension should match metadata route page paths"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/lib/metadata/resolve-metadata.test.ts": {
-    "passed": [
-      "accumulateMetadata alternate should support URL alternate canonical with search params",
-      "accumulateMetadata alternate should support alternate descriptors",
-      "accumulateMetadata alternate should support string alternate",
-      "accumulateMetadata alternate should support string alternate canonical with search params",
-      "accumulateMetadata icon should resolve icons.apple",
-      "accumulateMetadata icon should resolve icons.icon correctly",
-      "accumulateMetadata itunes should resolve relative url starting with ./ with pathname for itunes.appArgument",
-      "accumulateMetadata openGraph and twitter should convert string or URL images field to array, not only for basic og type",
-      "accumulateMetadata openGraph and twitter should fill only the existing props from openGraph to twitter",
-      "accumulateMetadata openGraph and twitter should fill twitter with partial existing openGraph metadata",
-      "accumulateMetadata openGraph and twitter should inherit metadata title description into openGraph or twitter if they are configured",
-      "accumulateMetadata openGraph and twitter should override openGraph or twitter images when current layer specifies social images properties",
-      "accumulateMetadata openGraph and twitter should prefer title and description from openGraph rather than metadata for twitter",
-      "accumulateMetadata openGraph and twitter should resolve relative url starting with ./ with pathname for openGraph.url",
-      "accumulateMetadata title should merge title with page title",
-      "accumulateMetadata title should merge title with parent layout ",
-      "accumulateMetadata typing should support both sync and async metadata",
-      "accumulateViewport themeColor should support string theme color",
-      "accumulateViewport themeColor should support theme color descriptors",
-      "accumulateViewport viewport should skip viewport.initialScale if it is set undefined explicitly",
-      "accumulateViewport viewport should support viewport descriptors"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/lib/metadata/resolvers/resolve-opengraph.test.ts": {
-    "passed": [
-      "resolveImages should filter out invalid images",
-      "resolveImages should not mutate passed images",
-      "resolveImages should resolve images",
-      "resolveOpenGraph should return null if the value is an empty string",
-      "resolveOpenGraph should return null if the value is null"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/lib/metadata/resolvers/resolve-title.test.ts": {
-    "passed": [
-      "resolveTitle should resolve nullable template as empty string title",
-      "resolveTitle should resolve title with template"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/lib/metadata/resolvers/resolve-url.test.ts": {
-    "passed": [
-      "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should prefer branch url in preview deployment if presents",
-      "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return local url in local build mode",
-      "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return localhost url in local build mode with experimental https",
-      "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return localhost url in local dev mode",
-      "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return localhost url in local dev mode with experimental https",
-      "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return project production url in production deployment",
-      "getSocialImageFallbackMetadataBase fallbackMetadataBase when metadataBase is not present should return vercel url in preview deployment if only it presents",
-      "metadata: resolveUrl should compose with metadataBase when url is relative or absolute",
-      "metadata: resolveUrl should ignore metadataBase when url is valid URL",
-      "metadata: resolveUrl should return null when url is falsy",
-      "metadata: resolveUrl should return url itself when metadataBase is null or url is valid URL",
-      "resolveAbsoluteUrlWithPathname trailingSlash is false should resolve absolute internal url",
-      "resolveAbsoluteUrlWithPathname trailingSlash is true should add trailing slash to absolute internal url",
-      "resolveAbsoluteUrlWithPathname trailingSlash is true should add trailing slash to relative url",
-      "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to absolute internal url with query",
-      "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to external url",
-      "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to relative url that matches file pattern",
-      "resolveAbsoluteUrlWithPathname trailingSlash is true should not add trailing slash to relative url with query"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/lib/typescript/writeConfigurationDefaults.test.ts": {
-    "passed": [
-      "writeConfigurationDefaults() appDir applies suggested and mandatory defaults to existing tsconfig.json and logs them",
-      "writeConfigurationDefaults() appDir does not warn about disabled strict mode if strict mode was already enabled",
-      "writeConfigurationDefaults() appDir with tsconfig extends should not add strictNullChecks if base provides it",
-      "writeConfigurationDefaults() appDir with tsconfig extends should replace includes when base is missing appTypes",
-      "writeConfigurationDefaults() appDir with tsconfig extends should support empty includes when base provides it"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/next-devtools/dev-overlay/components/code-frame/parse-code-frame.test.ts": {
-    "passed": [
-      "parse line numbers parse line numbers from code frame",
-      "parse line numbers parse line numbers when a token contains both break and spaces"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/next-devtools/dev-overlay/components/errors/error-overlay-layout/error-overlay-layout.test.tsx": {
-    "passed": [
-      "ErrorOverlayLayout Component renders ErrorOverlayLayout with provided props",
-      "ErrorOverlayLayout Component sends feedback when clicking helpful button",
-      "ErrorOverlayLayout Component sends feedback when clicking not helpful button",
-      "ErrorOverlayLayout Component voting buttons have aria-hidden icons"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/next-devtools/dev-overlay/segment-explorer-trie.test.tsx": {
-    "passed": [
-      "Segment Explorer add complex structure",
-      "Segment Explorer remove node in the middle"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/next-devtools/dev-overlay/utils/css.test.ts": {
-    "passed": [
-      "css template literal tag should combines strings and interpolations correctly",
-      "css template literal tag should handle CSS wildcard selector",
-      "css template literal tag should handle empty strings",
-      "css template literal tag should handle multiple interpolations",
-      "css template literal tag should remove CSS comments",
-      "css template literal tag should remove all whitespace",
-      "css template literal tag should remove multiline comments"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/next-devtools/dev-overlay/utils/cx.test.ts": {
-    "passed": [
-      "cx should filter out falsy values",
-      "cx should handle all falsy values",
-      "cx should handle single string argument",
-      "cx should join multiple string arguments with spaces",
-      "cx should not add extra spaces when falsy values are between strings",
-      "cx should return an empty string for no arguments"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/next-devtools/dev-overlay/utils/parse-url-from-text.test.ts": {
-    "passed": [
-      "parseUrlFromText should extract a URL from text",
-      "parseUrlFromText should extract multiple URLs from text",
-      "parseUrlFromText should filter URLs using matcherFunc",
-      "parseUrlFromText should handle URLs with paths and query parameters",
-      "parseUrlFromText should handle empty string input",
-      "parseUrlFromText should return empty array when no URLs are found"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/next-devtools/server/get-next-error-feedback-middleware.test.ts": {
-    "passed": [
-      "getNextErrorFeedbackMiddleware calls next() if path does not match",
-      "getNextErrorFeedbackMiddleware records telemetry when feedback is submitted",
-      "getNextErrorFeedbackMiddleware returns 400 if params are missing",
-      "getNextErrorFeedbackMiddleware returns 500 if telemetry recording fails"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/next-devtools/server/launch-editor.test.ts": {
-    "passed": ["applescript string escaping should escape strings correctly"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/next-devtools/shared/webpack-module-path.test.ts": {
-    "passed": [
-      "webpack-module-path formatFrameSourceFile should return the original file path",
-      "webpack-module-path isWebpackInternalResource should return false for non-webpack-internal paths",
-      "webpack-module-path isWebpackInternalResource should return true for webpack-internal paths"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/next-devtools/userspace/app/forward-logs.test.ts": {
-    "passed": [
-      "forward-logs serialization logStringify should handle objects with circular references",
-      "forward-logs serialization logStringify should return UNAVAILABLE_MARKER on stringify failure",
-      "forward-logs serialization logStringify should stringify safe cloned data",
-      "forward-logs serialization safeClone should handle array items that throw",
-      "forward-logs serialization safeClone should handle arrays",
-      "forward-logs serialization safeClone should handle circular references",
-      "forward-logs serialization safeClone should handle non-plain objects as toString",
-      "forward-logs serialization safeClone should handle objects with getters that throw",
-      "forward-logs serialization safeClone should handle plain objects",
-      "forward-logs serialization safeClone should handle primitive values and null",
-      "forward-logs serialization safeClone should handle promises"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/after/after-context.test.ts": {
-    "passed": [
-      "AfterContext does NOT shadow workAsyncStorage within after callbacks",
-      "AfterContext does not hang forever if onClose failed",
-      "AfterContext preserves the ALS context the callback was created in",
-      "AfterContext runs after() callbacks added within an after()",
-      "AfterContext runs after() callbacks from a run() callback that resolves",
-      "AfterContext runs after() callbacks from a run() callback that streams",
-      "AfterContext runs after() callbacks from a run() callback that throws",
-      "AfterContext runs all after() callbacks even if some of them threw",
-      "AfterContext throws from after() if waitUntil is not provided"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/after/awaiter.test.ts": {
-    "passed": [
-      "AwaiterOnce does not allow calling waitUntil after it's been awaited",
-      "AwaiterOnce/AwaiterMulti AwaiterMulti awaits promises added by other promises",
-      "AwaiterOnce/AwaiterMulti AwaiterMulti calls onError for rejected promises",
-      "AwaiterOnce/AwaiterMulti AwaiterOnce awaits promises added by other promises",
-      "AwaiterOnce/AwaiterMulti AwaiterOnce calls onError for rejected promises"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/app-render/action-handler.test.ts": {
-    "passed": [
-      "parseHostHeader should return correct host",
-      "parseHostHeader should return correct x-forwarded-host when provided in array",
-      "parseHostHeader should return whichever matches provided origin",
-      "parseHostHeader should return x-forwarded-host over host header"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/app-render/csrf-protection.test.ts": {
-    "passed": [
-      "isCsrfOriginAllowed should correctly handle origins that don't have a TLD (eg for localhost)",
-      "isCsrfOriginAllowed should return false when allowedOrigins contains originDomain with non-matching pattern",
-      "isCsrfOriginAllowed should return false when allowedOrigins does not contain originDomain",
-      "isCsrfOriginAllowed should return false when allowedOrigins is empty",
-      "isCsrfOriginAllowed should return false when allowedOrigins is empty string",
-      "isCsrfOriginAllowed should return false when allowedOrigins is undefined",
-      "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain",
-      "isCsrfOriginAllowed should return true when allowedOrigins contains originDomain with matching pattern",
-      "isCsrfOriginAllowed wildcards are only supported below the domain level"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/app-render/postponed-state.test.ts": {
-    "passed": [
-      "getDynamicDataPostponedState serializes a data postponed state with fallback params",
-      "getDynamicHTMLPostponedState can serialize and deserialize a HTML postponed state with fallback params",
-      "getDynamicHTMLPostponedState serializes a HTML postponed state with fallback params",
-      "getDynamicHTMLPostponedState serializes a HTML postponed state without fallback params",
-      "parsePostponedState parses a HTML postponed state with fallback params",
-      "parsePostponedState parses a HTML postponed state without fallback params",
-      "parsePostponedState parses a data postponed state"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/app-render/types.test.ts": {
-    "passed": [
-      "flightRouterStateSchema should not validate an incorrect flight router state",
-      "flightRouterStateSchema should validate a correct flight router state"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/base-http/web.test.ts": {
-    "passed": [
-      "WebNextResponse onClose stream body",
-      "WebNextResponse onClose string body"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/config.test.ts": {
-    "passed": [
-      "loadConfig canary-only features errors when using PPR if not in canary",
-      "loadConfig canary-only features errors when using cacheComponents if not in canary",
-      "loadConfig canary-only features errors when using persistentCaching if not in canary",
-      "loadConfig canary-only features should not print a stack trace when throwing an error",
-      "loadConfig nextConfig.images defaults should assign a `images.remotePatterns` when using assetPrefix",
-      "loadConfig nextConfig.images defaults should not assign a duplicate `images.remotePatterns` value when using assetPrefix",
-      "loadConfig with a canary version errors when cacheComponents is enabled but PPR is disabled",
-      "loadConfig with a canary version errors when cacheComponents is enabled but PPR set to \"incremental\"",
-      "loadConfig with a canary version migrates experimental.dynamicIO to experimental.cacheComponents",
-      "loadConfig with a canary version preserves cacheComponents when both dynamicIO and cacheComponents are set",
-      "loadConfig with a canary version warns when using deprecated experimental.dynamicIO"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/dev/browser-logs/receive-logs.test.ts": {
-    "passed": [
-      "stripFormatSpecifiers should handle % at end of string",
-      "stripFormatSpecifiers should handle escaped percent signs",
-      "stripFormatSpecifiers should only process when first arg is string containing %",
-      "stripFormatSpecifiers should preserve excess arguments after all specifiers consumed",
-      "stripFormatSpecifiers should replace format specifiers with their arguments",
-      "stripFormatSpecifiers should strip CSS styling from %c format specifier"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/dev/log-requests.test.ts": {
-    "passed": [
-      "ignoreLoggingIncomingRequests should handle array of RegExp ignore patterns",
-      "ignoreLoggingIncomingRequests should not ignore when no ignore patterns configured",
-      "ignoreLoggingIncomingRequests should respect boolean config"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/dev/parse-version-info.test.ts": {
-    "passed": [
-      "parse version info installed: 12.0.0, latest: 13.1.1, canary: 13.0.1-canary.0 yields stale-major",
-      "parse version info installed: 13.0.0, latest: 12.0.0, canary: 12.0.1-canary.0 yields newer-than-npm",
-      "parse version info installed: 13.0.0, latest: 13.1.0, canary: 13.1.1-canary.0 yields stale-minor",
-      "parse version info installed: 13.0.0, latest: 13.1.0, canary: invalid yields unknown",
-      "parse version info installed: 13.0.0, latest: invalid, canary: 13.0.1-canary.0 yields unknown",
-      "parse version info installed: 13.0.1-canary.0, latest: 13.0.0, canary: 13.0.1-canary.1 yields stale-prerelease",
-      "parse version info installed: 13.0.1-canary.0, latest: 13.0.0, canary: 13.1.0-canary.0 yields stale-prerelease",
-      "parse version info installed: 13.0.1-canary.8, latest: 13.0.0, canary: 13.0.1-canary.7 yields newer-than-npm",
-      "parse version info installed: 13.1.0, latest: 13.1.0, canary: 13.1.1-canary.0 yields fresh",
-      "parse version info installed: 13.1.1, latest: 13.1.2, canary: 13.1.3-canary.0 yields stale-patch",
-      "parse version info installed: 13.1.1-canary.7, latest: 13.1.0, canary: 13.1.1-canary.7 yields fresh",
-      "parse version info installed: invalid, latest: 13.0.1, canary: 13.0.1-canary.0 yields unknown"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/experimental/create-env-definitions.test.ts": {
-    "passed": [
-      "create-env-definitions should allow empty env",
-      "create-env-definitions should create env definitions",
-      "create-env-definitions should dedupe env definitions in order of priority"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/fix-mojibake.test.ts": {
-    "passed": [
-      "Mojibake handling should fix invalid encoding",
-      "Mojibake handling should maintain value when encoding is correct $1"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/i18n-provider.test.ts": {
-    "passed": [
-      "I18NProvider analyze for pathname / and defaultLocale en",
-      "I18NProvider analyze for pathname /another/page and defaultLocale en",
-      "I18NProvider analyze for pathname /en and defaultLocale en",
-      "I18NProvider analyze for pathname /en-CA and defaultLocale en",
-      "I18NProvider analyze for pathname /en-CA/another/page and defaultLocale en",
-      "I18NProvider analyze for pathname /en/another/page and defaultLocale en",
-      "I18NProvider analyze for pathname /fr and defaultLocale en",
-      "I18NProvider analyze for pathname /fr/another/page and defaultLocale en",
-      "I18NProvider detectDomainLocale for domain example.ca",
-      "I18NProvider detectDomainLocale for domain example.com",
-      "I18NProvider detectDomainLocale for domain example.de",
-      "I18NProvider detectDomainLocale for domain example.fr",
-      "I18NProvider should detect the correct domain locale"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/incremental-cache/shared-cache-controls.external.test.ts": {
-    "passed": [
-      "SharedCacheControls should clear the in-memory cache",
-      "SharedCacheControls should get cache control from in-memory cache",
-      "SharedCacheControls should get cache control from prerender manifest for dynamic route with fallback",
-      "SharedCacheControls should get cache control from prerender manifest if not in cache",
-      "SharedCacheControls should return undefined if cache control not found",
-      "SharedCacheControls should set cache control in cache"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/mock-request.test.ts": {
-    "passed": [
-      "MockedRequest should have the correct properties",
-      "MockedResponse should handle set-cookie headers correctly",
-      "MockedResponse should merge headers correctly when calling writeHead",
-      "MockedResponse should update the statusMessage after calling writeHead"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/patch-fetch.test.ts": {
-    "passed": ["createPatchedFetcher should not buffer a streamed response"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/router-utils/build-data-route.test.ts": {
-    "passed": [
-      "buildDataRoute should build a dynamic data route",
-      "buildDataRoute should build a static data route"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/router-utils/build-prefetch-segment-data-route.test.ts": {
-    "passed": [
-      "buildInversePrefetchSegmentDataRoute should build an inverted prefetch segment data route",
-      "buildPrefetchSegmentDataRoute should build a prefetch segment data route"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/router-utils/decode-path-params.test.ts": {
-    "passed": [
-      "decoding path params should decode path params",
-      "decoding path params should throw an error when the path param is improperly encoded"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/source-maps.test.ts": {
-    "passed": [
-      "does not hide sandwiches without a lid",
-      "does not ignore list anonymous frames by default",
-      "does not ignore list anonymous frames that are not likely JS native methods",
-      "does not ignore list anonymous frames where the bottom is shown",
-      "does not ignore list if bottom is not ignore-listed",
-      "does not ignore list if bottom is unknown",
-      "does not ignore list if top is not ignore-listed",
-      "does not ignore list if top is unknown",
-      "hides big macs",
-      "hides big sandwiches",
-      "hides small sandwiches"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/to-route.test.ts": {
-    "passed": [
-      "toRoute Function should remove trailing `/index`",
-      "toRoute Function should remove trailing slash",
-      "toRoute Function should return `/` when input is `/index/`",
-      "toRoute Function should return `/` when input is `/index`",
-      "toRoute Function should return `/` when input is empty",
-      "toRoute Function should return `/` when input is only a slash"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/lib/utils.test.ts": {
-    "passed": [
-      "formatNodeOptions wraps values with spaces in quotes",
-      "getFormattedNodeOptionsWithoutInspect handles options with quotes",
-      "getFormattedNodeOptionsWithoutInspect handles options with spaces",
-      "getFormattedNodeOptionsWithoutInspect ignores unrelated options starting with --inspect-",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect option",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect option at end of line",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect option with parameters",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect-brk option",
-      "getFormattedNodeOptionsWithoutInspect removes --inspect-brk option with parameters",
-      "getParsedDebugAddress supports the flag with an equal sign",
-      "getParsedDebugAddress supports the flag without an equal sign",
-      "tokenizeArgs splits arguments by spaces",
-      "tokenizeArgs supports quoted values"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/load-manifest.test.ts": {
-    "passed": [
-      "loadManifest should cache the manifest when not already cached",
-      "loadManifest should freeze the manifest when caching",
-      "loadManifest should load the manifest from the file system when not cached",
-      "loadManifest should return the cached manifest when available",
-      "loadManifest should throw an error when the manifest file cannot be read"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/node-polyfill-crypto.test.ts": {
-    "passed": ["node-polyfill-crypto overwrite crypto"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/normalizers/absolute-filename-normalizer.test.ts": {
-    "passed": [
-      "AbsoluteFilenameNormalizer normalizes '<root>/app/basic/(grouped)/endpoint/nested/route.ts' to '/basic/(grouped)/endpoint/nested/route'",
-      "AbsoluteFilenameNormalizer normalizes '<root>/pages/basic/endpoint/index.ts' to '/basic/endpoint'",
-      "AbsoluteFilenameNormalizer normalizes '<root>/pages/basic/endpoint/nested.ts' to '/basic/endpoint/nested'"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/normalizers/request/base-path.test.ts": {
-    "passed": [
-      "BasePathPathnameNormalizer should throw when provided with a basePath of \"/\"",
-      "BasePathPathnameNormalizer should throw when provided with a blank basePath"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/normalizers/request/next-data.test.ts": {
-    "passed": [
-      "NextDataPathnameNormalizer constructor should error when no buildID is provided",
-      "NextDataPathnameNormalizer match should return false if the pathname does not start with the prefix",
-      "NextDataPathnameNormalizer match should return false if the pathname only ends with `.json`",
-      "NextDataPathnameNormalizer match should return true if it matches",
-      "NextDataPathnameNormalizer normalize should normalize `/index` to `/`",
-      "NextDataPathnameNormalizer normalize should return the same pathname if we are not matched and the pathname does not start with the prefix",
-      "NextDataPathnameNormalizer normalize should strip the prefix and the `.json` extension from the pathname when it matches"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/normalizers/request/prefetch-rsc.test.ts": {
-    "passed": [
-      "PrefetchRSCPathnameNormalizer should match the prefetch rsc pathname",
-      "PrefetchRSCPathnameNormalizer should normalize the prefetch rsc index pathname",
-      "PrefetchRSCPathnameNormalizer should normalize the prefetch rsc pathname",
-      "PrefetchRSCPathnameNormalizer should not match the prefetch rsc pathname with a different suffix"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/normalizers/request/prefix.test.ts": {
-    "passed": [
-      "PrefixPathnameNormalizer match should return false if the pathname does not start with the prefix",
-      "PrefixPathnameNormalizer match should return true if the pathname starts with the prefix",
-      "PrefixPathnameNormalizer normalize should return the same pathname if we are not matched and the pathname does not start with the prefix",
-      "PrefixPathnameNormalizer normalize should strip the prefix from the pathname when it matches",
-      "PrefixPathnameNormalizer should throw if the prefix ends with a slash"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/normalizers/request/segment-prefix-rsc.test.ts": {
-    "passed": [
-      "SegmentPrefixRSCPathnameNormalizer should match and extract the original pathname and segment path"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/normalizers/request/suffix.test.ts": {
-    "passed": [
-      "SuffixPathnameNormalizer match should return false if the pathname does not end with `.rsc`",
-      "SuffixPathnameNormalizer match should return true if it matches",
-      "SuffixPathnameNormalizer normalize should return the same pathname if we are not matched and the pathname does not end with `.rsc`",
-      "SuffixPathnameNormalizer normalize should strip the `.rsc` extension from the pathname when it matches"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/resume-data-cache/resume-data-cache.test.ts": {
-    "passed": [
-      "parseResumeDataCache parses a cache with a single entry",
-      "parseResumeDataCache parses an empty cache",
-      "stringifyResumeDataCache serializes a cache with a single entry",
-      "stringifyResumeDataCache serializes a cache with a single entry that fails",
-      "stringifyResumeDataCache serializes an empty cache"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/route-matcher-managers/default-route-matcher-manager.test.ts": {
-    "passed": [
-      "DefaultRouteMatcherManager calls the locale route matcher when one is provided",
-      "DefaultRouteMatcherManager can handle locale aware matchers for /en-US/some/path and locale en-US",
-      "DefaultRouteMatcherManager can handle locale aware matchers for /nl-NL/some/path and locale nl-NL",
-      "DefaultRouteMatcherManager can handle locale aware matchers for /some/path and locale {\"inferredFromDefault\": false, \"pathname\": \"/some/path\"}",
-      "DefaultRouteMatcherManager will match a route that is not locale aware when it was inferred from the default locale",
-      "DefaultRouteMatcherManager will not error and not match when no matchers are provided",
-      "DefaultRouteMatcherManager will throw an error when used before it has been reloaded"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/route-matcher-providers/app-page-route-matcher-provider.test.ts": {
-    "passed": [
-      "AppPageRouteMatcherProvider manifest matching returns the correct routes for /",
-      "AppPageRouteMatcherProvider manifest matching returns the correct routes for /about",
-      "AppPageRouteMatcherProvider manifest matching returns the correct routes for /dashboard/users",
-      "AppPageRouteMatcherProvider manifest matching returns the correct routes for /dashboard/users/[id]",
-      "AppPageRouteMatcherProvider returns no routes with an empty manifest"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/route-matcher-providers/app-route-route-matcher-provider.test.ts": {
-    "passed": [
-      "AppRouteRouteMatcherProvider manifest matching returns the correct routes for /",
-      "AppRouteRouteMatcherProvider manifest matching returns the correct routes for /users",
-      "AppRouteRouteMatcherProvider manifest matching returns the correct routes for /users/[id]",
-      "AppRouteRouteMatcherProvider returns no routes with an empty manifest"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/route-matcher-providers/dev/dev-app-page-route-matcher-provider.test.ts": {
-    "passed": [
-      "DevAppPageRouteMatcher turbopack filename matching matches the '/(marketing)/about/page' route specified with the provided files",
-      "DevAppPageRouteMatcher turbopack filename matching matches the '/_notignored/page' route specified with the provided files",
-      "DevAppPageRouteMatcher turbopack filename matching matches the '/page' route specified with the provided files",
-      "DevAppPageRouteMatcher turbopack filename matching matches the '/some/other/page' route specified with the provided files",
-      "DevAppPageRouteMatcher turbopack returns no routes with an empty filesystem",
-      "DevAppPageRouteMatcher webpack filename matching matches the '/%5Fnotignored/page' route specified with the provided files",
-      "DevAppPageRouteMatcher webpack filename matching matches the '/(marketing)/about/page' route specified with the provided files",
-      "DevAppPageRouteMatcher webpack filename matching matches the '/page' route specified with the provided files",
-      "DevAppPageRouteMatcher webpack filename matching matches the '/some/other/page' route specified with the provided files",
-      "DevAppPageRouteMatcher webpack returns no routes with an empty filesystem"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/route-matcher-providers/dev/dev-app-route-route-matcher-provider.test.ts": {
-    "passed": [
-      "DevAppRouteRouteMatcher turbopack filename matching matches the '/_notignored/route' route specified with the provided files",
-      "DevAppRouteRouteMatcher turbopack filename matching matches the '/route' route specified with the provided files",
-      "DevAppRouteRouteMatcher turbopack filename matching matches the '/some/other/route' route specified with the provided files",
-      "DevAppRouteRouteMatcher turbopack returns no routes with an empty filesystem",
-      "DevAppRouteRouteMatcher webpack filename matching matches the '/%5Fnotignored/route' route specified with the provided files",
-      "DevAppRouteRouteMatcher webpack filename matching matches the '/route' route specified with the provided files",
-      "DevAppRouteRouteMatcher webpack filename matching matches the '/some/other/route' route specified with the provided files",
-      "DevAppRouteRouteMatcher webpack returns no routes with an empty filesystem"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/route-matcher-providers/dev/dev-pages-api-route-matcher-provider.test.ts": {
-    "passed": [
-      "DevPagesAPIRouteMatcherProvider filename matching matches the '/api' route specified with the provided files",
-      "DevPagesAPIRouteMatcherProvider filename matching matches the '/api/other' route specified with the provided files",
-      "DevPagesAPIRouteMatcherProvider filename matching matches the '/api/other/route' route specified with the provided files",
-      "DevPagesAPIRouteMatcherProvider returns no routes with an empty filesystem"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/route-matcher-providers/dev/dev-pages-route-matcher-provider.test.ts": {
-    "passed": [
-      "DevPagesRouteMatcherProvider filename matching matches the '/' route specified with the provided files",
-      "DevPagesRouteMatcherProvider filename matching matches the '/some/api/route' route specified with the provided files",
-      "DevPagesRouteMatcherProvider filename matching matches the '/some/other/route' route specified with the provided files",
-      "DevPagesRouteMatcherProvider filename matching matches the '/some/other/route/index/route' route specified with the provided files",
-      "DevPagesRouteMatcherProvider returns no routes with an empty filesystem"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/route-matcher-providers/dev/helpers/file-reader/batched-file-reader.test.ts": {
-    "passed": [
-      "CachedFileReader will only scan the filesystem a minimal amount of times",
-      "CachedFileReader will send an error back only to the correct reader"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/route-matcher-providers/pages-api-route-matcher-provider.test.ts": {
-    "passed": [
-      "PagesAPIRouteMatcherProvider manifest matching returns the correct routes for /api",
-      "PagesAPIRouteMatcherProvider manifest matching returns the correct routes for /api/users",
-      "PagesAPIRouteMatcherProvider manifest matching returns the correct routes for /api/users/[id]",
-      "PagesAPIRouteMatcherProvider returns no routes with an empty manifest"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/route-matcher-providers/pages-route-matcher-provider.test.ts": {
-    "passed": [
-      "PagesRouteMatcherProvider locale matching locale has the match for /",
-      "PagesRouteMatcherProvider locale matching locale has the match for /404",
-      "PagesRouteMatcherProvider locale matching locale has the match for /blog/[slug]",
-      "PagesRouteMatcherProvider manifest matching returns the correct routes for /",
-      "PagesRouteMatcherProvider manifest matching returns the correct routes for /users",
-      "PagesRouteMatcherProvider manifest matching returns the correct routes for /users/[id]",
-      "PagesRouteMatcherProvider returns no routes with an empty manifest"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/route-modules/app-page/helpers/prerender-manifest-matcher.test.ts": {
-    "passed": [
-      "PrerenderManifestMatcher match no match scenarios should return null when no matching route is found",
-      "PrerenderManifestMatcher match no match scenarios should return null when no routes match the fallback source route",
-      "PrerenderManifestMatcher match successful matches should handle when the fallbackSourceRoute is not set",
-      "PrerenderManifestMatcher match successful matches should respect route specificity order"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/server-utils.test.ts": {
-    "passed": [
-      "getParamsFromRouteMatches should handle optional params",
-      "getParamsFromRouteMatches should handle rest params",
-      "getParamsFromRouteMatches should return nothing for a non-dynamic route",
-      "getParamsFromRouteMatches should return the params from the route matches"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/web/spec-extension/adapters/headers.test.ts": {
-    "passed": [
-      "HeadersAdapter case-insensitive should handle different case for header names",
-      "HeadersAdapter case-insensitive should handle different case for header names when mutated out of band",
-      "HeadersAdapter entries should return an iterator of entries",
-      "HeadersAdapter forEach should iterate over all entries",
-      "HeadersAdapter iterator should iterate over all entries",
-      "HeadersAdapter keys should return an iterator of keys",
-      "HeadersAdapter sealed should be able to seal a Headers instance",
-      "HeadersAdapter sealed should be able to seal a HeadersAdapter and still mutate the original",
-      "HeadersAdapter sealed should be able to seal a HeadersAdapter instance",
-      "HeadersAdapter should be able to create a new instance from a Headers",
-      "HeadersAdapter should be able to create a new instance from a HeadersAdapter",
-      "HeadersAdapter should be able to create a new instance from an IncomingHttpHeaders",
-      "HeadersAdapter should be able to create a new instance from an object",
-      "HeadersAdapter should handle multiple values for a header",
-      "HeadersAdapter values should return an iterator of values"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/web/spec-extension/adapters/request-cookies.test.ts": {
-    "passed": [
-      "MutableRequestCookiesAdapter supports chained delete calls and preserves wrapping",
-      "MutableRequestCookiesAdapter supports chained set calls and preserves wrapping",
-      "RequestCookiesAdapter should be able to create a new instance from a RequestCookies",
-      "RequestCookiesAdapter should be able to create a new instance from an empty RequestCookies",
-      "wrapWithMutableAccessCheck prevents deleting cookies in the render phase",
-      "wrapWithMutableAccessCheck prevents setting cookies in the render phase"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/web/utils.test.ts": {
-    "passed": [
-      "toNodeHeaders should handle a single set-cookie header correctly",
-      "toNodeHeaders should handle a single set-cookie header with multiple cookies correctly",
-      "toNodeHeaders should handle mixed case set-cookie headers correctly",
-      "toNodeHeaders should handle multiple set-cookie headers correctly"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/server/web/web-on-close.test.ts": {
-    "passed": [
-      "trackStreamConsumed calls onEnd when the stream errors",
-      "trackStreamConsumed calls onEnd when the stream finishes",
-      "trackStreamConsumed calls onEnd when the stream is cancelled"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/deep-freeze.test.ts": {
-    "passed": [
-      "freeze should freeze an array",
-      "freeze should freeze an object",
-      "freeze should freeze nested arrays",
-      "freeze should freeze nested objects",
-      "freeze should freeze nested objects and arrays"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/get-hostname.test.ts": {
-    "passed": [
-      "getHostname from URL should return 127.0.0.1 for http://127.0.0.1",
-      "getHostname from URL should return 127.0.0.1 for http://127.0.0.1/",
-      "getHostname from URL should return 127.0.0.1 for http://127.0.0.1:3000",
-      "getHostname from URL should return 8.8.8.8 for http://8.8.8.8",
-      "getHostname from URL should return 8.8.8.8 for http://8.8.8.8/",
-      "getHostname from URL should return 8.8.8.8 for http://8.8.8.8:3000",
-      "getHostname from URL should return example.com for http://example.com",
-      "getHostname from URL should return example.com for http://example.com/",
-      "getHostname from URL should return example.com for http://example.com:3000",
-      "getHostname from URL should return example.com for https://example.com",
-      "getHostname from URL should return example.com for https://example.com/",
-      "getHostname from URL should return example.com for https://example.com:3000",
-      "getHostname from URL should return localhost for http://localhost",
-      "getHostname from URL should return localhost for http://localhost/",
-      "getHostname from URL should return localhost for http://localhost:3000",
-      "getHostname should return undefined for empty input"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/normalized-asset-prefix.test.ts": {
-    "passed": [
-      "normalizedAssetPrefix should add a leading slash when assetPrefix is missing one",
-      "normalizedAssetPrefix should not leave a trailing slash when assetPrefix is a URL with no pathname",
-      "normalizedAssetPrefix should not remove the leading slash when assetPrefix has only one",
-      "normalizedAssetPrefix should remove all trailing slash(es) when assetPrefix has one",
-      "normalizedAssetPrefix should remove leading slash(es) when assetPrefix has more than one",
-      "normalizedAssetPrefix should return an empty string when assetPrefix is a single slash",
-      "normalizedAssetPrefix should return an empty string when assetPrefix is an empty string",
-      "normalizedAssetPrefix should return an empty string when assetPrefix is nullish",
-      "normalizedAssetPrefix should return the URL when assetPrefix is a URL"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/page-path/normalize-page-path.test.ts": {
-    "passed": [
-      "normalizePagePath should normalize the page path",
-      "normalizePagePath should normalize the page path with a dynamic route",
-      "normalizePagePath should normalize the page path with a dynamic route and a trailing slash",
-      "normalizePagePath should normalize the page with a leading index",
-      "normalizePagePath should normalize the page with a leading index and suffix"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/router/adapters.test.tsx": {
-    "passed": [
-      "adaptForAppRouterInstance should forward a call to `back()`",
-      "adaptForAppRouterInstance should forward a call to `forward()`",
-      "adaptForAppRouterInstance should forward a call to `prefetch()`",
-      "adaptForAppRouterInstance should forward a call to `push()`",
-      "adaptForAppRouterInstance should forward a call to `push()` with options",
-      "adaptForAppRouterInstance should forward a call to `reload()`",
-      "adaptForAppRouterInstance should forward a call to `replace()`",
-      "adaptForAppRouterInstance should forward a call to `replace()` with options"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/router/utils/app-paths.test.ts": {
-    "passed": [
-      "normalizeRscPath should normalize url with .rsc",
-      "normalizeRscPath should normalize url with .rsc and searchparams"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/router/utils/interception-routes.test.ts": {
-    "passed": [
-      "Interception Route helper extractInterceptionRouteInformation should check the segment length",
-      "Interception Route helper extractInterceptionRouteInformation should extract correct information",
-      "Interception Route helper extractInterceptionRouteInformation should not extract incorrect information",
-      "Interception Route helper isInterceptionRouteAppPath should not validate incorrect paths",
-      "Interception Route helper isInterceptionRouteAppPath should validate correct paths"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/router/utils/is-dynamic.test.ts": {
-    "passed": [
-      "isDynamicRoute non-strict should return false for static routes",
-      "isDynamicRoute non-strict should return true for dynamic routes",
-      "isDynamicRoute non-strict should return true for dynamic routes with a prefix",
-      "isDynamicRoute non-strict should return true for dynamic routes with a suffix",
-      "isDynamicRoute non-strict should return true for dynamic routes with a suffix and prefix",
-      "isDynamicRoute strict should return false for dynamic routes with a prefix",
-      "isDynamicRoute strict should return false for dynamic routes with a suffix and prefix",
-      "isDynamicRoute strict should return false for static routes",
-      "isDynamicRoute strict should return true for dynamic routes",
-      "isDynamicRoute strict should return true for dynamic routes with a suffix"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/router/utils/parse-relative-url.test.ts": {
-    "passed": [
-      "query parsing should parse query string",
-      "relative urls should return valid pathname",
-      "relative urls should throw for invalid pathname"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/router/utils/prepare-destination.test.ts": {
-    "passed": [
-      "parseDestination should parse the destination",
-      "parseDestination should parse the destination with a hash",
-      "parseDestination should parse the destination with a host"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/router/utils/route-regex.test.ts": {
-    "passed": [
-      "getNamedRouteRegex should handle interception markers adjacent to dynamic path segments",
-      "getNamedRouteRegex should handle interception markers not adjacent to dynamic path segments",
-      "getNamedRouteRegex should handle multi-level interception markers",
-      "getNamedRouteRegex should handle optional catch-all dynamic path segments",
-      "getNamedRouteRegex should handle optional dynamic path segments",
-      "getNamedRouteRegex should match named routes correctly when interception markers are adjacent to dynamic segments",
-      "getNamedRouteRegex should not remove extra parts beside the param segments",
-      "getNamedRouteRegex should not remove extra parts in front of the param segments",
-      "parseParameter should parse a catchall parameter",
-      "parseParameter should parse a dynamic parameter",
-      "parseParameter should parse a optional catchall parameter",
-      "parseParameter should parse a optional parameter",
-      "parseParameter should parse non-dynamic parameter"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/router/utils/sortable-routes.test.ts": {
-    "passed": [
-      "compareRouteSegments should handle complete specificity hierarchy",
-      "compareRouteSegments should handle complex nested comparisons",
-      "compareRouteSegments should handle empty paths",
-      "compareRouteSegments should handle identical routes",
-      "compareRouteSegments should handle mixed depths with different specificities",
-      "compareRouteSegments should handle paths with leading/trailing slashes consistently",
-      "compareRouteSegments should handle root path",
-      "compareRouteSegments should prioritize catch-all over optional catch-all segments",
-      "compareRouteSegments should prioritize dynamic over catch-all segments",
-      "compareRouteSegments should prioritize shorter routes",
-      "compareRouteSegments should prioritize static over dynamic segments",
-      "compareRouteSegments should sort lexicographically when specificity is equal",
-      "getSegmentSpecificity should handle edge cases",
-      "getSegmentSpecificity should handle segments with brackets but not dynamic routes",
-      "getSegmentSpecificity should return 0 for static segments",
-      "getSegmentSpecificity should return 1 for dynamic segments",
-      "getSegmentSpecificity should return 2 for catch-all segments",
-      "getSegmentSpecificity should return 3 for optional catch-all segments",
-      "sortPageObjects should handle duplicate pages correctly (bug fix)",
-      "sortPageObjects should handle empty array",
-      "sortPageObjects should handle many duplicate routes efficiently",
-      "sortPageObjects should handle mixed route depths",
-      "sortPageObjects should handle single object",
-      "sortPageObjects should maintain original order for identical routes (stable sort)",
-      "sortPageObjects should not mutate the input array",
-      "sortPageObjects should sort lexicographically when specificity is equal",
-      "sortPageObjects should sort pages by specificity",
-      "sortPages should handle complex nested routes",
-      "sortPages should handle duplicate pages",
-      "sortPages should handle empty array",
-      "sortPages should handle mixed route depths",
-      "sortPages should handle single page",
-      "sortPages should not mutate the input array",
-      "sortPages should sort lexicographically when specificity is equal",
-      "sortPages should sort pages by specificity",
-      "sortSortableRouteObjects should handle complex route specificity ordering",
-      "sortSortableRouteObjects should handle duplicate route patterns with different objects",
-      "sortSortableRouteObjects should handle empty array",
-      "sortSortableRouteObjects should handle mixed route depths correctly",
-      "sortSortableRouteObjects should handle objects with different source and page paths",
-      "sortSortableRouteObjects should handle single object",
-      "sortSortableRouteObjects should not mutate the input array",
-      "sortSortableRouteObjects should sort by sourcePage first, then page as tiebreaker",
-      "sortSortableRouteObjects should sort lexicographically when all other factors are equal",
-      "sortSortableRouteObjects should sort objects by sourcePage and page while preserving object references",
-      "sortSortableRouteObjects should work with getter function that creates new objects each time",
-      "sortSortableRoutes should handle complex nested routes with different parameter types",
-      "sortSortableRoutes should handle empty routes array",
-      "sortSortableRoutes should handle identical routes",
-      "sortSortableRoutes should handle mixed route lengths correctly",
-      "sortSortableRoutes should handle single route",
-      "sortSortableRoutes should prioritize source over page in sorting",
-      "sortSortableRoutes should sort lexicographically when specificity is equal",
-      "sortSortableRoutes should sort routes by page",
-      "sortSortableRoutes should sort routes by specificity with different parameter types"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/server-reference-info.test.ts": {
-    "passed": [
-      "extractInfoFromServerReferenceId should parse id with typeBit 0, argMask 0b101010, restArgs false",
-      "extractInfoFromServerReferenceId should parse id with typeBit 0, no args used, no restArgs",
-      "extractInfoFromServerReferenceId should parse id with typeBit 1, all args used, restArgs true",
-      "extractInfoFromServerReferenceId should parse id with typeBit 1, argMask 0b000101, restArgs true",
-      "omitUnusedArgs should filter args when some args are used and no restArgs",
-      "omitUnusedArgs should handle args array shorter than 6 elements",
-      "omitUnusedArgs should handle empty args array",
-      "omitUnusedArgs should include restArgs when hasRestArgs is true",
-      "omitUnusedArgs should not include extra args when hasRestArgs is false",
-      "omitUnusedArgs should return all args when all args are used and has restArgs",
-      "omitUnusedArgs should return empty array when no args are used and no restArgs"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/shared/lib/turbopack/utils.test.ts": {
-    "passed": [
-      "formatIssue formats a single import trace",
-      "formatIssue formats multiple import traces with distinct layers",
-      "formatIssue formats multiple import traces with identical layers",
-      "formatIssue handles missing layers in traces"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/telemetry/post-telemetry-payload.test.ts": {
-    "passed": [
-      "postNextTelemetryPayload retries on failure",
-      "postNextTelemetryPayload sends telemetry payload successfully",
-      "postNextTelemetryPayload swallows errors after retries exhausted"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/trace/report/index.test.ts": {
-    "passed": [
-      "Trace Reporter JSON reporter should write the trace events to JSON file",
-      "Trace Reporter Telemetry reporter should record telemetry event"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next/src/trace/trace.test.ts": {
-    "passed": [
-      "Trace Tracer traces a block of code",
-      "Trace Worker correctly reports trace data from multiple workers",
-      "Trace Worker exports and initializes trace state",
-      "Trace Worker trace data is serializable to a worker"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/development/acceptance-app/ReactRefresh.test.ts": {
     "passed": [
       "ReactRefresh app can edit a component without losing state",
@@ -3262,7 +1230,6 @@
   },
   "test/development/basic/hmr/error-recovery-no-base-path-no-asset-prefix.test.ts": {
     "passed": [
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
@@ -3278,6 +1245,7 @@
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should not continously poll a custom error page"
     ],
     "pending": [],
@@ -3286,7 +1254,6 @@
   },
   "test/development/basic/hmr/error-recovery-no-base-path-yes-asset-prefix.test.ts": {
     "passed": [
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
@@ -3302,6 +1269,7 @@
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page"
     ],
     "pending": [],
@@ -3310,7 +1278,6 @@
   },
   "test/development/basic/hmr/error-recovery-yes-base-path-no-asset-prefix.test.ts": {
     "passed": [
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
@@ -3326,6 +1293,7 @@
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should not continously poll a custom error page"
     ],
     "pending": [],
@@ -3334,7 +1302,6 @@
   },
   "test/development/basic/hmr/error-recovery-yes-base-path-yes-asset-prefix.test.ts": {
     "passed": [
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
@@ -3350,6 +1317,7 @@
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page"
     ],
     "pending": [],
@@ -3878,6 +1846,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/load-config-freq/load-config-freq.test.ts": {
+    "passed": [
+      "load-config-freq should only load next config once when start next dev server"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/middleware-errors/index.test.ts": {
     "passed": [
       "middleware - development errors when middleware contains an unhandled rejection does not render the error",
@@ -3975,9 +1952,7 @@
       "Client Navigation with <a/> tag inside the <Link /> should navigate the page",
       "Client Navigation with <a/> tag inside the <Link /> should not navigate if the <a/> tag has a target",
       "Client Navigation with <a/> tag inside the <Link /> should not navigate if the click-event is modified",
-      "Client Navigation with <a/> tag inside the <Link /> should not reload when link in svg is clicked",
-      "Client Navigation with unexpected <a/> nested tag should not redirect if passHref prop is not defined in Link",
-      "Client Navigation with unexpected <a/> nested tag should redirect if passHref prop is defined in Link"
+      "Client Navigation with <a/> tag inside the <Link /> should not reload when link in svg is clicked"
     ],
     "failed": [],
     "pending": [],
@@ -4080,15 +2055,13 @@
   "test/development/pages-dir/client-navigation/link.test.ts": {
     "passed": [
       "Client Navigation with <Link/> should call mouse handlers with an absolute url",
-      "Client Navigation with <Link/> should error when calling onClick without event",
       "Client Navigation with <Link/> should navigate an absolute local url",
       "Client Navigation with <Link/> should navigate an absolute local url with as",
       "Client Navigation with <Link/> should navigate an absolute url",
       "Client Navigation with <Link/> should navigate back after reload",
       "Client Navigation with <Link/> should navigate forwards after reload",
       "Client Navigation with <Link/> should navigate the page",
-      "Client Navigation with <Link/> should navigate via the client side",
-      "Client Navigation with <Link/> should not throw error when one number type child is provided"
+      "Client Navigation with <Link/> should navigate via the client side"
     ],
     "failed": [],
     "pending": [],
@@ -5039,6 +3012,7 @@
       "app-dir with middleware should be possible to modify cookies & read them in an RSC in a single request",
       "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
       "app-dir with middleware should ignore x-middleware-set-cookie as a request header",
+      "app-dir with middleware should not incorrectly treat a Location header as a rewrite",
       "app-dir with middleware should omit internal headers for middleware cookies",
       "app-dir with middleware should respect cookie options of merged middleware cookies"
     ],
@@ -5569,7 +3543,7 @@
       "app-dir static/dynamic handling useSearchParams client should have empty search params on force-static"
     ],
     "flakey": [],
-    "runtimeError": false
+    "runtimeError": true
   },
   "test/e2e/app-dir/app-validation/validation.test.ts": {
     "passed": [
@@ -5634,6 +3608,7 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -5648,7 +3623,6 @@
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
-      "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
       "app dir - basic server components should not serve .client.js as a path",
@@ -5692,7 +3666,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
+      "app dir - basic server components next/router should support router.back and router.forward"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -5934,7 +3908,7 @@
       "Cache Components Errors Dev Inside `use cache` draftMode should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` headers should show a redbox error",
       "Cache Components Errors Dev Static Route should not show a collapsed redbox error",
-      "Cache Components Errors Dev Sync Dynamic Platform With Fallback - Math.random() should not show a collapsed redbox error",
+      "Cache Components Errors Dev Sync Dynamic Platform With Fallback - Math.random() should show a collapsed redbox error",
       "Cache Components Errors Dev Sync Dynamic Platform Without Fallback - Math.random() should show a collapsed redbox error",
       "Cache Components Errors Dev Sync Dynamic Request client params should return `undefined` for `params.slug`",
       "Cache Components Errors Dev Sync Dynamic Request client params should show a collapsed redbox with a sync access error",
@@ -5945,6 +3919,21 @@
       "Cache Components Errors Dev Sync Dynamic Request server params should show a collapsed redbox with a sync access error",
       "Cache Components Errors Dev Sync Dynamic Request server searchParams should return `undefined` for `searchParams.foo`",
       "Cache Components Errors Dev Sync Dynamic Request server searchParams should show a collapsed redbox with a sync access error",
+      "Cache Components Errors Dev Sync IO - Current Time - Date() should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Current Time - Date.now() should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Current Time - new Date() should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Node Crypto - generateKeyPairSync() should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Node Crypto - generateKeySync() should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Node Crypto - generatePrimeSync() should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Node Crypto - getRandomValues() should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Node Crypto - random-bytes() should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Node Crypto - random-fill-sync() should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Node Crypto - random-int-between() should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Node Crypto - random-int-up-to() should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Node Crypto - random-uuid should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Random - Math.random() should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Web Crypto - getRandomValue() should show a collapsed redbox error",
+      "Cache Components Errors Dev Sync IO - Web Crypto - randomUUID() should show a collapsed redbox error",
       "Cache Components Errors Dev With `use cache: private` in `unstable_cache` should show a redbox error",
       "Cache Components Errors Dev With `use cache: private` in `use cache` should show a redbox error",
       "Cache Components Errors Dev With `use cache: private` with `connection()` should show a redbox error",
@@ -5952,8 +3941,10 @@
       "Cache Components Errors Dev With `use cache: private` without Suspense should show a redbox error"
     ],
     "failed": [
+      "Cache Components Errors Dev Sync Dynamic Request cookies at runtime should show a redbox with a sync access error and a runtime error",
       "Cache Components Errors Dev Sync Dynamic Request cookies should show a redbox with a sync access error and a runtime error",
       "Cache Components Errors Dev Sync Dynamic Request draftMode should show a collapsed redbox with a sync access error",
+      "Cache Components Errors Dev Sync Dynamic Request headers at runtime should show a redbox with a sync access error and a runtime error",
       "Cache Components Errors Dev Sync Dynamic Request headers should show a redbox with a sync access error and a runtime error"
     ],
     "pending": [],
@@ -6013,9 +4004,6 @@
   "test/e2e/app-dir/cache-components/cache-components.date.test.ts": {
     "passed": [
       "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached `Date()` calls",
-      "cache-components should not prerender pages with uncached `Date.now()` calls",
-      "cache-components should not prerender pages with uncached `new Date()` calls",
       "cache-components should not prerender pages with uncached static Date instances like `new Date(0)`",
       "cache-components should prerender pages with cached `Date()` calls",
       "cache-components should prerender pages with cached `Date.now()` calls",
@@ -6050,15 +4038,6 @@
   "test/e2e/app-dir/cache-components/cache-components.node-crypto.test.ts": {
     "passed": [
       "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached `require('node:crypto').generateKeyPairSync(type, options)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').generateKeySync(type, options)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').generatePrimeSync(size, options)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').getRandomValues(...)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomBytes(size)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomFillSync(buffer)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomInt(max)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomInt(min, max)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomUUID()` calls",
       "cache-components should prerender pages with cached `require('node:crypto').generateKeyPairSync(type, options)` calls",
       "cache-components should prerender pages with cached `require('node:crypto').generateKeySync(type, options)` calls",
       "cache-components should prerender pages with cached `require('node:crypto').generatePrimeSync(size, options)` calls",
@@ -6093,7 +4072,6 @@
   "test/e2e/app-dir/cache-components/cache-components.random.test.ts": {
     "passed": [
       "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached Math.random() calls",
       "cache-components should prerender pages with cached Math.random() calls"
     ],
     "failed": [],
@@ -6174,8 +4152,6 @@
   "test/e2e/app-dir/cache-components/cache-components.web-crypto.test.ts": {
     "passed": [
       "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached `crypto.getRandomValues(...)` calls",
-      "cache-components should not prerender pages with uncached `crypto.randomUUID()` calls",
       "cache-components should prerender pages with cached `crypto.getRandomValues(...)` calls",
       "cache-components should prerender pages with cached `crypto.randomUUID()` calls"
     ],
@@ -6288,6 +4264,15 @@
   },
   "test/e2e/app-dir/css-modules-pure-no-check/css-modules-pure-no-check.test.ts": {
     "passed": ["css-modules-pure-no-check should apply styles correctly"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/css-modules-rsc-postcss/css-modules-rsc-postcss.test.ts": {
+    "passed": [
+      "css-modules-rsc-postcss should compile successfully and apply the correct styles"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -7249,15 +5234,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/link-component-deprecations/link-component-deprecations.test.ts": {
-    "passed": [
-      "Link component deprecations logs deprecation warning for legacyBehavior prop"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/loader-file-named-export-custom-loader-error/loader-file-named-export-custom-loader-error.test.ts": {
     "passed": [
       "Error test if the loader file export a named function in Development development only should show the error when using `Image` component",
@@ -7282,6 +5258,7 @@
       "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when revalidate: 0 is used",
       "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
       "app-dir - logging with fetches default logging should log each page request only once",
+      "app-dir - logging with fetches default logging should log requests for after revalidation via server action",
       "app-dir - logging with fetches default logging should log requests for client-side navigations",
       "app-dir - logging with fetches default logging should log requests with correct indentation",
       "app-dir - logging with fetches default logging should not contain metadata internal segments for dynamic metadata routes",
@@ -7297,6 +5274,7 @@
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when revalidate: 0 is used",
       "app-dir - logging with fetches verbose logging should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
       "app-dir - logging with fetches verbose logging should log each page request only once",
+      "app-dir - logging with fetches verbose logging should log requests for after revalidation via server action",
       "app-dir - logging with fetches verbose logging should log requests for client-side navigations",
       "app-dir - logging with fetches verbose logging should log requests with correct indentation",
       "app-dir - logging with fetches verbose logging should not contain metadata internal segments for dynamic metadata routes",
@@ -7312,6 +5290,7 @@
       "app-dir - logging with verbose logging for edge runtime should log 'skip' cache status with a reason when revalidate: 0 is used",
       "app-dir - logging with verbose logging for edge runtime should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
       "app-dir - logging with verbose logging for edge runtime should log each page request only once",
+      "app-dir - logging with verbose logging for edge runtime should log requests for after revalidation via server action",
       "app-dir - logging with verbose logging for edge runtime should log requests for client-side navigations",
       "app-dir - logging with verbose logging for edge runtime should log requests with correct indentation",
       "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
@@ -7404,7 +5383,6 @@
       "app dir - metadata dynamic routes sitemap should support videos in sitemap",
       "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
       "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
-      "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime",
       "app dir - metadata dynamic routes social image routes should handle manifest.[ext] dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
@@ -7419,6 +5397,15 @@
   "test/e2e/app-dir/metadata-edge/index.test.ts": {
     "passed": [
       "app dir - Metadata API on the Edge runtime should render OpenGraph image meta tag correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-font/metadata-font.test.ts": {
+    "passed": [
+      "app dir - metadata font should handle custom fonts in both edge and nodejs runtime"
     ],
     "failed": [],
     "pending": [],
@@ -8869,6 +6856,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/ppr-partial-hydration/ppr-partial-hydration.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["PPR - partial hydration only testable in production"],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/ppr-unstable-cache/ppr-unstable-cache.test.ts": {
     "passed": [],
     "failed": [],
@@ -9008,6 +7002,15 @@
       "styles encodes characters in app router",
       "styles encodes characters in pages router"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/resuming-head-runtime-search-param/resuming-head-runtime-search-param.test.ts": {
+    "passed": [
+      "resuming-head-runtime-search-param should not show resumable slots error when using runtime search params"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9165,6 +7168,7 @@
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is display none",
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is position fixed",
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is position sticky",
+      "router autoscrolling on navigation bugs should scroll to top when navigating to same page with different search params",
       "router autoscrolling on navigation horizontal scroll should't scroll horizontally",
       "router autoscrolling on navigation router.refresh() should not scroll the page when we hot reload",
       "router autoscrolling on navigation router.refresh() should not scroll when called alone",
@@ -9881,6 +7885,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/search-params/segment-cache-search-params-shared-loading-state.test.ts": {
+    "passed": [
+      "segment cache (search params shared loading state) prefetching is disabled"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/search-params/segment-cache-search-params.test.ts": {
     "passed": ["segment cache (search params) ppr is disabled"],
     "failed": [],
@@ -10136,9 +8149,29 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/typed-routes-validator/typed-routes-validator.test.ts": {
+    "passed": [
+      "typed-routes-validator should generate route validation correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/typed-routes/typed-links.test.ts": {
+    "passed": [
+      "typed-links should generate types for next/link",
+      "typed-links should include handler route from app/api-test/route.ts in generated link route definitions"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/typed-routes/typed-routes.test.ts": {
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
+      "typed-routes should generate RouteContext type for route handlers",
       "typed-routes should generate route types correctly",
       "typed-routes should update route types file when routes change"
     ],
@@ -10233,6 +8266,7 @@
   },
   "test/e2e/app-dir/use-cache-dev/use-cache-dev.test.ts": {
     "passed": [
+      "use-cache-dev should handle edits on nested pages",
       "use-cache-dev should return cached data after reload",
       "use-cache-dev should return fresh data after hard reload",
       "use-cache-dev should successfully finish compilation when \"use cache\" directive is added/removed"
@@ -10247,10 +8281,7 @@
       "use-cache-hanging-inputs when a \"use cache\" function is closing over an uncached promise should show an error toast after a timeout",
       "use-cache-hanging-inputs when an error is thrown should show an error overlay with only one error",
       "use-cache-hanging-inputs when an uncached promise is used inside of \"use cache\" should show an error toast after a timeout",
-      "use-cache-hanging-inputs when an uncached promise is used inside of a nested \"use cache\" should show an error toast after a timeout",
-      "use-cache-hanging-inputs when searchParams are unused inside of \"use cache\" should not show an error",
-      "use-cache-hanging-inputs when searchParams are used inside of \"use cache\" should show an error toast after a timeout",
-      "use-cache-hanging-inputs when searchParams are used inside of \"use cache\", wrapped in try/catch should show an error toast after a timeout"
+      "use-cache-hanging-inputs when an uncached promise is used inside of a nested \"use cache\" should show an error toast after a timeout"
     ],
     "failed": [],
     "pending": [],
@@ -10860,6 +8891,16 @@
       "compiler.define compiler.defineServer should not render the inlined variable on client side",
       "compiler.define compiler.defineServer should render the inlined expression on server side",
       "compiler.define compiler.defineServer should render the inlined variable on server side"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/deprecation-warnings/deprecation-warnings.test.ts": {
+    "passed": [
+      "deprecation-warnings with deprecated config options should emit deprecation warnings for explicitly configured deprecated options",
+      "deprecation-warnings without next.config.js should not emit any deprecation warnings when no config file exists"
     ],
     "failed": [],
     "pending": [],
@@ -11532,6 +9573,72 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/invalid-static-asset-404-app/invalid-static-asset-404-app-asset-prefix.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-app-asset-prefix should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-app-asset-prefix should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-app-asset-prefix should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-app/invalid-static-asset-404-app-base-path.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-app-base-path should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-app-base-path should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-app-base-path should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-app/invalid-static-asset-404-app.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-app should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-app should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-app should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-pages/invalid-static-asset-404-pages-asset-prefix.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-pages-asset-prefix should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-pages-asset-prefix should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-pages-asset-prefix should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-pages/invalid-static-asset-404-pages-base-path.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-pages-base-path should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-pages-base-path should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-pages-base-path should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-pages/invalid-static-asset-404-pages.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-pages should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-pages should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-pages should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/link-on-navigate-prop/index.test.ts": {
     "passed": [
       "<Link /> onNavigate prop App Router should only trigger both onClick for external links",
@@ -12183,16 +10290,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/new-link-behavior/typescript.test.ts": {
-    "passed": [
-      "New Link Behavior should apply ref on link",
-      "New Link Behavior should render link with <a>"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/next-config-warnings/esm-externals-false/esm-externals-false.test.ts": {
     "passed": [
       "next-config-warnings - esm-externals-false should warn when using ESM externals: false"
@@ -12374,9 +10471,7 @@
   "test/e2e/next-link-errors/next-link-errors.test.ts": {
     "passed": [
       "next-link errors on invalid href",
-      "next-link invalid `prefetch` causes runtime error (dev-only)",
-      "next-link multiple children",
-      "next-link no children"
+      "next-link invalid `prefetch` causes runtime error (dev-only)"
     ],
     "failed": [],
     "pending": [],
@@ -13933,14 +12028,14 @@
     "runtimeError": false
   },
   "test/integration/app-types/app-types.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "app type checking production mode should generate route types correctly and report form errors",
-      "app type checking production mode should generate route types correctly and report link error",
-      "app type checking production mode should generate route types correctly and report router API errors",
-      "app type checking production mode should type check invalid entry exports"
+    "passed": [
+      "app type checking - production mode should generate route types correctly and report form errors",
+      "app type checking - production mode should generate route types correctly and report redirect errors",
+      "app type checking - production mode should generate route types correctly and report router API errors",
+      "app type checking - production mode should report link errors"
     ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -14073,6 +12168,15 @@
       "Build Output production mode Custom Static Error Output should not specify /404 as lambda when static",
       "Build Output production mode With AMP Output should not include custom error",
       "Build Output production mode With Parallel Routes should not have duplicate paths that resolve to the same route"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/build-trace-extra-entries-monorepo/test/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "build trace with extra entries in monorepo production mode should build and trace correctly"
     ],
     "flakey": [],
     "runtimeError": false
@@ -14405,6 +12509,29 @@
       "Conflicting SSG paths production mode should show proper error when a dynamic SSG route conflicts with normal route",
       "Conflicting SSG paths production mode should show proper error when two dynamic SSG routes have conflicting paths"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/create-next-app/biome-config.test.ts": {
+    "passed": [
+      "create-next-app Biome configuration should format code with biome successfully",
+      "create-next-app Biome configuration should match biome.json snapshot",
+      "create-next-app Biome configuration should run biome check successfully on generated JavaScript project",
+      "create-next-app Biome configuration should run biome check successfully on generated TypeScript project",
+      "create-next-app Biome configuration should show errors when biome detects issues"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/create-next-app/eslint-config.test.ts": {
+    "passed": [
+      "create-next-app ESLint configuration should generate eslint.config.mjs for JavaScript project with ESLint",
+      "create-next-app ESLint configuration should generate eslint.config.mjs for TypeScript project with ESLint"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -19984,17 +18111,6 @@
       "Link Component with Encoding spaces should have correct query on Router#push",
       "Link Component with Encoding spaces should have correct query on SSR",
       "Link Component with Encoding spaces should have correct query on simple client-side <Link>"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/link-with-multiple-child/test/index.test.js": {
-    "passed": [
-      "multiple child with default legacyBehavior",
-      "multiple child with forced legacyBehavior=false",
-      "single child"
     ],
     "failed": [],
     "pending": [],

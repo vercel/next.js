@@ -109,7 +109,7 @@ export default function Page() {
   return <h1>Hello, Next.js!</h1>
 }
 
-// ❌ Conflict
+// Conflict
 // `app/route.ts`
 export async function POST(request: Request) {}
 ```
@@ -119,12 +119,29 @@ export default function Page() {
   return <h1>Hello, Next.js!</h1>
 }
 
-// ❌ Conflict
+// Conflict
 // `app/route.js`
 export async function POST(request) {}
 ```
 
 Read more about how Route Handlers [complement your frontend application](/docs/app/guides/backend-for-frontend), or explore the Route Handlers [API Reference](/docs/app/api-reference/file-conventions/route).
+
+### Route Context Helper
+
+In TypeScript, you can type the `context` parameter for Route Handlers with the globally available [`RouteContext`](/docs/app/api-reference/file-conventions/route#route-context-helper) helper:
+
+```ts filename="app/users/[id]/route.ts" switcher
+import type { NextRequest } from 'next/server'
+
+export async function GET(_req: NextRequest, ctx: RouteContext<'/users/[id]'>) {
+  const { id } = await ctx.params
+  return Response.json({ id })
+}
+```
+
+> **Good to know**
+>
+> - Types are generated during `next dev`, `next build` or `next typegen`.
 
 ## Middleware
 

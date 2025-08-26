@@ -1,4 +1,4 @@
-export type OverlayBackdropProps = {
+type OverlayBackdropProps = {
   fixed?: boolean
 } & React.HTMLAttributes<HTMLDivElement>
 

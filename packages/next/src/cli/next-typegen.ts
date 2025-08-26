@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync } from 'fs'
-import { join } from 'path'
+import path, { join } from 'path'
 import { mkdir } from 'fs/promises'
 
 import loadConfig from '../server/config'
@@ -18,6 +18,8 @@ import {
   processAppRoutes,
   processLayoutRoutes,
   extractSlotsFromAppRoutes,
+  extractSlotsFromDefaultFiles,
+  combineSlots,
   type RouteInfo,
   type SlotInfo,
 } from '../build/entries'
@@ -26,7 +28,9 @@ import { PAGE_TYPES } from '../lib/page-types'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
+  writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
+import { createValidFileMatcher } from '../server/lib/find-page-file'
 
 export type NextTypegenOptions = {
   dir?: string
@@ -61,14 +65,16 @@ const nextTypegen = async (
   console.log('Generating route types...')
 
   const routeTypesFilePath = join(distDir, 'types', 'routes.d.ts')
+  const validatorFilePath = join(distDir, 'types', 'validator.ts')
   await mkdir(join(distDir, 'types'), { recursive: true })
 
   let pageRoutes: RouteInfo[] = []
   let appRoutes: RouteInfo[] = []
+  let appRouteHandlers: RouteInfo[] = []
   let layoutRoutes: RouteInfo[] = []
   let slots: SlotInfo[] = []
 
-  let _pageApiRoutes: RouteInfo[] = []
+  let pageApiRoutes: RouteInfo[] = []
 
   let mappedPages: { [page: string]: string } = {}
   let mappedAppPages: { [page: string]: string } = {}
@@ -83,50 +89,73 @@ const nextTypegen = async (
       pageExtensions: nextConfig.pageExtensions,
       pagesDir,
       appDir,
+      appDirOnly: !!appDir && !pagesDir,
     })
+
+  const validFileMatcher = createValidFileMatcher(
+    nextConfig.pageExtensions,
+    appDir
+  )
+
+  const isSrcDir = path
+    .relative(baseDir, pagesDir || appDir || '')
+    .startsWith('src')
 
   // Build pages routes
   if (pagesDir) {
-    const pagePaths = await collectPagesFiles(
-      pagesDir,
-      nextConfig.pageExtensions
-    )
+    const pagePaths = await collectPagesFiles(pagesDir, validFileMatcher)
 
     mappedPages = await createMapping(pagePaths, PAGE_TYPES.PAGES)
 
     // Process pages routes
-    const processedPages = processPageRoutes(mappedPages, baseDir)
+    const processedPages = processPageRoutes(mappedPages, baseDir, isSrcDir)
     pageRoutes = processedPages.pageRoutes
-    _pageApiRoutes = processedPages.pageApiRoutes
+    pageApiRoutes = processedPages.pageApiRoutes
   }
 
   // Build app routes
   if (appDir) {
-    // Collect both app pages and layouts in a single directory traversal
-    const { appPaths, layoutPaths } = await collectAppFiles(
+    // Collect app pages, layouts, and default files in a single directory traversal
+    const { appPaths, layoutPaths, defaultPaths } = await collectAppFiles(
       appDir,
-      nextConfig.pageExtensions
+      validFileMatcher
     )
 
     mappedAppPages = await createMapping(appPaths, PAGE_TYPES.APP)
     mappedAppLayouts = await createMapping(layoutPaths, PAGE_TYPES.APP)
+    const mappedDefaultFiles = await createMapping(defaultPaths, PAGE_TYPES.APP)
 
-    // Process app routes and extract slots
-    slots = extractSlotsFromAppRoutes(mappedAppPages)
-    appRoutes = processAppRoutes(mappedAppPages, baseDir)
+    // Process app routes and extract slots from both pages and default files
+    const slotsFromPages = extractSlotsFromAppRoutes(mappedAppPages)
+    const slotsFromDefaults = extractSlotsFromDefaultFiles(mappedDefaultFiles)
+
+    // Combine slots and deduplicate using Set
+    slots = combineSlots(slotsFromPages, slotsFromDefaults)
+
+    const result = processAppRoutes(
+      mappedAppPages,
+      validFileMatcher,
+      baseDir,
+      isSrcDir
+    )
+    appRoutes = result.appRoutes
+    appRouteHandlers = result.appRouteHandlers
 
     // Process layout routes
-    layoutRoutes = processLayoutRoutes(mappedAppLayouts, baseDir)
+    layoutRoutes = processLayoutRoutes(mappedAppLayouts, baseDir, isSrcDir)
   }
 
   const routeTypesManifest = await createRouteTypesManifest({
     dir: baseDir,
     pageRoutes,
     appRoutes,
+    appRouteHandlers,
+    pageApiRoutes,
     layoutRoutes,
     slots,
     redirects: nextConfig.redirects,
     rewrites: nextConfig.rewrites,
+    validatorFilePath,
   })
 
   await writeRouteTypesManifest(
@@ -134,6 +163,8 @@ const nextTypegen = async (
     routeTypesFilePath,
     nextConfig
   )
+
+  await writeValidatorFile(routeTypesManifest, validatorFilePath)
 
   console.log('✓ Route types generated successfully')
 }

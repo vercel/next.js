@@ -154,7 +154,7 @@ impl From<serde_json::Value> for CompileTimeDefineValue {
 }
 
 #[turbo_tasks::value]
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone, Hash, PartialOrd, Ord)]
 pub enum DefinableNameSegment {
     Name(RcStr),
     TypeOf,
@@ -206,12 +206,16 @@ impl CompileTimeDefines {
 
     #[turbo_tasks::function]
     pub fn individual(&self) -> Vc<CompileTimeDefinesIndividual> {
-        Vc::cell(
+        let mut map: FxIndexMap<Vec<DefinableNameSegment>, ResolvedVc<CompileTimeDefineValue>> =
             self.0
                 .iter()
                 .map(|(key, value)| (key.clone(), value.clone().resolved_cell()))
-                .collect(),
-        )
+                .collect();
+
+        // Sort keys to make order as deterministic as possible
+        map.sort_keys();
+
+        Vc::cell(map)
     }
 }
 
@@ -302,6 +306,10 @@ impl FreeVarReferences {
                 .or_default()
                 .insert(key.to_vec(), value.clone().resolved_cell());
         }
+
+        // Sort keys to make order as deterministic as possible
+        result.sort_keys();
+        result.iter_mut().for_each(|(_, inner)| inner.sort_keys());
 
         Vc::cell(result)
     }

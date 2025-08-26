@@ -404,7 +404,7 @@ describe('ReactRefreshLogBox', () => {
         7 | }
           : ^
           \`----
-         x Unexpected eof
+         x Expected '</', got '<eof>'
           ,-[7:1]
         4 |       <p>lol</p>
         5 |     div

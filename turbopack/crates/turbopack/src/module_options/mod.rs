@@ -12,7 +12,10 @@ pub use module_rule::*;
 pub use rule_condition::*;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack_core::{
     chunk::SourceMapsType,
     ident::Layer,
@@ -411,7 +414,7 @@ impl ModuleOptions {
                 RuleCondition::any(vec![RuleCondition::ResourcePathEndsWith(
                     ".node".to_string(),
                 )]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Raw)],
+                vec![ModuleRuleEffect::ModuleType(ModuleType::NodeAddon)],
             ),
             // WebAssembly
             ModuleRule::new(
@@ -489,43 +492,58 @@ impl ModuleOptions {
                 )
             };
             for (key, rule) in webpack_loaders_options.rules.await?.iter() {
-                rules.push(ModuleRule::new(
-                    RuleCondition::All(vec![
-                        if key.starts_with("#") {
-                            // This is a custom marker requiring a corresponding condition entry
-                            let conditions = (*webpack_loaders_options.conditions.await?)
-                                .context(
-                                    "Expected a condition entry for the webpack loader rule \
-                                     matching {key}. Create a `conditions` mapping in your \
-                                     next.config.js",
-                                )?
-                                .await?;
+                let mut rule_conditions = Vec::new();
+                if key.starts_with("#") {
+                    // This is a custom marker requiring a corresponding condition entry
+                    let conditions = (*webpack_loaders_options.conditions.await?)
+                        .context(
+                            "Expected a condition entry for the webpack loader rule matching \
+                             {key}. Create a `conditions` mapping in your next.config.js",
+                        )?
+                        .await?;
 
-                            let condition = conditions.get(key).context(
-                                "Expected a condition entry for the webpack loader rule matching \
-                                 {key}.",
-                            )?;
+                    let condition = conditions.get(key).context(
+                        "Expected a condition entry for the webpack loader rule matching {key}.",
+                    )?;
 
-                            match &condition.path {
-                                ConditionPath::Glob(glob) => RuleCondition::ResourcePathGlob {
+                    let ConditionItem { path, content } = &condition;
+
+                    match &path {
+                        Some(ConditionPath::Glob(glob)) => {
+                            if glob.contains('/') {
+                                rule_conditions.push(RuleCondition::ResourcePathGlob {
                                     base: execution_context.project_path().owned().await?,
-                                    glob: Glob::new(glob.clone()).await?,
-                                },
-                                ConditionPath::Regex(regex) => {
-                                    RuleCondition::ResourcePathEsRegex(regex.await?)
-                                }
+                                    glob: Glob::new(glob.clone(), GlobOptions::default()).await?,
+                                });
+                            } else {
+                                rule_conditions.push(RuleCondition::ResourceBasePathGlob(
+                                    Glob::new(glob.clone(), GlobOptions::default()).await?,
+                                ));
                             }
-                        } else if key.contains('/') {
-                            RuleCondition::ResourcePathGlob {
-                                base: execution_context.project_path().owned().await?,
-                                glob: Glob::new(key.clone()).await?,
-                            }
-                        } else {
-                            RuleCondition::ResourceBasePathGlob(Glob::new(key.clone()).await?)
-                        },
-                        RuleCondition::not(RuleCondition::ResourceIsVirtualSource),
-                        module_css_external_transform_conditions.clone(),
-                    ]),
+                        }
+                        Some(ConditionPath::Regex(regex)) => {
+                            rule_conditions.push(RuleCondition::ResourcePathEsRegex(regex.await?));
+                        }
+                        None => {}
+                    }
+                    if let Some(content) = content {
+                        rule_conditions.push(RuleCondition::ResourceContentEsRegex(content.await?));
+                    }
+                } else if key.contains('/') {
+                    rule_conditions.push(RuleCondition::ResourcePathGlob {
+                        base: execution_context.project_path().owned().await?,
+                        glob: Glob::new(key.clone(), GlobOptions::default()).await?,
+                    });
+                } else {
+                    rule_conditions.push(RuleCondition::ResourceBasePathGlob(
+                        Glob::new(key.clone(), GlobOptions::default()).await?,
+                    ));
+                };
+                rule_conditions.push(RuleCondition::not(RuleCondition::ResourceIsVirtualSource));
+                rule_conditions.push(module_css_external_transform_conditions.clone());
+
+                rules.push(ModuleRule::new(
+                    RuleCondition::All(rule_conditions),
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
                         ResolvedVc::upcast(
                             WebpackLoaders::new(

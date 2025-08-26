@@ -25,7 +25,10 @@ import { imageConfigDefault } from '../shared/lib/image-config'
 import type { ImageConfig } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
-import { findRootDir } from '../lib/find-root'
+import {
+  findRootDirAndLockFiles,
+  warnDuplicatedLockFiles,
+} from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
@@ -89,6 +92,84 @@ export function warnOptionHasBeenDeprecated(
   return hasWarned
 }
 
+function checkDeprecations(
+  userConfig: NextConfig,
+  configFileName: string,
+  silent: boolean,
+  dir: string
+) {
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'amp',
+    `Built-in amp support is deprecated and the \`amp\` configuration option will be removed in Next.js 16.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.amp',
+    `Built-in amp support is deprecated and the \`experimental.amp\` configuration option will be removed in Next.js 16.`,
+    silent
+  )
+
+  if (userConfig.experimental?.dynamicIO !== undefined) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'experimental.dynamicIO',
+      `\`experimental.dynamicIO\` has been renamed to \`experimental.cacheComponents\`. Please update your ${configFileName} file accordingly.`,
+      silent
+    )
+  }
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.instrumentationHook',
+    `\`experimental.instrumentationHook\` is no longer needed, because \`instrumentation.js\` is available by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.after',
+    `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'devIndicators.appIsrStatus',
+    `\`devIndicators.appIsrStatus\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'devIndicators.buildActivity',
+    `\`devIndicators.buildActivity\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'devIndicators.buildActivityPosition',
+    `\`devIndicators.buildActivityPosition\` has been renamed to \`devIndicators.position\`. Please update your ${configFileName} file accordingly.`,
+    silent
+  )
+
+  // i18n deprecation for App Router
+  if (userConfig.i18n) {
+    const hasAppDir = Boolean(findDir(dir, 'app'))
+    if (hasAppDir) {
+      warnOptionHasBeenDeprecated(
+        userConfig,
+        'i18n',
+        `i18n configuration in ${configFileName} is unsupported in App Router.\nLearn more about internationalization in App Router: https://nextjs.org/docs/app/building-your-application/routing/internationalization`,
+        silent
+      )
+    }
+  }
+}
+
 export function warnOptionHasBeenMovedOutOfExperimental(
   config: NextConfig,
   oldExperimentalKey: string,
@@ -143,7 +224,15 @@ function warnCustomizedOption(
   }
 }
 
-function assignDefaults(
+/**
+ * Assigns defaults to the user config and validates the config.
+ *
+ * @param dir - The directory of the project.
+ * @param userConfig - The user config.
+ * @param silent - Whether to suppress warnings.
+ * @returns The complete config.
+ */
+function assignDefaultsAndValidate(
   dir: string,
   userConfig: NextConfig & { configFileName: string },
   silent: boolean
@@ -161,35 +250,8 @@ function assignDefaults(
     delete userConfig.exportTrailingSlash
   }
 
-  // There are a good amount of test fixtures that have amp enabled
-  // that also assert on stderr output being empty, so we're gating the
-  // warning to be skipped when running in Next.js tests until we fully
-  // remove the feature.
-  if (!process.env.__NEXT_TEST_MODE) {
-    warnOptionHasBeenDeprecated(
-      userConfig,
-      'amp',
-      `Built-in amp support is deprecated and the \`amp\` configuration option will be removed in Next.js 16.`,
-      silent
-    )
-
-    warnOptionHasBeenDeprecated(
-      userConfig,
-      'experimental.amp',
-      `Built-in amp support is deprecated and the \`experimental.amp\` configuration option will be removed in Next.js 16.`,
-      silent
-    )
-  }
-
-  // Handle deprecation of experimental.dynamicIO and migrate to experimental.cacheComponents
+  // Handle migration of experimental.dynamicIO to experimental.cacheComponents
   if (userConfig.experimental?.dynamicIO !== undefined) {
-    warnOptionHasBeenDeprecated(
-      userConfig,
-      'experimental.dynamicIO',
-      `\`experimental.dynamicIO\` has been renamed to \`experimental.cacheComponents\`. Please update your ${configFileName} file accordingly.`,
-      silent
-    )
-
     // If cacheComponents was not explicitly set by the user (i.e., it's still the default value),
     // use the dynamicIO value. We check against the user config, not the merged result.
     if (userConfig.experimental?.cacheComponents === undefined) {
@@ -532,49 +594,18 @@ function assignDefaults(
     silent
   )
 
-  warnOptionHasBeenDeprecated(
-    result,
-    'experimental.instrumentationHook',
-    `\`experimental.instrumentationHook\` is no longer needed, because \`instrumentation.js\` is available by default. You can remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    result,
-    'experimental.after',
-    `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    result,
-    'devIndicators.appIsrStatus',
-    `\`devIndicators.appIsrStatus\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    result,
-    'devIndicators.buildActivity',
-    `\`devIndicators.buildActivity\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
-    silent
-  )
-
-  const hasWarnedBuildActivityPosition = warnOptionHasBeenDeprecated(
-    result,
-    'devIndicators.buildActivityPosition',
-    `\`devIndicators.buildActivityPosition\` has been renamed to \`devIndicators.position\`. Please update your ${configFileName} file accordingly.`,
-    silent
-  )
+  // Handle buildActivityPosition migration (needs to be done after merging with defaults)
   if (
-    hasWarnedBuildActivityPosition &&
-    result.devIndicators !== false &&
+    result.devIndicators &&
+    typeof result.devIndicators === 'object' &&
     'buildActivityPosition' in result.devIndicators &&
     result.devIndicators.buildActivityPosition !== result.devIndicators.position
   ) {
-    Log.warnOnce(
-      `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") for backward compatibility.`
-    )
+    if (!silent) {
+      Log.warnOnce(
+        `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") for backward compatibility.`
+      )
+    }
     result.devIndicators.position = result.devIndicators.buildActivityPosition
   }
 
@@ -631,6 +662,13 @@ function assignDefaults(
     result,
     'swrDelta',
     'expireTime',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'typedRoutes',
+    'typedRoutes',
     configFileName,
     silent
   )
@@ -726,34 +764,39 @@ function assignDefaults(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
-  if (result?.outputFileTracingRoot && !result?.turbopack?.root) {
-    dset(result, ['turbopack', 'root'], result.outputFileTracingRoot)
+  const tracingRoot = result?.outputFileTracingRoot
+  const turbopackRoot = result?.turbopack?.root
+
+  // If both provided, validate they match. If not, use outputFileTracingRoot.
+  if (tracingRoot && turbopackRoot && tracingRoot !== turbopackRoot) {
+    Log.warn(
+      `Both \`outputFileTracingRoot\` and \`turbopack.root\` are set, but they must have the same value.\n` +
+        `Using \`outputFileTracingRoot\` value: ${tracingRoot}.`
+    )
   }
 
-  // use the highest level lockfile as tracing root
-  if (!result?.outputFileTracingRoot && !result?.turbopack?.root) {
-    let rootDir = findRootDir(dir)
-
-    if (rootDir) {
-      result.outputFileTracingRoot = rootDir
-      dset(result, ['turbopack', 'root'], rootDir)
+  let rootDir = tracingRoot || turbopackRoot
+  if (!rootDir) {
+    const { rootDir: foundRootDir, lockFiles } = findRootDirAndLockFiles(dir)
+    rootDir = foundRootDir
+    if (!silent) {
+      warnDuplicatedLockFiles(lockFiles)
     }
   }
+
+  if (!rootDir) {
+    throw new Error(
+      'Failed to find the root directory of the project. This is a bug in Next.js.'
+    )
+  }
+
+  // Ensure both properties are set to the same value
+  result.outputFileTracingRoot = rootDir
+  dset(result, ['turbopack', 'root'], rootDir)
 
   setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
-    const hasAppDir = Boolean(findDir(dir, 'app'))
-
-    if (hasAppDir) {
-      warnOptionHasBeenDeprecated(
-        result,
-        'i18n',
-        `i18n configuration in ${configFileName} is unsupported in App Router.\nLearn more about internationalization in App Router: https://nextjs.org/docs/app/building-your-application/routing/internationalization`,
-        silent
-      )
-    }
-
     const { i18n } = result
     const i18nType = typeof i18n
 
@@ -1138,6 +1181,18 @@ function assignDefaults(
     result.experimental.ppr = true
   }
 
+  // We require clientSegmentCache to be enabled if clientParamParsing is
+  // enabled. This is because clientParamParsing is only relevant when
+  // clientSegmentCache is enabled.
+  if (
+    result.experimental.clientParamParsing &&
+    !result.experimental.clientSegmentCache
+  ) {
+    throw new Error(
+      `\`experimental.clientParamParsing\` can not be \`true\` when \`experimental.clientSegmentCache\` is \`false\`. Client param parsing is only relevant when client segment cache is enabled.`
+    )
+  }
+
   return result as NextConfigComplete
 }
 
@@ -1290,8 +1345,11 @@ export default async function loadConfig(
   const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
 
   if (customConfig) {
+    // Check deprecation warnings on the custom config before merging with defaults
+    checkDeprecations(customConfig as NextConfig, configFileName, silent, dir)
+
     const config = await applyModifyConfig(
-      assignDefaults(
+      assignDefaultsAndValidate(
         dir,
         {
           configOrigin: 'server',
@@ -1401,43 +1459,12 @@ export default async function loadConfig(
     // Clone a new userConfig each time to avoid mutating the original
     const userConfig = cloneObject(loadedConfig) as NextConfig
 
-    // Always validate the config against schema in non minimal mode.
-    // Only validate once in the root Next.js process, not in forked processes.
-    const isRootProcess = typeof process.send !== 'function'
-    if (!process.env.NEXT_MINIMAL && isRootProcess) {
-      // We only validate the config against schema in non minimal mode
-      const { configSchema } =
-        require('./config-schema') as typeof import('./config-schema')
-      const state = configSchema.safeParse(userConfig)
+    // Check deprecation warnings on the actual user config before merging with defaults
+    checkDeprecations(userConfig, configFileName, silent, dir)
 
-      if (!state.success) {
-        // error message header
-        const messages = [`Invalid ${configFileName} options detected: `]
-
-        const [errorMessages, shouldExit] = normalizeNextConfigZodErrors(
-          state.error
-        )
-        // ident list item
-        for (const error of errorMessages) {
-          messages.push(`    ${error}`)
-        }
-
-        // error message footer
-        messages.push(
-          'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
-        )
-
-        if (shouldExit) {
-          for (const message of messages) {
-            console.error(message)
-          }
-          await flushAndExit(1)
-        } else {
-          for (const message of messages) {
-            curLog.warn(message)
-          }
-        }
-      }
+    // Always validate the config against schema in non minimal mode
+    if (!process.env.NEXT_MINIMAL && !silent) {
+      validateConfigSchema(userConfig, configFileName, curLog.warn)
     }
 
     if (userConfig.target && userConfig.target !== 'server') {
@@ -1527,7 +1554,7 @@ export default async function loadConfig(
       phase,
     })
 
-    const completeConfig = assignDefaults(
+    const completeConfig = assignDefaultsAndValidate(
       dir,
       {
         configOrigin: relative(dir, path),
@@ -1585,7 +1612,7 @@ export default async function loadConfig(
 
   // always call assignDefaults to ensure settings like
   // reactRoot can be updated correctly even with no next.config.js
-  const completeConfig = assignDefaults(
+  const completeConfig = assignDefaultsAndValidate(
     dir,
     { ...clonedDefaultConfig, configFileName },
     silent
@@ -1865,4 +1892,44 @@ function cloneObject(obj: any): any {
   }
 
   return result
+}
+
+async function validateConfigSchema(
+  userConfig: NextConfig,
+  configFileName: string,
+  warn: (message: string) => void
+) {
+  // We only validate the config against schema in non minimal mode
+  const { configSchema } =
+    require('./config-schema') as typeof import('./config-schema')
+  const state = configSchema.safeParse(userConfig)
+
+  if (!state.success) {
+    // error message header
+    const messages = [`Invalid ${configFileName} options detected: `]
+
+    const [errorMessages, shouldExit] = normalizeNextConfigZodErrors(
+      state.error
+    )
+    // ident list item
+    for (const error of errorMessages) {
+      messages.push(`    ${error}`)
+    }
+
+    // error message footer
+    messages.push(
+      'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
+    )
+
+    if (shouldExit) {
+      for (const message of messages) {
+        console.error(message)
+      }
+      await flushAndExit(1)
+    } else {
+      for (const message of messages) {
+        warn(message)
+      }
+    }
+  }
 }

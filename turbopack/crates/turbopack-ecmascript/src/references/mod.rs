@@ -141,6 +141,7 @@ use crate::{
     },
     chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
+    export::Liveness,
     magic_identifier,
     parse::parse,
     references::{
@@ -159,7 +160,7 @@ use crate::{
         util::InlineSourceMap,
     },
     runtime_functions::{
-        TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXPORTS,
+        TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXPORTS, TURBOPACK_GLOBAL,
         TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
@@ -1506,7 +1507,8 @@ async fn compile_time_info_for_module_type(
             InputRelativeConstant::FileName,
         ));
 
-    // Compiletime rewrite the nodejs `global` to `globalThis`
+    // Compiletime rewrite the nodejs `global` to `__turbopack_context_.g` which is a shortcut for
+    // `globalThis` that cannot be shadowed by a local variable.
     let global = rcstr!("global");
     free_var_references
         .entry(vec![
@@ -1516,7 +1518,7 @@ async fn compile_time_info_for_module_type(
         .or_insert(rcstr!("object").into());
     free_var_references
         .entry(vec![DefinableNameSegment::Name(global)])
-        .or_insert(FreeVarReference::Ident(rcstr!("globalThis")));
+        .or_insert(TURBOPACK_GLOBAL.into());
 
     free_var_references.extend(TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS.into_iter().map(
         |(name, shortcut)| {
@@ -2637,7 +2639,7 @@ async fn handle_free_var_reference(
                 InputRelativeConstant::FileName => source_path,
             };
             analysis.add_code_gen(ConstantValueCodeGen::new(
-                as_abs_path(source_path).await?.into(),
+                as_abs_path(source_path).into(),
                 ast_path.to_vec().into(),
             ));
         }
@@ -2839,17 +2841,17 @@ async fn analyze_amd_define_with_deps(
 
 /// Used to generate the "root" path to a __filename/__dirname/import.meta.url
 /// reference.
-pub async fn as_abs_path(path: FileSystemPath) -> Result<String> {
+pub fn as_abs_path(path: FileSystemPath) -> String {
     // TODO: This should be updated to generate a real system path on the fly
     // during runtime, so that the generated code is constant between systems
     // but the runtime evaluation can take into account the project's
     // actual root directory.
-    require_resolve(path).await
+    require_resolve(path)
 }
 
 /// Generates an absolute path usable for `require.resolve()` calls.
-async fn require_resolve(path: FileSystemPath) -> Result<String> {
-    Ok(format!("/ROOT/{}", path.path.as_str()))
+fn require_resolve(path: FileSystemPath) -> String {
+    format!("/ROOT/{}", path.path.as_str())
 }
 
 async fn early_value_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
@@ -2976,12 +2978,8 @@ async fn value_visitor_inner(
             }
         }
         JsValue::FreeVar(ref kind) => match &**kind {
-            "__dirname" => as_abs_path(origin.origin_path().owned().await?.parent())
-                .await?
-                .into(),
-            "__filename" => as_abs_path(origin.origin_path().owned().await?)
-                .await?
-                .into(),
+            "__dirname" => as_abs_path(origin.origin_path().owned().await?.parent()).into(),
+            "__filename" => as_abs_path(origin.origin_path().owned().await?).into(),
 
             "require" => JsValue::unknown_if(
                 ignore,
@@ -3050,9 +3048,7 @@ async fn require_resolve_visitor(
             .await?
             .iter()
             .map(|&source| async move {
-                require_resolve(source.ident().path().owned().await?)
-                    .await
-                    .map(JsValue::from)
+                Ok(require_resolve(source.ident().path().owned().await?).into())
             })
             .try_join()
             .await?;
@@ -3224,28 +3220,6 @@ fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstParent
     ast_path.iter().map(|n| n.kind()).collect()
 }
 
-fn for_each_ident_in_decl(decl: &Decl, f: &mut impl FnMut(RcStr)) {
-    match decl {
-        Decl::Class(ClassDecl { ident, .. }) | Decl::Fn(FnDecl { ident, .. }) => {
-            f(ident.sym.as_str().into());
-        }
-        Decl::Var(var_decl) => {
-            let decls = &*var_decl.decls;
-            decls
-                .iter()
-                .for_each(|VarDeclarator { name, .. }| for_each_ident_in_pat(name, f));
-        }
-        Decl::Using(using_decl) => {
-            let decls = &*using_decl.decls;
-            decls
-                .iter()
-                .for_each(|VarDeclarator { name, .. }| for_each_ident_in_pat(name, f));
-        }
-        Decl::TsInterface(_) | Decl::TsTypeAlias(_) | Decl::TsEnum(_) | Decl::TsModule(_) => {
-            // ignore typescript for code generation
-        }
-    }
-}
 fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(RcStr)) {
     match pat {
         Pat::Ident(BindingIdent { id, .. }) => {
@@ -3306,8 +3280,8 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
 
         if export.src.is_none() {
             for spec in export.specifiers.iter() {
-                fn to_string(name: &ModuleExportName) -> &Atom {
-                    name.atom()
+                fn to_rcstr(name: &ModuleExportName) -> RcStr {
+                    name.atom().as_str().into()
                 }
                 match spec {
                     ExportSpecifier::Namespace(_) => {
@@ -3323,8 +3297,8 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                         );
                     }
                     ExportSpecifier::Named(ExportNamedSpecifier { orig, exported, .. }) => {
-                        let key = to_string(exported.as_ref().unwrap_or(orig)).as_str().into();
-                        let binding_name = to_string(orig).as_str().into();
+                        let key = to_rcstr(exported.as_ref().unwrap_or(orig));
+                        let binding_name = to_rcstr(orig);
                         let export = {
                             let imported_binding = if let ModuleExportName::Ident(ident) = orig {
                                 self.eval_context.imports.get_binding(&ident.to_id())
@@ -3344,7 +3318,16 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                                     EsmExport::ImportedNamespace(ResolvedVc::upcast(esm_ref))
                                 }
                             } else {
-                                EsmExport::LocalBinding(binding_name, is_fake_esm)
+                                EsmExport::LocalBinding(
+                                    binding_name,
+                                    if is_fake_esm {
+                                        Liveness::Mutable
+                                    } else {
+                                        // If this is `export {foo} from 'mod'` and `foo` is a const
+                                        // in mod then we could export as Const here.
+                                        Liveness::Live
+                                    },
+                                )
                             }
                         };
                         self.esm_exports.insert(key, export);
@@ -3363,10 +3346,45 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         export: &'ast ExportDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        for_each_ident_in_decl(&export.decl, &mut |name| {
-            self.esm_exports
-                .insert(name.clone(), EsmExport::LocalBinding(name, false));
-        });
+        {
+            let decl: &Decl = &export.decl;
+            let insert_export_binding = &mut |name: RcStr, liveness: Liveness| {
+                self.esm_exports
+                    .insert(name.clone(), EsmExport::LocalBinding(name, liveness));
+            };
+            match decl {
+                Decl::Class(ClassDecl { ident, .. }) | Decl::Fn(FnDecl { ident, .. }) => {
+                    // TODO: examine whether the value is ever mutated rather than just checking
+                    // 'const'
+                    insert_export_binding(ident.sym.as_str().into(), Liveness::Live);
+                }
+                Decl::Var(var_decl) => {
+                    // TODO: examine whether the value is ever mutated rather than just checking
+                    // 'const'
+                    let liveness = match var_decl.kind {
+                        VarDeclKind::Var => Liveness::Live,
+                        VarDeclKind::Let => Liveness::Live,
+                        VarDeclKind::Const => Liveness::Constant,
+                    };
+                    let decls = &*var_decl.decls;
+                    decls.iter().for_each(|VarDeclarator { name, .. }| {
+                        for_each_ident_in_pat(name, &mut |name| {
+                            insert_export_binding(name, liveness)
+                        })
+                    });
+                }
+                Decl::Using(_) => {
+                    // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#:~:text=You%20cannot%20use%20export%20on%20a%20using%20or%20await%20using%20declaration
+                    unreachable!("using declarations can not be exported");
+                }
+                Decl::TsInterface(_)
+                | Decl::TsTypeAlias(_)
+                | Decl::TsEnum(_)
+                | Decl::TsModule(_) => {
+                    // ignore typescript for code generation
+                }
+            }
+        };
         self.analysis
             .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
         export.visit_children_with_ast_path(self, ast_path);
@@ -3379,7 +3397,11 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
     ) {
         self.esm_exports.insert(
             rcstr!("default"),
-            EsmExport::LocalBinding(magic_identifier::mangle("default export").into(), false),
+            EsmExport::LocalBinding(
+                magic_identifier::mangle("default export").into(),
+                // The expression passed to `export default` cannot be mutated
+                Liveness::Constant,
+            ),
         );
         self.analysis
             .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
@@ -3400,7 +3422,12 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                             .as_ref()
                             .map(|i| i.sym.as_str().into())
                             .unwrap_or_else(|| magic_identifier::mangle("default export").into()),
-                        false,
+                        // Default export declarations can only be mutated if they have a name.
+                        if ident.is_some() {
+                            Liveness::Live
+                        } else {
+                            Liveness::Constant
+                        },
                     ),
                 );
             }

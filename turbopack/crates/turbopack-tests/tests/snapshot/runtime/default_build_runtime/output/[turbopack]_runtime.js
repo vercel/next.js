@@ -7,7 +7,7 @@ const ASSET_PREFIX = "/";
  *
  * It will be prepended to the runtime code of each runtime.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="./runtime-types.d.ts" />
-const REEXPORTED_OBJECTS = Symbol('reexported objects');
+const REEXPORTED_OBJECTS = new WeakMap();
 /**
  * Constructs the `__turbopack_context__` object for a module.
  */ function Context(module, exports) {
@@ -44,13 +44,13 @@ function getOverwrittenModule(moduleCache, id) {
         exports: {},
         error: undefined,
         id,
-        namespaceObject: undefined,
-        [REEXPORTED_OBJECTS]: undefined
+        namespaceObject: undefined
     };
 }
+const BindingTag_Value = 0;
 /**
  * Adds the getters to the exports object.
- */ function esm(exports, getters) {
+ */ function esm(exports, bindings) {
     defineProp(exports, '__esModule', {
         value: true
     });
@@ -58,29 +58,41 @@ function getOverwrittenModule(moduleCache, id) {
         value: 'Module'
     });
     let i = 0;
-    while(i < getters.length){
-        const propName = getters[i++];
-        // TODO(luke.sandberg): we could support raw values here, but would need a discriminator beyond 'not a function'
-        const getter = getters[i++];
-        if (typeof getters[i] === 'function') {
-            // a setter
-            defineProp(exports, propName, {
-                get: getter,
-                set: getters[i++],
-                enumerable: true
-            });
+    while(i < bindings.length){
+        const propName = bindings[i++];
+        const tagOrFunction = bindings[i++];
+        if (typeof tagOrFunction === 'number') {
+            if (tagOrFunction === BindingTag_Value) {
+                defineProp(exports, propName, {
+                    value: bindings[i++],
+                    enumerable: true,
+                    writable: false
+                });
+            } else {
+                throw new Error(`unexpected tag: ${tagOrFunction}`);
+            }
         } else {
-            defineProp(exports, propName, {
-                get: getter,
-                enumerable: true
-            });
+            const getterFn = tagOrFunction;
+            if (typeof bindings[i] === 'function') {
+                const setterFn = bindings[i++];
+                defineProp(exports, propName, {
+                    get: getterFn,
+                    set: setterFn,
+                    enumerable: true
+                });
+            } else {
+                defineProp(exports, propName, {
+                    get: getterFn,
+                    enumerable: true
+                });
+            }
         }
     }
     Object.seal(exports);
 }
 /**
  * Makes the module an ESM with exports
- */ function esmExport(getters, id) {
+ */ function esmExport(bindings, id) {
     let module;
     let exports;
     if (id != null) {
@@ -91,13 +103,13 @@ function getOverwrittenModule(moduleCache, id) {
         exports = this.e;
     }
     module.namespaceObject = exports;
-    esm(exports, getters);
+    esm(exports, bindings);
 }
 contextPrototype.s = esmExport;
 function ensureDynamicExports(module, exports) {
-    let reexportedObjects = module[REEXPORTED_OBJECTS];
+    let reexportedObjects = REEXPORTED_OBJECTS.get(module);
     if (!reexportedObjects) {
-        module[REEXPORTED_OBJECTS] = reexportedObjects = [];
+        REEXPORTED_OBJECTS.set(module, reexportedObjects = []);
         module.exports = module.namespaceObject = new Proxy(exports, {
             get (target, prop) {
                 if (hasOwnProperty.call(target, prop) || prop === 'default' || prop === '__esModule') {
@@ -179,14 +191,13 @@ function createGetter(obj, key) {
  *   * `false`: will have the raw module as default export
  *   * `true`: will have the default property as default export
  */ function interopEsm(raw, ns, allowExportDefault) {
-    const getters = [];
-    // The index of the `default` export if any
+    const bindings = [];
     let defaultLocation = -1;
     for(let current = raw; (typeof current === 'object' || typeof current === 'function') && !LEAF_PROTOTYPES.includes(current); current = getProto(current)){
         for (const key of Object.getOwnPropertyNames(current)){
-            getters.push(key, createGetter(raw, key));
+            bindings.push(key, createGetter(raw, key));
             if (defaultLocation === -1 && key === 'default') {
-                defaultLocation = getters.length - 1;
+                defaultLocation = bindings.length - 1;
             }
         }
     }
@@ -195,12 +206,13 @@ function createGetter(obj, key) {
     if (!(allowExportDefault && defaultLocation >= 0)) {
         // Replace the binding with one for the namespace itself in order to preserve iteration order.
         if (defaultLocation >= 0) {
-            getters[defaultLocation] = ()=>raw;
+            // Replace the getter with the value
+            bindings.splice(defaultLocation, 1, BindingTag_Value, raw);
         } else {
-            getters.push('default', ()=>raw);
+            bindings.push('default', BindingTag_Value, raw);
         }
     }
-    esm(ns, getters);
+    esm(ns, bindings);
     return ns;
 }
 function createNS(raw) {
@@ -223,7 +235,7 @@ function esmImport(id) {
 contextPrototype.i = esmImport;
 function asyncLoader(moduleId) {
     const loader = this.r(moduleId);
-    return loader(this.i.bind(this));
+    return loader(esmImport.bind(this));
 }
 contextPrototype.A = asyncLoader;
 // Add a simple runtime require so that environments without one can still pass
@@ -461,6 +473,8 @@ contextPrototype.U = relativeURL;
     throw new Error('dynamic usage of require is not supported');
 }
 contextPrototype.z = requireStub;
+// Make `globalThis` available to the module in a way that cannot be shadowed by a local variable.
+contextPrototype.g = globalThis;
 function applyModuleFactoryName(factory) {
     // Give the module factory a nice name to improve stack traces.
     Object.defineProperty(factory, 'name', {

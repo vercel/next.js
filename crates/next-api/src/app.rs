@@ -34,7 +34,7 @@ use next_core::{
     },
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
-    util::{NextRuntime, module_styles_rule_condition, styles_rule_condition},
+    util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -168,6 +168,7 @@ impl AppProject {
             self.app_dir.clone(),
             conf.page_extensions(),
             conf.is_global_not_found_enabled(),
+            self.project.next_mode(),
         )
     }
 
@@ -1130,8 +1131,8 @@ impl AppEndpoint {
         next_config: Vc<NextConfig>,
     ) -> Result<Vc<AppEntry>> {
         Ok(get_app_metadata_route_entry(
-            self.app_project.rsc_module_context(),
-            self.app_project.edge_rsc_module_context(),
+            self.app_project.route_module_context(),
+            self.app_project.edge_route_module_context(),
             self.app_project.project().project_path().owned().await?,
             self.page.clone(),
             *self.app_project.project().next_mode().await?,
@@ -1190,11 +1191,7 @@ impl AppEndpoint {
                 AppEndpointType::Metadata { metadata } => (
                     false,
                     false,
-                    if matches!(metadata, MetadataItem::Dynamic { .. }) {
-                        EmitManifests::Full
-                    } else {
-                        EmitManifests::Minimal
-                    },
+                    EmitManifests::Minimal,
                     matches!(metadata, MetadataItem::Dynamic { .. }),
                 ),
             };
@@ -1587,7 +1584,7 @@ impl AppEndpoint {
                         files: file_paths_from_root.into_iter().collect(),
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
-                        name: app_entry.pathname.clone(),
+                        name: app_function_name(&app_entry.original_name).into(),
                         page: app_entry.original_name.clone(),
                         regions: app_entry
                             .config
@@ -1698,11 +1695,10 @@ impl AppEndpoint {
                     .await?
                     .is_production()
                 {
-                    let page_name = app_entry.pathname.clone();
                     server_assets.insert(ResolvedVc::upcast(
                         NftJsonAsset::new(
                             project,
-                            Some(page_name),
+                            Some(app_function_name(&app_entry.original_name).into()),
                             *rsc_chunk,
                             client_reference_manifest
                                 .iter()
@@ -1981,7 +1977,7 @@ impl Endpoint for AppEndpoint {
                     server_entry_path: node_root
                         .get_path_to(&*rsc_chunk.path().await?)
                         .context("Node.js chunk entry path must be inside the node root")?
-                        .to_string(),
+                        .into(),
                     server_paths,
                     client_paths,
                 },

@@ -26,7 +26,10 @@ use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, Modu
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
@@ -36,6 +39,7 @@ use turbopack_core::{
     ident::Layer,
     issue::{IssueExt, IssueSource, StyledString, module::ModuleIssue},
     module::Module,
+    node_addon_module::NodeAddonModule,
     output::OutputAsset,
     raw_module::RawModule,
     reference_type::{
@@ -233,6 +237,9 @@ async fn apply_module_type(
         }
         ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(*source).to_resolved().await?),
         ModuleType::Raw => ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
+        ModuleType::NodeAddon => {
+            ResolvedVc::upcast(NodeAddonModule::new(*source).to_resolved().await?)
+        }
         ModuleType::CssModule => ResolvedVc::upcast(
             ModuleCssAsset::new(*source, Vc::upcast(module_asset_context))
                 .to_resolved()
@@ -670,12 +677,13 @@ async fn externals_tracing_module_context(
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ModuleAssetContext>> {
     let resolve_options = ResolveOptionsContext {
+        enable_node_native_modules: true,
         emulate_environment: Some(compile_time_info.await?.environment),
         loose_errors: true,
         custom_conditions: match ty {
-            ExternalType::CommonJs => vec![rcstr!("require")],
-            ExternalType::EcmaScriptModule => vec![rcstr!("import")],
-            ExternalType::Url | ExternalType::Global | ExternalType::Script => vec![],
+            ExternalType::CommonJs => vec![rcstr!("require"), rcstr!("node")],
+            ExternalType::EcmaScriptModule => vec![rcstr!("import"), rcstr!("node")],
+            ExternalType::Url | ExternalType::Global | ExternalType::Script => vec![rcstr!("node")],
         },
         ..Default::default()
     };
@@ -688,11 +696,14 @@ async fn externals_tracing_module_context(
         // are actually representative of what Turbopack does.
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                // enable_types should not be enabled here. It gets set automatically when a TS file
+                // is encountered.
                 source_maps: SourceMapsType::None,
                 ..Default::default()
             },
             css: CssOptionsContext {
                 source_maps: SourceMapsType::None,
+                enable_raw_css: true,
                 ..Default::default()
             },
             // Environment is not passed in order to avoid downleveling JS / CSS for
@@ -891,15 +902,14 @@ impl AssetContext for ModuleAssetContext {
 
     #[turbo_tasks::function]
     async fn side_effect_free_packages(&self) -> Result<Vc<Glob>> {
-        let pkgs = &*self.module_options_context.await?.side_effect_free_packages;
+        let pkgs = &self.module_options_context.await?.side_effect_free_packages;
 
-        let mut globs = Vec::with_capacity(pkgs.len());
+        let mut globs = String::new();
+        globs.push_str("**/node_modules/{");
+        globs.push_str(&pkgs.join(","));
+        globs.push_str("}/**");
 
-        for pkg in pkgs {
-            globs.push(Glob::new(format!("**/node_modules/{{{pkg}}}/**").into()));
-        }
-
-        Ok(Glob::alternatives(globs))
+        Ok(Glob::new(globs.into(), GlobOptions::default()))
     }
 }
 

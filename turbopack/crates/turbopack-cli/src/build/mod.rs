@@ -268,7 +268,7 @@ async fn build_internal(
                     false,
                 ),
                 EntryRequest::Module(m, p) => Request::module(
-                    m.clone(),
+                    m.clone().into(),
                     p.clone().into(),
                     Default::default(),
                     Default::default(),

@@ -29,6 +29,7 @@ import type { RenderingMode } from '../build/rendering-mode'
 import type { Revalidate } from './lib/cache-control'
 import type { AdapterOutputType } from '../shared/lib/constants'
 import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { FallbackRouteParam } from '../build/static-paths/types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -98,6 +99,17 @@ export type AdapterOutputs = Array<{
      * matchers are the configured matchers for middleware
      */
     matchers?: MiddlewareMatcher[]
+
+    /**
+     * bypassToken is the generated token that signals a prerender cache
+     * should be bypassed
+     */
+    bypassToken?: string
+
+    /**
+     * postponed is the PPR state when it postponed and is used for resuming
+     */
+    postponed?: string
   }
   /**
    * For prerenders the parent output is the originating
@@ -250,8 +262,18 @@ export type TurbopackLoaderItem =
       options: Record<string, JSONValue>
     }
 
+export type TurbopackLoaderBuiltinCondition =
+  | 'default'
+  | 'browser'
+  | 'foreign'
+  | 'development'
+  | 'production'
+  | 'node'
+  | 'edge-light'
+
 export type TurbopackRuleCondition = {
-  path: string | RegExp
+  path?: string | RegExp
+  content?: RegExp
 }
 
 export type TurbopackRuleConfigItemOrShortcut =
@@ -265,7 +287,7 @@ export type TurbopackRuleConfigItemOptions = {
 
 export type TurbopackRuleConfigItem =
   | TurbopackRuleConfigItemOptions
-  | { [condition: string]: TurbopackRuleConfigItem }
+  | { [condition in TurbopackLoaderBuiltinCondition]?: TurbopackRuleConfigItem }
   | false
 
 export interface TurbopackOptions {
@@ -433,8 +455,14 @@ export interface ExperimentalConfig {
   caseSensitiveRoutes?: boolean
   clientSegmentCache?: boolean | 'client-only'
   clientParamParsing?: boolean
+
+  /**
+   * The origins that are allowed to write the rewritten headers when
+   * performing a non-relative rewrite. When undefined, no non-relative
+   * rewrites will get the rewrite headers.
+   */
+  clientParamParsingOrigins?: string[]
   dynamicOnHover?: boolean
-  appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -542,6 +570,7 @@ export interface ExperimentalConfig {
 
   /**
    * @deprecated Use `config.turbopack` instead.
+   * Run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .` to migrate automatically.
    */
   turbo?: DeprecatedExperimentalTurboOptions
 
@@ -596,8 +625,9 @@ export interface ExperimentalConfig {
       }
 
   /**
-   * Generate Route types and enable type checking for Link and Router.push, etc.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
+   * Enable type checking for Link and Router.push, etc.
+   * @deprecated Use `typedRoutes` instead — this feature is now stable.
+   * @see https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links
    */
   typedRoutes?: boolean
 
@@ -918,7 +948,7 @@ export type ExportPathMap = {
      *
      * @internal
      */
-    _fallbackRouteParams?: readonly string[]
+    _fallbackRouteParams?: readonly FallbackRouteParam[]
 
     /**
      * @internal
@@ -986,6 +1016,14 @@ export interface NextConfig extends Record<string, any> {
    * @see [Next.js TypeScript documentation](https://nextjs.org/docs/app/api-reference/config/typescript)
    */
   typescript?: TypeScriptConfig
+
+  /**
+   * Enable type checking for Link and Router.push, etc.
+   * This feature requires TypeScript in your project.
+   *
+   * @see [Typed Links documentation](https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links)
+   */
+  typedRoutes?: boolean
 
   /**
    * Headers allow you to set custom HTTP headers for an incoming request path.
@@ -1403,6 +1441,7 @@ export const defaultConfig = Object.freeze({
     ignoreBuildErrors: false,
     tsconfigPath: 'tsconfig.json',
   },
+  typedRoutes: false,
   distDir: '.next',
   cleanDistDir: true,
   assetPrefix: '',
@@ -1508,8 +1547,8 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientSegmentCache: false,
     clientParamParsing: false,
+    clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
-    appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -1548,7 +1587,6 @@ export const defaultConfig = Object.freeze({
     amp: undefined,
     urlImports: undefined,
     turbo: undefined,
-    typedRoutes: false,
     typedEnv: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,

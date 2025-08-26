@@ -1,5 +1,4 @@
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import fs from 'fs-extra'
@@ -7,46 +6,14 @@ import fs from 'fs-extra'
 const locales = ['', '/en', '/sv', '/nl']
 
 describe('i18n-ignore-rewrite-source-locale with basepath', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/api/hello.js': `
-        export default function handler(req, res) {
-          res.send('hello from api')
-        }`,
-        'public/file.txt': 'hello from file.txt',
-      },
-      dependencies: {},
-      nextConfig: {
-        basePath: '/basepath',
-        i18n: {
-          locales: ['en', 'sv', 'nl'],
-          defaultLocale: 'en',
-        },
-        async rewrites() {
-          return {
-            beforeFiles: [
-              {
-                source: '/:locale/rewrite-files/:path*',
-                destination: '/:path*',
-                locale: false,
-              },
-              {
-                source: '/:locale/rewrite-api/:path*',
-                destination: '/api/:path*',
-                locale: false,
-              },
-            ],
-            afterFiles: [],
-            fallback: [],
-          }
-        },
-      },
-    })
+  const { next, skipped } = nextTestSetup({
+    files: __dirname,
+    skipDeployment: true,
   })
-  afterAll(() => next.destroy())
+
+  if (skipped) {
+    return
+  }
 
   test.each(locales)(
     'get public file by skipping locale in rewrite, locale: %s',

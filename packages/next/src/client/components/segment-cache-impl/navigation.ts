@@ -2,12 +2,12 @@ import type {
   CacheNodeSeedData,
   FlightRouterState,
   FlightSegmentPath,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type {
-  CacheNode,
   HeadData,
   LoadingModuleData,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+} from '../../../shared/lib/app-router-types'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
 import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {

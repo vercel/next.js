@@ -100,8 +100,9 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::express("integration/express.js")]
 #[case::fast_glob("integration/fast-glob.js")]
 #[case::fetch_h2("integration/fetch-h2.js")]
-#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js"))]
 // Could not find ffmpeg executable
+#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js"))]
+#[case::ffmpeg_static("integration/ffmpeg-static.js")]
 #[case::firebase_admin("integration/firebase-admin.js")]
 #[case::firebase("integration/firebase.js")]
 #[case::firestore("integration/firestore.js")]
@@ -158,6 +159,18 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::sentry("integration/sentry.js")]
 #[case::sequelize("integration/sequelize.js")]
 #[case::serialport("integration/serialport.js")]
+#[cfg_attr(
+    target_os = "windows",
+    should_panic(expected = "Something went wrong installing the \"sharp\" module"),
+    case::sharp030("integration/sharp030.js")
+)]
+#[cfg_attr(not(target_os = "windows"), case::sharp030("integration/sharp030.js"))]
+#[cfg_attr(
+    target_os = "windows",
+    should_panic(expected = "Something went wrong installing the \"sharp\" module"),
+    case::sharp033("integration/sharp033.js")
+)]
+#[cfg_attr(not(target_os = "windows"), case::sharp033("integration/sharp033.js"))]
 #[cfg_attr(
     target_os = "windows",
     should_panic(expected = "Something went wrong installing the \"sharp\" module"),
@@ -338,9 +351,10 @@ async fn node_file_trace_operation(
     ));
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
-        // TODO It's easy to make a mistake here as this should match the config in the
-        // binary. TODO These test cases should move into the
-        // `node-file-trace` crate and use the same config.
+        // TODO These test cases should move into the `node-file-trace` crate and use the same
+        // config.
+        // It's easy to make a mistake here as this should match the config in the binary from
+        // turbopack/crates/turbopack/src/lib.rs
         CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {

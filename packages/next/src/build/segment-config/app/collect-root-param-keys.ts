@@ -1,12 +1,10 @@
 import { getSegmentParam } from '../../../server/app-render/get-segment-param'
-import type { LoadComponentsReturnType } from '../../../server/load-components'
-import type { AppPageModule } from '../../../server/route-modules/app-page/module'
 import type AppPageRouteModule from '../../../server/route-modules/app-page/module'
-import type { AppRouteModule } from '../../../server/route-modules/app-route/module'
 import {
   isAppPageRouteModule,
   isAppRouteRouteModule,
 } from '../../../server/route-modules/checks'
+import type { RouteModule } from '../../../server/route-modules/route-module'
 import { InvariantError } from '../../../shared/lib/invariant-error'
 
 function collectAppPageRootParamKeys(
@@ -46,11 +44,9 @@ function collectAppPageRootParamKeys(
  * @param components the loaded components
  * @returns the segments for the route module
  */
-export function collectRootParamKeys({
-  routeModule,
-}: LoadComponentsReturnType<
-  AppPageModule | AppRouteModule
->): readonly string[] {
+export function collectRootParamKeys(
+  routeModule: RouteModule
+): readonly string[] {
   if (isAppRouteRouteModule(routeModule)) {
     return []
   }

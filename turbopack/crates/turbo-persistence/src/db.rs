@@ -3,19 +3,15 @@ use std::{
     collections::HashSet,
     fs::{self, File, OpenOptions, ReadDir},
     io::{BufWriter, Write},
-    mem::{MaybeUninit, swap, transmute},
+    mem::swap,
     ops::RangeInclusive,
     path::{Path, PathBuf},
-    sync::{
-        Arc,
-        atomic::{AtomicBool, AtomicU32, Ordering},
-    },
+    sync::atomic::{AtomicBool, AtomicU32, Ordering},
 };
 
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use jiff::Timestamp;
-use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use parking_lot::{Mutex, RwLock};
 
@@ -24,6 +20,7 @@ use crate::{
     QueryKey,
     arc_slice::ArcSlice,
     compaction::selector::{Compactable, compute_metrics, get_merge_segments},
+    compression::decompress_into_arc,
     constants::{
         AMQF_AVG_SIZE, AMQF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE,
         KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
@@ -392,14 +389,9 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
         #[cfg(target_os = "linux")]
         mmap.advise(memmap2::Advice::Unmergeable)?;
         let mut compressed = &mmap[..];
-        let uncompressed_length = compressed.read_u32::<BE>()? as usize;
+        let uncompressed_length = compressed.read_u32::<BE>()?;
 
-        let buffer = Arc::new_zeroed_slice(uncompressed_length);
-        // Safety: MaybeUninit<u8> can be safely transmuted to u8.
-        let mut buffer = unsafe { transmute::<Arc<[MaybeUninit<u8>]>, Arc<[u8]>>(buffer) };
-        // Safety: We know that the buffer is not shared yet.
-        let decompressed = unsafe { Arc::get_mut_unchecked(&mut buffer) };
-        decompress(compressed, decompressed)?;
+        let buffer = decompress_into_arc(uncompressed_length, compressed, None, true)?;
         Ok(ArcSlice::from(buffer))
     }
 
@@ -508,12 +500,15 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
             sst_filter.apply_filter(meta_file);
         }
 
-        for (_, file) in new_sst_files.iter() {
-            file.sync_all()?;
-        }
-        for (_, file) in new_blob_files.iter() {
-            file.sync_all()?;
-        }
+        self.parallel_scheduler.block_in_place(|| {
+            for (_, file) in new_sst_files.iter() {
+                file.sync_all()?;
+            }
+            for (_, file) in new_blob_files.iter() {
+                file.sync_all()?;
+            }
+            anyhow::Ok(())
+        })?;
 
         let new_meta_info = new_meta_files
             .iter()
@@ -566,86 +561,88 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
             inner.current_sequence_number = seq;
         }
 
-        if has_delete_file {
-            sst_seq_numbers_to_delete.sort_unstable();
-            meta_seq_numbers_to_delete.sort_unstable();
-            blob_seq_numbers_to_delete.sort_unstable();
-            // Write *.del file, marking the selected files as to delete
-            let mut buf = Vec::with_capacity(
-                (sst_seq_numbers_to_delete.len()
-                    + meta_seq_numbers_to_delete.len()
-                    + blob_seq_numbers_to_delete.len())
-                    * size_of::<u32>(),
-            );
+        self.parallel_scheduler.block_in_place(|| {
+            if has_delete_file {
+                sst_seq_numbers_to_delete.sort_unstable();
+                meta_seq_numbers_to_delete.sort_unstable();
+                blob_seq_numbers_to_delete.sort_unstable();
+                // Write *.del file, marking the selected files as to delete
+                let mut buf = Vec::with_capacity(
+                    (sst_seq_numbers_to_delete.len()
+                        + meta_seq_numbers_to_delete.len()
+                        + blob_seq_numbers_to_delete.len())
+                        * size_of::<u32>(),
+                );
+                for seq in sst_seq_numbers_to_delete.iter() {
+                    buf.write_u32::<BE>(*seq)?;
+                }
+                for seq in meta_seq_numbers_to_delete.iter() {
+                    buf.write_u32::<BE>(*seq)?;
+                }
+                for seq in blob_seq_numbers_to_delete.iter() {
+                    buf.write_u32::<BE>(*seq)?;
+                }
+                let mut file = File::create(self.path.join(format!("{seq:08}.del")))?;
+                file.write_all(&buf)?;
+                file.sync_all()?;
+            }
+
+            let mut current_file = OpenOptions::new()
+                .write(true)
+                .truncate(false)
+                .read(false)
+                .open(self.path.join("CURRENT"))?;
+            current_file.write_u32::<BE>(seq)?;
+            current_file.sync_all()?;
+
             for seq in sst_seq_numbers_to_delete.iter() {
-                buf.write_u32::<BE>(*seq)?;
+                fs::remove_file(self.path.join(format!("{seq:08}.sst")))?;
             }
             for seq in meta_seq_numbers_to_delete.iter() {
-                buf.write_u32::<BE>(*seq)?;
+                fs::remove_file(self.path.join(format!("{seq:08}.meta")))?;
             }
             for seq in blob_seq_numbers_to_delete.iter() {
-                buf.write_u32::<BE>(*seq)?;
+                fs::remove_file(self.path.join(format!("{seq:08}.blob")))?;
             }
-            let mut file = File::create(self.path.join(format!("{seq:08}.del")))?;
-            file.write_all(&buf)?;
-            file.sync_all()?;
-        }
 
-        let mut current_file = OpenOptions::new()
-            .write(true)
-            .truncate(false)
-            .read(false)
-            .open(self.path.join("CURRENT"))?;
-        current_file.write_u32::<BE>(seq)?;
-        current_file.sync_all()?;
-
-        for seq in sst_seq_numbers_to_delete.iter() {
-            fs::remove_file(self.path.join(format!("{seq:08}.sst")))?;
-        }
-        for seq in meta_seq_numbers_to_delete.iter() {
-            fs::remove_file(self.path.join(format!("{seq:08}.meta")))?;
-        }
-        for seq in blob_seq_numbers_to_delete.iter() {
-            fs::remove_file(self.path.join(format!("{seq:08}.blob")))?;
-        }
-
-        {
-            let mut log = self.open_log()?;
-            writeln!(log, "Time {time}")?;
-            let span = time.until(Timestamp::now())?;
-            writeln!(log, "Commit {seq:08} {keys_written} keys in {span:#}")?;
-            for (seq, family, ssts, obsolete) in new_meta_info {
-                writeln!(log, "{seq:08} META family:{family}",)?;
-                for (seq, min, max, size) in ssts {
-                    writeln!(
-                        log,
-                        "  {seq:08} SST  {min:016x}-{max:016x} {} MiB",
-                        size / 1024 / 1024
-                    )?;
+            {
+                let mut log = self.open_log()?;
+                writeln!(log, "Time {time}")?;
+                let span = time.until(Timestamp::now())?;
+                writeln!(log, "Commit {seq:08} {keys_written} keys in {span:#}")?;
+                for (seq, family, ssts, obsolete) in new_meta_info {
+                    writeln!(log, "{seq:08} META family:{family}",)?;
+                    for (seq, min, max, size) in ssts {
+                        writeln!(
+                            log,
+                            "  {seq:08} SST  {min:016x}-{max:016x} {} MiB",
+                            size / 1024 / 1024
+                        )?;
+                    }
+                    for seq in obsolete {
+                        writeln!(log, "  {seq:08} OBSOLETE SST")?;
+                    }
                 }
-                for seq in obsolete {
-                    writeln!(log, "  {seq:08} OBSOLETE SST")?;
+                new_sst_files.sort_unstable_by_key(|(seq, _)| *seq);
+                for (seq, _) in new_sst_files.iter() {
+                    writeln!(log, "{seq:08} NEW SST")?;
+                }
+                new_blob_files.sort_unstable_by_key(|(seq, _)| *seq);
+                for (seq, _) in new_blob_files.iter() {
+                    writeln!(log, "{seq:08} NEW BLOB")?;
+                }
+                for seq in sst_seq_numbers_to_delete.iter() {
+                    writeln!(log, "{seq:08} SST DELETED")?;
+                }
+                for seq in meta_seq_numbers_to_delete.iter() {
+                    writeln!(log, "{seq:08} META DELETED")?;
+                }
+                for seq in blob_seq_numbers_to_delete.iter() {
+                    writeln!(log, "{seq:08} BLOB DELETED")?;
                 }
             }
-            new_sst_files.sort_unstable_by_key(|(seq, _)| *seq);
-            for (seq, _) in new_sst_files.iter() {
-                writeln!(log, "{seq:08} NEW SST")?;
-            }
-            new_blob_files.sort_unstable_by_key(|(seq, _)| *seq);
-            for (seq, _) in new_blob_files.iter() {
-                writeln!(log, "{seq:08} NEW BLOB")?;
-            }
-            for seq in sst_seq_numbers_to_delete.iter() {
-                writeln!(log, "{seq:08} SST DELETED")?;
-            }
-            for seq in meta_seq_numbers_to_delete.iter() {
-                writeln!(log, "{seq:08} META DELETED")?;
-            }
-            for seq in blob_seq_numbers_to_delete.iter() {
-                writeln!(log, "{seq:08} BLOB DELETED")?;
-            }
-        }
-
+            anyhow::Ok(())
+        })?;
         Ok(())
     }
 
@@ -668,7 +665,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
     /// files is above the given threshold. The coverage is the average number of SST files that
     /// need to be read to find a key. It also limits the maximum number of SST files that are
     /// merged at once, which is the main factor for the runtime of the compaction.
-    pub fn compact(&self, compact_config: &CompactConfig) -> Result<()> {
+    pub fn compact(&self, compact_config: &CompactConfig) -> Result<bool> {
         if self.read_only {
             bail!("Compaction is not allowed on a read only database");
         }
@@ -707,7 +704,8 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
             .context("Failed to compact database")?;
         }
 
-        if !new_meta_files.is_empty() {
+        let has_changes = !new_meta_files.is_empty();
+        if has_changes {
             self.commit(CommitOptions {
                 new_meta_files,
                 new_sst_files,
@@ -722,7 +720,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
 
         self.active_write_operation.store(false, Ordering::Release);
 
-        Ok(())
+        Ok(has_changes)
     }
 
     /// Internal function to perform a compaction.
@@ -836,7 +834,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                         });
                     }
 
-                    {
+                    self.parallel_scheduler.block_in_place(|| {
                         let metrics = compute_metrics(&ssts_with_ranges, 0..=u64::MAX);
                         let guard = log_mutex.lock();
                         let mut log = self.open_log()?;
@@ -858,7 +856,8 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                             }
                         }
                         drop(guard);
-                    }
+                        anyhow::Ok(())
+                    })?;
 
                     // Later we will remove the merged files
                     let sst_seq_numbers_to_delete = merge_jobs
@@ -899,8 +898,6 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                                     amqf,
                                     key_compression_dictionary_length: entry
                                         .key_compression_dictionary_length(),
-                                    value_compression_dictionary_length: entry
-                                        .value_compression_dictionary_length(),
                                     block_count: entry.block_count(),
                                     size: entry.size(),
                                     entries: 0,
@@ -911,21 +908,22 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                                 });
                             }
 
-                            fn create_sst_file(
-                                entries: &[LookupEntry],
+                            fn create_sst_file<'l, S: ParallelScheduler>(
+                                parallel_scheduler: &S,
+                                entries: &[LookupEntry<'l>],
                                 total_key_size: usize,
-                                total_value_size: usize,
                                 path: &Path,
                                 seq: u32,
                             ) -> Result<(u32, File, StaticSortedFileBuilderMeta<'static>)>
                             {
                                 let _span = tracing::trace_span!("write merged sst file").entered();
-                                let (meta, file) = write_static_stored_file(
-                                    entries,
-                                    total_key_size,
-                                    total_value_size,
-                                    &path.join(format!("{seq:08}.sst")),
-                                )?;
+                                let (meta, file) = parallel_scheduler.block_in_place(|| {
+                                    write_static_stored_file(
+                                        entries,
+                                        total_key_size,
+                                        &path.join(format!("{seq:08}.sst")),
+                                    )
+                                })?;
                                 Ok((seq, file, meta))
                             }
 
@@ -954,10 +952,10 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
 
                             let mut total_key_size = 0;
                             let mut total_value_size = 0;
-                            let mut current: Option<LookupEntry> = None;
+                            let mut current: Option<LookupEntry<'_>> = None;
                             let mut entries = Vec::new();
                             let mut last_entries = Vec::new();
-                            let mut last_entries_total_sizes = (0, 0);
+                            let mut last_entries_total_key_size = 0;
                             for entry in iter {
                                 let entry = entry?;
 
@@ -965,7 +963,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                                 if let Some(current) = current.take() {
                                     if current.key != entry.key {
                                         let key_size = current.key.len();
-                                        let value_size = current.value.size_in_sst();
+                                        let value_size = current.value.uncompressed_size_in_sst();
                                         total_key_size += key_size;
                                         total_value_size += value_size;
 
@@ -973,15 +971,10 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                                             > DATA_THRESHOLD_PER_COMPACTED_FILE
                                             || entries.len() >= MAX_ENTRIES_PER_COMPACTED_FILE
                                         {
-                                            let (
-                                                selected_total_key_size,
-                                                selected_total_value_size,
-                                            ) = last_entries_total_sizes;
+                                            let selected_total_key_size =
+                                                last_entries_total_key_size;
                                             swap(&mut entries, &mut last_entries);
-                                            last_entries_total_sizes = (
-                                                total_key_size - key_size,
-                                                total_value_size - value_size,
-                                            );
+                                            last_entries_total_key_size = total_key_size - key_size;
                                             total_key_size = key_size;
                                             total_value_size = value_size;
 
@@ -992,9 +985,9 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
 
                                                 keys_written += entries.len() as u64;
                                                 new_sst_files.push(create_sst_file(
+                                                    &self.parallel_scheduler,
                                                     &entries,
                                                     selected_total_key_size,
-                                                    selected_total_value_size,
                                                     path,
                                                     seq,
                                                 )?);
@@ -1012,7 +1005,8 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                             }
                             if let Some(entry) = current {
                                 total_key_size += entry.key.len();
-                                total_value_size += entry.value.size_in_sst();
+                                // Obsolete as we no longer need total_value_size
+                                // total_value_size += entry.value.uncompressed_size_in_sst();
                                 entries.push(entry);
                             }
 
@@ -1022,9 +1016,9 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
 
                                 keys_written += entries.len() as u64;
                                 new_sst_files.push(create_sst_file(
+                                    &self.parallel_scheduler,
                                     &entries,
                                     total_key_size,
-                                    total_value_size,
                                     path,
                                     seq,
                                 )?);
@@ -1035,8 +1029,7 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                             if !last_entries.is_empty() {
                                 last_entries.append(&mut entries);
 
-                                last_entries_total_sizes.0 += total_key_size;
-                                last_entries_total_sizes.1 += total_value_size;
+                                last_entries_total_key_size += total_key_size;
 
                                 let (part1, part2) = last_entries.split_at(last_entries.len() / 2);
 
@@ -1045,19 +1038,19 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
 
                                 keys_written += part1.len() as u64;
                                 new_sst_files.push(create_sst_file(
+                                    &self.parallel_scheduler,
                                     part1,
                                     // We don't know the exact sizes so we estimate them
-                                    last_entries_total_sizes.0 / 2,
-                                    last_entries_total_sizes.1 / 2,
+                                    last_entries_total_key_size / 2,
                                     path,
                                     seq1,
                                 )?);
 
                                 keys_written += part2.len() as u64;
                                 new_sst_files.push(create_sst_file(
+                                    &self.parallel_scheduler,
                                     part2,
-                                    last_entries_total_sizes.0 / 2,
-                                    last_entries_total_sizes.1 / 2,
+                                    last_entries_total_key_size / 2,
                                     path,
                                     seq2,
                                 )?);
@@ -1125,7 +1118,8 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                     let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
                     let meta_file = {
                         let _span = tracing::trace_span!("write meta file").entered();
-                        meta_file_builder.write(&self.path, seq)?
+                        self.parallel_scheduler
+                            .block_in_place(|| meta_file_builder.write(&self.path, seq))?
                     };
 
                     Ok(PartialResultPerFamily {
@@ -1256,8 +1250,6 @@ impl<S: ParallelScheduler> TurboPersistence<S> {
                             amqf_entries: amqf.len(),
                             key_compression_dictionary_size: entry
                                 .key_compression_dictionary_length(),
-                            value_compression_dictionary_size: entry
-                                .value_compression_dictionary_length(),
                             block_count: entry.block_count(),
                         }
                     })
@@ -1295,6 +1287,5 @@ pub struct MetaFileEntryInfo {
     pub amqf_entries: usize,
     pub sst_size: u64,
     pub key_compression_dictionary_size: u16,
-    pub value_compression_dictionary_size: u16,
     pub block_count: u16,
 }

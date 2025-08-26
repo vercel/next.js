@@ -16,6 +16,22 @@ module.exports = {
     localPatterns: [
       {
         pathname: '/assets/**',
+      },
+    ],
+  },
+}
+```
+
+Omitting the `search` will allow all query strings.
+
+If you want to prevent the query string from matching, you can use the empty string, for example:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    localPatterns: [
+      {
+        pathname: '/assets/**',
         search: '',
       },
     ],

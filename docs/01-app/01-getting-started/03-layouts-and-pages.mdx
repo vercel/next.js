@@ -324,3 +324,37 @@ export default async function Post({ post }) {
 ```
 
 > **Good to know**: `<Link>` is the primary way to navigate between routes in Next.js. You can also use the [`useRouter` hook](/docs/app/api-reference/functions/use-router) for more advanced navigation.
+
+## Route Props Helpers
+
+Next.js exposes utility types that infer `params` and named slots from your route structure:
+
+- [**PageProps**](/docs/app/api-reference/file-conventions/page#page-props-helper): Props for `page` components, including `params` and `searchParams`.
+- [**LayoutProps**](/docs/app/api-reference/file-conventions/layout#layout-props-helper): Props for `layout` components, including `children` and any named slots (e.g. folders like `@analytics`).
+
+These are globally available helpers, generated when running either `next dev`, `next build` or [`next typegen`](/docs/app/api-reference/cli/next#next-typegen-options).
+
+```tsx filename="app/blog/[slug]/page.tsx"
+export default async function Page(props: PageProps<'/blog/[slug]'>) {
+  const { slug } = await props.params
+  return <h1>Blog post: {slug}</h1>
+}
+```
+
+```tsx filename="app/dashboard/layout.tsx"
+export default function Layout(props: LayoutProps<'/dashboard'>) {
+  return (
+    <section>
+      {props.children}
+      {/* If you have app/dashboard/@analytics, it appears as a typed slot: */}
+      {/* {props.analytics} */}
+    </section>
+  )
+}
+```
+
+> **Good to know**
+>
+> - Static routes resolve `params` to `{}`.
+> - `PageProps`, `LayoutProps` are global helpers — no imports required.
+> - Types are generated during `next dev`, `next build` or `next typegen`.

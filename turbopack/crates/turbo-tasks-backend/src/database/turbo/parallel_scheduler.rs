@@ -1,10 +1,17 @@
 use turbo_persistence::ParallelScheduler;
-use turbo_tasks::parallel;
+use turbo_tasks::{block_in_place, parallel};
 
 #[derive(Clone, Copy, Default)]
 pub struct TurboTasksParallelScheduler;
 
 impl ParallelScheduler for TurboTasksParallelScheduler {
+    fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
+    where
+        R: Send,
+    {
+        block_in_place(f)
+    }
+
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
     where
         T: Sync,

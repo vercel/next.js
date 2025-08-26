@@ -85,12 +85,11 @@ export interface WorkStore {
   readonly refreshTagsByCacheKind: Map<string, LazyResult<void>>
 
   fetchMetrics?: FetchMetrics
+  shouldTrackFetchMetrics: boolean
 
   isDraftMode?: boolean
   isUnstableNoStore?: boolean
   isPrefetchRequest?: boolean
-
-  requestEndedState?: { ended?: boolean }
 
   buildId: string
 

@@ -777,5 +777,20 @@
   "776": "`unstable_isUnrecognizedActionError` can only be used on the client.",
   "777": "Invariant: failed to find source route %s for prerender %s",
   "778": "`prerenderAndAbortInSequentialTasksWithStages` should not be called in edge runtime.",
-  "779": "Route %s used \"searchParams\" inside \"use cache\". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \"searchParams\" outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache"
+  "779": "Route %s used \"searchParams\" inside \"use cache\". Accessing dynamic request data inside a cache scope is not supported. If you need some search params inside a cached function await \"searchParams\" outside of the cached function and pass only the required search params as arguments to the cached function. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+  "780": "Invariant: failed to find parent dynamic route for notFound route %s",
+  "781": "No LRU node to remove",
+  "782": "Failed to find the root directory of the project. This is a bug in Next.js.",
+  "783": "Expected document.currentScript to be a <script> element. Received %s instead.",
+  "784": "Expected document.currentScript src to contain '/_next/'. Received %s instead.",
+  "785": "Expected webSocket to be defined in dev mode.",
+  "786": "Expected staticIndicatorState to be defined in dev mode.",
+  "787": "\\`experimental.clientParamParsing\\` can not be \\`true\\` when \\`experimental.clientSegmentCache\\` is \\`false\\`. Client param parsing is only relevant when client segment cache is enabled.",
+  "788": "Unexpected dynamic param type: %s",
+  "789": "Expected RSC response, got %s",
+  "790": "Invariant: Expected RSC response, got %s",
+  "791": "Unexpected match for a pathname \"%s\" with a param \"%s\" of type \"%s\"",
+  "792": "Unexpected empty path segments match for a pathname \"%s\" with param \"%s\" of type \"%s\"",
+  "793": "No value found for segment key: \"%s\"",
+  "794": "Invalid <Link> with <a> child. Please remove <a>.\nLearn more: https://nextjs.org/docs/messages/invalid-new-link-with-extra-anchor"
 }

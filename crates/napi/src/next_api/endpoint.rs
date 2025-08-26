@@ -34,7 +34,7 @@ pub struct NapiServerPath {
 impl From<ServerPath> for NapiServerPath {
     fn from(server_path: ServerPath) -> Self {
         Self {
-            path: server_path.path,
+            path: server_path.path.into_owned(),
             content_hash: format!("{:x}", server_path.content_hash),
         }
     }
@@ -59,7 +59,7 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
                 client_paths,
             }) => Self {
                 r#type: "nodejs".to_string(),
-                entry_path: Some(server_entry_path),
+                entry_path: Some(server_entry_path.into_owned()),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
                 server_paths: server_paths.into_iter().map(From::from).collect(),
                 ..Default::default()

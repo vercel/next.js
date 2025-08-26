@@ -19,7 +19,6 @@ export type WorkStoreContext = {
    */
   page: string
 
-  requestEndedState?: { ended?: boolean }
   isPrefetchRequest?: boolean
   renderOpts: {
     cacheLifeProfiles?: { [profile: string]: CacheLife }
@@ -77,7 +76,6 @@ export type WorkStoreContext = {
 export function createWorkStore({
   page,
   renderOpts,
-  requestEndedState,
   isPrefetchRequest,
   buildId,
   previouslyRevalidatedTags,
@@ -105,6 +103,17 @@ export function createWorkStore({
     !renderOpts.isDraftMode &&
     !renderOpts.isPossibleServerAction
 
+  const isDevelopment = renderOpts.dev ?? false
+
+  const shouldTrackFetchMetrics =
+    isDevelopment ||
+    // The only times we want to track fetch metrics outside of development is
+    // when we are performing a static generation and we either are in debug
+    // mode, or tracking fetch metrics was specifically opted into.
+    (isStaticGeneration &&
+      (!!process.env.NEXT_DEBUG_BUILD ||
+        process.env.NEXT_SSG_FETCH_METRICS === '1'))
+
   const store: WorkStore = {
     isStaticGeneration,
     page,
@@ -122,7 +131,6 @@ export function createWorkStore({
 
     isDraftMode: renderOpts.isDraftMode,
 
-    requestEndedState,
     isPrefetchRequest,
     buildId,
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
@@ -130,10 +138,11 @@ export function createWorkStore({
 
     afterContext: createAfterContext(renderOpts),
     cacheComponentsEnabled: renderOpts.experimental.cacheComponents,
-    dev: renderOpts.dev ?? false,
+    dev: isDevelopment,
     previouslyRevalidatedTags,
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
     runInCleanSnapshot: createSnapshot(),
+    shouldTrackFetchMetrics,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context

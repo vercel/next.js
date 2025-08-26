@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useOnClickOutside } from '../../hooks/use-on-click-outside'
 
-export type DialogProps = {
+type DialogProps = {
   children?: React.ReactNode
   'aria-labelledby': string
   'aria-describedby': string
@@ -37,7 +37,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   )
 
   useOnClickOutside(
-    // eslint-disable-next-line react-hooks/react-compiler -- TODO
+    // eslint-disable-next-line react-hooks/refs -- TODO
     dialogRef.current,
     CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE,
     (e) => {

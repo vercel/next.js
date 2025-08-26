@@ -17,9 +17,9 @@ import {
   normalizeRegEx,
   check,
   getRedboxHeader,
+  normalizeManifest,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
-import escapeRegex from 'escape-string-regexp'
 
 let app
 let appPort
@@ -1250,287 +1250,256 @@ function runTests({ dev }) {
         new RegExp(route.namedDataRouteRegex)
       }
 
-      expect(manifest).toEqual({
-        version: 3,
-        pages404: true,
-        caseSensitive: false,
-        basePath: '',
-        headers: [],
-        rewrites: {
-          beforeFiles: [],
-          afterFiles: [],
-          fallback: [],
-        },
-        staticRoutes: [
-          {
-            namedRegex: '^/(?:/)?$',
-            page: '/',
-            regex: '^/(?:/)?$',
-            routeKeys: {},
-          },
-          {
-            namedRegex: '^/another(?:/)?$',
-            page: '/another',
-            regex: '^/another(?:/)?$',
-            routeKeys: {},
-          },
-        ],
-        redirects: expect.arrayContaining([]),
-        dataRoutes: [
-          {
-            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
-              buildId
-            )}\\/b\\/([^\\/]+?)\\.json$`,
-            namedDataRouteRegex: `^/_next/data/${escapeRegex(
-              buildId
-            )}/b/(?<nxtP123>[^/]+?)\\.json$`,
-            page: '/b/[123]',
-            routeKeys: {
-              nxtP123: 'nxtP123',
-            },
-          },
-          {
-            dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
-              buildId
-            )}\\/c\\/([^\\/]+?)\\.json$`,
-            namedDataRouteRegex: `^/_next/data/${escapeRegex(
-              buildId
-            )}/c/(?<a>[^/]+?)\\.json$`,
-            page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
-            routeKeys: {
-              a: 'nxtPalongparamnameshouldbeallowedeventhoughweird',
-            },
-          },
-          {
-            namedDataRouteRegex: `^/_next/data/${escapeRegex(
-              buildId
-            )}/p1/p2/all\\-ssg/(?<nxtPrest>.+?)\\.json$`,
-            dataRouteRegex: normalizeRegEx(
-              `^\\/_next\\/data\\/${escapeRegex(
-                buildId
-              )}\\/p1\\/p2\\/all\\-ssg\\/(.+?)\\.json$`
-            ),
-            page: '/p1/p2/all-ssg/[...rest]',
-            routeKeys: {
-              nxtPrest: 'nxtPrest',
-            },
-          },
-          {
-            namedDataRouteRegex: `^/_next/data/${escapeRegex(
-              buildId
-            )}/p1/p2/nested\\-all\\-ssg/(?<nxtPrest>.+?)\\.json$`,
-            dataRouteRegex: normalizeRegEx(
-              `^\\/_next\\/data\\/${escapeRegex(
-                buildId
-              )}\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)\\.json$`
-            ),
-            page: '/p1/p2/nested-all-ssg/[...rest]',
-            routeKeys: {
-              nxtPrest: 'nxtPrest',
-            },
-          },
-          {
-            namedDataRouteRegex: `^/_next/data/${escapeRegex(
-              buildId
-            )}/p1/p2/predefined\\-ssg/(?<nxtPrest>.+?)\\.json$`,
-            dataRouteRegex: normalizeRegEx(
-              `^\\/_next\\/data\\/${escapeRegex(
-                buildId
-              )}\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)\\.json$`
-            ),
-            page: '/p1/p2/predefined-ssg/[...rest]',
-            routeKeys: {
-              nxtPrest: 'nxtPrest',
-            },
-          },
-          {
-            dataRouteRegex: normalizeRegEx(
-              `^\\/_next\\/data\\/${escapeRegex(
-                buildId
-              )}\\/([^\\/]+?)\\/([^\\/]+?)\\/(.+?)\\.json$`
-            ),
-            namedDataRouteRegex: `^/_next/data/${escapeRegex(
-              buildId
-            )}/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)/(?<nxtPrest>.+?)\\.json$`,
-            page: '/[name]/[comment]/[...rest]',
-            routeKeys: {
-              nxtPcomment: 'nxtPcomment',
-              nxtPname: 'nxtPname',
-              nxtPrest: 'nxtPrest',
-            },
-          },
-        ],
-        dynamicRoutes: [
-          {
-            namedRegex: '^/b/(?<nxtP123>[^/]+?)(?:/)?$',
-            page: '/b/[123]',
-            regex: normalizeRegEx('^\\/b\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: {
-              nxtP123: 'nxtP123',
-            },
-          },
-          {
-            namedRegex: `^/blog/(?<nxtPname>[^/]+?)/comment/(?<nxtPid>[^/]+?)(?:/)?$`,
-            page: '/blog/[name]/comment/[id]',
-            regex: normalizeRegEx(
-              '^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$'
-            ),
-            routeKeys: {
-              nxtPname: 'nxtPname',
-              nxtPid: 'nxtPid',
-            },
-          },
-          {
-            namedRegex: '^/c/(?<a>[^/]+?)(?:/)?$',
-            page: '/c/[alongparamnameshouldbeallowedeventhoughweird]',
-            regex: normalizeRegEx('^\\/c\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: {
-              a: 'nxtPalongparamnameshouldbeallowedeventhoughweird',
-            },
-          },
-          {
-            namedRegex: '^/catchall\\-dash/(?<nxtPhelloworld>.+?)(?:/)?$',
-            page: '/catchall-dash/[...hello-world]',
-            regex: normalizeRegEx('^\\/catchall\\-dash\\/(.+?)(?:\\/)?$'),
-            routeKeys: {
-              nxtPhelloworld: 'nxtPhello-world',
-            },
-          },
-          {
-            namedRegex: '^/d/(?<nxtPid>[^/]+?)(?:/)?$',
-            page: '/d/[id]',
-            regex: normalizeRegEx('^\\/d\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: {
-              nxtPid: 'nxtPid',
-            },
-          },
-          {
-            namedRegex: '^/dash/(?<nxtPhelloworld>[^/]+?)(?:/)?$',
-            page: '/dash/[hello-world]',
-            regex: normalizeRegEx('^\\/dash\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: {
-              nxtPhelloworld: 'nxtPhello-world',
-            },
-          },
-          {
-            namedRegex: '^/index/(?<nxtPslug>.+?)(?:/)?$',
-            page: '/index/[...slug]',
-            regex: normalizeRegEx('^/index/(.+?)(?:/)?$'),
-            routeKeys: {
-              nxtPslug: 'nxtPslug',
-            },
-          },
-          {
-            namedRegex: `^/on\\-mount/(?<nxtPpost>[^/]+?)(?:/)?$`,
-            page: '/on-mount/[post]',
-            regex: normalizeRegEx('^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: {
-              nxtPpost: 'nxtPpost',
-            },
-          },
-          {
-            namedRegex: `^/p1/p2/all\\-ssg/(?<nxtPrest>.+?)(?:/)?$`,
-            page: '/p1/p2/all-ssg/[...rest]',
-            regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?$'),
-            routeKeys: {
-              nxtPrest: 'nxtPrest',
-            },
-          },
-          {
-            namedRegex: `^/p1/p2/all\\-ssr/(?<nxtPrest>.+?)(?:/)?$`,
-            page: '/p1/p2/all-ssr/[...rest]',
-            regex: normalizeRegEx('^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$'),
-            routeKeys: {
-              nxtPrest: 'nxtPrest',
-            },
-          },
-          {
-            namedRegex: `^/p1/p2/nested\\-all\\-ssg/(?<nxtPrest>.+?)(?:/)?$`,
-            page: '/p1/p2/nested-all-ssg/[...rest]',
-            regex: normalizeRegEx(
-              '^\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?$'
-            ),
-            routeKeys: {
-              nxtPrest: 'nxtPrest',
-            },
-          },
-          {
-            namedRegex: `^/p1/p2/predefined\\-ssg/(?<nxtPrest>.+?)(?:/)?$`,
-            page: '/p1/p2/predefined-ssg/[...rest]',
-            regex: normalizeRegEx(
-              '^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$'
-            ),
-            routeKeys: {
-              nxtPrest: 'nxtPrest',
-            },
-          },
-          {
-            namedRegex: `^/(?<nxtPname>[^/]+?)(?:/)?$`,
-            page: '/[name]',
-            regex: normalizeRegEx('^\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: {
-              nxtPname: 'nxtPname',
-            },
-          },
-          {
-            namedRegex: `^/(?<nxtPname>[^/]+?)/comments(?:/)?$`,
-            page: '/[name]/comments',
-            regex: normalizeRegEx('^\\/([^\\/]+?)\\/comments(?:\\/)?$'),
-            routeKeys: {
-              nxtPname: 'nxtPname',
-            },
-          },
-          {
-            namedRegex: `^/(?<nxtPname>[^/]+?)/on\\-mount\\-redir(?:/)?$`,
-            page: '/[name]/on-mount-redir',
-            regex: normalizeRegEx(
-              '^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$'
-            ),
-            routeKeys: {
-              nxtPname: 'nxtPname',
-            },
-          },
-          {
-            namedRegex: `^/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)(?:/)?$`,
-            page: '/[name]/[comment]',
-            regex: normalizeRegEx('^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$'),
-            routeKeys: {
-              nxtPname: 'nxtPname',
-              nxtPcomment: 'nxtPcomment',
-            },
-          },
-          {
-            namedRegex:
-              '^/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)/(?<nxtPrest>.+?)(?:/)?$',
-            page: '/[name]/[comment]/[...rest]',
-            regex: normalizeRegEx(
-              '^\\/([^\\/]+?)\\/([^\\/]+?)\\/(.+?)(?:\\/)?$'
-            ),
-            routeKeys: {
-              nxtPcomment: 'nxtPcomment',
-              nxtPname: 'nxtPname',
-              nxtPrest: 'nxtPrest',
-            },
-          },
-        ],
-        rewriteHeaders: {
-          pathHeader: 'x-nextjs-rewritten-path',
-          queryHeader: 'x-nextjs-rewritten-query',
-        },
-        rsc: {
-          header: 'rsc',
-          contentTypeHeader: 'text/x-component',
-          didPostponeHeader: 'x-nextjs-postponed',
-          varyHeader:
-            'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch',
-          prefetchHeader: 'next-router-prefetch',
-          prefetchSegmentDirSuffix: '.segments',
-          prefetchSegmentHeader: 'next-router-segment-prefetch',
-          prefetchSegmentSuffix: '.segment.rsc',
-          prefetchSuffix: '.prefetch.rsc',
-          suffix: '.rsc',
-        },
-      })
+      // Parse the manifest string back into an object.
+      expect(normalizeManifest(manifest, [[buildId, 'BUILD_ID']]))
+        .toMatchInlineSnapshot(`
+       {
+         "basePath": "",
+         "caseSensitive": false,
+         "dataRoutes": [
+           {
+             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/b\\/([^\\/]+?)\\.json$",
+             "namedDataRouteRegex": "^/_next/data/BUILD_ID/b/(?<nxtP123>[^/]+?)\\.json$",
+             "page": "/b/[123]",
+             "routeKeys": {
+               "nxtP123": "nxtP123",
+             },
+           },
+           {
+             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/c\\/([^\\/]+?)\\.json$",
+             "namedDataRouteRegex": "^/_next/data/BUILD_ID/c/(?<a>[^/]+?)\\.json$",
+             "page": "/c/[alongparamnameshouldbeallowedeventhoughweird]",
+             "routeKeys": {
+               "a": "nxtPalongparamnameshouldbeallowedeventhoughweird",
+             },
+           },
+           {
+             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/p1\\/p2\\/all\\-ssg\\/(.+?)\\.json$",
+             "namedDataRouteRegex": "^/_next/data/BUILD_ID/p1/p2/all\\-ssg/(?<nxtPrest>.+?)\\.json$",
+             "page": "/p1/p2/all-ssg/[...rest]",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)\\.json$",
+             "namedDataRouteRegex": "^/_next/data/BUILD_ID/p1/p2/nested\\-all\\-ssg/(?<nxtPrest>.+?)\\.json$",
+             "page": "/p1/p2/nested-all-ssg/[...rest]",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)\\.json$",
+             "namedDataRouteRegex": "^/_next/data/BUILD_ID/p1/p2/predefined\\-ssg/(?<nxtPrest>.+?)\\.json$",
+             "page": "/p1/p2/predefined-ssg/[...rest]",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/([^\\/]+?)\\/([^\\/]+?)\\/(.+?)\\.json$",
+             "namedDataRouteRegex": "^/_next/data/BUILD_ID/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)/(?<nxtPrest>.+?)\\.json$",
+             "page": "/[name]/[comment]/[...rest]",
+             "routeKeys": {
+               "nxtPcomment": "nxtPcomment",
+               "nxtPname": "nxtPname",
+               "nxtPrest": "nxtPrest",
+             },
+           },
+         ],
+         "dynamicRoutes": [
+           {
+             "namedRegex": "^/b/(?<nxtP123>[^/]+?)(?:/)?$",
+             "page": "/b/[123]",
+             "regex": "^\\/b\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtP123": "nxtP123",
+             },
+           },
+           {
+             "namedRegex": "^/blog/(?<nxtPname>[^/]+?)/comment/(?<nxtPid>[^/]+?)(?:/)?$",
+             "page": "/blog/[name]/comment/[id]",
+             "regex": "^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPid": "nxtPid",
+               "nxtPname": "nxtPname",
+             },
+           },
+           {
+             "namedRegex": "^/c/(?<a>[^/]+?)(?:/)?$",
+             "page": "/c/[alongparamnameshouldbeallowedeventhoughweird]",
+             "regex": "^\\/c\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "a": "nxtPalongparamnameshouldbeallowedeventhoughweird",
+             },
+           },
+           {
+             "namedRegex": "^/catchall\\-dash/(?<nxtPhelloworld>.+?)(?:/)?$",
+             "page": "/catchall-dash/[...hello-world]",
+             "regex": "^\\/catchall\\-dash\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPhelloworld": "nxtPhello-world",
+             },
+           },
+           {
+             "namedRegex": "^/d/(?<nxtPid>[^/]+?)(?:/)?$",
+             "page": "/d/[id]",
+             "regex": "^\\/d\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPid": "nxtPid",
+             },
+           },
+           {
+             "namedRegex": "^/dash/(?<nxtPhelloworld>[^/]+?)(?:/)?$",
+             "page": "/dash/[hello-world]",
+             "regex": "^\\/dash\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPhelloworld": "nxtPhello-world",
+             },
+           },
+           {
+             "namedRegex": "^/index/(?<nxtPslug>.+?)(?:/)?$",
+             "page": "/index/[...slug]",
+             "regex": "^\\/index\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPslug": "nxtPslug",
+             },
+           },
+           {
+             "namedRegex": "^/on\\-mount/(?<nxtPpost>[^/]+?)(?:/)?$",
+             "page": "/on-mount/[post]",
+             "regex": "^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPpost": "nxtPpost",
+             },
+           },
+           {
+             "namedRegex": "^/p1/p2/all\\-ssg/(?<nxtPrest>.+?)(?:/)?$",
+             "page": "/p1/p2/all-ssg/[...rest]",
+             "regex": "^\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "namedRegex": "^/p1/p2/all\\-ssr/(?<nxtPrest>.+?)(?:/)?$",
+             "page": "/p1/p2/all-ssr/[...rest]",
+             "regex": "^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "namedRegex": "^/p1/p2/nested\\-all\\-ssg/(?<nxtPrest>.+?)(?:/)?$",
+             "page": "/p1/p2/nested-all-ssg/[...rest]",
+             "regex": "^\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "namedRegex": "^/p1/p2/predefined\\-ssg/(?<nxtPrest>.+?)(?:/)?$",
+             "page": "/p1/p2/predefined-ssg/[...rest]",
+             "regex": "^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "namedRegex": "^/(?<nxtPname>[^/]+?)(?:/)?$",
+             "page": "/[name]",
+             "regex": "^\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPname": "nxtPname",
+             },
+           },
+           {
+             "namedRegex": "^/(?<nxtPname>[^/]+?)/comments(?:/)?$",
+             "page": "/[name]/comments",
+             "regex": "^\\/([^\\/]+?)\\/comments(?:\\/)?$",
+             "routeKeys": {
+               "nxtPname": "nxtPname",
+             },
+           },
+           {
+             "namedRegex": "^/(?<nxtPname>[^/]+?)/on\\-mount\\-redir(?:/)?$",
+             "page": "/[name]/on-mount-redir",
+             "regex": "^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$",
+             "routeKeys": {
+               "nxtPname": "nxtPname",
+             },
+           },
+           {
+             "namedRegex": "^/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)(?:/)?$",
+             "page": "/[name]/[comment]",
+             "regex": "^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPcomment": "nxtPcomment",
+               "nxtPname": "nxtPname",
+             },
+           },
+           {
+             "namedRegex": "^/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)/(?<nxtPrest>.+?)(?:/)?$",
+             "page": "/[name]/[comment]/[...rest]",
+             "regex": "^\\/([^\\/]+?)\\/([^\\/]+?)\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPcomment": "nxtPcomment",
+               "nxtPname": "nxtPname",
+               "nxtPrest": "nxtPrest",
+             },
+           },
+         ],
+         "headers": [],
+         "pages404": true,
+         "redirects": [
+           {
+             "destination": "/:path+",
+             "internal": true,
+             "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$",
+             "source": "/:path+/",
+             "statusCode": 308,
+           },
+         ],
+         "rewriteHeaders": {
+           "pathHeader": "x-nextjs-rewritten-path",
+           "queryHeader": "x-nextjs-rewritten-query",
+         },
+         "rewrites": {
+           "afterFiles": [],
+           "beforeFiles": [],
+           "fallback": [],
+         },
+         "rsc": {
+           "clientParamParsing": false,
+           "contentTypeHeader": "text/x-component",
+           "didPostponeHeader": "x-nextjs-postponed",
+           "header": "rsc",
+           "prefetchHeader": "next-router-prefetch",
+           "prefetchSegmentDirSuffix": ".segments",
+           "prefetchSegmentHeader": "next-router-segment-prefetch",
+           "prefetchSegmentSuffix": ".segment.rsc",
+           "prefetchSuffix": ".prefetch.rsc",
+           "suffix": ".rsc",
+           "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+         },
+         "staticRoutes": [
+           {
+             "namedRegex": "^/(?:/)?$",
+             "page": "/",
+             "regex": "^/(?:/)?$",
+             "routeKeys": {},
+           },
+           {
+             "namedRegex": "^/another(?:/)?$",
+             "page": "/another",
+             "regex": "^/another(?:/)?$",
+             "routeKeys": {},
+           },
+         ],
+         "version": 3,
+       }
+      `)
     })
 
     it('should output a pages-manifest correctly', async () => {
@@ -1538,37 +1507,63 @@ function runTests({ dev }) {
         join(appDir, '.next/server/pages-manifest.json')
       )
 
-      expect(manifest).toEqual({
-        '/[name]/[comment]': 'pages/[name]/[comment].js',
-        '/[name]/[comment]/[...rest]': 'pages/[name]/[comment]/[...rest].js',
-        '/[name]/comments': 'pages/[name]/comments.js',
-        '/[name]': 'pages/[name].js',
-        '/[name]/on-mount-redir': 'pages/[name]/on-mount-redir.html',
-        '/another': 'pages/another.html',
-        '/b/[123]': 'pages/b/[123].js',
-        '/blog/[name]/comment/[id]': 'pages/blog/[name]/comment/[id].js',
-        '/c/[alongparamnameshouldbeallowedeventhoughweird]':
-          'pages/c/[alongparamnameshouldbeallowedeventhoughweird].js',
-        '/catchall-dash/[...hello-world]':
-          'pages/catchall-dash/[...hello-world].html',
-        '/d/[id]': 'pages/d/[id].html',
-        '/dash/[hello-world]': 'pages/dash/[hello-world].html',
-        '/': 'pages/index.html',
-        '/index/[...slug]': process.env.IS_TURBOPACK_TEST
-          ? 'pages/index/index/[...slug].html'
-          : 'pages/index/[...slug].html',
-        '/on-mount/[post]': 'pages/on-mount/[post].html',
-        '/p1/p2/all-ssg/[...rest]': 'pages/p1/p2/all-ssg/[...rest].js',
-        '/p1/p2/all-ssr/[...rest]': 'pages/p1/p2/all-ssr/[...rest].js',
-        '/p1/p2/nested-all-ssg/[...rest]':
-          'pages/p1/p2/nested-all-ssg/[...rest].js',
-        '/p1/p2/predefined-ssg/[...rest]':
-          'pages/p1/p2/predefined-ssg/[...rest].js',
-        '/_app': 'pages/_app.js',
-        '/_error': 'pages/_error.js',
-        '/_document': 'pages/_document.js',
-        '/404': 'pages/404.html',
-      })
+      if (process.env.IS_TURBOPACK_TEST) {
+        expect(manifest).toMatchInlineSnapshot(`
+         {
+           "/": "pages/index.html",
+           "/404": "pages/404.html",
+           "/[name]": "pages/[name].js",
+           "/[name]/[comment]": "pages/[name]/[comment].js",
+           "/[name]/[comment]/[...rest]": "pages/[name]/[comment]/[...rest].js",
+           "/[name]/comments": "pages/[name]/comments.js",
+           "/[name]/on-mount-redir": "pages/[name]/on-mount-redir.html",
+           "/_app": "pages/_app.js",
+           "/_document": "pages/_document.js",
+           "/_error": "pages/_error.js",
+           "/another": "pages/another.html",
+           "/b/[123]": "pages/b/[123].js",
+           "/blog/[name]/comment/[id]": "pages/blog/[name]/comment/[id].js",
+           "/c/[alongparamnameshouldbeallowedeventhoughweird]": "pages/c/[alongparamnameshouldbeallowedeventhoughweird].js",
+           "/catchall-dash/[...hello-world]": "pages/catchall-dash/[...hello-world].html",
+           "/d/[id]": "pages/d/[id].html",
+           "/dash/[hello-world]": "pages/dash/[hello-world].html",
+           "/index/[...slug]": "pages/index/index/[...slug].html",
+           "/on-mount/[post]": "pages/on-mount/[post].html",
+           "/p1/p2/all-ssg/[...rest]": "pages/p1/p2/all-ssg/[...rest].js",
+           "/p1/p2/all-ssr/[...rest]": "pages/p1/p2/all-ssr/[...rest].js",
+           "/p1/p2/nested-all-ssg/[...rest]": "pages/p1/p2/nested-all-ssg/[...rest].js",
+           "/p1/p2/predefined-ssg/[...rest]": "pages/p1/p2/predefined-ssg/[...rest].js",
+         }
+        `)
+      } else {
+        expect(manifest).toMatchInlineSnapshot(`
+         {
+           "/": "pages/index.html",
+           "/404": "pages/404.html",
+           "/[name]": "pages/[name].js",
+           "/[name]/[comment]": "pages/[name]/[comment].js",
+           "/[name]/[comment]/[...rest]": "pages/[name]/[comment]/[...rest].js",
+           "/[name]/comments": "pages/[name]/comments.js",
+           "/[name]/on-mount-redir": "pages/[name]/on-mount-redir.html",
+           "/_app": "pages/_app.js",
+           "/_document": "pages/_document.js",
+           "/_error": "pages/_error.js",
+           "/another": "pages/another.html",
+           "/b/[123]": "pages/b/[123].js",
+           "/blog/[name]/comment/[id]": "pages/blog/[name]/comment/[id].js",
+           "/c/[alongparamnameshouldbeallowedeventhoughweird]": "pages/c/[alongparamnameshouldbeallowedeventhoughweird].js",
+           "/catchall-dash/[...hello-world]": "pages/catchall-dash/[...hello-world].html",
+           "/d/[id]": "pages/d/[id].html",
+           "/dash/[hello-world]": "pages/dash/[hello-world].html",
+           "/index/[...slug]": "pages/index/[...slug].html",
+           "/on-mount/[post]": "pages/on-mount/[post].html",
+           "/p1/p2/all-ssg/[...rest]": "pages/p1/p2/all-ssg/[...rest].js",
+           "/p1/p2/all-ssr/[...rest]": "pages/p1/p2/all-ssr/[...rest].js",
+           "/p1/p2/nested-all-ssg/[...rest]": "pages/p1/p2/nested-all-ssg/[...rest].js",
+           "/p1/p2/predefined-ssg/[...rest]": "pages/p1/p2/predefined-ssg/[...rest].js",
+         }
+        `)
+      }
     })
   }
 }

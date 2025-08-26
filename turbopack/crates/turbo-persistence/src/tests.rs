@@ -14,6 +14,13 @@ use crate::{
 struct RayonParallelScheduler;
 
 impl ParallelScheduler for RayonParallelScheduler {
+    fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
+    where
+        R: Send,
+    {
+        f()
+    }
+
     fn parallel_for_each<T>(&self, items: &[T], f: impl Fn(&T) + Send + Sync)
     where
         T: Sync,

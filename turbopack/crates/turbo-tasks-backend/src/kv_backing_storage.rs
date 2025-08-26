@@ -262,12 +262,11 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
     type ReadTransaction<'l> = T::ReadTransaction<'l>;
 
     fn next_free_task_id(&self) -> Result<TaskId> {
-        Ok(TaskId::try_from(
-            self.inner
-                .get_infra_u32(META_KEY_NEXT_FREE_TASK_ID)
-                .context("Unable to read next free task id from database")?
-                .unwrap_or(1),
-        )?)
+        Ok(self
+            .inner
+            .get_infra_u32(META_KEY_NEXT_FREE_TASK_ID)
+            .context("Unable to read next free task id from database")?
+            .map_or(Ok(TaskId::MIN), TaskId::try_from)?)
     }
 
     fn next_session_id(&self) -> Result<SessionId> {

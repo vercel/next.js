@@ -20,9 +20,9 @@ interface C {
   setSelectedIndex: Dispatch<SetStateAction<number>>
 }
 
-export const MenuContext = createContext({} as C)
+const MenuContext = createContext({} as C)
 
-export function MenuItem({
+function MenuItem({
   index,
   label,
   value,
@@ -141,7 +141,6 @@ export const DevtoolMenu = ({
       menuRef,
       setSelectedIndex,
     })
-    // eslint-disable-next-line react-hooks/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -288,7 +287,7 @@ export const DevtoolMenu = ({
   )
 }
 
-export function getAdjustedIndex(
+function getAdjustedIndex(
   items: Array<{ onClick?: () => void }>,
   targetIndex: number
 ): number {
@@ -306,7 +305,7 @@ export function getAdjustedIndex(
   return adjustedIndex
 }
 
-export function getClickableItemsCount(
+function getClickableItemsCount(
   items: Array<{ onClick?: () => void }>
 ): number {
   return items.filter((item) => item.onClick).length
@@ -343,7 +342,7 @@ export function ChevronRight() {
   )
 }
 
-export function selectMenuItem({
+function selectMenuItem({
   index,
   menuRef,
   setSelectedIndex,

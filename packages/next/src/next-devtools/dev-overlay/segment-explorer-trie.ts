@@ -132,7 +132,7 @@ function createTrie<Value = string>({
   return { insert, remove, getRoot }
 }
 
-export type SegmentTrie = Trie<SegmentNodeState>
+type SegmentTrie = Trie<SegmentNodeState>
 export type SegmentTrieNode = TrieNode<SegmentNodeState>
 
 const trie: SegmentTrie = createTrie({
