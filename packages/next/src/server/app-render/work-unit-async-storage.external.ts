@@ -5,7 +5,7 @@ import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
 import type { DynamicTrackingState } from './dynamic-rendering'
-import type { FallbackRouteParams } from '../request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -68,7 +68,7 @@ export interface RequestStore extends CommonWorkUnitStore {
   // DEV-only
   usedDynamic?: boolean
   prerenderPhase?: boolean
-  devFallbackParams?: FallbackRouteParams | null
+  devFallbackParams?: OpaqueFallbackRouteParams | null
 }
 
 /**
@@ -203,7 +203,7 @@ interface StaticPrerenderStoreCommon {
    * The set of unknown route parameters. Accessing these will be tracked as
    * a dynamic access.
    */
-  readonly fallbackRouteParams: FallbackRouteParams | null
+  readonly fallbackRouteParams: OpaqueFallbackRouteParams | null
 
   /**
    * When true, the page is prerendered as a fallback shell, while allowing any
@@ -225,7 +225,7 @@ export interface PrerenderStorePPR
    * The set of unknown route parameters. Accessing these will be tracked as
    * a dynamic access.
    */
-  readonly fallbackRouteParams: FallbackRouteParams | null
+  readonly fallbackRouteParams: OpaqueFallbackRouteParams | null
 
   /**
    * The resume data cache for this prerender.

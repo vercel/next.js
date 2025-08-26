@@ -24,7 +24,7 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph,
         chunk_group_info::ChunkGroup,
-        export_usage::{ExportUsageInfo, ModuleExportUsageInfo},
+        export_usage::{ExportUsageInfo, ModuleExportUsage},
     },
     output::{OutputAsset, OutputAssets},
 };
@@ -756,11 +756,13 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn module_export_usage(
         self: Vc<Self>,
         module: ResolvedVc<Box<dyn Module>>,
-    ) -> Result<Vc<ModuleExportUsageInfo>> {
+    ) -> Result<Vc<ModuleExportUsage>> {
         if let Some(export_usage) = self.await?.export_usage {
-            Ok(export_usage.await?.used_exports(module))
+            Ok(export_usage.await?.used_exports(module).await?)
         } else {
-            Ok(ModuleExportUsageInfo::all())
+            // In development mode, we don't have export usage info, so we assume all exports are
+            // used.
+            Ok(ModuleExportUsage::all())
         }
     }
 }

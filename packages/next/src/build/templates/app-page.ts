@@ -18,7 +18,8 @@ import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr'
 import {
   getFallbackRouteParams,
-  type FallbackRouteParams,
+  createOpaqueFallbackRouteParams,
+  type OpaqueFallbackRouteParams,
 } from '../../server/request/fallback-params'
 import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
 import {
@@ -69,7 +70,7 @@ declare const pages: any
 // INJECT:tree
 // INJECT:pages
 
-export { tree, pages }
+export { pages }
 
 import GlobalError from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -89,6 +90,7 @@ export const __next_app__ = {
 
 import * as entryBase from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -447,7 +449,7 @@ export async function handler(
       /**
        * The unknown route params for this render.
        */
-      fallbackRouteParams: FallbackRouteParams | null
+      fallbackRouteParams: OpaqueFallbackRouteParams | null
     }): Promise<ResponseCacheEntry> => {
       const context: AppPageRouteHandlerContext = {
         query,
@@ -515,7 +517,9 @@ export async function handler(
           basePath: nextConfig.basePath,
           serverActions: nextConfig.experimental.serverActions,
 
-          ...(isDebugStaticShell || isDebugDynamicAccesses
+          ...(isDebugStaticShell ||
+          isDebugDynamicAccesses ||
+          isDebugFallbackShell
             ? {
                 nextExport: true,
                 supportsDynamicResponse: false,
@@ -541,6 +545,8 @@ export async function handler(
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
             clientTraceMetadata:
               nextConfig.experimental.clientTraceMetadata || ([] as any),
+            clientParamParsingOrigins:
+              nextConfig.experimental.clientParamParsingOrigins,
           },
 
           waitUntil: ctx.waitUntil,
@@ -697,19 +703,38 @@ export async function handler(
           throw new NoFallbackError()
         }
 
-        let fallbackResponse: ResponseCacheEntry | null | undefined
-
-        if (isRoutePPREnabled && !isRSCRequest) {
+        // When client param parsing is enabled, we can use the fallback
+        // response if the request is not a dynamic RSC request because the
+        // RSC data when this feature flag is enabled does not contain any
+        // param references. Without this feature flag enabled, the RSC data
+        // contains param references, and therefore we can't use the fallback.
+        if (
+          isRoutePPREnabled &&
+          (nextConfig.experimental.clientParamParsing
+            ? !isDynamicRSCRequest
+            : !isRSCRequest)
+        ) {
           const cacheKey =
-            typeof prerenderInfo?.fallback === 'string'
+            isProduction && typeof prerenderInfo?.fallback === 'string'
               ? prerenderInfo.fallback
-              : isProduction
-                ? normalizedSrcPage
+              : normalizedSrcPage
+
+          const fallbackRouteParams =
+            // If we're in production and we have fallback route params, then we
+            // can use the manifest fallback route params.
+            isProduction && prerenderInfo?.fallbackRouteParams
+              ? createOpaqueFallbackRouteParams(
+                  prerenderInfo.fallbackRouteParams
+                )
+              : // Otherwise, if we're debugging the fallback shell, then we
+                // have to manually generate the fallback route params.
+                isDebugFallbackShell
+                ? getFallbackRouteParams(normalizedSrcPage, routeModule)
                 : null
 
           // We use the response cache here to handle the revalidation and
           // management of the fallback shell.
-          fallbackResponse = await routeModule.handleResponse({
+          const fallbackResponse = await routeModule.handleResponse({
             cacheKey,
             req,
             nextConfig,
@@ -723,13 +748,7 @@ export async function handler(
                 // We pass `undefined` as rendering a fallback isn't resumed
                 // here.
                 postponed: undefined,
-                fallbackRouteParams:
-                  // If we're in production or we're debugging the fallback
-                  // shell then we should postpone when dynamic params are
-                  // accessed.
-                  isProduction || isDebugFallbackShell
-                    ? getFallbackRouteParams(normalizedSrcPage)
-                    : null,
+                fallbackRouteParams,
               }),
             waitUntil: ctx.waitUntil,
           })
@@ -747,6 +766,7 @@ export async function handler(
           }
         }
       }
+
       // Only requests that aren't revalidating can be resumed. If we have the
       // minimal postponed data, then we should resume the render with it.
       const postponed =
@@ -772,15 +792,19 @@ export async function handler(
         }
       }
 
-      // If this is a dynamic route with PPR enabled and the default route
-      // matches were set, then we should pass the fallback route params to
-      // the renderer as this is a fallback revalidation request.
       const fallbackRouteParams =
-        pageIsDynamic &&
-        isRoutePPREnabled &&
-        (getRequestMeta(req, 'renderFallbackShell') || isDebugFallbackShell)
-          ? getFallbackRouteParams(pathname)
-          : null
+        // If we're in production and we have fallback route params, then we
+        // can use the manifest fallback route params if we need to render the
+        // fallback shell.
+        isProduction &&
+        prerenderInfo?.fallbackRouteParams &&
+        getRequestMeta(req, 'renderFallbackShell')
+          ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
+          : // Otherwise, if we're debugging the fallback shell, then we have to
+            // manually generate the fallback route params.
+            isDebugFallbackShell
+            ? getFallbackRouteParams(normalizedSrcPage, routeModule)
+            : null
 
       // Perform the render.
       return doRender({
@@ -1071,8 +1095,26 @@ export async function handler(
       if (isRSCRequest && !isDraftMode) {
         // If this is a dynamic RSC request, then stream the response.
         if (typeof cachedData.rscData === 'undefined') {
-          if (cachedData.postponed) {
-            throw new Error('Invariant: Expected postponed to be undefined')
+          // If the response is not an RSC response, then we can't serve it.
+          if (cachedData.html.contentType !== RSC_CONTENT_TYPE_HEADER) {
+            if (nextConfig.experimental.clientParamParsing) {
+              // If client param parsing is enabled, then we can return a 404.
+              // This was likely an old prefetch request.
+              res.statusCode = 404
+              return sendRenderResult({
+                req,
+                res,
+                generateEtags: nextConfig.generateEtags,
+                poweredByHeader: nextConfig.poweredByHeader,
+                result: RenderResult.EMPTY,
+                cacheControl: cacheEntry.cacheControl,
+              })
+            } else {
+              // Otherwise this case is not expected.
+              throw new InvariantError(
+                `Expected RSC response, got ${cachedData.html.contentType}`
+              )
+            }
           }
 
           return sendRenderResult({

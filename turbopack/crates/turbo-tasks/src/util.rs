@@ -7,8 +7,9 @@ use std::{
     mem::ManuallyDrop,
     ops::Deref,
     pin::Pin,
-    sync::Arc,
+    sync::{Arc, LazyLock},
     task::{Context, Poll},
+    thread::available_parallelism,
     time::Duration,
 };
 
@@ -260,6 +261,15 @@ impl<F: Future, W: for<'a> Fn(Pin<&mut F>, &mut Context<'a>) -> Poll<F::Output>>
         let this = self.project();
         (this.wrapper)(this.future, cx)
     }
+}
+
+/// Calculates a good chunk size for parallel processing based on the number of available threads.
+/// This is used to ensure that the workload is evenly distributed across the threads.
+pub fn good_chunk_size(len: usize) -> usize {
+    static GOOD_CHUNK_COUNT: LazyLock<usize> =
+        LazyLock::new(|| available_parallelism().map_or(16, |c| c.get() * 4));
+    let min_chunk_count = *GOOD_CHUNK_COUNT;
+    len.div_ceil(min_chunk_count)
 }
 
 /// Similar to slice::chunks but for owned data. Chunks are Send and Sync to allow to use it for

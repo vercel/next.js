@@ -11,15 +11,18 @@ mod update_output;
 use std::{
     fmt::{Debug, Formatter},
     mem::transmute,
+    sync::atomic::Ordering,
 };
 
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
 
 use crate::{
     backend::{
-        OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
-        storage::{SpecificTaskDataCategory, StorageWriteGuard},
+        BACKEND_JOB_PREFETCH_TASK, OperationGuard, TaskDataCategory, TransientTask,
+        TurboTasksBackend, TurboTasksBackendInner,
+        storage::{SpecificTaskDataCategory, StorageWriteGuard, iter_many},
     },
     backing_storage::BackingStorage,
     data::{
@@ -55,7 +58,8 @@ pub trait ExecuteContext<'e>: Sized {
         task_id2: TaskId,
         category: TaskDataCategory,
     ) -> (impl TaskGuard + 'e, impl TaskGuard + 'e);
-    fn schedule(&self, task_id: TaskId);
+    fn schedule(&mut self, task_id: TaskId);
+    fn schedule_task(&self, task: impl TaskGuard + '_);
     fn operation_suspend_point<T>(&mut self, op: &T)
     where
         T: Clone + Into<AnyOperation>;
@@ -113,6 +117,12 @@ where
         category: TaskDataCategory,
     ) -> Vec<CachedDataItem> {
         if matches!(self.transaction, TransactionState::None) {
+            let check_backing_storage = self.backend.should_restore()
+                && self.backend.local_is_partial.load(Ordering::Acquire);
+            if !check_backing_storage {
+                // If we don't need to restore, we can just return an empty vector
+                return Vec::new();
+            }
             let tx = self.backend.backing_storage.start_read_transaction();
             let tx = tx.map(|tx| {
                 // Safety: self is actually valid for 'a, so it's safe to transmute 'l to 'a
@@ -248,8 +258,19 @@ where
         )
     }
 
-    fn schedule(&self, task_id: TaskId) {
-        self.turbo_tasks.schedule(task_id);
+    fn schedule(&mut self, task_id: TaskId) {
+        let task = self.task(task_id, TaskDataCategory::All);
+        self.schedule_task(task);
+    }
+
+    fn schedule_task(&self, mut task: impl TaskGuard + '_) {
+        if let Some(tasks_to_prefetch) = task.prefetch() {
+            self.turbo_tasks.schedule_backend_foreground_job(
+                BACKEND_JOB_PREFETCH_TASK,
+                Some(Box::new(tasks_to_prefetch)),
+            );
+        }
+        self.turbo_tasks.schedule(task.id());
     }
 
     fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
@@ -315,6 +336,7 @@ pub trait TaskGuard: Debug {
     where
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
     fn invalidate_serialization(&mut self);
+    fn prefetch(&mut self) -> Option<Vec<(TaskId, bool)>>;
     fn is_immutable(&self) -> bool;
 }
 
@@ -502,6 +524,20 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             self.task.track_modification(SpecificTaskDataCategory::Data);
             self.task.track_modification(SpecificTaskDataCategory::Meta);
         }
+    }
+
+    fn prefetch(&mut self) -> Option<Vec<(TaskId, bool)>> {
+        if !self.task.state().prefetched() {
+            self.task.state_mut().set_prefetched(true);
+            let map = iter_many!(self, OutputDependency { target } => (target, false))
+                .chain(iter_many!(self, CellDependency { target } => (target.task, true)))
+                .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, true)))
+                .collect::<FxHashMap<_, _>>();
+            if map.len() > 16 {
+                return Some(map.into_iter().collect());
+            }
+        }
+        None
     }
 
     fn is_immutable(&self) -> bool {

@@ -80,6 +80,9 @@ fn longest_common_prefix<'a>(strings: &[&'a str]) -> &'a str {
     if strings.is_empty() {
         return "";
     }
+    if let [single] = strings {
+        return single;
+    }
     let first = strings[0];
     let mut len = first.len();
     for str in &strings[1..] {
@@ -150,6 +153,10 @@ impl Pattern {
         // The normalized pattern is an Alternative of maximally merged
         // Concatenations, so extracting the first/only Concatenation child
         // elements is enough.
+
+        if let Pattern::Constant(c) = self {
+            return c;
+        }
 
         fn collect_constant_prefix<'a: 'b, 'b>(pattern: &'a Pattern, result: &mut Vec<&'b str>) {
             match pattern {
@@ -328,10 +335,10 @@ impl Pattern {
         self.normalize()
     }
 
-    //// Replace all `*`s in `template` with self.
-    ////
-    //// Handle top-level alternatives separately so that multiple star placeholders
-    //// match the same pattern instead of the whole alternative.
+    /// Replace all `*`s in `template` with self.
+    ///
+    /// Handle top-level alternatives separately so that multiple star placeholders
+    /// match the same pattern instead of the whole alternative.
     pub fn spread_into_star(&self, template: &str) -> Pattern {
         if template.contains("*") {
             let alternatives: Box<dyn Iterator<Item = &Pattern>> = match self {
@@ -386,6 +393,12 @@ impl Pattern {
         {
             // Short-circuit to replace empty constants with the appended pattern
             *self = pat;
+            return;
+        }
+        if let Pattern::Constant(pat) = &pat
+            && pat.is_empty()
+        {
+            // Short-circuit to ignore when trying to append an empty string.
             return;
         }
 
@@ -467,6 +480,12 @@ impl Pattern {
     pub fn with_normalized_path(&self) -> Option<Pattern> {
         let mut new = self.clone();
 
+        #[derive(Debug)]
+        enum PathElement {
+            Segment(Pattern),
+            Separator,
+        }
+
         fn normalize_path_internal(pattern: &mut Pattern) -> Option<()> {
             match pattern {
                 Pattern::Constant(c) => {
@@ -480,27 +499,49 @@ impl Pattern {
                     for segment in list.iter() {
                         match segment {
                             Pattern::Constant(str) => {
-                                for segment in str.split('/') {
+                                let mut iter = str.split('/').peekable();
+                                while let Some(segment) = iter.next() {
                                     match segment {
-                                        "." | "" => {}
+                                        "." | "" => {
+                                            // Ignore empty segments
+                                            continue;
+                                        }
                                         ".." => {
-                                            segments.pop()?;
+                                            if segments.is_empty() {
+                                                // Leaving root
+                                                return None;
+                                            }
+
+                                            if let Some(PathElement::Separator) = segments.last()
+                                                && let Some(PathElement::Segment(
+                                                    Pattern::Constant(_),
+                                                )) = segments.get(segments.len() - 2)
+                                            {
+                                                // Resolve `foo/..`
+                                                segments.truncate(segments.len() - 2);
+                                                continue;
+                                            }
+
+                                            // Keep it, can't pop non-constant segment.
+                                            segments.push(PathElement::Segment(Pattern::Constant(
+                                                rcstr!(".."),
+                                            )));
                                         }
                                         segment => {
-                                            segments.push(vec![Pattern::Constant(segment.into())]);
+                                            segments.push(PathElement::Segment(Pattern::Constant(
+                                                segment.into(),
+                                            )));
                                         }
                                     }
-                                }
-                                if str.ends_with("/") {
-                                    segments.push(vec![]);
+
+                                    if iter.peek().is_some() {
+                                        // If not last, add separator
+                                        segments.push(PathElement::Separator);
+                                    }
                                 }
                             }
                             Pattern::Dynamic | Pattern::DynamicNoSlash => {
-                                if segments.is_empty() {
-                                    segments.push(vec![]);
-                                }
-                                let last = segments.last_mut().unwrap();
-                                last.push(segment.clone());
+                                segments.push(PathElement::Segment(segment.clone()));
                             }
                             Pattern::Alternatives(_) | Pattern::Concatenation(_) => {
                                 panic!("for with_normalized_path the Pattern must be normalized");
@@ -510,10 +551,10 @@ impl Pattern {
                     let separator = rcstr!("/");
                     *list = segments
                         .into_iter()
-                        .flat_map(|c| {
-                            std::iter::once(Pattern::Constant(separator.clone())).chain(c)
+                        .map(|c| match c {
+                            PathElement::Segment(p) => p,
+                            PathElement::Separator => Pattern::Constant(separator.clone()),
                         })
-                        .skip(1)
                         .collect();
                     Some(())
                 }
@@ -1909,6 +1950,12 @@ mod tests {
                 Pattern::Constant(rcstr!("a/c/d"))
             ])
         );
+        assert_eq!(
+            Pattern::Constant(rcstr!("a/b/"))
+                .with_normalized_path()
+                .unwrap(),
+            Pattern::Constant(rcstr!("a/b"))
+        );
 
         // Dynamic is a segment itself
         assert_eq!(
@@ -1919,10 +1966,14 @@ mod tests {
             ])
             .with_normalized_path()
             .unwrap(),
-            Pattern::Constant(rcstr!("a/b/c"))
+            Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("a/b/")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!("../c"))
+            ])
         );
 
-        // Dynamic is only part of the second segment
+        // Dynamic is part of a segment
         assert_eq!(
             Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!("a/b")),
@@ -1931,7 +1982,25 @@ mod tests {
             ])
             .with_normalized_path()
             .unwrap(),
-            Pattern::Constant(rcstr!("a/c"))
+            Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("a/b")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!("../c"))
+            ])
+        );
+        assert_eq!(
+            Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("src/")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!(".js"))
+            ])
+            .with_normalized_path()
+            .unwrap(),
+            Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("src/")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!(".js"))
+            ])
         );
     }
 

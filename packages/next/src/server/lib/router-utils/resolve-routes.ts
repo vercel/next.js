@@ -790,16 +790,21 @@ export function getResolveRoutes(
             query: parsedUrl.query,
           })
 
-          if (parsedDestination.protocol) {
-            return {
-              // @ts-expect-error custom ParsedUrl
-              parsedUrl: parsedDestination,
-              finished: true,
-            }
-          }
+          // Check to see if this is a non-relative rewrite. If it is, we need
+          // to check to see if it's an allowed origin to receive the rewritten
+          // headers.
+          const parsedDestinationOrigin = parsedDestination.origin
+          const isAllowedOrigin = parsedDestinationOrigin
+            ? config.experimental.clientParamParsingOrigins?.some((origin) =>
+                new RegExp(origin).test(parsedDestinationOrigin)
+              )
+            : false
 
           // Set the rewrite headers only if this is a RSC request.
-          if (req.headers[RSC_HEADER] === '1') {
+          if (
+            req.headers[RSC_HEADER] === '1' &&
+            (!parsedDestination.origin || isAllowedOrigin)
+          ) {
             // We set the rewritten path and query headers on the response now
             // that we know that the it's not an external rewrite.
             if (parsedUrl.pathname !== parsedDestination.pathname) {
@@ -814,6 +819,14 @@ export function getResolveRoutes(
                 // remove the leading ? from the search
                 parsedDestination.search.slice(1)
               )
+            }
+          }
+
+          if (parsedDestination.protocol) {
+            return {
+              // @ts-expect-error custom ParsedUrl
+              parsedUrl: parsedDestination,
+              finished: true,
             }
           }
 

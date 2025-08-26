@@ -15,8 +15,10 @@ import type {
   MiddlewareManifest,
 } from './webpack/plugins/middleware-plugin'
 import type { WebpackLayerName } from '../lib/constants'
-import type { AppPageModule } from '../server/route-modules/app-page/module'
-import type { RouteModule } from '../server/route-modules/route-module'
+import type {
+  AppPageModule,
+  AppPageRouteModule,
+} from '../server/route-modules/app-page/module'
 import type { NextComponentType } from '../shared/lib/utils'
 
 import '../server/require-hook'
@@ -84,6 +86,7 @@ import { buildPagesStaticPaths } from './static-paths/pages'
 import type { PrerenderedRoute } from './static-paths/types'
 import type { CacheControl } from '../server/lib/cache-control'
 import { formatExpire, formatRevalidate } from './output/format'
+import type { AppRouteRouteModule } from '../server/route-modules/app-route/module'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1163,9 +1166,10 @@ export async function isPageStatic({
           sriEnabled,
         })
       }
-      const Comp = componentsResult.Component as NextComponentType | undefined
 
-      const routeModule: RouteModule = componentsResult.routeModule
+      const { Component, routeModule } = componentsResult
+
+      const Comp = Component as NextComponentType | undefined
 
       let isRoutePPREnabled: boolean = false
 
@@ -1174,9 +1178,13 @@ export async function isPageStatic({
 
         isClientComponent = isClientReference(componentsResult.ComponentMod)
 
-        let segments
+        let segments: AppSegment[]
         try {
-          segments = await collectSegments(componentsResult)
+          segments = await collectSegments(
+            // We know this is an app page or app route module because we
+            // checked above that the page type is 'app'.
+            routeModule as AppPageRouteModule | AppRouteRouteModule
+          )
         } catch (err) {
           throw new Error(`Failed to collect configuration for ${page}`, {
             cause: err,
@@ -1194,7 +1202,7 @@ export async function isPageStatic({
           )
         }
 
-        rootParamKeys = collectRootParamKeys(componentsResult)
+        rootParamKeys = collectRootParamKeys(routeModule)
 
         // A page supports partial prerendering if it is an app page and either
         // the whole app has PPR enabled or this page has PPR enabled when we're
@@ -1422,14 +1430,14 @@ export async function hasCustomGetInitialProps({
     require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
   ).setConfig(runtimeEnvConfig)
 
-  const components = await loadComponents({
+  const { ComponentMod } = await loadComponents({
     distDir,
     page: page,
     isAppPath: false,
     isDev: false,
     sriEnabled,
   })
-  let mod = components.ComponentMod
+  let mod = ComponentMod
 
   if (checkingApp) {
     mod = (await mod._app) || mod.default || mod
@@ -1454,7 +1462,7 @@ export async function getDefinedNamedExports({
   ;(
     require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
   ).setConfig(runtimeEnvConfig)
-  const components = await loadComponents({
+  const { ComponentMod } = await loadComponents({
     distDir,
     page: page,
     isAppPath: false,
@@ -1462,8 +1470,8 @@ export async function getDefinedNamedExports({
     sriEnabled,
   })
 
-  return Object.keys(components.ComponentMod).filter((key) => {
-    return typeof components.ComponentMod[key] !== 'undefined'
+  return Object.keys(ComponentMod).filter((key) => {
+    return typeof ComponentMod[key] !== 'undefined'
   })
 }
 

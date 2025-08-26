@@ -169,6 +169,8 @@ async function requestHandler(
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
+        clientParamParsingOrigins:
+          nextConfig.experimental.clientParamParsingOrigins,
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(
