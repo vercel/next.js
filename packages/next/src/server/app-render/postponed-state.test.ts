@@ -120,15 +120,15 @@ describe('getDynamicHTMLPostponedState', () => {
     // The replacements have been replaced.
     expect(JSON.stringify(parsed)).not.toMatch(key)
   })
+})
 
-  describe('getDynamicDataPostponedState', () => {
-    it('serializes a data postponed state with fallback params', async () => {
-      const state = await getDynamicDataPostponedState(
-        createPrerenderResumeDataCache(),
-        isCacheComponentsEnabled
-      )
-      expect(state).toMatchInlineSnapshot(`"4:nullnull"`)
-    })
+describe('getDynamicDataPostponedState', () => {
+  it('serializes a data postponed state with fallback params', async () => {
+    const state = await getDynamicDataPostponedState(
+      createPrerenderResumeDataCache(),
+      isCacheComponentsEnabled
+    )
+    expect(state).toMatchInlineSnapshot(`"4:nullnull"`)
   })
 })
 
