@@ -963,7 +963,7 @@ describe('use-cache', () => {
   }
 
   if (isNextStart && process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
-    it('should exclude inner caches from the resume data cache (RDC)', async () => {
+    it('should exclude inner caches and omitted caches from the resume data cache (RDC)', async () => {
       await next.fetch('/rdc')
 
       const resumeDataCache = extractResumeDataCacheFromPostponedState(
@@ -974,9 +974,14 @@ describe('use-cache', () => {
 
       // There should be no cache entry for the "middle" cache function, because
       // it's only used inside another cache scope ("outer"). Whereas "inner" is
-      // also used inside a prerender scope (the page). Note: We're matching on
-      // the "id" args that are encoded into the respective cache keys.
+      // also used inside a prerender scope (the page). Additionally, there
+      // should also be no cache entry for "short", because it has a short
+      // lifetime and is subsequently omitted from the prerendered shell. The
+      // following expectation is matching on the full list. If any additional
+      // keys are found, the test will fail and print the unexpected keys.
       expect(cacheKeys).toMatchObject([
+        // Note: We're matching on the "id" args that are encoded into the
+        // respective cache keys.
         expect.stringContaining('["outer"]'),
         expect.stringContaining('["inner"]'),
       ])
