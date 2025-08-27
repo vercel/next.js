@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { assertNoConsoleErrors, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { format } from 'util'
 import { Playwright } from 'next-webdriver'
@@ -482,7 +482,6 @@ describe('use-cache', () => {
           '/cache-fetch',
           '/cache-fetch-no-store',
           '/cache-life',
-          !withCacheComponents && '/cache-life-with-dynamic',
           '/cache-tag',
           '/directive-in-node-modules/with-handler',
           '/directive-in-node-modules/without-handler',
@@ -531,8 +530,10 @@ describe('use-cache', () => {
         // (including PPR).
         expect(
           routes['/cache-life-with-dynamic'].initialRevalidateSeconds
-        ).toBe(1)
-        expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(60)
+        ).toBe(99)
+        expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(
+          299
+        )
       }
 
       // default expireTime
@@ -580,13 +581,27 @@ describe('use-cache', () => {
 
     if (withCacheComponents) {
       it('should omit dynamic caches from prerendered shells', async () => {
-        let browser = await next.browser('/cache-life-with-dynamic', {
+        const browser = await next.browser('/cache-life-with-dynamic', {
           disableJavaScript: true,
         })
 
         expect(await browser.elementById('y').text()).toBe('Loading...')
       })
     }
+
+    it('should not have hydration errors when resuming a partial shell with dynamic caches', async () => {
+      const browser = await next.browser('/cache-life-with-dynamic', {
+        pushErrorAsConsoleLog: true,
+      })
+
+      await retry(async () => {
+        expect(await browser.elementById('y').text()).not.toBe('Loading...')
+      })
+
+      // There should be no hydration errors due to a buildtime date being
+      // replaced by a new runtime date.
+      await assertNoConsoleErrors(browser)
+    })
 
     it('should propagate unstable_cache tags correctly', async () => {
       const meta = JSON.parse(
@@ -1012,10 +1027,15 @@ describe('use-cache', () => {
       // following expectation is matching on the full list. If any additional
       // keys are found, the test will fail and print the unexpected keys.
       expect(cacheKeys).toMatchObject([
-        // Note: We're matching on the "id" args that are encoded into the
-        // respective cache keys.
+        // Note: We're matching on the args that are encoded into the respective
+        // cache keys.
         expect.stringContaining('["outer"]'),
         expect.stringContaining('["inner"]'),
+        ...(withCacheComponents
+          ? []
+          : // With legacy PPR, the "short" cache is included in the prerendered
+            // shell.
+            [expect.stringContaining('[{"id":"short"},"$undefined"]]')]),
       ])
     })
   }

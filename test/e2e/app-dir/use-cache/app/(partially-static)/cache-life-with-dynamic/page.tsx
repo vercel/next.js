@@ -1,4 +1,5 @@
 import { unstable_cacheLife as cacheLife } from 'next/cache'
+import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 async function getCachedRandom() {
@@ -9,8 +10,13 @@ async function getCachedRandom() {
 
 async function DynamicCache() {
   'use cache'
-  cacheLife('seconds')
+  cacheLife({ revalidate: 99, expire: 299 })
   return <p id="y">{new Date().toISOString()}</p>
+}
+
+async function Dynamic() {
+  await connection()
+  return null
 }
 
 export default async function Page() {
@@ -21,6 +27,9 @@ export default async function Page() {
       <p id="x">{x}</p>
       <Suspense fallback={<p id="y">Loading...</p>}>
         <DynamicCache />
+      </Suspense>
+      <Suspense>
+        <Dynamic />
       </Suspense>
     </>
   )

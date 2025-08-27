@@ -59,60 +59,90 @@ function createMockedCacheWithEntryThatFails() {
 }
 
 describe('stringifyResumeDataCache', () => {
-  it('serializes an empty cache', async () => {
-    const cache = createPrerenderResumeDataCache()
-    expect(await stringifyResumeDataCache(cache)).toBe('null')
-  })
+  describe.each([true, false])(
+    'cacheComponents: %s',
+    (isCacheComponentsEnabled) => {
+      it('serializes an empty cache', async () => {
+        const cache = createPrerenderResumeDataCache()
+        expect(
+          await stringifyResumeDataCache(cache, isCacheComponentsEnabled)
+        ).toBe('null')
+      })
 
-  it('only serializes cache entries that were not excluded from the prerender result', async () => {
-    const cache = createMockedCache()
-    const compressed = await stringifyResumeDataCache(cache)
+      it('only serializes cache entries that were not excluded from the prerender result', async () => {
+        const cache = createMockedCache()
 
-    // We have to decompress the output because the compressed string is not
-    // deterministic. If it fails here it's because the compressed string is
-    // different.
-    const decompressed = inflateSync(
-      Buffer.from(compressed, 'base64')
-    ).toString('utf-8')
+        const compressed = await stringifyResumeDataCache(
+          cache,
+          isCacheComponentsEnabled
+        )
 
-    expect(decompressed).toMatchInlineSnapshot(
-      `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1}},"encryptedBoundArgs":{}}}"`
-    )
-  })
+        // We have to decompress the output because the compressed string is not
+        // deterministic. If it fails here it's because the compressed string is
+        // different.
+        const decompressed = inflateSync(
+          Buffer.from(compressed, 'base64')
+        ).toString('utf-8')
 
-  it('serializes a cache with an entry that fails', async () => {
-    const cache = createMockedCacheWithEntryThatFails()
-    const compressed = await stringifyResumeDataCache(cache)
+        if (isCacheComponentsEnabled) {
+          expect(decompressed).toMatchInlineSnapshot(
+            `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1}},"encryptedBoundArgs":{}}}"`
+          )
+        } else {
+          expect(decompressed).toMatchInlineSnapshot(
+            `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1},"dynamic-expire":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":299,"revalidate":1},"zero-revalidate":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":0}},"encryptedBoundArgs":{}}}"`
+          )
+        }
+      })
 
-    // We have to decompress the output because the compressed string is not
-    // deterministic. If it fails here it's because the compressed string is
-    // different.
-    const decompressed = inflateSync(
-      Buffer.from(compressed, 'base64')
-    ).toString('utf-8')
+      it('serializes a cache with an entry that fails', async () => {
+        const cache = createMockedCacheWithEntryThatFails()
 
-    // We expect that the cache will still contain the successful entry but the
-    // failed entry will be ignored and omitted from the output.
-    expect(decompressed).toMatchInlineSnapshot(
-      `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1}},"encryptedBoundArgs":{}}}"`
-    )
-  })
-})
+        const compressed = await stringifyResumeDataCache(
+          cache,
+          isCacheComponentsEnabled
+        )
 
-describe('parseResumeDataCache', () => {
-  it('parses an empty cache', () => {
-    expect(createRenderResumeDataCache('null')).toEqual(
-      createPrerenderResumeDataCache()
-    )
-  })
+        // We have to decompress the output because the compressed string is not
+        // deterministic. If it fails here it's because the compressed string is
+        // different.
+        const decompressed = inflateSync(
+          Buffer.from(compressed, 'base64')
+        ).toString('utf-8')
 
-  it('parses a cache with a single entry', async () => {
-    const cache = createMockedCache()
-    const serialized = await stringifyResumeDataCache(cache)
+        // We expect that the cache will still contain the successful entries
+        // but the failed entry will be ignored and omitted from the output.
+        if (isCacheComponentsEnabled) {
+          expect(decompressed).toMatchInlineSnapshot(
+            `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1}},"encryptedBoundArgs":{}}}"`
+          )
+        } else {
+          expect(decompressed).toMatchInlineSnapshot(
+            `"{"store":{"fetch":{},"cache":{"success":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":1},"dynamic-expire":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":299,"revalidate":1},"zero-revalidate":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":300,"revalidate":0}},"encryptedBoundArgs":{}}}"`
+          )
+        }
+      })
 
-    const parsed = createRenderResumeDataCache(serialized)
+      describe('parseResumeDataCache', () => {
+        it('parses an empty cache', () => {
+          expect(createRenderResumeDataCache('null')).toEqual(
+            createPrerenderResumeDataCache()
+          )
+        })
 
-    expect(parsed.cache.size).toBe(1)
-    expect(parsed.fetch.size).toBe(0)
-  })
+        it('parses a filled cache', async () => {
+          const cache = createMockedCache()
+          const serialized = await stringifyResumeDataCache(
+            cache,
+            isCacheComponentsEnabled
+          )
+
+          const parsed = createRenderResumeDataCache(serialized)
+
+          expect(parsed.cache.size).toBe(isCacheComponentsEnabled ? 1 : 3)
+          expect(parsed.fetch.size).toBe(0)
+        })
+      })
+    }
+  )
 })
