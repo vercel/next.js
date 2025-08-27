@@ -148,6 +148,8 @@ async function handleCJS({
 
     // filename & extension don't matter here
     return requireFromString(code, resolve(cwd, 'next.config.compiled.js'))
+  } catch (error) {
+    throw error
   } finally {
     if (hasRequire) {
       deregisterHook()
