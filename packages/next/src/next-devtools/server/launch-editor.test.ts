@@ -1,6 +1,3 @@
-// packages/next/src/next-devtools/server/launch-editor.test.ts
-
-// --- mocks (SUT imports 'child_process', but we also cover 'node:child_process') ---
 jest.mock('child_process', () => ({
   spawn: jest.fn(() => ({
     on: jest.fn().mockReturnThis(),
@@ -26,7 +23,6 @@ import * as Launch from '../server/launch-editor'
 import fs from 'fs'
 import { escapeApplescriptStringFragment } from '../server/launch-editor'
 
-// IMPORTANT: assert against the same module the SUT imports
 const { spawn, execFile } = jest.requireMock('child_process') as {
   spawn: jest.Mock
   execFile: jest.Mock
@@ -46,9 +42,7 @@ describe('Launch Editor RCE hardening (Windows)', () => {
   beforeEach(() => {
     jest.resetAllMocks()
     forceWin32()
-    // Short-circuit guessEditor()
     process.env.REACT_EDITOR = 'Code.exe'
-    // Pretend file exists so we go into launch flow
     existsSpy = jest.spyOn(fs, 'existsSync').mockReturnValue(true)
   })
 
@@ -110,9 +104,6 @@ describe('Launch Editor RCE hardening (Windows)', () => {
     expect(spawn).not.toHaveBeenCalled()
     expect(execFile).not.toHaveBeenCalled()
   })
-
-  // keep skipped until you introduce a 'start' style fallback that needs ^ escaping
-  // test.skip('cmd.exe fallback (if present) caret-escapes parentheses to avoid grouping', async () => {})
 })
 
 describe('applescript string escaping', () => {
