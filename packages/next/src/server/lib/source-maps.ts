@@ -1,14 +1,9 @@
-import type { SourceMap } from 'module'
 import { LRUCache } from './lru-cache'
 
-function noSourceMap(): SourceMap | undefined {
-  return undefined
-}
-
 // Edge runtime does not implement `module`
-const nativeFindSourceMap =
+const findSourceMap =
   process.env.NEXT_RUNTIME === 'edge'
-    ? noSourceMap
+    ? () => undefined
     : (require('module') as typeof import('module')).findSourceMap
 
 /**
@@ -103,13 +98,6 @@ export function findApplicableSourceMapPayload(
 }
 
 const didWarnAboutInvalidSourceMapDEV = new Set<string>()
-
-const findSourceMap: (scriptNameOrSourceURL: string) => SourceMap | undefined =
-  process.env.NEXT_RUNTIME === 'nodejs' &&
-  process.versions.node?.startsWith('18')
-    ? // Node.js 18 has a horribly slow `findSourceMap` implementation
-      noSourceMap
-    : nativeFindSourceMap
 
 export function filterStackFrameDEV(
   sourceURL: string,
