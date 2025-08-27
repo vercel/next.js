@@ -454,16 +454,17 @@ async function collectResult(
   if (cacheContext.outerWorkUnitStore) {
     const outerWorkUnitStore = cacheContext.outerWorkUnitStore
 
-    // Propagate tags/revalidate to the parent context if appropriate.
+    // Propagate cache life & tags to the parent context if appropriate.
     switch (outerWorkUnitStore.type) {
       case 'prerender':
       case 'prerender-runtime': {
-        // If we've just created a cache result, then we're filling caches for a Cache Components prerender.
-        // We don't want to propagate cache life/tags yet in case the entry ends up being omitted from
-        // the final render due to short expire/stale times --
-        // if it's omitted, then it shouldn't have any effects on the prerender.
-        // We'll decide whether or not this cache should have its tags/life propagated
-        // when we read it in the final render.
+        // If we've just created a cache result, and we're filling caches for a
+        // Cache Components prerender, then we don't want to propagate cache
+        // life & tags yet, in case the entry ends up being omitted from the
+        // final prerender due to short expire/stale times. If it is omitted,
+        // then it shouldn't have any effects on the prerender. We'll decide
+        // whether or not this cache should have its life & tags propagated when
+        // we read the entry in the final prerender from the resume data cache.
         break
       }
       case 'request':
@@ -1190,11 +1191,11 @@ export function cache(
               switch (workUnitStore.type) {
                 case 'prerender':
                   // In a Dynamic I/O prerender, if the cache entry has
-                  // revalidate: 0 or if the expire time is under 5 minutes, then
-                  // we consider this cache entry dynamic as it's not worth
-                  // generating static pages for such data. It's better to leave a
-                  // PPR hole that can be filled in dynamically with a potentially
-                  // cached entry.
+                  // revalidate: 0 or if the expire time is under 5 minutes,
+                  // then we consider this cache entry dynamic as it's not worth
+                  // generating static pages for such data. It's better to leave
+                  // a dynamic hole that can be filled in during the resume with
+                  // a potentially cached entry.
                   if (cacheSignal) {
                     cacheSignal.endRead()
                   }
@@ -1204,7 +1205,8 @@ export function cache(
                     'dynamic "use cache"'
                   )
                 case 'prerender-runtime': {
-                  // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
+                  // In the final phase of a runtime prerender, we have to make
+                  // sure that APIs that would hang during a static prerender
                   // are resolved with a delay, in the runtime stage.
                   if (workUnitStore.runtimeStagePromise) {
                     await workUnitStore.runtimeStagePromise
@@ -1226,10 +1228,10 @@ export function cache(
             if (existingEntry.stale < RUNTIME_PREFETCH_DYNAMIC_STALE) {
               switch (workUnitStore.type) {
                 case 'prerender-runtime':
-                  // In a runtime prerender, if the cache entry will become stale in less then 30 seconds,
-                  // we consider this cache entry dynamic as it's not worth prefetching.
-                  // It's better to leave a PPR hole that can be filled in dynamically
-                  // with a potentially cached entry.
+                  // In a runtime prerender, if the cache entry will become
+                  // stale in less then 30 seconds, we consider this cache entry
+                  // dynamic as it's not worth prefetching. It's better to leave
+                  // a dynamic hole that can be filled during the navigation.
                   if (cacheSignal) {
                     cacheSignal.endRead()
                   }
@@ -1252,8 +1254,9 @@ export function cache(
             }
           }
 
-          // We want to make sure we only propagate cache life / tags if the entry *wasn't* omitted from the prerender,
-          // so we only do this after the above early returns.
+          // We want to make sure we only propagate cache life & tags if the
+          // entry was *not* omitted from the prerender. So we only do this
+          // after the above early returns.
           propagateCacheLifeAndTags(cacheContext, existingEntry)
 
           const [streamA, streamB] = existingEntry.value.tee()
@@ -1385,8 +1388,9 @@ export function cache(
               // In a Dynamic I/O prerender, if the cache entry has revalidate:
               // 0 or if the expire time is under 5 minutes, then we consider
               // this cache entry dynamic as it's not worth generating static
-              // pages for such data. It's better to leave a PPR hole that can
-              // be filled in dynamically with a potentially cached entry.
+              // pages for such data. It's better to leave a dynamic hole that
+              // can be filled in during the resume with a potentially cached
+              // entry.
               if (cacheSignal) {
                 cacheSignal.endRead()
               }
@@ -1396,12 +1400,6 @@ export function cache(
                 'dynamic "use cache"'
               )
             case 'prerender-runtime':
-              // In a runtime prerender, we have to make sure that APIs that would hang during a static prerender
-              // are resolved with a delay, in the runtime stage.
-              if (workUnitStore.runtimeStagePromise) {
-                await workUnitStore.runtimeStagePromise
-              }
-              break
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'request':
