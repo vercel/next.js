@@ -24,6 +24,10 @@ import { getBotType } from '../../shared/lib/router/utils/is-bot'
 import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
+import { addRequestMeta } from '../../server/request-meta'
+import { isDynamicRoute } from '../../shared/lib/router/utils'
+import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
+import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { CloseController } from '../../server/web/web-on-close'
 
 declare const incrementalCacheHandler: any
@@ -64,6 +68,22 @@ async function requestHandler(
   const relativeUrl = `${req.nextUrl.pathname}${req.nextUrl.search}`
   const baseReq = new WebNextRequest(req)
   const baseRes = new WebNextResponse(undefined)
+
+  // Extract dynamic params if the page is dynamic
+  if (isDynamicRoute(normalizedSrcPage)) {
+    const routeRegex = getNamedRouteRegex(normalizedSrcPage, {
+      prefixRouteKeys: false,
+    })
+    const dynamicRouteMatcher = getRouteMatcher(routeRegex)
+    const pathname = req.nextUrl.pathname
+
+    const matchResult = dynamicRouteMatcher(pathname)
+
+    if (matchResult) {
+      // Add the params to the request metadata so prepare() can access them
+      addRequestMeta(baseReq, 'params', matchResult)
+    }
+  }
 
   const pageRouteModule = pageMod.routeModule as AppPageRouteModule
   const prepareResult = await pageRouteModule.prepare(baseReq, null, {
