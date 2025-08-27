@@ -525,9 +525,8 @@ describe('use-cache', () => {
         expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(
           300
         )
-      } else {
-        // We don't exclude dynamic caches for the legacy prerendering
-        // (including PPR).
+      } else if (withPPR) {
+        // We don't exclude dynamic caches for the legacy PPR prerendering.
         expect(
           routes['/cache-life-with-dynamic'].initialRevalidateSeconds
         ).toBe(99)
@@ -543,7 +542,7 @@ describe('use-cache', () => {
       // config for the page.
       expect(routes['/cache-tag'].initialRevalidateSeconds).toBe(42)
 
-      if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+      if (withPPR) {
         // cache life profile "weeks"
         expect(dynamicRoutes['/[id]'].fallbackRevalidate).toBe(604800)
         expect(dynamicRoutes['/[id]'].fallbackExpire).toBe(2592000)
@@ -1021,7 +1020,7 @@ describe('use-cache', () => {
     })
   }
 
-  if (isNextStart && process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+  if (isNextStart && withPPR) {
     it('should exclude inner caches and omitted caches from the resume data cache (RDC)', async () => {
       await next.fetch('/rdc')
 
