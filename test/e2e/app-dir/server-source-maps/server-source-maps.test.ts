@@ -516,8 +516,9 @@ describe('app-dir - server source maps', () => {
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
             '\nError: module-evaluation' +
+            '\n    at __TURBOPACK__module__evaluation__ (bundler:///app/module-evaluation/module.js:1:22)' +
             // TODO(veil): Turbopack internals. Feel free to update. Tracked in https://linear.app/vercel/issue/NEXT-4362
-            '\n    at __TURBOPACK__module__evaluation__ (bundler:///app/module-evaluation/module.js:1:22)'
+            '\n    at Object.<anonymous>'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
