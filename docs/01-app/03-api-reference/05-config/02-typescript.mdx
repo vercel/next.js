@@ -135,6 +135,8 @@ Next.js will generate a link definition in `.next/types` that contains informati
 
 > **Good to know**: If you set up your project without `create-next-app`, ensure the generated Next.js types are included by adding `.next/types/**/*.ts` to the `include` array in your `tsconfig.json`:
 
+{/* prettier-ignore-start */}
+
 ```json filename="tsconfig.json" highlight={4}
 {
   "include": [
@@ -142,11 +144,11 @@ Next.js will generate a link definition in `.next/types` that contains informati
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx"
-    // other paths in your configuration
   ],
   "exclude": ["node_modules"]
 }
 ```
+{/* prettier-ignore-end */}
 
 Currently, experimental support includes any string literal, including dynamic segments. For non-literal strings, you currently need to manually cast the `href` with `as Route`:
 
