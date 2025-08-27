@@ -153,6 +153,8 @@
       "app-dir action handling Edge SSR should handle calls to redirect() with external URLs",
       "app-dir action handling Edge SSR should handle unicode search params",
       "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
+      "app-dir action handling action discarding should not trigger a refresh for a server action that gets discarded due to a navigation (without revalidation)",
+      "app-dir action handling action discarding should trigger a refresh for a server action that gets discarded due to a navigation (with revalidation)",
       "app-dir action handling caching disabled by default should not override force-cache in server action",
       "app-dir action handling caching disabled by default should not override revalidate in server action",
       "app-dir action handling caching disabled by default should use no-store as default for server action",
@@ -221,7 +223,6 @@
       "app-dir action handling should support setting cookies when redirecting (with javascript)",
       "app-dir action handling should support uploading files",
       "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
-      "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
       "app-dir action handling should work with interception routes"
     ],
@@ -286,6 +287,8 @@
       "app-dir action handling Edge SSR should handle calls to redirect() with external URLs",
       "app-dir action handling Edge SSR should handle unicode search params",
       "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
+      "app-dir action handling action discarding should not trigger a refresh for a server action that gets discarded due to a navigation (without revalidation)",
+      "app-dir action handling action discarding should trigger a refresh for a server action that gets discarded due to a navigation (with revalidation)",
       "app-dir action handling caching disabled by default should not override force-cache in server action",
       "app-dir action handling caching disabled by default should not override revalidate in server action",
       "app-dir action handling caching disabled by default should use no-store as default for server action",
@@ -354,7 +357,6 @@
       "app-dir action handling should support setting cookies when redirecting (with javascript)",
       "app-dir action handling should support uploading files",
       "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
-      "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
       "app-dir action handling should work with interception routes"
     ],
@@ -2634,6 +2636,8 @@
       "app dir - next/dynamic should handle next/dynamic in SSR correctly",
       "app dir - next/dynamic should handle next/dynamic in hydration correctly",
       "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled",
+      "app dir - next/dynamic should ignore next/dynamic in routes",
+      "app dir - next/dynamic should ignore next/dynamic in sitemap",
       "app dir - next/dynamic should not render loading by default",
       "app dir - next/dynamic should render loading by default if loading is specified and loader is slow"
     ],
@@ -6149,6 +6153,18 @@
       "segment cache (search params) stores prefetched data by its rewritten search params, not the original ones",
       "segment cache (search params) when fetching with PPR, does not include search params in the cache key",
       "segment cache (search params) when fetching without PPR (e.g. prefetch=\"unstable_forceStale\"), includes the search params in the cache key"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/segment-prefetch-config/segment-prefetch-config.test.ts": {
+    "passed": [
+      "export const unstable_prefetch = ... defaults segments to static if no config is specified",
+      "export const unstable_prefetch = ... does not mark a \"static\" segment that is a child of a \"runtime\" segment as runtime-prefetchable",
+      "export const unstable_prefetch = ... does not mark for segments with prefetch: \"static\" as runtime-prefetchable",
+      "export const unstable_prefetch = ... marks segments with prefetch: \"runtime\" as runtime-prefetchable"
     ],
     "failed": [],
     "pending": [],
