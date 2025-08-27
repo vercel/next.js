@@ -1,9 +1,14 @@
+import type { SourceMap } from 'module'
 import { LRUCache } from './lru-cache'
+
+function noSourceMap(): SourceMap | undefined {
+  return undefined
+}
 
 // Edge runtime does not implement `module`
 const findSourceMap =
   process.env.NEXT_RUNTIME === 'edge'
-    ? () => undefined
+    ? noSourceMap
     : (require('module') as typeof import('module')).findSourceMap
 
 /**
