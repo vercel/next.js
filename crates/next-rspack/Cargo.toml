@@ -16,13 +16,13 @@ rspack_hook             = { version = "=0.4.11" }
 rspack_plugin_externals = { version = "=0.4.11" }
 rspack_sources          = { version = "=0.4.8" }
 
-once_cell    = { workspace = true }
-regex        = { workspace = true }
+once_cell    = { version = "1.17.1" }
+regex        = { version = "1.10.6" }
 rspack_regex = { version = "=0.4.11" }
-rustc-hash   = { workspace = true }
+rustc-hash   = { version = "2.1.1" }
 
-napi        = { workspace = true, features = ["async", "tokio_rt", "serde-json", "anyhow", "napi7", "compat-mode"] }
-napi-derive = { version = "2", features = ["compat-mode"] }
+napi        = { version = "3.1.2" }
+napi-derive = { version = "3.1.2" }
 
 # Enable SWC plugin feature for targets that support it
 # Skip: wasm32-wasip1-threads, i686-pc-windows-msvc, aarch64-pc-windows-msvc, armv7-linux-androideabi, armv7-unknown-linux-gnueabihf
