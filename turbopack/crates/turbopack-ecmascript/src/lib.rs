@@ -1826,7 +1826,7 @@ async fn process_parse_result(
                 }
                 ParseResult::NotFound => {
                     let path = ident.path().to_string().await?;
-                    let msg = format!("Could not parse module '{path}'");
+                    let msg = format!("Could not parse module '{path}', file not found");
                     let body = vec![
                         quote!(
                             "const e = new Error($msg);" as Stmt,

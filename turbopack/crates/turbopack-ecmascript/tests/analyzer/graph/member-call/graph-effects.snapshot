@@ -396,9 +396,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "unknown",
-        ),
+        var: "unknown",
         ast_path: [
             Program(
                 Script,
@@ -744,9 +742,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "unknown",
-        ),
+        var: "unknown",
         ast_path: [
             Program(
                 Script,

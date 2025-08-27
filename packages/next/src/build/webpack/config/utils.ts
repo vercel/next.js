@@ -19,7 +19,6 @@ export type ConfigurationContext = {
   targetWeb: boolean
 
   assetPrefix: string
-  deploymentId: string | undefined
 
   sassOptions: any
   productionBrowserSourceMaps: boolean

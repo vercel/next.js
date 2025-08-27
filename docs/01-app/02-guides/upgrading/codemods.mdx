@@ -420,13 +420,13 @@ npx @next/codemod@latest new-link .
 
 <AppOnly>
 
-Remove `<a>` tags inside [Link Components](/docs/app/api-reference/components/link), or add a `legacyBehavior` prop to Links that cannot be auto-fixed.
+Remove `<a>` tags inside [Link Components](/docs/app/api-reference/components/link).
 
 </AppOnly>
 
 <PagesOnly>
 
-Remove `<a>` tags inside [Link Components](/docs/pages/api-reference/components/link), or add a `legacyBehavior` prop to Links that cannot be auto-fixed.
+Remove `<a>` tags inside [Link Components](/docs/pages/api-reference/components/link).
 
 </PagesOnly>
 
@@ -447,20 +447,6 @@ For example:
 // transforms into
 <Link href="/about" onClick={() => console.log('clicked')}>
   About
-</Link>
-```
-
-In cases where auto-fixing can't be applied, the `legacyBehavior` prop is added. This allows your app to keep functioning using the old behavior for that particular link.
-
-```jsx
-const Component = () => <a>About</a>
-
-<Link href="/about">
-  <Component />
-</Link>
-// becomes
-<Link href="/about" legacyBehavior>
-  <Component />
 </Link>
 ```
 
