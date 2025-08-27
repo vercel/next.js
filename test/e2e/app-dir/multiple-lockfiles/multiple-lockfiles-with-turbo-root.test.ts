@@ -16,7 +16,7 @@ describe('multiple-lockfiles - has-turbo-root', () => {
       }),
     },
     // So that ../package-lock.json doesn't leave the isolated testDir
-    dirSuffix: '/root',
+    subDir: 'test',
     skipDeployment: true,
   })
 

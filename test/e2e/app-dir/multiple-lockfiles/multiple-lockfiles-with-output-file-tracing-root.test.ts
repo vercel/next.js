@@ -16,7 +16,7 @@ describe('multiple-lockfiles - has-output-file-tracing-root', () => {
       }),
     },
     // So that ../package-lock.json doesn't leave the isolated testDir
-    dirSuffix: '/root',
+    subDir: 'test',
     skipDeployment: true,
   })
 
