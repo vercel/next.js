@@ -1,8 +1,8 @@
 import type { NextConfig } from 'next'
-import { foo } from './foo.json'
+import fooJson from './foo.json' with { type: 'json' }
 
 export default {
   env: {
-    foo,
+    foo: fooJson.foo,
   },
 } satisfies NextConfig

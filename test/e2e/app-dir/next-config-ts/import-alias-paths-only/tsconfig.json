@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "jsx": "preserve",
+    "lib": ["ESNext"],
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "allowJs": true,
+    "noEmit": true,
+    "paths": {
+      // path should be relative when baseUrl is not set
+      "@/*": ["./src/*"]
+    }
+  }
+}

@@ -1,0 +1,15 @@
+import { nextTestSetup } from 'e2e-utils'
+
+describe('next-config-ts-tsconfig-extends-cjs', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    packageJson: {
+      type: 'module',
+    },
+  })
+
+  it('should support tsconfig extends', async () => {
+    const $ = await next.render$('/')
+    expect($('p').text()).toBe('foobar')
+  })
+})
