@@ -119,31 +119,53 @@ pub fn get_value_type_global_name(id: ValueTypeId) -> &'static str {
 struct Traits {
     id_to_trait: FxHashMap<TraitTypeId, &'static TraitType>,
     trait_to_id: FxHashMap<&'static TraitType, TraitTypeId>,
-    global_name_to_id: FxHashMap<&'static str, TraitTypeId>,
+    global_name_to_trait: FxHashMap<&'static str, (TraitTypeId, &'static TraitType)>,
 }
+
 static TRAITS: Lazy<Traits> = Lazy::new(|| {
+    // Inventory does not guarantee an order. So we sort by the global name to get a stable order
+    // This ensures that assigned ids are also stable.
+    let mut all_traits = inventory::iter::<CollectableTrait>
+        .into_iter()
+        .map(|t| &**t.0)
+        .collect::<Vec<_>>();
+    all_traits.sort_by_key(|t| t.global_name);
+
     let mut id_to_trait = FxHashMap::default();
+    id_to_trait.reserve(all_traits.len());
+
     let mut trait_to_id = FxHashMap::default();
-    let mut global_name_to_id = FxHashMap::default();
-    let id_factory: IdFactory<TraitTypeId> = IdFactory::new_const(
+    trait_to_id.reserve(all_traits.len());
+    let mut global_name_to_trait = FxHashMap::default();
+    global_name_to_trait.reserve(all_traits.len());
+
+    let trait_id_factory: IdFactory<TraitTypeId> = IdFactory::new_const(
         TraitTypeId::MIN.to_non_zero_u64(),
         TraitTypeId::MAX.to_non_zero_u64(),
     );
-
-    for collected in inventory::iter::<CollectableTrait> {
-        let id = id_factory.get();
-        let trait_ref = &**collected.0;
-        id_to_trait.insert(id, trait_ref);
-        trait_to_id.insert(trait_ref, id);
-        global_name_to_id.insert(trait_ref.global_name, id);
+    for trait_type in all_traits {
+        let id = trait_id_factory.get();
+        trait_to_id.insert(trait_type, id);
+        let prev = id_to_trait.insert(id, trait_type);
+        debug_assert!(
+            prev.is_none(),
+            "two traits registered with the same id {}",
+            id
+        );
+        let prev = global_name_to_trait.insert(trait_type.global_name, (id, trait_type));
+        debug_assert!(
+            prev.is_none(),
+            "two traits registered with the same name: {}",
+            trait_type.global_name
+        );
     }
     id_to_trait.shrink_to_fit();
     trait_to_id.shrink_to_fit();
-    global_name_to_id.shrink_to_fit();
+    global_name_to_trait.shrink_to_fit();
     Traits {
-        id_to_trait,
         trait_to_id,
-        global_name_to_id,
+        id_to_trait,
+        global_name_to_trait,
     }
 });
 
@@ -155,7 +177,10 @@ pub fn get_trait_type_id(trait_type: &'static TraitType) -> TraitTypeId {
 }
 
 pub fn get_trait_type_id_by_global_name(global_name: &str) -> Option<TraitTypeId> {
-    TRAITS.global_name_to_id.get(global_name).copied()
+    TRAITS
+        .global_name_to_trait
+        .get(global_name)
+        .map(|(id, _)| *id)
 }
 
 pub fn get_trait(id: TraitTypeId) -> &'static TraitType {

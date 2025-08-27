@@ -246,6 +246,7 @@ impl TraitMethod {
         )
     }
 }
+
 #[derive(Debug)]
 pub struct TraitType {
     pub name: &'static str,

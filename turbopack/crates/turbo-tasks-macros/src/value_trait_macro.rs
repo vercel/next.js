@@ -292,16 +292,16 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
             fn get_trait_type_id() -> turbo_tasks::TraitTypeId {
                 static ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitTypeId> =
-                turbo_tasks::macro_helpers::Lazy::new(|| {
-                    turbo_tasks::registry::get_trait_type_id(&#trait_type_ident)
-                });
+                    turbo_tasks::macro_helpers::Lazy::new(|| {
+                        turbo_tasks::registry::get_trait_type_id(&#trait_type_ident)
+                    });
 
                 *ident
             }
 
             fn get_impl_vtables() -> &'static turbo_tasks::macro_helpers::VTableRegistry<Self::ValueTrait> {
                 static registry: turbo_tasks::macro_helpers::Lazy<turbo_tasks::macro_helpers::VTableRegistry<dyn # trait_ident>> =
-                turbo_tasks::macro_helpers::Lazy::new(turbo_tasks::macro_helpers::VTableRegistry::new);
+                    turbo_tasks::macro_helpers::Lazy::new(turbo_tasks::macro_helpers::VTableRegistry::new);
 
                 &*registry
             }

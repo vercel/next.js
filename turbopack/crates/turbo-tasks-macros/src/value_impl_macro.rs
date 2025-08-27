@@ -282,7 +282,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
                 trait_registers.push(quote! {
                     value.register_trait_method(
-                        <Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(),
+                        <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(),
                         stringify!(#ident),
                         &#native_function_ident);
                 });
@@ -293,7 +293,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             #[doc(hidden)]
             #[allow(non_snake_case)]
             pub(crate) fn #register_trait_methods(value: &mut turbo_tasks::ValueType) {
-                value.register_trait(<Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id());
+                value.register_trait(<::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id());
                 #(#trait_registers)*
             }
             #[doc(hidden)]
@@ -304,13 +304,13 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 // This would avoid the nightly feature.
                 let fat_pointer: *const dyn #trait_path = ::std::ptr::null::<#ty>() as *const dyn #trait_path;
                 let metadata = turbo_tasks::macro_helpers::metadata(fat_pointer);
-                turbo_tasks::macro_helpers::register_trait_impl::<dyn #trait_path, Box<dyn #trait_path>>(value_id, metadata);
+                turbo_tasks::macro_helpers::register_trait_impl::<dyn #trait_path, ::std::boxed::Box<dyn #trait_path>>(value_id, metadata);
             }
 
             // NOTE(alexkirsz) We can't have a general `turbo_tasks::Upcast<Box<dyn Trait>> for T where T: Trait` because
             // rustc complains: error[E0210]: type parameter `T` must be covered by another type when it appears before
             // the first local type (`dyn Trait`).
-            unsafe impl #impl_generics turbo_tasks::Upcast<Box<dyn #trait_path>> for #ty #where_clause {}
+            unsafe impl #impl_generics turbo_tasks::Upcast<::std::boxed::Box<dyn #trait_path>> for #ty #where_clause {}
 
             impl #impl_generics #trait_path for #ty #where_clause {
                 #(#trait_items)*
