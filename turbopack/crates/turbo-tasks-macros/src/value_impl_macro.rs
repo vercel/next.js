@@ -108,9 +108,10 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let (inline_signature, inline_block) =
                     turbo_fn.inline_signature_and_block(block, is_self_used);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
-
+                let function_path_string = format!("{ty}::{ident}", ty = ty.to_token_stream());
                 let native_fn = NativeFn {
-                    function_path_string: format!("{ty}::{ident}", ty = ty.to_token_stream()),
+                    function_global_name: quote! { concat!(module_path!(), "::", #function_path_string)},
+                    function_path_string,
                     function_path: parse_quote! { <#ty>::#inline_function_ident },
                     is_method: turbo_fn.is_method(),
                     is_self_used,
@@ -226,6 +227,8 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
                 let native_fn = NativeFn {
+                    // This global name breaks the pattern.  It isn't clear if it is intentional
+                    function_global_name: quote! { concat!(module_path!(), "::", stringify!(#ty), "::", stringify!(#trait_path), "::", stringify!(#ident))},
                     function_path_string: format!(
                         "<{ty} as {trait_path}>::{ident}",
                         ty = ty.to_token_stream(),

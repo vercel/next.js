@@ -175,8 +175,10 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 turbo_fn.inline_signature_and_block(default, is_self_used);
             let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
+            let function_path_string = format!("{trait_ident}::{ident}");
             let native_function = NativeFn {
-                function_path_string: format!("{trait_ident}::{ident}"),
+                function_global_name: quote! { concat!(module_path!(), "::", #function_path_string)},
+                function_path_string,
                 function_path: parse_quote! {
                     <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident
                 },

@@ -55,9 +55,11 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let (inline_signature, inline_block) =
         turbo_fn.inline_signature_and_block(&block, is_self_used);
     let inline_attrs = filter_inline_attributes(&attrs[..]);
+    let function_path_string = ident.to_string();
 
     let native_fn = NativeFn {
-        function_path_string: ident.to_string(),
+        function_global_name: quote! { concat!(module_path!(), "::", #function_path_string)},
+        function_path_string,
         function_path: parse_quote! { #inline_function_ident },
         is_method: turbo_fn.is_method(),
         is_self_used,
