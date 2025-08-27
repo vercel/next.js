@@ -24,7 +24,7 @@ import {
   upgradeToPendingSegment,
   waitForSegmentCacheEntry,
   resetRevalidatingSegmentEntry,
-  getSegmentKeypathForTask,
+  getSegmentKeypath,
   canNewFetchStrategyProvideMoreContent,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
@@ -732,7 +732,7 @@ function pingSharedPartOfCacheComponentsTree(
   // Prefetch this segment's static data.
   const segment = readOrCreateSegmentCacheEntry(
     now,
-    task,
+    task.fetchStrategy,
     route,
     newTree.cacheKey
   )
@@ -831,7 +831,12 @@ function pingNewPartOfCacheComponentsTree(
   }
 
   // This segment should not be runtime prefetched. Prefetch its static data.
-  const segment = readOrCreateSegmentCacheEntry(now, task, route, tree.cacheKey)
+  const segment = readOrCreateSegmentCacheEntry(
+    now,
+    task.fetchStrategy,
+    route,
+    tree.cacheKey
+  )
   pingStaticSegmentData(now, task, route, segment, task.key, tree)
   if (tree.slots !== null) {
     if (!hasNetworkBandwidth(task)) {
@@ -1026,7 +1031,12 @@ function pingPPRDisabledRouteTreeUpToLoadingBoundary(
   let refetchMarker: 'refetch' | 'inside-shared-layout' | null =
     refetchMarkerContext === null ? 'inside-shared-layout' : null
 
-  const segment = readOrCreateSegmentCacheEntry(now, task, route, tree.cacheKey)
+  const segment = readOrCreateSegmentCacheEntry(
+    now,
+    task.fetchStrategy,
+    route,
+    tree.cacheKey
+  )
   switch (segment.status) {
     case EntryStatus.Empty: {
       // This segment is not cached. Add a refetch marker so the server knows
@@ -1129,7 +1139,17 @@ function pingRouteTreeAndIncludeDynamicData(
   // explicit "refetch" marker so the server knows where to start rendering.
   // Once the server starts rendering along a path, it keeps rendering the
   // entire subtree.
-  const segment = readOrCreateSegmentCacheEntry(now, task, route, tree.cacheKey)
+  const segment = readOrCreateSegmentCacheEntry(
+    now,
+    // Note that `fetchStrategy` might be different from `task.fetchStrategy`,
+    // and we have to use the former here.
+    // We can have a task with `FetchStrategy.PPR` where some of its segments are configured to
+    // always use runtime prefetching (via `export const prefetch`), and those should check for
+    // entries that include search params.
+    fetchStrategy,
+    route,
+    tree.cacheKey
+  )
 
   let spawnedSegment: PendingSegmentCacheEntry | null = null
 
@@ -1155,7 +1175,6 @@ function pingRouteTreeAndIncludeDynamicData(
         // In either case, we need to include it in the request to get a more specific (or full) version.
         spawnedSegment = pingFullSegmentRevalidation(
           now,
-          task,
           route,
           segment,
           tree,
@@ -1176,7 +1195,6 @@ function pingRouteTreeAndIncludeDynamicData(
       ) {
         spawnedSegment = pingFullSegmentRevalidation(
           now,
-          task,
           route,
           segment,
           tree,
@@ -1385,7 +1403,7 @@ function pingPPRSegmentRevalidation(
       // Spawn a prefetch request and upsert the segment into the cache
       // upon completion.
       upsertSegmentOnCompletion(
-        task,
+        task.fetchStrategy,
         route,
         tree.cacheKey,
         spawnPrefetchSubtask(
@@ -1414,7 +1432,6 @@ function pingPPRSegmentRevalidation(
 
 function pingFullSegmentRevalidation(
   now: number,
-  task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
   currentSegment: SegmentCacheEntry,
   tree: RouteTree,
@@ -1435,7 +1452,7 @@ function pingFullSegmentRevalidation(
       fetchStrategy
     )
     upsertSegmentOnCompletion(
-      task,
+      fetchStrategy,
       route,
       tree.cacheKey,
       waitForSegmentCacheEntry(pendingSegment)
@@ -1460,7 +1477,7 @@ function pingFullSegmentRevalidation(
         fetchStrategy
       )
       upsertSegmentOnCompletion(
-        task,
+        fetchStrategy,
         route,
         tree.cacheKey,
         waitForSegmentCacheEntry(pendingSegment)
@@ -1487,7 +1504,7 @@ function pingFullSegmentRevalidation(
 const noop = () => {}
 
 function upsertSegmentOnCompletion(
-  task: PrefetchTask,
+  fetchStrategy: FetchStrategy,
   route: FulfilledRouteCacheEntry,
   cacheKey: SegmentCacheKey,
   promise: Promise<FulfilledSegmentCacheEntry | null>
@@ -1496,7 +1513,7 @@ function upsertSegmentOnCompletion(
   promise.then((fulfilled) => {
     if (fulfilled !== null) {
       // Received new data. Attempt to replace the existing entry in the cache.
-      const keypath = getSegmentKeypathForTask(task, route, cacheKey)
+      const keypath = getSegmentKeypath(fetchStrategy, route, cacheKey)
       upsertSegmentEntry(Date.now(), keypath, fulfilled)
     }
   }, noop)
