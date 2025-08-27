@@ -26,13 +26,14 @@ pub struct LoaderRuleItem {
     pub condition: Option<ConditionItem>,
 }
 
+/// This is a list of instructions for the rule engine to process. The first element in each tuple
+/// is a glob to match against, and the second is a rule to execute if that glob matches.
+///
+/// This is not a map, since multiple rules can be configured for the same glob, and since execution
+/// order matters.
 #[derive(Default)]
 #[turbo_tasks::value(transparent)]
-pub struct WebpackRules(FxIndexMap<RcStr, LoaderRuleItem>);
-
-#[derive(Default)]
-#[turbo_tasks::value(transparent)]
-pub struct OptionWebpackRules(Option<ResolvedVc<WebpackRules>>);
+pub struct WebpackRules(Vec<(RcStr, LoaderRuleItem)>);
 
 #[derive(Default)]
 #[turbo_tasks::value(transparent)]

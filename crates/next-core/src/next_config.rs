@@ -14,7 +14,7 @@ use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fetch::FetchClient;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
-    ConditionItem, ConditionPath, LoaderRuleItem, OptionWebpackRules,
+    ConditionItem, ConditionPath, LoaderRuleItem, WebpackRules,
     module_options_context::{MdxTransformOptions, OptionWebpackConditions},
 };
 use turbopack_core::{
@@ -868,6 +868,13 @@ pub struct ExperimentalConfig {
     turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
     turbopack_use_system_tls_certs: Option<bool>,
+    /// Disable automatic configuration of the sass loader.
+    #[serde(default)]
+    turbopack_disable_builtin_sass: Option<bool>,
+    /// Disable automatic configuration of the babel loader when a babel configuration file is
+    /// present.
+    #[serde(default)]
+    turbopack_disable_builtin_babel: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1377,14 +1384,14 @@ impl NextConfig {
         &self,
         active_conditions: BTreeSet<WebpackLoaderBuiltinCondition>,
         project_path: FileSystemPath,
-    ) -> Result<Vc<OptionWebpackRules>> {
+    ) -> Result<Vc<WebpackRules>> {
         let Some(turbo_rules) = self.turbopack.as_ref().and_then(|t| t.rules.as_ref()) else {
-            return Ok(Vc::cell(None));
+            return Ok(Vc::cell(Vec::new()));
         };
         if turbo_rules.is_empty() {
-            return Ok(Vc::cell(None));
+            return Ok(Vc::cell(Vec::new()));
         }
-        let mut rules = FxIndexMap::default();
+        let mut rules = Vec::new();
         for (glob, rule) in turbo_rules.iter() {
             fn transform_loaders(loaders: &[LoaderItem]) -> ResolvedVc<WebpackLoaderItems> {
                 ResolvedVc::cell(
@@ -1440,14 +1447,14 @@ impl NextConfig {
             let config_file_path = || project_path.join(&self.config_file_name);
             match rule {
                 RuleConfigItemOrShortcut::Loaders(loaders) => {
-                    rules.insert(
+                    rules.push((
                         glob.clone(),
                         LoaderRuleItem {
                             loaders: transform_loaders(loaders),
                             rename_as: None,
                             condition: None,
                         },
-                    );
+                    ));
                 }
                 RuleConfigItemOrShortcut::Advanced(rule) => {
                     if let FindRuleResult::Found(RuleConfigItemOptions {
@@ -1489,19 +1496,19 @@ impl NextConfig {
                             None
                         };
 
-                        rules.insert(
+                        rules.push((
                             glob.clone(),
                             LoaderRuleItem {
                                 loaders: transform_loaders(loaders),
                                 rename_as: rename_as.clone(),
                                 condition,
                             },
-                        );
+                        ));
                     }
                 }
             }
         }
-        Ok(Vc::cell(Some(ResolvedVc::cell(rules))))
+        Ok(Vc::cell(rules))
     }
 
     #[turbo_tasks::function]
@@ -1636,6 +1643,16 @@ impl NextConfig {
             Some(ServerActionsOrLegacyBool::LegacyBool(true)) => Some(ServerActions::default()),
             _ => None,
         })
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental_turbopack_disable_builtin_babel(&self) -> Vc<Option<bool>> {
+        Vc::cell(self.experimental.turbopack_disable_builtin_babel)
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental_turbopack_disable_builtin_sass(&self) -> Vc<Option<bool>> {
+        Vc::cell(self.experimental.turbopack_disable_builtin_sass)
     }
 
     #[turbo_tasks::function]
