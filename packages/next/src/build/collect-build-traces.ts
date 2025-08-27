@@ -82,7 +82,6 @@ export async function collectBuildTraces({
   hasSsrAmpPages,
   buildTraceContext,
   outputFileTracingRoot,
-  isTurbopack,
 }: {
   dir: string
   distDir: string
@@ -94,7 +93,6 @@ export async function collectBuildTraces({
   nextBuildSpan?: Span
   config: NextConfigComplete
   buildTraceContext?: BuildTraceContext
-  isTurbopack: boolean
 }) {
   const startTime = Date.now()
   debug('starting build traces')
@@ -111,13 +109,11 @@ export async function collectBuildTraces({
     .traceAsyncFn(async () => {
       const nextServerTraceOutput = path.join(
         distDir,
-        isTurbopack ? 'next-server.ref.js.nft.json' : 'next-server.js.nft.json'
+        'next-server.js.nft.json'
       )
       const nextMinimalTraceOutput = path.join(
         distDir,
-        isTurbopack
-          ? 'next-minimal-server.ref.js.nft.json'
-          : 'next-minimal-server.js.nft.json'
+        'next-minimal-server.js.nft.json'
       )
       const root = outputFileTracingRoot
 
@@ -280,11 +276,6 @@ export async function collectBuildTraces({
           require.resolve('next/dist/compiled/jest-worker/threadChild'),
           serverTracedFiles
         )
-      }
-
-      if (isTurbopack) {
-        addToTracedFiles(distDir, './package.json', serverTracedFiles)
-        addToTracedFiles(distDir, './package.json', minimalServerTracedFiles)
       }
 
       {
