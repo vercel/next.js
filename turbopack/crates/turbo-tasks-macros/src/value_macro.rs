@@ -505,9 +505,9 @@ pub fn value_type_and_register(
 
             fn get_value_type_id() -> turbo_tasks::ValueTypeId {
                 static ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueTypeId> =
-                turbo_tasks::macro_helpers::Lazy::new(|| {
-                    turbo_tasks::registry::get_value_type_id(*#value_type_ident)
-                });
+                    turbo_tasks::macro_helpers::Lazy::new(|| {
+                        turbo_tasks::registry::get_value_type_id(*#value_type_ident)
+                    });
 
                 *ident
             }

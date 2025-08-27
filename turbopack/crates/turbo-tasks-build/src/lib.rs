@@ -120,7 +120,7 @@ pub fn generate_register() {
     }
 
     for (filename, entry) in entries {
-        let prefix = format!("{crate_name}::");
+        let prefix = crate_name.to_string();
 
         let mut values = FxHashMap::default();
 
