@@ -320,7 +320,7 @@ const runTests = (isDev) => {
   })
 
   // https://github.com/vercel/next.js/issues/39993
-  it('onReady should only fires once after loaded (issue #39993)', async () => {
+  it('onReady should only fire once after loaded (issue #39993)', async () => {
     let browser
     try {
       browser = await webdriver(appPort, '/page10')
@@ -329,6 +329,46 @@ const runTests = (isDev) => {
       await waitFor(1000)
       expect(await browser.eval(`window.remoteScriptsOnReadyCalls`)).toBe(1)
       expect(await browser.eval(`window.inlineScriptsOnReadyCalls`)).toBe(1)
+    } finally {
+      if (browser) await browser.close()
+    }
+  })
+
+  it('For errored scripts: onLoad, onReady do not fire on first and subsequent re-mount', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/page11')
+
+      // wait for remote script to be loaded
+      await waitFor(1000)
+
+      expect(
+        await browser.eval(`window.remoteScriptsOnLoadCalls`)
+      ).toBeUndefined()
+
+      expect(
+        await browser.eval(`window.remoteScriptsOnReadyCalls`)
+      ).toBeUndefined()
+
+      expect(await browser.eval(`window.remoteScriptsOnErrorCalls`)).toBe(1)
+
+      // Navigate to different page and back
+      await browser.waitForElementByCss('[href="/page9"]')
+      await browser.click('[href="/page9"]')
+      await browser.waitForElementByCss('[href="/page11"]')
+      await browser.click('[href="/page11"]')
+
+      await waitFor(1000)
+
+      expect(
+        await browser.eval(`window.remoteScriptsOnLoadCalls`)
+      ).toBeUndefined()
+
+      expect(
+        await browser.eval(`window.remoteScriptsOnReadyCalls`)
+      ).toBeUndefined()
+
+      expect(await browser.eval(`window.remoteScriptsOnErrorCalls`)).toBe(2)
     } finally {
       if (browser) await browser.close()
     }
