@@ -9,10 +9,6 @@ Choose the right checklist for the change(s) that you're making:
 - Run `pnpm prettier-fix` to fix formatting issues before opening the PR.
 - Read the Docs Contribution Guide to ensure your contribution follows the docs guidelines: https://nextjs.org/docs/community/contribution-guide
 
-### Adding or Updating Examples
-
-- Make sure the linting passes by running `pnpm build && pnpm lint`. See https://github.com/vercel/next.js/blob/canary/contributing/repository/linting.md
-
 ### Fixing a bug
 
 - Related issues linked using `fixes #number`
