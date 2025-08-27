@@ -20,7 +20,10 @@ function resolveSWCOptions(
       ...(compilerOptions.baseUrl
         ? // Needs to be an absolute path.
           { baseUrl: resolve(cwd, compilerOptions.baseUrl) }
-        : {}),
+        : compilerOptions.paths
+          ? // If paths is given, baseUrl is required.
+            { baseUrl: cwd }
+          : {}),
     },
     module: {
       type: 'commonjs',
@@ -86,7 +89,7 @@ async function getTsConfig(cwd: string): Promise<CompilerOptions> {
 
   if (!tsConfigPath) {
     // It is ok to not return ts.getDefaultCompilerOptions() because
-    // we are only lookfing for paths and baseUrl from tsConfig.
+    // we are only looking for paths and baseUrl from tsConfig.
     return {}
   }
 
