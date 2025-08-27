@@ -214,10 +214,17 @@ impl<'a> SpanGraphRef<'a> {
 
     pub fn self_persistent_allocations(&self) -> u64 {
         *self.graph.self_persistent_allocations.get_or_init(|| {
-            self.recursive_spans()
-                .map(|span| span.self_persistent_allocations())
+            let expected_total = self
+                .total_allocations()
+                .saturating_sub(self.total_deallocations());
+
+            let child_total = self
+                .children()
+                .map(|graph| graph.total_persistent_allocations())
                 .reduce(|a, b| a + b)
-                .unwrap_or_default()
+                .unwrap_or_default();
+
+            expected_total.saturating_sub(child_total)
         })
     }
 
