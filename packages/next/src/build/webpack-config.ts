@@ -2301,7 +2301,7 @@ export default async function getBaseWebpackConfig(
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
-    buildActivityPosition:
+    devIndicatorsPosition:
       config.devIndicators === false
         ? undefined
         : config.devIndicators.position,

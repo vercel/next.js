@@ -12144,7 +12144,7 @@
       "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation",
       "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
       "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
-      "Build Activity Indicator should validate buildActivityPosition config"
+      "Build Activity Indicator should validate position config"
     ],
     "failed": [],
     "pending": [],
