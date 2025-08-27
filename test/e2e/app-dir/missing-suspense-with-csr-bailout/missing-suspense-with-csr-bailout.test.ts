@@ -21,8 +21,13 @@ describe('missing-suspense-with-csr-bailout', () => {
     await next.clean()
   })
 
+  const isCacheComponentsEnabled =
+    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+
   describe('useSearchParams', () => {
-    const message = `useSearchParams() should be wrapped in a suspense boundary at page "/".`
+    const message = isCacheComponentsEnabled
+      ? `Route "/": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
+      : `useSearchParams() should be wrapped in a suspense boundary at page "/".`
 
     it('should fail build if useSearchParams is not wrapped in a suspense boundary', async () => {
       const { exitCode } = await next.build()

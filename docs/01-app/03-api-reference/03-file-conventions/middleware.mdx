@@ -12,7 +12,7 @@ The `middleware.js|ts` file is used to write [Middleware](/docs/app/api-referenc
 
 Middleware executes before routes are rendered. It's particularly useful for implementing custom server-side logic like authentication, logging, or handling redirects.
 
-Use the file `middleware.ts` (or .js) in the root of your project to define Middleware. For example, at the same level as `app` or `pages`, or inside `src` if applicable.
+Create a `middleware.ts` (or `.js`) file in the project root, or inside `src` if applicable, so that it is located at the same level as `pages` or `app`.
 
 ```tsx filename="middleware.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'

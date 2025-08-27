@@ -190,7 +190,7 @@ pub enum Effect {
     },
     /// A reference to a free var access.
     FreeVar {
-        var: Box<JsValue>,
+        var: Atom,
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,
@@ -241,13 +241,11 @@ impl Effect {
                 obj.normalize();
                 prop.normalize();
             }
-            Effect::FreeVar { var, .. } => {
-                var.normalize();
-            }
             Effect::ImportedBinding { .. } => {}
             Effect::TypeOf { arg, .. } => {
                 arg.normalize();
             }
+            Effect::FreeVar { .. } => {}
             Effect::ImportMeta { .. } => {}
             Effect::Unreachable { .. } => {}
         }
@@ -2014,7 +2012,7 @@ impl VisitAstPath for Analyzer<'_> {
             || self.eval_context.force_free_values.contains(&ident.to_id())
         {
             self.add_effect(Effect::FreeVar {
-                var: Box::new(JsValue::FreeVar(ident.sym.clone())),
+                var: ident.sym.clone(),
                 ast_path: as_parent_path(ast_path),
                 span: ident.span(),
                 in_try: is_in_try(ast_path),
@@ -2047,7 +2045,7 @@ impl VisitAstPath for Analyzer<'_> {
         }
         // Otherwise 'this' is free
         self.add_effect(Effect::FreeVar {
-            var: Box::new(JsValue::FreeVar(atom!("this"))),
+            var: atom!("this"),
             ast_path: as_parent_path(ast_path),
             span: node.span(),
             in_try: is_in_try(ast_path),
