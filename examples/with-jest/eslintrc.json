@@ -1,0 +1,8 @@
+{
+  "root": true,
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:jest/recommended"
+  ],
+  "plugins": ["jest"]
+}
