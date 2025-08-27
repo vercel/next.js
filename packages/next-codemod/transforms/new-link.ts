@@ -9,10 +9,10 @@ export default function transformer(file: FileInfo, _api: API) {
   const j = createParserFromPath(file.path)
 
   const $j = j(file.source)
+  let hasChanges = false
 
-  return $j
-    .find(j.ImportDeclaration, { source: { value: 'next/link' } })
-    .forEach((path) => {
+  $j.find(j.ImportDeclaration, { source: { value: 'next/link' } }).forEach(
+    (path) => {
       const defaultImport = j(path).find(j.ImportDefaultSpecifier)
       if (defaultImport.size() === 0) {
         return
@@ -35,17 +35,17 @@ export default function transformer(file: FileInfo, _api: API) {
           return
         }
 
-        const $legacyBehaviorProp = $link
-          .find(j.JSXAttribute, {
-            name: { type: 'JSXIdentifier', name: 'legacyBehavior' },
-          })
-          .remove()
+        const $legacyBehaviorProps = $link.find(j.JSXAttribute, {
+          name: { type: 'JSXIdentifier', name: 'legacyBehavior' },
+        })
+        $legacyBehaviorProps.remove()
+        hasChanges ||= $legacyBehaviorProps.size() > 0
 
-        $link
-          .find(j.JSXAttribute, {
-            name: { type: 'JSXIdentifier', name: 'passHref' },
-          })
-          .remove()
+        const $passHrefProps = $link.find(j.JSXAttribute, {
+          name: { type: 'JSXIdentifier', name: 'passHref' },
+        })
+        $passHrefProps.remove()
+        hasChanges ||= $passHrefProps.size() > 0
 
         const linkChildrenNodes = $link.get('children')
 
@@ -69,7 +69,7 @@ export default function transformer(file: FileInfo, _api: API) {
         })
 
         if ($childrenWithA.length === 0) {
-          if ($legacyBehaviorProp.length > 0) {
+          if ($legacyBehaviorProps.length > 0) {
             linkPath.node.children.unshift(
               j.jsxText('\n'),
               j.jsxExpressionContainer.from({
@@ -82,6 +82,7 @@ export default function transformer(file: FileInfo, _api: API) {
                 }),
               })
             )
+            hasChanges = true
           }
         } else {
           const props = $childrenWithA.get('attributes').value
@@ -104,12 +105,19 @@ export default function transformer(file: FileInfo, _api: API) {
 
             // Remove props from <a>
             props.length = 0
+            hasChanges = true
           }
 
           const childrenProps = $childrenWithA.get('children')
           $childrenWithA.replaceWith(childrenProps.value)
+          hasChanges = true
         }
       })
-    })
-    .toSource()
+    }
+  )
+
+  if (hasChanges) {
+    return $j.toSource()
+  }
+  return file.source
 }
