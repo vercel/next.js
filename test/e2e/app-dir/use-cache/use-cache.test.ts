@@ -12,6 +12,11 @@ import { PrerenderManifest } from 'next/dist/build'
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
 
+const withPPR = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
+const withCacheComponents =
+  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+
 describe('use-cache', () => {
   const { next, isNextDev, isNextDeploy, isNextStart, skipped } = nextTestSetup(
     {
@@ -444,11 +449,6 @@ describe('use-cache', () => {
         await next.readFile('.next/prerender-manifest.json')
       ) as PrerenderManifest
 
-      const withPPR = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
-      const withCacheComponents =
-        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
-
       let prerenderedRoutes = Object.entries(prerenderManifest.routes)
 
       if (withPPR || withCacheComponents) {
@@ -481,7 +481,6 @@ describe('use-cache', () => {
           expect.stringMatching(/\/b\d/),
           '/cache-fetch',
           '/cache-fetch-no-store',
-          '/cache-life',
           '/cache-tag',
           '/directive-in-node-modules/with-handler',
           '/directive-in-node-modules/without-handler',
@@ -555,6 +554,16 @@ describe('use-cache', () => {
         's-maxage=900, stale-while-revalidate=31535100'
       )
     })
+
+    if (withCacheComponents) {
+      it('should omit dynamic caches from prerendered shells', async () => {
+        let browser = await next.browser('/cache-life', {
+          disableJavaScript: true,
+        })
+
+        expect(await browser.elementById('y').text()).toBe('Loading...')
+      })
+    }
 
     it('should propagate unstable_cache tags correctly', async () => {
       const meta = JSON.parse(
