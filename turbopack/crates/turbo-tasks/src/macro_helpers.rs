@@ -15,7 +15,9 @@ use crate::{
 pub use crate::{
     magic_any::MagicAny,
     manager::{find_cell_by_type, notify_scheduled_tasks, spawn_detached_for_testing},
-    native_function::{FunctionMeta, NativeFunction, downcast_args_owned, downcast_args_ref},
+    native_function::{
+        CollectableFunction, FunctionMeta, NativeFunction, downcast_args_owned, downcast_args_ref,
+    },
 };
 
 #[inline(never)]
@@ -102,3 +104,5 @@ pub fn register_trait_impl<V: 'static + ?Sized, T: VcValueTrait<ValueTrait = V>>
 ) {
     <T as VcValueTrait>::get_impl_vtables().register(id, metadata);
 }
+
+pub use inventory::submit as inventory_submit;

@@ -79,10 +79,13 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         #[doc(hidden)]
         #inline_signature #inline_block
 
-        #[doc(hidden)]
-        pub(crate) static #native_function_ident:
+        static #native_function_ident:
             turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
                 turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
+
+        turbo_tasks::macro_helpers::inventory_submit! {
+            turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
+        }
 
         #(#errors)*
     }

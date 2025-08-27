@@ -212,7 +212,7 @@ mod ser {
                 unreachable!();
             };
             let mut state = serializer.serialize_seq(Some(2))?;
-            state.serialize_element(native_fn.global_name())?;
+            state.serialize_element(native_fn.global_name)?;
             let arg = *arg;
             let arg = native_fn.arg_meta.as_serialize(arg);
             state.serialize_element(arg)?;

@@ -11,14 +11,13 @@ use glob::glob;
 use quote::ToTokens;
 use rustc_hash::{FxHashMap, FxHashSet};
 use syn::{
-    Attribute, Expr, Ident, Item, ItemEnum, ItemFn, ItemImpl, ItemMacro, ItemMod, ItemStruct,
-    ItemTrait, Lit, Meta, TraitItem, TraitItemFn, parse_quote,
+    Attribute, Expr, Ident, Item, ItemEnum, ItemImpl, ItemMacro, ItemMod, ItemStruct, ItemTrait,
+    Lit, Meta, parse_quote,
 };
 use turbo_tasks_macros_shared::{
-    GenericTypeInput, PrimitiveInput, get_impl_function_ident, get_native_function_ident,
-    get_path_ident, get_register_trait_impls_ident, get_register_trait_methods_ident,
-    get_register_value_type_ident, get_trait_default_impl_function_ident,
-    get_trait_impl_function_ident, get_trait_type_ident, get_type_ident,
+    GenericTypeInput, PrimitiveInput, get_path_ident, get_register_trait_impls_ident,
+    get_register_trait_methods_ident, get_register_value_type_ident, get_trait_type_ident,
+    get_type_ident,
 };
 
 pub fn generate_register() {
@@ -122,10 +121,7 @@ pub fn generate_register() {
     }
 
     for (filename, entry) in entries {
-        // TODO hash src dir
-        let hash = "TODO";
-
-        let prefix = format!("{crate_name}@{hash}::");
+        let prefix = format!("{crate_name}::");
 
         let mut register_code = String::new();
         let mut values = FxHashMap::default();
@@ -151,7 +147,7 @@ pub fn generate_register() {
                 queue: &mut queue,
 
                 file_path: &file_path,
-                prefix: &prefix,
+                crate_prefix: &prefix,
                 mod_path,
                 attributes,
 
@@ -265,7 +261,7 @@ struct RegisterContext<'a> {
     file_path: &'a PathBuf,
     mod_path: String,
     attributes: Vec<Arc<String>>,
-    prefix: &'a str,
+    crate_prefix: &'a str,
 
     register: &'a mut String,
     values: &'a mut FxHashMap<ValueKey, ValueEntry>,
@@ -275,7 +271,6 @@ impl RegisterContext<'_> {
     fn process_item(&mut self, item: &Item) -> Result<()> {
         match item {
             Item::Enum(enum_item) => self.process_enum(enum_item),
-            Item::Fn(fn_item) => self.process_fn(fn_item),
             Item::Impl(impl_item) => self.process_impl(impl_item),
             Item::Mod(mod_item) => self.process_mod(mod_item),
             Item::Struct(struct_item) => self.process_struct(struct_item),
@@ -297,20 +292,6 @@ impl RegisterContext<'_> {
         Ok(())
     }
 
-    fn process_fn(&mut self, item: &ItemFn) -> Result<()> {
-        self.with_cfg_attrs(&item.attrs, move |this| this.process_fn_inner(item))
-    }
-
-    fn process_fn_inner(&mut self, fn_item: &ItemFn) -> Result<()> {
-        if has_turbo_attribute(&fn_item.attrs, "function") {
-            let ident = &fn_item.sig.ident;
-            let type_ident = get_native_function_ident(ident);
-
-            self.register(type_ident, self.get_global_name(&[ident]))?;
-        }
-        Ok(())
-    }
-
     fn process_impl(&mut self, item: &ItemImpl) -> Result<()> {
         self.with_cfg_attrs(&item.attrs, move |this| this.process_impl_inner(item))
     }
@@ -326,30 +307,6 @@ impl RegisterContext<'_> {
 
             if let Some(trait_ident) = &trait_ident {
                 self.add_value_trait(&struct_ident, trait_ident);
-            }
-
-            for item in &impl_item.items {
-                if let syn::ImplItem::Fn(method_item) = item
-                    && method_item
-                        .attrs
-                        .iter()
-                        .any(|a| is_turbo_attribute(a, "function"))
-                {
-                    let method_ident = &method_item.sig.ident;
-                    let function_type_ident = if let Some(trait_ident) = &trait_ident {
-                        get_trait_impl_function_ident(&struct_ident, trait_ident, method_ident)
-                    } else {
-                        get_impl_function_ident(&struct_ident, method_ident)
-                    };
-
-                    let global_name = if let Some(trait_ident) = &trait_ident {
-                        self.get_global_name(&[&struct_ident, trait_ident, method_ident])
-                    } else {
-                        self.get_global_name(&[&struct_ident, method_ident])
-                    };
-
-                    self.register(function_type_ident, global_name)?;
-                }
             }
         }
         Ok(())
@@ -440,26 +397,6 @@ impl RegisterContext<'_> {
         {
             let trait_ident = &trait_item.ident;
 
-            for item in &trait_item.items {
-                if let TraitItem::Fn(TraitItemFn {
-                    default: Some(_),
-                    sig,
-                    attrs,
-                    ..
-                }) = item
-                    && attrs.iter().any(|a| is_turbo_attribute(a, "function"))
-                {
-                    let method_ident = &sig.ident;
-                    let function_type_ident =
-                        get_trait_default_impl_function_ident(trait_ident, method_ident);
-
-                    self.register(
-                        function_type_ident,
-                        self.get_global_name(&[trait_ident, method_ident]),
-                    )?;
-                }
-            }
-
             let trait_type_ident = get_trait_type_ident(trait_ident);
             self.register(trait_type_ident, self.get_global_name(&[trait_ident]))?;
         }
@@ -513,7 +450,7 @@ impl RegisterContext<'_> {
     fn get_global_name(&self, parts: &[&Ident]) -> String {
         format!(
             "r##\"{}{}::{}\"##",
-            self.prefix,
+            self.crate_prefix,
             self.mod_path,
             parts
                 .iter()
@@ -539,7 +476,6 @@ impl RegisterContext<'_> {
 
     fn add_value_debug_impl(&mut self, ident: &Ident) {
         // register default debug impl generated by proc macro
-        self.register_debug_impl(ident).unwrap();
         self.add_value_trait(
             ident,
             &get_type_ident(&parse_quote! {
@@ -551,7 +487,6 @@ impl RegisterContext<'_> {
 
     fn add_value_default_impl(&mut self, ident: &Ident) {
         // register default ValueDefault impl generated by proc macro
-        self.register_default_impl(ident).unwrap();
         self.add_value_trait(
             ident,
             &get_type_ident(&parse_quote! {
@@ -589,51 +524,6 @@ impl RegisterContext<'_> {
             self.register,
             "crate{}::{}.register({});",
             self.mod_path, type_ident, global_name
-        )
-    }
-
-    /// Declares a derive of the given trait and its methods.
-    fn register_impl(
-        &mut self,
-        ident: &Ident,
-        trait_ident: &Ident,
-        fn_names: &[&'static str],
-    ) -> std::fmt::Result {
-        for fn_name in fn_names {
-            let fn_ident = Ident::new(fn_name, ident.span());
-
-            let (impl_fn_ident, global_name) = (
-                get_trait_impl_function_ident(ident, trait_ident, &fn_ident),
-                self.get_global_name(&[ident, trait_ident, &fn_ident]),
-            );
-
-            self.register(impl_fn_ident, global_name)?;
-        }
-
-        Ok(())
-    }
-
-    /// Declares the default derive of the `ValueDebug` trait.
-    fn register_debug_impl(&mut self, ident: &Ident) -> std::fmt::Result {
-        self.register_impl(
-            ident,
-            &get_type_ident(&parse_quote! {
-                turbo_tasks::debug::ValueDebug
-            })
-            .unwrap(),
-            &["dbg", "dbg_depth"],
-        )
-    }
-
-    /// Declares the default derive of the `ValueDefault` trait.
-    fn register_default_impl(&mut self, ident: &Ident) -> std::fmt::Result {
-        self.register_impl(
-            ident,
-            &get_type_ident(&parse_quote! {
-                turbo_tasks::ValueDefault
-            })
-            .unwrap(),
-            &["value_default"],
         )
     }
 

@@ -1,4 +1,4 @@
-use std::{fmt::Debug, hash::Hash, num::NonZeroU64, ops::Deref, sync::RwLock};
+use std::{fmt::Debug, hash::Hash, num::NonZeroU64, ops::Deref};
 
 use dashmap::mapref::entry::Entry;
 use once_cell::sync::Lazy;
@@ -8,12 +8,10 @@ use crate::{
     FxDashMap, TraitType, ValueType,
     id::{TraitTypeId, ValueTypeId},
     id_factory::IdFactory,
+    macro_helpers::CollectableFunction,
     native_function::NativeFunction,
     no_move_vec::NoMoveVec,
 };
-
-static NAME_TO_FUNCTION: Lazy<RwLock<FxHashMap<&'static str, &'static NativeFunction>>> =
-    Lazy::new(RwLock::default);
 
 static VALUE_TYPE_ID_FACTORY: IdFactory<ValueTypeId> = IdFactory::new_const(
     ValueTypeId::MIN.to_non_zero_u64(),
@@ -74,17 +72,23 @@ where
     }
 }
 
-/// Registers a function so it is available for persistence
-pub fn register_function(global_name: &'static str, func: &'static NativeFunction) {
-    let prev = NAME_TO_FUNCTION.write().unwrap().insert(global_name, func);
-    debug_assert!(
-        prev.is_none(),
-        "registration mappings for {global_name} are inconsistent!"
-    );
-}
-
 pub fn get_function_by_global_name(global_name: &str) -> &'static NativeFunction {
-    NAME_TO_FUNCTION.read().unwrap().get(global_name).unwrap()
+    static NAME_TO_FUNCTION: Lazy<FxHashMap<&'static str, &'static NativeFunction>> =
+        Lazy::new(|| {
+            let mut map = FxHashMap::default();
+            for collected in inventory::iter::<CollectableFunction> {
+                let native_function = &**collected.0;
+                let global_name = native_function.global_name;
+                let prev = map.insert(global_name, native_function);
+                debug_assert!(
+                    prev.is_none(),
+                    "registration mappings for {global_name} are inconsistent!"
+                );
+            }
+            map
+        });
+
+    NAME_TO_FUNCTION.get(global_name).unwrap()
 }
 
 pub fn register_value_type(

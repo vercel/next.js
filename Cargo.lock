@@ -3301,6 +3301,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "inventory"
+version = "0.3.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc61209c082fbeb19919bee74b176221b27223e27b65d781eb91af24eb1fb46e"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9208,6 +9217,7 @@ dependencies = [
  "event-listener",
  "futures",
  "indexmap 2.9.0",
+ "inventory",
  "mopa",
  "once_cell",
  "parking_lot",
