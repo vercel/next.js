@@ -14,5 +14,7 @@ export default function Page({ params }: Params) {
     <p>lorem ipsum</p>
     <p>pretend to update</p>
     <p>another update</p>
+    <p>another another update</p>
+    <p>this line is really special</p>
   </>;
 }
