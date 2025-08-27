@@ -69,7 +69,10 @@ async function requestHandler(
   const baseReq = new WebNextRequest(req)
   const baseRes = new WebNextResponse(undefined)
 
-  // Extract dynamic params if the page is dynamic
+  // Extract and populate dynamic params for edge runtime.
+  // This ensures params are available in request metadata before calling prepare(),
+  // matching the behavior of the node runtime and fixing cases where the fallback
+  // matcher in prepare() fails (e.g., when URL contains literal brackets like /[id]).
   if (isDynamicRoute(normalizedSrcPage)) {
     const routeRegex = getNamedRouteRegex(normalizedSrcPage, {
       prefixRouteKeys: false,
@@ -80,7 +83,6 @@ async function requestHandler(
     const matchResult = dynamicRouteMatcher(pathname)
 
     if (matchResult) {
-      // Add the params to the request metadata so prepare() can access them
       addRequestMeta(baseReq, 'params', matchResult)
     }
   }
