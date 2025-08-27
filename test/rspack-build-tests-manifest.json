@@ -197,6 +197,7 @@
       "app-dir action handling should not expose action content in sourcemaps",
       "app-dir action handling should not log errors for non-action form POSTs",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
+      "app-dir action handling should output exportName and filename info in manifest",
       "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
       "app-dir action handling should push new route when redirecting",
       "app-dir action handling should replace current route when redirecting with type set to replace",
@@ -329,6 +330,7 @@
       "app-dir action handling should not expose action content in sourcemaps",
       "app-dir action handling should not log errors for non-action form POSTs",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
+      "app-dir action handling should output exportName and filename info in manifest",
       "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
       "app-dir action handling should push new route when redirecting",
       "app-dir action handling should replace current route when redirecting with type set to replace",
@@ -718,6 +720,7 @@
       "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
       "app-dir with middleware should filter correctly after middleware rewrite",
       "app-dir with middleware should ignore x-middleware-set-cookie as a request header",
+      "app-dir with middleware should not incorrectly treat a Location header as a rewrite",
       "app-dir with middleware should omit internal headers for middleware cookies",
       "app-dir with middleware should respect cookie options of merged middleware cookies"
     ],
@@ -1814,15 +1817,32 @@
       "Cache Components Errors Build With --prerender-debug Inside `use cache` draftMode should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` headers should error the build",
       "Cache Components Errors Build With --prerender-debug Static Route should not error the build when all routes are static",
-      "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
+      "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request client params should not error the build when synchronously reading `params.slug`",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request client searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request cookies at runtime should not error the build, but fail at runtime",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request cookies should error the build with a runtime error",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
+      "Cache Components Errors Build With --prerender-debug Sync Dynamic Request headers at runtime should not error the build, but fail at runtime",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
       "Cache Components Errors Build With --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Current Time - Date() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Current Time - Date.now() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Current Time - new Date() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - generateKeyPairSync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - generateKeySync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - generatePrimeSync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - getRandomValues() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - random-bytes() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - random-fill-sync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - random-int-between() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - random-int-up-to() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Node Crypto - random-uuid should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Random - Math.random() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Web Crypto - getRandomValue() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build With --prerender-debug Sync IO - Web Crypto - randomUUID() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` with `headers()` should not fail the build and show no runtime error (caught in userland)",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` without Suspense should error the build",
@@ -1842,15 +1862,32 @@
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` draftMode should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` headers should error the build",
       "Cache Components Errors Build Without --prerender-debug Static Route should not error the build when all routes are static",
-      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should not error the build when calling Math.random() if all dynamic access is inside a Suspense boundary",
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform With Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Platform Without Fallback - Math.random() should error the build if Math.random() happens before some component outside a Suspense boundary is complete",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request client params should not error the build when synchronously reading `params.slug`",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request client searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request cookies at runtime should not error the build, but fail at runtime",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request cookies should error the build with a runtime error",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request draftMode should not error the build when synchronously reading `draftMode().isEnabled`",
+      "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request headers at runtime should not error the build, but fail at runtime",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request headers should error the build with a runtime error",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request server params should not error the build when synchronously reading `params.slug`",
       "Cache Components Errors Build Without --prerender-debug Sync Dynamic Request server searchParams should not error the build when synchronously reading `searchParams.foo`",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Current Time - Date() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Current Time - Date.now() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Current Time - new Date() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - generateKeyPairSync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - generateKeySync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - generatePrimeSync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - getRandomValues() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - random-bytes() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - random-fill-sync() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - random-int-between() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - random-int-up-to() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Node Crypto - random-uuid should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Random - Math.random() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Web Crypto - getRandomValue() should error the build if sync IO is used in a Server Component while prerendering",
+      "Cache Components Errors Build Without --prerender-debug Sync IO - Web Crypto - randomUUID() should error the build if sync IO is used in a Server Component while prerendering",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` in `unstable_cache` should error the build",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` in `use cache` should error the build",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
@@ -1918,9 +1955,6 @@
   "test/e2e/app-dir/cache-components/cache-components.date.test.ts": {
     "passed": [
       "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached `Date()` calls",
-      "cache-components should not prerender pages with uncached `Date.now()` calls",
-      "cache-components should not prerender pages with uncached `new Date()` calls",
       "cache-components should not prerender pages with uncached static Date instances like `new Date(0)`",
       "cache-components should prerender pages with cached `Date()` calls",
       "cache-components should prerender pages with cached `Date.now()` calls",
@@ -1955,15 +1989,6 @@
   "test/e2e/app-dir/cache-components/cache-components.node-crypto.test.ts": {
     "passed": [
       "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached `require('node:crypto').generateKeyPairSync(type, options)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').generateKeySync(type, options)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').generatePrimeSync(size, options)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').getRandomValues(...)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomBytes(size)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomFillSync(buffer)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomInt(max)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomInt(min, max)` calls",
-      "cache-components should not prerender pages with uncached `require('node:crypto').randomUUID()` calls",
       "cache-components should prerender pages with cached `require('node:crypto').generateKeyPairSync(type, options)` calls",
       "cache-components should prerender pages with cached `require('node:crypto').generateKeySync(type, options)` calls",
       "cache-components should prerender pages with cached `require('node:crypto').generatePrimeSync(size, options)` calls",
@@ -2000,7 +2025,6 @@
   "test/e2e/app-dir/cache-components/cache-components.random.test.ts": {
     "passed": [
       "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached Math.random() calls",
       "cache-components should prerender pages with cached Math.random() calls"
     ],
     "failed": [],
@@ -2081,8 +2105,6 @@
   "test/e2e/app-dir/cache-components/cache-components.web-crypto.test.ts": {
     "passed": [
       "cache-components should not have route specific errors",
-      "cache-components should not prerender pages with uncached `crypto.getRandomValues(...)` calls",
-      "cache-components should not prerender pages with uncached `crypto.randomUUID()` calls",
       "cache-components should prerender pages with cached `crypto.getRandomValues(...)` calls",
       "cache-components should prerender pages with cached `crypto.randomUUID()` calls"
     ],
@@ -2194,6 +2216,15 @@
     "passed": [
       "css-modules-pure-no-check should apply styles correctly",
       "css-modules-pure-no-check should have emitted a CSS file"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/css-modules-rsc-postcss/css-modules-rsc-postcss.test.ts": {
+    "passed": [
+      "css-modules-rsc-postcss should compile successfully and apply the correct styles"
     ],
     "failed": [],
     "pending": [],
@@ -3166,15 +3197,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/link-component-deprecations/link-component-deprecations.test.ts": {
-    "passed": [
-      "Link component deprecations logs deprecation warning for legacyBehavior prop"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/loader-file-named-export-custom-loader-error/loader-file-named-export-custom-loader-error.test.ts": {
     "passed": [
       "Error test if the loader file export a named function in Build and Start build and start only should show the build error"
@@ -3278,7 +3300,6 @@
       "app dir - metadata dynamic routes sitemap should support videos in sitemap",
       "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
       "app dir - metadata dynamic routes social image routes should fill params into routes groups url of static images",
-      "app dir - metadata dynamic routes social image routes should handle custom fonts in both edge and nodejs runtime",
       "app dir - metadata dynamic routes social image routes should handle manifest.[ext] dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with opengraph-image dynamic routes",
       "app dir - metadata dynamic routes social image routes should render og image with twitter-image dynamic routes",
@@ -3294,6 +3315,15 @@
     "passed": [
       "app dir - Metadata API on the Edge runtime OG image route should not bundle `ImageResponse` into the page worker",
       "app dir - Metadata API on the Edge runtime should render OpenGraph image meta tag correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-font/metadata-font.test.ts": {
+    "passed": [
+      "app dir - metadata font should handle custom fonts in both edge and nodejs runtime"
     ],
     "failed": [],
     "pending": [],
@@ -4962,6 +4992,26 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/ppr-partial-hydration/ppr-partial-hydration.test.ts": {
+    "passed": [
+      "PPR - partial hydration No static shell, no streaming metadata should display the shell without JS",
+      "PPR - partial hydration No static shell, no streaming metadata should hydrate the shell without waiting for slow suspense boundaries",
+      "PPR - partial hydration No static shell, no streaming metadata should produce a valid HTML document",
+      "PPR - partial hydration No static shell, streaming metadata should display the shell without JS",
+      "PPR - partial hydration No static shell, streaming metadata should hydrate the shell without waiting for slow suspense boundaries",
+      "PPR - partial hydration No static shell, streaming metadata should produce a valid HTML document",
+      "PPR - partial hydration Static shell, no streaming metadata should display the shell without JS",
+      "PPR - partial hydration Static shell, no streaming metadata should hydrate the shell without waiting for slow suspense boundaries",
+      "PPR - partial hydration Static shell, no streaming metadata should produce a valid HTML document",
+      "PPR - partial hydration Static shell, streaming metadata should display the shell without JS",
+      "PPR - partial hydration Static shell, streaming metadata should hydrate the shell without waiting for slow suspense boundaries",
+      "PPR - partial hydration Static shell, streaming metadata should produce a valid HTML document"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/ppr-unstable-cache/ppr-unstable-cache.test.ts": {
     "passed": ["ppr-unstable-cache should not cache inner fetch calls"],
     "failed": [],
@@ -5103,6 +5153,15 @@
       "styles encodes characters in app router",
       "styles encodes characters in pages router"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/resuming-head-runtime-search-param/resuming-head-runtime-search-param.test.ts": {
+    "passed": [
+      "resuming-head-runtime-search-param should not show resumable slots error when using runtime search params"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -5259,6 +5318,7 @@
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is display none",
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is position fixed",
       "router autoscrolling on navigation bugs Should scroll to the top of the layout when the first child is position sticky",
+      "router autoscrolling on navigation bugs should scroll to top when navigating to same page with different search params",
       "router autoscrolling on navigation horizontal scroll should't scroll horizontally",
       "router autoscrolling on navigation router.refresh() should not scroll when called alone",
       "router autoscrolling on navigation router.refresh() should not stop router.push() from scrolling",
@@ -6018,7 +6078,10 @@
       "<Link prefetch={true}> (runtime prefetch) cache stale time handling omits private caches with a short enough staleTime",
       "<Link prefetch={true}> (runtime prefetch) cache stale time handling omits short-lived public caches with a short enough staleTime",
       "<Link prefetch={true}> (runtime prefetch) can completely prefetch a page that is fully static",
-      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender and logs an error when sync IO is used after cookies()",
+      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender without logging an error when sync IO is used after awaiting a private cache",
+      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender without logging an error when sync IO is used after awaiting a quickly-expiring public cache",
+      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender without logging an error when sync IO is used after awaiting cookies()",
+      "<Link prefetch={true}> (runtime prefetch) errors aborts the prerender without logging an error when sync IO is used after awaiting searchParams",
       "<Link prefetch={true}> (runtime prefetch) errors should trigger error boundaries for errors that occurred in runtime-prefetched content",
       "<Link prefetch={true}> (runtime prefetch) in a page can completely prefetch a page that uses cookies and no uncached IO",
       "<Link prefetch={true}> (runtime prefetch) in a page includes cookies, but not dynamic content",
@@ -6030,6 +6093,11 @@
       "<Link prefetch={true}> (runtime prefetch) in a private cache includes dynamic params, but not dynamic content",
       "<Link prefetch={true}> (runtime prefetch) in a private cache includes root params, but not dynamic content",
       "<Link prefetch={true}> (runtime prefetch) in a private cache includes search params, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) passed to a public cache can completely prefetch a page that uses cookies and no uncached IO",
+      "<Link prefetch={true}> (runtime prefetch) passed to a public cache includes cookies, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) passed to a public cache includes dynamic params, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) passed to a public cache includes root params, but not dynamic content",
+      "<Link prefetch={true}> (runtime prefetch) passed to a public cache includes search params, but not dynamic content",
       "<Link prefetch={true}> (runtime prefetch) should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a page",
       "<Link prefetch={true}> (runtime prefetch) should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a private cache",
       "<Link prefetch={true}> (runtime prefetch) should not cache runtime prefetch responses in the browser cache or server-side private caches should return new results on each request"
@@ -6059,6 +6127,15 @@
       "segment cache (revalidation) evict client cache when Server Action calls revalidateTag",
       "segment cache (revalidation) re-fetch visible links after a navigation, if needed",
       "segment cache (revalidation) refetch visible Form components after cache is revalidated"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/search-params/segment-cache-search-params-shared-loading-state.test.ts": {
+    "passed": [
+      "segment cache (search params shared loading state) if there's no matching prefetch entry for a page with particulular search params, optimistically reuse a prefetch entry with the same pathname and different search params"
     ],
     "failed": [],
     "pending": [],
@@ -6335,9 +6412,44 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/typed-routes-validator/typed-routes-validator.test.ts": {
+    "passed": [
+      "typed-routes-validator should fail type checking with invalid API route exports",
+      "typed-routes-validator should fail type checking with invalid layout exports",
+      "typed-routes-validator should fail type checking with invalid page exports",
+      "typed-routes-validator should fail type checking with invalid route handler params",
+      "typed-routes-validator should fail type checking with invalid route handler return type",
+      "typed-routes-validator should generate route validation correctly",
+      "typed-routes-validator should pass type checking with valid API route exports",
+      "typed-routes-validator should pass type checking with valid layout exports",
+      "typed-routes-validator should pass type checking with valid page exports",
+      "typed-routes-validator should pass type checking with valid route handler exports"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/typed-routes/typed-links.test.ts": {
+    "passed": [
+      "typed-links should fail type checking with invalid redirect routes",
+      "typed-links should fail type checking with invalid routes",
+      "typed-links should generate types for next/link",
+      "typed-links should include handler route from app/api-test/route.ts in generated link route definitions",
+      "typed-links should pass type checking with valid redirect routes",
+      "typed-links should pass type checking with valid routes",
+      "typed-links should work with Route type casting",
+      "typed-links should work with redirect Route type casting"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/typed-routes/typed-routes.test.ts": {
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
+      "typed-routes should generate RouteContext type for route handlers",
       "typed-routes should generate route types correctly",
       "typed-routes should throw type errors"
     ],
@@ -6493,7 +6605,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-search-params/use-cache-search-params.test.ts": {
-    "passed": ["use-cache-search-params should fail the build with errors"],
+    "passed": [
+      "use-cache-search-params should fail the build with errors",
+      "use-cache-search-params should resume a cached page that does not access search params without hydration errors"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -7047,6 +7162,16 @@
       "compiler.define compiler.defineServer should not render the inlined variable on client side",
       "compiler.define compiler.defineServer should render the inlined expression on server side",
       "compiler.define compiler.defineServer should render the inlined variable on server side"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/deprecation-warnings/deprecation-warnings.test.ts": {
+    "passed": [
+      "deprecation-warnings with deprecated config options should emit deprecation warnings for explicitly configured deprecated options",
+      "deprecation-warnings without next.config.js should not emit any deprecation warnings when no config file exists"
     ],
     "failed": [],
     "pending": [],
@@ -7715,6 +7840,72 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/invalid-static-asset-404-app/invalid-static-asset-404-app-asset-prefix.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-app-asset-prefix should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-app-asset-prefix should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-app-asset-prefix should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-app/invalid-static-asset-404-app-base-path.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-app-base-path should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-app-base-path should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-app-base-path should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-app/invalid-static-asset-404-app.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-app should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-app should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-app should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-pages/invalid-static-asset-404-pages-asset-prefix.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-pages-asset-prefix should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-pages-asset-prefix should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-pages-asset-prefix should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-pages/invalid-static-asset-404-pages-base-path.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-pages-base-path should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-pages-base-path should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-pages-base-path should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/invalid-static-asset-404-pages/invalid-static-asset-404-pages.test.ts": {
+    "passed": [
+      "invalid-static-asset-404-pages should return 404 with plain text when fetching invalid asset path",
+      "invalid-static-asset-404-pages should return correct output with status 200 on valid asset path",
+      "invalid-static-asset-404-pages should return custom 404 page when fetching invalid non-asset path"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/link-on-navigate-prop/index.test.ts": {
     "passed": [
       "<Link /> onNavigate prop App Router should only trigger both onClick for external links",
@@ -8371,16 +8562,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/new-link-behavior/typescript.test.ts": {
-    "passed": [
-      "New Link Behavior should apply ref on link",
-      "New Link Behavior should render link with <a>"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/next-config-warnings/esm-externals-false/esm-externals-false.test.ts": {
     "passed": [
       "next-config-warnings - esm-externals-false should contain esmExternals feature usage in telemetry",
@@ -8560,9 +8741,7 @@
   "test/e2e/next-link-errors/next-link-errors.test.ts": {
     "passed": [
       "next-link errors on invalid href",
-      "next-link invalid `prefetch` causes runtime error (dev-only)",
-      "next-link multiple children",
-      "next-link no children"
+      "next-link invalid `prefetch` causes runtime error (dev-only)"
     ],
     "failed": [],
     "pending": [],
@@ -10158,10 +10337,11 @@
   },
   "test/integration/app-types/app-types.test.js": {
     "passed": [
-      "app type checking production mode should generate route types correctly and report form errors",
-      "app type checking production mode should generate route types correctly and report link error",
-      "app type checking production mode should generate route types correctly and report router API errors",
-      "app type checking production mode should type check invalid entry exports"
+      "app type checking - production mode should generate route types correctly and report form errors",
+      "app type checking - production mode should generate route types correctly and report redirect errors",
+      "app type checking - production mode should generate route types correctly and report router API errors",
+      "app type checking - production mode should report link errors",
+      "app type checking - production mode should type check invalid entry exports"
     ],
     "failed": [],
     "pending": [],
@@ -10298,6 +10478,15 @@
       "Build Output production mode Basic Application Output (experimental: {\"gzipSize\":false}) should not deviate from snapshot",
       "Build Output production mode Basic Application Output (experimental: {}) should not deviate from snapshot"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/build-trace-extra-entries-monorepo/test/index.test.ts": {
+    "passed": [
+      "build trace with extra entries in monorepo production mode should build and trace correctly"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10624,6 +10813,29 @@
       "Conflicting SSG paths production mode should show proper error when a dynamic SSG route conflicts with SSR route",
       "Conflicting SSG paths production mode should show proper error when a dynamic SSG route conflicts with normal route",
       "Conflicting SSG paths production mode should show proper error when two dynamic SSG routes have conflicting paths"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/create-next-app/biome-config.test.ts": {
+    "passed": [
+      "create-next-app Biome configuration should format code with biome successfully",
+      "create-next-app Biome configuration should match biome.json snapshot",
+      "create-next-app Biome configuration should run biome check successfully on generated JavaScript project",
+      "create-next-app Biome configuration should run biome check successfully on generated TypeScript project",
+      "create-next-app Biome configuration should show errors when biome detects issues"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/create-next-app/eslint-config.test.ts": {
+    "passed": [
+      "create-next-app ESLint configuration should generate eslint.config.mjs for JavaScript project with ESLint",
+      "create-next-app ESLint configuration should generate eslint.config.mjs for TypeScript project with ESLint"
     ],
     "failed": [],
     "pending": [],
@@ -16211,17 +16423,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/link-with-multiple-child/test/index.test.js": {
-    "passed": [
-      "multiple child with default legacyBehavior",
-      "multiple child with forced legacyBehavior=false",
-      "single child"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/link-without-router/test/index.test.js": {
     "passed": [
       "Link without a router production mode should not throw when rendered"
@@ -18889,6 +19090,38 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/500-page/app-router-only/app-router-only.test.ts": {
+    "passed": [
+      "500-page app-router-only pages manifest should only contain 404 and 500",
+      "500-page app-router-only should not contain pages router routes default assets",
+      "500-page app-router-only should use app router to generate 500.html when no pages _error.tsx exists"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/500-page/mixed-router-no-custom-pages-error/mixed-router-no-error.test.ts": {
+    "passed": [
+      "500-page - mixed-router-no-custom-pages-error pages manifest should only contain 404 and 500",
+      "500-page - mixed-router-no-custom-pages-error should generate 500.html with pages builtin _error",
+      "500-page - mixed-router-no-custom-pages-error should not use app router global-error for 500.html when no pages _error.tsx exists"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/500-page/mixed-router-with-custom-pages-error/mixed-router-with-error.test.ts": {
+    "passed": [
+      "500-page - mixed-router-with-custom-pages-error should generate 500.html with pages builtin _error",
+      "500-page - mixed-router-with-custom-pages-error should not override 500.html with app router global-error when pages _error.tsx exists"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/adapter-config/adapter-config.test.ts": {
     "passed": [
       "adapter-config should apply modifyConfig from adapter",
@@ -19462,6 +19695,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/app-dir/types-gen-nounuselocal/types-gen-nounuselocal.test.ts": {
+    "passed": [
+      "types-gen-nounuselocal should build successfully",
+      "types-gen-nounuselocal should generate route types successfully"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/app-dir/unexpected-error/unexpected-error.test.ts": {
     "passed": [
       "unexpected-error cannot change response status when streaming has started",
@@ -19957,15 +20200,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/production/next-link-legacybehavior-ref-merging/index.test.ts": {
-    "passed": [
-      "Link with legacyBehavior - handles buggy userspace ref merging does not crash when Link unmounts"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/production/optimize-server-react/optimize-server-react.test.ts": {
     "passed": [
       "optimize-server-react should optimize useEffect call on server side",
@@ -20119,11 +20353,10 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm"
-    ],
-    "failed": [
+      "pnpm support should build with dependencies installed via pnpm",
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

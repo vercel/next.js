@@ -18,7 +18,6 @@ import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
 import { useMergedRef } from './use-merged-ref'
-import { errorOnce } from '../shared/lib/utils/error-once'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -62,12 +61,6 @@ type InternalLinkProps = {
    */
   shallow?: boolean
   /**
-   * Forces `Link` to send the `href` property to its child.
-   *
-   * @defaultValue `false`
-   */
-  passHref?: boolean
-  /**
    * Prefetch the page in the background.
    * Any `<Link />` that is in the viewport (initially or through scroll) will be prefetched.
    * Prefetch can be disabled by passing `prefetch={false}`. Prefetching is only enabled in production.
@@ -90,13 +83,6 @@ type InternalLinkProps = {
    */
   locale?: string | false
   /**
-   * Enable legacy link behavior.
-   * @deprecated This will be removed in v16
-   * @defaultValue `false`
-   * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
-   */
-  legacyBehavior?: boolean
-  /**
    * Optional event handler for when the mouse pointer is moved onto Link
    */
   onMouseEnter?: React.MouseEventHandler<HTMLAnchorElement>
@@ -118,7 +104,7 @@ type InternalLinkProps = {
 // adding this to the publicly exported type currently breaks existing apps
 
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
-// isn't generated yet. It will be replaced when the webpack plugin runs.
+// isn't generated yet. It will be replaced when type generation runs.
 // WARNING: This should be an interface to prevent TypeScript from inlining it
 // in declarations of libraries dependending on Next.js.
 // Not trivial to reproduce so only convert to an interface when needed.
@@ -187,7 +173,7 @@ function prefetch(
 }
 
 function isModifiedEvent(event: React.MouseEvent): boolean {
-  const eventTarget = event.currentTarget as HTMLAnchorElement | SVGAElement
+  const eventTarget = event.currentTarget as HTMLAnchorElement
   const target = eventTarget.getAttribute('target')
   return (
     (target && target !== '_self') ||
@@ -210,15 +196,7 @@ function linkClicked(
   locale?: string | false,
   onNavigate?: OnNavigateEventHandler
 ): void {
-  const { nodeName } = e.currentTarget
-
-  // anchors inside an svg have a lowercase nodeName
-  const isAnchorNodeName = nodeName.toUpperCase() === 'A'
-
-  if (
-    (isAnchorNodeName && isModifiedEvent(e)) ||
-    e.currentTarget.hasAttribute('download')
-  ) {
+  if (isModifiedEvent(e) || e.currentTarget.hasAttribute('download')) {
     // ignore click for browser’s default behavior
     return
   }
@@ -293,14 +271,11 @@ function formatStringOrUrl(urlObjOrString: UrlObject | string): string {
  */
 const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
   function LinkComponent(props, forwardedRef) {
-    let children: React.ReactNode
-
     const {
       href: hrefProp,
       as: asProp,
-      children: childrenProp,
+      children,
       prefetch: prefetchProp = null,
-      passHref,
       replace,
       shallow,
       scroll,
@@ -309,18 +284,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onNavigate,
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
-      legacyBehavior = false,
       ...restProps
     } = props
-
-    children = childrenProp
-
-    if (
-      legacyBehavior &&
-      (typeof children === 'string' || typeof children === 'number')
-    ) {
-      children = <a>{children}</a>
-    }
 
     const router = React.useContext(RouterContext)
 
@@ -373,13 +338,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         replace: true,
         scroll: true,
         shallow: true,
-        passHref: true,
         prefetch: true,
         locale: true,
         onClick: true,
         onMouseEnter: true,
         onTouchStart: true,
-        legacyBehavior: true,
         onNavigate: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
@@ -417,13 +380,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
               actual: valType,
             })
           }
-        } else if (
-          key === 'replace' ||
-          key === 'scroll' ||
-          key === 'shallow' ||
-          key === 'passHref' ||
-          key === 'legacyBehavior'
-        ) {
+        } else if (key === 'replace' || key === 'scroll' || key === 'shallow') {
           if (props[key] != null && valType !== 'boolean') {
             throw createPropError({
               key,
@@ -471,58 +428,21 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     const previousHref = React.useRef<string>(href)
     const previousAs = React.useRef<string>(as)
 
-    // This will return the first child, if multiple are provided it will throw an error
-    let child: any
-    if (legacyBehavior) {
-      if (process.env.NODE_ENV === 'development') {
-        if (onClick) {
-          console.warn(
-            `"onClick" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onClick be set on the child of next/link`
-          )
-        }
-        if (onMouseEnterProp) {
-          console.warn(
-            `"onMouseEnter" was passed to <Link> with \`href\` of \`${hrefProp}\` but "legacyBehavior" was set. The legacy behavior requires onMouseEnter be set on the child of next/link`
-          )
-        }
-        try {
-          child = React.Children.only(children)
-        } catch (err) {
-          if (!children) {
-            throw new Error(
-              `No children were passed to <Link> with \`href\` of \`${hrefProp}\` but one child is required https://nextjs.org/docs/messages/link-no-children`
-            )
-          }
-          throw new Error(
-            `Multiple children were passed to <Link> with \`href\` of \`${hrefProp}\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children` +
-              (typeof window !== 'undefined'
-                ? " \nOpen your browser's console to view the Component stack trace."
-                : '')
-          )
-        }
-      } else {
-        child = React.Children.only(children)
-      }
-    } else {
-      if (process.env.NODE_ENV === 'development') {
-        if ((children as any)?.type === 'a') {
-          throw new Error(
-            'Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>.\nLearn more: https://nextjs.org/docs/messages/invalid-new-link-with-extra-anchor'
-          )
-        }
+    if (process.env.NODE_ENV === 'development') {
+      if ((children as any)?.type === 'a') {
+        throw new Error(
+          'Invalid <Link> with <a> child. Please remove <a>.\nLearn more: https://nextjs.org/docs/messages/invalid-new-link-with-extra-anchor'
+        )
       }
     }
 
-    const childRef: any = legacyBehavior
-      ? child && typeof child === 'object' && child.ref
-      : forwardedRef
-
-    const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
-      rootMargin: '200px',
-    })
+    const [setIntersectionRef, isVisible, resetVisible] =
+      useIntersection<HTMLAnchorElement>({
+        rootMargin: '200px',
+      })
 
     const setIntersectionWithResetRef = React.useCallback(
-      (el: Element | null) => {
+      (el: HTMLAnchorElement | null) => {
         // Before the link getting observed, check if visible state need to be reset
         if (previousAs.current !== as || previousHref.current !== href) {
           resetVisible()
@@ -535,7 +455,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       [as, href, resetVisible, setIntersectionRef]
     )
 
-    const setRef = useMergedRef(setIntersectionWithResetRef, childRef)
+    const setRef = useMergedRef(setIntersectionWithResetRef, forwardedRef)
 
     // Prefetch the URL if we haven't already and it's visible.
     React.useEffect(() => {
@@ -557,33 +477,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       prefetch(router, href, as, { locale })
     }, [as, href, isVisible, locale, prefetchEnabled, router?.locale, router])
 
-    const childProps: {
-      onTouchStart?: React.TouchEventHandler<HTMLAnchorElement>
-      onMouseEnter: React.MouseEventHandler<HTMLAnchorElement>
-      onClick: React.MouseEventHandler<HTMLAnchorElement>
-      href?: string
-      ref?: any
-    } = {
+    const anchorProps: React.DetailedHTMLProps<
+      React.AnchorHTMLAttributes<HTMLAnchorElement>,
+      HTMLAnchorElement
+    > = {
       ref: setRef,
       onClick(e) {
-        if (process.env.NODE_ENV !== 'production') {
-          if (!e) {
-            throw new Error(
-              `Component rendered inside next/link has to pass click event to "onClick" prop.`
-            )
-          }
-        }
-
-        if (!legacyBehavior && typeof onClick === 'function') {
+        if (typeof onClick === 'function') {
           onClick(e)
-        }
-
-        if (
-          legacyBehavior &&
-          child.props &&
-          typeof child.props.onClick === 'function'
-        ) {
-          child.props.onClick(e)
         }
 
         if (!router) {
@@ -607,16 +508,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         )
       },
       onMouseEnter(e) {
-        if (!legacyBehavior && typeof onMouseEnterProp === 'function') {
+        if (typeof onMouseEnterProp === 'function') {
           onMouseEnterProp(e)
-        }
-
-        if (
-          legacyBehavior &&
-          child.props &&
-          typeof child.props.onMouseEnter === 'function'
-        ) {
-          child.props.onMouseEnter(e)
         }
 
         if (!router) {
@@ -633,16 +526,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onTouchStart: process.env.__NEXT_LINK_NO_TOUCH_START
         ? undefined
         : function onTouchStart(e) {
-            if (!legacyBehavior && typeof onTouchStartProp === 'function') {
+            if (typeof onTouchStartProp === 'function') {
               onTouchStartProp(e)
-            }
-
-            if (
-              legacyBehavior &&
-              child.props &&
-              typeof child.props.onTouchStart === 'function'
-            ) {
-              child.props.onTouchStart(e)
             }
 
             if (!router) {
@@ -658,16 +543,10 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           },
     }
 
-    // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
-    // defined, we specify the current 'href', so that repetition is not needed by the user.
     // If the url is absolute, we can bypass the logic to prepend the domain and locale.
     if (isAbsoluteUrl(as)) {
-      childProps.href = as
-    } else if (
-      !legacyBehavior ||
-      passHref ||
-      (child.type === 'a' && !('href' in child.props))
-    ) {
+      anchorProps.href = as
+    } else {
       const curLocale = typeof locale !== 'undefined' ? locale : router?.locale
 
       // we only render domain locales if we are currently on a domain locale
@@ -676,25 +555,13 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         router?.isLocaleDomain &&
         getDomainLocale(as, curLocale, router?.locales, router?.domainLocales)
 
-      childProps.href =
+      anchorProps.href =
         localeDomain ||
         addBasePath(addLocale(as, curLocale, router?.defaultLocale))
     }
 
-    if (legacyBehavior) {
-      if (process.env.NODE_ENV === 'development') {
-        errorOnce(
-          '`legacyBehavior` is deprecated and will be removed in a future ' +
-            'release. A codemod is available to upgrade your components:\n\n' +
-            'npx @next/codemod@latest new-link .\n\n' +
-            'Learn more: https://nextjs.org/docs/app/building-your-application/upgrading/codemods#remove-a-tags-from-link-components'
-        )
-      }
-      return React.cloneElement(child, childProps)
-    }
-
     return (
-      <a {...restProps} {...childProps}>
+      <a {...restProps} {...anchorProps}>
         {children}
       </a>
     )

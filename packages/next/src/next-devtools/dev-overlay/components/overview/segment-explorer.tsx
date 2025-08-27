@@ -99,7 +99,7 @@ function SegmentExplorerFooter({
   )
 }
 
-export function FilePill({
+function FilePill({
   type,
   isBuiltin,
   isOverridden,
@@ -182,6 +182,7 @@ function PageSegmentTreeLayerPresentation({
   node: SegmentTrieNode
   level: number
 }) {
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const childrenKeys = useMemo(
     () => Object.keys(node.children),
     [node.children]
@@ -209,7 +210,12 @@ function PageSegmentTreeLayerPresentation({
     return (
       level === 0 && !existingBoundaries.includes(GLOBAL_ERROR_BOUNDARY_TYPE)
     )
-  }, [node.children, childrenKeys, level])
+  }, [
+    node.children,
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- it's not modified but dangerous to rely on disable directives. Talk to Compiler team once the other manual memo issues are fixed.
+    childrenKeys,
+    level,
+  ])
 
   const sortedChildrenKeys = childrenKeys.sort((a, b) => {
     // Prioritize files with extensions over directories
@@ -441,7 +447,7 @@ function PageSegmentTreeLayerPresentation({
   )
 }
 
-export function openInEditor({ filePath }: { filePath: string }) {
+function openInEditor({ filePath }: { filePath: string }) {
   const params = new URLSearchParams({
     file: filePath,
     // Mark the file path is relative to the app directory,
@@ -491,7 +497,7 @@ function BackArrowIcon() {
   )
 }
 
-export function CodeIcon(props: React.SVGProps<SVGSVGElement>) {
+function CodeIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       width="12"

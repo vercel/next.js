@@ -311,6 +311,11 @@ pub struct ActionManifestEntry<'a> {
     pub workers: FxIndexMap<&'a str, ActionManifestWorkerEntry<'a>>,
 
     pub layer: FxIndexMap<&'a str, ActionLayer>,
+
+    #[serde(rename = "exportedName")]
+    pub exported_name: &'a str,
+
+    pub filename: &'a str,
 }
 
 #[derive(Serialize, Debug)]
@@ -319,6 +324,9 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub module_id: ActionManifestModuleId<'a>,
     #[serde(rename = "async")]
     pub is_async: bool,
+    #[serde(rename = "exportedName")]
+    pub exported_name: &'a str,
+    pub filename: &'a str,
 }
 
 #[derive(Serialize, Debug)]

@@ -34,6 +34,7 @@ The following commands are available:
 | [`info`](#next-info-options)           | Prints relevant details about the current system which can be used to report Next.js bugs.                                                                                                                                         |
 | [`lint`](#next-lint-options)           | Runs ESLint for all files in the `/src`, `/app`, `/pages`, `/components`, and `/lib` directories. It also provides a guided setup to install any required dependencies if ESLint it is not already configured in your application. |
 | [`telemetry`](#next-telemetry-options) | Allows you to enable or disable Next.js' completely anonymous telemetry collection.                                                                                                                                                |
+| [`typegen`](#next-typegen-options)     | Generates TypeScript definitions for routes, pages, layouts, and route handlers without running a full build.                                                                                                                      |
 
 > **Good to know**: Running `next` without a command is an alias for `next dev`.
 
@@ -74,18 +75,18 @@ Both of these values are [**compressed with gzip**](/docs/app/api-reference/conf
 
 The following options are available for the `next build` command:
 
-| Option                             | Description                                                                                                                                   |
-| ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `-h, --help`                       | Show all available options.                                                                                                                   |
-| `[directory]`                      | A directory on which to build the application. If not provided, the current directory will be used.                                           |
-| `-d` or `--debug`                  | Enables a more verbose build output. With this flag enabled additional build output like rewrites, redirects, and headers will be shown.      |
+| Option                             | Description                                                                                                                                                                        |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-h, --help`                       | Show all available options.                                                                                                                                                        |
+| `[directory]`                      | A directory on which to build the application. If not provided, the current directory will be used.                                                                                |
+| `-d` or `--debug`                  | Enables a more verbose build output. With this flag enabled additional build output like rewrites, redirects, and headers will be shown.                                           |
 |                                    |
-| `--profile`                        | Enables production [profiling for React](https://react.dev/reference/react/Profiler).                                                         |
-| `--no-lint`                        | Disables linting.                                                                                                                             |
-| `--no-mangling`                    | Disables [mangling](https://en.wikipedia.org/wiki/Name_mangling). This may affect performance and should only be used for debugging purposes. |
-| `--experimental-app-only`          | Builds only App Router routes.                                                                                                                |
-| `--experimental-build-mode [mode]` | Uses an experimental build mode. (choices: "compile", "generate", default: "default")                                                         |
-| `--debug-prerender`                | Debug prerender errors in development.                                                                                                        |
+| `--profile`                        | Enables production [profiling for React](https://react.dev/reference/react/Profiler).                                                                                              |
+| `--no-lint`                        | Disables linting. _Note: linting will be removed from `next build` in Next 16. If you're using Next 15.5+ with a linter other than `eslint`, linting during build will not occur._ |
+| `--no-mangling`                    | Disables [mangling](https://en.wikipedia.org/wiki/Name_mangling). This may affect performance and should only be used for debugging purposes.                                      |
+| `--experimental-app-only`          | Builds only App Router routes.                                                                                                                                                     |
+| `--experimental-build-mode [mode]` | Uses an experimental build mode. (choices: "compile", "generate", default: "default")                                                                                              |
+| `--debug-prerender`                | Debug prerender errors in development.                                                                                                                                             |
 
 ### `next start` options
 
@@ -138,6 +139,16 @@ The following options are available for the `next info` command:
 
 ### `next lint` options
 
+> **Warning**: This command is deprecated and will be removed in Next.js 16.
+>
+> We recommend migrating to invoking ESLint directly (or using Biome). A [codemod](https://nextjs.org/blog/next-15-5#next-lint-deprecation) is available to migrate scripts to the ESLint CLI.
+>
+> `next lint` generates a `next-env.d.ts` file, which is often needed during type-check. To ensure `next-env.d.ts` is present run [`next typegen`](#next-typegen-options) before type-checking. `next dev` and `next build` also generate the `next-env.d.ts` file, but it is often undesirable to run these just to type-check.
+>
+> ```bash filename="Terminal"
+> next typegen && tsc --noEmit
+> ```
+
 `next lint` runs ESLint for all files in the `pages/`, `app/`, `components/`, `lib/`, and `src/` directories. It also provides a guided setup to install any required dependencies if ESLint is not already configured in your application.
 
 The following options are available for the `next lint` command:
@@ -181,6 +192,35 @@ The following options are available for the `next telemetry` command:
 | `--disable`  | Disables Next.js' telemetry collection. |
 
 Learn more about [Telemetry](/telemetry).
+
+### `next typegen` Options
+
+`next typegen` generates TypeScript definitions for your application's routes without performing a full build. This is useful for IDE autocomplete and CI type-checking of route usage.
+
+Previously, route types were only generated during `next dev` or `next build`, which meant running `tsc --noEmit` directly wouldn't validate your route types. Now you can generate types independently and validate them externally:
+
+```bash filename="Terminal"
+# Generate route types first, then validate with TypeScript
+next typegen && tsc --noEmit
+
+# Or in CI workflows for type checking without building
+next typegen && npm run type-check
+```
+
+The following options are available for the `next typegen` command:
+
+| Option        | Description                                                                                  |
+| ------------- | -------------------------------------------------------------------------------------------- |
+| `-h, --help`  | Show all available options.                                                                  |
+| `[directory]` | A directory on which to generate types. If not provided, the current directory will be used. |
+
+Output files are written to `<distDir>/types` (default: `.next/types`):
+
+```bash filename="Terminal"
+next typegen
+# or for a specific app
+next typegen ./apps/web
+```
 
 ## Examples
 
@@ -264,4 +304,5 @@ NODE_OPTIONS='--inspect' next
 
 | Version   | Changes                                                                         |
 | --------- | ------------------------------------------------------------------------------- |
+| `v15.5.0` | Add the `next typegen` command                                                  |
 | `v15.4.0` | Add `--debug-prerender` option for `next build` to help debug prerender errors. |

@@ -38,9 +38,7 @@ export function useShortcuts(
   }, [rootRef, shortcuts])
 }
 
-export function isFocusedOnElement(
-  rootRef: React.RefObject<HTMLElement | null>
-) {
+function isFocusedOnElement(rootRef: React.RefObject<HTMLElement | null>) {
   const el = getActiveElement(rootRef.current)
 
   if (!el) return false

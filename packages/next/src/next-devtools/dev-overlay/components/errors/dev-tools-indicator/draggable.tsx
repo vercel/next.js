@@ -175,7 +175,7 @@ interface Velocity {
   timestamp: number
 }
 
-export function useDrag(options: UseDragOptions) {
+function useDrag(options: UseDragOptions) {
   const ref = useRef<HTMLDivElement>(null)
   const machine = useRef<
     | { state: 'idle' | 'press' | 'drag-end' }
@@ -310,7 +310,6 @@ export function useDrag(options: UseDragOptions) {
         machine.current = { state: 'drag', pointerId: e.pointerId }
         ref.current?.setPointerCapture(e.pointerId)
         ref.current?.classList.add('dev-tools-grabbing')
-        // eslint-disable-next-line react-hooks/react-compiler -- Bug in react-hooks/react-compiler
         document.body.style.userSelect = 'none'
         document.body.style.webkitUserSelect = 'none'
         options.onDragStart?.()

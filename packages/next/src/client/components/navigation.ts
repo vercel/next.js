@@ -1,4 +1,4 @@
-import type { FlightRouterState } from '../../server/app-render/types'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { Params } from '../../server/request/params'
 
 import { useContext, useMemo } from 'react'
@@ -23,6 +23,13 @@ const useDynamicRouteParams =
       ).useDynamicRouteParams
     : undefined
 
+const useDynamicSearchParams =
+  typeof window === 'undefined'
+    ? (
+        require('../../server/app-render/dynamic-rendering') as typeof import('../../server/app-render/dynamic-rendering')
+      ).useDynamicSearchParams
+    : undefined
+
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook
  * that lets you *read* the current URL's search parameters.
@@ -45,6 +52,8 @@ const useDynamicRouteParams =
  */
 // Client components API
 export function useSearchParams(): ReadonlyURLSearchParams {
+  useDynamicSearchParams?.('useSearchParams()')
+
   const searchParams = useContext(SearchParamsContext)
 
   // In the case where this is `null`, the compat types added in
@@ -59,14 +68,6 @@ export function useSearchParams(): ReadonlyURLSearchParams {
 
     return new ReadonlyURLSearchParams(searchParams)
   }, [searchParams]) as ReadonlyURLSearchParams
-
-  if (typeof window === 'undefined') {
-    // AsyncLocalStorage should not be included in the client bundle.
-    const { bailoutToClientRendering } =
-      require('./bailout-to-client-rendering') as typeof import('./bailout-to-client-rendering')
-    // TODO-APP: handle dynamic = 'force-static' here and on the client
-    bailoutToClientRendering('useSearchParams()')
-  }
 
   return readonlySearchParams
 }

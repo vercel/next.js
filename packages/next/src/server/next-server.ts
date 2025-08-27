@@ -292,32 +292,6 @@ export default class NextNodeServer extends BaseServer<
       this.imageResponseCache = new ResponseCache(this.minimalMode)
     }
 
-    const { appDocumentPreloading } = this.nextConfig.experimental
-    const isDefaultEnabled = typeof appDocumentPreloading === 'undefined'
-
-    if (
-      !options.dev &&
-      (appDocumentPreloading === true ||
-        !(this.minimalMode && isDefaultEnabled))
-    ) {
-      // pre-warm _document and _app as these will be
-      // needed for most requests
-      loadComponents({
-        distDir: this.distDir,
-        page: '/_document',
-        isAppPath: false,
-        isDev: this.isDev,
-        sriEnabled: this.sriEnabled,
-      }).catch(() => {})
-      loadComponents({
-        distDir: this.distDir,
-        page: '/_app',
-        isAppPath: false,
-        isDev: this.isDev,
-        sriEnabled: this.sriEnabled,
-      }).catch(() => {})
-    }
-
     if (
       !options.dev &&
       !this.minimalMode &&
@@ -387,37 +361,42 @@ export default class NextNodeServer extends BaseServer<
     await this.loadCustomCacheHandlers()
 
     for (const page of Object.keys(pagesManifest || {})) {
-      await loadComponents({
-        distDir: this.distDir,
-        page,
-        isAppPath: false,
-        isDev: this.isDev,
-        sriEnabled: this.sriEnabled,
-      }).catch(() => {})
+      try {
+        await loadComponents({
+          distDir: this.distDir,
+          page,
+          isAppPath: false,
+          isDev: this.isDev,
+          sriEnabled: this.sriEnabled,
+        })
+      } catch (_err) {
+        // Intentionally ignored because this is a preload step.
+      }
     }
 
     for (const page of Object.keys(appPathsManifest || {})) {
-      await loadComponents({
-        distDir: this.distDir,
-        page,
-        isAppPath: true,
-        isDev: this.isDev,
-        sriEnabled: this.sriEnabled,
-      })
-        .then(async ({ ComponentMod }) => {
-          // we need to ensure fetch is patched before we require the page,
-          // otherwise if the fetch is patched by user code, we will be patching it
-          // too late and there won't be any caching behaviors
-          ComponentMod.patchFetch()
-
-          const webpackRequire = ComponentMod.__next_app__.require
-          if (webpackRequire?.m) {
-            for (const id of Object.keys(webpackRequire.m)) {
-              await webpackRequire(id)
-            }
-          }
+      try {
+        const { ComponentMod } = await loadComponents({
+          distDir: this.distDir,
+          page,
+          isAppPath: true,
+          isDev: this.isDev,
+          sriEnabled: this.sriEnabled,
         })
-        .catch(() => {})
+        // we need to ensure fetch is patched before we require the page,
+        // otherwise if the fetch is patched by user code, we will be patching it
+        // too late and there won't be any caching behaviors
+        ComponentMod.patchFetch()
+
+        const webpackRequire = ComponentMod.__next_app__.require
+        if (webpackRequire?.m) {
+          for (const id of Object.keys(webpackRequire.m)) {
+            await webpackRequire(id)
+          }
+        }
+      } catch (_err) {
+        // Intentionally ignored because this is a preload step.
+      }
     }
   }
 

@@ -179,14 +179,19 @@ export async function turbopackBuild(): Promise<{
     await Promise.all(promises)
 
     await Promise.all([
-      manifestLoader.loadBuildManifest('_app'),
-      manifestLoader.loadPagesManifest('_app'),
-      manifestLoader.loadFontManifest('_app'),
-      manifestLoader.loadPagesManifest('_document'),
-      manifestLoader.loadClientBuildManifest('_error'),
-      manifestLoader.loadBuildManifest('_error'),
-      manifestLoader.loadPagesManifest('_error'),
-      manifestLoader.loadFontManifest('_error'),
+      // Only load pages router manifests if not app-only
+      ...(!appDirOnly
+        ? [
+            manifestLoader.loadBuildManifest('_app'),
+            manifestLoader.loadPagesManifest('_app'),
+            manifestLoader.loadFontManifest('_app'),
+            manifestLoader.loadPagesManifest('_document'),
+            manifestLoader.loadClientBuildManifest('_error'),
+            manifestLoader.loadBuildManifest('_error'),
+            manifestLoader.loadPagesManifest('_error'),
+            manifestLoader.loadFontManifest('_error'),
+          ]
+        : []),
       entrypoints.instrumentation &&
         manifestLoader.loadMiddlewareManifest(
           'instrumentation',

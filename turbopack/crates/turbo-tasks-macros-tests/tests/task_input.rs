@@ -18,7 +18,7 @@ fn one_unnamed_field(input: OneUnnamedField) -> Vc<Completion> {
     Completion::immutable()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tests() {
     run(&REGISTRATION, || async {
         assert!(ReadRef::ptr_eq(

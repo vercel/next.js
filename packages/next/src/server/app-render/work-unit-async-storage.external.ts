@@ -5,7 +5,7 @@ import type { ReadonlyHeaders } from '../web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
 import type { CacheSignal } from './cache-signal'
 import type { DynamicTrackingState } from './dynamic-rendering'
-import type { FallbackRouteParams } from '../request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 
 // Share the instance module in the next-shared layer
 import { workUnitAsyncStorageInstance } from './work-unit-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -18,6 +18,7 @@ import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../client/components/app-router-headers'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -67,6 +68,7 @@ export interface RequestStore extends CommonWorkUnitStore {
   // DEV-only
   usedDynamic?: boolean
   prerenderPhase?: boolean
+  devFallbackParams?: OpaqueFallbackRouteParams | null
 }
 
 /**
@@ -201,7 +203,7 @@ interface StaticPrerenderStoreCommon {
    * The set of unknown route parameters. Accessing these will be tracked as
    * a dynamic access.
    */
-  readonly fallbackRouteParams: FallbackRouteParams | null
+  readonly fallbackRouteParams: OpaqueFallbackRouteParams | null
 
   /**
    * When true, the page is prerendered as a fallback shell, while allowing any
@@ -223,7 +225,7 @@ export interface PrerenderStorePPR
    * The set of unknown route parameters. Accessing these will be tracked as
    * a dynamic access.
    */
-  readonly fallbackRouteParams: FallbackRouteParams | null
+  readonly fallbackRouteParams: OpaqueFallbackRouteParams | null
 
   /**
    * The resume data cache for this prerender.
@@ -333,6 +335,10 @@ export function throwForMissingRequestStore(callingExpression: string): never {
   throw new Error(
     `\`${callingExpression}\` was called outside a request scope. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
   )
+}
+
+export function throwInvariantForMissingStore(): never {
+  throw new InvariantError('Expected workUnitAsyncStorage to have a store.')
 }
 
 export function getPrerenderResumeDataCache(

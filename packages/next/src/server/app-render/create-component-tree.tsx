@@ -1,4 +1,8 @@
-import type { CacheNodeSeedData, PreloadCallbacks } from './types'
+import type {
+  CacheNodeSeedData,
+  LoadingModuleData,
+} from '../../shared/lib/app-router-types'
+import type { PreloadCallbacks } from './types'
 import React from 'react'
 import {
   isClientReference,
@@ -17,7 +21,6 @@ import { PARALLEL_ROUTE_DEFAULT_PATH } from '../../client/components/builtin/def
 import { getTracer } from '../lib/trace/tracer'
 import { NextNodeServerSpan } from '../lib/trace/constants'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/framework/boundary-constants'
@@ -33,6 +36,7 @@ import {
   getConventionPathByType,
   isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
+import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -220,6 +224,12 @@ async function createComponentTreeInternal(
         injectedJS: injectedJSWithCurrentLayout,
       })
     : []
+
+  const prefetchConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
+    : undefined
+  /** Whether this segment should use a runtime prefetch instead of a static prefetch. */
+  const shouldUseRuntimePrefetch = prefetchConfig === 'unstable_runtime'
 
   const [Forbidden, forbiddenStyles] =
     authInterrupts && forbidden
@@ -694,6 +704,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
+      shouldUseRuntimePrefetch,
     ]
   }
 
@@ -726,6 +737,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       true,
+      shouldUseRuntimePrefetch,
     ]
   }
 
@@ -831,6 +843,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
+      shouldUseRuntimePrefetch,
     ]
   } else {
     const SegmentComponent = Component
@@ -1008,6 +1021,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
+      shouldUseRuntimePrefetch,
     ]
   }
 }

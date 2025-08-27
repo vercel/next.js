@@ -118,6 +118,24 @@ export default function Page({ searchParams }) {
 - `searchParams` is a **[Dynamic API](/docs/app/getting-started/partial-prerendering#dynamic-rendering)** whose values cannot be known ahead of time. Using it will opt the page into **[dynamic rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering)** at request time.
 - `searchParams` is a plain JavaScript object, not a `URLSearchParams` instance.
 
+### Page Props Helper
+
+You can type pages with `PageProps` to get strongly typed `params` and `searchParams` from the route literal. `PageProps` is a globally available helper.
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export default async function Page(props: PageProps<'/blog/[slug]'>) {
+  const { slug } = await props.params
+  const query = await props.searchParams
+  return <h1>Blog Post: {slug}</h1>
+}
+```
+
+> **Good to know**
+>
+> - Using a literal route (e.g. `'/blog/[slug]'`) enables autocomplete and strict keys for `params`.
+> - Static routes resolve `params` to `{}`.
+> - Types are generated during `next dev`, `next build`, or with `next typegen`.
+
 ## Examples
 
 ### Displaying content based on `params`

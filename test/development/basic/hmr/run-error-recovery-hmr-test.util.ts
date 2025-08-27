@@ -212,7 +212,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
            7 | }
              : ^
              \`----
-            x Unexpected eof
+            x Expected '</', got '<eof>'
              ,-[7:3]
            5 |     div
            6 |   )
@@ -251,7 +251,9 @@ export function runErrorRecoveryHmrTest(nextConfig: {
         await new Promise((resolve) => setTimeout(resolve, 2000))
 
         await assertHasRedbox(browser)
-        expect(await getRedboxSource(browser)).toMatch(/Unexpected eof/)
+        expect(await getRedboxSource(browser)).toContain(
+          "Expected '</', got '<eof>'"
+        )
 
         await next.patchFile(aboutPage, aboutContent)
 

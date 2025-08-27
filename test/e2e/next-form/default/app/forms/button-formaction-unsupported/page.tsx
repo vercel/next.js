@@ -1,14 +1,13 @@
 'use client'
-import * as React from 'react'
+
+import React, { Suspense } from 'react'
 import Form from 'next/form'
 
-type AnySearchParams = { [key: string]: string | Array<string> | undefined }
+type AnySearchParams = Promise<{
+  [key: string]: string | Array<string> | undefined
+}>
 
-export default function Home({
-  searchParams,
-}: {
-  searchParams: Promise<AnySearchParams>
-}) {
+function Home({ searchParams }: { searchParams: AnySearchParams }) {
   const attribute = React.use(searchParams).attribute
   return (
     <div
@@ -37,5 +36,17 @@ export default function Home({
         </button>
       </Form>
     </div>
+  )
+}
+
+export default function Page({
+  searchParams,
+}: {
+  searchParams: AnySearchParams
+}) {
+  return (
+    <Suspense fallback={<div>Page is loading...</div>}>
+      <Home searchParams={searchParams} />
+    </Suspense>
   )
 }

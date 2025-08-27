@@ -29,6 +29,49 @@ describe('app-dir action handling', () => {
       },
     })
 
+  if (isNextStart) {
+    it('should output exportName and filename info in manifest', async () => {
+      const referenceManifest = await next.readJSON(
+        '.next/server/server-reference-manifest.json'
+      )
+      let foundExportNames = []
+
+      for (const item in referenceManifest.node) {
+        try {
+          const itemInfo = referenceManifest.node[item]
+
+          foundExportNames.push(itemInfo.exportedName)
+
+          expect(itemInfo.filename).toBeString()
+          // can be outside app dir but this test suite has them all in app
+          expect(itemInfo.filename.startsWith('app/')).toBe(true)
+          expect(itemInfo.exportedName).toBeString()
+        } catch (err) {
+          require('console').error(`Invalid action entry ${item}`, err)
+          throw err
+        }
+      }
+      for (const item in referenceManifest.edge) {
+        try {
+          const itemInfo = referenceManifest.edge[item]
+
+          foundExportNames.push(itemInfo.exportedName)
+
+          expect(itemInfo.filename).toBeString()
+          expect(itemInfo.exportedName).toBeString()
+        } catch (err) {
+          require('console').error(`Invalid action entry ${item}`, err)
+          throw err
+        }
+      }
+
+      expect(foundExportNames).toContain('setCookie')
+      expect(foundExportNames).toContain('getCookie')
+      expect(foundExportNames).toContain('getHeader')
+      expect(foundExportNames).toContain('setCookieWithMaxAge')
+    })
+  }
+
   it('should handle action correctly with middleware rewrite', async () => {
     const browser = await next.browser('/rewrite-to-static-first')
     let actionRequestStatus: number | undefined
@@ -508,27 +551,6 @@ describe('app-dir action handling', () => {
 
     // intentionally bailing after 2 retries so we don't retry to the point where the async function resolves
     await check(() => browser.url(), `${next.url}/`, true, 2)
-  })
-
-  it('should trigger a refresh for a server action that gets discarded due to a navigation', async () => {
-    let browser = await next.browser('/client')
-    const initialRandomNumber = await browser
-      .elementByCss('#random-number')
-      .text()
-
-    await browser.elementByCss('#slow-inc').click()
-
-    // navigate to server
-    await browser.elementByCss('#navigate-server').click()
-
-    // wait for the action to be completed
-    await retry(async () => {
-      const newRandomNumber = await browser
-        .elementByCss('#random-number')
-        .text()
-
-      expect(newRandomNumber).not.toBe(initialRandomNumber)
-    })
   })
 
   it('should trigger a refresh for a server action that also dispatches a navigation event', async () => {
@@ -1882,5 +1904,58 @@ describe('app-dir action handling', () => {
         )
       }
     )
+  })
+
+  describe('action discarding', () => {
+    // TODO: Investigate flaky behavior when deployed
+    if (!isNextDeploy) {
+      it('should not trigger a refresh for a server action that gets discarded due to a navigation (without revalidation)', async () => {
+        let browser = await next.browser('/action-discarding')
+        await browser.waitForIdleNetwork()
+        const initialRandomNumber = await browser
+          .elementByCss('#cached-random')
+          .text()
+
+        await browser.elementByCss('#slow-action').click()
+
+        // navigate to destination
+        await browser.elementByCss('#navigate-destination').click()
+
+        // wait for the 2s action to finish
+        await waitFor(2000)
+
+        await retry(async () => {
+          const newRandomNumber = await browser
+            .elementByCss('#cached-random')
+            .text()
+
+          expect(newRandomNumber).toBe(initialRandomNumber)
+        })
+      })
+    }
+
+    it('should trigger a refresh for a server action that gets discarded due to a navigation (with revalidation)', async () => {
+      let browser = await next.browser('/action-discarding')
+      await browser.waitForIdleNetwork()
+      const initialRandomNumber = await browser
+        .elementByCss('#cached-random')
+        .text()
+
+      await browser.elementByCss('#slow-action-revalidate').click()
+
+      // navigate to destination
+      await browser.elementByCss('#navigate-destination').click()
+
+      // wait for the 2s action to finish
+      await waitFor(2000)
+
+      await retry(async () => {
+        const newRandomNumber = await browser
+          .elementByCss('#cached-random')
+          .text()
+
+        expect(newRandomNumber).not.toBe(initialRandomNumber)
+      })
+    })
   })
 })

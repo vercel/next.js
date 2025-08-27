@@ -132,8 +132,8 @@
       /******/ // arguments: chunkIds, moduleId are deprecated
       /******/ var moduleId = chunkIds
       /******/ if (!fn)
-        (chunkIds = result),
-          (fn = () => __webpack_require__((__webpack_require__.s = moduleId)))
+        ((chunkIds = result),
+          (fn = () => __webpack_require__((__webpack_require__.s = moduleId))))
       /******/ chunkIds.map(__webpack_require__.e, __webpack_require__)
       /******/ var r = fn()
       /******/ return r === undefined ? result : r

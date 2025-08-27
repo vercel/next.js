@@ -29,7 +29,7 @@ import type {
   PrefetchOptions,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import { setLinkForCurrentNavigation, type LinkInstance } from './links'
-import type { FlightRouterState } from '../../server/app-render/types'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { ClientInstrumentationHooks } from '../app-index'
 import type { GlobalErrorComponent } from './builtin/global-error'
 
@@ -69,24 +69,25 @@ function runRemainingActions(
   if (actionQueue.pending !== null) {
     actionQueue.pending = actionQueue.pending.next
     if (actionQueue.pending !== null) {
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       runAction({
         actionQueue,
         action: actionQueue.pending,
         setState,
       })
-    } else {
-      // No more actions are pending, check if a refresh is needed
-      if (actionQueue.needsRefresh) {
-        actionQueue.needsRefresh = false
-        actionQueue.dispatch(
-          {
-            type: ACTION_REFRESH,
-            origin: window.location.origin,
-          },
-          setState
-        )
-      }
+    }
+  } else {
+    // Check for refresh when pending is already null
+    // This handles the case where a discarded server action completes
+    // after the navigation has already finished and the queue is empty
+    if (actionQueue.needsRefresh) {
+      actionQueue.needsRefresh = false
+      actionQueue.dispatch(
+        {
+          type: ACTION_REFRESH,
+          origin: window.location.origin,
+        },
+        setState
+      )
     }
   }
 }
@@ -110,6 +111,18 @@ async function runAction({
   function handleResult(nextState: AppRouterState) {
     // if we discarded this action, the state should also be discarded
     if (action.discarded) {
+      // Check if the discarded server action revalidated data
+      if (
+        action.payload.type === ACTION_SERVER_ACTION &&
+        action.payload.didRevalidate
+      ) {
+        // The server action was discarded but it revalidated data,
+        // mark that we need to refresh after all actions complete
+        actionQueue.needsRefresh = true
+      }
+      // Still need to run remaining actions even for discarded actions
+      // to potentially trigger the refresh
+      runRemainingActions(actionQueue, setState)
       return
     }
 
@@ -186,11 +199,6 @@ function dispatchAction(
     // The rest of the current queue should still execute after this navigation.
     // (Note that it can't contain any earlier navigations, because we always put those into `actionQueue.pending` by calling `runAction`)
     newAction.next = actionQueue.pending.next
-
-    // if the pending action was a server action, mark the queue as needing a refresh once events are processed
-    if (actionQueue.pending.payload.type === ACTION_SERVER_ACTION) {
-      actionQueue.needsRefresh = true
-    }
 
     runAction({
       actionQueue,

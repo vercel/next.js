@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_esregex::EsRegex;
 use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, primitives::Regex, trace::TraceRawVcs};
-use turbo_tasks_fs::{FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{FileContent, FileSystemPath, glob::Glob};
 use turbopack_core::{
-    reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
+    asset::Asset, reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
@@ -24,6 +24,7 @@ pub enum RuleCondition {
     ContentTypeEmpty,
     ResourcePathRegex(#[turbo_tasks(trace_ignore)] Regex),
     ResourcePathEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
+    ResourceContentEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
     /// For paths that are within the same filesystem as the `base`, it need to
     /// match the relative path from base to resource. This includes `./` or
     /// `../` prefix. For paths in a different filesystem, it need to match
@@ -166,6 +167,15 @@ impl RuleCondition {
                     RuleCondition::ResourcePathEsRegex(regex) => {
                         return Ok(regex.is_match(&path.path));
                     }
+                    RuleCondition::ResourceContentEsRegex(regex) => {
+                        let content = source.content().file_content().await?;
+                        match &*content {
+                            FileContent::Content(file_content) => {
+                                return Ok(regex.is_match(&file_content.content().to_str()?));
+                            }
+                            FileContent::NotFound => return Ok(false),
+                        }
+                    }
                 }
             }
         }
@@ -230,7 +240,7 @@ pub mod tests {
 
     use super::*;
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_rule_condition_leaves() {
         crate::register();
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
@@ -364,7 +374,7 @@ pub mod tests {
         anyhow::Ok(())
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_rule_condition_tree() {
         crate::register();
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(

@@ -72,3 +72,14 @@ export function makeHangingPromise<T>(
 }
 
 function ignoreReject() {}
+
+export function makeDevtoolsIOAwarePromise<T>(underlying: T): Promise<T> {
+  // in React DevTools if we resolve in a setTimeout we will observe
+  // the promise resolution as something that can suspend a boundary or root.
+  return new Promise<T>((resolve) => {
+    // Must use setTimeout to be considered IO React DevTools. setImmediate will not work.
+    setTimeout(() => {
+      resolve(underlying)
+    }, 0)
+  })
+}

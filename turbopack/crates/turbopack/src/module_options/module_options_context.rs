@@ -50,7 +50,8 @@ pub enum ConditionPath {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ConditionItem {
-    pub path: ConditionPath,
+    pub path: Option<ConditionPath>,
+    pub content: Option<ResolvedVc<EsRegex>>,
 }
 
 #[turbo_tasks::value(shared)]

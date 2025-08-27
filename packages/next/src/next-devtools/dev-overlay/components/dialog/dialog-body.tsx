@@ -1,6 +1,6 @@
 import * as React from 'react'
 
-export type DialogBodyProps = {
+type DialogBodyProps = {
   children?: React.ReactNode
   className?: string
 } & React.HTMLAttributes<HTMLDivElement>

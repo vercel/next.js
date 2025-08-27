@@ -10,7 +10,7 @@ import type {
 import { handleExternalUrl } from './navigate-reducer'
 import { applyFlightData } from '../apply-flight-data'
 import { handleMutable } from '../handle-mutable'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-types'
 import { createEmptyCacheNode } from '../../app-router'
 
 export function serverPatchReducer(

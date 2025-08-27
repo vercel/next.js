@@ -20,7 +20,7 @@ use swc_core::{
         visit::{fields::*, *},
     },
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::ResolvedVc;
 use turbopack_core::source::Source;
 
@@ -190,7 +190,7 @@ pub enum Effect {
     },
     /// A reference to a free var access.
     FreeVar {
-        var: Box<JsValue>,
+        var: Atom,
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,
@@ -241,13 +241,11 @@ impl Effect {
                 obj.normalize();
                 prop.normalize();
             }
-            Effect::FreeVar { var, .. } => {
-                var.normalize();
-            }
             Effect::ImportedBinding { .. } => {}
             Effect::TypeOf { arg, .. } => {
                 arg.normalize();
             }
+            Effect::FreeVar { .. } => {}
             Effect::ImportMeta { .. } => {}
             Effect::Unreachable { .. } => {}
         }
@@ -365,13 +363,18 @@ impl EvalContext {
             if idx.is_multiple_of(2) {
                 let idx = idx / 2;
                 let e = &e.quasis[idx];
-
                 if raw {
-                    values.push(JsValue::from(e.raw.clone()));
+                    // Ignore empty strings quasis, happens frequently with e.g. after the
+                    // placeholder in `something${v}`.
+                    if !e.raw.is_empty() {
+                        values.push(JsValue::from(e.raw.clone()));
+                    }
                 } else {
                     match &e.cooked {
                         Some(v) => {
-                            values.push(JsValue::from(v.clone()));
+                            if !v.is_empty() {
+                                values.push(JsValue::from(v.clone()));
+                            }
                         }
                         // This is actually unreachable
                         None => return JsValue::unknown_empty(true, ""),
@@ -385,11 +388,11 @@ impl EvalContext {
             }
         }
 
-        if values.len() == 1 {
-            return values.into_iter().next().unwrap();
+        match values.len() {
+            0 => JsValue::Constant(ConstantValue::Str(rcstr!("").into())),
+            1 => values.into_iter().next().unwrap(),
+            _ => JsValue::concat(values),
         }
-
-        JsValue::concat(values)
     }
 
     fn eval_ident(&self, i: &Ident) -> JsValue {
@@ -2009,7 +2012,7 @@ impl VisitAstPath for Analyzer<'_> {
             || self.eval_context.force_free_values.contains(&ident.to_id())
         {
             self.add_effect(Effect::FreeVar {
-                var: Box::new(JsValue::FreeVar(ident.sym.clone())),
+                var: ident.sym.clone(),
                 ast_path: as_parent_path(ast_path),
                 span: ident.span(),
                 in_try: is_in_try(ast_path),
@@ -2042,7 +2045,7 @@ impl VisitAstPath for Analyzer<'_> {
         }
         // Otherwise 'this' is free
         self.add_effect(Effect::FreeVar {
-            var: Box::new(JsValue::FreeVar(atom!("this"))),
+            var: atom!("this"),
             ast_path: as_parent_path(ast_path),
             span: node.span(),
             in_try: is_in_try(ast_path),

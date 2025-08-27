@@ -100,8 +100,9 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::express("integration/express.js")]
 #[case::fast_glob("integration/fast-glob.js")]
 #[case::fetch_h2("integration/fetch-h2.js")]
-#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js"))]
 // Could not find ffmpeg executable
+#[cfg_attr(target_arch = "x86_64", case::ffmpeg_js("integration/ffmpeg.js"))]
+#[case::ffmpeg_static("integration/ffmpeg-static.js")]
 #[case::firebase_admin("integration/firebase-admin.js")]
 #[case::firebase("integration/firebase.js")]
 #[case::firestore("integration/firestore.js")]
@@ -158,6 +159,18 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::sentry("integration/sentry.js")]
 #[case::sequelize("integration/sequelize.js")]
 #[case::serialport("integration/serialport.js")]
+#[cfg_attr(
+    target_os = "windows",
+    should_panic(expected = "Something went wrong installing the \"sharp\" module"),
+    case::sharp030("integration/sharp030.js")
+)]
+#[cfg_attr(not(target_os = "windows"), case::sharp030("integration/sharp030.js"))]
+#[cfg_attr(
+    target_os = "windows",
+    should_panic(expected = "Something went wrong installing the \"sharp\" module"),
+    case::sharp033("integration/sharp033.js")
+)]
+#[cfg_attr(not(target_os = "windows"), case::sharp033("integration/sharp033.js"))]
 #[cfg_attr(
     target_os = "windows",
     should_panic(expected = "Something went wrong installing the \"sharp\" module"),
@@ -272,7 +285,7 @@ fn test_cases() {}
 
 #[apply(test_cases)]
 fn node_file_trace_noop_backing_storage(#[case] input: CaseInput) {
-    node_file_trace(input, "noop_backing_storage", false, 1, 120, |_| {
+    node_file_trace(input, "noop_backing_storage", 1, 120, |_| {
         TurboTasks::new(TurboTasksBackend::new(
             turbo_tasks_backend::BackendOptions::default(),
             turbo_tasks_backend::noop_backing_storage(),
@@ -282,7 +295,7 @@ fn node_file_trace_noop_backing_storage(#[case] input: CaseInput) {
 
 #[apply(test_cases)]
 fn node_file_trace_persistent(#[case] input: CaseInput) {
-    node_file_trace(input, "persistent_cache", false, 2, 240, |directory_path| {
+    node_file_trace(input, "persistent_cache", 2, 240, |directory_path| {
         TurboTasks::new(TurboTasksBackend::new(
             turbo_tasks_backend::BackendOptions::default(),
             turbo_tasks_backend::default_backing_storage(
@@ -302,31 +315,18 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
 
 #[cfg(feature = "bench_against_node_nft")]
 #[apply(test_cases)]
-fn bench_against_node_nft_st(#[case] input: CaseInput) {
-    bench_against_node_nft_inner(input, false);
+fn bench_against_node_nft(#[case] input: CaseInput) {
+    bench_against_node_nft_inner(input);
 }
 
 #[cfg(feature = "bench_against_node_nft")]
-#[apply(test_cases)]
-fn bench_against_node_nft_mt(#[case] input: CaseInput) {
-    bench_against_node_nft_inner(input, true);
-}
-
-#[cfg(feature = "bench_against_node_nft")]
-fn bench_against_node_nft_inner(input: CaseInput, multi_threaded: bool) {
-    node_file_trace(
-        input,
-        "noop_backing_storage",
-        multi_threaded,
-        1,
-        120,
-        |_| {
-            TurboTasks::new(TurboTasksBackend::new(
-                turbo_tasks_backend::BackendOptions::default(),
-                turbo_tasks_backend::noop_backing_storage(),
-            ))
-        },
-    );
+fn bench_against_node_nft_inner(input: CaseInput) {
+    node_file_trace(input, "noop_backing_storage", 1, 120, |_| {
+        TurboTasks::new(TurboTasksBackend::new(
+            turbo_tasks_backend::BackendOptions::default(),
+            turbo_tasks_backend::noop_backing_storage(),
+        ))
+    });
 }
 
 #[turbo_tasks::function(operation)]
@@ -351,9 +351,10 @@ async fn node_file_trace_operation(
     ));
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
-        // TODO It's easy to make a mistake here as this should match the config in the
-        // binary. TODO These test cases should move into the
-        // `node-file-trace` crate and use the same config.
+        // TODO These test cases should move into the `node-file-trace` crate and use the same
+        // config.
+        // It's easy to make a mistake here as this should match the config in the binary from
+        // turbopack/crates/turbopack/src/lib.rs
         CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
@@ -401,7 +402,6 @@ fn node_file_trace<B: Backend + 'static>(
         expected_stderr,
     }: CaseInput,
     mode: &str,
-    multi_threaded: bool,
     run_count: i32,
     timeout_len: u64,
     create_turbo_tasks: impl Fn(&Path) -> Arc<TurboTasks<B>>,
@@ -410,15 +410,9 @@ fn node_file_trace<B: Backend + 'static>(
         LazyLock::new(|| Arc::new(Mutex::new(Vec::new())));
 
     let r = &mut {
-        let mut builder = if multi_threaded {
-            tokio::runtime::Builder::new_multi_thread()
-        } else {
-            tokio::runtime::Builder::new_current_thread()
-        };
+        let mut builder = tokio::runtime::Builder::new_multi_thread();
         builder.enable_all();
-        if !multi_threaded {
-            builder.max_blocking_threads(20);
-        }
+        builder.max_blocking_threads(20);
         builder.build().unwrap()
     };
     r.block_on(async move {
@@ -490,12 +484,7 @@ fn node_file_trace<B: Backend + 'static>(
                         bench_suites_lock.push(BenchSuite {
                             suite: input
                                 .trim_start_matches("node-file-trace/integration/")
-                                .to_string()
-                                + (if multi_threaded {
-                                    " (multi-threaded)"
-                                } else {
-                                    ""
-                                }),
+                                .to_string(),
                             is_faster,
                             rust_duration,
                             node_duration,

@@ -1,4 +1,5 @@
 use std::{
+    any::Any,
     borrow::Cow,
     error::Error,
     fmt::{self, Debug, Display},
@@ -585,6 +586,7 @@ pub trait Backend: Sync + Send {
     fn run_backend_job<'a>(
         &'a self,
         id: BackendJobId,
+        data: Option<Box<dyn Any + Send>>,
         turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 

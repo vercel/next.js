@@ -19,7 +19,7 @@ use crate::{
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
     pages_structure::{PagesStructure, PagesStructureItem},
-    util::{NextRuntime, file_content_rope, load_next_js_template},
+    util::{NextRuntime, file_content_rope, load_next_js_template, pages_function_name},
 };
 
 #[turbo_tasks::value]
@@ -163,7 +163,7 @@ pub async fn create_page_ssr_entry_module(
                 ssr_module_context,
                 project_root,
                 ssr_module,
-                definition_pathname.clone(),
+                pages_function_name(&definition_page).into(),
             );
         }
     }
@@ -288,7 +288,7 @@ async fn wrap_edge_page(
         asset_context,
         project_root,
         wrapped,
-        pathname.clone(),
+        pages_function_name(&page).into(),
     ))
 }
 

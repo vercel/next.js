@@ -199,23 +199,6 @@ function findNextSibling(child) {
   searchTarget = child;
   return !0;
 }
-function isFiberContainedBy(maybeChild, maybeParent) {
-  maybeParent = maybeParent.return;
-  if (maybeParent === maybeChild || maybeParent === maybeChild.alternate)
-    return !0;
-  for (; null !== maybeParent && maybeParent !== maybeChild; ) {
-    if (
-      !(
-        (5 !== maybeParent.tag && 3 !== maybeParent.tag) ||
-        (maybeParent.return !== maybeChild &&
-          maybeParent.return !== maybeChild.alternate)
-      )
-    )
-      return !0;
-    maybeParent = maybeParent.return;
-  }
-  return !1;
-}
 function isFiberPrecedingCheck(child, target, boundary) {
   return child === boundary
     ? !0
@@ -16177,20 +16160,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_2010 = 0;
-  i$jscomp$inline_2010 < simpleEventPluginEvents.length;
-  i$jscomp$inline_2010++
+  var i$jscomp$inline_2013 = 0;
+  i$jscomp$inline_2013 < simpleEventPluginEvents.length;
+  i$jscomp$inline_2013++
 ) {
-  var eventName$jscomp$inline_2011 =
-      simpleEventPluginEvents[i$jscomp$inline_2010],
-    domEventName$jscomp$inline_2012 =
-      eventName$jscomp$inline_2011.toLowerCase(),
-    capitalizedEvent$jscomp$inline_2013 =
-      eventName$jscomp$inline_2011[0].toUpperCase() +
-      eventName$jscomp$inline_2011.slice(1);
+  var eventName$jscomp$inline_2014 =
+      simpleEventPluginEvents[i$jscomp$inline_2013],
+    domEventName$jscomp$inline_2015 =
+      eventName$jscomp$inline_2014.toLowerCase(),
+    capitalizedEvent$jscomp$inline_2016 =
+      eventName$jscomp$inline_2014[0].toUpperCase() +
+      eventName$jscomp$inline_2014.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_2012,
-    "on" + capitalizedEvent$jscomp$inline_2013
+    domEventName$jscomp$inline_2015,
+    "on" + capitalizedEvent$jscomp$inline_2016
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -18938,9 +18921,10 @@ function observeChild(child, observer) {
   return !1;
 }
 FragmentInstance.prototype.unobserveUsing = function (observer) {
-  null !== this._observers &&
-    this._observers.has(observer) &&
-    (this._observers.delete(observer),
+  var observers = this._observers;
+  null !== observers &&
+    observers.has(observer) &&
+    (observers.delete(observer),
     traverseVisibleHostChildren(
       this._fragmentFiber.child,
       !1,
@@ -18990,18 +18974,15 @@ FragmentInstance.prototype.compareDocumentPosition = function (otherNode) {
     void 0,
     void 0
   );
+  var parentHostInstance = getInstanceFromHostFiber(parentHostFiber);
   if (0 === children.length) {
-    children = getInstanceFromHostFiber(parentHostFiber);
-    var parentResult = children.compareDocumentPosition(otherNode);
+    children = this._fragmentFiber;
+    var parentResult = parentHostInstance.compareDocumentPosition(otherNode);
     parentHostFiber = parentResult;
-    children === otherNode
+    parentHostInstance === otherNode
       ? (parentHostFiber = Node.DOCUMENT_POSITION_CONTAINS)
       : parentResult & Node.DOCUMENT_POSITION_CONTAINED_BY &&
-        (traverseVisibleHostChildren(
-          this._fragmentFiber.sibling,
-          !1,
-          findNextSibling
-        ),
+        (traverseVisibleHostChildren(children.sibling, !1, findNextSibling),
         (children = searchTarget),
         (searchTarget = null),
         null === children
@@ -19018,15 +18999,47 @@ FragmentInstance.prototype.compareDocumentPosition = function (otherNode) {
   }
   parentHostFiber = getInstanceFromHostFiber(children[0]);
   parentResult = getInstanceFromHostFiber(children[children.length - 1]);
-  var firstResult = parentHostFiber.compareDocumentPosition(otherNode),
-    lastResult = parentResult.compareDocumentPosition(otherNode);
+  for (
+    var firstInstance = getInstanceFromHostFiber(children[0]),
+      foundPortalParent = !1,
+      parent = this._fragmentFiber.return;
+    null !== parent;
+
+  ) {
+    4 === parent.tag && (foundPortalParent = !0);
+    if (3 === parent.tag || 5 === parent.tag) break;
+    parent = parent.return;
+  }
+  firstInstance = foundPortalParent
+    ? firstInstance.parentElement
+    : parentHostInstance;
+  if (null == firstInstance) return Node.DOCUMENT_POSITION_DISCONNECTED;
+  parentHostInstance =
+    firstInstance.compareDocumentPosition(parentHostFiber) &
+    Node.DOCUMENT_POSITION_CONTAINED_BY;
+  firstInstance =
+    firstInstance.compareDocumentPosition(parentResult) &
+    Node.DOCUMENT_POSITION_CONTAINED_BY;
+  foundPortalParent = parentHostFiber.compareDocumentPosition(otherNode);
+  var lastResult = parentResult.compareDocumentPosition(otherNode);
+  parent =
+    foundPortalParent & Node.DOCUMENT_POSITION_CONTAINED_BY ||
+    lastResult & Node.DOCUMENT_POSITION_CONTAINED_BY;
+  lastResult =
+    parentHostInstance &&
+    firstInstance &&
+    foundPortalParent & Node.DOCUMENT_POSITION_FOLLOWING &&
+    lastResult & Node.DOCUMENT_POSITION_PRECEDING;
   parentHostFiber =
-    (firstResult & Node.DOCUMENT_POSITION_FOLLOWING &&
-      lastResult & Node.DOCUMENT_POSITION_PRECEDING) ||
-    otherNode === parentHostFiber ||
-    otherNode === parentResult
+    (parentHostInstance && parentHostFiber === otherNode) ||
+    (firstInstance && parentResult === otherNode) ||
+    parent ||
+    lastResult
       ? Node.DOCUMENT_POSITION_CONTAINED_BY
-      : firstResult;
+      : (!parentHostInstance && parentHostFiber === otherNode) ||
+          (!firstInstance && parentResult === otherNode)
+        ? Node.DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC
+        : foundPortalParent;
   return parentHostFiber & Node.DOCUMENT_POSITION_DISCONNECTED ||
     parentHostFiber & Node.DOCUMENT_POSITION_IMPLEMENTATION_SPECIFIC ||
     validateDocumentPositionWithFiberTree(
@@ -19047,57 +19060,96 @@ function validateDocumentPositionWithFiberTree(
   otherNode
 ) {
   var otherFiber = getClosestInstanceFromNode(otherNode);
-  return documentPosition & Node.DOCUMENT_POSITION_CONTAINED_BY
-    ? !!otherFiber && isFiberContainedBy(fragmentFiber, otherFiber)
-    : documentPosition & Node.DOCUMENT_POSITION_CONTAINS
-      ? null === otherFiber
-        ? ((otherFiber = otherNode.ownerDocument),
-          otherNode === otherFiber || otherNode === otherFiber.body)
-        : isFiberContainedBy(otherFiber, fragmentFiber)
-      : documentPosition & Node.DOCUMENT_POSITION_PRECEDING
-        ? ((followingBoundaryFiber = !!otherFiber) &&
-            !(followingBoundaryFiber = otherFiber === precedingBoundaryFiber) &&
-            ((followingBoundaryFiber = getLowestCommonAncestor(
-              precedingBoundaryFiber,
+  if (documentPosition & Node.DOCUMENT_POSITION_CONTAINED_BY) {
+    if ((precedingBoundaryFiber = !!otherFiber))
+      a: {
+        for (; null !== otherFiber; ) {
+          if (
+            7 === otherFiber.tag &&
+            (otherFiber === fragmentFiber ||
+              otherFiber.alternate === fragmentFiber)
+          ) {
+            precedingBoundaryFiber = !0;
+            break a;
+          }
+          otherFiber = otherFiber.return;
+        }
+        precedingBoundaryFiber = !1;
+      }
+    return precedingBoundaryFiber;
+  }
+  if (documentPosition & Node.DOCUMENT_POSITION_CONTAINS) {
+    if (null === otherFiber)
+      return (
+        (otherFiber = otherNode.ownerDocument),
+        otherNode === otherFiber || otherNode === otherFiber.body
+      );
+    a: {
+      otherFiber = fragmentFiber;
+      for (
+        fragmentFiber = getFragmentParentHostFiber(fragmentFiber);
+        null !== otherFiber;
+
+      ) {
+        if (
+          !(
+            (5 !== otherFiber.tag && 3 !== otherFiber.tag) ||
+            (otherFiber !== fragmentFiber &&
+              otherFiber.alternate !== fragmentFiber)
+          )
+        ) {
+          otherFiber = !0;
+          break a;
+        }
+        otherFiber = otherFiber.return;
+      }
+      otherFiber = !1;
+    }
+    return otherFiber;
+  }
+  return documentPosition & Node.DOCUMENT_POSITION_PRECEDING
+    ? ((fragmentFiber = !!otherFiber) &&
+        !(fragmentFiber = otherFiber === precedingBoundaryFiber) &&
+        ((fragmentFiber = getLowestCommonAncestor(
+          precedingBoundaryFiber,
+          otherFiber,
+          getParentForFragmentAncestors
+        )),
+        null === fragmentFiber
+          ? (fragmentFiber = !1)
+          : (traverseVisibleHostChildren(
+              fragmentFiber,
+              !0,
+              isFiberPrecedingCheck,
               otherFiber,
-              getParentForFragmentAncestors
-            )),
-            null === followingBoundaryFiber
-              ? (followingBoundaryFiber = !1)
-              : (traverseVisibleHostChildren(
-                  followingBoundaryFiber,
-                  !0,
-                  isFiberPrecedingCheck,
-                  otherFiber,
-                  precedingBoundaryFiber
-                ),
-                (otherFiber = searchTarget),
-                (searchTarget = null),
-                (followingBoundaryFiber = null !== otherFiber))),
-          followingBoundaryFiber)
-        : documentPosition & Node.DOCUMENT_POSITION_FOLLOWING
-          ? ((precedingBoundaryFiber = !!otherFiber) &&
-              !(precedingBoundaryFiber =
-                otherFiber === followingBoundaryFiber) &&
-              ((precedingBoundaryFiber = getLowestCommonAncestor(
-                followingBoundaryFiber,
+              precedingBoundaryFiber
+            ),
+            (otherFiber = searchTarget),
+            (searchTarget = null),
+            (fragmentFiber = null !== otherFiber))),
+      fragmentFiber)
+    : documentPosition & Node.DOCUMENT_POSITION_FOLLOWING
+      ? ((fragmentFiber = !!otherFiber) &&
+          !(fragmentFiber = otherFiber === followingBoundaryFiber) &&
+          ((fragmentFiber = getLowestCommonAncestor(
+            followingBoundaryFiber,
+            otherFiber,
+            getParentForFragmentAncestors
+          )),
+          null === fragmentFiber
+            ? (fragmentFiber = !1)
+            : (traverseVisibleHostChildren(
+                fragmentFiber,
+                !0,
+                isFiberFollowingCheck,
                 otherFiber,
-                getParentForFragmentAncestors
-              )),
-              null === precedingBoundaryFiber
-                ? (precedingBoundaryFiber = !1)
-                : (traverseVisibleHostChildren(
-                    precedingBoundaryFiber,
-                    !0,
-                    isFiberFollowingCheck,
-                    otherFiber,
-                    followingBoundaryFiber
-                  ),
-                  (otherFiber = searchTarget),
-                  (searchBoundary = searchTarget = null),
-                  (precedingBoundaryFiber = null !== otherFiber))),
-            precedingBoundaryFiber)
-          : !1;
+                followingBoundaryFiber
+              ),
+              (otherFiber = searchTarget),
+              (searchBoundary = searchTarget = null),
+              (fragmentFiber = null !== otherFiber))),
+        fragmentFiber)
+      : !1;
 }
 function normalizeListenerOptions(opts) {
   return null == opts
@@ -19249,7 +19301,13 @@ function canHydrateTextInstance(instance, text, inRootOrSingleton) {
 }
 function canHydrateHydrationBoundary(instance, inRootOrSingleton) {
   for (; 8 !== instance.nodeType; ) {
-    if (!inRootOrSingleton) return null;
+    if (
+      (1 !== instance.nodeType ||
+        "INPUT" !== instance.nodeName ||
+        "hidden" !== instance.type) &&
+      !inRootOrSingleton
+    )
+      return null;
     instance = getNextHydratable(instance.nextSibling);
     if (null === instance) return null;
   }
@@ -20973,16 +21031,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2398 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2421 = React.version;
 if (
-  "19.2.0-experimental-f1222f76-20250812" !==
-  isomorphicReactPackageVersion$jscomp$inline_2398
+  "19.2.0-experimental-4123f6b7-20250826" !==
+  isomorphicReactPackageVersion$jscomp$inline_2421
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2398,
-      "19.2.0-experimental-f1222f76-20250812"
+      isomorphicReactPackageVersion$jscomp$inline_2421,
+      "19.2.0-experimental-4123f6b7-20250826"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -21002,24 +21060,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_3095 = {
+var internals$jscomp$inline_3120 = {
   bundleType: 0,
-  version: "19.2.0-experimental-f1222f76-20250812",
+  version: "19.2.0-experimental-4123f6b7-20250826",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-f1222f76-20250812"
+  reconcilerVersion: "19.2.0-experimental-4123f6b7-20250826"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_3096 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_3121 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_3096.isDisabled &&
-    hook$jscomp$inline_3096.supportsFiber
+    !hook$jscomp$inline_3121.isDisabled &&
+    hook$jscomp$inline_3121.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_3096.inject(
-        internals$jscomp$inline_3095
+      (rendererID = hook$jscomp$inline_3121.inject(
+        internals$jscomp$inline_3120
       )),
-        (injectedHook = hook$jscomp$inline_3096);
+        (injectedHook = hook$jscomp$inline_3121);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -21275,7 +21333,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-experimental-f1222f76-20250812";
+exports.version = "19.2.0-experimental-4123f6b7-20250826";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

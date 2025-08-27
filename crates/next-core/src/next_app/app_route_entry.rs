@@ -16,7 +16,7 @@ use crate::{
     next_config::{NextConfig, OutputType},
     next_edge::entry::wrap_edge_entry,
     parse_segment_config_from_source,
-    util::{NextRuntime, load_next_js_template},
+    util::{NextRuntime, app_function_name, load_next_js_template},
 };
 
 /// Computes the entry for a Next.js app route.
@@ -162,6 +162,6 @@ async fn wrap_edge_route(
         asset_context,
         project_root.clone(),
         wrapped,
-        AppPath::from(page).to_string().into(),
+        app_function_name(&page).into(),
     ))
 }

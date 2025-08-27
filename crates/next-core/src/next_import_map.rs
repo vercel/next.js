@@ -806,6 +806,14 @@ async fn insert_next_server_special_aliases(
         ),
     );
 
+    import_map.insert_exact_alias(
+        rcstr!("next/dist/compiled/next-devtools"),
+        request_to_import_mapping(
+            project_path.clone(),
+            rcstr!("next/dist/next-devtools/dev-overlay.shim.js"),
+        ),
+    );
+
     Ok(())
 }
 

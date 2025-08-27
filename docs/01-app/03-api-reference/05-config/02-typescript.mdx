@@ -70,6 +70,14 @@ export default async function Page() {
 
 For _complete_ end-to-end type safety, this also requires your database or content provider to support TypeScript. This could be through using an [ORM](https://en.wikipedia.org/wiki/Object%E2%80%93relational_mapping) or type-safe query builder.
 
+## Route-Aware Type Helpers
+
+Next.js generates global helpers for App Router route types. These are available without imports and are generated during `next dev`, `next build`, or via [`next typegen`](/docs/app/api-reference/cli/next#next-typegen-options):
+
+- [`PageProps`](/docs/app/api-reference/file-conventions/page#page-props-helper)
+- [`LayoutProps`](/docs/app/api-reference/file-conventions/layout#layout-props-helper)
+- [`RouteContext`](/docs/app/api-reference/file-conventions/route#route-context-helper)
+
 </AppOnly>
 
 ## Examples
@@ -109,21 +117,28 @@ module.exports = nextConfig
 
 Next.js can statically type links to prevent typos and other errors when using `next/link`, improving type safety when navigating between pages.
 
-To opt-into this feature, `experimental.typedRoutes` need to be enabled and the project needs to be using TypeScript.
+To opt-into this feature, `typedRoutes` need to be enabled and the project needs to be using TypeScript.
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  experimental: {
-    typedRoutes: true,
-  },
+  typedRoutes: true,
 }
 
 export default nextConfig
 ```
 
 Next.js will generate a link definition in `.next/types` that contains information about all existing routes in your application, which TypeScript can then use to provide feedback in your editor about invalid links.
+
+> **Good to know**: If you set up your project without `create-next-app`, ensure the generated Next.js types are included by adding `.next/types/**/*.ts` to the `include` array in your `tsconfig.json`:
+
+```json filename="tsconfig.json"
+{
+  "include": ["next-env.d.ts", ".next/types/**/*.ts", "**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}
+```
 
 Currently, experimental support includes any string literal, including dynamic segments. For non-literal strings, you currently need to manually cast the `href` with `as Route`:
 
@@ -139,6 +154,28 @@ import Link from 'next/link'
 
 // TypeScript errors if href is not a valid route
 <Link href="/aboot" />
+```
+
+The same applies for redirecting routes defined by middleware:
+
+```ts filename="middleware.ts"
+import { NextRequest, NextResponse } from 'next/server'
+
+export function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname === '/middleware-redirect') {
+    return NextResponse.redirect(new URL('/', request.url))
+  }
+
+  return NextResponse.next()
+}
+```
+
+```tsx filename="app/some/page.tsx"
+import type { Route } from 'next'
+
+export default function Page() {
+  return <Link href={'/middleware-redirect' as Route}>Link Text</Link>
+}
 ```
 
 To accept `href` in a custom component wrapping `next/link`, use a generic:
@@ -159,6 +196,26 @@ function Card<T extends string>({ href }: { href: Route<T> | URL }) {
 > **How does it work?**
 >
 > When running `next dev` or `next build`, Next.js generates a hidden `.d.ts` file inside `.next` that contains information about all existing routes in your application (all valid routes as the `href` type of `Link`). This `.d.ts` file is included in `tsconfig.json` and the TypeScript compiler will check that `.d.ts` and provide feedback in your editor about invalid links.
+
+### Type IntelliSense for Environment Variables
+
+During development, Next.js generates a `.d.ts` file in `.next/types` that contains information about the loaded environment variables for your editor's IntelliSense. If the same environment variable key is defined in multiple files, it is deduplicated according to the [Environment Variable Load Order](https://nextjs.org/docs/app/building-your-application/configuring/environment-variables#environment-variable-load-order).
+
+To opt-into this feature, `experimental.typedEnv` needs to be enabled and the project needs to be using TypeScript.
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    typedEnv: true,
+  },
+}
+
+export default nextConfig
+```
+
+> **Good to know**: Types are generated based on the environment variables loaded at development runtime, which excludes variables from `.env.production*` files by default. To include production-specific variables, run `next dev` with `NODE_ENV=production`.
 
 ### With Async Server Components
 

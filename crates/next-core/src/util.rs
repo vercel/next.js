@@ -1,4 +1,4 @@
-use std::{future::Future, str::FromStr};
+use std::{fmt::Display, future::Future, str::FromStr};
 
 use anyhow::{Result, bail};
 use next_taskless::expand_next_js_template;
@@ -40,6 +40,7 @@ use crate::{
     next_config::{NextConfig, RouteHas},
     next_import_map::get_next_package,
     next_manifests::MiddlewareMatcher,
+    next_shared::webpack_rules::WebpackLoaderBuiltinCondition,
 };
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
@@ -196,6 +197,13 @@ pub async fn internal_assets_conditions() -> Result<ContextCondition> {
     ]))
 }
 
+pub fn app_function_name(page: impl Display) -> String {
+    format!("app{page}")
+}
+pub fn pages_function_name(page: impl Display) -> String {
+    format!("pages{page}")
+}
+
 #[derive(
     Default,
     PartialEq,
@@ -221,11 +229,23 @@ pub enum NextRuntime {
 }
 
 impl NextRuntime {
-    pub fn conditions(&self) -> &'static [&'static str] {
+    /// Returns conditions that can be used in the Next.js config's turbopack "rules" section for
+    /// defining webpack loader configuration.
+    pub fn webpack_loader_conditions(&self) -> impl Iterator<Item = WebpackLoaderBuiltinCondition> {
         match self {
-            NextRuntime::NodeJs => &["node"],
-            NextRuntime::Edge => &["edge-light"],
+            NextRuntime::NodeJs => [WebpackLoaderBuiltinCondition::Node],
+            NextRuntime::Edge => [WebpackLoaderBuiltinCondition::EdgeLight],
         }
+        .into_iter()
+    }
+
+    /// Returns conditions used by `ResolveOptionsContext`.
+    pub fn custom_resolve_conditions(&self) -> impl Iterator<Item = RcStr> {
+        match self {
+            NextRuntime::NodeJs => [rcstr!("node")],
+            NextRuntime::Edge => [rcstr!("edge-light")],
+        }
+        .into_iter()
     }
 }
 

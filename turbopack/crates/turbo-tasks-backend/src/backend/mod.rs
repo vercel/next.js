@@ -3,6 +3,7 @@ mod operation;
 mod storage;
 
 use std::{
+    any::Any,
     borrow::Cow,
     fmt::{self, Write},
     future::Future,
@@ -23,7 +24,7 @@ use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
-use tracing::field::Empty;
+use tracing::{field::Empty, info_span};
 use turbo_tasks::{
     CellId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency, SessionId,
     TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId, TurboTasksBackendApi,
@@ -38,7 +39,7 @@ use turbo_tasks::{
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     turbo_tasks,
-    util::IdFactoryWithReuse,
+    util::{IdFactoryWithReuse, good_chunk_size, into_chunks},
 };
 
 pub use self::{operation::AnyOperation, storage::TaskDataCategory};
@@ -64,12 +65,15 @@ use crate::{
         InProgressCellState, InProgressState, InProgressStateInner, OutputValue, RootType,
     },
     utils::{
-        bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded, swap_retain,
+        bi_map::BiMap, chunked_vec::ChunkedVec, dash_map_drop_contents::drop_contents,
+        ptr_eq_arc::PtrEqArc, sharded::Sharded, swap_retain,
     },
 };
 
 const BACKEND_JOB_INITIAL_SNAPSHOT: BackendJobId = unsafe { BackendJobId::new_unchecked(1) };
 const BACKEND_JOB_FOLLOW_UP_SNAPSHOT: BackendJobId = unsafe { BackendJobId::new_unchecked(2) };
+const BACKEND_JOB_PREFETCH_TASK: BackendJobId = unsafe { BackendJobId::new_unchecked(3) };
+const BACKEND_JOB_PREFETCH_CHUNK_TASK: BackendJobId = unsafe { BackendJobId::new_unchecked(4) };
 
 const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
 
@@ -175,6 +179,9 @@ struct TurboTasksBackendInner<B: BackingStorage> {
 
     storage: Storage,
 
+    /// When true, the backing_storage has data that is not in the local storage.
+    local_is_partial: AtomicBool,
+
     /// Number of executing operations + Highest bit is set when snapshot is
     /// requested. When that bit is set, operations should pause until the
     /// snapshot is completed. When the bit is set and in progress counter
@@ -230,6 +237,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             options.active_tracking = false;
         }
         let small_preallocation = options.small_preallocation;
+        let next_task_id = backing_storage
+            .next_free_task_id()
+            .expect("Failed to get task id");
         Self {
             options,
             start_time: Instant::now(),
@@ -237,9 +247,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 .next_session_id()
                 .expect("Failed get session id"),
             persisted_task_id_factory: IdFactoryWithReuse::new(
-                backing_storage
-                    .next_free_task_id()
-                    .expect("Failed to get task id"),
+                next_task_id,
                 TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
             ),
             transient_task_id_factory: IdFactoryWithReuse::new(
@@ -249,6 +257,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             persisted_task_cache_log: need_log.then(|| Sharded::new(shard_amount)),
             task_cache: BiMap::new(),
             transient_tasks: FxDashMap::default(),
+            local_is_partial: AtomicBool::new(next_task_id != TaskId::MIN),
             storage: Storage::new(small_preallocation),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
@@ -738,7 +747,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // It's not possible that the task is InProgress at this point. If it is InProgress {
         // done: true } it must have Output and would early return.
         task.add_new(item);
-        turbo_tasks.schedule(task_id);
+        ctx.schedule_task(task);
 
         Ok(Err(listener))
     }
@@ -867,7 +876,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 || self.get_task_desc_fn(task_id),
             ))
         {
-            turbo_tasks.schedule(task_id);
+            ctx.schedule_task(task);
         }
 
         Ok(Err(listener))
@@ -909,6 +918,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return Some(task_type);
         }
         if self.should_restore()
+            && self.local_is_partial.load(Ordering::Acquire)
             && !task_id.is_transient()
             && let Some(task_type) = unsafe {
                 self.backing_storage
@@ -1200,7 +1210,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         if self.should_persist() {
             // Schedule the snapshot job
-            turbo_tasks.schedule_backend_background_job(BACKEND_JOB_INITIAL_SNAPSHOT);
+            turbo_tasks.schedule_backend_background_job(BACKEND_JOB_INITIAL_SNAPSHOT, None);
         }
     }
 
@@ -1216,6 +1226,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             self.is_idle.store(false, Ordering::Release);
             self.verify_aggregation_graph(turbo_tasks, false);
         }
+        self.task_cache.drop_contents();
+        drop_contents(&self.transient_tasks);
+        self.storage.drop_contents();
         if let Err(err) = self.backing_storage.shutdown() {
             println!("Shutting down failed: {err}");
         }
@@ -1267,18 +1280,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return task_id;
         }
 
-        self.track_cache_miss(&task_type);
-        let tx = self
-            .should_restore()
+        let check_backing_storage =
+            self.should_restore() && self.local_is_partial.load(Ordering::Acquire);
+        let tx = check_backing_storage
             .then(|| self.backing_storage.start_read_transaction())
             .flatten();
         let task_id = {
             // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
             if let Some(task_id) = unsafe {
-                self.backing_storage
-                    .forward_lookup_task_cache(tx.as_ref(), &task_type)
-                    .expect("Failed to lookup task id")
+                check_backing_storage
+                    .then(|| {
+                        self.backing_storage
+                            .forward_lookup_task_cache(tx.as_ref(), &task_type)
+                            .expect("Failed to lookup task id")
+                    })
+                    .flatten()
             } {
+                self.track_cache_hit(&task_type);
                 let _ = self.task_cache.try_insert(Arc::new(task_type), task_id);
                 task_id
             } else {
@@ -1287,12 +1305,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let task_id = if let Err(existing_task_id) =
                     self.task_cache.try_insert(task_type.clone(), task_id)
                 {
+                    self.track_cache_hit(&task_type);
                     // Safety: We just created the id and failed to insert it.
                     unsafe {
                         self.persisted_task_id_factory.reuse(task_id);
                     }
                     existing_task_id
                 } else {
+                    self.track_cache_miss(&task_type);
                     task_id
                 };
                 if let Some(log) = &self.persisted_task_cache_log {
@@ -1327,10 +1347,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return task_id;
         }
 
-        self.track_cache_miss(&task_type);
         let task_type = Arc::new(task_type);
         let task_id = self.transient_task_id_factory.get();
-        if let Err(existing_task_id) = self.task_cache.try_insert(task_type, task_id) {
+        if let Err(existing_task_id) = self.task_cache.try_insert(task_type.clone(), task_id) {
+            self.track_cache_hit(&task_type);
             // Safety: We just created the id and failed to insert it.
             unsafe {
                 self.transient_task_id_factory.reuse(task_id);
@@ -1339,6 +1359,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return existing_task_id;
         }
 
+        self.track_cache_miss(&task_type);
         self.connect_child(parent_task, task_id, turbo_tasks);
 
         task_id
@@ -2115,6 +2136,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn run_backend_job<'a>(
         self: &'a Arc<Self>,
         id: BackendJobId,
+        data: Option<Box<dyn Any + Send>>,
         turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
@@ -2137,42 +2159,43 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     let until = last_snapshot + time;
                     if until > Instant::now() {
                         let mut stop_listener = self.stopping_event.listen();
-                        if !self.stopping.load(Ordering::Acquire) {
-                            let mut idle_start_listener = self.idle_start_event.listen();
-                            let mut idle_end_listener = self.idle_end_event.listen();
-                            let mut idle_time = if turbo_tasks.is_idle() {
-                                Instant::now() + IDLE_TIMEOUT
-                            } else {
-                                far_future()
-                            };
-                            loop {
-                                tokio::select! {
-                                    _ = &mut stop_listener => {
+                        if self.stopping.load(Ordering::Acquire) {
+                            return;
+                        }
+                        let mut idle_start_listener = self.idle_start_event.listen();
+                        let mut idle_end_listener = self.idle_end_event.listen();
+                        let mut idle_time = if turbo_tasks.is_idle() {
+                            Instant::now() + IDLE_TIMEOUT
+                        } else {
+                            far_future()
+                        };
+                        loop {
+                            tokio::select! {
+                                _ = &mut stop_listener => {
+                                    return;
+                                },
+                                _ = &mut idle_start_listener => {
+                                    idle_time = Instant::now() + IDLE_TIMEOUT;
+                                    idle_start_listener = self.idle_start_event.listen()
+                                },
+                                _ = &mut idle_end_listener => {
+                                    idle_time = until + IDLE_TIMEOUT;
+                                    idle_end_listener = self.idle_end_event.listen()
+                                },
+                                _ = tokio::time::sleep_until(until) => {
+                                    break;
+                                },
+                                _ = tokio::time::sleep_until(idle_time) => {
+                                    if turbo_tasks.is_idle() {
                                         break;
-                                    },
-                                    _ = &mut idle_start_listener => {
-                                        idle_time = Instant::now() + IDLE_TIMEOUT;
-                                        idle_start_listener = self.idle_start_event.listen()
-                                    },
-                                    _ = &mut idle_end_listener => {
-                                        idle_time = until + IDLE_TIMEOUT;
-                                        idle_end_listener = self.idle_end_event.listen()
-                                    },
-                                    _ = tokio::time::sleep_until(until) => {
-                                        break;
-                                    },
-                                    _ = tokio::time::sleep_until(idle_time) => {
-                                        if turbo_tasks.is_idle() {
-                                            break;
-                                        }
-                                    },
-                                }
+                                    }
+                                },
                             }
                         }
                     }
 
                     let this = self.clone();
-                    let snapshot = turbo_tasks::spawn_blocking(move || this.snapshot()).await;
+                    let snapshot = this.snapshot();
                     if let Some((snapshot_start, new_data)) = snapshot {
                         last_snapshot = snapshot_start;
                         if new_data {
@@ -2184,8 +2207,43 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             Ordering::Relaxed,
                         );
 
-                        turbo_tasks.schedule_backend_background_job(BACKEND_JOB_FOLLOW_UP_SNAPSHOT);
+                        turbo_tasks
+                            .schedule_backend_background_job(BACKEND_JOB_FOLLOW_UP_SNAPSHOT, None);
                         return;
+                    }
+                }
+            } else if id == BACKEND_JOB_PREFETCH_TASK || id == BACKEND_JOB_PREFETCH_CHUNK_TASK {
+                const DATA_EXPECTATION: &str =
+                    "Expected data to be a FxHashMap<TaskId, bool> for BACKEND_JOB_PREFETCH_TASK";
+                let data = Box::<dyn Any + Send>::downcast::<Vec<(TaskId, bool)>>(
+                    data.expect(DATA_EXPECTATION),
+                )
+                .expect(DATA_EXPECTATION);
+
+                fn prefetch_task(ctx: &mut impl ExecuteContext<'_>, task: TaskId, with_data: bool) {
+                    let category = if with_data {
+                        TaskDataCategory::All
+                    } else {
+                        TaskDataCategory::Meta
+                    };
+                    // Prefetch the task
+                    drop(ctx.task(task, category));
+                }
+
+                if id == BACKEND_JOB_PREFETCH_TASK && data.len() > 128 {
+                    let chunk_size = good_chunk_size(data.len());
+                    for chunk in into_chunks(*data, chunk_size) {
+                        let data: Box<Vec<(TaskId, bool)>> = Box::new(chunk.collect::<Vec<_>>());
+                        turbo_tasks.schedule_backend_foreground_job(
+                            BACKEND_JOB_PREFETCH_CHUNK_TASK,
+                            Some(data),
+                        );
+                    }
+                } else {
+                    let _span = info_span!("prefetching").entered();
+                    let mut ctx = self.execute_context(turbo_tasks);
+                    for (task, with_data) in data.into_iter() {
+                        prefetch_task(&mut ctx, task, with_data);
                     }
                 }
             }
@@ -2879,9 +2937,10 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn run_backend_job<'a>(
         &'a self,
         id: BackendJobId,
+        data: Option<Box<dyn Any + Send>>,
         turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
-        self.0.run_backend_job(id, turbo_tasks)
+        self.0.run_backend_job(id, data, turbo_tasks)
     }
 
     fn try_read_task_output(

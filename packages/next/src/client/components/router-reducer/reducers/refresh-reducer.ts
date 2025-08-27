@@ -10,7 +10,7 @@ import type {
 } from '../router-reducer-types'
 import { handleExternalUrl } from './navigate-reducer'
 import { handleMutable } from '../handle-mutable'
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-types'
 import { fillLazyItemsTillLeafWithHead } from '../fill-lazy-items-till-leaf-with-head'
 import { createEmptyCacheNode } from '../../app-router'
 import { handleSegmentMismatch } from '../handle-segment-mismatch'

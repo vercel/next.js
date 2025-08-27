@@ -11,7 +11,7 @@ import {
 
 export type { StackFrame }
 
-export interface ResolvedOriginalStackFrame extends OriginalStackFrameResponse {
+interface ResolvedOriginalStackFrame extends OriginalStackFrameResponse {
   error: false
   reason: null
   external: boolean
@@ -19,7 +19,7 @@ export interface ResolvedOriginalStackFrame extends OriginalStackFrameResponse {
   sourceStackFrame: StackFrame
 }
 
-export interface RejectedOriginalStackFrame extends OriginalStackFrameResponse {
+interface RejectedOriginalStackFrame extends OriginalStackFrameResponse {
   error: true
   reason: string
   external: boolean

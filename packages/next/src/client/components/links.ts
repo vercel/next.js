@@ -1,4 +1,4 @@
-import type { FlightRouterState } from '../../server/app-render/types'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
 import { getCurrentAppRouterState } from './app-router-instance'
 import { createPrefetchURL } from './app-router'
@@ -19,9 +19,7 @@ import { startTransition } from 'react'
 import { PrefetchKind } from './router-reducer/router-reducer-types'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
-type LinkElement = HTMLAnchorElement | SVGAElement
-
-type Element = LinkElement | HTMLFormElement
+type Element = HTMLAnchorElement | HTMLFormElement
 
 // Properties that are shared between Link and Form instances. We use the same
 // shape for both to prevent a polymorphic de-opt in the VM.
@@ -142,7 +140,7 @@ function coercePrefetchableUrl(href: string): URL | null {
 }
 
 export function mountLinkInstance(
-  element: LinkElement,
+  element: HTMLAnchorElement,
   href: string,
   router: AppRouterInstance,
   fetchStrategy: PrefetchTaskFetchStrategy,
@@ -252,7 +250,7 @@ export function onLinkVisibilityChanged(element: Element, isVisible: boolean) {
 }
 
 export function onNavigationIntent(
-  element: HTMLAnchorElement | SVGAElement,
+  element: HTMLAnchorElement,
   unstable_upgradeToDynamicPrefetch: boolean
 ) {
   const instance = prefetchable.get(element)

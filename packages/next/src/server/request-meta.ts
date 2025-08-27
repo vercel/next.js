@@ -8,6 +8,7 @@ import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
 import type { ServerComponentsHmrCache } from './response-cache'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
+import type { OpaqueFallbackRouteParams } from './request/fallback-params'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -235,7 +236,7 @@ export interface RequestMeta {
   /**
    * DEV only: The fallback params that should be used when validating prerenders during dev
    */
-  devValidatingFallbackParams?: Map<string, string>
+  devValidatingFallbackParams?: OpaqueFallbackRouteParams
 }
 
 /**

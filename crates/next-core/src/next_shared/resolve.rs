@@ -4,7 +4,10 @@ use anyhow::Result;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack_core::{
     diagnostics::DiagnosticExt,
     file_source::FileSource,
@@ -13,6 +16,7 @@ use turbopack_core::{
     resolve::{
         ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
         parse::Request,
+        pattern::Pattern,
         plugin::{
             AfterResolvePlugin, AfterResolvePluginCondition, BeforeResolvePlugin,
             BeforeResolvePluginCondition,
@@ -39,7 +43,7 @@ static FEATURE_MODULES: LazyLock<FxHashMap<&'static str, Vec<&'static str>>> =
                     "/font/local",
                 ],
             ),
-            ("@next", vec!["/font/google", "/font/local"]),
+            ("@next/font", vec!["/google", "/local"]),
         ])
     });
 
@@ -222,9 +226,10 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
             self.project_path.root().owned().await?,
-            Glob::new(rcstr!(
-                "**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js"
-            )),
+            Glob::new(
+                rcstr!("**/next/dist/**/*.{external,runtime.dev,runtime.prod}.js"),
+                GlobOptions::default(),
+            ),
         ))
     }
 
@@ -278,7 +283,10 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
             self.root.root().owned().await?,
-            Glob::new(rcstr!("**/next/dist/**/*.shared-runtime.js")),
+            Glob::new(
+                rcstr!("**/next/dist/**/*.shared-runtime.js"),
+                GlobOptions::default(),
+            ),
         ))
     }
 
@@ -360,7 +368,7 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
         request: Vc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         if let Request::Module {
-            module,
+            module: Pattern::Constant(module),
             path,
             query: _,
             fragment: _,
@@ -403,7 +411,10 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
     async fn after_resolve_condition(&self) -> Result<Vc<AfterResolvePluginCondition>> {
         Ok(AfterResolvePluginCondition::new(
             self.root.root().owned().await?,
-            Glob::new(rcstr!("**/next/dist/esm/**/*.shared-runtime.js")),
+            Glob::new(
+                rcstr!("**/next/dist/esm/**/*.shared-runtime.js"),
+                GlobOptions::default(),
+            ),
         ))
     }
 

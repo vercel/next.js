@@ -5,6 +5,44 @@ description: Learn how to create a new Next.js application with the `create-next
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
+<AppOnly>
+
+Create a new Next.js app and run it locally.
+
+## Quick start
+
+1. Create a new Next.js app named `my-app`
+2. `cd my-app` and start the dev server.
+3. Visit `http://localhost:3000`.
+
+```bash package="pnpm"
+pnpm create next-app@latest my-app --yes
+cd my-app
+pnpm dev
+```
+
+```bash package="npm"
+npx create-next-app@latest my-app --yes
+cd my-app
+npm run dev
+```
+
+```bash package="yarn"
+yarn create next-app@latest my-app --yes
+cd my-app
+yarn dev
+```
+
+```bash package="bun"
+bun create next-app@latest my-app --yes
+cd my-app
+bun dev
+```
+
+- `--yes` skips prompts using saved preferences or defaults. The default setup enables TypeScript, Tailwind, App Router, and Turbopack, with import alias `@/*`.
+
+</AppOnly>
+
 ## System requirements
 
 Before you begin, make sure your system meets the following requirements:
@@ -12,7 +50,7 @@ Before you begin, make sure your system meets the following requirements:
 - [Node.js 18.18](https://nodejs.org/) or later.
 - macOS, Windows (including WSL), or Linux.
 
-## Automatic installation
+## Create with the CLI
 
 The quickest way to create a new Next.js app is using [`create-next-app`](/docs/app/api-reference/cli/create-next-app), which sets up everything automatically for you. To create a project, run:
 
@@ -25,11 +63,11 @@ On installation, you'll see the following prompts:
 ```txt filename="Terminal"
 What is your project named? my-app
 Would you like to use TypeScript? No / Yes
-Would you like to use ESLint? No / Yes
+Which linter would you like to use? ESLint / Biome / None
 Would you like to use Tailwind CSS? No / Yes
 Would you like your code inside a `src/` directory? No / Yes
 Would you like to use App Router? (recommended) No / Yes
-Would you like to use Turbopack for `next dev`?  No / Yes
+Would you like to use Turbopack? (recommended) No / Yes
 Would you like to customize the import alias (`@/*` by default)? No / Yes
 What import alias would you like configured? @/*
 ```
@@ -66,7 +104,8 @@ Then, add the following scripts to your `package.json` file:
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint",
+    "lint:fix": "eslint --fix"
   }
 }
 ```
@@ -76,7 +115,7 @@ These scripts refer to the different stages of developing an application:
 - `next dev`: Starts the development server.
 - `next build`: Builds the application for production.
 - `next start`: Starts the production server.
-- `next lint`: Runs ESLint.
+- `eslint`: Runs ESLint.
 
 <AppOnly>
 
@@ -271,45 +310,41 @@ You can enable the plugin in VS Code by:
 
 See the [TypeScript reference](/docs/app/api-reference/config/next-config-js/typescript) page for more information.
 
-## Set up ESLint
+## Set up linting
 
-Next.js comes with built-in ESLint. It automatically installs the necessary packages and configures the proper settings when you create a new project with `create-next-app`.
+Next.js supports linting with either ESLint or Biome. Choose a linter and run it directly via `package.json` scripts.
 
-To manually add ESLint to an existing project, add `next lint` as a script to `package.json`:
+- Use **ESLint** (comprehensive rules):
 
 ```json filename="package.json"
 {
   "scripts": {
-    "lint": "next lint"
+    "lint": "eslint",
+    "lint:fix": "eslint --fix"
   }
 }
 ```
 
-Then, run `npm run lint` and you will be guided through the installation and configuration process.
+- Or use **Biome** (fast linter + formatter):
 
-```bash filename="Terminal"
-npm run lint
+```json filename="package.json"
+{
+  "scripts": {
+    "lint": "biome check",
+    "format": "biome format --write"
+  }
+}
 ```
 
-You'll see a prompt like this:
+If your project previously used `next lint`, migrate your scripts to the ESLint CLI with the codemod:
 
-> ? How would you like to configure ESLint?
->
-> ❯ Strict (recommended)
-> Base
-> Cancel
+```bash filename="Terminal"
+npx @next/codemod@canary next-lint-to-eslint-cli .
+```
 
-- **Strict**: Includes Next.js' base ESLint configuration along with a stricter Core Web Vitals rule-set. This is the recommended configuration for developers setting up ESLint for the first time.
-- **Base**: Includes Next.js' base ESLint configuration.
-- **Cancel**: Skip configuration. Select this option if you plan on setting up your own custom ESLint configuration.
+If you use ESLint, create an explicit config (recommended `eslint.config.mjs`). ESLint supports both [the legacy `.eslintrc.*` and the newer `eslint.config.mjs` formats](https://eslint.org/docs/latest/use/configure/configuration-files#configuring-eslint). See the [ESLint API reference](/docs/app/api-reference/config/eslint#with-core-web-vitals) for a recommended setup.
 
-If `Strict` or `Base` are selected, Next.js will automatically install `eslint` and `eslint-config-next` as dependencies in your application and create a configuration file in the root of your project.
-
-The ESLint config generated by `next lint` uses the older `.eslintrc.json` format. ESLint supports both [the legacy `.eslintrc.json` and the newer `eslint.config.mjs` format](https://eslint.org/docs/latest/use/configure/configuration-files#configuring-eslint).
-
-You can manually replace `.eslintrc.json` with an `eslint.config.mjs` file using the setup recommended in our [ESLint API reference](/docs/app/api-reference/config/eslint#with-core-web-vitals), and installing the [`@eslint/eslintrc`](https://www.npmjs.com/package/@eslint/eslintrc) package. This more closely matches the ESLint setup used by `create-next-app`.
-
-You can now run `next lint` every time you want to run ESLint to catch errors. Once ESLint has been set up, it will also automatically run during every build (`next build`). Errors will fail the build, while warnings will not.
+> **Good to know**: If an ESLint config is present, `next build` will still run linting in Next.js 15, but this automatic build-time linting will be removed in Next.js 16. Control when linting runs by invoking your linter via npm scripts.
 
 See the [ESLint Plugin](/docs/app/api-reference/config/next-config-js/eslint) page for more information.
 
