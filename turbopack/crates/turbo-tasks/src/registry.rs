@@ -88,7 +88,10 @@ pub fn get_function_by_global_name(global_name: &str) -> &'static NativeFunction
             map
         });
 
-    NAME_TO_FUNCTION.get(global_name).unwrap()
+    match NAME_TO_FUNCTION.get(global_name) {
+        Some(f) => f,
+        None => panic!("unable to find function: {global_name}"),
+    }
 }
 
 pub fn register_value_type(

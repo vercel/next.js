@@ -83,6 +83,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
                 turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
 
+        // Register the function for deserialization
         turbo_tasks::macro_helpers::inventory_submit! {
             turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
         }
