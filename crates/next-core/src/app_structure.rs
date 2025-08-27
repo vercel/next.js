@@ -1464,14 +1464,18 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                 // if global-not-found.js is present:
                                 // we use it for the page and no layout, since layout is included in global-not-found.js;
                                 AppDirModules {
-                                    layout: None,
-                                    page: match modules.global_not_found {
+                                    layout: match modules.global_not_found {
                                         Some(v) => Some(v),
                                         None =>  Some(get_next_package(app_dir.clone())
                                             .await?
                                             .join("dist/client/components/builtin/global-not-found.js")?,
                                         ),
                                     },
+                                    // page is built-in/empty-stub
+                                    page: Some(get_next_package(app_dir.clone())
+                                        .await?
+                                        .join("dist/client/components/builtin/empty-stub.js")?,
+                                    ),
                                     ..Default::default()
                                 }
                             } else {
