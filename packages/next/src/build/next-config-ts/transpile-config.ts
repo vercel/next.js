@@ -13,7 +13,6 @@ function resolveSWCOptions(
 ): SWCOptions {
   return {
     jsc: {
-      target: 'es5',
       parser: {
         syntax: 'typescript',
       },
