@@ -4,6 +4,7 @@ import {
 } from '../app-render/encryption-utils'
 import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CachedFetchValue } from '../response-cache/types'
+import { DYNAMIC_EXPIRE } from '../use-cache/constants'
 
 /**
  * A generic cache store type that provides a subset of Map functionality
@@ -98,6 +99,12 @@ export async function serializeUseCacheCacheStore(
     Array.from(entries).map(([key, value]) => {
       return value
         .then(async (entry) => {
+          if (entry.revalidate === 0 || entry.expire < DYNAMIC_EXPIRE) {
+            // The entry was omitted from the prerender result, and subsequently
+            // does not need to be included in the serialized RDC.
+            return null
+          }
+
           const [left, right] = entry.value.tee()
           entry.value = right
 
