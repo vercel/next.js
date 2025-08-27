@@ -10,7 +10,7 @@ async function getCachedRandom() {
 
 async function DynamicCache() {
   'use cache'
-  cacheLife({ revalidate: 99, expire: 299 })
+  cacheLife({ revalidate: 99, expire: 299, stale: 18 })
   return <p id="y">{new Date().toISOString()}</p>
 }
 

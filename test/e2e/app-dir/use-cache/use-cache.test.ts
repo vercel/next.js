@@ -556,10 +556,22 @@ describe('use-cache', () => {
       )
       expect(cacheLifeMeta.headers['x-nextjs-stale-time']).toBe('19')
 
-      const cacheLifeWithDynamicMeta = JSON.parse(
-        await next.readFile('.next/server/app/cache-life-with-dynamic.meta')
-      )
-      expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe('19')
+      if (withCacheComponents) {
+        const cacheLifeWithDynamicMeta = JSON.parse(
+          await next.readFile('.next/server/app/cache-life-with-dynamic.meta')
+        )
+        expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe(
+          '19'
+        )
+      } else if (withPPR) {
+        const cacheLifeWithDynamicMeta = JSON.parse(
+          await next.readFile('.next/server/app/cache-life-with-dynamic.meta')
+        )
+        // We don't exclude dynamic caches for the legacy PPR prerendering.
+        expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe(
+          '18'
+        )
+      }
     })
 
     it('should send an SWR cache-control header based on the revalidate and expire values', async () => {
