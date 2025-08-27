@@ -349,7 +349,6 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
         page: [() => null, 'next/dist/client/components/builtin/empty-stub'],
       }
     : {
-        layout: components['layout'],
         page: components['not-found'],
       }
 
