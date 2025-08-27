@@ -33,4 +33,4 @@ jobs:
         cache-dependency-path: ./examples/with-jest/package-lock.json
     - run: npm ci
     - run: npm run build --if-present
-    - run: npm test
+    - run: npm test:ci
