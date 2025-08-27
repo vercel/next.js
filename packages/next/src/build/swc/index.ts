@@ -14,9 +14,9 @@ import type {
   TurbopackLoaderBuiltinCondition,
   TurbopackLoaderItem,
   TurbopackRuleCondition,
+  TurbopackRuleConfigCollection,
   TurbopackRuleConfigItem,
   TurbopackRuleConfigItemOptions,
-  TurbopackRuleConfigItemOrShortcut,
 } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 import { type DefineEnvOptions, getDefineEnv } from '../define-env'
@@ -1014,13 +1014,19 @@ function bindingToApi(
 
   // Note: Returns an updated `turbopackRules` with serialized conditions. Does not mutate in-place.
   function serializeTurbopackRules(
-    turbopackRules: Record<string, TurbopackRuleConfigItemOrShortcut>
+    turbopackRules: Record<string, TurbopackRuleConfigCollection>
   ): Record<string, any> {
     const serializedRules: Record<string, any> = {}
     for (const [glob, rule] of Object.entries(turbopackRules)) {
       if (Array.isArray(rule)) {
-        checkLoaderItems(rule, glob)
-        serializedRules[glob] = rule
+        serializedRules[glob] = rule.map((item) => {
+          if (typeof item !== 'string' && 'loaders' in item) {
+            return serializeConfigItem(item, glob)
+          } else {
+            checkLoaderItem(item, glob)
+            return item
+          }
+        })
       } else {
         serializedRules[glob] = serializeConfigItem(rule, glob)
       }
@@ -1036,7 +1042,9 @@ function bindingToApi(
       let serializedRule: any = rule
       if ('loaders' in rule) {
         const narrowedRule = rule as TurbopackRuleConfigItemOptions
-        checkLoaderItems(narrowedRule.loaders, glob)
+        for (const item of narrowedRule.loaders) {
+          checkLoaderItem(item, glob)
+        }
         if (narrowedRule.condition != null) {
           serializedRule = {
             ...rule,
@@ -1056,19 +1064,15 @@ function bindingToApi(
       return serializedRule
     }
 
-    function checkLoaderItems(
-      loaderItems: TurbopackLoaderItem[],
-      glob: string
-    ) {
-      for (const loaderItem of loaderItems) {
-        if (
-          typeof loaderItem !== 'string' &&
-          !isDeepStrictEqual(loaderItem, JSON.parse(JSON.stringify(loaderItem)))
-        ) {
-          throw new Error(
-            `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. Ensure that options passed are plain JavaScript objects and values.`
-          )
-        }
+    function checkLoaderItem(loaderItem: TurbopackLoaderItem, glob: string) {
+      if (
+        typeof loaderItem !== 'string' &&
+        !isDeepStrictEqual(loaderItem, JSON.parse(JSON.stringify(loaderItem)))
+      ) {
+        throw new Error(
+          `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. ` +
+            'Ensure that options passed are plain JavaScript objects and values.'
+        )
       }
     }
   }

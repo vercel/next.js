@@ -1,6 +1,7 @@
 use std::{collections::BTreeSet, str::FromStr};
 
 use anyhow::{Context, Result, bail};
+use either::Either;
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value as JsonValue;
@@ -558,7 +559,7 @@ pub enum RemotePatternProtocol {
 pub struct TurbopackConfig {
     /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
-    pub rules: Option<FxIndexMap<RcStr, RuleConfigItemOrShortcut>>,
+    pub rules: Option<FxIndexMap<RcStr, RuleConfigCollection>>,
     #[turbo_tasks(trace_ignore)]
     pub conditions: Option<FxIndexMap<RcStr, ConfigConditionItem>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
@@ -669,6 +670,16 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
 #[derive(
     Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
 )]
+#[serde(rename_all = "camelCase", untagged)]
+pub enum RuleConfigItem {
+    Options(RuleConfigItemOptions),
+    LegacyConditional(FxIndexMap<RcStr, RuleConfigItem>),
+    LegacyBoolean(bool),
+}
+
+#[derive(
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct RuleConfigItemOptions {
     pub loaders: Vec<LoaderItem>,
@@ -678,23 +689,33 @@ pub struct RuleConfigItemOptions {
     pub condition: Option<ConfigConditionItem>,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
-)]
-#[serde(rename_all = "camelCase", untagged)]
-pub enum RuleConfigItemOrShortcut {
-    Loaders(Vec<LoaderItem>),
-    Advanced(RuleConfigItem),
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, TraceRawVcs, NonLocalValue, OperationValue)]
+#[serde(transparent)]
+pub struct RuleConfigCollection(Vec<RuleConfigCollectionItem>);
+
+impl<'de> Deserialize<'de> for RuleConfigCollection {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        match either::serde_untagged::deserialize::<Vec<RuleConfigCollectionItem>, RuleConfigItem, D>(
+            deserializer,
+        )? {
+            Either::Left(collection) => Ok(RuleConfigCollection(collection)),
+            Either::Right(item) => Ok(RuleConfigCollection(vec![RuleConfigCollectionItem::Full(
+                item,
+            )])),
+        }
+    }
 }
 
 #[derive(
     Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
 )]
-#[serde(rename_all = "camelCase", untagged)]
-pub enum RuleConfigItem {
-    Options(RuleConfigItemOptions),
-    LegacyConditional(FxIndexMap<RcStr, RuleConfigItem>),
-    LegacyBoolean(bool),
+#[serde(untagged)]
+pub enum RuleConfigCollectionItem {
+    Shorthand(LoaderItem),
+    Full(RuleConfigItem),
 }
 
 #[derive(
@@ -1392,11 +1413,12 @@ impl NextConfig {
             return Ok(Vc::cell(Vec::new()));
         }
         let mut rules = Vec::new();
-        for (glob, rule) in turbo_rules.iter() {
-            fn transform_loaders(loaders: &[LoaderItem]) -> ResolvedVc<WebpackLoaderItems> {
+        for (glob, rule_collection) in turbo_rules.iter() {
+            fn transform_loaders(
+                loaders: &mut dyn Iterator<Item = &LoaderItem>,
+            ) -> ResolvedVc<WebpackLoaderItems> {
                 ResolvedVc::cell(
                     loaders
-                        .iter()
                         .map(|item| match item {
                             LoaderItem::LoaderName(name) => WebpackLoaderItem {
                                 loader: name.clone(),
@@ -1445,65 +1467,67 @@ impl NextConfig {
                 }
             }
             let config_file_path = || project_path.join(&self.config_file_name);
-            match rule {
-                RuleConfigItemOrShortcut::Loaders(loaders) => {
-                    rules.push((
-                        glob.clone(),
-                        LoaderRuleItem {
-                            loaders: transform_loaders(loaders),
-                            rename_as: None,
-                            condition: None,
-                        },
-                    ));
-                }
-                RuleConfigItemOrShortcut::Advanced(rule) => {
-                    if let FindRuleResult::Found(RuleConfigItemOptions {
-                        loaders,
-                        rename_as,
-                        condition,
-                    }) = find_rule(rule, &active_conditions)
-                    {
-                        // If the extension contains a wildcard, and the rename_as does not,
-                        // emit an issue to prevent users from encountering duplicate module names.
-                        if glob.contains("*")
-                            && let Some(rename_as) = rename_as.as_ref()
-                            && !rename_as.contains("*")
-                        {
-                            InvalidLoaderRuleRenameAsIssue {
-                                glob: glob.clone(),
-                                config_file_path: config_file_path()?,
-                                rename_as: rename_as.clone(),
-                            }
-                            .resolved_cell()
-                            .emit();
-                        }
-
-                        // convert from Next.js-specific condition type to internal Turbopack
-                        // condition type
-                        let condition = if let Some(condition) = condition {
-                            if let Ok(cond) = ConditionItem::try_from(condition.clone()) {
-                                Some(cond)
-                            } else {
-                                InvalidLoaderRuleConditionIssue {
-                                    condition: condition.clone(),
-                                    config_file_path: config_file_path()?,
-                                }
-                                .resolved_cell()
-                                .emit();
-                                None
-                            }
-                        } else {
-                            None
-                        };
-
+            for item in &rule_collection.0 {
+                match item {
+                    RuleConfigCollectionItem::Shorthand(loaders) => {
                         rules.push((
                             glob.clone(),
                             LoaderRuleItem {
-                                loaders: transform_loaders(loaders),
-                                rename_as: rename_as.clone(),
-                                condition,
+                                loaders: transform_loaders(&mut [loaders].into_iter()),
+                                rename_as: None,
+                                condition: None,
                             },
                         ));
+                    }
+                    RuleConfigCollectionItem::Full(rule_config_item) => {
+                        if let FindRuleResult::Found(RuleConfigItemOptions {
+                            loaders,
+                            rename_as,
+                            condition,
+                        }) = find_rule(rule_config_item, &active_conditions)
+                        {
+                            // If the extension contains a wildcard, and the rename_as does not,
+                            // emit an issue to prevent users from encountering duplicate module
+                            // names.
+                            if glob.contains("*")
+                                && let Some(rename_as) = rename_as.as_ref()
+                                && !rename_as.contains("*")
+                            {
+                                InvalidLoaderRuleRenameAsIssue {
+                                    glob: glob.clone(),
+                                    config_file_path: config_file_path()?,
+                                    rename_as: rename_as.clone(),
+                                }
+                                .resolved_cell()
+                                .emit();
+                            }
+
+                            // convert from Next.js-specific condition type to internal Turbopack
+                            // condition type
+                            let condition = if let Some(condition) = condition {
+                                if let Ok(cond) = ConditionItem::try_from(condition.clone()) {
+                                    Some(cond)
+                                } else {
+                                    InvalidLoaderRuleConditionIssue {
+                                        condition: condition.clone(),
+                                        config_file_path: config_file_path()?,
+                                    }
+                                    .resolved_cell()
+                                    .emit();
+                                    None
+                                }
+                            } else {
+                                None
+                            };
+                            rules.push((
+                                glob.clone(),
+                                LoaderRuleItem {
+                                    loaders: transform_loaders(&mut loaders.iter()),
+                                    rename_as: rename_as.clone(),
+                                    condition,
+                                },
+                            ));
+                        }
                     }
                 }
             }

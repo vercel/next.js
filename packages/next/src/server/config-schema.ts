@@ -12,7 +12,7 @@ import type {
   TurbopackOptions,
   TurbopackRuleConfigItem,
   TurbopackRuleConfigItemOptions,
-  TurbopackRuleConfigItemOrShortcut,
+  TurbopackRuleConfigCollection,
   TurbopackRuleCondition,
   TurbopackLoaderBuiltinCondition,
 } from './config-shared'
@@ -151,11 +151,14 @@ const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> = z.union([
   zTurbopackRuleConfigItemOptions,
 ])
 
-const zTurbopackRuleConfigItemOrShortcut: zod.ZodType<TurbopackRuleConfigItemOrShortcut> =
-  z.union([z.array(zTurbopackLoaderItem), zTurbopackRuleConfigItem])
+const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection> =
+  z.union([
+    zTurbopackRuleConfigItem,
+    z.array(z.union([zTurbopackLoaderItem, zTurbopackRuleConfigItemOptions])),
+  ])
 
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
-  rules: z.record(z.string(), zTurbopackRuleConfigItemOrShortcut).optional(),
+  rules: z.record(z.string(), zTurbopackRuleConfigCollection).optional(),
   conditions: z.record(z.string(), zTurbopackCondition).optional(),
   resolveAlias: z
     .record(
@@ -177,7 +180,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 const zDeprecatedExperimentalTurboConfig: zod.ZodType<DeprecatedExperimentalTurboOptions> =
   z.strictObject({
     loaders: z.record(z.string(), z.array(zTurbopackLoaderItem)).optional(),
-    rules: z.record(z.string(), zTurbopackRuleConfigItemOrShortcut).optional(),
+    rules: z.record(z.string(), zTurbopackRuleConfigCollection).optional(),
     resolveAlias: z
       .record(
         z.string(),
