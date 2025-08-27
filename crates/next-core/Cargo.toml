@@ -28,6 +28,7 @@ allsorts = { workspace = true }
 futures = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+regress = { workspace = true }
 rustc-hash = { workspace = true }
 react_remove_properties = { workspace = true }
 remove_console = { workspace = true }

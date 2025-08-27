@@ -3,6 +3,7 @@
 
 use once_cell::sync::Lazy;
 use regex::Regex;
+use regress;
 use rustc_hash::FxHashMap;
 
 const INTERCEPTION_ROUTE_MARKERS: [&str; 4] = ["(..)(..)", "(.)", "(..)", "(...)"];
@@ -64,7 +65,7 @@ fn parse_parameter(param: &str) -> ParsedParameter {
 }
 
 fn escape_string_regexp(segment: &str) -> String {
-    regex::escape(segment)
+    regress::escape(segment)
 }
 
 /// Removes the trailing slash for a given route or page path. Preserves the
@@ -197,7 +198,7 @@ fn get_safe_key_from_segment(
         route_keys.insert(cleaned_key.clone(), key);
     }
 
-    let intercept_prefix = escape_string_regexp(intercept_prefix.unwrap_or(""));
+    let intercept_prefix = intercept_prefix.map_or_else(String::new, escape_string_regexp);
     match (repeat, optional) {
         (true, true) => format!(r"(?:/{intercept_prefix}(?P<{cleaned_key}>.+?))?"),
         (true, false) => format!(r"/{intercept_prefix}(?P<{cleaned_key}>.+?)"),
@@ -232,17 +233,15 @@ fn get_named_parametrized_route(
             static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[((?:\[.*\])|.+)\]").unwrap());
             let param_matches = RE.captures(segment);
             if let Some(matches) = param_matches {
-                let safe_key = get_safe_key_from_segment(
+                return get_safe_key_from_segment(
                     get_safe_route_key,
                     &matches[1],
                     &mut route_keys,
                     key_prefix,
                     interception_marker,
                 );
-
-                return safe_key;
             }
-            format!("/{}{}", interception_marker.unwrap_or(&""), (segment))
+            format!("/{}", escape_string_regexp(segment))
         })
         .collect::<Vec<String>>()
         .join("");
