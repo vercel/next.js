@@ -174,6 +174,10 @@ pub struct ModuleOptionsContext {
     /// context paths. The first matching is used.
     pub rules: Vec<(ContextCondition, ResolvedVc<ModuleOptionsContext>)>,
 
+    /// Whether the modules in this context are never chunked/codegen-ed, but only used for
+    /// tracing.
+    pub is_tracing: bool,
+
     pub placeholder_for_future_extensions: (),
 }
 
