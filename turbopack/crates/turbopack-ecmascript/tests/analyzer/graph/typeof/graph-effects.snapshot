@@ -25,9 +25,7 @@
         span: 1..9,
     },
     FreeVar {
-        var: FreeVar(
-            "x",
-        ),
+        var: "x",
         ast_path: [
             Program(
                 Script,

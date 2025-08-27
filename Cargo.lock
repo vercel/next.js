@@ -9768,6 +9768,7 @@ dependencies = [
  "turbo-esregex",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
@@ -9776,6 +9777,7 @@ dependencies = [
  "turbopack-core",
  "turbopack-resolve",
  "turbopack-swc-utils",
+ "turbopack-test-utils",
  "url",
 ]
 

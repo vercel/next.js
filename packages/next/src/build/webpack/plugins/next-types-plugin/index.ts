@@ -67,6 +67,7 @@ checkFields<Diff<{
   }
   config?: {}
   generateStaticParams?: Function
+  unstable_prefetch?: 'unstable_static' | 'unstable_runtime'
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean

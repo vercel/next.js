@@ -2,10 +2,11 @@ use std::collections::{BTreeSet, VecDeque};
 
 use anyhow::{Result, bail};
 use serde_json::json;
+use tracing::{Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
-    graph::{AdjacencyMap, GraphTraversal},
+    FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
 };
 use turbo_tasks_fs::{
     DirectoryEntry, File, FileSystem, FileSystemPath,
@@ -229,7 +230,8 @@ impl Asset for NftJsonAsset {
 
         // Collect base assets first
         for referenced_chunk in
-            all_assets_from_entries_filtered(Vc::cell(entries), client_root, exclude_glob).await?
+            all_assets_from_entries_filtered(Vc::cell(entries), Some(client_root), exclude_glob)
+                .await?
         {
             if chunk.eq(referenced_chunk) {
                 continue;
@@ -373,9 +375,9 @@ fn relativize_glob(glob: &str, relative_to: FileSystemPath) -> Result<(&str, Fil
 /// Walks the asset graph from multiple assets and collect all referenced
 /// assets, but filters out all client assets and glob matches.
 #[turbo_tasks::function]
-async fn all_assets_from_entries_filtered(
+pub async fn all_assets_from_entries_filtered(
     entries: Vc<OutputAssets>,
-    client_root: FileSystemPath,
+    client_root: Option<FileSystemPath>,
     exclude_glob: Option<Vc<Glob>>,
 ) -> Result<Vc<OutputAssets>> {
     let exclude_glob = if let Some(exclude_glob) = exclude_glob {
@@ -383,35 +385,95 @@ async fn all_assets_from_entries_filtered(
     } else {
         None
     };
+    let emit_spans = tracing::enabled!(Level::INFO);
     Ok(Vc::cell(
         AdjacencyMap::new()
             .skip_duplicates()
             .visit(
-                entries.await?.iter().copied().map(ResolvedVc::upcast),
-                |asset| get_referenced_server_assets(asset, &client_root, &exclude_glob),
+                entries
+                    .await?
+                    .iter()
+                    .map(async |asset| {
+                        Ok((
+                            ResolvedVc::upcast(*asset),
+                            if emit_spans {
+                                Some(asset.path().to_string().await?)
+                            } else {
+                                None
+                            },
+                        ))
+                    })
+                    .try_join()
+                    .await?,
+                OutputAssetFilteredVisit {
+                    client_root,
+                    exclude_glob,
+                    emit_spans,
+                },
             )
             .await
             .completed()?
             .into_inner()
             .into_postorder_topological()
+            .map(|n| n.0)
             .collect(),
     ))
+}
+
+struct OutputAssetFilteredVisit {
+    client_root: Option<FileSystemPath>,
+    exclude_glob: Option<ReadRef<Glob>>,
+    emit_spans: bool,
+}
+impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>
+    for OutputAssetFilteredVisit
+{
+    type Edge = (ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>);
+    type EdgesIntoIter = Vec<Self::Edge>;
+    type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
+
+    fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<Self::Edge> {
+        VisitControlFlow::Continue(edge)
+    }
+
+    fn edges(
+        &mut self,
+        node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
+    ) -> Self::EdgesFuture {
+        let client_root = self.client_root.clone();
+        let exclude_glob = self.exclude_glob.clone();
+        get_referenced_server_assets(self.emit_spans, node.0, client_root, exclude_glob)
+    }
+
+    fn span(
+        &mut self,
+        node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
+    ) -> tracing::Span {
+        if let Some(ident) = &node.1 {
+            tracing::info_span!("asset", name = display(ident))
+        } else {
+            Span::current()
+        }
+    }
 }
 
 /// Computes the list of all chunk children of a given chunk, but filters out all client assets and
 /// glob matches.
 async fn get_referenced_server_assets(
+    emit_spans: bool,
     asset: ResolvedVc<Box<dyn OutputAsset>>,
-    client_root: &FileSystemPath,
-    exclude_glob: &Option<ReadRef<Glob>>,
-) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
+    client_root: Option<FileSystemPath>,
+    exclude_glob: Option<ReadRef<Glob>>,
+) -> Result<Vec<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>> {
     asset
         .references()
         .await?
         .iter()
         .map(async |asset| {
             let asset_path = asset.path().await?;
-            if asset_path.is_inside_ref(client_root) {
+            if let Some(client_root) = &client_root
+                && asset_path.is_inside_ref(client_root)
+            {
                 return Ok(None);
             }
 
@@ -422,7 +484,14 @@ async fn get_referenced_server_assets(
                 return Ok(None);
             }
 
-            Ok(Some(*asset))
+            Ok(Some((
+                *asset,
+                if emit_spans {
+                    Some(asset.path().to_string().await?)
+                } else {
+                    None
+                },
+            )))
         })
         .try_flat_join()
         .await

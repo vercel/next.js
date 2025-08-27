@@ -1,8 +1,6 @@
 [
     FreeVar {
-        var: FreeVar(
-            "a1",
-        ),
+        var: "a1",
         ast_path: [
             Program(
                 Script,
@@ -129,9 +127,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "b1",
-        ),
+        var: "b1",
         ast_path: [
             Program(
                 Script,
@@ -338,9 +334,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "b3",
-        ),
+        var: "b3",
         ast_path: [
             Program(
                 Script,
@@ -435,9 +429,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "c1",
-        ),
+        var: "c1",
         ast_path: [
             Program(
                 Script,
@@ -644,9 +636,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "c3",
-        ),
+        var: "c3",
         ast_path: [
             Program(
                 Script,
@@ -741,9 +731,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "d1",
-        ),
+        var: "d1",
         ast_path: [
             Program(
                 Script,
@@ -950,9 +938,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "d3",
-        ),
+        var: "d3",
         ast_path: [
             Program(
                 Script,
@@ -1047,9 +1033,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "e1",
-        ),
+        var: "e1",
         ast_path: [
             Program(
                 Script,
@@ -1256,9 +1240,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "e3",
-        ),
+        var: "e3",
         ast_path: [
             Program(
                 Script,
@@ -1353,9 +1335,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "f1",
-        ),
+        var: "f1",
         ast_path: [
             Program(
                 Script,
@@ -1562,9 +1542,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "f3",
-        ),
+        var: "f3",
         ast_path: [
             Program(
                 Script,
@@ -1659,9 +1637,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "g1",
-        ),
+        var: "g1",
         ast_path: [
             Program(
                 Script,
@@ -1821,9 +1797,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "g3",
-        ),
+        var: "g3",
         ast_path: [
             Program(
                 Script,
@@ -1946,9 +1920,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "h1",
-        ),
+        var: "h1",
         ast_path: [
             Program(
                 Script,
@@ -2159,9 +2131,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "h3",
-        ),
+        var: "h3",
         ast_path: [
             Program(
                 Script,

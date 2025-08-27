@@ -228,6 +228,8 @@ export type CacheNodeSeedData = [
   },
   loading: LoadingModuleData | Promise<LoadingModuleData>,
   isPartial: boolean,
+  /** TODO: this doesn't feel like it belongs here, because it's only used during build, in `collectSegmentData` */
+  shouldUseRuntimePrefetch: boolean,
 ]
 
 export type FlightDataSegment = [
