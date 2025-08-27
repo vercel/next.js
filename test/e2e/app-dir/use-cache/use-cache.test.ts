@@ -481,6 +481,7 @@ describe('use-cache', () => {
           expect.stringMatching(/\/b\d/),
           '/cache-fetch',
           '/cache-fetch-no-store',
+          '/cache-life',
           '/cache-tag',
           '/directive-in-node-modules/with-handler',
           '/directive-in-node-modules/without-handler',
@@ -516,6 +517,10 @@ describe('use-cache', () => {
       // custom cache life profile "frequent"
       expect(routes['/cache-life'].initialRevalidateSeconds).toBe(100)
       expect(routes['/cache-life'].initialExpireSeconds).toBe(300)
+      expect(routes['/cache-life-with-dynamic'].initialRevalidateSeconds).toBe(
+        100
+      )
+      expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(300)
 
       // default expireTime
       expect(routes['/cache-fetch'].initialExpireSeconds).toBe(31536000)
@@ -532,10 +537,15 @@ describe('use-cache', () => {
     })
 
     it('should match the expected stale config in the page header', async () => {
-      const meta = JSON.parse(
+      const cacheLifeMeta = JSON.parse(
         await next.readFile('.next/server/app/cache-life.meta')
       )
-      expect(meta.headers['x-nextjs-stale-time']).toBe('19')
+      expect(cacheLifeMeta.headers['x-nextjs-stale-time']).toBe('19')
+
+      const cacheLifeWithDynamicMeta = JSON.parse(
+        await next.readFile('.next/server/app/cache-life-with-dynamic.meta')
+      )
+      expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe('19')
     })
 
     it('should send an SWR cache-control header based on the revalidate and expire values', async () => {
@@ -557,7 +567,7 @@ describe('use-cache', () => {
 
     if (withCacheComponents) {
       it('should omit dynamic caches from prerendered shells', async () => {
-        let browser = await next.browser('/cache-life', {
+        let browser = await next.browser('/cache-life-with-dynamic', {
           disableJavaScript: true,
         })
 
