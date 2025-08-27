@@ -482,6 +482,7 @@ describe('use-cache', () => {
           '/cache-fetch',
           '/cache-fetch-no-store',
           '/cache-life',
+          !withCacheComponents && '/cache-life-with-dynamic',
           '/cache-tag',
           '/directive-in-node-modules/with-handler',
           '/directive-in-node-modules/without-handler',
@@ -517,10 +518,22 @@ describe('use-cache', () => {
       // custom cache life profile "frequent"
       expect(routes['/cache-life'].initialRevalidateSeconds).toBe(100)
       expect(routes['/cache-life'].initialExpireSeconds).toBe(300)
-      expect(routes['/cache-life-with-dynamic'].initialRevalidateSeconds).toBe(
-        100
-      )
-      expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(300)
+
+      if (withCacheComponents) {
+        expect(
+          routes['/cache-life-with-dynamic'].initialRevalidateSeconds
+        ).toBe(100)
+        expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(
+          300
+        )
+      } else {
+        // We don't exclude dynamic caches for the legacy prerendering
+        // (including PPR).
+        expect(
+          routes['/cache-life-with-dynamic'].initialRevalidateSeconds
+        ).toBe(1)
+        expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(60)
+      }
 
       // default expireTime
       expect(routes['/cache-fetch'].initialExpireSeconds).toBe(31536000)
