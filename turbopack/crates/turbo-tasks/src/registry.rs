@@ -11,6 +11,7 @@ use crate::{
     macro_helpers::CollectableFunction,
     native_function::NativeFunction,
     no_move_vec::NoMoveVec,
+    value_type::CollectableTrait,
 };
 
 static VALUE_TYPE_ID_FACTORY: IdFactory<ValueTypeId> = IdFactory::new_const(
@@ -22,16 +23,6 @@ static VALUE_TYPES_BY_NAME: Lazy<FxDashMap<&'static str, ValueTypeId>> =
 static VALUE_TYPES_BY_VALUE: Lazy<FxDashMap<&'static ValueType, ValueTypeId>> =
     Lazy::new(FxDashMap::default);
 static VALUE_TYPES: Lazy<NoMoveVec<(&'static ValueType, &'static str)>> = Lazy::new(NoMoveVec::new);
-
-static TRAIT_TYPE_ID_FACTORY: IdFactory<TraitTypeId> = IdFactory::new_const(
-    TraitTypeId::MIN.to_non_zero_u64(),
-    TraitTypeId::MAX.to_non_zero_u64(),
-);
-static TRAIT_TYPES_BY_NAME: Lazy<FxDashMap<&'static str, TraitTypeId>> =
-    Lazy::new(FxDashMap::default);
-static TRAIT_TYPES_BY_VALUE: Lazy<FxDashMap<&'static TraitType, TraitTypeId>> =
-    Lazy::new(FxDashMap::default);
-static TRAIT_TYPES: Lazy<NoMoveVec<(&'static TraitType, &'static str)>> = Lazy::new(NoMoveVec::new);
 
 /// Registers the value and returns its id if this is the initial
 fn register_thing<
@@ -85,6 +76,7 @@ pub fn get_function_by_global_name(global_name: &str) -> &'static NativeFunction
                     "registration mappings for {global_name} are inconsistent!"
                 );
             }
+            map.shrink_to_fit();
             map
         });
 
@@ -124,29 +116,52 @@ pub fn get_value_type_global_name(id: ValueTypeId) -> &'static str {
     VALUE_TYPES.get(*id as usize).unwrap().1
 }
 
-pub fn register_trait_type(global_name: &'static str, ty: &'static TraitType) {
-    register_thing(
-        global_name,
-        ty,
-        &TRAIT_TYPE_ID_FACTORY,
-        &TRAIT_TYPES,
-        &TRAIT_TYPES_BY_NAME,
-        &TRAIT_TYPES_BY_VALUE,
-    );
+struct Traits {
+    id_to_trait: FxHashMap<TraitTypeId, &'static TraitType>,
+    trait_to_id: FxHashMap<&'static TraitType, TraitTypeId>,
+    global_name_to_id: FxHashMap<&'static str, TraitTypeId>,
 }
+static TRAITS: Lazy<Traits> = Lazy::new(|| {
+    let mut id_to_trait = FxHashMap::default();
+    let mut trait_to_id = FxHashMap::default();
+    let mut global_name_to_id = FxHashMap::default();
+    let id_factory: IdFactory<TraitTypeId> = IdFactory::new_const(
+        TraitTypeId::MIN.to_non_zero_u64(),
+        TraitTypeId::MAX.to_non_zero_u64(),
+    );
 
-pub fn get_trait_type_id(func: &'static TraitType) -> TraitTypeId {
-    get_thing_id(func, &TRAIT_TYPES_BY_VALUE)
+    for collected in inventory::iter::<CollectableTrait> {
+        let id = id_factory.get();
+        let trait_ref = &**collected.0;
+        id_to_trait.insert(id, trait_ref);
+        trait_to_id.insert(trait_ref, id);
+        global_name_to_id.insert(trait_ref.global_name, id);
+    }
+    id_to_trait.shrink_to_fit();
+    trait_to_id.shrink_to_fit();
+    global_name_to_id.shrink_to_fit();
+    Traits {
+        id_to_trait,
+        trait_to_id,
+        global_name_to_id,
+    }
+});
+
+pub fn get_trait_type_id(trait_type: &'static TraitType) -> TraitTypeId {
+    match TRAITS.trait_to_id.get(trait_type) {
+        Some(id) => *id,
+        None => panic!("Use of unregistered trait {trait_type:?}"),
+    }
 }
 
 pub fn get_trait_type_id_by_global_name(global_name: &str) -> Option<TraitTypeId> {
-    TRAIT_TYPES_BY_NAME.get(global_name).map(|x| *x)
+    TRAITS.global_name_to_id.get(global_name).copied()
 }
 
 pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
-    TRAIT_TYPES.get(*id as usize).unwrap().0
+    TRAITS.id_to_trait.get(&id).unwrap()
 }
 
 pub fn get_trait_type_global_name(id: TraitTypeId) -> &'static str {
-    TRAIT_TYPES.get(*id as usize).unwrap().1
+    get_trait(id).global_name
 }

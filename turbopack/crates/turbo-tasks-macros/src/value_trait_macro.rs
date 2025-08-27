@@ -195,9 +195,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             let native_function_def = native_function.definition();
 
             trait_methods.push(quote! {
-                trait_type.register_default_trait_method(
-                    stringify!(#ident),
-                    &#native_function_ident);
+                (stringify!(#ident), Some(&#native_function_ident)),
             });
 
             native_functions.push(quote! {
@@ -230,7 +228,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             Some(turbo_fn.static_block(&native_function_ident))
         } else {
             trait_methods.push(quote! {
-                trait_type.register_trait_method(stringify!(#ident));
+                (stringify!(#ident), None),
             });
             None
         };
@@ -276,13 +274,18 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
         #(#native_functions)*
 
-        #[doc(hidden)]
-        pub(crate) static #trait_type_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitType> =
+        static #trait_type_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::TraitType> =
             turbo_tasks::macro_helpers::Lazy::new(|| {
-                let mut trait_type = turbo_tasks::TraitType::new(stringify!(#trait_ident));;
-                #(#trait_methods)*
-                trait_type
+                turbo_tasks::TraitType::new(
+                    stringify!(#trait_ident),
+                    concat!(module_path!(), "::", stringify!(#trait_ident)),
+                    vec![#(#trait_methods)*])
             });
+
+        // Register the trait for deserialization
+        turbo_tasks::macro_helpers::inventory_submit! {
+            turbo_tasks::macro_helpers::CollectableTrait(&#trait_type_ident)
+        }
 
         impl turbo_tasks::VcValueTrait for Box<dyn #trait_ident> {
             type ValueTrait = dyn #trait_ident;

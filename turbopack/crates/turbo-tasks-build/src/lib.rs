@@ -1,6 +1,6 @@
 use std::{
     env::{self, current_dir},
-    fmt::{Display, Write},
+    fmt::Write,
     fs::read_dir,
     path::{MAIN_SEPARATOR as PATH_SEP, PathBuf},
     sync::Arc,
@@ -11,13 +11,12 @@ use glob::glob;
 use quote::ToTokens;
 use rustc_hash::{FxHashMap, FxHashSet};
 use syn::{
-    Attribute, Expr, Ident, Item, ItemEnum, ItemImpl, ItemMacro, ItemMod, ItemStruct, ItemTrait,
-    Lit, Meta, parse_quote,
+    Attribute, Expr, Ident, Item, ItemEnum, ItemImpl, ItemMacro, ItemMod, ItemStruct, Lit, Meta,
+    parse_quote,
 };
 use turbo_tasks_macros_shared::{
     GenericTypeInput, PrimitiveInput, get_path_ident, get_register_trait_impls_ident,
-    get_register_trait_methods_ident, get_register_value_type_ident, get_trait_type_ident,
-    get_type_ident,
+    get_register_trait_methods_ident, get_register_value_type_ident, get_type_ident,
 };
 
 pub fn generate_register() {
@@ -123,7 +122,6 @@ pub fn generate_register() {
     for (filename, entry) in entries {
         let prefix = format!("{crate_name}::");
 
-        let mut register_code = String::new();
         let mut values = FxHashMap::default();
 
         let out_file = out_dir.join(filename);
@@ -151,7 +149,6 @@ pub fn generate_register() {
                 mod_path,
                 attributes,
 
-                register: &mut register_code,
                 values: &mut values,
             };
 
@@ -207,7 +204,7 @@ pub fn generate_register() {
 
         let code = format!(
             "{{\nstatic ONCE: std::sync::Once = std::sync::Once::new();\nONCE.call_once(|| \
-             {{\n{register_code}{values_code}}});\n}}\n"
+             {{\n{values_code}}});\n}}\n"
         );
         std::fs::write(out_file, code).unwrap();
 
@@ -263,7 +260,6 @@ struct RegisterContext<'a> {
     attributes: Vec<Arc<String>>,
     crate_prefix: &'a str,
 
-    register: &'a mut String,
     values: &'a mut FxHashMap<ValueKey, ValueEntry>,
 }
 
@@ -274,7 +270,6 @@ impl RegisterContext<'_> {
             Item::Impl(impl_item) => self.process_impl(impl_item),
             Item::Mod(mod_item) => self.process_mod(mod_item),
             Item::Struct(struct_item) => self.process_struct(struct_item),
-            Item::Trait(trait_item) => self.process_trait(trait_item),
             Item::Macro(macro_item) => self.process_macro(macro_item),
             _ => Ok(()),
         }
@@ -381,24 +376,6 @@ impl RegisterContext<'_> {
         if has_turbo_attribute(&struct_item.attrs, "value") {
             self.add_value(&struct_item.ident);
             self.add_value_debug_impl(&struct_item.ident);
-        }
-        Ok(())
-    }
-
-    fn process_trait(&mut self, item: &ItemTrait) -> Result<()> {
-        self.with_cfg_attrs(&item.attrs, move |this| this.process_trait_inner(item))
-    }
-
-    fn process_trait_inner(&mut self, trait_item: &ItemTrait) -> Result<()> {
-        if trait_item
-            .attrs
-            .iter()
-            .any(|a| is_turbo_attribute(a, "value_trait"))
-        {
-            let trait_ident = &trait_item.ident;
-
-            let trait_type_ident = get_trait_type_ident(trait_ident);
-            self.register(trait_type_ident, self.get_global_name(&[trait_ident]))?;
         }
         Ok(())
     }
@@ -510,21 +487,6 @@ impl RegisterContext<'_> {
             );
         }
         entry.unwrap().trait_idents.push(trait_ident.clone());
-    }
-
-    fn register(
-        &mut self,
-        type_ident: impl Display,
-        global_name: impl Display,
-    ) -> std::fmt::Result {
-        for attribute in &self.attributes {
-            self.register.push_str(attribute);
-        }
-        writeln!(
-            self.register,
-            "crate{}::{}.register({});",
-            self.mod_path, type_ident, global_name
-        )
     }
 
     fn with_cfg_attrs<T>(&mut self, attrs: &[Attribute], func: impl FnOnce(&mut Self) -> T) -> T {

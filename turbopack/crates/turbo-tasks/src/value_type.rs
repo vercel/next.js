@@ -14,7 +14,7 @@ use crate::{
     id::TraitTypeId,
     macro_helpers::NativeFunction,
     magic_any::{AnyDeserializeSeed, MagicAny, MagicAnyDeserializeSeed},
-    registry::{self, register_trait_type, register_value_type},
+    registry::{self, register_value_type},
     task::shared_reference::TypedSharedReference,
     vc::VcCellMode,
 };
@@ -249,6 +249,7 @@ impl TraitMethod {
 #[derive(Debug)]
 pub struct TraitType {
     pub name: &'static str,
+    pub global_name: &'static str,
     pub(crate) methods: AutoMap<&'static str, TraitMethod>,
 }
 
@@ -273,44 +274,38 @@ impl PartialEq for TraitType {
 }
 
 impl TraitType {
-    pub fn new(name: &'static str) -> Self {
+    pub fn new(
+        name: &'static str,
+        global_name: &'static str,
+        trait_methods: Vec<(&'static str, Option<&'static NativeFunction>)>,
+    ) -> Self {
+        let mut methods = AutoMap::new();
+        for (method_name, default_method) in trait_methods {
+            let prev = methods.insert(
+                method_name,
+                TraitMethod {
+                    trait_name: name,
+                    method_name,
+                    default_method,
+                },
+            );
+            debug_assert!(
+                prev.is_none(),
+                "duplicate methods {method_name} registered on {global_name}"
+            );
+        }
         Self {
             name,
-            methods: AutoMap::new(),
+            global_name,
+            methods,
         }
-    }
-
-    pub fn register_trait_method(&mut self, name: &'static str) {
-        self.methods.insert(
-            name,
-            TraitMethod {
-                trait_name: self.name,
-                method_name: name,
-                default_method: None,
-            },
-        );
-    }
-
-    pub fn register_default_trait_method(
-        &mut self,
-        name: &'static str,
-        native_fn: &'static NativeFunction,
-    ) {
-        self.methods.insert(
-            name,
-            TraitMethod {
-                trait_name: self.name,
-                method_name: name,
-                default_method: Some(native_fn),
-            },
-        );
     }
 
     pub fn get(&self, name: &str) -> &TraitMethod {
         self.methods.get(name).unwrap()
     }
-
-    pub fn register(&'static self, global_name: &'static str) {
-        register_trait_type(global_name, self);
-    }
 }
+
+pub struct CollectableTrait(pub &'static once_cell::sync::Lazy<TraitType>);
+
+inventory::collect! {CollectableTrait}

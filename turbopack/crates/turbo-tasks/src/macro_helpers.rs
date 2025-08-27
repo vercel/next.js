@@ -18,6 +18,7 @@ pub use crate::{
     native_function::{
         CollectableFunction, FunctionMeta, NativeFunction, downcast_args_owned, downcast_args_ref,
     },
+    value_type::CollectableTrait,
 };
 
 #[inline(never)]
