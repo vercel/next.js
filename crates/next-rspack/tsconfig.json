@@ -1,0 +1,7 @@
+{
+  "copmilerOptions": {
+    "module": "NodeNext",
+    "allowJs": true,
+    "strict": true
+  }
+}

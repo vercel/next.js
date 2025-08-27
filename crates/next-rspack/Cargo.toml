@@ -7,27 +7,45 @@ edition           = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-rspack_binding_builder        = { version = "=0.4.11" }
-rspack_binding_builder_macros = { version = "=0.4.11" }
+rspack_binding_builder        = { version = "=0.4.10" }
+rspack_binding_builder_macros = { version = "=0.4.10" }
 
-rspack_core             = { version = "=0.4.11" }
-rspack_error            = { version = "=0.4.11" }
-rspack_hook             = { version = "=0.4.11" }
-rspack_plugin_externals = { version = "=0.4.11" }
+rspack_core             = { version = "=0.4.10" }
+rspack_error            = { version = "=0.4.10" }
+rspack_hook             = { version = "=0.4.10" }
+rspack_plugin_externals = { version = "=0.4.10" }
 rspack_sources          = { version = "=0.4.8" }
 
-once_cell    = { version = "1.17.1" }
-regex        = { version = "1.10.6" }
-rspack_regex = { version = "=0.4.11" }
+once_cell    = { version = "1.20.2" }
+regex        = { version = "1.11.1" }
+rspack_regex = { version = "=0.4.10" }
 rustc-hash   = { version = "2.1.1" }
 
-napi        = { version = "3.1.2" }
-napi-derive = { version = "3.1.2" }
+napi        = { version = "=3.1.2" }
+napi-derive = { version = "=3.1.1" }
 
 # Enable SWC plugin feature for targets that support it
 # Skip: wasm32-wasip1-threads, i686-pc-windows-msvc, aarch64-pc-windows-msvc, armv7-linux-androideabi, armv7-unknown-linux-gnueabihf
 [target.'cfg(not(any(target_arch = "wasm32", target_arch = "arm", all(target_os = "windows", target_arch = "x86"), all(target_os = "windows", target_arch = "aarch64"))))'.dependencies]
-rspack_binding_builder = {version = "=0.4.11", features = ["plugin"] }
+rspack_binding_builder = { version = "=0.4.10", features = ["plugin"] }
 
 [build-dependencies]
-rspack_binding_build = { version = "=0.4.11" }
+rspack_binding_build = { version = "=0.4.10" }
+
+# Copied from https://github.com/web-infra-dev/rspack/blob/main/Cargo.toml
+
+[profile.dev]
+codegen-units = 16
+debug         = 2
+incremental   = true
+panic         = "abort"
+
+[profile.release]
+codegen-units = 1
+debug         = false
+# Performs “fat” LTO which attempts to perform optimizations across all crates within the dependency graph.
+lto       = "fat"
+opt-level = 3
+panic     = "abort"
+strip     = true
+
