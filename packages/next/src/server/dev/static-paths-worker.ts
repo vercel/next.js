@@ -106,7 +106,7 @@ export async function loadStaticPaths({
     isAppPath,
     isDev: true,
     sriEnabled,
-    needsManifestsForLegacyReasons: false,
+    needsManifestsForLegacyReasons: true,
   })
 
   if (isAppPath) {
