@@ -1,3 +1,3 @@
 fn main() {
-  rspack_binding_build::setup();
+    rspack_binding_build::setup();
 }
