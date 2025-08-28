@@ -4,13 +4,13 @@
 const nextConfig = {
   turbopack: {
     rules: {
-      '**/app/page.tsx': {
+      './app/page.tsx': {
         loaders: ['./my-loader.js'],
       },
-      '**/app/client/page.tsx': {
+      './app/client/page.tsx': {
         loaders: ['./my-loader.js'],
       },
-      '**/pages/pages.tsx': {
+      './pages/pages.tsx': {
         loaders: ['./my-loader.js'],
       },
     },
