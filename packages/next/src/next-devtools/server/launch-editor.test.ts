@@ -95,12 +95,29 @@ describe('Launch Editor RCE hardening (Windows)', () => {
       'app\\group<(x)\\page.tsx',
       '  app\\(group)&echo\\page.tsx  ',
       '\tapp\\(x)|dir\\page.tsx',
+      'app\file^&whoamipage.tsx',
+      'app\\file^malicious-command\\page.tsx',
+      'app\\(group)^more\\page.tsx',
+      '   app\\group&whoami\\page.tsx   ',
     ]
 
     for (const name of mixed) {
       await (Launch as any).__test_openInEditorForWin(name)
     }
 
+    expect(spawn).not.toHaveBeenCalled()
+    expect(execFile).not.toHaveBeenCalled()
+  })
+
+  test('blocks other ASCII chars like ^ [ ] that slipped through ranges', async () => {
+    const bad = [
+      'app\\file^evil\\page.tsx',
+      'app\\file[evil]\\page.tsx',
+      'app\\file]evil\\page.tsx',
+    ]
+    for (const name of bad) {
+      await (Launch as any).__test_openInEditorForWin(name)
+    }
     expect(spawn).not.toHaveBeenCalled()
     expect(execFile).not.toHaveBeenCalled()
   })
