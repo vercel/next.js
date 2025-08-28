@@ -27,6 +27,7 @@ jobs:
     name: Build
     uses: rspack-contrib/rspack-toolchain/.github/workflows/build.yml@v1
     with:
+      package-json-path: rspack/crates/binding/package.json
       napi-build-command: pnpm build --release
 
   release:
