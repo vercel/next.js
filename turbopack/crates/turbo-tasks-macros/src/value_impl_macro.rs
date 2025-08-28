@@ -10,7 +10,7 @@ use syn::{
 };
 use turbo_tasks_macros_shared::{
     get_cast_to_fat_pointer_ident, get_inherent_impl_function_ident, get_path_ident,
-    get_register_trait_methods_ident, get_trait_impl_function_ident, get_type_ident, is_self_used,
+    get_trait_impl_function_ident, get_type_ident, is_self_used,
 };
 
 use crate::func::{

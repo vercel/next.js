@@ -11,9 +11,7 @@ use syn::{
     parse_macro_input, parse_quote,
     spanned::Spanned,
 };
-use turbo_tasks_macros_shared::{
-    get_register_value_type_ident, get_value_type_ident, get_value_type_init_ident,
-};
+use turbo_tasks_macros_shared::get_value_type_ident;
 
 enum IntoMode {
     None,

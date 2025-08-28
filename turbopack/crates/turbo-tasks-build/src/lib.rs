@@ -22,7 +22,6 @@ pub fn generate_register() {
     let workspace_dir = env::var_os("CARGO_WORKSPACE_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|| crate_dir.clone());
-    let crate_name = env::var("CARGO_PKG_NAME").unwrap();
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
 
     let src_dir = crate_dir.join("src");
@@ -116,8 +115,6 @@ pub fn generate_register() {
     }
 
     for (filename, entry) in entries {
-        let prefix = crate_name.to_string();
-
         let mut values = FxHashMap::default();
 
         let out_file = out_dir.join(filename);
@@ -139,12 +136,9 @@ pub fn generate_register() {
 
             let mut ctx = RegisterContext {
                 queue: &mut queue,
-
                 file_path: &file_path,
-                crate_prefix: &prefix,
                 mod_path,
                 attributes,
-
                 values: &mut values,
             };
 
@@ -160,48 +154,9 @@ pub fn generate_register() {
             }
         }
 
-        let mut values_code = String::new();
-        // for ((mod_path, ident), entry) in values {
-        //     for attribute in &entry.attributes {
-        //         values_code.push_str(attribute);
-        //     }
-        //     writeln!(
-        //         values_code,
-        //         "crate{}::{}({}, #[allow(unused_variables)] |value| {{",
-        //         mod_path,
-        //         get_register_value_type_ident(&ident),
-        //         entry.global_name,
-        //     )
-        //     .unwrap();
-        //     // Register all the trait items for each impl so we can dispatch to them as
-        // turbotasks     for trait_ident in &entry.trait_idents {
-        //         writeln!(
-        //             values_code,
-        //             "    crate{}::{}(value);",
-        //             mod_path,
-        //             get_register_trait_methods_ident(trait_ident, &ident),
-        //         )
-        //         .unwrap();
-        //     }
-        //     writeln!(values_code, "}}, #[allow(unused_variables)] |value_id| {{").unwrap();
-        //     // Register all the vtables for the impls so we can dispatch to them as normal
-        // indirect     // trait calls.
-        //     for trait_ident in &entry.trait_idents {
-        //         writeln!(
-        //             values_code,
-        //             "    crate{}::{}(value_id);",
-        //             mod_path,
-        //             get_register_trait_impls_ident(trait_ident, &ident),
-        //         )
-        //         .unwrap();
-        //     }
-        //     writeln!(values_code, "}});").unwrap();
-        // }
+        let code = "{\nstatic ONCE: std::sync::Once = std::sync::Once::new();\nONCE.call_once(|| \
+                    {\n    // dead code to be deleted\n});\n}\n";
 
-        let code = format!(
-            "{{\nstatic ONCE: std::sync::Once = std::sync::Once::new();\nONCE.call_once(|| \
-             {{\n{values_code}}});\n}}\n"
-        );
         std::fs::write(out_file, code).unwrap();
 
         // println!("cargo:warning={}", out_file.display());
@@ -233,8 +188,6 @@ pub fn rerun_if_glob(globs: &str, root: &str) {
 type ValueKey = (String, Ident);
 /// (global_name, trait_register_fns)
 struct ValueEntry {
-    attributes: Vec<Arc<String>>,
-    global_name: String,
     trait_idents: Vec<Ident>,
 }
 
@@ -254,7 +207,6 @@ struct RegisterContext<'a> {
     file_path: &'a PathBuf,
     mod_path: String,
     attributes: Vec<Arc<String>>,
-    crate_prefix: &'a str,
 
     values: &'a mut FxHashMap<ValueKey, ValueEntry>,
 }
@@ -420,24 +372,9 @@ impl RegisterContext<'_> {
 }
 
 impl RegisterContext<'_> {
-    fn get_global_name(&self, parts: &[&Ident]) -> String {
-        format!(
-            "r##\"{}{}::{}\"##",
-            self.crate_prefix,
-            self.mod_path,
-            parts
-                .iter()
-                .map(ToString::to_string)
-                .collect::<Vec<_>>()
-                .join("::")
-        )
-    }
-
     fn add_value(&mut self, ident: &Ident) {
         let key: ValueKey = (self.mod_path.clone(), ident.clone());
         let value = ValueEntry {
-            attributes: self.attributes.clone(),
-            global_name: self.get_global_name(&[ident]),
             trait_idents: Vec::new(),
         };
 

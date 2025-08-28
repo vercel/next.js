@@ -1,14 +1,10 @@
 use std::{fmt::Debug, future::Future, marker::PhantomData};
 
 use anyhow::Result;
-use auto_hash_map::AutoMap;
-use once_cell::sync::Lazy;
-use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    FxDashMap, TraitTypeId, ValueTypeId, Vc, VcValueTrait,
-    macro_helpers::CollectableTraitCastFunctions,
+    Vc, VcValueTrait,
     registry::get_value_type,
     task::shared_reference::TypedSharedReference,
     vc::{ReadVcFuture, VcValueTraitCast, cast::VcCast},

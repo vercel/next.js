@@ -1,7 +1,5 @@
 //! Runtime helpers for [turbo-tasks-macro].
 
-use std::ptr;
-
 pub use async_trait::async_trait;
 pub use once_cell::sync::{Lazy, OnceCell};
 use rustc_hash::FxHashMap;
@@ -11,7 +9,7 @@ pub use tracing;
 
 use crate::{
     FxDashMap, NonLocalValue, RawVc, TaskInput, TaskPersistence, TraitTypeId, ValueType,
-    ValueTypeId, Vc, VcValueTrait, debug::ValueDebugFormatString, task::TaskOutput,
+    ValueTypeId, Vc, debug::ValueDebugFormatString, task::TaskOutput,
 };
 pub use crate::{
     magic_any::MagicAny,
@@ -148,7 +146,9 @@ pub struct CollectableTraitCastFunctions(
 unsafe impl Sync for CollectableTraitCastFunctions {}
 inventory::collect! {CollectableTraitCastFunctions}
 
+#[allow(clippy::type_complexity)]
 pub struct CollectableTraitMethods(
+    // A value type name
     pub &'static str,
     pub fn() -> (TraitTypeId, Vec<(&'static str, &'static NativeFunction)>),
 );
@@ -156,6 +156,7 @@ inventory::collect! {CollectableTraitMethods}
 
 // Called when initializing ValueTypes by value_impl
 pub fn register_trait_methods(value: &mut ValueType) {
+    #[allow(clippy::type_complexity)]
     static TRAIT_METHODS_BY_VALUE: Lazy<
         FxDashMap<&'static str, Vec<(TraitTypeId, Vec<(&'static str, &'static NativeFunction)>)>>,
     > = Lazy::new(|| {

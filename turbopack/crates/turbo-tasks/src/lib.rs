@@ -63,7 +63,6 @@ mod manager;
 mod marker_trait;
 pub mod message_queue;
 mod native_function;
-mod no_move_vec;
 mod once_map;
 mod output;
 pub mod panic_hooks;

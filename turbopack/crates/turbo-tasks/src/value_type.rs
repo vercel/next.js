@@ -2,7 +2,6 @@ use std::{
     any::{Any, type_name},
     fmt::{self, Debug, Display, Formatter},
     hash::Hash,
-    marker::PhantomData,
     sync::Arc,
 };
 
@@ -88,7 +87,7 @@ impl Debug for ValueType {
 
 impl Display for ValueType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.name)
+        f.write_str(self.name)
     }
 }
 
