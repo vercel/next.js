@@ -128,7 +128,10 @@ async function nextMetadataImageLoader(
 
   const imageSize: { width?: number; height?: number } = await getImageSize(
     content
-  ).catch(() => ({ width: undefined, height: undefined }))
+  ).catch((error) => {
+    console.error(`Acquire image size of ${interpolatedName} failed:`, error)
+    return { width: undefined, height: undefined }
+  })
 
   const imageData: Omit<MetadataImageModule, 'url'> = {
     ...(extension in imageExtMimeTypeMap && {
