@@ -3,7 +3,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-use next_taskless::EDGE_NODE_EXTERNALS;
+use next_taskless::{BUN_EXTERNALS, EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use rspack_core::{
     ApplyContext, CompilerOptions, DependencyCategory, ExternalItem, ExternalItemFnCtx,
     ExternalItemFnResult, ExternalItemObject, ExternalItemValue, Plugin, PluginContext,
@@ -43,10 +43,13 @@ fn get_edge_polyfilled_modules() -> ExternalItem {
     )
 }
 
-fn is_node_js_module(module_name: &str, builtin_modules: &[String]) -> bool {
-    builtin_modules
+fn is_node_js_module(module_name: &str) -> bool {
+    NODE_EXTERNALS
         .iter()
-        .any(|builtin_module| builtin_module == module_name)
+        .any(|builtin_module| *builtin_module == module_name)
+        || BUN_EXTERNALS
+            .iter()
+            .any(|builtin_module| *builtin_module == module_name)
 }
 
 fn is_supported_edge_polyfill(module_name: &str) -> bool {
@@ -55,7 +58,6 @@ fn is_supported_edge_polyfill(module_name: &str) -> bool {
 
 async fn handle_webpack_external_for_edge_runtime(
     ctx: ExternalItemFnCtx,
-    builtin_modules: &[String],
 ) -> rspack_error::Result<ExternalItemFnResult> {
     let is_middleware_or_api_edge = match &ctx.context_info.issuer_layer {
         Some(layer) => layer == "middleware" || layer == "api-edge",
@@ -63,7 +65,7 @@ async fn handle_webpack_external_for_edge_runtime(
     };
 
     let result = if is_middleware_or_api_edge
-        && is_node_js_module(&ctx.request, builtin_modules)
+        && is_node_js_module(&ctx.request)
         && !is_supported_edge_polyfill(&ctx.request)
     {
         let resolver = ctx
@@ -94,7 +96,6 @@ async fn handle_webpack_external_for_edge_runtime(
 pub struct NextExternalsPluginOptions {
     pub compiler_type: String,
     pub config: NextConfigComplete,
-    pub builtin_modules: Vec<String>,
     pub opt_out_bundling_package_regex: RspackRegex,
     pub final_transpile_packages: Vec<String>,
     pub dir: String,
@@ -105,7 +106,6 @@ pub struct NextExternalsPluginOptions {
 #[plugin]
 pub struct NextExternalsPlugin {
     compiler_type: String,
-    builtin_modules: Arc<Vec<String>>,
     external_handler: Arc<ExternalHandler>,
 }
 
@@ -115,7 +115,6 @@ impl NextExternalsPlugin {
         let NextExternalsPluginOptions {
             compiler_type,
             config,
-            builtin_modules,
             opt_out_bundling_package_regex,
             final_transpile_packages,
             dir,
@@ -130,11 +129,7 @@ impl NextExternalsPlugin {
             default_overrides,
         );
 
-        Self::new_inner(
-            compiler_type,
-            Arc::new(builtin_modules),
-            Arc::new(external_handler),
-        )
+        Self::new_inner(compiler_type, Arc::new(external_handler))
     }
 }
 
@@ -157,7 +152,6 @@ impl Plugin for NextExternalsPlugin {
             "commonjs2".to_string()
         };
 
-        let builtin_modules = self.builtin_modules.clone();
         let externals = if is_client || is_edge_server {
             if is_edge_server {
                 vec![
@@ -174,10 +168,7 @@ impl Plugin for NextExternalsPlugin {
                     ])),
                     get_edge_polyfilled_modules(),
                     ExternalItem::Fn(Box::new(move |ctx| {
-                        let builtin_modules = builtin_modules.clone();
-                        Box::pin(async move {
-                            handle_webpack_external_for_edge_runtime(ctx, &builtin_modules).await
-                        })
+                        Box::pin(async move { handle_webpack_external_for_edge_runtime(ctx).await })
                     })),
                 ]
             } else {
@@ -267,8 +258,9 @@ impl Plugin for NextExternalsPlugin {
                 })
             }));
 
-            self.builtin_modules
+            NODE_EXTERNALS
                 .iter()
+                .chain(BUN_EXTERNALS.iter())
                 .map(|module| ExternalItem::String(module.to_string()))
                 .chain([external_fn])
                 .collect::<Vec<_>>()

@@ -76,7 +76,6 @@ impl From<NapiNextConfigComplete> for NextConfigComplete {
 pub struct NapiNextExternalsPluginOptions {
     pub compiler_type: String,
     pub config: NapiNextConfigComplete,
-    pub builtin_modules: Vec<String>,
     #[napi(ts_type = "RegExp")]
     pub opt_out_bundling_package_regex: RspackRegex,
     pub final_transpile_packages: Vec<String>,
@@ -90,7 +89,6 @@ impl From<NapiNextExternalsPluginOptions> for NextExternalsPluginOptions {
         let NapiNextExternalsPluginOptions {
             compiler_type,
             config,
-            builtin_modules,
             opt_out_bundling_package_regex,
             final_transpile_packages,
             dir,
@@ -99,7 +97,6 @@ impl From<NapiNextExternalsPluginOptions> for NextExternalsPluginOptions {
         NextExternalsPluginOptions {
             compiler_type,
             config: config.into(),
-            builtin_modules,
             opt_out_bundling_package_regex,
             final_transpile_packages,
             dir,
