@@ -2,11 +2,10 @@ use std::{
   future::Future,
   path::Path,
   pin::Pin,
-  sync::{Arc, LazyLock},
+  sync::{Arc, LazyLock, OnceLock},
 };
 
 use next_taskless::NEVER_EXTERNAL_RE;
-use once_cell::sync::OnceCell;
 use regex::Regex;
 use rspack_core::{Alias, DependencyCategory, Resolve, ResolveOptionsWithDependencyType};
 use rspack_regex::RspackRegex;
@@ -170,7 +169,7 @@ pub struct ExternalHandler {
   opt_out_bundling_package_regex: RspackRegex,
   transpiled_packages: Vec<String>,
   dir: String,
-  resolved_external_package_dirs: OnceCell<FxHashMap<String, String>>,
+  resolved_external_package_dirs: OnceLock<FxHashMap<String, String>>,
   loose_esm_externals: bool,
   default_overrides: FxHashMap<String, String>,
 }
@@ -190,7 +189,7 @@ impl ExternalHandler {
       opt_out_bundling_package_regex,
       transpiled_packages,
       dir,
-      resolved_external_package_dirs: OnceCell::default(),
+      resolved_external_package_dirs: OnceLock::default(),
       loose_esm_externals,
       default_overrides,
     }

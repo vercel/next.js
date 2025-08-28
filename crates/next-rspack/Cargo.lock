@@ -2639,7 +2639,6 @@ dependencies = [
  "napi",
  "napi-derive",
  "next-taskless",
- "once_cell",
  "regex",
  "rspack_binding_build",
  "rspack_binding_builder",
