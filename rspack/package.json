@@ -1,0 +1,32 @@
+{
+  "name": "@next-rspack/core",
+  "version": "0.0.1-canary.2",
+  "homepage": "https://github.com/SyMind/next-rspack-binding",
+  "bugs": {
+    "url": "https://github.com/SyMind/next-rspack-binding/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SyMind/next-rspack-binding.git"
+  },
+  "packageManager": "pnpm@10.13.1",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "build": "pnpm run --filter @next-rspack/binding build"
+  },
+  "dependencies": {
+    "@rspack/core": "1.4.10",
+    "@next-rspack/binding": "workspace:*"
+  }
+}
