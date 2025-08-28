@@ -128,13 +128,7 @@ async function nextMetadataImageLoader(
 
   const imageSize: { width?: number; height?: number } = await getImageSize(
     content
-  ).catch((err) => err)
-
-  if (imageSize instanceof Error) {
-    const err = imageSize
-    err.name = 'InvalidImageFormatError'
-    throw err
-  }
+  ).catch(() => ({ width: undefined, height: undefined }))
 
   const imageData: Omit<MetadataImageModule, 'url'> = {
     ...(extension in imageExtMimeTypeMap && {
