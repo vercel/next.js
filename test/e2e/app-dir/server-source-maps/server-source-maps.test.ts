@@ -484,6 +484,8 @@ describe('app-dir - server source maps', () => {
              "{module evaluation} app/module-evaluation/module.js (1:22)",
              "{module evaluation} app/module-evaluation/page.js (1:1)",
              "{module evaluation} app/module-evaluation/page.js (6:1)",
+             "Array.map <anonymous>",
+             "Function.all <anonymous>",
              "Page <anonymous>",
            ],
          }
@@ -569,6 +571,8 @@ describe('app-dir - server source maps', () => {
          > 6 |   runHiddenSetOfSetsInternal('rsc-anonymous-stack-frame-sandwich: internal')
              |                             ^",
              "stack": [
+               "Set.forEach <anonymous>",
+               "Set.forEach <anonymous>",
                "Page app/rsc-anonymous-stack-frame-sandwich/page.js (6:29)",
                "Page <anonymous>",
              ],
