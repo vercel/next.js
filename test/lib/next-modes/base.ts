@@ -1,4 +1,3 @@
-import type ts from 'typescript'
 import os from 'os'
 import path from 'path'
 import { existsSync, promises as fs, rmSync, readFileSync } from 'fs'
@@ -47,12 +46,6 @@ export interface NextInstanceOpts {
   serverReadyPattern?: RegExp
   patchFileDelay?: number
   startServerTimeout?: number
-  tsConfig?: {
-    compilerOptions?: ts.CompilerOptions
-    include?: string[]
-    exclude?: string[]
-    extends?: string[]
-  }
 }
 
 /**
@@ -96,7 +89,6 @@ export class NextInstance {
   public startServerTimeout: number = 10_000 // 10 seconds
   public serverReadyPattern: RegExp = / ✓ Ready in /
   patchFileDelay: number = 0
-  protected tsConfig?: NextInstanceOpts['tsConfig']
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
@@ -341,18 +333,16 @@ export class NextInstance {
           )
         }
 
-        const tsConfigFile = testDirFiles.find(
-          (file) => file === 'tsconfig.json'
+        const tsConfigTestFile = testDirFiles.find(
+          (file) => file === 'tsconfig.test.json'
         )
-        if (tsConfigFile && this.tsConfig) {
-          throw new Error(
-            `tsConfig provided on "createNext()" and as a file "${tsConfigFile}", use one or the other to continue`
+        if (tsConfigTestFile) {
+          require('console').log(
+            'tsconfig.test.json found, using it for this test'
           )
-        }
-        if (this.tsConfig) {
-          await fs.writeFile(
-            path.join(this.testDir, 'tsconfig.json'),
-            JSON.stringify(this.tsConfig, null, 2)
+          await fs.copyFile(
+            path.join(this.testDir, 'tsconfig.test.json'),
+            path.join(this.testDir, 'tsconfig.json')
           )
         }
 
