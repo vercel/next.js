@@ -343,16 +343,19 @@ function parseRequestHeaders(
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   const components = loaderTree[2]
   const hasGlobalNotFound = !!components['global-not-found']
+  const notFoundTreeComponents: LoaderTree[2] = hasGlobalNotFound
+    ? {
+        layout: components['global-not-found']!,
+        page: [() => null, 'next/dist/client/components/builtin/empty-stub'],
+      }
+    : {
+        page: components['not-found'],
+      }
+
   return [
     '',
     {
-      children: [
-        PAGE_SEGMENT_KEY,
-        {},
-        {
-          page: components['global-not-found'] ?? components['not-found'],
-        },
-      ],
+      children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents],
     },
     // When global-not-found is present, skip layout from components
     hasGlobalNotFound ? components : {},

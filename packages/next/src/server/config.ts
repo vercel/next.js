@@ -135,27 +135,6 @@ function checkDeprecations(
     silent
   )
 
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'devIndicators.appIsrStatus',
-    `\`devIndicators.appIsrStatus\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'devIndicators.buildActivity',
-    `\`devIndicators.buildActivity\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'devIndicators.buildActivityPosition',
-    `\`devIndicators.buildActivityPosition\` has been renamed to \`devIndicators.position\`. Please update your ${configFileName} file accordingly.`,
-    silent
-  )
-
   // i18n deprecation for App Router
   if (userConfig.i18n) {
     const hasAppDir = Boolean(findDir(dir, 'app'))
@@ -593,21 +572,6 @@ function assignDefaultsAndValidate(
     configFileName,
     silent
   )
-
-  // Handle buildActivityPosition migration (needs to be done after merging with defaults)
-  if (
-    result.devIndicators &&
-    typeof result.devIndicators === 'object' &&
-    'buildActivityPosition' in result.devIndicators &&
-    result.devIndicators.buildActivityPosition !== result.devIndicators.position
-  ) {
-    if (!silent) {
-      Log.warnOnce(
-        `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") for backward compatibility.`
-      )
-    }
-    result.devIndicators.position = result.devIndicators.buildActivityPosition
-  }
 
   warnOptionHasBeenMovedOutOfExperimental(
     result,

@@ -13302,7 +13302,7 @@
     "passed": [
       "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
       "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator should validate buildActivityPosition config"
+      "Build Activity Indicator should validate position config"
     ],
     "failed": [],
     "pending": [

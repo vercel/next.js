@@ -1146,28 +1146,6 @@ export interface NextConfig extends Record<string, any> {
     | false
     | {
         /**
-         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
-         * */
-        appIsrStatus?: boolean
-
-        /**
-         * Show "building..." indicator in development
-         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
-         */
-        buildActivity?: boolean
-
-        /**
-         * Position of "building..." indicator in browser
-         * @default "bottom-right"
-         * @deprecated Renamed as `position`.
-         */
-        buildActivityPosition?:
-          | 'top-left'
-          | 'top-right'
-          | 'bottom-left'
-          | 'bottom-right'
-
-        /**
          * Position of the development tools indicator in the browser window.
          * @default "bottom-left"
          * */

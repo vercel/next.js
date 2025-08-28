@@ -111,11 +111,13 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-<AppOnly>
-
 ### Statically Typed Links
 
 Next.js can statically type links to prevent typos and other errors when using `next/link`, improving type safety when navigating between pages.
+
+Works in both the Pages and App Router for the `href` prop in `next/link`. In the App Router, it also types `next/navigation` methods like `push`, `replace`, and `prefetch`. It does not type `next/router` methods in Pages Router.
+
+Literal `href` strings are validated, while non-literal `href`s may require a cast with `as Route`.
 
 To opt-into this feature, `typedRoutes` need to be enabled and the project needs to be using TypeScript.
 
@@ -133,12 +135,20 @@ Next.js will generate a link definition in `.next/types` that contains informati
 
 > **Good to know**: If you set up your project without `create-next-app`, ensure the generated Next.js types are included by adding `.next/types/**/*.ts` to the `include` array in your `tsconfig.json`:
 
-```json filename="tsconfig.json"
+{/* prettier-ignore-start */}
+
+```json filename="tsconfig.json" highlight={4}
 {
-  "include": ["next-env.d.ts", ".next/types/**/*.ts", "**/*.ts", "**/*.tsx"],
+  "include": [
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    "**/*.ts",
+    "**/*.tsx"
+  ],
   "exclude": ["node_modules"]
 }
 ```
+{/* prettier-ignore-end */}
 
 Currently, experimental support includes any string literal, including dynamic segments. For non-literal strings, you currently need to manually cast the `href` with `as Route`:
 
@@ -216,6 +226,8 @@ export default nextConfig
 ```
 
 > **Good to know**: Types are generated based on the environment variables loaded at development runtime, which excludes variables from `.env.production*` files by default. To include production-specific variables, run `next dev` with `NODE_ENV=production`.
+
+<AppOnly>
 
 ### With Async Server Components
 
@@ -295,6 +307,64 @@ export default function MyApp({ Component, pageProps }: AppProps) {
 ### Incremental type checking
 
 Since `v10.2.1` Next.js supports [incremental type checking](https://www.typescriptlang.org/tsconfig#incremental) when enabled in your `tsconfig.json`, this can help speed up type checking in larger applications.
+
+### Custom `tsconfig` path
+
+In some cases, you might want to use a different TypeScript configuration for builds or tooling. To do that, set `typescript.tsconfigPath` in `next.config.ts` to point Next.js to another `tsconfig` file.
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  typescript: {
+    tsconfigPath: 'tsconfig.build.json',
+  },
+}
+
+export default nextConfig
+```
+
+For example, switch to a different config for production builds:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const isProd = process.env.NODE_ENV === 'production'
+
+const nextConfig: NextConfig = {
+  typescript: {
+    tsconfigPath: isProd ? 'tsconfig.build.json' : 'tsconfig.json',
+  },
+}
+
+export default nextConfig
+```
+
+<details>
+<summary>Why you might use a separate `tsconfig` for builds</summary>
+
+You might need to relax checks in scenarios like monorepos, where the build also validates shared dependencies that don't match your project's standards, or when loosening checks in CI to continue delivering while migrating locally to stricter TypeScript settings (and still wanting your IDE to highlight misuse).
+
+For example, if your project uses `useUnknownInCatchVariables` but some monorepo dependencies still assume `any`:
+
+```json filename="tsconfig.build.json"
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "useUnknownInCatchVariables": false
+  }
+}
+```
+
+This keeps your editor strict via `tsconfig.json` while allowing the production build to use relaxed settings.
+
+</details>
+
+> **Good to know**:
+>
+> - IDEs typically read `tsconfig.json` for diagnostics and IntelliSense, so you can still see IDE warnings while production builds use the alternate config. Mirror critical options if you want parity in the editor.
+> - In development, only `tsconfig.json` is watched for changes. If you edit a different file name via `typescript.tsconfigPath`, restart the dev server to apply changes.
+> - The configured file is used in `next dev`, `next build`, `next lint`, and `next typegen`.
 
 ### Disabling TypeScript errors in production
 
