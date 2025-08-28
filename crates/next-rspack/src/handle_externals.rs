@@ -256,10 +256,6 @@ impl ExternalHandler {
         // Absolute requires (require('/foo')) are extremely uncommon, but
         // also have no need for customization as they're already resolved.
         if !is_local {
-            if request == "next" {
-                return Ok(Some(format!("commonjs {request}")));
-            }
-
             // Handle React packages
             if REACT_PACKAGES_REGEX.is_match(&request) && !is_app_layer {
                 return Ok(Some(format!("commonjs {request}")));
