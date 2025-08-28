@@ -3,6 +3,7 @@ use std::{
   sync::{Arc, LazyLock},
 };
 
+use next_taskless::EDGE_NODE_EXTERNALS;
 use rspack_core::{
   ApplyContext, CompilerOptions, DependencyCategory, ExternalItem, ExternalItemFnCtx,
   ExternalItemFnResult, ExternalItemObject, ExternalItemValue, Plugin, PluginContext,
@@ -16,14 +17,12 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{config_shared::NextConfigComplete, handle_externals::ExternalHandler};
 
-static SUPPORTED_NATIVE_MODULES: &[&str] = &["buffer", "events", "assert", "util", "async_hooks"];
-
 static SUPPORTED_EDGE_POLYFILLS: LazyLock<FxHashSet<&'static str>> =
-  LazyLock::new(|| SUPPORTED_NATIVE_MODULES.iter().copied().collect());
+  LazyLock::new(|| EDGE_NODE_EXTERNALS.iter().copied().collect());
 
 fn get_edge_polyfilled_modules() -> ExternalItem {
   let mut externals = ExternalItemObject::default();
-  for &module in SUPPORTED_NATIVE_MODULES {
+  for module in EDGE_NODE_EXTERNALS {
     externals.insert(
       module.to_string(),
       ExternalItemValue::String(format!("commonjs node:{module}")),
@@ -48,7 +47,7 @@ fn is_supported_edge_polyfill(module_name: &str) -> bool {
 
 async fn handle_webpack_external_for_edge_runtime(
   ctx: ExternalItemFnCtx,
-  builtin_modules: Arc<Vec<String>>,
+  builtin_modules: &[String],
 ) -> rspack_error::Result<ExternalItemFnResult> {
   let is_middleware_or_api_edge = match &ctx.context_info.issuer_layer {
     Some(layer) => layer == "middleware" || layer == "api-edge",
@@ -169,7 +168,7 @@ impl Plugin for NextExternalsPlugin {
           ExternalItem::Fn(Box::new(move |ctx| {
             let builtin_modules = builtin_modules.clone();
             Box::pin(
-              async move { handle_webpack_external_for_edge_runtime(ctx, builtin_modules).await },
+              async move { handle_webpack_external_for_edge_runtime(ctx, &builtin_modules).await },
             )
           })),
         ]
