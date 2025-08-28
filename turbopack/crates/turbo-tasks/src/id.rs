@@ -120,6 +120,7 @@ macro_rules! define_id {
 }
 
 define_id!(TaskId: u32, derive(Serialize, Deserialize), serde(transparent));
+define_id!(FunctionId: u32);
 define_id!(ValueTypeId: u32);
 define_id!(TraitTypeId: u32);
 define_id!(SessionId: u32, derive(Debug, Serialize, Deserialize), serde(transparent));
@@ -210,3 +211,8 @@ macro_rules! make_serializable {
 
 make_serializable!(ValueTypeId, registry::get_value_type, ValueTypeVisitor);
 make_serializable!(TraitTypeId, registry::get_trait, TraitTypeVisitor);
+make_serializable!(
+    FunctionId,
+    registry::get_native_function,
+    FunctionTypeVisitor
+);

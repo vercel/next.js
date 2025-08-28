@@ -210,7 +210,7 @@ mod ser {
                 unreachable!();
             };
             let mut state = serializer.serialize_seq(Some(2))?;
-            state.serialize_element(native_fn.global_name)?;
+            state.serialize_element(&registry::get_function_id(native_fn))?;
             let arg = *arg;
             let arg = native_fn.arg_meta.as_serialize(arg);
             state.serialize_element(arg)?;
@@ -232,10 +232,10 @@ mod ser {
                 where
                     A: serde::de::SeqAccess<'de>,
                 {
-                    let fn_name = seq
+                    let fn_id = seq
                         .next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                    let native_fn = registry::get_function_by_global_name(fn_name);
+                    let native_fn = registry::get_native_function(fn_id);
                     let seed = native_fn.arg_meta.deserialization_seed();
                     let arg = seq
                         .next_element_seed(seed)?
