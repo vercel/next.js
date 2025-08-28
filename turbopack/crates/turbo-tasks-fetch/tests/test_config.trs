@@ -1,6 +1,6 @@
 |name, initial| {
   let path = std::path::PathBuf::from(
-    format!("{}/.cache/{}", std::env::var("OUT_DIR").unwrap(), name));
+    format!("{}/.cache/{}", env!("CARGO_TARGET_TMPDIR"), name));
   if initial {
     let _ = std::fs::remove_dir_all(&path);
   }
