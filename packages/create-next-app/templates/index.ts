@@ -319,6 +319,13 @@ export const installTemplate = async ({
     packageJson.devDependencies = sorted(packageJson.devDependencies);
   }
 
+  /* For pnpm v10+ x-ref: https://github.com/vercel/next.js/issues/83158 */
+  if (packageManager === "pnpm") {
+    packageJson.pnpm = {
+      onlyBuiltDependencies: ["sharp"],
+    };
+  }
+
   await fs.writeFile(
     path.join(root, "package.json"),
     JSON.stringify(packageJson, null, 2) + os.EOL,
