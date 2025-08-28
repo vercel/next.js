@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
+      // path should be relative when baseUrl is not set
       "@/*": ["./src/*"]
     }
   }
