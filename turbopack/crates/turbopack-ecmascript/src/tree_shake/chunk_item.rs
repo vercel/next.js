@@ -169,7 +169,6 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
             rewrite_source_path: None,
             options: EcmascriptChunkItemOptions {
                 strict: true,
-                exports: true,
                 async_module: if has_top_level_await {
                     Some(AsyncModuleOptions {
                         has_top_level_await: true,

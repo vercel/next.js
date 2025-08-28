@@ -1,19 +1,19 @@
-export const RSC_HEADER = 'RSC' as const
-export const ACTION_HEADER = 'Next-Action' as const
+export const RSC_HEADER = 'rsc' as const
+export const ACTION_HEADER = 'next-action' as const
 // TODO: Instead of sending the full router state, we only need to send the
 // segment path. Saves bytes. Then we could also use this field for segment
 // prefetches, which also need to specify a particular segment.
-export const NEXT_ROUTER_STATE_TREE_HEADER = 'Next-Router-State-Tree' as const
-export const NEXT_ROUTER_PREFETCH_HEADER = 'Next-Router-Prefetch' as const
+export const NEXT_ROUTER_STATE_TREE_HEADER = 'next-router-state-tree' as const
+export const NEXT_ROUTER_PREFETCH_HEADER = 'next-router-prefetch' as const
 // This contains the path to the segment being prefetched.
-// TODO: If we change Next-Router-State-Tree to be a segment path, we can use
-// that instead. Then Next-Router-Prefetch and Next-Router-Segment-Prefetch can
+// TODO: If we change next-router-state-tree to be a segment path, we can use
+// that instead. Then next-router-prefetch and next-router-segment-prefetch can
 // be merged into a single enum.
 export const NEXT_ROUTER_SEGMENT_PREFETCH_HEADER =
-  'Next-Router-Segment-Prefetch' as const
-export const NEXT_HMR_REFRESH_HEADER = 'Next-HMR-Refresh' as const
+  'next-router-segment-prefetch' as const
+export const NEXT_HMR_REFRESH_HEADER = 'next-hmr-refresh' as const
 export const NEXT_HMR_REFRESH_HASH_COOKIE = '__next_hmr_refresh_hash__' as const
-export const NEXT_URL = 'Next-Url' as const
+export const NEXT_URL = 'next-url' as const
 export const RSC_CONTENT_TYPE_HEADER = 'text/x-component' as const
 
 export const FLIGHT_HEADERS = [

@@ -1,10 +1,5 @@
 import { useEffect } from 'react'
 
-export const getShadowRoot = () => {
-  const portal = document.querySelector('nextjs-portal')
-  return portal?.shadowRoot
-}
-
 export function useFocusTrap(
   rootRef: React.RefObject<HTMLElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null> | null,
@@ -61,7 +56,6 @@ export function useFocusTrap(
       clearTimeout(id)
       rootNode?.removeEventListener('keydown', onTab)
     }
-    // eslint-disable-next-line react-hooks/react-compiler
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active])
 }

@@ -31,8 +31,7 @@
       { "type": "user", "pattern": "valorkin" },
       { "type": "user", "pattern": "xc2" },
       { "type": "user", "pattern": "zackarychapple" },
-      { "type": "user", "pattern": "zoolsher" },
-      "packages/next/src/build/**"
+      { "type": "user", "pattern": "zoolsher" }
     ],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "atcastle" },

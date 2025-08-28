@@ -117,9 +117,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "global",
-        ),
+        var: "global",
         ast_path: [
             Program(
                 Script,
@@ -272,9 +270,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "global",
-        ),
+        var: "global",
         ast_path: [
             Program(
                 Script,

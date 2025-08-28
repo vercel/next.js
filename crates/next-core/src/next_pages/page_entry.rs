@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::{Result, bail};
 use serde::Serialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
+use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -19,7 +19,7 @@ use crate::{
     next_config::NextConfig,
     next_edge::entry::wrap_edge_entry,
     pages_structure::{PagesStructure, PagesStructureItem},
-    util::{NextRuntime, file_content_rope, load_next_js_template},
+    util::{NextRuntime, file_content_rope, load_next_js_template, pages_function_name},
 };
 
 #[turbo_tasks::value]
@@ -71,26 +71,20 @@ pub async fn create_page_ssr_entry_module(
     let inner_document = rcstr!("INNER_DOCUMENT");
     let inner_app = rcstr!("INNER_APP");
 
-    let mut replacements = fxindexmap! {
-        "VAR_DEFINITION_PAGE" => definition_page.clone(),
-        "VAR_DEFINITION_PATHNAME" => definition_pathname.clone(),
-        "VAR_USERLAND" => inner.clone(),
-    };
+    let mut replacements = vec![
+        ("VAR_DEFINITION_PAGE", &*definition_page),
+        ("VAR_DEFINITION_PATHNAME", &definition_pathname),
+        ("VAR_USERLAND", &inner),
+    ];
 
     if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
-        replacements.insert("VAR_MODULE_DOCUMENT", inner_document.clone());
-        replacements.insert("VAR_MODULE_APP", inner_app.clone());
+        replacements.push(("VAR_MODULE_DOCUMENT", &inner_document));
+        replacements.push(("VAR_MODULE_APP", &inner_app));
     }
 
     // Load the file from the next.js codebase.
-    let mut source = load_next_js_template(
-        template_file,
-        project_root.clone(),
-        replacements,
-        FxIndexMap::default(),
-        FxIndexMap::default(),
-    )
-    .await?;
+    let mut source =
+        load_next_js_template(template_file, project_root.clone(), &replacements, &[], &[]).await?;
 
     // When we're building the instrumentation page (only when the
     // instrumentation file conflicts with a page also labeled
@@ -169,7 +163,7 @@ pub async fn create_page_ssr_entry_module(
                 ssr_module_context,
                 project_root,
                 ssr_module,
-                definition_pathname.clone(),
+                pages_function_name(&definition_page).into(),
             );
         }
     }
@@ -215,26 +209,41 @@ async fn wrap_edge_page(
     let source = load_next_js_template(
         "edge-ssr.js",
         project_root.clone(),
-        fxindexmap! {
-            "VAR_USERLAND" => INNER.into(),
-            "VAR_PAGE" => pathname.clone(),
-            "VAR_MODULE_DOCUMENT" => INNER_DOCUMENT.into(),
-            "VAR_MODULE_APP" => INNER_APP.into(),
-            "VAR_MODULE_GLOBAL_ERROR" => INNER_ERROR.into(),
-        },
-        fxindexmap! {
+        &[
+            ("VAR_USERLAND", INNER),
+            ("VAR_PAGE", &pathname),
+            ("VAR_MODULE_DOCUMENT", INNER_DOCUMENT),
+            ("VAR_MODULE_APP", INNER_APP),
+            ("VAR_MODULE_GLOBAL_ERROR", INNER_ERROR),
+        ],
+        &[
             // TODO do we really need to pass the entire next config here?
             // This is bad for invalidation as any config change will invalidate this
-            "nextConfig" => serde_json::to_string(next_config_val)?.into(),
-            "pageRouteModuleOptions" => serde_json::to_string(&get_route_module_options(page.clone(), pathname.clone()))?.into(),
-            "errorRouteModuleOptions" => serde_json::to_string(&get_route_module_options(rcstr!("/_error"), rcstr!("/_error")))?.into(),
-            "user500RouteModuleOptions" => serde_json::to_string(&get_route_module_options(rcstr!("/500"), rcstr!("/500")))?.into(),
-        },
-        fxindexmap! {
+            ("nextConfig", &*serde_json::to_string(next_config_val)?),
+            (
+                "pageRouteModuleOptions",
+                &serde_json::to_string(&get_route_module_options(page.clone(), pathname.clone()))?,
+            ),
+            (
+                "errorRouteModuleOptions",
+                &serde_json::to_string(&get_route_module_options(
+                    rcstr!("/_error"),
+                    rcstr!("/_error"),
+                ))?,
+            ),
+            (
+                "user500RouteModuleOptions",
+                &serde_json::to_string(&get_route_module_options(rcstr!("/500"), rcstr!("/500")))?,
+            ),
+        ],
+        &[
             // TODO
-            "incrementalCacheHandler" => None,
-            "userland500Page" => pages_structure.await?.error_500.map(|_| INNER_ERROR_500.into()),
-        },
+            ("incrementalCacheHandler", None),
+            (
+                "userland500Page",
+                pages_structure.await?.error_500.map(|_| INNER_ERROR_500),
+            ),
+        ],
     )
     .await?;
 
@@ -279,7 +288,7 @@ async fn wrap_edge_page(
         asset_context,
         project_root,
         wrapped,
-        pathname.clone(),
+        pages_function_name(&page).into(),
     ))
 }
 

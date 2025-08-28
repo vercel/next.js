@@ -23,23 +23,6 @@ type SourceData = ChunkPath | ModuleId
 
 process.env.TURBOPACK = '1'
 
-function stringifySourceInfo(
-  sourceType: SourceType,
-  sourceData: SourceData
-): string {
-  switch (sourceType) {
-    case SourceType.Runtime:
-      return `runtime for chunk ${sourceData}`
-    case SourceType.Parent:
-      return `parent module ${sourceData}`
-    default:
-      invariant(
-        sourceType,
-        (sourceType) => `Unknown source type: ${sourceType}`
-      )
-  }
-}
-
 interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
   R: ResolvePathFromModule
   x: ExternalRequire
@@ -54,9 +37,8 @@ type ModuleFactory = (
 ) => unknown
 
 const url = require('url') as typeof import('url')
-const fs = require('fs/promises') as typeof import('fs/promises')
 
-const moduleFactories: ModuleFactories = Object.create(null)
+const moduleFactories: ModuleFactories = new Map()
 nodeContextPrototype.M = moduleFactories
 const moduleCache: ModuleCache<Module> = Object.create(null)
 nodeContextPrototype.c = moduleCache
@@ -115,20 +97,7 @@ function loadRuntimeChunkPath(
   try {
     const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
     const chunkModules: CompressedModuleFactories = require(resolved)
-
-    for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
-      if (!moduleFactories[moduleId]) {
-        if (Array.isArray(moduleFactory)) {
-          const [moduleFactoryFn, otherIds] = moduleFactory
-          moduleFactories[moduleId] = moduleFactoryFn
-          for (const otherModuleId of otherIds) {
-            moduleFactories[otherModuleId] = moduleFactoryFn
-          }
-        } else {
-          moduleFactories[moduleId] = moduleFactory
-        }
-      }
-    }
+    installCompressedModuleFactories(chunkModules, 0, moduleFactories)
     loadedChunks.add(chunkPath)
   } catch (e) {
     let errorMessage = `Failed to load chunk ${chunkPath}`
@@ -140,28 +109,6 @@ function loadRuntimeChunkPath(
     throw new Error(errorMessage, {
       cause: e,
     })
-  }
-}
-
-function loadChunkUncached(chunkPath: ChunkPath) {
-  // resolve to an absolute path to simplify `require` handling
-  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-
-  // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
-  // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
-  const chunkModules: CompressedModuleFactories = require(resolved)
-  for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {
-    if (!moduleFactories[moduleId]) {
-      if (Array.isArray(moduleFactory)) {
-        const [moduleFactoryFn, otherIds] = moduleFactory
-        moduleFactories[moduleId] = moduleFactoryFn
-        for (const otherModuleId of otherIds) {
-          moduleFactories[otherModuleId] = moduleFactoryFn
-        }
-      } else {
-        moduleFactories[moduleId] = moduleFactory
-      }
-    }
   }
 }
 
@@ -179,8 +126,12 @@ function loadChunkAsync(
   let entry = chunkCache.get(chunkPath)
   if (entry === undefined) {
     try {
-      // Load the chunk synchronously
-      loadChunkUncached(chunkPath)
+      // resolve to an absolute path to simplify `require` handling
+      const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
+      // TODO: consider switching to `import()` to enable concurrent chunk loading and async file io
+      // However this is incompatible with hot reloading (since `import` doesn't use the require cache)
+      const chunkModules: CompressedModuleFactories = require(resolved)
+      installCompressedModuleFactories(chunkModules, 0, moduleFactories)
       entry = loadedChunk
     } catch (e) {
       const errorMessage = `Failed to load chunk ${chunkPath} from module ${this.m.id}`
@@ -240,12 +191,12 @@ function instantiateModule(
   sourceType: SourceType,
   sourceData: SourceData
 ): Module {
-  const moduleFactory = moduleFactories[id]
+  const moduleFactory = moduleFactories.get(id)
   if (typeof moduleFactory !== 'function') {
     // This can happen if modules incorrectly handle HMR disposes/updates,
     // e.g. when they keep a `setTimeout` around which still executes old code
     // and contains e.g. a `require("something")` call.
-    let instantiationReason
+    let instantiationReason: string
     switch (sourceType) {
       case SourceType.Runtime:
         instantiationReason = `as a runtime entry of chunk ${sourceData}`
@@ -265,12 +216,16 @@ function instantiateModule(
   }
 
   const module: Module = createModuleObject(id)
+  const exports = module.exports
   moduleCache[id] = module
 
+  const context = new (Context as any as ContextConstructor<Module>)(
+    module,
+    exports
+  )
   // NOTE(alexkirsz) This can fail when the module encounters a runtime error.
   try {
-    const context = new (Context as any as ContextConstructor<Module>)(module)
-    moduleFactory(context)
+    moduleFactory(context, module, exports)
   } catch (error) {
     module.error = error as any
     throw error
@@ -296,6 +251,10 @@ function getOrInstantiateModuleFromParent(
   const module = moduleCache[id]
 
   if (module) {
+    if (module.error) {
+      throw module.error
+    }
+
     return module
   }
 

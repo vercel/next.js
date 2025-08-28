@@ -17,11 +17,11 @@ import {
   createMutableActionQueue,
 } from './components/app-router-instance'
 import AppRouter from './components/app-router'
-import type { InitialRSCPayload } from '../server/app-render/types'
+import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
-import { isBot } from '../shared/lib/router/utils/is-bot'
+import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-app'
 
 /// <reference types="react-dom/experimental" />
 
@@ -161,18 +161,22 @@ const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
 
 function ServerRoot({
   pendingActionQueue,
+  webSocket,
+  staticIndicatorState,
 }: {
   pendingActionQueue: Promise<AppRouterActionQueue>
+  webSocket: WebSocket | undefined
+  staticIndicatorState: StaticIndicatorState | undefined
 }): React.ReactNode {
   const initialRSCPayload = use(initialServerResponse)
   const actionQueue = use<AppRouterActionQueue>(pendingActionQueue)
 
   const router = (
     <AppRouter
-      gracefullyDegrade={isBot(window.navigator.userAgent)}
       actionQueue={actionQueue}
       globalErrorState={initialRSCPayload.G}
-      assetPrefix={initialRSCPayload.p}
+      webSocket={webSocket}
+      staticIndicatorState={staticIndicatorState}
     />
   )
 
@@ -227,8 +231,20 @@ export type ClientInstrumentationHooks = {
 }
 
 export function hydrate(
-  instrumentationHooks: ClientInstrumentationHooks | null
+  instrumentationHooks: ClientInstrumentationHooks | null,
+  assetPrefix: string
 ) {
+  let staticIndicatorState: StaticIndicatorState | undefined
+  let webSocket: WebSocket | undefined
+
+  if (process.env.NODE_ENV !== 'production') {
+    const { createWebSocket } =
+      require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
+
+    staticIndicatorState = { pathname: null, appIsrManifest: {} }
+    webSocket = createWebSocket(assetPrefix, staticIndicatorState)
+  }
+
   // React overrides `.then` and doesn't return a new promise chain,
   // so we wrap the action queue in a promise to ensure that its value
   // is defined when the promise resolves.
@@ -268,7 +284,11 @@ export function hydrate(
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider value={{ appDir: true }}>
         <Root>
-          <ServerRoot pendingActionQueue={pendingActionQueue} />
+          <ServerRoot
+            pendingActionQueue={pendingActionQueue}
+            webSocket={webSocket}
+            staticIndicatorState={staticIndicatorState}
+          />
         </Root>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
@@ -278,11 +298,13 @@ export function hydrate(
     let element = reactEl
     // Server rendering failed, fall back to client-side rendering
     if (process.env.NODE_ENV !== 'production') {
-      const { createRootLevelDevOverlayElement } =
+      const { RootLevelDevOverlayElement } =
         require('../next-devtools/userspace/app/client-entry') as typeof import('../next-devtools/userspace/app/client-entry')
 
       // Note this won't cause hydration mismatch because we are doing CSR w/o hydration
-      element = createRootLevelDevOverlayElement(element)
+      element = (
+        <RootLevelDevOverlayElement>{element}</RootLevelDevOverlayElement>
+      )
     }
 
     ReactDOMClient.createRoot(appElement, reactRootOptions).render(element)

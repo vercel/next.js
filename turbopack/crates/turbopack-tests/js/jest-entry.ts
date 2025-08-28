@@ -10,6 +10,10 @@ function setupGlobals() {
   // @ts-ignore Property 'expect' does not exist on type 'typeof globalThis'
   globalThis.expect = expectMod.expect
 
+  // Set up global external values for testing
+  // @ts-ignore Property 'testGlobalExternalValue' does not exist on type 'typeof globalThis'
+  globalThis.testGlobalExternalValue = { bar: '11' }
+
   // From https://github.com/webpack/webpack/blob/9fcaa243573005d6fdece9a3f8d89a0e8b399613/test/TestCases.template.js#L422
   globalThis.nsObj = function nsObj(obj) {
     Object.defineProperty(obj, Symbol.toStringTag, {

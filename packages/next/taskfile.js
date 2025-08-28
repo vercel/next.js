@@ -200,6 +200,15 @@ export async function copy_vercel_og(task, opts) {
     .source(
       join(dirname(require.resolve('satori/package.json')), 'dist/index.d.ts')
     )
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      const source = file.data.toString()
+      // Ignore yoga-wasm-web types
+      file.data = source.replace(
+        /import { Yoga } from ['"]yoga-wasm-web['"]/g,
+        'type Yoga = any'
+      )
+    })
     .target('src/compiled/@vercel/og/satori')
   await task
     .source(join(dirname(require.resolve('satori/package.json')), 'LICENSE'))
@@ -216,10 +225,9 @@ export async function copy_vercel_og(task, opts) {
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // Refers to copied satori types
-      file.data = source.replace(
-        /['"]satori['"]/g,
-        '"next/dist/compiled/@vercel/og/satori"'
-      )
+      file.data = source
+        .replace(/['"]satori['"]/g, '"next/dist/compiled/@vercel/og/satori"')
+        .replace("typeof import('@resvg/resvg-wasm')", 'any')
     })
     .target('src/compiled/@vercel/og')
 
@@ -650,6 +658,17 @@ export async function ncc_image_size(task, opts) {
     .source(relative(__dirname, require.resolve('image-size')))
     .ncc({ packageName: 'image-size', externals })
     .target('src/compiled/image-size')
+}
+
+// eslint-disable-next-line camelcase
+externals['image-detector'] = 'next/dist/compiled/image-detector'
+export async function ncc_image_detector(task, opts) {
+  // NOTE: remove this special compile step if the upstream PR lands
+  // https://github.com/image-size/image-size/pull/451
+  await task
+    .source(relative(__dirname, require.resolve('image-size/dist/detector.js')))
+    .ncc({ packageName: 'image-size', externals })
+    .target('src/compiled/image-detector')
 }
 
 // eslint-disable-next-line camelcase
@@ -2273,6 +2292,7 @@ export async function ncc(task, opts) {
         'ncc_p_queue',
         'ncc_raw_body',
         'ncc_image_size',
+        'ncc_image_detector',
         'ncc_hapi_accept',
         'ncc_commander',
         'ncc_node_anser',

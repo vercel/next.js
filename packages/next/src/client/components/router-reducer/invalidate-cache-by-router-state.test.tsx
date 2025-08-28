@@ -1,6 +1,8 @@
 import { invalidateCacheByRouterState } from './invalidate-cache-by-router-state'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type { FlightRouterState } from '../../../server/app-render/types'
+import type {
+  CacheNode,
+  FlightRouterState,
+} from '../../../shared/lib/app-router-types'
 
 const navigatedAt = -1
 

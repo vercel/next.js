@@ -1,6 +1,5 @@
 use std::{
     collections::{VecDeque, hash_map::Entry},
-    fmt::Display,
     mem::take,
     sync::LazyLock,
 };
@@ -16,8 +15,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{
     FileSystemPath, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry,
-    util::normalize_path,
 };
+use turbo_unix_path::normalize_path;
 
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug, Default)]
@@ -25,6 +24,7 @@ pub enum Pattern {
     Constant(RcStr),
     #[default]
     Dynamic,
+    DynamicNoSlash,
     Alternatives(Vec<Pattern>),
     Concatenation(Vec<Pattern>),
 }
@@ -80,6 +80,9 @@ fn longest_common_prefix<'a>(strings: &[&'a str]) -> &'a str {
     if strings.is_empty() {
         return "";
     }
+    if let [single] = strings {
+        return single;
+    }
     let first = strings[0];
     let mut len = first.len();
     for str in &strings[1..] {
@@ -117,16 +120,9 @@ fn longest_common_suffix<'a>(strings: &[&'a str]) -> &'a str {
 
 impl Pattern {
     // TODO this should be removed in favor of pattern resolving
-    pub fn into_string(self) -> Option<RcStr> {
+    pub fn as_constant_string(&self) -> Option<&RcStr> {
         match self {
             Pattern::Constant(str) => Some(str),
-            _ => None,
-        }
-    }
-
-    pub fn as_string(&self) -> Option<&str> {
-        match self {
-            Pattern::Constant(str) => Some(str.as_str()),
             _ => None,
         }
     }
@@ -136,7 +132,7 @@ impl Pattern {
     pub fn has_constant_parts(&self) -> bool {
         match self {
             Pattern::Constant(str) => str != "/",
-            Pattern::Dynamic => false,
+            Pattern::Dynamic | Pattern::DynamicNoSlash => false,
             Pattern::Alternatives(list) | Pattern::Concatenation(list) => {
                 list.iter().any(|p| p.has_constant_parts())
             }
@@ -146,7 +142,7 @@ impl Pattern {
     pub fn has_dynamic_parts(&self) -> bool {
         match self {
             Pattern::Constant(_) => false,
-            Pattern::Dynamic => true,
+            Pattern::Dynamic | Pattern::DynamicNoSlash => true,
             Pattern::Alternatives(list) | Pattern::Concatenation(list) => {
                 list.iter().any(|p| p.has_dynamic_parts())
             }
@@ -157,6 +153,10 @@ impl Pattern {
         // The normalized pattern is an Alternative of maximally merged
         // Concatenations, so extracting the first/only Concatenation child
         // elements is enough.
+
+        if let Pattern::Constant(c) = self {
+            return c;
+        }
 
         fn collect_constant_prefix<'a: 'b, 'b>(pattern: &'a Pattern, result: &mut Vec<&'b str>) {
             match pattern {
@@ -171,7 +171,7 @@ impl Pattern {
                 Pattern::Alternatives(_) => {
                     panic!("for constant_prefix a Pattern must be normalized");
                 }
-                Pattern::Dynamic => {}
+                Pattern::Dynamic | Pattern::DynamicNoSlash => {}
             }
         }
 
@@ -185,7 +185,7 @@ impl Pattern {
                     collect_constant_prefix(c, &mut strings);
                 }
             }
-            Pattern::Dynamic => {}
+            Pattern::Dynamic | Pattern::DynamicNoSlash => {}
         }
         longest_common_prefix(&strings)
     }
@@ -208,7 +208,7 @@ impl Pattern {
                 Pattern::Alternatives(_) => {
                     panic!("for constant_suffix a Pattern must be normalized");
                 }
-                Pattern::Dynamic => {}
+                Pattern::Dynamic | Pattern::DynamicNoSlash => {}
             }
         }
 
@@ -222,18 +222,28 @@ impl Pattern {
                     collect_constant_suffix(c, &mut strings);
                 }
             }
-            Pattern::Dynamic => {}
+            Pattern::Dynamic | Pattern::DynamicNoSlash => {}
         }
         longest_common_suffix(&strings)
     }
 
-    pub fn strip_prefix(&mut self, len: usize) {
+    pub fn strip_prefix(&self, prefix: &str) -> Option<Self> {
+        if self.must_match(prefix) {
+            let mut pat = self.clone();
+            pat.strip_prefix_len(prefix.len());
+            Some(pat)
+        } else {
+            None
+        }
+    }
+
+    pub fn strip_prefix_len(&mut self, len: usize) {
         fn strip_prefix_internal(pattern: &mut Pattern, chars_to_strip: &mut usize) {
             match pattern {
                 Pattern::Constant(c) => {
                     let c_len = c.len();
                     if *chars_to_strip >= c_len {
-                        *c = "".into();
+                        *c = rcstr!("");
                     } else {
                         *c = (&c[*chars_to_strip..]).into();
                     }
@@ -249,7 +259,7 @@ impl Pattern {
                 Pattern::Alternatives(_) => {
                     panic!("for strip_prefix a Pattern must be normalized");
                 }
-                Pattern::Dynamic => {
+                Pattern::Dynamic | Pattern::DynamicNoSlash => {
                     panic!("strip_prefix prefix is too long");
                 }
             }
@@ -266,7 +276,7 @@ impl Pattern {
                     strip_prefix_internal(c, &mut len_local);
                 }
             }
-            Pattern::Dynamic => {
+            Pattern::Dynamic | Pattern::DynamicNoSlash => {
                 if len > 0 {
                     panic!("strip_prefix prefix is too long");
                 }
@@ -276,13 +286,13 @@ impl Pattern {
         self.normalize()
     }
 
-    pub fn strip_suffix(&mut self, len: usize) {
+    pub fn strip_suffix_len(&mut self, len: usize) {
         fn strip_suffix_internal(pattern: &mut Pattern, chars_to_strip: &mut usize) {
             match pattern {
                 Pattern::Constant(c) => {
                     let c_len = c.len();
                     if *chars_to_strip >= c_len {
-                        *c = "".into();
+                        *c = rcstr!("");
                     } else {
                         *c = (&c[..(c_len - *chars_to_strip)]).into();
                     }
@@ -298,7 +308,7 @@ impl Pattern {
                 Pattern::Alternatives(_) => {
                     panic!("for strip_suffix a Pattern must be normalized");
                 }
-                Pattern::Dynamic => {
+                Pattern::Dynamic | Pattern::DynamicNoSlash => {
                     panic!("strip_suffix suffix is too long");
                 }
             }
@@ -315,7 +325,7 @@ impl Pattern {
                     strip_suffix_internal(c, &mut len_local);
                 }
             }
-            Pattern::Dynamic => {
+            Pattern::Dynamic | Pattern::DynamicNoSlash => {
                 if len > 0 {
                     panic!("strip_suffix suffix is too long");
                 }
@@ -325,10 +335,10 @@ impl Pattern {
         self.normalize()
     }
 
-    //// Replace all `*`s in `template` with self.
-    ////
-    //// Handle top-level alternatives separately so that multiple star placeholders
-    //// match the same pattern instead of the whole alternative.
+    /// Replace all `*`s in `template` with self.
+    ///
+    /// Handle top-level alternatives separately so that multiple star placeholders
+    /// match the same pattern instead of the whole alternative.
     pub fn spread_into_star(&self, template: &str) -> Pattern {
         if template.contains("*") {
             let alternatives: Box<dyn Iterator<Item = &Pattern>> = match self {
@@ -378,6 +388,20 @@ impl Pattern {
 
     /// Appends something to end the pattern.
     pub fn push(&mut self, pat: Pattern) {
+        if let Pattern::Constant(this) = &*self
+            && this.is_empty()
+        {
+            // Short-circuit to replace empty constants with the appended pattern
+            *self = pat;
+            return;
+        }
+        if let Pattern::Constant(pat) = &pat
+            && pat.is_empty()
+        {
+            // Short-circuit to ignore when trying to append an empty string.
+            return;
+        }
+
         match (self, pat) {
             (Pattern::Concatenation(list), Pattern::Concatenation(more)) => {
                 concatenation_extend_or_merge_items(list, more.into_iter());
@@ -456,40 +480,68 @@ impl Pattern {
     pub fn with_normalized_path(&self) -> Option<Pattern> {
         let mut new = self.clone();
 
+        #[derive(Debug)]
+        enum PathElement {
+            Segment(Pattern),
+            Separator,
+        }
+
         fn normalize_path_internal(pattern: &mut Pattern) -> Option<()> {
             match pattern {
                 Pattern::Constant(c) => {
                     let normalized = c.replace('\\', "/");
-                    *c = (*(normalize_path(normalized.as_str())?)).into();
+                    *c = RcStr::from(normalize_path(normalized.as_str())?);
                     Some(())
                 }
-                Pattern::Dynamic => Some(()),
+                Pattern::Dynamic | Pattern::DynamicNoSlash => Some(()),
                 Pattern::Concatenation(list) => {
                     let mut segments = Vec::new();
                     for segment in list.iter() {
                         match segment {
                             Pattern::Constant(str) => {
-                                for segment in str.split('/') {
+                                let mut iter = str.split('/').peekable();
+                                while let Some(segment) = iter.next() {
                                     match segment {
-                                        "." | "" => {}
+                                        "." | "" => {
+                                            // Ignore empty segments
+                                            continue;
+                                        }
                                         ".." => {
-                                            segments.pop()?;
+                                            if segments.is_empty() {
+                                                // Leaving root
+                                                return None;
+                                            }
+
+                                            if let Some(PathElement::Separator) = segments.last()
+                                                && let Some(PathElement::Segment(
+                                                    Pattern::Constant(_),
+                                                )) = segments.get(segments.len() - 2)
+                                            {
+                                                // Resolve `foo/..`
+                                                segments.truncate(segments.len() - 2);
+                                                continue;
+                                            }
+
+                                            // Keep it, can't pop non-constant segment.
+                                            segments.push(PathElement::Segment(Pattern::Constant(
+                                                rcstr!(".."),
+                                            )));
                                         }
                                         segment => {
-                                            segments.push(vec![Pattern::Constant(segment.into())]);
+                                            segments.push(PathElement::Segment(Pattern::Constant(
+                                                segment.into(),
+                                            )));
                                         }
                                     }
-                                }
-                                if str.ends_with("/") {
-                                    segments.push(vec![]);
+
+                                    if iter.peek().is_some() {
+                                        // If not last, add separator
+                                        segments.push(PathElement::Separator);
+                                    }
                                 }
                             }
-                            Pattern::Dynamic => {
-                                if segments.is_empty() {
-                                    segments.push(vec![]);
-                                }
-                                let last = segments.last_mut().unwrap();
-                                last.push(Pattern::Dynamic);
+                            Pattern::Dynamic | Pattern::DynamicNoSlash => {
+                                segments.push(PathElement::Segment(segment.clone()));
                             }
                             Pattern::Alternatives(_) | Pattern::Concatenation(_) => {
                                 panic!("for with_normalized_path the Pattern must be normalized");
@@ -499,10 +551,10 @@ impl Pattern {
                     let separator = rcstr!("/");
                     *list = segments
                         .into_iter()
-                        .flat_map(|c| {
-                            std::iter::once(Pattern::Constant(separator.clone())).chain(c)
+                        .map(|c| match c {
+                            PathElement::Segment(p) => p,
+                            PathElement::Separator => Pattern::Constant(separator.clone()),
                         })
-                        .skip(1)
                         .collect();
                     Some(())
                 }
@@ -521,7 +573,7 @@ impl Pattern {
                     normalize_path_internal(c)?;
                 }
             }
-            Pattern::Dynamic => {}
+            Pattern::Dynamic | Pattern::DynamicNoSlash => {}
         }
 
         new.normalize();
@@ -532,7 +584,7 @@ impl Pattern {
     /// Merge when possible
     pub fn normalize(&mut self) {
         match self {
-            Pattern::Dynamic | Pattern::Constant(_) => {
+            Pattern::Dynamic | Pattern::DynamicNoSlash | Pattern::Constant(_) => {
                 // already normalized
             }
             Pattern::Alternatives(list) => {
@@ -641,10 +693,19 @@ impl Pattern {
                                     }
                                 }
                                 Pattern::Dynamic => {
-                                    if let Some(Pattern::Dynamic) = new_parts.last() {
+                                    if let Some(Pattern::Dynamic | Pattern::DynamicNoSlash) =
+                                        new_parts.last()
+                                    {
                                         // do nothing
                                     } else {
                                         new_parts.push(Pattern::Dynamic);
+                                    }
+                                }
+                                Pattern::DynamicNoSlash => {
+                                    if let Some(Pattern::DynamicNoSlash) = new_parts.last() {
+                                        // do nothing
+                                    } else {
+                                        new_parts.push(Pattern::DynamicNoSlash);
                                     }
                                 }
                                 Pattern::Concatenation(parts) => {
@@ -665,6 +726,15 @@ impl Pattern {
                     }
                 }
             }
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Pattern::Constant(s) => s.is_empty(),
+            Pattern::Dynamic | Pattern::DynamicNoSlash => false,
+            Pattern::Concatenation(parts) => parts.iter().all(|p| p.is_empty()),
+            Pattern::Alternatives(parts) => parts.iter().all(|p| p.is_empty()),
         }
     }
 
@@ -844,7 +914,7 @@ impl Pattern {
                     MatchResult::None
                 }
             }
-            Pattern::Dynamic => {
+            Pattern::Dynamic | Pattern::DynamicNoSlash => {
                 static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
                     Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap()
                 });
@@ -860,9 +930,13 @@ impl Pattern {
                 } else if ignore_dynamic {
                     MatchResult::None
                 } else {
+                    let match_length = matches!(self, Pattern::DynamicNoSlash)
+                        .then(|| value.find("/"))
+                        .flatten()
+                        .unwrap_or(value.len());
                     MatchResult::Consumed {
                         remaining: value,
-                        any_offset: Some(value.len()),
+                        any_offset: Some(match_length),
                     }
                 }
             }
@@ -930,7 +1004,7 @@ impl Pattern {
                     MatchResult::None
                 }
             }
-            Pattern::Dynamic => {
+            Pattern::Dynamic | Pattern::DynamicNoSlash => {
                 static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
                     Regex::new(r"(/|^)(ROOT|\.|/|(node_modules|__tests?__)(/|$))").unwrap()
                 });
@@ -944,9 +1018,13 @@ impl Pattern {
                 } else if FORBIDDEN_MATCH.find(value).is_some() {
                     MatchResult::Partial
                 } else {
+                    let match_length = matches!(self, Pattern::DynamicNoSlash)
+                        .then(|| value.find("/"))
+                        .flatten()
+                        .unwrap_or(value.len());
                     MatchResult::Consumed {
                         remaining: value,
-                        any_offset: Some(value.len()),
+                        any_offset: Some(match_length),
                     }
                 }
             }
@@ -1044,7 +1122,7 @@ impl Pattern {
                     NextConstantUntilResult::NoMatch
                 }
             }
-            Pattern::Dynamic => {
+            Pattern::Dynamic | Pattern::DynamicNoSlash => {
                 static FORBIDDEN: LazyLock<Regex> = LazyLock::new(|| {
                     Regex::new(r"(/|^)(\.|(node_modules|__tests?__)(/|$))").unwrap()
                 });
@@ -1108,7 +1186,7 @@ impl Pattern {
                     replaced = true;
                 }
             }
-            Pattern::Dynamic => {}
+            Pattern::Dynamic | Pattern::DynamicNoSlash => {}
             Pattern::Alternatives(list) => {
                 for i in list {
                     replaced = i.replace_final_constants(cb) || replaced;
@@ -1117,6 +1195,27 @@ impl Pattern {
             Pattern::Concatenation(list) => {
                 if let Some(i) = list.last_mut() {
                     replaced = i.replace_final_constants(cb) || replaced;
+                }
+            }
+        }
+        replaced
+    }
+
+    /// Calls `cb` on all constants and replaces the them with the returned pattern. Returns true if
+    /// replacements were performed.
+    pub fn replace_constants(&mut self, cb: &impl Fn(&RcStr) -> Option<Pattern>) -> bool {
+        let mut replaced = false;
+        match self {
+            Pattern::Constant(c) => {
+                if let Some(replacement) = cb(c) {
+                    *self = replacement;
+                    replaced = true;
+                }
+            }
+            Pattern::Dynamic | Pattern::DynamicNoSlash => {}
+            Pattern::Concatenation(list) | Pattern::Alternatives(list) => {
+                for i in list {
+                    replaced = i.replace_constants(cb) || replaced;
                 }
             }
         }
@@ -1155,12 +1254,14 @@ impl Pattern {
         let mut result = "".to_string();
         match target {
             Pattern::Constant(c) => result.push_str(c),
-            Pattern::Dynamic => result.push_str(dynamics.pop_front()?),
+            Pattern::Dynamic | Pattern::DynamicNoSlash => result.push_str(dynamics.pop_front()?),
             Pattern::Concatenation(list) => {
                 for c in list {
                     match c {
                         Pattern::Constant(c) => result.push_str(c),
-                        Pattern::Dynamic => result.push_str(dynamics.pop_front()?),
+                        Pattern::Dynamic | Pattern::DynamicNoSlash => {
+                            result.push_str(dynamics.pop_front()?)
+                        }
                         Pattern::Alternatives(_) | Pattern::Concatenation(_) => {
                             panic!("Pattern must be normalized")
                         }
@@ -1280,27 +1381,24 @@ impl From<RcStr> for Pattern {
     }
 }
 
-impl Display for Pattern {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Pattern {
+    pub fn describe_as_string(&self) -> String {
         match self {
-            Pattern::Constant(c) => write!(f, "'{c}'"),
-            Pattern::Dynamic => write!(f, "<dynamic>"),
-            Pattern::Alternatives(list) => write!(
-                f,
+            Pattern::Constant(c) => format!("'{c}'"),
+            Pattern::Dynamic => "<dynamic>".to_string(),
+            Pattern::DynamicNoSlash => "<dynamic no slash>".to_string(),
+            Pattern::Alternatives(list) => format!(
                 "({})",
                 list.iter()
-                    .map(|i| i.to_string())
+                    .map(|i| i.describe_as_string())
                     .collect::<Vec<_>>()
                     .join(" | ")
             ),
-            Pattern::Concatenation(list) => write!(
-                f,
-                "{}",
-                list.iter()
-                    .map(|i| i.to_string())
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            ),
+            Pattern::Concatenation(list) => list
+                .iter()
+                .map(|i| i.describe_as_string())
+                .collect::<Vec<_>>()
+                .join(" "),
         }
     }
 }
@@ -1309,7 +1407,7 @@ impl Display for Pattern {
 impl ValueToString for Pattern {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.to_string().into())
+        Vc::cell(self.describe_as_string().into())
     }
 }
 
@@ -1631,7 +1729,7 @@ pub async fn read_matches(
                                     prefix.pop();
                                 }
                                 if let Some(pos) = pat.match_position(&prefix) {
-                                    let fs_path = lookup_dir.join(&key.clone())?;
+                                    let fs_path = lookup_dir.join(key)?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
                                     {
@@ -1653,7 +1751,7 @@ pub async fn read_matches(
                                 }
                                 prefix.push('/');
                                 if let Some(pos) = pat.match_position(&prefix) {
-                                    let fs_path = lookup_dir.join(&key.clone())?;
+                                    let fs_path = lookup_dir.join(key)?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
                                         && link_type.contains(LinkType::DIRECTORY)
@@ -1665,7 +1763,7 @@ pub async fn read_matches(
                                     }
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
-                                    let fs_path = lookup_dir.join(&key.clone())?;
+                                    let fs_path = lookup_dir.join(key)?;
                                     if let LinkContent::Link { link_type, .. } =
                                         &*fs_path.read_link().await?
                                         && link_type.contains(LinkType::DIRECTORY)
@@ -1736,7 +1834,7 @@ fn split_last_segment(path: &str) -> (&str, &str) {
 #[cfg(test)]
 mod tests {
     use rstest::*;
-    use turbo_rcstr::RcStr;
+    use turbo_rcstr::{RcStr, rcstr};
 
     use super::{Pattern, longest_common_prefix, longest_common_suffix, split_last_segment};
 
@@ -1760,10 +1858,10 @@ mod tests {
 
     #[test]
     fn normalize() {
-        let a = Pattern::Constant("a".into());
-        let b = Pattern::Constant("b".into());
-        let c = Pattern::Constant("c".into());
-        let s = Pattern::Constant("/".into());
+        let a = Pattern::Constant(rcstr!("a"));
+        let b = Pattern::Constant(rcstr!("b"));
+        let c = Pattern::Constant(rcstr!("c"));
+        let s = Pattern::Constant(rcstr!("/"));
         let d = Pattern::Dynamic;
         {
             let mut p = Pattern::Concatenation(vec![
@@ -1775,8 +1873,8 @@ mod tests {
             assert_eq!(
                 p,
                 Pattern::Alternatives(vec![
-                    Pattern::Constant("a/c".into()),
-                    Pattern::Constant("b/c".into()),
+                    Pattern::Constant(rcstr!("a/c")),
+                    Pattern::Constant(rcstr!("b/c")),
                 ])
             );
         }
@@ -1793,17 +1891,17 @@ mod tests {
             assert_eq!(
                 p,
                 Pattern::Alternatives(vec![
-                    Pattern::Constant("a/b".into()),
-                    Pattern::Constant("b/b".into()),
-                    Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant("/b".into())]),
-                    Pattern::Constant("a/c".into()),
-                    Pattern::Constant("b/c".into()),
-                    Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant("/c".into())]),
-                    Pattern::Concatenation(vec![Pattern::Constant("a/".into()), Pattern::Dynamic]),
-                    Pattern::Concatenation(vec![Pattern::Constant("b/".into()), Pattern::Dynamic]),
+                    Pattern::Constant(rcstr!("a/b")),
+                    Pattern::Constant(rcstr!("b/b")),
+                    Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(rcstr!("/b"))]),
+                    Pattern::Constant(rcstr!("a/c")),
+                    Pattern::Constant(rcstr!("b/c")),
+                    Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(rcstr!("/c"))]),
+                    Pattern::Concatenation(vec![Pattern::Constant(rcstr!("a/")), Pattern::Dynamic]),
+                    Pattern::Concatenation(vec![Pattern::Constant(rcstr!("b/")), Pattern::Dynamic]),
                     Pattern::Concatenation(vec![
                         Pattern::Dynamic,
-                        Pattern::Constant("/".into()),
+                        Pattern::Constant(rcstr!("/")),
                         Pattern::Dynamic
                     ]),
                 ])
@@ -1830,67 +1928,97 @@ mod tests {
     #[test]
     fn with_normalized_path() {
         assert!(
-            Pattern::Constant("a/../..".into())
+            Pattern::Constant(rcstr!("a/../.."))
                 .with_normalized_path()
                 .is_none()
         );
         assert_eq!(
-            Pattern::Constant("a/b/../c".into())
+            Pattern::Constant(rcstr!("a/b/../c"))
                 .with_normalized_path()
                 .unwrap(),
-            Pattern::Constant("a/c".into())
+            Pattern::Constant(rcstr!("a/c"))
         );
         assert_eq!(
             Pattern::Alternatives(vec![
-                Pattern::Constant("a/b/../c".into()),
-                Pattern::Constant("a/b/../c/d".into())
+                Pattern::Constant(rcstr!("a/b/../c")),
+                Pattern::Constant(rcstr!("a/b/../c/d"))
             ])
             .with_normalized_path()
             .unwrap(),
             Pattern::Alternatives(vec![
-                Pattern::Constant("a/c".into()),
-                Pattern::Constant("a/c/d".into())
+                Pattern::Constant(rcstr!("a/c")),
+                Pattern::Constant(rcstr!("a/c/d"))
             ])
+        );
+        assert_eq!(
+            Pattern::Constant(rcstr!("a/b/"))
+                .with_normalized_path()
+                .unwrap(),
+            Pattern::Constant(rcstr!("a/b"))
         );
 
         // Dynamic is a segment itself
         assert_eq!(
             Pattern::Concatenation(vec![
-                Pattern::Constant("a/b/".into()),
+                Pattern::Constant(rcstr!("a/b/")),
                 Pattern::Dynamic,
-                Pattern::Constant("../c".into())
+                Pattern::Constant(rcstr!("../c"))
             ])
             .with_normalized_path()
             .unwrap(),
-            Pattern::Constant("a/b/c".into())
+            Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("a/b/")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!("../c"))
+            ])
         );
 
-        // Dynamic is only part of the second segment
+        // Dynamic is part of a segment
         assert_eq!(
             Pattern::Concatenation(vec![
-                Pattern::Constant("a/b".into()),
+                Pattern::Constant(rcstr!("a/b")),
                 Pattern::Dynamic,
-                Pattern::Constant("../c".into())
+                Pattern::Constant(rcstr!("../c"))
             ])
             .with_normalized_path()
             .unwrap(),
-            Pattern::Constant("a/c".into())
+            Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("a/b")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!("../c"))
+            ])
+        );
+        assert_eq!(
+            Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("src/")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!(".js"))
+            ])
+            .with_normalized_path()
+            .unwrap(),
+            Pattern::Concatenation(vec![
+                Pattern::Constant(rcstr!("src/")),
+                Pattern::Dynamic,
+                Pattern::Constant(rcstr!(".js"))
+            ])
         );
     }
 
     #[test]
     fn is_match() {
         let pat = Pattern::Concatenation(vec![
-            Pattern::Constant(".".into()),
-            Pattern::Constant("/".into()),
+            Pattern::Constant(rcstr!(".")),
+            Pattern::Constant(rcstr!("/")),
             Pattern::Dynamic,
-            Pattern::Constant(".js".into()),
+            Pattern::Constant(rcstr!(".js")),
         ]);
         assert!(pat.could_match(""));
         assert!(pat.could_match("./"));
         assert!(!pat.is_match("./"));
         assert!(pat.is_match("./index.js"));
         assert!(!pat.is_match("./index"));
+        assert!(pat.is_match("./foo/index.js"));
+        assert!(pat.is_match("./foo/bar/index.js"));
 
         // forbidden:
         assert!(!pat.is_match("./../index.js"));
@@ -1908,16 +2036,33 @@ mod tests {
     }
 
     #[test]
+    fn is_match_dynamic_no_slash() {
+        let pat = Pattern::Concatenation(vec![
+            Pattern::Constant(rcstr!(".")),
+            Pattern::Constant(rcstr!("/")),
+            Pattern::DynamicNoSlash,
+            Pattern::Constant(rcstr!(".js")),
+        ]);
+        assert!(pat.could_match(""));
+        assert!(pat.could_match("./"));
+        assert!(!pat.is_match("./"));
+        assert!(pat.is_match("./index.js"));
+        assert!(!pat.is_match("./index"));
+        assert!(!pat.is_match("./foo/index.js"));
+        assert!(!pat.is_match("./foo/bar/index.js"));
+    }
+
+    #[test]
     fn constant_prefix() {
         assert_eq!(
-            Pattern::Constant("a/b/c.js".into()).constant_prefix(),
+            Pattern::Constant(rcstr!("a/b/c.js")).constant_prefix(),
             "a/b/c.js",
         );
 
         let pat = Pattern::Alternatives(vec![
-            Pattern::Constant("a/b/x".into()),
-            Pattern::Constant("a/b/y".into()),
-            Pattern::Concatenation(vec![Pattern::Constant("a/b/c/".into()), Pattern::Dynamic]),
+            Pattern::Constant(rcstr!("a/b/x")),
+            Pattern::Constant(rcstr!("a/b/y")),
+            Pattern::Concatenation(vec![Pattern::Constant(rcstr!("a/b/c/")), Pattern::Dynamic]),
         ]);
         assert_eq!(pat.constant_prefix(), "a/b/");
     }
@@ -1925,17 +2070,17 @@ mod tests {
     #[test]
     fn constant_suffix() {
         assert_eq!(
-            Pattern::Constant("a/b/c.js".into()).constant_suffix(),
+            Pattern::Constant(rcstr!("a/b/c.js")).constant_suffix(),
             "a/b/c.js",
         );
 
         let pat = Pattern::Alternatives(vec![
-            Pattern::Constant("a/b/x.js".into()),
-            Pattern::Constant("a/b/y.js".into()),
+            Pattern::Constant(rcstr!("a/b/x.js")),
+            Pattern::Constant(rcstr!("a/b/y.js")),
             Pattern::Concatenation(vec![
-                Pattern::Constant("a/b/c/".into()),
+                Pattern::Constant(rcstr!("a/b/c/")),
                 Pattern::Dynamic,
-                Pattern::Constant(".js".into()),
+                Pattern::Constant(rcstr!(".js")),
             ]),
         ]);
         assert_eq!(pat.constant_suffix(), ".js");
@@ -1944,67 +2089,67 @@ mod tests {
     #[test]
     fn strip_prefix() {
         fn strip(mut pat: Pattern, n: usize) -> Pattern {
-            pat.strip_prefix(n);
+            pat.strip_prefix_len(n);
             pat
         }
 
         assert_eq!(
-            strip(Pattern::Constant("a/b".into()), 0),
-            Pattern::Constant("a/b".into())
+            strip(Pattern::Constant(rcstr!("a/b")), 0),
+            Pattern::Constant(rcstr!("a/b"))
         );
 
         assert_eq!(
             strip(
                 Pattern::Alternatives(vec![
-                    Pattern::Constant("a/b/x".into()),
-                    Pattern::Constant("a/b/y".into()),
+                    Pattern::Constant(rcstr!("a/b/x")),
+                    Pattern::Constant(rcstr!("a/b/y")),
                 ]),
                 2
             ),
             Pattern::Alternatives(vec![
-                Pattern::Constant("b/x".into()),
-                Pattern::Constant("b/y".into()),
+                Pattern::Constant(rcstr!("b/x")),
+                Pattern::Constant(rcstr!("b/y")),
             ])
         );
 
         assert_eq!(
             strip(
                 Pattern::Concatenation(vec![
-                    Pattern::Constant("a/".into()),
-                    Pattern::Constant("b".into()),
-                    Pattern::Constant("/".into()),
-                    Pattern::Constant("y/".into()),
+                    Pattern::Constant(rcstr!("a/")),
+                    Pattern::Constant(rcstr!("b")),
+                    Pattern::Constant(rcstr!("/")),
+                    Pattern::Constant(rcstr!("y/")),
                     Pattern::Dynamic
                 ]),
                 4
             ),
-            Pattern::Concatenation(vec![Pattern::Constant("y/".into()), Pattern::Dynamic]),
+            Pattern::Concatenation(vec![Pattern::Constant(rcstr!("y/")), Pattern::Dynamic]),
         );
     }
 
     #[test]
     fn strip_suffix() {
         fn strip(mut pat: Pattern, n: usize) -> Pattern {
-            pat.strip_suffix(n);
+            pat.strip_suffix_len(n);
             pat
         }
 
         assert_eq!(
-            strip(Pattern::Constant("a/b".into()), 0),
-            Pattern::Constant("a/b".into())
+            strip(Pattern::Constant(rcstr!("a/b")), 0),
+            Pattern::Constant(rcstr!("a/b"))
         );
 
         assert_eq!(
             strip(
                 Pattern::Alternatives(vec![
-                    Pattern::Constant("x/b/a".into()),
-                    Pattern::Constant("y/b/a".into()),
+                    Pattern::Constant(rcstr!("x/b/a")),
+                    Pattern::Constant(rcstr!("y/b/a")),
                 ]),
                 2
             ),
             Pattern::Alternatives(vec![
-                Pattern::Constant("x/b".into()),
-                Pattern::Constant("y/b".into()),
+                Pattern::Constant(rcstr!("x/b")),
+                Pattern::Constant(rcstr!("y/b")),
             ])
         );
 
@@ -2012,65 +2157,65 @@ mod tests {
             strip(
                 Pattern::Concatenation(vec![
                     Pattern::Dynamic,
-                    Pattern::Constant("/a/".into()),
-                    Pattern::Constant("b".into()),
-                    Pattern::Constant("/".into()),
-                    Pattern::Constant("y/".into()),
+                    Pattern::Constant(rcstr!("/a/")),
+                    Pattern::Constant(rcstr!("b")),
+                    Pattern::Constant(rcstr!("/")),
+                    Pattern::Constant(rcstr!("y/")),
                 ]),
                 4
             ),
-            Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant("/a/".into()),]),
+            Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(rcstr!("/a/")),]),
         );
     }
 
     #[test]
     fn spread_into_star() {
-        let pat = Pattern::Constant("xyz".into());
+        let pat = Pattern::Constant(rcstr!("xyz"));
         assert_eq!(
             pat.spread_into_star("before/after"),
-            Pattern::Constant("before/after".into()),
+            Pattern::Constant(rcstr!("before/after")),
         );
 
         let pat =
-            Pattern::Concatenation(vec![Pattern::Constant("a/b/c/".into()), Pattern::Dynamic]);
+            Pattern::Concatenation(vec![Pattern::Constant(rcstr!("a/b/c/")), Pattern::Dynamic]);
         assert_eq!(
             pat.spread_into_star("before/*/after"),
             Pattern::Concatenation(vec![
-                Pattern::Constant("before/a/b/c/".into()),
+                Pattern::Constant(rcstr!("before/a/b/c/")),
                 Pattern::Dynamic,
-                Pattern::Constant("/after".into())
+                Pattern::Constant(rcstr!("/after"))
             ])
         );
 
         let pat = Pattern::Alternatives(vec![
-            Pattern::Concatenation(vec![Pattern::Constant("a/".into()), Pattern::Dynamic]),
-            Pattern::Concatenation(vec![Pattern::Constant("b/".into()), Pattern::Dynamic]),
+            Pattern::Concatenation(vec![Pattern::Constant(rcstr!("a/")), Pattern::Dynamic]),
+            Pattern::Concatenation(vec![Pattern::Constant(rcstr!("b/")), Pattern::Dynamic]),
         ]);
         assert_eq!(
             pat.spread_into_star("before/*/after"),
             Pattern::Alternatives(vec![
                 Pattern::Concatenation(vec![
-                    Pattern::Constant("before/a/".into()),
+                    Pattern::Constant(rcstr!("before/a/")),
                     Pattern::Dynamic,
-                    Pattern::Constant("/after".into())
+                    Pattern::Constant(rcstr!("/after"))
                 ]),
                 Pattern::Concatenation(vec![
-                    Pattern::Constant("before/b/".into()),
+                    Pattern::Constant(rcstr!("before/b/")),
                     Pattern::Dynamic,
-                    Pattern::Constant("/after".into())
+                    Pattern::Constant(rcstr!("/after"))
                 ]),
             ])
         );
 
         let pat = Pattern::Alternatives(vec![
-            Pattern::Constant("a".into()),
-            Pattern::Constant("b".into()),
+            Pattern::Constant(rcstr!("a")),
+            Pattern::Constant(rcstr!("b")),
         ]);
         assert_eq!(
             pat.spread_into_star("before/*/*"),
             Pattern::Alternatives(vec![
-                Pattern::Constant("before/a/a".into()),
-                Pattern::Constant("before/b/b".into()),
+                Pattern::Constant(rcstr!("before/a/a")),
+                Pattern::Constant(rcstr!("before/b/b")),
             ])
         );
 
@@ -2079,9 +2224,9 @@ mod tests {
             pat.spread_into_star("before/*/*"),
             Pattern::Concatenation(vec![
                 // TODO currently nothing ensures that both Dynamic parts are equal
-                Pattern::Constant("before/".into()),
+                Pattern::Constant(rcstr!("before/")),
                 Pattern::Dynamic,
-                Pattern::Constant("/".into()),
+                Pattern::Constant(rcstr!("/")),
                 Pattern::Dynamic
             ])
         );
@@ -2089,7 +2234,7 @@ mod tests {
 
     #[rstest]
     #[case::dynamic(Pattern::Dynamic)]
-    #[case::dynamic_concat(Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(".js".into())]))]
+    #[case::dynamic_concat(Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(rcstr!(".js"))]))]
     fn dynamic_match(#[case] pat: Pattern) {
         assert!(pat.could_match(""));
         assert!(pat.is_match("index.js"));
@@ -2143,7 +2288,7 @@ mod tests {
     fn dynamic_match2() {
         let pat = Pattern::Concatenation(vec![
             Pattern::Dynamic,
-            Pattern::Constant("/".into()),
+            Pattern::Constant(rcstr!("/")),
             Pattern::Dynamic,
         ]);
         assert!(pat.could_match("dir"));
@@ -2195,16 +2340,16 @@ mod tests {
 
     #[rstest]
     #[case::dynamic(Pattern::Dynamic)]
-    #[case::dynamic_concat(Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(".js".into())]))]
+    #[case::dynamic_concat(Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(rcstr!(".js"))]))]
     #[case::dynamic_concat2(Pattern::Concatenation(vec![
         Pattern::Dynamic,
-        Pattern::Constant("/".into()),
+        Pattern::Constant(rcstr!("/")),
         Pattern::Dynamic,
     ]))]
     #[case::dynamic_alt_concat(Pattern::alternatives(vec![
         Pattern::Concatenation(vec![
             Pattern::Dynamic,
-            Pattern::Constant("/".into()),
+            Pattern::Constant(rcstr!("/")),
             Pattern::Dynamic,
         ]),
         Pattern::Dynamic,
@@ -2218,28 +2363,28 @@ mod tests {
     #[rstest]
     #[case::dynamic(Pattern::Dynamic, "feijf", None)]
     #[case::dynamic_concat(
-        Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(".js".into())]),
+        Pattern::Concatenation(vec![Pattern::Dynamic, Pattern::Constant(rcstr!(".js"))]),
         "hello.", None
     )]
-    #[case::constant(Pattern::Constant("Hello World".into()), "Hello ", Some(vec![("World", true)]))]
+    #[case::constant(Pattern::Constant(rcstr!("Hello World")), "Hello ", Some(vec![("World", true)]))]
     #[case::alternatives(
         Pattern::Alternatives(vec![
-            Pattern::Constant("Hello World".into()),
-            Pattern::Constant("Hello All".into())
+            Pattern::Constant(rcstr!("Hello World")),
+            Pattern::Constant(rcstr!("Hello All"))
         ]), "Hello ", Some(vec![("World", true), ("All", true)])
     )]
     #[case::alternatives_non_end(
         Pattern::Alternatives(vec![
-            Pattern::Constant("Hello World".into()),
-            Pattern::Constant("Hello All".into()),
-            Pattern::Concatenation(vec![Pattern::Constant("Hello more".into()), Pattern::Dynamic])
+            Pattern::Constant(rcstr!("Hello World")),
+            Pattern::Constant(rcstr!("Hello All")),
+            Pattern::Concatenation(vec![Pattern::Constant(rcstr!("Hello more")), Pattern::Dynamic])
         ]), "Hello ", Some(vec![("World", true), ("All", true), ("more", false)])
     )]
     #[case::request_with_extensions(
         Pattern::Alternatives(vec![
-            Pattern::Constant("./file.js".into()),
-            Pattern::Constant("./file.ts".into()),
-            Pattern::Constant("./file.cjs".into()),
+            Pattern::Constant(rcstr!("./file.js")),
+            Pattern::Constant(rcstr!("./file.ts")),
+            Pattern::Constant(rcstr!("./file.cjs")),
         ]), "./", Some(vec![("file.js", true), ("file.ts", true), ("file.cjs", true)])
     )]
     fn next_constants(
@@ -2260,9 +2405,9 @@ mod tests {
         let js_to_ts_tsx = |c: &RcStr| -> Option<Pattern> {
             c.strip_suffix(".js").map(|rest| {
                 let new_ending = Pattern::Alternatives(vec![
-                    Pattern::Constant(".ts".into()),
-                    Pattern::Constant(".tsx".into()),
-                    Pattern::Constant(".js".into()),
+                    Pattern::Constant(rcstr!(".ts")),
+                    Pattern::Constant(rcstr!(".tsx")),
+                    Pattern::Constant(rcstr!(".js")),
                 ]);
                 if !rest.is_empty() {
                     Pattern::Concatenation(vec![Pattern::Constant(rest.into()), new_ending])
@@ -2275,48 +2420,48 @@ mod tests {
         assert_eq!(
             f(
                 Pattern::Concatenation(vec![
-                    Pattern::Constant(".".into()),
-                    Pattern::Constant("/".into()),
+                    Pattern::Constant(rcstr!(".")),
+                    Pattern::Constant(rcstr!("/")),
                     Pattern::Dynamic,
                     Pattern::Alternatives(vec![
-                        Pattern::Constant(".js".into()),
-                        Pattern::Constant(".node".into()),
+                        Pattern::Constant(rcstr!(".js")),
+                        Pattern::Constant(rcstr!(".node")),
                     ])
                 ]),
                 &js_to_ts_tsx
             ),
             Pattern::Concatenation(vec![
-                Pattern::Constant(".".into()),
-                Pattern::Constant("/".into()),
+                Pattern::Constant(rcstr!(".")),
+                Pattern::Constant(rcstr!("/")),
                 Pattern::Dynamic,
                 Pattern::Alternatives(vec![
                     Pattern::Alternatives(vec![
-                        Pattern::Constant(".ts".into()),
-                        Pattern::Constant(".tsx".into()),
-                        Pattern::Constant(".js".into()),
+                        Pattern::Constant(rcstr!(".ts")),
+                        Pattern::Constant(rcstr!(".tsx")),
+                        Pattern::Constant(rcstr!(".js")),
                     ]),
-                    Pattern::Constant(".node".into()),
+                    Pattern::Constant(rcstr!(".node")),
                 ])
             ]),
         );
         assert_eq!(
             f(
                 Pattern::Concatenation(vec![
-                    Pattern::Constant(".".into()),
-                    Pattern::Constant("/".into()),
-                    Pattern::Constant("abc.js".into()),
+                    Pattern::Constant(rcstr!(".")),
+                    Pattern::Constant(rcstr!("/")),
+                    Pattern::Constant(rcstr!("abc.js")),
                 ]),
                 &js_to_ts_tsx
             ),
             Pattern::Concatenation(vec![
-                Pattern::Constant(".".into()),
-                Pattern::Constant("/".into()),
+                Pattern::Constant(rcstr!(".")),
+                Pattern::Constant(rcstr!("/")),
                 Pattern::Concatenation(vec![
-                    Pattern::Constant("abc".into()),
+                    Pattern::Constant(rcstr!("abc")),
                     Pattern::Alternatives(vec![
-                        Pattern::Constant(".ts".into()),
-                        Pattern::Constant(".tsx".into()),
-                        Pattern::Constant(".js".into()),
+                        Pattern::Constant(rcstr!(".ts")),
+                        Pattern::Constant(rcstr!(".tsx")),
+                        Pattern::Constant(rcstr!(".js")),
                     ])
                 ]),
             ])
@@ -2327,16 +2472,16 @@ mod tests {
     fn match_apply_template() {
         assert_eq!(
             Pattern::Concatenation(vec![
-                Pattern::Constant("a/b/".into()),
+                Pattern::Constant(rcstr!("a/b/")),
                 Pattern::Dynamic,
-                Pattern::Constant(".ts".into()),
+                Pattern::Constant(rcstr!(".ts")),
             ])
             .match_apply_template(
                 "a/b/foo.ts",
                 &Pattern::Concatenation(vec![
-                    Pattern::Constant("@/a/b/".into()),
+                    Pattern::Constant(rcstr!("@/a/b/")),
                     Pattern::Dynamic,
-                    Pattern::Constant(".js".into()),
+                    Pattern::Constant(rcstr!(".js")),
                 ])
             )
             .as_deref(),
@@ -2344,16 +2489,16 @@ mod tests {
         );
         assert_eq!(
             Pattern::Concatenation(vec![
-                Pattern::Constant("b/".into()),
+                Pattern::Constant(rcstr!("b/")),
                 Pattern::Dynamic,
-                Pattern::Constant(".ts".into()),
+                Pattern::Constant(rcstr!(".ts")),
             ])
             .match_apply_template(
                 "a/b/foo.ts",
                 &Pattern::Concatenation(vec![
-                    Pattern::Constant("@/a/b/".into()),
+                    Pattern::Constant(rcstr!("@/a/b/")),
                     Pattern::Dynamic,
-                    Pattern::Constant(".js".into()),
+                    Pattern::Constant(rcstr!(".js")),
                 ])
             )
             .as_deref(),
@@ -2361,26 +2506,26 @@ mod tests {
         );
         assert_eq!(
             Pattern::Concatenation(vec![
-                Pattern::Constant("a/b/".into()),
+                Pattern::Constant(rcstr!("a/b/")),
                 Pattern::Dynamic,
-                Pattern::Constant(".ts".into()),
+                Pattern::Constant(rcstr!(".ts")),
             ])
             .match_apply_template(
                 "a/b/foo.ts",
                 &Pattern::Concatenation(vec![
-                    Pattern::Constant("@/a/b/x".into()),
-                    Pattern::Constant(".js".into()),
+                    Pattern::Constant(rcstr!("@/a/b/x")),
+                    Pattern::Constant(rcstr!(".js")),
                 ])
             )
             .as_deref(),
             None,
         );
         assert_eq!(
-            Pattern::Concatenation(vec![Pattern::Constant("./sub/".into()), Pattern::Dynamic])
+            Pattern::Concatenation(vec![Pattern::Constant(rcstr!("./sub/")), Pattern::Dynamic])
                 .match_apply_template(
                     "./sub/file1",
                     &Pattern::Concatenation(vec![
-                        Pattern::Constant("@/sub/".into()),
+                        Pattern::Constant(rcstr!("@/sub/")),
                         Pattern::Dynamic
                     ])
                 )

@@ -57,14 +57,14 @@ pub fn benchmark(c: &mut Criterion) {
                 program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
                 let eval_context = EvalContext::new(
-                    &program,
+                    Some(&program),
                     unresolved_mark,
                     top_level_mark,
                     Default::default(),
                     None,
                     None,
                 );
-                let var_graph = create_graph(&program, &eval_context);
+                let var_graph = create_graph(&program, &eval_context, false);
 
                 let input = BenchInput {
                     program,
@@ -90,7 +90,7 @@ struct BenchInput {
 }
 
 fn bench_create_graph(b: &mut Bencher, input: &BenchInput) {
-    b.iter(|| create_graph(&input.program, &input.eval_context));
+    b.iter(|| create_graph(&input.program, &input.eval_context, false));
 }
 
 fn bench_link(b: &mut Bencher, input: &BenchInput) {

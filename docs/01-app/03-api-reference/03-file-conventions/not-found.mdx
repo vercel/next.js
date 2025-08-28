@@ -44,7 +44,11 @@ export default function NotFound() {
 
 The `global-not-found.js` file lets you define a 404 page for your entire application. Unlike `not-found.js`, which works at the route level, this is used when a requested URL doesn't match any route at all. Next.js **skips rendering** and directly returns this global page.
 
-This is useful when you can't build a 404 page using a combination of `layout.js` and `not-found.js`. This can happen in two cases:
+The `global-not-found.js` file bypasses your app's normal rendering, which means you'll need to import any global styles, fonts, or other dependencies that your 404 page requires.
+
+> **Good to know**: A smaller version of your global styles, and a simpler font family could improve performance of this page.
+
+`global-not-found.js` is useful when you can't build a 404 page using a combination of `layout.js` and `not-found.js`. This can happen in two cases:
 
 - Your app has multiple root layouts (e.g. `app/(admin)/layout.tsx` and `app/(shop)/layout.tsx`), so there's no single layout to compose a global 404 from.
 - Your root layout is defined using top-level dynamic segments (e.g. `app/[country]/layout.tsx`), which makes composing a consistent 404 page harder.
@@ -66,9 +70,45 @@ export default nextConfig
 Then, create a file in the root of the `app` directory: `app/global-not-found.js`:
 
 ```tsx filename="app/global-not-found.tsx" switcher
+// Import global styles and fonts
+import './globals.css'
+import { Inter } from 'next/font/google'
+import type { Metadata } from 'next'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: '404 - Page Not Found',
+  description: 'The page you are looking for does not exist.',
+}
+
 export default function GlobalNotFound() {
   return (
-    <html>
+    <html lang="en" className={inter.className}>
+      <body>
+        <h1>404 - Page Not Found</h1>
+        <p>This page does not exist.</p>
+      </body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/global-not-found.js" switcher
+// Import global styles and fonts
+import './globals.css'
+import { Inter } from 'next/font/google'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata = {
+  title: '404 - Page Not Found',
+  description: 'The page you are looking for does not exist.',
+}
+
+export default function GlobalNotFound() {
+  return (
+    <html lang="en" className={inter.className}>
       <body>
         <h1>404 - Page Not Found</h1>
         <p>This page does not exist.</p>
@@ -140,7 +180,31 @@ If you need to use Client Component hooks like `usePathname` to display content 
 
 For `global-not-found.js`, you can export a `metadata` object or a [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) function to customize the `<title>`, `<meta>`, and other head tags for your 404 page:
 
+> **Good to know**: Next.js automatically injects `<meta name="robots" content="noindex" />` for pages that return a 404 status code, including `global-not-found.js` pages.
+
 ```tsx filename="app/global-not-found.tsx" switcher
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Not Found',
+  description: 'The page you are looking for does not exist.',
+}
+
+export default function GlobalNotFound() {
+  return (
+    <html lang="en">
+      <body>
+        <div>
+          <h1>Not Found</h1>
+          <p>The page you are looking for does not exist.</p>
+        </div>
+      </body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/global-not-found.js" switcher
 export const metadata = {
   title: 'Not Found',
   description: 'The page you are looking for does not exist.',
@@ -148,10 +212,14 @@ export const metadata = {
 
 export default function GlobalNotFound() {
   return (
-    <div>
-      <h1>Not Found</h1>
-      <p>The page you are looking for does not exist.</p>
-    </div>
+    <html lang="en">
+      <body>
+        <div>
+          <h1>Not Found</h1>
+          <p>The page you are looking for does not exist.</p>
+        </div>
+      </body>
+    </html>
   )
 }
 ```

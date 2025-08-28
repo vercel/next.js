@@ -2,6 +2,7 @@ use std::{borrow::Cow, collections::hash_map::Entry};
 
 use anyhow::{Ok, Result};
 use either::Either;
+use futures::join;
 use next_core::{
     next_client_reference::{
         ClientReference, ClientReferenceGraphResult, ClientReferenceType, ServerEntries,
@@ -9,12 +10,13 @@ use next_core::{
     },
     next_dynamic::NextDynamicEntryModule,
     next_manifests::ActionLayer,
+    next_server_utility::server_utility_module::NextServerUtilityModule,
 };
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
+    CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
     ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -289,7 +291,8 @@ impl ClientReferencesGraph {
             // post_order callbacks which is the same as evaluation order
             let mut client_references = Vec::new();
             let mut client_reference_modules = Vec::new();
-            let mut server_components = FxHashSet::default();
+            let mut server_components = FxIndexSet::default();
+            let mut server_utils = FxIndexSet::default();
 
             // Track how we reached each client reference.  This way if a client reference is
             // referenced by the root and by a server component we don't only associate it with the
@@ -355,6 +358,12 @@ impl ClientReferencesGraph {
                 },
                 |_, node, state_map| {
                     let module = node.module();
+                    if let Some(server_util_module) =
+                        ResolvedVc::try_downcast_type::<NextServerUtilityModule>(module)
+                    {
+                        server_utils.insert(server_util_module);
+                    }
+
                     let Some(module_type) = data.manifest.get(&module) else {
                         return Ok(());
                     };
@@ -407,8 +416,9 @@ impl ClientReferencesGraph {
 
             Ok(ClientReferenceGraphResult {
                 client_references: client_references.into_iter().collect(),
-                server_utils: vec![],
-                server_component_entries: vec![],
+                // The order of server_utils does not matter
+                server_utils: server_utils.into_iter().collect(),
+                server_component_entries: server_components.into_iter().collect(),
             }
             .cell())
         }
@@ -440,15 +450,16 @@ impl Issue for CssGlobalImportIssue {
     #[turbo_tasks::function]
     async fn title(&self) -> Vc<StyledString> {
         StyledString::Stack(vec![
-            StyledString::Text("Failed to compile".into()),
-            StyledString::Text(
+            StyledString::Text(rcstr!("Failed to compile")),
+            StyledString::Text(rcstr!(
                 "Global CSS cannot be imported from files other than your Custom <App>. Due to \
                  the Global nature of stylesheets, and to avoid conflicts, Please move all \
                  first-party global CSS imports to pages/_app.js. Or convert the import to \
                  Component-Level CSS (CSS Modules)."
-                    .into(),
-            ),
-            StyledString::Text("Read more: https://nextjs.org/docs/messages/css-global".into()),
+            )),
+            StyledString::Text(rcstr!(
+                "Read more: https://nextjs.org/docs/messages/css-global"
+            )),
         ])
         .cell()
     }
@@ -716,46 +727,48 @@ impl GlobalBuildInformation {
     ) -> Result<Vc<ClientReferenceGraphResult>> {
         let span = tracing::info_span!("collect all client references for endpoint");
         async move {
-            let mut result = if let [graph] = &self.client_references[..] {
-                // Just a single graph, no need to merge results
-                graph
-                    .get_client_references_for_endpoint(entry)
-                    .owned()
-                    .await?
+            let result = if let [graph] = &self.client_references[..] {
+                // Just a single graph, no need to merge results  This also naturally aggregates
+                // server components and server utilities in the correct order
+                graph.get_client_references_for_endpoint(entry)
             } else {
                 let results = self
                     .client_references
                     .iter()
                     .map(|graph| graph.get_client_references_for_endpoint(entry))
-                    .try_join()
-                    .await?;
+                    .try_join();
+                // Do this separately for now, because the aggregation of multiple graph traversals
+                // messes up the order of the server_component_entries.
+                let server_entries = async {
+                    if has_layout_segments {
+                        let server_entries = find_server_entries(entry, include_traced).await?;
+                        Ok(Some(server_entries))
+                    } else {
+                        Ok(None)
+                    }
+                };
+                // Wait for both in parallel since `find_server_entries` tends to be slower than the
+                // graph traversals
+                let (results, server_entries) = join!(results, server_entries);
 
-                let mut iter = results.into_iter();
-                let mut result = ReadRef::into_owned(iter.next().unwrap());
-                for r in iter {
-                    result.extend(&r);
-                }
-                result
-            };
-
-            // TODO(luke.sandberg): at least in the whole_app_module_graph case we should be able to
-            // collect server components and server utilities during the above traversals in the
-            // correct order.  `find_server_entries returns them in reverse topological order (root
-            // layout first, page last) but the above traversals find them in DFS post
-            // order which means we would need to reverse it.
-            // For server_utils the order is irrelevant.
-            if has_layout_segments {
-                // Do this separately for now, because the graph traversal order messes up the order
-                // of the server_component_entries.
-                let ServerEntries {
+                let mut result = ClientReferenceGraphResult {
+                    client_references: results?
+                        .iter()
+                        .flat_map(|r| r.client_references.iter().copied())
+                        .collect(),
+                    ..Default::default()
+                };
+                if let Some(ServerEntries {
                     server_utils,
                     server_component_entries,
-                } = &*find_server_entries(entry, include_traced).await?;
-                result.server_utils = server_utils.clone();
-                result.server_component_entries = server_component_entries.clone();
-            }
-
-            Ok(result.cell())
+                }) = server_entries?.as_deref()
+                {
+                    result.server_utils = server_utils.clone();
+                    result.server_component_entries = server_component_entries.clone();
+                }
+                result.cell()
+            };
+            Ok(result)
         }
         .instrument(span)
         .await

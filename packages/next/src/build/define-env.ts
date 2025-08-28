@@ -199,6 +199,9 @@ export function getDefineEnv({
     'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
       config.experimental.clientSegmentCache
     ),
+    'process.env.__NEXT_CLIENT_PARAM_PARSING': Boolean(
+      config.experimental.clientParamParsing
+    ),
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
     ),
@@ -240,7 +243,7 @@ export function getDefineEnv({
     'process.env.__NEXT_DEV_INDICATOR_POSITION':
       config.devIndicators === false
         ? 'bottom-left' // This will not be used as the indicator is disabled.
-        : config.devIndicators.position ?? 'bottom-left',
+        : (config.devIndicators.position ?? 'bottom-left'),
     'process.env.__NEXT_STRICT_MODE':
       config.reactStrictMode === null ? false : config.reactStrictMode,
     'process.env.__NEXT_STRICT_MODE_APP':

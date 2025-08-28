@@ -16,6 +16,7 @@ transform_emotion = []
 swc_ecma_transform_plugin = [
   "swc_core/plugin_transform_host_native",
   "swc_core/plugin_transform_host_native_shared_runtime",
+  "swc_plugin_backend_wasmer"
 ]
 
 [lints]
@@ -40,6 +41,7 @@ modularize_imports = { workspace = true }
 styled_components = { workspace = true }
 styled_jsx = { workspace = true }
 swc_core = { workspace = true, features = ["ecma_ast", "ecma_visit", "common"] }
+swc_plugin_backend_wasmer = { workspace = true, optional = true }
 swc_emotion = { workspace = true }
 swc_relay = { workspace = true }
 

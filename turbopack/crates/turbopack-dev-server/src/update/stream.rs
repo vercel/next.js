@@ -385,7 +385,7 @@ impl Issue for FatalStreamIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Other("websocket".into()).cell()
+        IssueStage::Other(rcstr!("websocket")).cell()
     }
 
     #[turbo_tasks::function]
@@ -425,7 +425,7 @@ pub mod test {
         ResolveSourceRequestResult::NotFound.cell()
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_get_content_fn() {
         crate::register();
         let tt = TurboTasks::new(TurboTasksBackend::new(

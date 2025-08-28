@@ -1,4 +1,4 @@
-use std::iter::once;
+use std::collections::BTreeSet;
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
@@ -8,8 +8,8 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     css::chunk::CssChunkType,
     module_options::{
-        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
-        ModuleRule, TypeofWindow, TypescriptTransformOptions,
+        CssOptionsContext, EcmascriptOptionsContext, ExternalsTracingOptions, JsxTransformOptions,
+        ModuleOptionsContext, ModuleRule, TypeofWindow, TypescriptTransformOptions,
     },
     resolve_options_context::ResolveOptionsContext,
     transition::Transition,
@@ -19,6 +19,7 @@ use turbopack_core::{
         ChunkingConfig, MangleType, MinifyType, SourceMapsType,
         module_id_strategies::ModuleIdStrategy,
     },
+    compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
     environment::{
         Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions,
@@ -42,6 +43,7 @@ use super::{
     transforms::{get_next_server_internal_transforms_rules, get_next_server_transforms_rules},
 };
 use crate::{
+    app_structure::CollectedRootParams,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_client::RuntimeEntries,
@@ -56,7 +58,7 @@ use crate::{
             get_invalid_styled_jsx_resolve_plugin,
         },
         transforms::{
-            emotion::get_emotion_transform_rule, get_ecma_transform_rule,
+            EcmascriptTransformStage, emotion::get_emotion_transform_rule, get_ecma_transform_rule,
             next_react_server_components::get_next_react_server_components_transform_rule,
             react_remove_properties::get_react_remove_properties_transform_rule,
             relay::get_relay_transform_rule, remove_console::get_remove_console_transform_rule,
@@ -64,7 +66,7 @@ use crate::{
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
         },
-        webpack_rules::webpack_loader_options,
+        webpack_rules::{WebpackLoaderBuiltinCondition, webpack_loader_options},
     },
     transform_options::{
         get_decorators_transform_options, get_jsx_transform_options,
@@ -73,6 +75,7 @@ use crate::{
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
         get_transpiled_packages, internal_assets_conditions, load_next_js_templateon,
+        module_styles_rule_condition,
     },
 };
 
@@ -129,6 +132,7 @@ pub async fn get_server_resolve_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     execution_context: Vc<ExecutionContext>,
+    collected_root_params: Option<Vc<CollectedRootParams>>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_server_import_map = get_next_server_import_map(
         project_path.clone(),
@@ -136,6 +140,7 @@ pub async fn get_server_resolve_options_context(
         next_config,
         mode,
         execution_context,
+        collected_root_params,
     )
     .to_resolved()
     .await?;
@@ -206,14 +211,8 @@ pub async fn get_server_resolve_options_context(
     .to_resolved()
     .await?;
 
-    let mut custom_conditions = vec![mode.await?.condition().to_string().into()];
-    custom_conditions.extend(
-        NextRuntime::NodeJs
-            .conditions()
-            .iter()
-            .map(ToString::to_string)
-            .map(RcStr::from),
-    );
+    let mut custom_conditions: Vec<_> = mode.await?.custom_resolve_conditions().collect();
+    custom_conditions.extend(NextRuntime::NodeJs.custom_resolve_conditions());
 
     if ty.should_use_react_server_condition() {
         custom_conditions.push(rcstr!("react-server"));
@@ -385,6 +384,49 @@ pub async fn get_server_compile_time_info(
 }
 
 #[turbo_tasks::function]
+pub async fn get_tracing_compile_time_info() -> Result<Vc<CompileTimeInfo>> {
+    CompileTimeInfo::builder(
+        Environment::new(ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironment::default().resolved_cell(),
+        ))
+        .to_resolved()
+        .await?,
+    )
+    /*
+    We'd really like to set `process.env.NODE_ENV = "production"` here, but with that,
+    `react/cjs/react.development.js` won't be copied anymore (as expected).
+    However if you `import` react from native ESM: `import {createContext} from 'react';`, it fails with
+    ```
+    import {createContext} from 'react';
+            ^^^^^^^^^^^^^
+    SyntaxError: Named export 'createContext' not found. The requested module 'react' is a CommonJS module, which may not support all module.exports as named exports.
+    CommonJS modules can always be imported via the default export, for example using:
+    ```
+    This is because Node's import-cjs-from-esm feature can correctly find all named exports in
+    ```
+    // `react/index.js`
+    if (process.env.NODE_ENV === 'production') {
+      module.exports = require('./cjs/react.production.js');
+    } else {
+      module.exports = require('./cjs/react.development.js');
+    }
+    ```
+    if both files exist (which is what's happening so far).
+    If `react.development.js` doesn't exist, then it bails with that error message.
+    Also just removing that second branch works fine, but a `require` to a non-existent file fails.
+    */
+    .defines(
+        compile_time_defines!(
+            process.env.TURBOPACK = true,
+            // process.env.NODE_ENV = "production",
+        )
+        .resolved_cell(),
+    )
+    .cell()
+    .await
+}
+
+#[turbo_tasks::function]
 pub async fn get_server_module_options_context(
     project_path: FileSystemPath,
     execution_context: ResolvedVc<ExecutionContext>,
@@ -441,34 +483,21 @@ pub async fn get_server_module_options_context(
     let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
-    let mut conditions = vec![mode.await?.condition().into()];
-    conditions.extend(
-        next_runtime
-            .conditions()
-            .iter()
-            .map(ToString::to_string)
-            .map(RcStr::from),
-    );
+    let mut loader_conditions = BTreeSet::new();
+    loader_conditions.extend(mode.await?.webpack_loader_conditions());
+    loader_conditions.extend(next_runtime.webpack_loader_conditions());
 
-    // A separate webpack rules will be applied to codes matching
-    // foreign_code_context_condition. This allows to import codes from
-    // node_modules that requires webpack loaders, which next-dev implicitly
-    // does by default.
-    let foreign_enable_webpack_loaders = webpack_loader_options(
-        project_path.clone(),
-        next_config,
-        true,
-        conditions
-            .iter()
-            .cloned()
-            .chain(once(rcstr!("foreign")))
-            .collect(),
-    )
-    .await?;
+    // A separate webpack rules will be applied to codes matching foreign_code_context_condition.
+    // This allows to import codes from node_modules that requires webpack loaders, which next-dev
+    // implicitly does by default.
+    let mut foreign_conditions = loader_conditions.clone();
+    foreign_conditions.insert(WebpackLoaderBuiltinCondition::Foreign);
+    let foreign_enable_webpack_loaders =
+        webpack_loader_options(project_path.clone(), next_config, true, foreign_conditions).await?;
 
-    // Now creates a webpack rules that applies to all codes.
+    // Now creates a webpack rules that applies to all code.
     let enable_webpack_loaders =
-        webpack_loader_options(project_path.clone(), next_config, false, conditions).await?;
+        webpack_loader_options(project_path.clone(), next_config, false, loader_conditions).await?;
 
     let tree_shaking_mode_for_user_code = *next_config
         .tree_shaking_mode_for_user_code(next_mode.is_development())
@@ -536,12 +565,19 @@ pub async fn get_server_module_options_context(
         environment: Some(environment),
         css: CssOptionsContext {
             source_maps,
+            module_css_condition: Some(module_styles_rule_condition()),
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
         enable_externals_tracing: if next_mode.is_production() {
-            Some(project_path)
+            Some(
+                ExternalsTracingOptions {
+                    tracing_root: project_path,
+                    compile_time_info: get_tracing_compile_time_info().to_resolved().await?,
+                }
+                .resolved_cell(),
+            )
         } else {
             None
         },
@@ -715,7 +751,7 @@ pub async fn get_server_module_options_context(
                         ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
-                    true,
+                    EcmascriptTransformStage::Preprocess,
                 ));
             }
 
@@ -791,7 +827,7 @@ pub async fn get_server_module_options_context(
                         ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
-                    true,
+                    EcmascriptTransformStage::Preprocess,
                 ));
             }
 
@@ -869,7 +905,7 @@ pub async fn get_server_module_options_context(
                         ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
-                    true,
+                    EcmascriptTransformStage::Preprocess,
                 ));
             } else {
                 custom_source_transform_rules.push(get_ecma_transform_rule(
@@ -877,7 +913,7 @@ pub async fn get_server_module_options_context(
                         "next/dist/client/use-client-disallowed.js".to_string(),
                     )),
                     enable_mdx_rs.is_some(),
-                    true,
+                    EcmascriptTransformStage::Preprocess,
                 ));
             }
 

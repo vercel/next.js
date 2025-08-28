@@ -7,7 +7,7 @@ import { createFromReadableStream as createFromReadableStreamBrowser } from 'rea
 import type {
   FlightRouterState,
   NavigationFlightResponse,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 
 import type { NEXT_ROUTER_SEGMENT_PREFETCH_HEADER } from '../app-router-headers'
 import {
@@ -31,6 +31,7 @@ import {
 } from '../../flight-data-helpers'
 import { getAppBuildId } from '../../app-build-id'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
+import { urlToUrlWithoutFlightMarker } from '../../route-params'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -55,7 +56,7 @@ export type RequestHeaders = {
   [RSC_HEADER]?: '1'
   [NEXT_ROUTER_STATE_TREE_HEADER]?: string
   [NEXT_URL]?: string
-  [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
+  [NEXT_ROUTER_PREFETCH_HEADER]?: '1' | '2'
   [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
   'x-deployment-id'?: string
   [NEXT_HMR_REFRESH_HEADER]?: '1'
@@ -63,26 +64,11 @@ export type RequestHeaders = {
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
 }
 
-export function urlToUrlWithoutFlightMarker(url: string): URL {
-  const urlWithoutFlightParameters = new URL(url, location.origin)
-  urlWithoutFlightParameters.searchParams.delete(NEXT_RSC_UNION_QUERY)
-  if (process.env.NODE_ENV === 'production') {
-    if (
-      process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
-      urlWithoutFlightParameters.pathname.endsWith('.txt')
-    ) {
-      const { pathname } = urlWithoutFlightParameters
-      const length = pathname.endsWith('/index.txt') ? 10 : 4
-      // Slice off `/index.txt` or `.txt` from the end of the pathname
-      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
-    }
-  }
-  return urlWithoutFlightParameters
-}
-
 function doMpaNavigation(url: string): FetchServerResponseResult {
   return {
-    flightData: urlToUrlWithoutFlightMarker(url).toString(),
+    flightData: urlToUrlWithoutFlightMarker(
+      new URL(url, location.origin)
+    ).toString(),
     canonicalUrl: undefined,
     couldBeIntercepted: false,
     prerendered: false,
@@ -179,7 +165,7 @@ export async function fetchServerResponse(
       abortController.signal
     )
 
-    const responseUrl = urlToUrlWithoutFlightMarker(res.url)
+    const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
     const canonicalUrl = res.redirected ? responseUrl : undefined
 
     const contentType = res.headers.get('content-type') || ''

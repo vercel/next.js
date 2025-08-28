@@ -4412,6 +4412,9 @@
       }
       return "";
     }
+    function isEligibleForOutlining(request, boundary) {
+      return 500 < boundary.byteSize && null === boundary.contentPreamble;
+    }
     function defaultErrorHandler(error) {
       if (
         "object" === typeof error &&
@@ -4800,6 +4803,27 @@
       }
       return JSCompiler_inline_result$jscomp$0;
     }
+    function pushHaltedAwaitOnComponentStack(task, debugInfo) {
+      if (null != debugInfo)
+        for (var i = debugInfo.length - 1; 0 <= i; i--) {
+          var info = debugInfo[i];
+          if ("string" === typeof info.name) break;
+          if ("number" === typeof info.time) break;
+          if (null != info.awaited) {
+            var bestStack = null == info.debugStack ? info.awaited : info;
+            if (void 0 !== bestStack.debugStack) {
+              task.componentStack = {
+                parent: task.componentStack,
+                type: info,
+                owner: bestStack.owner,
+                stack: bestStack.debugStack
+              };
+              task.debugTask = bestStack.debugTask;
+              break;
+            }
+          }
+        }
+    }
     function pushServerComponentStack(task, debugInfo) {
       if (null != debugInfo)
         for (var i = 0; i < debugInfo.length; i++) {
@@ -4969,7 +4993,7 @@
           if (
             1 !== rowBoundary.pendingTasks ||
             rowBoundary.parentFlushed ||
-            500 < rowBoundary.byteSize
+            isEligibleForOutlining(request, rowBoundary)
           ) {
             allCompleteAndInlinable = !1;
             break;
@@ -6002,7 +6026,7 @@
                   ) {
                     if (
                       ((newBoundary.status = COMPLETED),
-                      !(500 < newBoundary.byteSize))
+                      !isEligibleForOutlining(request, newBoundary))
                     ) {
                       null !== prevRow$jscomp$0 &&
                         0 === --prevRow$jscomp$0.pendingTasks &&
@@ -6839,10 +6863,13 @@
               thrownValue === SuspenseException
                 ? getSuspendedThenable()
                 : thrownValue),
-            "object" === typeof node && null !== node)
+            12 !== request.status && "object" === typeof node && null !== node)
           ) {
             if ("function" === typeof node.then) {
-              childIndex = getThenableStateAfterSuspending();
+              childIndex =
+                thrownValue === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
               request = spawnNewSuspendedReplayTask(
                 request,
                 task,
@@ -6860,7 +6887,10 @@
               return;
             }
             if ("Maximum call stack size exceeded" === node.message) {
-              node = getThenableStateAfterSuspending();
+              node =
+                thrownValue === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
               node = spawnNewSuspendedReplayTask(request, task, node);
               request.pingedTasks.push(node);
               task.formatContext = previousFormatContext;
@@ -6889,11 +6919,14 @@
               thrownValue$3 === SuspenseException
                 ? getSuspendedThenable()
                 : thrownValue$3),
-            "object" === typeof node && null !== node)
+            12 !== request.status && "object" === typeof node && null !== node)
           ) {
             if ("function" === typeof node.then) {
               segment = node;
-              node = getThenableStateAfterSuspending();
+              node =
+                thrownValue$3 === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
               request = spawnNewSuspendedRenderTask(request, task, node).ping;
               segment.then(request, request);
               task.formatContext = previousFormatContext;
@@ -6906,7 +6939,10 @@
               return;
             }
             if ("Maximum call stack size exceeded" === node.message) {
-              segment = getThenableStateAfterSuspending();
+              segment =
+                thrownValue$3 === SuspenseException
+                  ? getThenableStateAfterSuspending()
+                  : null;
               segment = spawnNewSuspendedRenderTask(request, task, segment);
               request.pingedTasks.push(segment);
               task.formatContext = previousFormatContext;
@@ -7015,6 +7051,10 @@
         segment.status = ABORTED;
       }
       segment = getThrownInfo(task.componentStack);
+      var node = task.node;
+      null !== node &&
+        "object" === typeof node &&
+        pushHaltedAwaitOnComponentStack(task, node._debugInfo);
       if (null === boundary) {
         if (13 !== request.status && request.status !== CLOSED) {
           boundary = task.replay;
@@ -7024,38 +7064,28 @@
             return;
           }
           boundary.pendingTasks--;
-          if (0 === boundary.pendingTasks && 0 < boundary.nodes.length) {
-            var errorDigest = logRecoverableError(
-              request,
-              error,
-              segment,
-              null
-            );
+          0 === boundary.pendingTasks &&
+            0 < boundary.nodes.length &&
+            ((node = logRecoverableError(request, error, segment, null)),
             abortRemainingReplayNodes(
               request,
               null,
               boundary.nodes,
               boundary.slots,
               error,
-              errorDigest,
+              node,
               segment,
               !0
-            );
-          }
+            ));
           request.pendingRootTasks--;
           0 === request.pendingRootTasks && completeShell(request);
         }
       } else
         boundary.status !== CLIENT_RENDERED &&
           ((boundary.status = CLIENT_RENDERED),
-          (errorDigest = logRecoverableError(
-            request,
-            error,
-            segment,
-            task.debugTask
-          )),
+          (node = logRecoverableError(request, error, segment, task.debugTask)),
           (boundary.status = CLIENT_RENDERED),
-          encodeErrorForBoundary(boundary, errorDigest, error, segment, !0),
+          encodeErrorForBoundary(boundary, node, error, segment, !0),
           untrackBoundary(request, boundary),
           boundary.parentFlushed &&
             request.clientRenderedBoundaries.push(boundary)),
@@ -7221,7 +7251,7 @@
             (row = boundary$jscomp$0.row),
               null !== row &&
                 hoistHoistables(row.hoistables, boundary$jscomp$0.contentState),
-              500 < boundary$jscomp$0.byteSize ||
+              isEligibleForOutlining(request$jscomp$0, boundary$jscomp$0) ||
                 (boundary$jscomp$0.fallbackAbortableTasks.forEach(
                   abortTaskSoft,
                   request$jscomp$0
@@ -7378,7 +7408,10 @@
                   ) {
                     var ping = request.ping;
                     x.then(ping, ping);
-                    request.thenableState = getThenableStateAfterSuspending();
+                    request.thenableState =
+                      thrownValue === SuspenseException
+                        ? getThenableStateAfterSuspending()
+                        : null;
                   } else {
                     request.replay.pendingTasks--;
                     request.abortSet.delete(request);
@@ -7466,7 +7499,10 @@
                   "function" === typeof x$jscomp$0.then
                 ) {
                   request$jscomp$1.status = PENDING;
-                  errorDigest.thenableState = getThenableStateAfterSuspending();
+                  errorDigest.thenableState =
+                    thrownValue === SuspenseException
+                      ? getThenableStateAfterSuspending()
+                      : null;
                   var ping$jscomp$0 = errorDigest.ping;
                   x$jscomp$0.then(ping$jscomp$0, ping$jscomp$0);
                 } else {
@@ -7580,6 +7616,7 @@
       switch (boundary.status) {
         case COMPLETED:
           hoistPreambleState(request.renderState, preamble);
+          request.byteSize += boundary.byteSize;
           segment = boundary.completedSegments[0];
           if (!segment)
             throw Error(
@@ -7612,17 +7649,17 @@
         null === request.completedPreambleSegments
       ) {
         var collectedPreambleSegments = [],
+          originalRequestByteSize = request.byteSize,
           hasPendingPreambles = preparePreambleFromSegment(
             request,
             request.completedRootSegment,
             collectedPreambleSegments
           ),
           preamble = request.renderState.preamble;
-        if (
-          !1 === hasPendingPreambles ||
-          (preamble.headChunks && preamble.bodyChunks)
-        )
-          request.completedPreambleSegments = collectedPreambleSegments;
+        !1 === hasPendingPreambles ||
+        (preamble.headChunks && preamble.bodyChunks)
+          ? (request.completedPreambleSegments = collectedPreambleSegments)
+          : (request.byteSize = originalRequestByteSize);
       }
     }
     function flushSubtree(request, destination, segment, hoistableState) {
@@ -7726,7 +7763,7 @@
             hoistHoistables(hoistableState, boundary.fallbackState),
           flushSubtree(request, destination, segment, hoistableState);
       else if (
-        500 < boundary.byteSize &&
+        isEligibleForOutlining(request, boundary) &&
         flushedByteSize + boundary.byteSize > request.progressiveChunkSize
       )
         (boundary.rootSegmentID = request.nextSegmentId++),
@@ -7743,7 +7780,7 @@
           hoistHoistables(hoistableState, boundary.contentState);
         segment = boundary.row;
         null !== segment &&
-          500 < boundary.byteSize &&
+          isEligibleForOutlining(request, boundary) &&
           0 === --segment.pendingTasks &&
           finishSuspenseListRow(request, segment);
         writeChunkAndReturn(destination, startCompletedSuspenseBoundary);
@@ -7787,7 +7824,7 @@
       completedSegments.length = 0;
       completedSegments = boundary.row;
       null !== completedSegments &&
-        500 < boundary.byteSize &&
+        isEligibleForOutlining(request, boundary) &&
         0 === --completedSegments.pendingTasks &&
         finishSuspenseListRow(request, completedSegments);
       writeHoistablesForBoundary(
@@ -8346,11 +8383,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-canary-3d14fcf0-20250724" !== isomorphicReactPackageVersion)
+      if ("19.2.0-canary-33a1095d-20250827" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-canary-3d14fcf0-20250724\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-canary-33a1095d-20250827\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -8624,7 +8661,11 @@
         "aria-rowcount": 0,
         "aria-rowindex": 0,
         "aria-rowspan": 0,
-        "aria-setsize": 0
+        "aria-setsize": 0,
+        "aria-braillelabel": 0,
+        "aria-brailleroledescription": 0,
+        "aria-colindextext": 0,
+        "aria-rowindextext": 0
       },
       warnedProperties$1 = {},
       rARIA$1 = RegExp(
@@ -9663,7 +9704,7 @@
     stringToPrecomputedChunk('<template data-rsi="" data-sid="');
     stringToPrecomputedChunk('" data-pid="');
     var completeBoundaryScriptFunctionOnly = stringToPrecomputedChunk(
-        '$RB=[];$RV=function(b){$RT=performance.now();for(var a=0;a<b.length;a+=2){var c=b[a],e=b[a+1];null!==e.parentNode&&e.parentNode.removeChild(e);var f=c.parentNode;if(f){var g=c.previousSibling,h=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===h)break;else h--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||h++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;e.firstChild;)f.insertBefore(e.firstChild,c);g.data="$";g._reactRetry&&g._reactRetry()}}b.length=0};\n$RC=function(b,a){if(a=document.getElementById(a))(b=document.getElementById(b))?(b.previousSibling.data="$~",$RB.push(b,a),2===$RB.length&&(b="number"!==typeof $RT?0:$RT,a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:b+300-a))):a.parentNode.removeChild(a)};'
+        '$RB=[];$RV=function(a){$RT=performance.now();for(var b=0;b<a.length;b+=2){var c=a[b],e=a[b+1];null!==e.parentNode&&e.parentNode.removeChild(e);var f=c.parentNode;if(f){var g=c.previousSibling,h=0;do{if(c&&8===c.nodeType){var d=c.data;if("/$"===d||"/&"===d)if(0===h)break;else h--;else"$"!==d&&"$?"!==d&&"$~"!==d&&"$!"!==d&&"&"!==d||h++}d=c.nextSibling;f.removeChild(c);c=d}while(c);for(;e.firstChild;)f.insertBefore(e.firstChild,c);g.data="$";g._reactRetry&&requestAnimationFrame(g._reactRetry)}}a.length=0};\n$RC=function(a,b){if(b=document.getElementById(b))(a=document.getElementById(a))?(a.previousSibling.data="$~",$RB.push(a,b),2===$RB.length&&("number"!==typeof $RT?requestAnimationFrame($RV.bind(null,$RB)):(a=performance.now(),setTimeout($RV.bind(null,$RB),2300>a&&2E3<a?2300-a:$RT+300-a)))):b.parentNode.removeChild(b)};'
       ),
       completeBoundaryScript1Partial = stringToPrecomputedChunk('$RC("'),
       completeBoundaryWithStylesScript1FullPartial = stringToPrecomputedChunk(
@@ -10221,5 +10262,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-canary-3d14fcf0-20250724";
+    exports.version = "19.2.0-canary-33a1095d-20250827";
   })();

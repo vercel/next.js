@@ -3,7 +3,7 @@ import { useMemo, useState, useRef } from 'react'
 import { CallStack } from '../../call-stack/call-stack'
 
 interface CallStackProps {
-  frames: OriginalStackFrame[]
+  frames: readonly OriginalStackFrame[]
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 
@@ -19,13 +19,13 @@ export function ErrorOverlayCallStack({
   }, [frames])
 
   function onToggleIgnoreList() {
-    const dialog = dialogResizerRef?.current as HTMLElement
+    const dialog = dialogResizerRef?.current
 
     if (!dialog) {
       return
     }
 
-    const { height: currentHeight } = dialog?.getBoundingClientRect()
+    const { height: currentHeight } = dialog.getBoundingClientRect()
 
     if (!initialDialogHeight.current) {
       initialDialogHeight.current = currentHeight
@@ -33,10 +33,11 @@ export function ErrorOverlayCallStack({
 
     if (isIgnoreListOpen) {
       function onTransitionEnd() {
-        dialog.removeEventListener('transitionend', onTransitionEnd)
+        // TS bug. We closed over a non-nullable value here.
+        dialog!.removeEventListener('transitionend', onTransitionEnd)
         setIsIgnoreListOpen(false)
       }
-      // eslint-disable-next-line react-hooks/react-compiler -- Bug in react-hooks/react-compiler
+      // eslint-disable-next-line react-hooks/immutability -- Bug in react-hooks/react-compiler
       dialog.style.height = `${initialDialogHeight.current}px`
       dialog.addEventListener('transitionend', onTransitionEnd)
     } else {

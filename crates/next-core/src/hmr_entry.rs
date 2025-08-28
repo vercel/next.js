@@ -192,7 +192,6 @@ impl EcmascriptChunkItem for HmrEntryChunkItem {
             inner_code: code.build(),
             options: EcmascriptChunkItemOptions {
                 strict: true,
-                module: true,
                 ..Default::default()
             },
             ..Default::default()

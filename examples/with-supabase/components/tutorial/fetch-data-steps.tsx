@@ -13,6 +13,11 @@ values
   ('It was awesome!');
 `.trim();
 
+const rls = `alter table notes enable row level security;
+create policy "Allow public read access" on notes
+for select
+using (true);`.trim();
+
 const server = `import { createClient } from '@/utils/supabase/server'
 
 export default async function Page() {
@@ -72,6 +77,49 @@ export function FetchDataSteps() {
           and click RUN!
         </p>
         <CodeBlock code={create} />
+      </TutorialStep>
+
+      <TutorialStep title="Enable Row Level Security (RLS)">
+        <p>
+          Supabase enables Row Level Security (RLS) by default. To query data
+          from your <code>notes</code> table, you need to add a policy. You can
+          do this in the{" "}
+          <a
+            href="https://supabase.com/dashboard/project/_/editor"
+            className="font-bold hover:underline text-foreground/80"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Table Editor
+          </a>{" "}
+          or via the{" "}
+          <a
+            href="https://supabase.com/dashboard/project/_/sql/new"
+            className="font-bold hover:underline text-foreground/80"
+            target="_blank"
+            rel="noreferrer"
+          >
+            SQL Editor
+          </a>
+          .
+        </p>
+        <p>
+          For example, you can run the following SQL to allow public read
+          access:
+        </p>
+        <CodeBlock code={rls} />
+        <p>
+          You can learn more about RLS in the{" "}
+          <a
+            href="https://supabase.com/docs/guides/auth/row-level-security"
+            className="font-bold hover:underline text-foreground/80"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Supabase docs
+          </a>
+          .
+        </p>
       </TutorialStep>
 
       <TutorialStep title="Query Supabase data from Next.js">

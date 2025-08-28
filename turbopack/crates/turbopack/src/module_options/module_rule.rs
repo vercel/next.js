@@ -67,11 +67,14 @@ impl ModuleRule {
 pub enum ModuleRuleEffect {
     ModuleType(ModuleType),
     /// Allow to extend an existing Ecmascript module rules for the additional
-    /// transforms. First argument will prepend the existing transforms, and
-    /// the second argument will append the new transforms.
+    /// transforms
     ExtendEcmascriptTransforms {
-        prepend: ResolvedVc<EcmascriptInputTransforms>,
-        append: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run first: transpile TypeScript, decorators, ...
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to execute on standard EcmaScript (plus JSX): styled-jsx, swc plugins, ...
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run last: JSX, preset-env, scan for imports, ...
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
     },
     SourceTransforms(ResolvedVc<SourceTransforms>),
     Ignore,
@@ -81,12 +84,22 @@ pub enum ModuleRuleEffect {
 #[derive(Hash, Debug, Clone)]
 pub enum ModuleType {
     Ecmascript {
-        transforms: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run first: transpile TypeScript, decorators, ...
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to execute on standard EcmaScript (plus JSX): styled-jsx, swc plugins, ...
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run last: JSX, preset-env, scan for imports, ...
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     Typescript {
-        transforms: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run first: transpile TypeScript, decorators, ...
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to execute on standard EcmaScript (plus JSX): styled-jsx, swc plugins, ...
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run last: JSX, preset-env, scan for imports, ...
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
         // parse JSX syntax.
         tsx: bool,
         // follow references to imported types.
@@ -95,12 +108,18 @@ pub enum ModuleType {
         options: ResolvedVc<EcmascriptOptions>,
     },
     TypescriptDeclaration {
-        transforms: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run first: transpile TypeScript, decorators, ...
+        preprocess: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to execute on standard EcmaScript (plus JSX): styled-jsx, swc plugins, ...
+        main: ResolvedVc<EcmascriptInputTransforms>,
+        /// Transforms to run last: JSX, preset-env, scan for imports, ...
+        postprocess: ResolvedVc<EcmascriptInputTransforms>,
         #[turbo_tasks(trace_ignore)]
         options: ResolvedVc<EcmascriptOptions>,
     },
     Json,
     Raw,
+    NodeAddon,
     CssModule,
     Css {
         ty: CssModuleAssetType,

@@ -4,11 +4,13 @@ import { promises as fs } from 'fs'
 
 export async function writeAppTypeDeclarations({
   baseDir,
+  distDir,
   imageImportsEnabled,
   hasPagesDir,
   hasAppDir,
 }: {
   baseDir: string
+  distDir: string
   imageImportsEnabled: boolean
   hasPagesDir: boolean
   hasAppDir: boolean
@@ -54,6 +56,19 @@ export async function writeAppTypeDeclarations({
       '/// <reference types="next/navigation-types/compat/navigation" />'
     )
   }
+
+  const routeTypesPath = path.posix.join(
+    distDir.replaceAll(path.win32.sep, path.posix.sep),
+    'types/routes.d.ts'
+  )
+
+  // Ensure the path is POSIX-compliant for imports.
+  const routeTypesPathPosix = routeTypesPath
+    .split(path.sep)
+    .join(path.posix.sep)
+
+  // Use ESM import instead of triple-slash reference for better ESLint compatibility
+  directives.push(`import "./${routeTypesPathPosix}";`)
 
   // Push the notice in.
   directives.push(

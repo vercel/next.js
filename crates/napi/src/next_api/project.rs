@@ -9,7 +9,6 @@ use napi::{
 };
 use next_api::{
     entrypoints::Entrypoints,
-    module_graph_snapshot::{ModuleGraphSnapshot, get_module_graph_snapshot},
     operation::{
         EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, OptionEndpoint,
         RouteOperation,
@@ -40,9 +39,9 @@ use turbo_tasks::{
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, get_relative_path_to,
-    util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, util::uri_from_file,
 };
+use turbo_unix_path::{get_relative_path_to, sys_to_unix};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     diagnostics::PlainDiagnostic,
@@ -64,14 +63,13 @@ use url::Url;
 use crate::{
     next_api::{
         endpoint::ExternalEndpoint,
-        module_graph::NapiModuleGraphSnapshot,
         turbopack_ctx::{
             NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject, NextTurboTasks,
             NextTurbopackContext, create_turbo_tasks,
         },
         utils::{
             DetachedVc, NapiDiagnostic, NapiIssue, RootTask, TurbopackResult, get_diagnostics,
-            get_issues, strongly_consistent_catch_collectables, subscribe,
+            get_issues, subscribe,
         },
     },
     register,
@@ -255,6 +253,8 @@ pub struct NapiTurboEngineOptions {
     pub dependency_tracking: Option<bool>,
     /// Whether the project is running in a CI environment.
     pub is_ci: Option<bool>,
+    /// Whether the project is running in a short session.
+    pub is_short_session: Option<bool>,
 }
 
 impl From<NapiWatchOptions> for WatchOptions {
@@ -436,12 +436,14 @@ pub fn project_new(
         let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
         let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
         let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
+        let is_short_session = turbo_engine_options.is_short_session.unwrap_or(false);
         let turbo_tasks = create_turbo_tasks(
             PathBuf::from(&options.dist_dir),
             persistent_caching,
             memory_limit,
             dependency_tracking,
             is_ci,
+            is_short_session,
         )?;
         let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 
@@ -539,7 +541,7 @@ async fn benchmark_file_io(
         ))?
         .await?;
 
-    let directory = fs.to_sys_path(directory).await?;
+    let directory = fs.to_sys_path(directory)?;
     let temp_path = directory.join(format!(
         "tmp_file_io_benchmark_{:x}",
         rand::random::<u128>()
@@ -989,40 +991,6 @@ async fn output_assets_operation(
     Ok(Vc::cell(output_assets.into_iter().collect()))
 }
 
-#[napi]
-pub async fn project_entrypoints(
-    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-) -> napi::Result<TurbopackResult<NapiEntrypoints>> {
-    let container = project.container;
-
-    let (entrypoints, issues, diags) = project
-        .turbopack_ctx
-        .turbo_tasks()
-        .run_once(async move {
-            let entrypoints_with_issues_op = get_entrypoints_with_issues_operation(container);
-
-            // Read and compile the files
-            let EntrypointsWithIssues {
-                entrypoints,
-                issues,
-                diagnostics,
-                effects: _,
-            } = &*entrypoints_with_issues_op
-                .read_strongly_consistent()
-                .await?;
-
-            Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
-        })
-        .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-
-    Ok(TurbopackResult {
-        result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &project.turbopack_ctx)?,
-        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-        diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
-    })
-}
-
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -1441,12 +1409,17 @@ pub struct OptionStackFrame(Option<StackFrame>);
 #[turbo_tasks::function]
 pub async fn get_source_map_rope(
     container: Vc<ProjectContainer>,
-    file_path: RcStr,
+    source_url: RcStr,
 ) -> Result<Vc<OptionStringifiedSourceMap>> {
-    let (file, module) = match Url::parse(&file_path) {
+    let (file_path_sys, module) = match Url::parse(&source_url) {
         Ok(url) => match url.scheme() {
             "file" => {
-                let path = urlencoding::decode(url.path())?.to_string();
+                let path = match url.to_file_path() {
+                    Ok(path) => path.to_string_lossy().into(),
+                    Err(_) => {
+                        bail!("Failed to convert file URL to file path: {url}");
+                    }
+                };
                 let module = url.query_pairs().find(|(k, _)| k == "id");
                 (
                     path,
@@ -1458,23 +1431,29 @@ pub async fn get_source_map_rope(
             }
             _ => bail!("Unknown url scheme '{}'", url.scheme()),
         },
-        Err(_) => (file_path.to_string(), None),
+        Err(_) => (source_url.to_string(), None),
     };
 
-    let Some(chunk_base) =
-        file.strip_prefix(container.project().dist_dir_absolute().await?.as_str())
-    else {
-        // File doesn't exist within the dist dir
-        return Ok(OptionStringifiedSourceMap::none());
-    };
+    let chunk_base_unix =
+        match file_path_sys.strip_prefix(container.project().dist_dir_absolute().await?.as_str()) {
+            Some(relative_path) => sys_to_unix(relative_path),
+            None => {
+                // File doesn't exist within the dist dir
+                return Ok(OptionStringifiedSourceMap::none());
+            }
+        };
 
-    let server_path = container.project().node_root().await?.join(chunk_base)?;
+    let server_path = container
+        .project()
+        .node_root()
+        .await?
+        .join(&chunk_base_unix)?;
 
     let client_path = container
         .project()
         .client_relative_path()
         .await?
-        .join(chunk_base)?;
+        .join(&chunk_base_unix)?;
 
     let mut map = container.get_source_map(server_path, module.clone());
 
@@ -1485,7 +1464,7 @@ pub async fn get_source_map_rope(
         // chunks.
         map = container.get_source_map(client_path, module);
         if map.await?.is_none() {
-            bail!("chunk/module '{}' is missing a sourcemap", file_path);
+            bail!("chunk/module '{}' is missing a sourcemap", source_url);
         }
     }
 
@@ -1685,71 +1664,4 @@ pub fn project_get_source_map_sync(
     within_runtime_if_available(|| {
         tokio::runtime::Handle::current().block_on(project_get_source_map(project, file_path))
     })
-}
-
-#[napi]
-pub async fn project_module_graph(
-    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-) -> napi::Result<TurbopackResult<NapiModuleGraphSnapshot>> {
-    let container = project.container;
-    let (module_graph, issues, diagnostics) = project
-        .turbopack_ctx
-        .turbo_tasks()
-        .run_once(async move {
-            let module_graph_op = get_module_graph_with_issues_operation(container);
-            let ModuleGraphWithIssues {
-                module_graph,
-                issues,
-                diagnostics,
-                effects: _,
-            } = &*module_graph_op.connect().await?;
-            Ok((module_graph.clone(), issues.clone(), diagnostics.clone()))
-        })
-        .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-
-    Ok(TurbopackResult {
-        result: module_graph.map_or_else(NapiModuleGraphSnapshot::default, |m| {
-            NapiModuleGraphSnapshot::from(&*m)
-        }),
-        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
-        diagnostics: diagnostics
-            .iter()
-            .map(|d| NapiDiagnostic::from(d))
-            .collect(),
-    })
-}
-
-#[turbo_tasks::value(serialization = "none")]
-struct ModuleGraphWithIssues {
-    module_graph: Option<ReadRef<ModuleGraphSnapshot>>,
-    issues: Arc<Vec<ReadRef<PlainIssue>>>,
-    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
-    effects: Arc<Effects>,
-}
-
-#[turbo_tasks::function(operation)]
-async fn get_module_graph_with_issues_operation(
-    project: ResolvedVc<ProjectContainer>,
-) -> Result<Vc<ModuleGraphWithIssues>> {
-    let module_graph_op = get_module_graph_operation(project);
-    let (module_graph, issues, diagnostics, effects) =
-        strongly_consistent_catch_collectables(module_graph_op).await?;
-    Ok(ModuleGraphWithIssues {
-        module_graph,
-        issues,
-        diagnostics,
-        effects,
-    }
-    .cell())
-}
-
-#[turbo_tasks::function(operation)]
-async fn get_module_graph_operation(
-    project: ResolvedVc<ProjectContainer>,
-) -> Result<Vc<ModuleGraphSnapshot>> {
-    let project = project.project();
-    let graph = project.whole_app_module_graphs().await?.full;
-    let snapshot = get_module_graph_snapshot(*graph, None).resolve().await?;
-    Ok(snapshot)
 }

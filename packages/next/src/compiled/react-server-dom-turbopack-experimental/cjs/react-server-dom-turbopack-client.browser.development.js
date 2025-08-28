@@ -1108,35 +1108,6 @@
         value
       ]);
     }
-    function markAllTracksInOrder() {
-      supportsUserTiming &&
-        (console.timeStamp(
-          "Server Requests Track",
-          0.001,
-          0.001,
-          "Server Requests \u269b",
-          void 0,
-          "primary-light"
-        ),
-        console.timeStamp(
-          "Server Components Track",
-          0.001,
-          0.001,
-          "Primary",
-          "Server Components \u269b",
-          "primary-light"
-        ));
-    }
-    function getIOColor(functionName) {
-      switch (functionName.charCodeAt(0) % 3) {
-        case 0:
-          return "tertiary-light";
-        case 1:
-          return "tertiary";
-        default:
-          return "tertiary-dark";
-      }
-    }
     function getIODescription(value) {
       try {
         switch (typeof value) {
@@ -1144,6 +1115,9 @@
             if (null === value) return "";
             if (value instanceof Error) return String(value.message);
             if ("string" === typeof value.url) return value.url;
+            if ("string" === typeof value.href) return value.href;
+            if ("string" === typeof value.src) return value.src;
+            if ("string" === typeof value.currentSrc) return value.currentSrc;
             if ("string" === typeof value.command) return value.command;
             if (
               "object" === typeof value.request &&
@@ -1178,6 +1152,35 @@
         }
       } catch (x) {
         return "";
+      }
+    }
+    function markAllTracksInOrder() {
+      supportsUserTiming &&
+        (console.timeStamp(
+          "Server Requests Track",
+          0.001,
+          0.001,
+          "Server Requests \u269b",
+          void 0,
+          "primary-light"
+        ),
+        console.timeStamp(
+          "Server Components Track",
+          0.001,
+          0.001,
+          "Primary",
+          "Server Components \u269b",
+          "primary-light"
+        ));
+    }
+    function getIOColor(functionName) {
+      switch (functionName.charCodeAt(0) % 3) {
+        case 0:
+          return "tertiary-light";
+        case 1:
+          return "tertiary";
+        default:
+          return "tertiary-dark";
       }
     }
     function getIOLongName(ioInfo, description, env, rootEnv) {
@@ -1247,7 +1250,7 @@
           "object" === typeof value && null !== value
             ? addObjectToProperties(value, properties, 0, "")
             : void 0 !== value &&
-              addValueToProperties("Resolved", value, properties, 0, "");
+              addValueToProperties("awaited value", value, properties, 0, "");
           asyncInfo = getIOLongName(
             asyncInfo.awaited,
             description,
@@ -1290,7 +1293,7 @@
         debugTask
           ? ((error = [
               [
-                "Rejected",
+                "rejected with",
                 "object" === typeof error &&
                 null !== error &&
                 "string" === typeof error.message
@@ -1302,7 +1305,7 @@
               getIOLongName(ioInfo, description, ioInfo.env, rootEnv) +
               " Rejected"),
             debugTask.run(
-              performance.measure.bind(performance, entryName, {
+              performance.measure.bind(performance, "\u200b" + entryName, {
                 start: 0 > startTime ? 0 : startTime,
                 end: endTime,
                 detail: {
@@ -1341,7 +1344,7 @@
               addValueToProperties("Resolved", value, properties, 0, "");
           ioInfo = getIOLongName(ioInfo, description, ioInfo.env, rootEnv);
           debugTask.run(
-            performance.measure.bind(performance, entryName, {
+            performance.measure.bind(performance, "\u200b" + entryName, {
               start: 0 > startTime ? 0 : startTime,
               end: endTime,
               detail: {
@@ -1380,8 +1383,8 @@
         );
       return weakResponse;
     }
-    function cleanupDebugChannel(debugChannel) {
-      debugChannel("");
+    function closeDebugChannel(debugChannel) {
+      debugChannel.callback && debugChannel.callback("");
     }
     function readChunk(chunk) {
       switch (chunk.status) {
@@ -1426,12 +1429,12 @@
     function createErrorChunk(response, error) {
       return new ReactPromise("rejected", null, error);
     }
-    function wakeChunk(listeners, value) {
+    function wakeChunk(listeners, value, chunk) {
       for (var i = 0; i < listeners.length; i++) {
         var listener = listeners[i];
         "function" === typeof listener
           ? listener(value)
-          : fulfillReference(listener, value);
+          : fulfillReference(listener, value, chunk);
       }
     }
     function rejectChunk(listeners, error) {
@@ -1466,7 +1469,7 @@
     function wakeChunkIfInitialized(chunk, resolveListeners, rejectListeners) {
       switch (chunk.status) {
         case "fulfilled":
-          wakeChunk(resolveListeners, chunk.value);
+          wakeChunk(resolveListeners, chunk.value, chunk);
           break;
         case "blocked":
           for (var i = 0; i < resolveListeners.length; i++) {
@@ -1474,7 +1477,7 @@
             if ("function" !== typeof listener) {
               var cyclicHandler = resolveBlockedCycle(chunk, listener);
               null !== cyclicHandler &&
-                (fulfillReference(listener, cyclicHandler.value),
+                (fulfillReference(listener, cyclicHandler.value, chunk),
                 resolveListeners.splice(i, 1),
                 i--,
                 null !== rejectListeners &&
@@ -1569,7 +1572,65 @@
         var rejectListeners = chunk.reason;
         chunk.status = "resolved_module";
         chunk.value = value;
-        chunk._debugInfo = null;
+        value = value[1];
+        for (var debugInfo = [], i = 0; i < value.length; ) {
+          var chunkFilename = value[i++],
+            href = void 0,
+            target = debugInfo,
+            ioInfo = chunkIOInfoCache.get(chunkFilename);
+          if (void 0 === ioInfo) {
+            try {
+              href = new URL(chunkFilename, document.baseURI).href;
+            } catch (_) {
+              href = chunkFilename;
+            }
+            var end = (ioInfo = -1),
+              byteSize = 0;
+            if ("function" === typeof performance.getEntriesByType)
+              for (
+                var resourceEntries = performance.getEntriesByType("resource"),
+                  i$jscomp$0 = 0;
+                i$jscomp$0 < resourceEntries.length;
+                i$jscomp$0++
+              ) {
+                var resourceEntry = resourceEntries[i$jscomp$0];
+                resourceEntry.name === href &&
+                  ((ioInfo = resourceEntry.startTime),
+                  (end = ioInfo + resourceEntry.duration),
+                  (byteSize = resourceEntry.transferSize || 0));
+              }
+            resourceEntries = Promise.resolve(href);
+            resourceEntries.status = "fulfilled";
+            resourceEntries.value = href;
+            i$jscomp$0 = Error("react-stack-top-frame");
+            i$jscomp$0.stack.startsWith("Error: react-stack-top-frame")
+              ? (i$jscomp$0.stack =
+                  "Error: react-stack-top-frame\n    at Client Component Bundle (" +
+                  href +
+                  ":1:1)\n    at Client Component Bundle (" +
+                  href +
+                  ":1:1)")
+              : (i$jscomp$0.stack =
+                  "Client Component Bundle@" +
+                  href +
+                  ":1:1\nClient Component Bundle@" +
+                  href +
+                  ":1:1");
+            ioInfo = {
+              name: "script",
+              start: ioInfo,
+              end: end,
+              value: resourceEntries,
+              debugStack: i$jscomp$0
+            };
+            0 < byteSize && (ioInfo.byteSize = byteSize);
+            chunkIOInfoCache.set(chunkFilename, ioInfo);
+          }
+          target.push({ awaited: ioInfo });
+        }
+        null !== debugInfo && null != chunk._debugInfo
+          ? chunk._debugInfo.push.apply(chunk._debugInfo, debugInfo)
+          : (chunk._debugInfo = debugInfo);
         null !== response &&
           (initializeModuleChunk(chunk),
           wakeChunkIfInitialized(chunk, response, rejectListeners));
@@ -1618,7 +1679,7 @@
                 waitForReference(
                   debugChunk,
                   {},
-                  "",
+                  "debug",
                   response,
                   initializeDebugInfo,
                   [""]
@@ -1650,7 +1711,7 @@
         null !== resolveListeners &&
           ((chunk.value = null),
           (chunk.reason = null),
-          wakeChunk(resolveListeners, value));
+          wakeChunk(resolveListeners, value, chunk));
         if (null !== initializingHandler) {
           if (initializingHandler.errored) throw initializingHandler.reason;
           if (0 < initializingHandler.deps) {
@@ -1687,7 +1748,7 @@
         });
         weakResponse = response._debugChannel;
         void 0 !== weakResponse &&
-          (weakResponse(""), (response._debugChannel = void 0));
+          (closeDebugChannel(weakResponse), (response._debugChannel = void 0));
       }
     }
     function nullRefGetter() {
@@ -1768,7 +1829,7 @@
         chunks.set(id, chunk));
       return chunk;
     }
-    function fulfillReference(reference, value) {
+    function fulfillReference(reference, value, fulfilledChunk) {
       for (
         var response = reference.response,
           handler = reference.handler,
@@ -1821,6 +1882,7 @@
       }
       reference = map(response, value, parentObject, key);
       parentObject[key] = reference;
+      transferReferencedDebugInfo(handler.chunk, fulfilledChunk, reference);
       "" === key && null === handler.value && (handler.value = reference);
       if (
         parentObject[0] === REACT_ELEMENT_TYPE &&
@@ -1828,26 +1890,27 @@
         null !== handler.value &&
         handler.value.$$typeof === REACT_ELEMENT_TYPE
       )
-        switch (((parentObject = handler.value), key)) {
+        switch (((fulfilledChunk = handler.value), key)) {
           case "3":
-            parentObject.props = reference;
+            fulfilledChunk.props = reference;
             break;
           case "4":
-            parentObject._owner = reference;
+            fulfilledChunk._owner = reference;
             break;
           case "5":
-            parentObject._debugStack = reference;
+            fulfilledChunk._debugStack = reference;
         }
       handler.deps--;
       0 === handler.deps &&
         ((key = handler.chunk),
         null !== key &&
           "blocked" === key.status &&
-          ((parentObject = key.value),
+          ((fulfilledChunk = key.value),
           (key.status = "fulfilled"),
           (key.value = handler.value),
           (key.reason = handler.reason),
-          null !== parentObject && wakeChunk(parentObject, handler.value)));
+          null !== fulfilledChunk &&
+            wakeChunk(fulfilledChunk, handler.value, key)));
     }
     function rejectReference(reference, error) {
       var handler = reference.handler;
@@ -1888,10 +1951,13 @@
       path
     ) {
       if (
-        void 0 === response._debugChannel &&
-        "pending" === referencedChunk.status &&
-        parentObject[0] === REACT_ELEMENT_TYPE &&
-        ("4" === key || "5" === key)
+        !(
+          (void 0 !== response._debugChannel &&
+            response._debugChannel.hasReadable) ||
+          "pending" !== referencedChunk.status ||
+          parentObject[0] !== REACT_ELEMENT_TYPE ||
+          ("4" !== key && "5" !== key)
+        )
       )
         return null;
       if (initializingHandler) {
@@ -1994,7 +2060,8 @@
               ((boundArgs = resolvedValue.value),
               (resolvedValue.status = "fulfilled"),
               (resolvedValue.value = handler.value),
-              null !== boundArgs && wakeChunk(boundArgs, handler.value)));
+              null !== boundArgs &&
+                wakeChunk(boundArgs, handler.value, resolvedValue)));
         },
         function (error) {
           if (!handler.errored) {
@@ -2026,6 +2093,30 @@
         }
       );
       return null;
+    }
+    function transferReferencedDebugInfo(
+      parentChunk,
+      referencedChunk,
+      referencedValue
+    ) {
+      referencedChunk._debugInfo &&
+        ((referencedChunk = referencedChunk._debugInfo),
+        "object" !== typeof referencedValue ||
+          null === referencedValue ||
+          (!isArrayImpl(referencedValue) &&
+            "function" !== typeof referencedValue[ASYNC_ITERATOR] &&
+            referencedValue.$$typeof !== REACT_ELEMENT_TYPE) ||
+          referencedValue._debugInfo ||
+          Object.defineProperty(referencedValue, "_debugInfo", {
+            configurable: !1,
+            enumerable: !1,
+            writable: !0,
+            value: referencedChunk
+          }),
+        null !== parentChunk &&
+          ((parentChunk =
+            parentChunk._debugInfo || (parentChunk._debugInfo = [])),
+          parentChunk.push.apply(parentChunk, referencedChunk)));
     }
     function getOutlinedModel(response, reference, parentObject, key, map) {
       reference = reference.split(":");
@@ -2102,19 +2193,7 @@
             value = value[reference[i]];
           }
           response = map(response, value, parentObject, key);
-          id._debugInfo &&
-            ("object" !== typeof response ||
-              null === response ||
-              (!isArrayImpl(response) &&
-                "function" !== typeof response[ASYNC_ITERATOR] &&
-                response.$$typeof !== REACT_ELEMENT_TYPE) ||
-              response._debugInfo ||
-              Object.defineProperty(response, "_debugInfo", {
-                configurable: !1,
-                enumerable: !1,
-                writable: !0,
-                value: id._debugInfo
-              }));
+          transferReferencedDebugInfo(initializingChunk, id, response);
           return response;
         case "pending":
         case "blocked":
@@ -2198,6 +2277,37 @@
     }
     function createModel(response, model) {
       return model;
+    }
+    function getInferredFunctionApproximate(code) {
+      code = code.startsWith("Object.defineProperty(")
+        ? code.slice(22)
+        : code.startsWith("(")
+          ? code.slice(1)
+          : code;
+      if (code.startsWith("async function")) {
+        var idx = code.indexOf("(", 14);
+        if (-1 !== idx)
+          return (
+            (code = code.slice(14, idx).trim()),
+            (0, eval)("({" + JSON.stringify(code) + ":async function(){}})")[
+              code
+            ]
+          );
+      } else if (code.startsWith("function")) {
+        if (((idx = code.indexOf("(", 8)), -1 !== idx))
+          return (
+            (code = code.slice(8, idx).trim()),
+            (0, eval)("({" + JSON.stringify(code) + ":function(){}})")[code]
+          );
+      } else if (
+        code.startsWith("class") &&
+        ((idx = code.indexOf("{", 5)), -1 !== idx)
+      )
+        return (
+          (code = code.slice(5, idx).trim()),
+          (0, eval)("({" + JSON.stringify(code) + ":class{}})")[code]
+        );
+      return function () {};
     }
     function parseModelString(response, parentObject, key, value) {
       if ("$" === value[0]) {
@@ -2323,44 +2433,31 @@
           case "E":
             response = value.slice(2);
             try {
-              return (0, eval)(response);
-            } catch (x) {
-              if (response.startsWith("(async function")) {
-                if (
-                  ((parentObject = response.indexOf("(", 15)),
-                  -1 !== parentObject)
-                )
-                  return (
-                    (response = response.slice(15, parentObject).trim()),
-                    (0, eval)(
-                      "({" + JSON.stringify(response) + ":async function(){}})"
-                    )[response]
+              if (!mightHaveStaticConstructor.test(response))
+                return (0, eval)(response);
+            } catch (x) {}
+            try {
+              if (
+                ((ref = getInferredFunctionApproximate(response)),
+                response.startsWith("Object.defineProperty("))
+              ) {
+                var idx = response.lastIndexOf(',"name",{value:"');
+                if (-1 !== idx) {
+                  var name = JSON.parse(
+                    response.slice(idx + 16 - 1, response.length - 2)
                   );
-              } else if (response.startsWith("(function")) {
-                if (
-                  ((parentObject = response.indexOf("(", 9)),
-                  -1 !== parentObject)
-                )
-                  return (
-                    (response = response.slice(9, parentObject).trim()),
-                    (0, eval)(
-                      "({" + JSON.stringify(response) + ":function(){}})"
-                    )[response]
-                  );
-              } else if (
-                response.startsWith("(class") &&
-                ((parentObject = response.indexOf("{", 6)), -1 !== parentObject)
-              )
-                return (
-                  (response = response.slice(6, parentObject).trim()),
-                  (0, eval)("({" + JSON.stringify(response) + ":class{}})")[
-                    response
-                  ]
-                );
-              return function () {};
+                  Object.defineProperty(ref, "name", { value: name });
+                }
+              }
+            } catch (_) {
+              ref = function () {};
             }
+            return ref;
           case "Y":
-            if (2 < value.length && (ref = response._debugChannel)) {
+            if (
+              2 < value.length &&
+              (ref = response._debugChannel && response._debugChannel.callback)
+            ) {
               if ("@" === value[2])
                 return (
                   (parentObject = value.slice(3)),
@@ -2369,9 +2466,9 @@
                   getChunk(response, key)
                 );
               value = value.slice(2);
-              var _id2 = parseInt(value, 16);
-              response._chunks.has(_id2) || ref("Q:" + value);
-              ref = getChunk(response, _id2);
+              idx = parseInt(value, 16);
+              response._chunks.has(idx) || ref("Q:" + value);
+              ref = getChunk(response, idx);
               return "fulfilled" === ref.status
                 ? ref.value
                 : defineLazyGetter(response, ref, parentObject, key);
@@ -2447,7 +2544,7 @@
       this._rootEnvironmentName = environmentName;
       debugChannel &&
         (null === debugChannelRegistry
-          ? (debugChannel(""), (this._debugChannel = void 0))
+          ? (closeDebugChannel(debugChannel), (this._debugChannel = void 0))
           : debugChannelRegistry.register(this, debugChannel));
       replayConsole && markAllTracksInOrder();
       this._fromJSON = createFromJSONCallback(this);
@@ -2537,7 +2634,7 @@
         chunk.status = "fulfilled";
         chunk.value = stream;
         chunk.reason = controller;
-        null !== id && wakeChunk(id, chunk.value);
+        null !== id && wakeChunk(id, chunk.value, chunk);
       }
     }
     function startReadableStream(response, id, type) {
@@ -3301,7 +3398,7 @@
                           0,
                           ""
                         );
-                      performance.measure(entryName$jscomp$0, {
+                      performance.measure("\u200b" + entryName$jscomp$0, {
                         start: 0 > startTime$jscomp$2 ? 0 : startTime$jscomp$2,
                         end: childrenEndTime$jscomp$1,
                         detail: {
@@ -3370,7 +3467,7 @@
                         debugTask$jscomp$0.run(
                           performance.measure.bind(
                             performance,
-                            entryName$jscomp$1,
+                            "\u200b" + entryName$jscomp$1,
                             {
                               start:
                                 0 > startTime$jscomp$3 ? 0 : startTime$jscomp$3,
@@ -3388,7 +3485,7 @@
                         );
                       } else
                         console.timeStamp(
-                          entryName$jscomp$1,
+                          "\u200b" + entryName$jscomp$1,
                           0 > startTime$jscomp$3 ? 0 : startTime$jscomp$3,
                           childrenEndTime$jscomp$2,
                           trackNames[trackIdx$jscomp$2],
@@ -3400,7 +3497,10 @@
                   componentEndTime = time;
                   result.component = componentInfo$jscomp$0;
                   isLastComponent = !1;
-                } else if (candidateInfo.awaited) {
+                } else if (
+                  candidateInfo.awaited &&
+                  null != candidateInfo.awaited.env
+                ) {
                   endTime > childrenEndTime && (childrenEndTime = endTime);
                   var asyncInfo = candidateInfo,
                     env$jscomp$1 = response$jscomp$0._rootEnvironmentName,
@@ -3551,7 +3651,7 @@
                         0,
                         ""
                       );
-                    performance.measure(entryName$jscomp$3, {
+                    performance.measure("\u200b" + entryName$jscomp$3, {
                       start: 0 > startTime$jscomp$5 ? 0 : startTime$jscomp$5,
                       end: childrenEndTime$jscomp$3,
                       detail: {
@@ -3568,7 +3668,10 @@
                   componentEndTime = time;
                   result.component = _componentInfo;
                   isLastComponent = !1;
-                } else if (_candidateInfo.awaited) {
+                } else if (
+                  _candidateInfo.awaited &&
+                  null != _candidateInfo.awaited.env
+                ) {
                   var _asyncInfo = _candidateInfo,
                     _env2 = response$jscomp$0._rootEnvironmentName;
                   _asyncInfo.awaited.end > endTime &&
@@ -3796,10 +3899,11 @@
             (chunk._debugChunk = tag),
             (id._debugChunk = chunk),
             initializeDebugChunk(response, id),
-            "blocked" === chunk.status &&
-              void 0 === response._debugChannel &&
-              '"' === row[0] &&
-              "$" === row[1] &&
+            "blocked" !== chunk.status ||
+              (void 0 !== response._debugChannel &&
+                response._debugChannel.hasReadable) ||
+              '"' !== row[0] ||
+              "$" !== row[1] ||
               ((row = row.slice(2, row.length - 1).split(":")),
               (row = parseInt(row[0], 16)),
               "pending" === getChunk(response, row).status &&
@@ -4051,10 +4155,16 @@
     }
     function createResponseFromOptions(options) {
       var debugChannel =
-        options &&
-        void 0 !== options.debugChannel &&
-        void 0 !== options.debugChannel.writable
-          ? createDebugCallbackFromWritableStream(options.debugChannel.writable)
+        options && void 0 !== options.debugChannel
+          ? {
+              hasReadable: void 0 !== options.debugChannel.readable,
+              callback:
+                void 0 !== options.debugChannel.writable
+                  ? createDebugCallbackFromWritableStream(
+                      options.debugChannel.writable
+                    )
+                  : null
+            }
           : void 0;
       return new ResponseInstance(
         null,
@@ -4072,115 +4182,114 @@
         debugChannel
       )._weakResponse;
     }
-    function startReadingFromUniversalStream(response$jscomp$0, stream) {
+    function startReadingFromUniversalStream(
+      response$jscomp$0,
+      stream,
+      onDone
+    ) {
       function progress(_ref) {
         var value = _ref.value;
-        if (_ref.done) close(response$jscomp$0);
-        else {
-          if (value instanceof ArrayBuffer)
-            processBinaryChunk(
-              response$jscomp$0,
-              streamState,
-              new Uint8Array(value)
-            );
-          else if ("string" === typeof value) {
-            if (
-              ((_ref = streamState), void 0 !== response$jscomp$0.weak.deref())
-            ) {
-              for (
-                var response = unwrapWeakResponse(response$jscomp$0),
-                  i = 0,
-                  rowState = _ref._rowState,
-                  rowID = _ref._rowID,
-                  rowTag = _ref._rowTag,
-                  rowLength = _ref._rowLength,
-                  buffer = _ref._buffer,
-                  chunkLength = value.length;
-                i < chunkLength;
+        if (_ref.done) return onDone();
+        if (value instanceof ArrayBuffer)
+          processBinaryChunk(
+            response$jscomp$0,
+            streamState,
+            new Uint8Array(value)
+          );
+        else if ("string" === typeof value) {
+          if (
+            ((_ref = streamState), void 0 !== response$jscomp$0.weak.deref())
+          ) {
+            for (
+              var response = unwrapWeakResponse(response$jscomp$0),
+                i = 0,
+                rowState = _ref._rowState,
+                rowID = _ref._rowID,
+                rowTag = _ref._rowTag,
+                rowLength = _ref._rowLength,
+                buffer = _ref._buffer,
+                chunkLength = value.length;
+              i < chunkLength;
 
-              ) {
-                var lastIdx = -1;
-                switch (rowState) {
-                  case 0:
-                    lastIdx = value.charCodeAt(i++);
-                    58 === lastIdx
-                      ? (rowState = 1)
-                      : (rowID =
-                          (rowID << 4) |
-                          (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-                    continue;
-                  case 1:
-                    rowState = value.charCodeAt(i);
-                    84 === rowState ||
-                    65 === rowState ||
-                    79 === rowState ||
-                    111 === rowState ||
-                    85 === rowState ||
-                    83 === rowState ||
-                    115 === rowState ||
-                    76 === rowState ||
-                    108 === rowState ||
-                    71 === rowState ||
-                    103 === rowState ||
-                    77 === rowState ||
-                    109 === rowState ||
-                    86 === rowState
-                      ? ((rowTag = rowState), (rowState = 2), i++)
-                      : (64 < rowState && 91 > rowState) ||
-                          114 === rowState ||
-                          120 === rowState
-                        ? ((rowTag = rowState), (rowState = 3), i++)
-                        : ((rowTag = 0), (rowState = 3));
-                    continue;
-                  case 2:
-                    lastIdx = value.charCodeAt(i++);
-                    44 === lastIdx
-                      ? (rowState = 4)
-                      : (rowLength =
-                          (rowLength << 4) |
-                          (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
-                    continue;
-                  case 3:
-                    lastIdx = value.indexOf("\n", i);
-                    break;
-                  case 4:
-                    if (84 !== rowTag)
-                      throw Error(
-                        "Binary RSC chunks cannot be encoded as strings. This is a bug in the wiring of the React streams."
-                      );
-                    if (
-                      rowLength < value.length ||
-                      value.length > 3 * rowLength
-                    )
-                      throw Error(
-                        "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
-                      );
-                    lastIdx = value.length;
-                }
-                if (-1 < lastIdx) {
-                  if (0 < buffer.length)
+            ) {
+              var lastIdx = -1;
+              switch (rowState) {
+                case 0:
+                  lastIdx = value.charCodeAt(i++);
+                  58 === lastIdx
+                    ? (rowState = 1)
+                    : (rowID =
+                        (rowID << 4) |
+                        (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+                  continue;
+                case 1:
+                  rowState = value.charCodeAt(i);
+                  84 === rowState ||
+                  65 === rowState ||
+                  79 === rowState ||
+                  111 === rowState ||
+                  85 === rowState ||
+                  83 === rowState ||
+                  115 === rowState ||
+                  76 === rowState ||
+                  108 === rowState ||
+                  71 === rowState ||
+                  103 === rowState ||
+                  77 === rowState ||
+                  109 === rowState ||
+                  86 === rowState
+                    ? ((rowTag = rowState), (rowState = 2), i++)
+                    : (64 < rowState && 91 > rowState) ||
+                        114 === rowState ||
+                        120 === rowState
+                      ? ((rowTag = rowState), (rowState = 3), i++)
+                      : ((rowTag = 0), (rowState = 3));
+                  continue;
+                case 2:
+                  lastIdx = value.charCodeAt(i++);
+                  44 === lastIdx
+                    ? (rowState = 4)
+                    : (rowLength =
+                        (rowLength << 4) |
+                        (96 < lastIdx ? lastIdx - 87 : lastIdx - 48));
+                  continue;
+                case 3:
+                  lastIdx = value.indexOf("\n", i);
+                  break;
+                case 4:
+                  if (84 !== rowTag)
+                    throw Error(
+                      "Binary RSC chunks cannot be encoded as strings. This is a bug in the wiring of the React streams."
+                    );
+                  if (rowLength < value.length || value.length > 3 * rowLength)
                     throw Error(
                       "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
                     );
-                  i = value.slice(i, lastIdx);
-                  processFullStringRow(response, rowID, rowTag, i);
-                  i = lastIdx;
-                  3 === rowState && i++;
-                  rowLength = rowID = rowTag = rowState = 0;
-                  buffer.length = 0;
-                } else if (value.length !== i)
+                  lastIdx = value.length;
+              }
+              if (-1 < lastIdx) {
+                if (0 < buffer.length)
                   throw Error(
                     "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
                   );
-              }
-              _ref._rowState = rowState;
-              _ref._rowID = rowID;
-              _ref._rowTag = rowTag;
-              _ref._rowLength = rowLength;
+                i = value.slice(i, lastIdx);
+                processFullStringRow(response, rowID, rowTag, i);
+                i = lastIdx;
+                3 === rowState && i++;
+                rowLength = rowID = rowTag = rowState = 0;
+                buffer.length = 0;
+              } else if (value.length !== i)
+                throw Error(
+                  "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
+                );
             }
-          } else processBinaryChunk(response$jscomp$0, streamState, value);
-          return reader.read().then(progress).catch(error);
-        }
+            _ref._rowState = rowState;
+            _ref._rowID = rowID;
+            _ref._rowTag = rowTag;
+            _ref._rowLength = rowLength;
+          }
+        } else processBinaryChunk(response$jscomp$0, streamState, value);
+        return reader.read().then(progress).catch(error);
       }
       function error(e) {
         reportGlobalError(response$jscomp$0, e);
@@ -4189,15 +4298,12 @@
         reader = stream.getReader();
       reader.read().then(progress).catch(error);
     }
-    function startReadingFromStream(response, stream, isSecondaryStream) {
+    function startReadingFromStream(response, stream, onDone) {
       function progress(_ref2) {
         var value = _ref2.value;
-        if (_ref2.done) isSecondaryStream || close(response);
-        else
-          return (
-            processBinaryChunk(response, streamState, value),
-            reader.read().then(progress).catch(error)
-          );
+        if (_ref2.done) return onDone();
+        processBinaryChunk(response, streamState, value);
+        return reader.read().then(progress).catch(error);
       }
       function error(e) {
         reportGlobalError(response, e);
@@ -4212,6 +4318,7 @@
       bind = Function.prototype.bind,
       instrumentedChunks = new WeakSet(),
       loadedChunks = new WeakSet(),
+      chunkIOInfoCache = new Map(),
       ReactDOMSharedInternals =
         ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
@@ -4305,10 +4412,11 @@
     };
     var debugChannelRegistry =
         "function" === typeof FinalizationRegistry
-          ? new FinalizationRegistry(cleanupDebugChannel)
+          ? new FinalizationRegistry(closeDebugChannel)
           : null,
       initializingHandler = null,
       initializingChunk = null,
+      mightHaveStaticConstructor = /\bclass\b.*\bstatic\b/,
       supportsCreateTask = !!console.createTask,
       fakeFunctionCache = new Map(),
       fakeFunctionIdx = 0,
@@ -4412,15 +4520,15 @@
       try {
         hook.inject(internals);
       } catch (err) {
-        console.error("React instrumentation encountered an error: %s.", err);
+        console.error("React instrumentation encountered an error: %o.", err);
       }
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-experimental-3d14fcf0-20250724",
+      version: "19.2.0-experimental-33a1095d-20250827",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-experimental-3d14fcf0-20250724",
+      reconcilerVersion: "19.2.0-experimental-33a1095d-20250827",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
@@ -4429,13 +4537,27 @@
       var response = createResponseFromOptions(options);
       promiseForResponse.then(
         function (r) {
-          options && options.debugChannel && options.debugChannel.readable
-            ? (startReadingFromUniversalStream(
-                response,
-                options.debugChannel.readable
-              ),
-              startReadingFromStream(response, r.body, !0))
-            : startReadingFromStream(response, r.body, !1);
+          if (
+            options &&
+            options.debugChannel &&
+            options.debugChannel.readable
+          ) {
+            var streamDoneCount = 0,
+              handleDone = function () {
+                2 === ++streamDoneCount && close(response);
+              };
+            startReadingFromUniversalStream(
+              response,
+              options.debugChannel.readable,
+              handleDone
+            );
+            startReadingFromStream(response, r.body, handleDone);
+          } else
+            startReadingFromStream(
+              response,
+              r.body,
+              close.bind(null, response)
+            );
         },
         function (e) {
           reportGlobalError(response, e);
@@ -4445,13 +4567,19 @@
     };
     exports.createFromReadableStream = function (stream, options) {
       var response = createResponseFromOptions(options);
-      options && options.debugChannel && options.debugChannel.readable
-        ? (startReadingFromUniversalStream(
-            response,
-            options.debugChannel.readable
-          ),
-          startReadingFromStream(response, stream, !0))
-        : startReadingFromStream(response, stream, !1);
+      if (options && options.debugChannel && options.debugChannel.readable) {
+        var streamDoneCount = 0,
+          handleDone = function () {
+            2 === ++streamDoneCount && close(response);
+          };
+        startReadingFromUniversalStream(
+          response,
+          options.debugChannel.readable,
+          handleDone
+        );
+        startReadingFromStream(response, stream, handleDone);
+      } else
+        startReadingFromStream(response, stream, close.bind(null, response));
       return getRoot(response);
     };
     exports.createServerReference = function (

@@ -1,4 +1,4 @@
-import type { FlightRouterState } from './types'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import { flightRouterStateSchema } from './types'
 import { assert } from 'next/dist/compiled/superstruct'
 

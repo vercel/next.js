@@ -1,10 +1,6 @@
 import { cookies, headers, draftMode } from 'next/headers'
 import { connection } from 'next/server'
 
-export function generateStaticParams() {
-  return [{ slug: 'one' }]
-}
-
 export default async function Page(props: {
   params: Promise<{}>
   searchParams: Promise<{}>

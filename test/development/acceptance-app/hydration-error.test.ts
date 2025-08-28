@@ -214,7 +214,7 @@ describe('Error overlay for hydration errors in App router', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "componentStack": "...
-           <HotReload assetPrefix="" globalError={[...]}>
+           <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
              <AppDevOverlayErrorBoundary globalError={[...]}>
                <ReplaySsrOnlyErrors>
                <DevRootHTTPAccessFallbackBoundary>
@@ -223,16 +223,17 @@ describe('Error overlay for hydration errors in App router', () => {
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <Head>
-                         <SegmentViewNode type="layout" pagePath="layout.js">
-                           <SegmentTrieNode>
-                           <script>
-                           <script>
-                           <script>
-                           <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                             <Root params={Promise}>
-                               <html
-       -                         className="server-html"
-                               >
+                         <__next_root_layout_boundary__>
+                           <SegmentViewNode type="layout" pagePath="layout.js">
+                             <SegmentTrieNode>
+                             <script>
+                             <script>
+                             <script>
+                             <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                               <Root params={Promise}>
+                                 <html
+       -                           className="server-html"
+                                 >
                          ...",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
@@ -250,7 +251,7 @@ describe('Error overlay for hydration errors in App router', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "componentStack": "...
-           <HotReload assetPrefix="" globalError={[...]}>
+           <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
              <AppDevOverlayErrorBoundary globalError={[...]}>
                <ReplaySsrOnlyErrors>
                <DevRootHTTPAccessFallbackBoundary>
@@ -259,13 +260,14 @@ describe('Error overlay for hydration errors in App router', () => {
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <Head>
-                         <SegmentViewNode type="layout" pagePath="layout.js">
-                           <SegmentTrieNode>
-                           <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
-                             <Root params={Promise}>
-                               <html
-       -                         className="server-html"
-                               >
+                         <__next_root_layout_boundary__>
+                           <SegmentViewNode type="layout" pagePath="layout.js">
+                             <SegmentTrieNode>
+                             <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                               <Root params={Promise}>
+                                 <html
+       -                           className="server-html"
+                                 >
                          ...",
          "description": "A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:",
          "environmentLabel": null,
@@ -1090,7 +1092,7 @@ describe('Error overlay for hydration errors in App router', () => {
          },
          {
            "componentStack": "...
-           <HotReload assetPrefix="" globalError={[...]}>
+           <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
              <AppDevOverlayErrorBoundary globalError={[...]}>
                <ReplaySsrOnlyErrors>
                <DevRootHTTPAccessFallbackBoundary>
@@ -1099,15 +1101,18 @@ describe('Error overlay for hydration errors in App router', () => {
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <Head>
-                         <SegmentViewNode type="layout" pagePath="layout.js">
-                           <SegmentTrieNode>
-                           <script>
-                           <script>
-                           <Layout>
-       >                     <html>
-                               <body>
-                               <Script src="https://ex..." strategy="beforeInte...">
-       >                         <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
+                         <__next_root_layout_boundary__>
+                           <SegmentViewNode type="layout" pagePath="layout.js">
+                             <SegmentTrieNode>
+                             <script>
+                             <script>
+                             <Layout>
+                               <NotFound>
+                                 <HTTPAccessErrorFallback>
+       >                           <html>
+                                     <body>
+                                     <Script src="https://ex..." strategy="beforeInte...">
+       >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                          ...",
            "description": "In HTML, <script> cannot be a child of <html>.
        This will cause a hydration error.",
@@ -1152,7 +1157,7 @@ describe('Error overlay for hydration errors in App router', () => {
          },
          {
            "componentStack": "...
-           <HotReload assetPrefix="" globalError={[...]}>
+           <HotReload globalError={[...]} webSocket={WebSocket} staticIndicatorState={{pathname:null, ...}}>
              <AppDevOverlayErrorBoundary globalError={[...]}>
                <ReplaySsrOnlyErrors>
                <DevRootHTTPAccessFallbackBoundary>
@@ -1161,13 +1166,16 @@ describe('Error overlay for hydration errors in App router', () => {
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <Head>
-                         <SegmentViewNode type="layout" pagePath="layout.js">
-                           <SegmentTrieNode>
-                           <Layout>
-       >                     <html>
-                               <body>
-                               <Script src="https://ex..." strategy="beforeInte...">
-       >                         <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
+                         <__next_root_layout_boundary__>
+                           <SegmentViewNode type="layout" pagePath="layout.js">
+                             <SegmentTrieNode>
+                             <Layout>
+                               <NotFound>
+                                 <HTTPAccessErrorFallback>
+       >                           <html>
+                                     <body>
+                                     <Script src="https://ex..." strategy="beforeInte...">
+       >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                          ...",
            "description": "In HTML, <script> cannot be a child of <html>.
        This will cause a hydration error.",

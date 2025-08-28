@@ -21,7 +21,7 @@ use crate::{
     EcmascriptModuleContent,
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::TURBOPACK_ASYNC_MODULE,
-    utils::{FormatIter, StringifyJs},
+    utils::StringifyJs,
 };
 
 #[turbo_tasks::value(shared)]
@@ -66,7 +66,6 @@ impl EcmascriptChunkItemContent {
                     strict: true,
                     externals,
                     async_module,
-                    stub_require: true,
                     ..Default::default()
                 }
             } else {
@@ -78,8 +77,7 @@ impl EcmascriptChunkItemContent {
                     strict,
                     externals,
                     // These things are not available in ESM
-                    module: true,
-                    exports: true,
+                    module_and_exports: true,
                     ..Default::default()
                 }
             },
@@ -90,28 +88,19 @@ impl EcmascriptChunkItemContent {
 
     #[turbo_tasks::function]
     pub async fn module_factory(&self) -> Result<Vc<Code>> {
-        let mut args = Vec::new();
-        if self.options.module {
-            args.push("m: module");
-        }
-        if self.options.exports {
-            args.push("e: exports");
-        }
-
         let mut code = CodeBuilder::default();
-        let additional_ids = self.additional_ids.iter().try_join().await?;
-        if !additional_ids.is_empty() {
-            code += "["
+        for additional_id in self.additional_ids.iter().try_join().await? {
+            writeln!(code, "{}, ", StringifyJs(&*additional_id))?;
         }
-        code += "((__turbopack_context__) => {\n";
+        if self.options.module_and_exports {
+            code += "((__turbopack_context__, module, exports) => {\n";
+        } else {
+            code += "((__turbopack_context__) => {\n";
+        }
         if self.options.strict {
             code += "\"use strict\";\n\n";
         } else {
             code += "\n";
-        }
-        if !args.is_empty() {
-            let args = FormatIter(|| args.iter().copied().intersperse(", "));
-            writeln!(code, "var {{ {args} }} = __turbopack_context__;")?;
         }
 
         if self.options.async_module.is_some() {
@@ -120,8 +109,6 @@ impl EcmascriptChunkItemContent {
                 "return {TURBOPACK_ASYNC_MODULE}(async (__turbopack_handle_async_dependencies__, \
                  __turbopack_async_result__) => {{ try {{\n"
             )?;
-        } else if !args.is_empty() {
-            code += "{\n";
         }
 
         let source_map = if let Some(rewrite_source_path) = &self.rewrite_source_path {
@@ -139,14 +126,9 @@ impl EcmascriptChunkItemContent {
                  }}, {});",
                 opts.has_top_level_await
             )?;
-        } else if !args.is_empty() {
-            code += "}";
         }
 
         code += "})";
-        if !additional_ids.is_empty() {
-            writeln!(code, ", {}]", StringifyJs(&additional_ids))?;
-        }
 
         Ok(code.build().cell())
     }
@@ -158,15 +140,9 @@ impl EcmascriptChunkItemContent {
 pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item should be in "use strict" mode.
     pub strict: bool,
-    /// Whether this chunk item's module factory should include a `module`
-    /// argument.
-    pub module: bool,
-    /// Whether this chunk item's module factory should include an `exports`
-    /// argument.
-    pub exports: bool,
-    /// Whether this chunk item's module factory should include an argument for a throwing require
-    /// stub (for ESM)
-    pub stub_require: bool,
+    /// Whether this chunk item's module factory should include a `module` and
+    /// `exports` argument.
+    pub module_and_exports: bool,
     /// Whether this chunk item's module factory should include a
     /// `__turbopack_external_require__` argument.
     pub externals: bool,

@@ -76,6 +76,8 @@ pub struct PagesStructure {
     pub error_500: Option<ResolvedVc<PagesStructureItem>>,
     pub api: Option<ResolvedVc<PagesDirectoryStructure>>,
     pub pages: Option<ResolvedVc<PagesDirectoryStructure>>,
+    pub has_user_pages: bool,
+    pub should_create_pages_entries: bool,
 }
 
 #[turbo_tasks::value]
@@ -102,6 +104,7 @@ pub async fn find_pages_structure(
     project_root: FileSystemPath,
     next_router_root: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
+    next_mode: Vc<crate::mode::NextMode>,
 ) -> Result<Vc<PagesStructure>> {
     let pages_root = project_root.join("pages")?.realpath().owned().await?;
     let pages_root = if *pages_root.get_type().await? == FileSystemEntryType::Directory {
@@ -123,6 +126,7 @@ pub async fn find_pages_structure(
         Vc::cell(pages_root),
         next_router_root,
         page_extensions,
+        next_mode,
     ))
 }
 
@@ -133,6 +137,7 @@ async fn get_pages_structure_for_root_directory(
     project_path: Vc<FileSystemPathOption>,
     next_router_path: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
+    next_mode: Vc<crate::mode::NextMode>,
 ) -> Result<Vc<PagesStructure>> {
     let page_extensions_raw = &*page_extensions.await?;
 
@@ -259,6 +264,14 @@ async fn get_pages_structure_for_root_directory(
         project_root.join("pages")?
     };
 
+    // Check if there are any actual user pages (not just _app, _document, _error)
+    // error_500_item can be auto-generated for app router, so only count it if there are other user
+    // pages
+    let has_user_pages = pages_directory.is_some() || api_directory.is_some();
+
+    // Only skip user pages routes during build mode when there are no user pages
+    let should_create_pages_entries = has_user_pages || next_mode.await?.is_development();
+
     let app_item = {
         let app_router_path = next_router_path.join("_app")?;
         PagesStructureItem::new(
@@ -311,6 +324,8 @@ async fn get_pages_structure_for_root_directory(
         error_500: error_500_item.to_resolved().await?,
         api: api_directory,
         pages: pages_directory,
+        has_user_pages,
+        should_create_pages_entries,
     }
     .cell())
 }

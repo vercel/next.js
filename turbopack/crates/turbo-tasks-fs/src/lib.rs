@@ -1,4 +1,5 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
+#![feature(btree_cursors)] // needed for the `InvalidatorMap` and watcher, reduces time complexity
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
 #![feature(iter_advance_by)]
@@ -16,6 +17,7 @@ pub mod invalidation;
 mod invalidator_map;
 pub mod json;
 mod mutex_map;
+mod path_map;
 mod read_glob;
 mod retry;
 pub mod rope;
@@ -23,6 +25,7 @@ pub mod source_context;
 pub mod util;
 pub(crate) mod virtual_fs;
 mod watcher;
+
 use std::{
     borrow::Cow,
     cmp::{Ordering, min},
@@ -40,14 +43,9 @@ use anyhow::{Context, Result, anyhow, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use bitflags::bitflags;
 use dunce::simplified;
-use glob::Glob;
 use indexmap::IndexSet;
-use invalidator_map::InvalidatorMap;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
-pub use read_glob::ReadGlobResult;
-use read_glob::{read_glob, track_glob};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -57,20 +55,27 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
     ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat, effect,
-    mark_session_dependent, mark_stateful, trace::TraceRawVcs,
+    mark_session_dependent, mark_stateful, parallel, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
-use util::{extract_disk_access, join_path, normalize_path, sys_to_unix, unix_to_sys};
-pub use virtual_fs::VirtualFileSystem;
-use watcher::DiskWatcher;
+use turbo_unix_path::{
+    get_parent_path, get_relative_path_to, join_path, normalize_path, sys_to_unix, unix_to_sys,
+};
 
-use self::{invalidation::Write, json::UnparsableJson, mutex_map::MutexMap};
 use crate::{
     attach::AttachedFileSystem,
-    invalidator_map::WriteContent,
+    glob::Glob,
+    invalidation::Write,
+    invalidator_map::{InvalidatorMap, WriteContent},
+    json::UnparsableJson,
+    mutex_map::MutexMap,
+    read_glob::{read_glob, track_glob},
     retry::retry_blocking,
     rope::{Rope, RopeReader},
+    util::extract_disk_access,
+    watcher::DiskWatcher,
 };
+pub use crate::{read_glob::ReadGlobResult, virtual_fs::VirtualFileSystem};
 
 /// A (somewhat arbitrary) filename limit that we should try to keep output file names below.
 ///
@@ -254,11 +259,8 @@ impl DiskFileSystemInner {
     fn register_read_invalidator(&self, path: &Path) -> Result<()> {
         let invalidator = turbo_tasks::get_invalidator();
         self.invalidator_map
-            .insert(path_to_key(path), invalidator, None);
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        if let Some(dir) = path.parent() {
-            self.watcher.ensure_watching(dir, self.root_path())?;
-        }
+            .insert(path.to_owned(), invalidator, None);
+        self.watcher.ensure_watched_file(path, self.root_path())?;
         Ok(())
     }
 
@@ -272,7 +274,7 @@ impl DiskFileSystemInner {
         write_content: WriteContent,
     ) -> Result<Vec<(Invalidator, Option<WriteContent>)>> {
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
-        let invalidators = invalidator_map.entry(path_to_key(path)).or_default();
+        let invalidators = invalidator_map.entry(path.to_owned()).or_default();
         let old_invalidators = invalidators
             .extract_if(|i, old_write_content| {
                 i == &invalidator
@@ -284,10 +286,7 @@ impl DiskFileSystemInner {
             .collect::<Vec<_>>();
         invalidators.insert(invalidator, Some(write_content));
         drop(invalidator_map);
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        if let Some(dir) = path.parent() {
-            self.watcher.ensure_watching(dir, self.root_path())?;
-        }
+        self.watcher.ensure_watched_file(path, self.root_path())?;
         Ok(old_invalidators)
     }
 
@@ -296,9 +295,8 @@ impl DiskFileSystemInner {
     fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
         let invalidator = turbo_tasks::get_invalidator();
         self.dir_invalidator_map
-            .insert(path_to_key(path), invalidator, None);
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        self.watcher.ensure_watching(path, self.root_path())?;
+            .insert(path.to_owned(), invalidator, None);
+        self.watcher.ensure_watched_dir(path, self.root_path())?;
         Ok(())
     }
 
@@ -310,19 +308,14 @@ impl DiskFileSystemInner {
 
     fn invalidate(&self) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
-        let span = tracing::Span::current();
-        let handle = tokio::runtime::Handle::current();
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
-        let iter = invalidator_map
-            .into_par_iter()
-            .chain(dir_invalidator_map.into_par_iter())
-            .flat_map(|(_, invalidators)| invalidators.into_par_iter());
-        iter.for_each(|(i, _)| {
-            let _span = span.clone().entered();
-            let _guard = handle.enter();
-            i.invalidate()
-        });
+        let invalidators = invalidator_map
+            .into_iter()
+            .chain(dir_invalidator_map)
+            .flat_map(|(_, invalidators)| invalidators.into_keys())
+            .collect::<Vec<_>>();
+        parallel::for_each_owned(invalidators, |invalidator| invalidator.invalidate());
     }
 
     /// Invalidates every tracked file in the filesystem.
@@ -330,26 +323,22 @@ impl DiskFileSystemInner {
     /// Calls the given
     fn invalidate_with_reason<R: InvalidationReason + Clone>(
         &self,
-        reason: impl Fn(String) -> R + Sync,
+        reason: impl Fn(&Path) -> R + Sync,
     ) {
         let _span = tracing::info_span!("invalidate filesystem", name = &*self.root).entered();
-        let span = tracing::Span::current();
-        let handle = tokio::runtime::Handle::current();
         let invalidator_map = take(&mut *self.invalidator_map.lock().unwrap());
         let dir_invalidator_map = take(&mut *self.dir_invalidator_map.lock().unwrap());
-        let iter = invalidator_map
-            .into_par_iter()
-            .chain(dir_invalidator_map.into_par_iter())
+        let invalidators = invalidator_map
+            .into_iter()
+            .chain(dir_invalidator_map)
             .flat_map(|(path, invalidators)| {
-                let _span = span.clone().entered();
-                let reason_for_path = reason(path);
+                let reason_for_path = reason(&path);
                 invalidators
-                    .into_par_iter()
+                    .into_keys()
                     .map(move |i| (reason_for_path.clone(), i))
-            });
-        iter.for_each(|(reason, (invalidator, _))| {
-            let _span = span.clone().entered();
-            let _guard = handle.enter();
+            })
+            .collect::<Vec<_>>();
+        parallel::for_each_owned(invalidators, |(reason, invalidator)| {
             invalidator.invalidate_with_reason(reason)
         });
     }
@@ -446,7 +435,7 @@ impl DiskFileSystem {
 
     pub fn invalidate_with_reason<R: InvalidationReason + Clone>(
         &self,
-        reason: impl Fn(String) -> R + Sync,
+        reason: impl Fn(&Path) -> R + Sync,
     ) {
         self.inner.invalidate_with_reason(reason);
     }
@@ -470,7 +459,7 @@ impl DiskFileSystem {
         self.inner.watcher.stop_watching();
     }
 
-    pub async fn to_sys_path(&self, fs_path: FileSystemPath) -> Result<PathBuf> {
+    pub fn to_sys_path(&self, fs_path: FileSystemPath) -> Result<PathBuf> {
         // just in case there's a windows unc path prefix we remove it with `dunce`
         let path = self.inner.root_path();
         Ok(if fs_path.path.is_empty() {
@@ -501,10 +490,6 @@ fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<
     }
 }
 
-pub fn path_to_key(path: impl AsRef<Path>) -> String {
-    path.as_ref().to_string_lossy().to_string()
-}
-
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
     /// Create a new instance of `DiskFileSystem`.
@@ -513,11 +498,8 @@ impl DiskFileSystem {
     /// * `name` - Name of the filesystem.
     /// * `root` - Path to the given filesystem's root. Should be
     ///   [canonicalized][std::fs::canonicalize].
-    /// * `ignored_subpaths` - A list of subpaths that should not trigger invalidation. This should
-    ///   be a full path, since it is possible that root & project dir is different and requires to
-    ///   ignore specific subpaths from each.
     #[turbo_tasks::function]
-    pub fn new(name: RcStr, root: RcStr, ignored_subpaths: Vec<RcStr>) -> Result<Vc<Self>> {
+    pub fn new(name: RcStr, root: RcStr) -> Result<Vc<Self>> {
         mark_stateful();
 
         let instance = DiskFileSystem {
@@ -529,9 +511,7 @@ impl DiskFileSystem {
                 invalidator_map: InvalidatorMap::new(),
                 dir_invalidator_map: InvalidatorMap::new(),
                 semaphore: create_semaphore(),
-                watcher: DiskWatcher::new(
-                    ignored_subpaths.into_iter().map(PathBuf::from).collect(),
-                ),
+                watcher: DiskWatcher::new(),
             }),
         };
 
@@ -550,7 +530,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
     async fn read(&self, fs_path: FileSystemPath) -> Result<Vc<FileContent>> {
         mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = self.to_sys_path(fs_path)?;
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
@@ -576,7 +556,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
     async fn raw_read_dir(&self, fs_path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
         mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = self.to_sys_path(fs_path)?;
         self.inner.register_dir_invalidator(&full_path)?;
 
         // we use the sync std function here as it's a lot faster (600%) in
@@ -631,7 +611,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
     async fn read_link(&self, fs_path: FileSystemPath) -> Result<Vc<LinkContent>> {
         mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path.clone()).await?;
+        let full_path = self.to_sys_path(fs_path.clone())?;
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
@@ -717,8 +697,11 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write(&self, fs_path: FileSystemPath, content: Vc<FileContent>) -> Result<()> {
-        mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
+        // You might be tempted to use `mark_session_dependent` here, but
+        // `write` purely declares a side effect and does not need to be reexecuted in the next
+        // session. All side effects are reexecuted in general.
+
+        let full_path = self.to_sys_path(fs_path)?;
         let content = content.await?;
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
@@ -750,11 +733,12 @@ impl FileSystem for DiskFileSystem {
                 .await?;
             if compare == FileComparison::Equal {
                 if !old_invalidators.is_empty() {
-                    let key = path_to_key(&full_path);
                     for (invalidator, write_content) in old_invalidators {
-                        inner
-                            .invalidator_map
-                            .insert(key.clone(), invalidator, write_content);
+                        inner.invalidator_map.insert(
+                            full_path.clone().into_owned(),
+                            invalidator,
+                            write_content,
+                        );
                     }
                 }
                 return Ok(());
@@ -848,8 +832,11 @@ impl FileSystem for DiskFileSystem {
 
     #[turbo_tasks::function(fs)]
     async fn write_link(&self, fs_path: FileSystemPath, target: Vc<LinkContent>) -> Result<()> {
-        mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
+        // You might be tempted to use `mark_session_dependent` here, but
+        // `write_link` purely declares a side effect and does not need to be reexecuted in the next
+        // session. All side effects are reexecuted in general.
+
+        let full_path = self.to_sys_path(fs_path)?;
         let content = target.await?;
         let inner = self.inner.clone();
         let invalidator = turbo_tasks::get_invalidator();
@@ -890,11 +877,12 @@ impl FileSystem for DiskFileSystem {
             };
             if is_equal {
                 if !old_invalidators.is_empty() {
-                    let key = path_to_key(&full_path);
                     for (invalidator, write_content) in old_invalidators {
-                        inner
-                            .invalidator_map
-                            .insert(key.clone(), invalidator, write_content);
+                        inner.invalidator_map.insert(
+                            full_path.clone().into_owned(),
+                            invalidator,
+                            write_content,
+                        );
                     }
                 }
                 return Ok(());
@@ -972,7 +960,7 @@ impl FileSystem for DiskFileSystem {
     #[turbo_tasks::function(fs)]
     async fn metadata(&self, fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
         mark_session_dependent();
-        let full_path = self.to_sys_path(fs_path).await?;
+        let full_path = self.to_sys_path(fs_path)?;
         self.inner.register_read_invalidator(&full_path)?;
 
         let _lock = self.inner.lock_path(&full_path).await;
@@ -995,39 +983,6 @@ impl ValueToString for DiskFileSystem {
     fn to_string(&self) -> Vc<RcStr> {
         Vc::cell(self.inner.name.clone())
     }
-}
-
-/// Note: this only works for Unix-style paths (with `/` as a separator).
-pub fn get_relative_path_to(path: &str, other_path: &str) -> String {
-    fn split(s: &str) -> impl Iterator<Item = &str> {
-        let empty = s.is_empty();
-        let mut iterator = s.split('/');
-        if empty {
-            iterator.next();
-        }
-        iterator
-    }
-
-    let mut self_segments = split(path).peekable();
-    let mut other_segments = split(other_path).peekable();
-    while self_segments.peek() == other_segments.peek() {
-        self_segments.next();
-        if other_segments.next().is_none() {
-            return ".".to_string();
-        }
-    }
-    let mut result = Vec::new();
-    if self_segments.peek().is_none() {
-        result.push(".");
-    } else {
-        while self_segments.next().is_some() {
-            result.push("..");
-        }
-    }
-    for segment in other_segments {
-        result.push(segment);
-    }
-    result.join("/")
 }
 
 #[turbo_tasks::value(shared)]
@@ -1284,6 +1239,8 @@ impl FileSystemPath {
         Ok(None)
     }
 
+    /// DETERMINISM: Result is in random order. Either sort result or do not depend
+    /// on the order.
     pub fn read_glob(&self, glob: Vc<Glob>) -> Vc<ReadGlobResult> {
         read_glob(self.clone(), glob)
     }
@@ -1453,11 +1410,7 @@ impl FileSystemPath {
         if path.is_empty() {
             return self.clone();
         }
-        let p = match str::rfind(path, '/') {
-            Some(index) => path[..index].to_string(),
-            None => "".to_string(),
-        };
-        FileSystemPath::new_normalized(self.fs, p.into())
+        FileSystemPath::new_normalized(self.fs, RcStr::from(get_parent_path(path)))
     }
 
     // It is important that get_type uses read_dir and not stat/metadata.
@@ -1939,15 +1892,15 @@ impl FileContent {
                 ) {
                     Ok(data) => match data {
                         Some(value) => FileJsonContent::Content(value),
-                        None => FileJsonContent::unparsable(
-                            "text content doesn't contain any json data",
-                        ),
+                        None => FileJsonContent::unparsable(rcstr!(
+                            "text content doesn't contain any json data"
+                        )),
                     },
                     Err(e) => FileJsonContent::Unparsable(Box::new(
                         UnparsableJson::from_jsonc_error(e, string.as_ref()),
                     )),
                 },
-                Err(_) => FileJsonContent::unparsable("binary is not valid utf-8 text"),
+                Err(_) => FileJsonContent::unparsable(rcstr!("binary is not valid utf-8 text")),
             },
             FileContent::NotFound => FileJsonContent::NotFound,
         }
@@ -1966,15 +1919,15 @@ impl FileContent {
                 ) {
                     Ok(data) => match data {
                         Some(value) => FileJsonContent::Content(value),
-                        None => FileJsonContent::unparsable(
-                            "text content doesn't contain any json data",
-                        ),
+                        None => FileJsonContent::unparsable(rcstr!(
+                            "text content doesn't contain any json data"
+                        )),
                     },
                     Err(e) => FileJsonContent::Unparsable(Box::new(
                         UnparsableJson::from_jsonc_error(e, string.as_ref()),
                     )),
                 },
-                Err(_) => FileJsonContent::unparsable("binary is not valid utf-8 text"),
+                Err(_) => FileJsonContent::unparsable(rcstr!("binary is not valid utf-8 text")),
             },
             FileContent::NotFound => FileJsonContent::NotFound,
         }
@@ -2081,16 +2034,16 @@ impl FileJsonContent {
     }
 }
 impl FileJsonContent {
-    pub fn unparsable(message: &'static str) -> Self {
+    pub fn unparsable(message: RcStr) -> Self {
         FileJsonContent::Unparsable(Box::new(UnparsableJson {
-            message: Cow::Borrowed(message),
+            message,
             path: None,
             start_location: None,
             end_location: None,
         }))
     }
 
-    pub fn unparsable_with_message(message: Cow<'static, str>) -> Self {
+    pub fn unparsable_with_message(message: RcStr) -> Self {
         FileJsonContent::Unparsable(Box::new(UnparsableJson {
             message,
             path: None,
@@ -2305,7 +2258,7 @@ pub async fn to_sys_path(mut path: FileSystemPath) -> Result<Option<PathBuf>> {
         }
 
         if let Some(fs) = Vc::try_resolve_downcast_type::<DiskFileSystem>(path.fs()).await? {
-            let sys_path = fs.await?.to_sys_path(path).await?;
+            let sys_path = fs.await?.to_sys_path(path)?;
             return Ok(Some(sys_path));
         }
 
@@ -2470,7 +2423,7 @@ mod tests {
         );
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn with_extension() {
         crate::register();
 
@@ -2507,7 +2460,7 @@ mod tests {
         .unwrap()
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn file_stem() {
         crate::register();
 

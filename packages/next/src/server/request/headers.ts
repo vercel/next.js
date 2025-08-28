@@ -2,9 +2,12 @@ import {
   HeadersAdapter,
   type ReadonlyHeaders,
 } from '../web/spec-extension/adapters/headers'
-import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { throwForMissingRequestStore } from '../app-render/work-unit-async-storage.external'
 import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
+import {
+  throwForMissingRequestStore,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
@@ -15,9 +18,11 @@ import {
   trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeDevtoolsIOAwarePromise,
+  makeHangingPromise,
+} from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { scheduleImmediate } from '../../lib/scheduler'
 import { isRequestAPICallableInsideAfter } from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
@@ -101,6 +106,7 @@ export function headers(): Promise<ReadonlyHeaders> {
           )
         case 'prerender':
         case 'prerender-client':
+        case 'prerender-runtime':
         case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
@@ -119,7 +125,8 @@ export function headers(): Promise<ReadonlyHeaders> {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'prerender':
-          return makeHangingHeaders(workUnitStore)
+        case 'prerender-runtime':
+          return makeHangingHeaders(workStore, workUnitStore)
         case 'prerender-client':
           const exportName = '`headers`'
           throw new InvariantError(
@@ -148,10 +155,10 @@ export function headers(): Promise<ReadonlyHeaders> {
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
 
-          if (
-            process.env.NODE_ENV === 'development' &&
-            !workStore?.isPrefetchRequest
-          ) {
+          if (process.env.NODE_ENV === 'development') {
+            // Semantically we only need the dev tracking when running in `next dev`
+            // but since you would never use next dev with production NODE_ENV we use this
+            // as a proxy so we can statically exclude this code from production builds.
             if (process.env.__NEXT_CACHE_COMPONENTS) {
               return makeUntrackedHeadersWithDevWarnings(
                 workUnitStore.headers,
@@ -164,6 +171,10 @@ export function headers(): Promise<ReadonlyHeaders> {
               workStore?.route
             )
           } else {
+            if (process.env.__NEXT_CACHE_COMPONENTS) {
+              return makeUntrackedHeaders(workUnitStore.headers)
+            }
+
             return makeUntrackedExoticHeaders(workUnitStore.headers)
           }
           break
@@ -181,6 +192,7 @@ interface CacheLifetime {}
 const CachedHeaders = new WeakMap<CacheLifetime, Promise<ReadonlyHeaders>>()
 
 function makeHangingHeaders(
+  workStore: WorkStore,
   prerenderStore: PrerenderStoreModern
 ): Promise<ReadonlyHeaders> {
   const cachedHeaders = CachedHeaders.get(prerenderStore)
@@ -190,9 +202,24 @@ function makeHangingHeaders(
 
   const promise = makeHangingPromise<ReadonlyHeaders>(
     prerenderStore.renderSignal,
+    workStore.route,
     '`headers()`'
   )
   CachedHeaders.set(prerenderStore, promise)
+
+  return promise
+}
+
+function makeUntrackedHeaders(
+  underlyingHeaders: ReadonlyHeaders
+): Promise<ReadonlyHeaders> {
+  const cachedHeaders = CachedHeaders.get(underlyingHeaders)
+  if (cachedHeaders) {
+    return cachedHeaders
+  }
+
+  const promise = Promise.resolve(underlyingHeaders)
+  CachedHeaders.set(underlyingHeaders, promise)
 
   return promise
 }
@@ -256,9 +283,7 @@ function makeUntrackedExoticHeadersWithDevWarnings(
     return cachedHeaders
   }
 
-  const promise = new Promise<ReadonlyHeaders>((resolve) =>
-    scheduleImmediate(() => resolve(underlyingHeaders))
-  )
+  const promise = makeDevtoolsIOAwarePromise(underlyingHeaders)
 
   CachedHeaders.set(underlyingHeaders, promise)
 
@@ -377,9 +402,7 @@ function makeUntrackedHeadersWithDevWarnings(
     return cachedHeaders
   }
 
-  const promise = new Promise<ReadonlyHeaders>((resolve) =>
-    scheduleImmediate(() => resolve(underlyingHeaders))
-  )
+  const promise = makeDevtoolsIOAwarePromise(underlyingHeaders)
 
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {
@@ -433,6 +456,7 @@ function syncIODev(route: string | undefined, expression: string) {
         break
       case 'prerender':
       case 'prerender-client':
+      case 'prerender-runtime':
       case 'prerender-ppr':
       case 'prerender-legacy':
       case 'cache':

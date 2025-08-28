@@ -121,22 +121,7 @@ function trackFetchMetric(
   workStore: WorkStore,
   ctx: Omit<FetchMetric, 'end' | 'idx'>
 ) {
-  // If the static generation store is not available, we can't track the fetch
-  if (!workStore) return
-  if (workStore.requestEndedState?.ended) return
-
-  const isDebugBuild =
-    (!!process.env.NEXT_DEBUG_BUILD ||
-      process.env.NEXT_SSG_FETCH_METRICS === '1') &&
-    workStore.isStaticGeneration
-  const isDevelopment = process.env.NODE_ENV === 'development'
-
-  if (
-    // The only time we want to track fetch metrics outside of development is when
-    // we are performing a static generation & we are in debug mode.
-    !isDebugBuild &&
-    !isDevelopment
-  ) {
+  if (!workStore.shouldTrackFetchMetrics) {
     return
   }
 
@@ -370,6 +355,7 @@ export function createPatchedFetcher(
         if (workUnitStore) {
           switch (workUnitStore.type) {
             case 'prerender':
+            case 'prerender-runtime':
             // TODO: Stop accumulating tags in client prerender. (fallthrough)
             case 'prerender-client':
             case 'prerender-ppr':
@@ -412,6 +398,7 @@ export function createPatchedFetcher(
               break
             case 'prerender':
             case 'prerender-client':
+            case 'prerender-runtime':
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'request':
@@ -552,6 +539,7 @@ export function createPatchedFetcher(
         if (hasNoExplicitCacheConfig && workUnitStore !== undefined) {
           switch (workUnitStore.type) {
             case 'prerender':
+            case 'prerender-runtime':
             // While we don't want to do caching in the client scope we know the
             // fetch will be dynamic for cacheComponents so we may as well avoid the
             // call here. (fallthrough)
@@ -563,6 +551,7 @@ export function createPatchedFetcher(
 
               return makeHangingPromise<Response>(
                 workUnitStore.renderSignal,
+                workStore.route,
                 'fetch()'
               )
             case 'prerender-ppr':
@@ -668,12 +657,14 @@ export function createPatchedFetcher(
               switch (workUnitStore.type) {
                 case 'prerender':
                 case 'prerender-client':
+                case 'prerender-runtime':
                   if (cacheSignal) {
                     cacheSignal.endRead()
                     cacheSignal = null
                   }
                   return makeHangingPromise<Response>(
                     workUnitStore.renderSignal,
+                    workStore.route,
                     'fetch()'
                   )
                 case 'prerender-ppr':
@@ -721,6 +712,7 @@ export function createPatchedFetcher(
               break
             case 'prerender':
             case 'prerender-client':
+            case 'prerender-runtime':
             case 'prerender-ppr':
             case 'prerender-legacy':
             case 'unstable-cache':
@@ -840,6 +832,7 @@ export function createPatchedFetcher(
                 switch (workUnitStore?.type) {
                   case 'prerender':
                   case 'prerender-client':
+                  case 'prerender-runtime':
                     return createCachedPrerenderResponse(
                       res,
                       cacheKey,
@@ -912,6 +905,7 @@ export function createPatchedFetcher(
               switch (workUnitStore.type) {
                 case 'prerender':
                 case 'prerender-client':
+                case 'prerender-runtime':
                   // We sometimes use the cache to dedupe fetches that do not
                   // specify a cache configuration. In these cases we want to
                   // make sure we still exclude them from prerenders if
@@ -1013,12 +1007,14 @@ export function createPatchedFetcher(
               switch (workUnitStore.type) {
                 case 'prerender':
                 case 'prerender-client':
+                case 'prerender-runtime':
                   if (cacheSignal) {
                     cacheSignal.endRead()
                     cacheSignal = null
                   }
                   return makeHangingPromise<Response>(
                     workUnitStore.renderSignal,
+                    workStore.route,
                     'fetch()'
                   )
                 case 'prerender-ppr':
@@ -1052,8 +1048,10 @@ export function createPatchedFetcher(
                 switch (workUnitStore.type) {
                   case 'prerender':
                   case 'prerender-client':
+                  case 'prerender-runtime':
                     return makeHangingPromise<Response>(
                       workUnitStore.renderSignal,
+                      workStore.route,
                       'fetch()'
                     )
                   case 'request':

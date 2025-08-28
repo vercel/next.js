@@ -54,21 +54,20 @@ impl<'a> MetaFileBuilder<'a> {
 
         file.write_u32::<BE>(self.entries.len() as u32)?;
 
-        let mut aqmf_offset = 0;
+        let mut amqf_offset = 0;
         for (sequence_number, sst) in &self.entries {
             file.write_u32::<BE>(*sequence_number)?;
             file.write_u16::<BE>(sst.key_compression_dictionary_length)?;
-            file.write_u16::<BE>(sst.value_compression_dictionary_length)?;
             file.write_u16::<BE>(sst.block_count)?;
             file.write_u64::<BE>(sst.min_hash)?;
             file.write_u64::<BE>(sst.max_hash)?;
             file.write_u64::<BE>(sst.size)?;
-            aqmf_offset += sst.aqmf.len();
-            file.write_u32::<BE>(aqmf_offset as u32)?;
+            amqf_offset += sst.amqf.len();
+            file.write_u32::<BE>(amqf_offset as u32)?;
         }
 
         for (_, sst) in &self.entries {
-            file.write_all(&sst.aqmf)?;
+            file.write_all(&sst.amqf)?;
         }
         Ok(file.into_inner()?)
     }

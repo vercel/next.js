@@ -19,6 +19,7 @@ import {
   FLIGHT_HEADERS,
   NEXT_REWRITTEN_PATH_HEADER,
   NEXT_REWRITTEN_QUERY_HEADER,
+  NEXT_RSC_UNION_QUERY,
   RSC_HEADER,
 } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
@@ -153,11 +154,10 @@ export async function adapter(
   // Headers should only be stripped for middleware
   if (!isEdgeRendering) {
     for (const header of FLIGHT_HEADERS) {
-      const key = header.toLowerCase()
-      const value = requestHeaders.get(key)
+      const value = requestHeaders.get(header)
       if (value !== null) {
-        flightHeaders.set(key, value)
-        requestHeaders.delete(key)
+        flightHeaders.set(header, value)
+        requestHeaders.delete(header)
       }
     }
   }
@@ -165,6 +165,8 @@ export async function adapter(
   const normalizeURL = process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
     ? new URL(params.request.url)
     : requestURL
+
+  const rscHash = normalizeURL.searchParams.get(NEXT_RSC_UNION_QUERY)
 
   const request = new NextRequestHint({
     page: params.page,
@@ -295,10 +297,8 @@ export async function adapter(
                 onClose: closeController.onClose.bind(closeController),
                 onAfterTaskError: undefined,
               },
-              requestEndedState: { ended: false },
-              isPrefetchRequest: request.headers.has(
-                NEXT_ROUTER_PREFETCH_HEADER
-              ),
+              isPrefetchRequest:
+                request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
               buildId: buildId ?? '',
               previouslyRevalidatedTags: [],
             })
@@ -380,10 +380,19 @@ export async function adapter(
       response.headers.set('x-nextjs-rewrite', relativeDestination)
     }
 
+    // Check to see if this is a non-relative rewrite. If it is, we need
+    // to check to see if it's an allowed origin to receive the rewritten
+    // headers.
+    const isAllowedOrigin = !isRelative
+      ? params.request.nextConfig?.experimental?.clientParamParsingOrigins?.some(
+          (origin) => new RegExp(origin).test(destination.origin)
+        )
+      : false
+
     // If this is an RSC request, and the pathname or search has changed, and
     // this isn't an external rewrite, we need to set the rewritten pathname and
     // query headers.
-    if (isRSCRequest && isRelative) {
+    if (isRSCRequest && (isRelative || isAllowedOrigin)) {
       if (requestURL.pathname !== destination.pathname) {
         response.headers.set(NEXT_REWRITTEN_PATH_HEADER, destination.pathname)
       }
@@ -394,6 +403,24 @@ export async function adapter(
           destination.search.slice(1)
         )
       }
+    }
+  }
+
+  /**
+   * Always forward the `_rsc` search parameter to the rewritten URL for RSC requests,
+   * unless it's already present. This is necessary to ensure that RSC hash validation
+   * works correctly after a rewrite. For internal rewrites, the server can validate the
+   * RSC hash using the original URL, so forwarding the `_rsc` parameter is less critical.
+   * However, for external rewrites (where the request is proxied to another Next.js server),
+   * the external server does not have access to the original URL or its search parameters.
+   * In these cases, forwarding the `_rsc` parameter is essential so that the external server
+   * can perform the correct RSC hash validation.
+   */
+  if (response && rewrite && isRSCRequest && rscHash) {
+    const rewriteURL = new URL(rewrite)
+    if (!rewriteURL.searchParams.has(NEXT_RSC_UNION_QUERY)) {
+      rewriteURL.searchParams.set(NEXT_RSC_UNION_QUERY, rscHash)
+      response.headers.set('x-middleware-rewrite', rewriteURL.toString())
     }
   }
 

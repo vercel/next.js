@@ -310,14 +310,14 @@ async fn parse_file_content(
     let (emitter, collector) = IssueEmitter::new(
         source,
         source_map.clone(),
-        Some("Ecmascript file had an error".into()),
+        Some(rcstr!("Ecmascript file had an error")),
     );
     let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
     let (emitter, collector_parse) = IssueEmitter::new(
         source,
         source_map.clone(),
-        Some("Parsing ecmascript source code failed".into()),
+        Some(rcstr!("Parsing ecmascript source code failed")),
     );
     let parser_handler = Handler::with_emitter(true, false, Box::new(emitter));
     let globals = Arc::new(Globals::new());
@@ -497,7 +497,7 @@ async fn parse_file_content(
             });
 
             let eval_context = EvalContext::new(
-                &parsed_program,
+                Some(&parsed_program),
                 unresolved_mark,
                 top_level_mark,
                 Arc::new(var_with_ts_declare),

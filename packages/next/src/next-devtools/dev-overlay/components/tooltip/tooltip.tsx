@@ -1,5 +1,6 @@
-import { forwardRef, useRef, useState } from 'react'
+import { forwardRef } from 'react'
 import { Tooltip as BaseTooltip } from '@base-ui-components/react/tooltip'
+import { useDevOverlayContext } from '../../../dev-overlay.browser'
 import { cx } from '../../utils/cx'
 import './tooltip.css'
 
@@ -26,12 +27,7 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
     },
     ref
   ) {
-    const [shadowRoot] = useState<ShadowRoot>(() => {
-      const ownerDocument = document
-      const portalNode = ownerDocument.querySelector('nextjs-portal')!
-      return portalNode.shadowRoot! as ShadowRoot
-    })
-    const shadowRootRef = useRef<ShadowRoot>(shadowRoot)
+    const { shadowRoot } = useDevOverlayContext()
     if (!title) {
       return children
     }
@@ -45,9 +41,7 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
             }}
           />
 
-          {/* x-ref: https://github.com/mui/base-ui/issues/2224 */}
-          {/* @ts-expect-error remove this expect-error once shadowRoot is supported as container */}
-          <BaseTooltip.Portal container={shadowRootRef}>
+          <BaseTooltip.Portal container={shadowRoot}>
             <BaseTooltip.Positioner
               side={direction}
               sideOffset={offset + arrowSize}

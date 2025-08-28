@@ -1,3 +1,0 @@
-(globalThis.TURBOPACK=globalThis.TURBOPACK||[]).push(["output/b1abf_turbopack-tests_tests_snapshot_minification_paren-remover_input_index_032d7ee7.js",{"[project]/turbopack/crates/turbopack-tests/tests/snapshot/minification/paren-remover/input/index.js [test] (ecmascript)":t=>{var{m:e,e:a}=t;!function(t,e,a,s){var i,n,o,p,r="1.2345".split(".");o=Math.pow(10,i=2===r.length?Math.min(Math.max(r[1].length,1),2):1),p=(a("1.2345e+"+i)/o).toFixed(i),1>e-i&&(n=RegExp("\\.?0{1,"+(s-(e-i))+"}$"),p=p.replace(n,""))}(1.2345,2,Math.round,1)}}]);
-
-//# sourceMappingURL=b1abf_turbopack-tests_tests_snapshot_minification_paren-remover_input_index_032d7ee7.js.map

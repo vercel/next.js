@@ -78,6 +78,13 @@ export function getMaybePagePath(
     return null
   }
 
+  // Handle absolute paths (e.g., built-in components)
+  if (path.isAbsolute(pagePath)) {
+    // Use the absolute path as-is
+    pagePathCache?.set(cacheKey, pagePath)
+    return pagePath
+  }
+
   pagePath = path.join(serverBuildPath, pagePath)
 
   pagePathCache?.set(cacheKey, pagePath)

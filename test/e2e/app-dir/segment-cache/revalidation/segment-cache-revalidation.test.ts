@@ -272,7 +272,7 @@ describe('segment cache (revalidation)', () => {
         includes: 'Page B content',
       },
       // Page A's content should not be prefetched because we're already on that
-      // page. When prefetching with `prefetch={true}`, we only prefetch the
+      // page. When prefetching with `prefetch='unstable_forceStale'`, we only prefetch the
       // delta between the current route and the target route.
       {
         includes: 'Page A content',

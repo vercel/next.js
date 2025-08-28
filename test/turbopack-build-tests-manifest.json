@@ -2348,6 +2348,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/duplicate-layout-components/duplicate-layout-components.test.js": {
+    "passed": [
+      "app dir - duplicate layout components should not duplicate layout elements when navigating to 404"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/dynamic-requests/dynamic-requests.test.ts": {
     "passed": [
       "dynamic-requests should not error for dynamic requests in pages",
@@ -2924,15 +2933,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/link-component-deprecations/link-component-deprecations.test.ts": {
-    "passed": [
-      "Link component deprecations logs deprecation warning for legacyBehavior prop"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/loader-file-named-export-custom-loader-error/loader-file-named-export-custom-loader-error.test.ts": {
     "passed": [
       "Error test if the loader file export a named function in Build and Start build and start only should show the build error"
@@ -3078,6 +3078,15 @@
       "app-dir - metadata-icons should re-insert the body icons into the head",
       "app-dir - metadata-icons should render custom icons along with favicon in nested page",
       "app-dir - metadata-icons should render custom icons along with favicon in root page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-image-files/metadata-image-files.test.ts": {
+    "passed": [
+      "app dir - metadata image files should handle imported metadata images"
     ],
     "failed": [],
     "pending": [],
@@ -6047,18 +6056,16 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
-    "passed": [
-      "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
-    ],
+  "test/e2e/app-dir/use-cache-search-params/use-cache-search-params.test.ts": {
+    "passed": ["use-cache-search-params should fail the build with errors"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts": {
+  "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
     "passed": [
-      "use-cache-standalone-search-params should fail the build with errors"
+      "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
     ],
     "failed": [],
     "pending": [],
@@ -7888,16 +7895,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/new-link-behavior/typescript.test.ts": {
-    "passed": [
-      "New Link Behavior should apply ref on link",
-      "New Link Behavior should render link with <a>"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/next-config-warnings/esm-externals-false/esm-externals-false.test.ts": {
     "passed": [],
     "failed": [],
@@ -8077,9 +8074,7 @@
   "test/e2e/next-link-errors/next-link-errors.test.ts": {
     "passed": [
       "next-link errors on invalid href",
-      "next-link invalid `prefetch` causes runtime error (dev-only)",
-      "next-link multiple children",
-      "next-link no children"
+      "next-link invalid `prefetch` causes runtime error (dev-only)"
     ],
     "failed": [],
     "pending": [],
@@ -9759,7 +9754,7 @@
     "passed": [
       "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
       "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator should validate buildActivityPosition config"
+      "Build Activity Indicator should validate position config"
     ],
     "failed": [],
     "pending": [
@@ -15643,17 +15638,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/link-with-multiple-child/test/index.test.js": {
-    "passed": [
-      "multiple child with default legacyBehavior",
-      "multiple child with forced legacyBehavior=false",
-      "single child"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/link-without-router/test/index.test.js": {
     "passed": [
       "Link without a router production mode should not throw when rendered"
@@ -19374,15 +19358,6 @@
       "next/font unused telemetry should not send next/font/google and next/font/local usage event",
       "next/font used telemetry should send next/font/google and next/font/local usage event"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/production/next-link-legacybehavior-ref-merging/index.test.ts": {
-    "passed": [
-      "Link with legacyBehavior - handles buggy userspace ref merging does not crash when Link unmounts"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },

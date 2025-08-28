@@ -248,8 +248,9 @@
         "packages/next/src/next-devtools/dev-overlay/**/*.tsx",
         "packages/next/src/next-devtools/dev-overlay/**/*.ts"
       ],
+      "extends": ["plugin:react-hooks/recommended"],
       "rules": {
-        "react-hooks/react-compiler": "error"
+        "react-hooks/exhaustive-deps": "error"
       }
     }
   ],

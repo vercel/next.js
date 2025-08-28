@@ -169,9 +169,9 @@ describe('app dir - rsc basics', () => {
           requestsCount++
           const headers = request.headers()
           if (
-            headers['RSC'.toLowerCase()] === '1' &&
-            // Prefetches also include `RSC`
-            headers['Next-Router-Prefetch'.toLowerCase()] !== '1'
+            headers['rsc'] === '1' &&
+            // Prefetches also include `rsc`
+            headers['next-router-prefetch'] !== '1'
           ) {
             flightRequests.push(request.url())
           }
@@ -380,6 +380,15 @@ describe('app dir - rsc basics', () => {
     const dynamicRouteUrl = await browser.url()
     expect(indexUrl).toBe(`${next.url}/edge/dynamic`)
     expect(dynamicRouteUrl).toBe(`${next.url}/edge/dynamic/123`)
+  })
+
+  describe.each(['node', 'edge'])(`%s`, (runtime) => {
+    it('should handle dynamic routes when URL segment matches the folder bracket syntax', async () => {
+      const browser = await next.browser(`/${runtime}/dynamic/[id]`)
+      expect(await browser.elementByCss('body').text()).toBe(
+        'dynamic route [id] page'
+      )
+    })
   })
 
   it('should support streaming for flight response', async () => {

@@ -1,5 +1,6 @@
 use anyhow::Result;
 use either::Either;
+use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -156,7 +157,17 @@ impl ModuleReference for DirAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let parent_path = self.source.ident().path().await?.parent();
-        Ok(resolve_reference_from_dir(parent_path, *self.path))
+        let span = tracing::info_span!(
+            "resolve DirAssetReference",
+            pattern = display(self.path.to_string().await?)
+        );
+        async {
+            resolve_reference_from_dir(parent_path, *self.path)
+                .resolve()
+                .await
+        }
+        .instrument(span)
+        .await
     }
 }
 

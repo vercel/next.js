@@ -1,13 +1,13 @@
 import { hexHash } from '../../hash'
 
 export function computeCacheBustingSearchParam(
-  prefetchHeader: string | string[] | undefined,
+  prefetchHeader: '1' | '2' | '0' | undefined,
   segmentPrefetchHeader: string | string[] | undefined,
   stateTreeHeader: string | string[] | undefined,
   nextUrlHeader: string | string[] | undefined
 ): string {
   if (
-    prefetchHeader === undefined &&
+    (prefetchHeader === undefined || prefetchHeader === '0') &&
     segmentPrefetchHeader === undefined &&
     stateTreeHeader === undefined &&
     nextUrlHeader === undefined

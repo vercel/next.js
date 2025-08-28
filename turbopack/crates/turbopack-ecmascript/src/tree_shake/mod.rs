@@ -570,7 +570,7 @@ pub(super) async fn split(
                 .map(|module| {
                     let program = Program::Module(module);
                     let eval_context = EvalContext::new(
-                        &program,
+                        Some(&program),
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
                         eval_context.force_free_values.clone(),
@@ -695,7 +695,7 @@ pub(crate) async fn part_of_module(
 
                     let program = Program::Module(module);
                     let eval_context = EvalContext::new(
-                        &program,
+                        Some(&program),
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
                         eval_context.force_free_values.clone(),

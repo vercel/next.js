@@ -160,7 +160,7 @@ impl Module for TsConfigModuleAsset {
                     TsConfigTypesReference::new(
                         *self.origin,
                         Request::module(
-                            name,
+                            name.into(),
                             RcStr::default().into(),
                             RcStr::default(),
                             RcStr::default(),
@@ -205,7 +205,13 @@ impl CompilerReference {
 impl ModuleReference for CompilerReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(*self.origin, *self.request, None, false)
+        cjs_resolve(
+            *self.origin,
+            *self.request,
+            CommonJsReferenceSubType::Undefined,
+            None,
+            false,
+        )
     }
 }
 
@@ -281,7 +287,13 @@ impl TsNodeRequireReference {
 impl ModuleReference for TsNodeRequireReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        cjs_resolve(*self.origin, *self.request, None, false)
+        cjs_resolve(
+            *self.origin,
+            *self.request,
+            CommonJsReferenceSubType::Undefined,
+            None,
+            false,
+        )
     }
 }
 
