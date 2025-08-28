@@ -1833,10 +1833,16 @@ fn split_last_segment(path: &str) -> (&str, &str) {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use rstest::*;
     use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
-    use super::{Pattern, longest_common_prefix, longest_common_suffix, split_last_segment};
+    use super::{
+        Pattern, longest_common_prefix, longest_common_suffix, read_matches, split_last_segment,
+    };
 
     #[test]
     fn longest_common_prefix_test() {
@@ -2566,5 +2572,80 @@ mod tests {
         assert_eq!(split_last_segment("../a/"), ("..", "a"));
         assert_eq!(split_last_segment("../../a"), ("../..", "a"));
         assert_eq!(split_last_segment("../../a/"), ("../..", "a"));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_read_matches() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            crate::register();
+            let root = DiskFileSystem::new(
+                rcstr!("test"),
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("tests/pattern/read_matches")
+                    .to_str()
+                    .unwrap()
+                    .into(),
+            )
+            .root()
+            .owned()
+            .await?;
+
+            // node_modules shouldn't be matched by Dynamic here
+            assert_eq!(
+                vec!["index.js", "sub", "sub/", "sub/foo-a.js", "sub/foo-b.js"],
+                read_matches(
+                    root.clone(),
+                    rcstr!(""),
+                    false,
+                    Pattern::new(Pattern::Dynamic),
+                )
+                .await?
+                .into_iter()
+                .map(|m| m.name())
+                .collect::<Vec<_>>()
+            );
+
+            // basic dynamic file suffix
+            assert_eq!(
+                vec!["sub/foo-a.js", "sub/foo-b.js"],
+                read_matches(
+                    root.clone(),
+                    rcstr!(""),
+                    false,
+                    Pattern::new(Pattern::concat([
+                        Pattern::Constant(rcstr!("sub/foo")),
+                        Pattern::Dynamic,
+                    ])),
+                )
+                .await?
+                .into_iter()
+                .map(|m| m.name())
+                .collect::<Vec<_>>()
+            );
+
+            // read_matches "node_modules/<dynamic>" should not return anything inside. We never
+            // want to enumerate the list of packages here.
+            assert_eq!(
+                vec!["node_modules"] as Vec<&str>,
+                read_matches(
+                    root.clone(),
+                    rcstr!(""),
+                    false,
+                    Pattern::new(Pattern::Constant(rcstr!("node_modules")).or_any_nested_file()),
+                )
+                .await?
+                .into_iter()
+                .map(|m| m.name())
+                .collect::<Vec<_>>()
+            );
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
     }
 }
