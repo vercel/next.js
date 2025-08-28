@@ -55,7 +55,7 @@ describe('writeConfigurationDefaults()', () => {
           "esModuleInterop": true,
           "incremental": true,
           "isolatedModules": true,
-          "jsx": "preserve",
+          "jsx": "react-jsx",
           "lib": [
             "dom",
             "dom.iterable",
