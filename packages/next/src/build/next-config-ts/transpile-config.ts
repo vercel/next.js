@@ -11,20 +11,30 @@ function resolveSWCOptions(
   cwd: string,
   compilerOptions: CompilerOptions
 ): SWCOptions {
-  const resolvedBaseUrl = resolve(cwd, compilerOptions.baseUrl ?? '.')
   return {
     jsc: {
-      target: 'es5',
       parser: {
         syntax: 'typescript',
       },
-      paths: compilerOptions.paths,
-      baseUrl: resolvedBaseUrl,
+      ...(compilerOptions.paths ? { paths: compilerOptions.paths } : {}),
+      ...(compilerOptions.baseUrl
+        ? // Needs to be an absolute path.
+          { baseUrl: resolve(cwd, compilerOptions.baseUrl) }
+        : compilerOptions.paths
+          ? // If paths is given, baseUrl is required.
+            { baseUrl: cwd }
+          : {}),
     },
     module: {
       type: 'commonjs',
     },
     isModule: 'unknown',
+    env: {
+      targets: {
+        // Setting the Node.js version can reduce unnecessary code generation.
+        node: process?.versions?.node ?? '20.19.0',
+      },
+    },
   } satisfies SWCOptions
 }
 
@@ -79,7 +89,7 @@ async function getTsConfig(cwd: string): Promise<CompilerOptions> {
 
   if (!tsConfigPath) {
     // It is ok to not return ts.getDefaultCompilerOptions() because
-    // we are only lookfing for paths and baseUrl from tsConfig.
+    // we are only looking for paths and baseUrl from tsConfig.
     return {}
   }
 
@@ -102,14 +112,31 @@ export async function transpileConfig({
   configFileName: string
   cwd: string
 }) {
-  let hasRequire = false
   try {
     // Ensure TypeScript is installed to use the API.
     await verifyTypeScriptSetup(cwd, configFileName)
-
     const compilerOptions = await getTsConfig(cwd)
-    const swcOptions = resolveSWCOptions(cwd, compilerOptions)
 
+    return handleCJS({ cwd, nextConfigPath, compilerOptions })
+  } catch (cause) {
+    throw new Error(`Failed to transpile "${configFileName}".`, {
+      cause,
+    })
+  }
+}
+
+async function handleCJS({
+  cwd,
+  nextConfigPath,
+  compilerOptions,
+}: {
+  cwd: string
+  nextConfigPath: string
+  compilerOptions: CompilerOptions
+}) {
+  const swcOptions = resolveSWCOptions(cwd, compilerOptions)
+  let hasRequire = false
+  try {
     const nextConfigString = await readFile(nextConfigPath, 'utf8')
     // lazy require swc since it loads React before even setting NODE_ENV
     // resulting loading Development React on Production

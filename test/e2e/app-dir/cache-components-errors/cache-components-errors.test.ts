@@ -2697,8 +2697,7 @@ describe('Cache Components Errors', () => {
                     |                                      ^",
                  "stack": [
                    "{module evaluation} app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
-                   "{module evaluation} .next-internal/server/app/use-cache-private-in-unstable-cache/page/actions.js (server actions loader) (1:1)",
-                   "<FIXME-file-protocol>",
+                   "<FIXME-next-dist-dir>",
                    "<FIXME-next-dist-dir>",
                  ],
                }
@@ -2754,8 +2753,8 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
                      at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at __TURBOPACK__module__evaluation__ (bundler:///.next-internal/server/app/use-cache-private-in-unstable-cache/page/actions.js (server actions loader):1:1)
                      at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {
@@ -2773,7 +2772,6 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
                      at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at __TURBOPACK__module__evaluation__ (bundler:///.next-internal/server/app/use-cache-private-in-unstable-cache/page/actions.js%20(server%20actions%20loader):1:1)
                      at a (<next-dist-dir>)
                    19 | }
                    20 |
@@ -2842,8 +2840,7 @@ describe('Cache Components Errors', () => {
                     | ^",
                  "stack": [
                    "{module evaluation} app/use-cache-private-in-use-cache/page.tsx (15:1)",
-                   "{module evaluation} .next-internal/server/app/use-cache-private-in-use-cache/page/actions.js (server actions loader) (1:1)",
-                   "<FIXME-file-protocol>",
+                   "<FIXME-next-dist-dir>",
                    "<FIXME-next-dist-dir>",
                  ],
                }
@@ -2900,8 +2897,8 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at __TURBOPACK__module__evaluation__ (bundler:///.next-internal/server/app/use-cache-private-in-use-cache/page/actions.js (server actions loader):1:1)
                      at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -2911,8 +2908,8 @@ describe('Cache Components Errors', () => {
                    18 |   return <p>Private</p>
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at __TURBOPACK__module__evaluation__ (bundler:///.next-internal/server/app/use-cache-private-in-use-cache/page/actions.js (server actions loader):1:1)
-                     at b (<next-dist-dir>)
+                     at c (<next-dist-dir>)
+                     at d (<next-dist-dir>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -2930,7 +2927,6 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at __TURBOPACK__module__evaluation__ (bundler:///.next-internal/server/app/use-cache-private-in-use-cache/page/actions.js%20(server%20actions%20loader):1:1)
                      at a (<next-dist-dir>)
                    13 | }
                    14 |
@@ -2941,7 +2937,6 @@ describe('Cache Components Errors', () => {
                    18 |   return <p>Private</p>
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at __TURBOPACK__module__evaluation__ (bundler:///.next-internal/server/app/use-cache-private-in-use-cache/page/actions.js%20(server%20actions%20loader):1:1)
                      at b (<next-dist-dir>)
                    13 | }
                    14 |
