@@ -3,7 +3,7 @@
  */
 {
   "compilerOptions": {
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     /* comment */
     "baseUrl": ".",
     "paths": {
