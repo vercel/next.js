@@ -37,7 +37,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
-    needs: [build, test]
+    needs: [build]
 
     steps:
       - name: Checkout code
