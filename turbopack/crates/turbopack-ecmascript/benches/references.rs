@@ -53,9 +53,11 @@ pub fn benchmark(c: &mut Criterion) {
             .resolved_cell();
 
             let mut cases = vec![];
-            for file in [
-                r#"packages/next/dist/compiled/babel-packages/packages-bundle.js"#,
-                r#"node_modules/.pnpm/react-dom@19.2.0-canary-03fda05d-20250820_react@19.2.0-canary-03fda05d-20250820/node_modules/react-dom/cjs/react-dom-client.development.js"#,
+            for (file, is_tracing) in [
+                (r#"packages/next/dist/compiled/babel-packages/packages-bundle.js"#, false),
+                (r#"packages/next/dist/compiled/babel-packages/packages-bundle.js"#, true),
+                (r#"node_modules/.pnpm/react-dom@19.2.0-canary-03fda05d-20250820_react@19.2.0-canary-03fda05d-20250820/node_modules/react-dom/cjs/react-dom-client.development.js"#, false),
+                (r#"node_modules/.pnpm/react-dom@19.2.0-canary-03fda05d-20250820_react@19.2.0-canary-03fda05d-20250820/node_modules/react-dom/cjs/react-dom-client.development.js"#, true),
             ] {
                 let module = EcmascriptModuleAsset::builder(
                     ResolvedVc::upcast(
@@ -67,6 +69,7 @@ pub fn benchmark(c: &mut Criterion) {
                     EcmascriptInputTransforms::empty().to_resolved().await?,
                     EcmascriptOptions {
                         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
+                        is_tracing,
                         ..Default::default()
                     }
                     .resolved_cell(),
@@ -76,21 +79,21 @@ pub fn benchmark(c: &mut Criterion) {
                 .to_resolved()
                 .await?;
 
-                cases.push((file, module));
+                cases.push((file.rsplit("/").next().unwrap(), if is_tracing { "tracing" } else { "full" }, module));
             }
             anyhow::Ok(cases)
         }))
         .unwrap();
 
-    let mut group = c.benchmark_group("full");
+    let mut group = c.benchmark_group("references");
     group.warm_up_time(Duration::from_secs(1));
-    group.measurement_time(Duration::from_secs(20));
+    group.measurement_time(Duration::from_secs(10));
 
-    for case in cases {
+    for (file, param, module) in cases {
         group.bench_with_input(
-            BenchmarkId::new("full", case.0),
+            BenchmarkId::new(file, param),
             &BenchInput {
-                module: case.1,
+                module,
                 storage: tt.clone(),
             },
             bench_full,

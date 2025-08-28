@@ -11,17 +11,16 @@ mod update_output;
 use std::{
     fmt::{Debug, Formatter},
     mem::transmute,
-    sync::atomic::Ordering,
+    sync::{Arc, atomic::Ordering},
 };
 
-use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
+use turbo_tasks::{FxIndexMap, KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
 
 use crate::{
     backend::{
-        BACKEND_JOB_PREFETCH_TASK, OperationGuard, TaskDataCategory, TransientTask,
-        TurboTasksBackend, TurboTasksBackendInner,
+        OperationGuard, TaskDataCategory, TransientTask, TurboTasksBackend, TurboTasksBackendInner,
+        TurboTasksBackendJob,
         storage::{SpecificTaskDataCategory, StorageWriteGuard, iter_many},
     },
     backing_storage::BackingStorage,
@@ -265,10 +264,11 @@ where
 
     fn schedule_task(&self, mut task: impl TaskGuard + '_) {
         if let Some(tasks_to_prefetch) = task.prefetch() {
-            self.turbo_tasks.schedule_backend_foreground_job(
-                BACKEND_JOB_PREFETCH_TASK,
-                Some(Box::new(tasks_to_prefetch)),
-            );
+            self.turbo_tasks
+                .schedule_backend_foreground_job(TurboTasksBackendJob::Prefetch {
+                    data: Arc::new(tasks_to_prefetch),
+                    range: None,
+                });
         }
         self.turbo_tasks.schedule(task.id());
     }
@@ -336,7 +336,7 @@ pub trait TaskGuard: Debug {
     where
         F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
     fn invalidate_serialization(&mut self);
-    fn prefetch(&mut self) -> Option<Vec<(TaskId, bool)>>;
+    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>>;
     fn is_immutable(&self) -> bool;
 }
 
@@ -526,15 +526,15 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
     }
 
-    fn prefetch(&mut self) -> Option<Vec<(TaskId, bool)>> {
+    fn prefetch(&mut self) -> Option<FxIndexMap<TaskId, bool>> {
         if !self.task.state().prefetched() {
             self.task.state_mut().set_prefetched(true);
             let map = iter_many!(self, OutputDependency { target } => (target, false))
                 .chain(iter_many!(self, CellDependency { target } => (target.task, true)))
                 .chain(iter_many!(self, CollectiblesDependency { target } => (target.task, true)))
-                .collect::<FxHashMap<_, _>>();
+                .collect::<FxIndexMap<_, _>>();
             if map.len() > 16 {
-                return Some(map.into_iter().collect());
+                return Some(map);
             }
         }
         None
