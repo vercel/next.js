@@ -1,13 +1,13 @@
 {
   "name": "@next-rspack/core",
   "version": "0.0.1-canary.2",
-  "homepage": "https://github.com/SyMind/next-rspack-binding",
+  "homepage": "https://nextjs.org",
   "bugs": {
-    "url": "https://github.com/SyMind/next-rspack-binding/issues"
+    "url": "https://github.com/vercel/next.js/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/SyMind/next-rspack-binding.git"
+    "url": "git+https://github.com/vercel/next.js.git"
   },
   "packageManager": "pnpm@10.13.1",
   "main": "lib/index.js",
