@@ -11,7 +11,6 @@ use std::{
 use anyhow::{Context, Result};
 use next_api::{
     project::{DefineEnv, DraftModeOptions, ProjectContainer, ProjectOptions, WatchOptions},
-    register,
     route::endpoint_write_to_disk,
 };
 use serde_json::json;

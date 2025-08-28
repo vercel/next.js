@@ -244,7 +244,6 @@ pub mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_glob_basic() {
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
             // Create a simple directory with 2 files, a subdirectory and a dotfile
@@ -314,7 +313,6 @@ pub mod tests {
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_glob_symlinks() {
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
             // root.js
@@ -421,7 +419,6 @@ pub mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn track_glob_invalidations() {
         use std::os::unix::fs::symlink;
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
 
         // Create a simple directory with 2 files, a subdirectory and a dotfile
@@ -507,7 +504,6 @@ pub mod tests {
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn track_glob_symlinks_loop() {
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
             use std::os::unix::fs::symlink;
@@ -565,7 +561,6 @@ pub mod tests {
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_glob_symlinks_loop() {
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
             use std::os::unix::fs::symlink;

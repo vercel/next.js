@@ -77,5 +77,3 @@ regex = { workspace = true }
 turbopack-bench = { workspace = true }
 turbo-tasks-malloc = { workspace = true, features = ["custom_allocator"] }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

@@ -35,7 +35,6 @@ use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext, emit_with_completion_operation,
     module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
-    register,
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
@@ -418,11 +417,6 @@ fn node_file_trace<B: Backend + 'static>(
         builder.build().unwrap()
     };
     r.block_on(async move {
-        register();
-        include!(concat!(
-            env!("OUT_DIR"),
-            "/register_test_node-file-trace.rs"
-        ));
         let bench_suites = BENCH_SUITES.clone();
         let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let mut tests_output_root = temp_dir();

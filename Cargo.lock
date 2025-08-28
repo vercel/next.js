@@ -4285,7 +4285,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
@@ -4306,7 +4305,6 @@ version = "0.1.0"
 dependencies = [
  "next-core",
  "turbo-rcstr",
- "turbo-tasks-build",
  "turbopack-core",
 ]
 
@@ -4329,7 +4327,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-malloc",
  "turbopack-trace-utils",
 ]
@@ -4368,7 +4365,6 @@ dependencies = [
  "turbo-esregex",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-bytes",
  "turbo-tasks-env",
  "turbo-tasks-fetch",
@@ -4460,7 +4456,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
  "turbo-unix-path",
@@ -9128,7 +9123,6 @@ dependencies = [
  "serde",
  "serde_json",
  "turbo-tasks",
- "turbo-tasks-build",
 ]
 
 [[package]]
@@ -9238,7 +9232,6 @@ dependencies = [
  "triomphe 0.1.12",
  "turbo-dyn-eq-hash",
  "turbo-rcstr",
- "turbo-tasks-build",
  "turbo-tasks-hash",
  "turbo-tasks-macros",
  "turbo-tasks-malloc",
@@ -9280,7 +9273,6 @@ dependencies = [
  "turbo-persistence",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-malloc",
  "turbo-tasks-testing",
 ]
@@ -9298,21 +9290,7 @@ dependencies = [
  "tokio",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-malloc",
-]
-
-[[package]]
-name = "turbo-tasks-build"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cargo-lock",
- "glob",
- "quote",
- "rustc-hash 2.1.1",
- "syn 2.0.104",
- "turbo-tasks-macros-shared",
 ]
 
 [[package]]
@@ -9326,7 +9304,6 @@ dependencies = [
  "serde_bytes",
  "serde_test",
  "turbo-tasks",
- "turbo-tasks-build",
 ]
 
 [[package]]
@@ -9337,7 +9314,6 @@ dependencies = [
  "dotenvs",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
 ]
 
@@ -9354,7 +9330,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-testing",
  "turbopack-core",
@@ -9394,7 +9369,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-hash",
  "turbo-tasks-testing",
  "turbo-unix-path",
@@ -9413,7 +9387,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-fs",
 ]
 
@@ -9458,7 +9431,6 @@ dependencies = [
  "trybuild",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-testing",
 ]
 
@@ -9509,7 +9481,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
@@ -9565,7 +9536,6 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack-core",
@@ -9596,7 +9566,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
@@ -9628,7 +9597,6 @@ dependencies = [
  "serde",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-resolve",
@@ -9667,7 +9635,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
@@ -9705,7 +9672,6 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
@@ -9738,7 +9704,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-bytes",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
@@ -9783,7 +9748,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbo-tasks-malloc",
@@ -9826,7 +9790,6 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
@@ -9841,7 +9804,6 @@ dependencies = [
  "serde",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack",
  "turbopack-core",
@@ -9855,7 +9817,6 @@ dependencies = [
  "anyhow",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbopack-core",
@@ -9877,7 +9838,6 @@ dependencies = [
  "serde_with",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
 ]
@@ -9890,7 +9850,6 @@ dependencies = [
  "serde_json",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
@@ -9905,7 +9864,6 @@ dependencies = [
  "mdxjs",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
@@ -9927,7 +9885,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
@@ -9963,7 +9920,6 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-bytes",
  "turbo-tasks-env",
  "turbo-tasks-fs",
@@ -9983,7 +9939,6 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack-core",
@@ -10003,7 +9958,6 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
 ]
@@ -10015,7 +9969,6 @@ dependencies = [
  "anyhow",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack-core",
@@ -10032,7 +9985,6 @@ dependencies = [
  "swc_core",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbopack-core",
 ]
 
@@ -10048,7 +10000,6 @@ dependencies = [
  "similar",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack-cli-utils",
@@ -10071,7 +10022,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-bytes",
  "turbo-tasks-env",
  "turbo-tasks-fs",
@@ -10138,7 +10088,6 @@ dependencies = [
  "serde",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack-core",

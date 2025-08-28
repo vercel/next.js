@@ -35,5 +35,3 @@ turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 urlencoding = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

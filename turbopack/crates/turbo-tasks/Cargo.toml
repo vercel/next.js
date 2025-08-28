@@ -56,5 +56,3 @@ turbo-tasks-malloc = { workspace = true }
 unsize = { workspace = true }
 inventory = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

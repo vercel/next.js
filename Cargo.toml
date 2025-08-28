@@ -269,7 +269,6 @@ turbo-unix-path = { path = "turbopack/crates/turbo-unix-path" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
 turbo-tasks = { path = "turbopack/crates/turbo-tasks" }
 turbo-tasks-backend = { path = "turbopack/crates/turbo-tasks-backend" }
-turbo-tasks-build = { path = "turbopack/crates/turbo-tasks-build" }
 turbo-tasks-bytes = { path = "turbopack/crates/turbo-tasks-bytes" }
 turbo-tasks-env = { path = "turbopack/crates/turbo-tasks-env" }
 turbo-tasks-fetch = { path = "turbopack/crates/turbo-tasks-fetch" }

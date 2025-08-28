@@ -45,5 +45,3 @@ swc_plugin_backend_wasmer = { workspace = true, optional = true }
 swc_emotion = { workspace = true }
 swc_relay = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

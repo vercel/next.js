@@ -306,7 +306,3 @@ pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 pub mod test_helpers {
     pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};
 }
-
-pub fn register() {
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}
