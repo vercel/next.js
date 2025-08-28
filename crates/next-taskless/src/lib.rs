@@ -1,8 +1,13 @@
 #![doc = include_str!("../README.md")]
 
+mod constants;
+mod patterns;
+
 use std::sync::LazyLock;
 
 use anyhow::{Context, Result, bail};
+pub use constants::*;
+pub use patterns::*;
 use regex::Regex;
 use turbo_unix_path::{get_parent_path, get_relative_path_to, join_path, normalize_path};
 

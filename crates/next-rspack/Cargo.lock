@@ -2638,6 +2638,7 @@ version = "0.0.0"
 dependencies = [
  "napi",
  "napi-derive",
+ "next-taskless",
  "once_cell",
  "regex",
  "rspack_binding_build",
@@ -2650,6 +2651,16 @@ dependencies = [
  "rspack_regex",
  "rspack_sources",
  "rustc-hash 2.1.1",
+]
+
+[[package]]
+name = "next-taskless"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "regex",
+ "serde_json",
+ "turbo-unix-path",
 ]
 
 [[package]]
@@ -7404,6 +7415,10 @@ dependencies = [
  "serde",
  "stable_deref_trait",
 ]
+
+[[package]]
+name = "turbo-unix-path"
+version = "0.0.1"
 
 [[package]]
 name = "twox-hash"

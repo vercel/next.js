@@ -5,6 +5,7 @@ use std::{
   sync::{Arc, LazyLock},
 };
 
+use next_taskless::NEVER_EXTERNAL_RE;
 use once_cell::sync::OnceCell;
 use regex::Regex;
 use rspack_core::{Alias, DependencyCategory, Resolve, ResolveOptionsWithDependencyType};
@@ -29,12 +30,6 @@ fn is_webpack_bundled_layer(layer: Option<&str>) -> bool {
 
 static REACT_PACKAGES_REGEX: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"^(react|react-dom|react-server-dom-webpack)($|/)").unwrap());
-
-static NOT_EXTERNAL_MODULES_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-  Regex::new(
-        r"^(?:private-next-pages/|next/(?:dist/pages/|(?:app|cache|document|link|form|head|image|legacy/image|constants|dynamic|script|navigation|headers|router|compat/router|server)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper|private-next-rsc-track-dynamic-import$)"
-    ).unwrap()
-});
 
 static NEXT_IMAGE_LOADER_REGEX: LazyLock<Regex> =
   LazyLock::new(|| Regex::new(r"^next[/\\]dist[/\\]shared[/\\]lib[/\\]image-loader").unwrap());
@@ -268,7 +263,7 @@ impl ExternalHandler {
       }
 
       // Skip modules that should not be external
-      if NOT_EXTERNAL_MODULES_REGEX.is_match(&request) {
+      if NEVER_EXTERNAL_RE.is_match(&request) {
         return Ok(None);
       }
     }
