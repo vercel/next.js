@@ -860,7 +860,7 @@ export default function Image({
         !config.qualities.includes(qualityInt)
       ) {
         warnOnce(
-          `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(',')}].` +
+          `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(', ')}].` +
             `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
         )
       }
