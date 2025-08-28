@@ -1,5 +1,3 @@
-pub const BARREL_OPTIMIZATION_PREFIX: &str = "__barrel_optimize__";
-
 pub const NODE_EXTERNALS: [&str; 64] = [
     "assert",
     "assert/strict",
