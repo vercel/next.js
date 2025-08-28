@@ -157,6 +157,16 @@ const API_DOCS: Record<
       return value === 'true' || value === 'false'
     },
   },
+  unstable_prefetch: {
+    description: `Specifies the default prefetching behavior for this segment. This configuration is currently under development and will change.`,
+    link: '(docs coming soon)',
+    options: {
+      '"unstable_static"':
+        'Only static and cached parts of the page will be prefetched. (default)',
+      '"unstable_runtime"':
+        'Parts of the page that use route params, search params, or cookies will also be prefetched.',
+    },
+  },
 }
 
 function visitEntryConfig(
