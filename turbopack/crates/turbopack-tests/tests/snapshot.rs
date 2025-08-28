@@ -3,7 +3,7 @@
 
 mod util;
 
-use std::{collections::VecDeque, fs, io, path::PathBuf, sync::Once};
+use std::{collections::VecDeque, fs, io, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
 use dunce::canonicalize;
@@ -63,20 +63,6 @@ use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::snapshot::{UPDATE, diff, expected, matches_expected, snapshot_issues};
 
 use crate::util::REPO_ROOT;
-
-fn register() {
-    turbo_tasks::register();
-    turbo_tasks_env::register();
-    turbo_tasks_fs::register();
-    turbopack::register();
-    turbopack_nodejs::register();
-    turbopack_browser::register();
-    turbopack_env::register();
-    turbopack_ecmascript_plugins::register();
-    turbopack_ecmascript_runtime::register();
-    turbopack_resolve::register();
-    include!(concat!(env!("OUT_DIR"), "/register_test_snapshot.rs"));
-}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -205,9 +191,6 @@ fn test(resource: PathBuf) {
 
 #[tokio::main(flavor = "current_thread")]
 async fn run(resource: PathBuf) -> Result<()> {
-    static REGISTER_ONCE: Once = Once::new();
-    REGISTER_ONCE.call_once(register);
-
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             storage_mode: None,

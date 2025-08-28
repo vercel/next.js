@@ -25,6 +25,7 @@ too_many_arguments = "allow"
 unexpected_cfgs = { level = "warn", check-cfg = [
   'cfg(rust_analyzer)',
   'cfg(fuzzing)',
+  'cfg(codspeed)',
 ] }
 
 # This crate is particularly sensitive to compiler optimizations

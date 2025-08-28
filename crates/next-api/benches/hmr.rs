@@ -378,7 +378,6 @@ impl HmrBenchmark {
 }
 
 async fn setup_benchmark(module_count: usize) -> HmrBenchmark {
-    register();
     HmrBenchmark::new(module_count).await.unwrap()
 }
 

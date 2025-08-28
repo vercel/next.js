@@ -27,8 +27,6 @@ use turbopack_ecmascript::analyzer::{
 };
 
 pub fn benchmark(c: &mut Criterion) {
-    turbopack_ecmascript::register();
-
     let tests_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/analyzer/graph");
     let results = fs::read_dir(tests_dir).unwrap();
 

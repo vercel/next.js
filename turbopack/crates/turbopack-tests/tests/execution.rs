@@ -5,7 +5,7 @@
 
 mod util;
 
-use std::{env, path::PathBuf, sync::Once};
+use std::{env, path::PathBuf};
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;

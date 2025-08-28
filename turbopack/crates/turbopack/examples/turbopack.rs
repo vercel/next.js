@@ -26,8 +26,6 @@ use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    register();
-
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions::default(),
         noop_backing_storage(),
