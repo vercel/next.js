@@ -161,7 +161,6 @@ pub async fn get_edge_resolve_options_context(
         import_map: Some(next_edge_import_map),
         fallback_import_map: Some(next_edge_fallback_import_map),
         module: true,
-        browser: true,
         after_resolve_plugins,
         before_resolve_plugins,
 
