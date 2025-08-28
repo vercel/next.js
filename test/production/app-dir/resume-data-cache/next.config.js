@@ -3,8 +3,9 @@
  */
 const nextConfig = {
   experimental: {
-    ppr: true,
-    useCache: true,
+    cacheComponents: true,
+    clientSegmentCache: true,
+    clientParamParsing: true,
   },
 }
 
