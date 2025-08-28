@@ -274,7 +274,7 @@ impl VarGraph {
 
 /// You should use same [Mark] for this function and
 /// [swc_ecma_transforms_base::resolver::resolver_with_mark]
-pub fn create_graph(m: &Program, eval_context: &EvalContext) -> VarGraph {
+pub fn create_graph(m: &Program, eval_context: &EvalContext, is_tracing: bool) -> VarGraph {
     let mut graph = VarGraph {
         values: Default::default(),
         free_var_ids: Default::default(),
@@ -283,6 +283,7 @@ pub fn create_graph(m: &Program, eval_context: &EvalContext) -> VarGraph {
 
     m.visit_with_ast_path(
         &mut Analyzer {
+            is_tracing,
             data: &mut graph,
             state: analyzer_state::AnalyzerState::new(),
             eval_context,
@@ -788,6 +789,8 @@ pub fn as_parent_path_skip(
 }
 
 struct Analyzer<'a> {
+    is_tracing: bool,
+
     data: &'a mut VarGraph,
     state: analyzer_state::AnalyzerState,
 
@@ -1274,6 +1277,10 @@ impl Analyzer<'_> {
         member_expr: &'ast MemberExpr,
         ast_path: &AstNodePath<AstParentNodeRef<'r>>,
     ) {
+        if self.is_tracing {
+            return;
+        }
+
         let obj_value = Box::new(self.eval_context.eval(&member_expr.obj));
         let prop_value = match &member_expr.prop {
             // TODO avoid clone
@@ -1315,7 +1322,9 @@ impl Analyzer<'_> {
                     start_ast_path,
                 } => {
                     self.effects = prev_effects;
-                    self.effects.push(Effect::Unreachable { start_ast_path });
+                    if !self.is_tracing {
+                        self.effects.push(Effect::Unreachable { start_ast_path });
+                    }
                     always_returns = true;
                 }
                 EarlyReturn::Conditional {
@@ -2008,8 +2017,9 @@ impl VisitAstPath for Analyzer<'_> {
         }
 
         // If this variable is unresolved, track it as a free (unbound) variable
-        if is_unresolved(ident, self.eval_context.unresolved_mark)
-            || self.eval_context.force_free_values.contains(&ident.to_id())
+        if !self.is_tracing
+            && (is_unresolved(ident, self.eval_context.unresolved_mark)
+                || self.eval_context.force_free_values.contains(&ident.to_id()))
         {
             self.add_effect(Effect::FreeVar {
                 var: ident.sym.clone(),
@@ -2043,13 +2053,16 @@ impl VisitAstPath for Analyzer<'_> {
             // We are in some scope that will rebind this
             return;
         }
-        // Otherwise 'this' is free
-        self.add_effect(Effect::FreeVar {
-            var: atom!("this"),
-            ast_path: as_parent_path(ast_path),
-            span: node.span(),
-            in_try: is_in_try(ast_path),
-        })
+
+        if !self.is_tracing {
+            // Otherwise 'this' is free
+            self.add_effect(Effect::FreeVar {
+                var: atom!("this"),
+                ast_path: as_parent_path(ast_path),
+                span: node.span(),
+                in_try: is_in_try(ast_path),
+            })
+        }
     }
 
     fn visit_meta_prop_expr<'ast: 'r, 'r>(
@@ -2057,7 +2070,7 @@ impl VisitAstPath for Analyzer<'_> {
         expr: &'ast MetaPropExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if expr.kind == MetaPropKind::ImportMeta {
+        if !self.is_tracing && expr.kind == MetaPropKind::ImportMeta {
             // MetaPropExpr also covers `new.target`. Only consider `import.meta`
             // an effect.
             self.add_effect(Effect::ImportMeta {
@@ -2292,8 +2305,9 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast UnaryExpr,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        if n.op == UnaryOp::TypeOf {
+        if n.op == UnaryOp::TypeOf && !self.is_tracing {
             let arg_value = Box::new(self.eval_context.eval(&n.arg));
+
             self.add_effect(Effect::TypeOf {
                 arg: arg_value,
                 ast_path: as_parent_path(ast_path),
@@ -2414,7 +2428,10 @@ impl Analyzer<'_> {
                     (Some(then), Some(r#else)) => ConditionalKind::IfElse { then, r#else },
                     (Some(then), None) => ConditionalKind::If { then },
                     (None, Some(r#else)) => ConditionalKind::Else { r#else },
-                    (None, None) => unreachable!(),
+                    (None, None) => {
+                        // No effects, ignore
+                        return;
+                    }
                 };
                 self.add_effect(Effect::Conditional {
                     condition,

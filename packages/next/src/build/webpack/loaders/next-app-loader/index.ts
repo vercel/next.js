@@ -152,7 +152,6 @@ async function createTreeCodeFromPath(
   }
 ): Promise<{
   treeCode: string
-  pages: string
   rootLayout: string | undefined
   globalError: string
   globalNotFound: string
@@ -163,7 +162,6 @@ async function createTreeCodeFromPath(
   const isDefaultNotFound = isAppBuiltinPage(pagePath)
 
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
-  const pages: string[] = []
 
   let rootLayout: string | undefined
   let globalError: string = defaultGlobalErrorPath
@@ -248,8 +246,6 @@ async function createTreeCodeFromPath(
 
         const resolvedPagePath = await resolver(matchedPagePath)
         if (resolvedPagePath) {
-          pages.push(resolvedPagePath)
-
           const varName = `page${nestedCollectedDeclarations.length}`
           nestedCollectedDeclarations.push([varName, resolvedPagePath])
 
@@ -576,7 +572,6 @@ async function createTreeCodeFromPath(
 
   return {
     treeCode: `${treeCode}.children;`,
-    pages: `${JSON.stringify(pages)};`,
     rootLayout,
     globalError,
     globalNotFound,
@@ -891,7 +886,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     },
     {
       tree: treeCodeResult.treeCode,
-      pages: treeCodeResult.pages,
       __next_app_require__: '__webpack_require__',
       // all modules are in the entry chunk, so we never actually need to load chunks in webpack
       __next_app_load_chunk__: '() => Promise.resolve()',
