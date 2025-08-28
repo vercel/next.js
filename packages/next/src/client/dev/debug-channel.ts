@@ -51,15 +51,5 @@ export function createDebugChannel(responseHeaders: Headers | undefined): {
 
   const { readable } = getOrCreateDebugChannelReadableWriterPair(requestId)
 
-  return {
-    readable,
-    writable: new WritableStream({
-      write(_chunk) {
-        // The return channel is currently not used. We do need to define the
-        // writable though, otherwise React would not wait for referenced debug
-        // chunks that are sent through the readable.
-        // TODO: This should be fixed in React to avoid the workaround.
-      },
-    }),
-  }
+  return { readable }
 }

@@ -466,14 +466,7 @@ export function processMessage(
         // TODO: Revisit this cleanup logic when we integrate the return channel
         // that keeps the connection open to be able to lazily retrieve debug
         // objects.
-        writer.ready
-          .then(() => {
-            // FIXME: React needs to wait for the main stream (called
-            // "secondary" stream) to close, before closing the response as a
-            // result of the debug stream being closed here.
-            // return writer.close()
-          })
-          .catch(console.error)
+        writer.ready.then(() => writer.close()).catch(console.error)
       }
 
       return
