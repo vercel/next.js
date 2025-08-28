@@ -150,20 +150,44 @@ Next.js will generate a link definition in `.next/types` that contains informati
 ```
 {/* prettier-ignore-end */}
 
-Currently, experimental support includes any string literal, including dynamic segments. For non-literal strings, you currently need to manually cast the `href` with `as Route`:
+Currently, support includes any string literal, including dynamic segments. For non-literal strings, you need to manually cast with `as Route`. The example below shows both `next/link` and `next/navigation` usage:
 
-```tsx
-import type { Route } from 'next';
+```tsx filename="app/example-client.tsx"
+'use client'
+
+import type { Route } from 'next'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
-// No TypeScript errors if href is a valid route
-<Link href="/about" />
-<Link href="/blog/nextjs" />
-<Link href={`/blog/${slug}`} />
-<Link href={('/blog' + slug) as Route} />
+export default function Example() {
+  const router = useRouter()
+  const slug = 'nextjs'
 
-// TypeScript errors if href is not a valid route
-<Link href="/aboot" />
+  return (
+    <>
+      {/* Link: literal and dynamic */}
+      <Link href="/about" />
+      <Link href={`/blog/${slug}`} />
+      <Link href={('/blog' + slug) as Route} />
+      {/* TypeScript error if href is not a valid route */}
+      <Link href="/aboot" />
+
+      {/* Router: literal and dynamic strings are validated */}
+      <button onClick={() => router.push('/about')}>Push About</button>
+      <button onClick={() => router.replace(`/blog/${slug}`)}>
+        Replace Blog
+      </button>
+      <button onClick={() => router.prefetch('/contact')}>
+        Prefetch Contact
+      </button>
+
+      {/* For non-literal strings, cast to Route */}
+      <button onClick={() => router.push(('/blog' + slug) as Route)}>
+        Push Non-literal Blog
+      </button>
+    </>
+  )
+}
 ```
 
 The same applies for redirecting routes defined by middleware:
@@ -199,6 +223,42 @@ function Card<T extends string>({ href }: { href: Route<T> | URL }) {
     <Link href={href}>
       <div>My Card</div>
     </Link>
+  )
+}
+```
+
+You can also type a simple data structure and iterate to render links:
+
+```ts filename="components/nav-items.ts"
+import type { Route } from 'next'
+
+type NavItem<T extends string = string> = {
+  href: T
+  label: string
+}
+
+export const navItems: NavItem<Route>[] = [
+  { href: '/', label: 'Home' },
+  { href: '/about', label: 'About' },
+  { href: '/blog', label: 'Blog' },
+]
+```
+
+Then, map over the items to render `Link`s:
+
+```tsx filename="components/nav.tsx"
+import Link from 'next/link'
+import { navItems } from './nav-items'
+
+export function Nav() {
+  return (
+    <nav>
+      {navItems.map((item) => (
+        <Link key={item.href} href={item.href}>
+          {item.label}
+        </Link>
+      ))}
+    </nav>
   )
 }
 ```
