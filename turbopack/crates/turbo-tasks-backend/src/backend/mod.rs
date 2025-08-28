@@ -1215,7 +1215,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         if self.should_persist() {
             // Schedule the snapshot job
-            turbo_tasks.schedule_backend_background_job(TurboTasksBackendJob::InitialSnapshot);
+            turbo_tasks.schedule_backend_secondary_job(TurboTasksBackendJob::InitialSnapshot);
         }
     }
 
@@ -2215,7 +2215,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 Ordering::Relaxed,
                             );
 
-                            turbo_tasks.schedule_backend_background_job(
+                            turbo_tasks.schedule_backend_secondary_job(
                                 TurboTasksBackendJob::FollowUpSnapshot,
                             );
                             return;
@@ -2230,7 +2230,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             let chunk_size = good_chunk_size(data.len());
                             let chunks = data.len().div_ceil(chunk_size);
                             for i in 0..chunks {
-                                turbo_tasks.schedule_backend_foreground_job(
+                                turbo_tasks.schedule_backend_primary_job(
                                     TurboTasksBackendJob::Prefetch {
                                         data: data.clone(),
                                         range: Some(
