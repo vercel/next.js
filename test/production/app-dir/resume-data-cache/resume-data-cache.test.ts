@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 describe('resume-data-cache', () => {
   const { next, isNextDeploy } = nextTestSetup({
@@ -20,11 +21,19 @@ describe('resume-data-cache', () => {
       // Then get the Prefetch RSC and validate that it also contains the same
       // random number.
       await retry(async () => {
+        const url = new URL('/', 'http://localhost')
+
+        url.searchParams.set(
+          '_rsc',
+          computeCacheBustingSearchParam('1', '/__PAGE__', undefined, undefined)
+        )
+
         const rsc = await next
-          .fetch('/', {
+          .fetch(url.toString(), {
             headers: {
               RSC: '1',
               'Next-Router-Prefetch': '1',
+              'Next-Router-Segment-Prefetch': '/__PAGE__',
             },
           })
           .then((res) => res.text())
