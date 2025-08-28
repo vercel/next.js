@@ -228,7 +228,7 @@ impl ExternalHandler {
 
     pub async fn handle_externals<GetResolveFn>(
         &self,
-        context: String,
+        ctx: String,
         request: String,
         dependency_type: &str,
         layer: Option<&str>,
@@ -322,7 +322,7 @@ impl ExternalHandler {
         let resolve_result = resolve_external(
             self.dir.to_string(),
             &self.config.experimental.esm_externals,
-            context.to_string(),
+            ctx.to_string(),
             request.to_string(),
             is_esm_requested,
             get_resolve,
@@ -405,7 +405,7 @@ impl ExternalHandler {
                 let pkg_res = resolve_external(
                     self.dir.to_string(),
                     &self.config.experimental.esm_externals,
-                    context.to_string(),
+                    ctx.to_string(),
                     pkg_request,
                     is_esm_requested,
                     get_resolve,
@@ -530,7 +530,7 @@ pub type ResolveFn = Box<
 pub async fn resolve_external<'a, GetResolveFn, IsLocalCallbackFn>(
     dir: String,
     esm_externals_config: &'a EsmExternalsConfig,
-    context: String,
+    ctx: String,
     request: String,
     is_esm_requested: bool,
     get_resolve: &'a GetResolveFn,
@@ -575,7 +575,7 @@ where
 
         // Resolve the import with the webpack provided context, this
         // ensures we're resolving the correct version when multiple exist.
-        match resolve(context.to_string(), request.to_string()).await {
+        match resolve(ctx.to_string(), request.to_string()).await {
             Ok((resolved_path, resolved_is_esm)) => {
                 res = resolved_path;
                 is_esm = resolved_is_esm;
