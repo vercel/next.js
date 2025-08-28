@@ -145,13 +145,6 @@ pub fn get_trait_type_id(trait_type: &'static TraitType) -> TraitTypeId {
     }
 }
 
-pub fn get_trait_type_id_by_global_name(global_name: &str) -> Option<TraitTypeId> {
-    TRAITS
-        .global_name_to_trait
-        .get(global_name)
-        .map(|(id, _)| *id)
-}
-
 pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
     TRAITS.id_to_trait[*id as usize - 1]
 }
