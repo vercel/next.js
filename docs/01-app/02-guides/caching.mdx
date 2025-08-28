@@ -423,7 +423,7 @@ Data returned from `fetch` is _not_ automatically cached in the Data Cache.
 
 By default, when no `cache` or `next.revalidate` option is provided:
 
-- With [static rendering](/docs/app/getting-started/partial-prerendering#static-rendering), the page is generated ahead of time (prerendered). The fetched data is stored in the [Data Cache](#data-cache) and the rendered output in the [Full Route Cache](#full-route-cache), and serves that result until the path is revalidated.
+- The fetched data is stored in the Data Cache and the rendered output is stored in the Full Route Cache. Next.js serves this cached result until the path is revalidated." or similar clearer phrasing.
 
 - With [dynamic rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering), the page is generated at request time. The fetch runs on every request and returns fresh data on each request.
 
