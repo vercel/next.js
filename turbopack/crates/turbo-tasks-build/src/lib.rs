@@ -1,6 +1,5 @@
 use std::{
     env::{self, current_dir},
-    fmt::Write,
     fs::read_dir,
     path::{MAIN_SEPARATOR as PATH_SEP, PathBuf},
     sync::Arc,
@@ -14,10 +13,7 @@ use syn::{
     Attribute, Expr, Ident, Item, ItemEnum, ItemImpl, ItemMacro, ItemMod, ItemStruct, Lit, Meta,
     parse_quote,
 };
-use turbo_tasks_macros_shared::{
-    GenericTypeInput, PrimitiveInput, get_path_ident, get_register_trait_impls_ident,
-    get_register_trait_methods_ident, get_register_value_type_ident, get_type_ident,
-};
+use turbo_tasks_macros_shared::{GenericTypeInput, PrimitiveInput, get_path_ident, get_type_ident};
 
 pub fn generate_register() {
     println!("cargo:rerun-if-changed=build.rs");
@@ -165,42 +161,42 @@ pub fn generate_register() {
         }
 
         let mut values_code = String::new();
-        for ((mod_path, ident), entry) in values {
-            for attribute in &entry.attributes {
-                values_code.push_str(attribute);
-            }
-            writeln!(
-                values_code,
-                "crate{}::{}({}, #[allow(unused_variables)] |value| {{",
-                mod_path,
-                get_register_value_type_ident(&ident),
-                entry.global_name,
-            )
-            .unwrap();
-            // Register all the trait items for each impl so we can dispatch to them as turbotasks
-            for trait_ident in &entry.trait_idents {
-                writeln!(
-                    values_code,
-                    "    crate{}::{}(value);",
-                    mod_path,
-                    get_register_trait_methods_ident(trait_ident, &ident),
-                )
-                .unwrap();
-            }
-            writeln!(values_code, "}}, #[allow(unused_variables)] |value_id| {{").unwrap();
-            // Register all the vtables for the impls so we can dispatch to them as normal indirect
-            // trait calls.
-            for trait_ident in &entry.trait_idents {
-                writeln!(
-                    values_code,
-                    "    crate{}::{}(value_id);",
-                    mod_path,
-                    get_register_trait_impls_ident(trait_ident, &ident),
-                )
-                .unwrap();
-            }
-            writeln!(values_code, "}});").unwrap();
-        }
+        // for ((mod_path, ident), entry) in values {
+        //     for attribute in &entry.attributes {
+        //         values_code.push_str(attribute);
+        //     }
+        //     writeln!(
+        //         values_code,
+        //         "crate{}::{}({}, #[allow(unused_variables)] |value| {{",
+        //         mod_path,
+        //         get_register_value_type_ident(&ident),
+        //         entry.global_name,
+        //     )
+        //     .unwrap();
+        //     // Register all the trait items for each impl so we can dispatch to them as
+        // turbotasks     for trait_ident in &entry.trait_idents {
+        //         writeln!(
+        //             values_code,
+        //             "    crate{}::{}(value);",
+        //             mod_path,
+        //             get_register_trait_methods_ident(trait_ident, &ident),
+        //         )
+        //         .unwrap();
+        //     }
+        //     writeln!(values_code, "}}, #[allow(unused_variables)] |value_id| {{").unwrap();
+        //     // Register all the vtables for the impls so we can dispatch to them as normal
+        // indirect     // trait calls.
+        //     for trait_ident in &entry.trait_idents {
+        //         writeln!(
+        //             values_code,
+        //             "    crate{}::{}(value_id);",
+        //             mod_path,
+        //             get_register_trait_impls_ident(trait_ident, &ident),
+        //         )
+        //         .unwrap();
+        //     }
+        //     writeln!(values_code, "}});").unwrap();
+        // }
 
         let code = format!(
             "{{\nstatic ONCE: std::sync::Once = std::sync::Once::new();\nONCE.call_once(|| \

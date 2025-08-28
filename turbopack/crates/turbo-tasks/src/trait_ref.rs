@@ -1,10 +1,14 @@
 use std::{fmt::Debug, future::Future, marker::PhantomData};
 
 use anyhow::Result;
+use auto_hash_map::AutoMap;
+use once_cell::sync::Lazy;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Vc, VcValueTrait,
+    FxDashMap, TraitTypeId, ValueTypeId, Vc, VcValueTrait,
+    macro_helpers::CollectableTraitCastFunctions,
     registry::get_value_type,
     task::shared_reference::TypedSharedReference,
     vc::{ReadVcFuture, VcValueTraitCast, cast::VcCast},
@@ -72,23 +76,6 @@ impl<'de, T> Deserialize<'de> for TraitRef<T> {
     }
 }
 
-// This is a workaround for https://github.com/rust-lang/rust-analyzer/issues/19971
-// that ensures type inference keeps working with ptr_metadata.
-
-#[cfg(rust_analyzer)]
-impl<U> std::ops::Deref for TraitRef<Box<U>>
-where
-    U: ?Sized,
-    Box<U>: VcValueTrait,
-{
-    type Target = U;
-
-    fn deref(&self) -> &Self::Target {
-        unimplemented!("only exists for rust-analyzer type inference")
-    }
-}
-
-#[cfg(not(rust_analyzer))]
 impl<U> std::ops::Deref for TraitRef<Box<U>>
 where
     Box<U>: VcValueTrait<ValueTrait = U>,
@@ -99,12 +86,11 @@ where
     fn deref(&self) -> &Self::Target {
         // This lookup will fail if the value type stored does not actually implement the trait,
         // which implies a bug in either the registry code or the macro code.
-        let metadata =
-            <Box<U> as VcValueTrait>::get_impl_vtables().get(self.shared_reference.type_id);
-        let downcast_ptr = std::ptr::from_raw_parts(
+        let downcast_ptr = <Box<U> as VcValueTrait>::get_impl_vtables().cast(
+            self.shared_reference.type_id,
             self.shared_reference.reference.0.as_ptr() as *const (),
-            metadata,
         );
+        // SAFETY: the pointer is derived from an Arc
         unsafe { &*downcast_ptr }
     }
 }

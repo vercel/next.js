@@ -15,9 +15,9 @@ pub fn get_register_trait_methods_ident(trait_ident: &Ident, struct_ident: &Iden
     )
 }
 
-pub fn get_register_trait_impls_ident(trait_ident: &Ident, struct_ident: &Ident) -> Ident {
+pub fn get_cast_to_fat_pointer_ident(trait_ident: &Ident, struct_ident: &Ident) -> Ident {
     Ident::new(
-        &format!("__register_{struct_ident}_{trait_ident}_trait_impls"),
+        &format!("_cast_to_fat_pointer_{struct_ident}_{trait_ident}"),
         trait_ident.span(),
     )
 }
