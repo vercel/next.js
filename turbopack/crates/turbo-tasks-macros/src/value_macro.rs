@@ -386,11 +386,15 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let new_value_type = match serialization_mode {
         SerializationMode::None => quote! {
-            turbo_tasks::ValueType::new::<#ident>()
+            turbo_tasks::ValueType::new::<#ident>(
+                concat!(module_path!(), "::", stringify!(#ident))
+            )
         },
         SerializationMode::Auto | SerializationMode::Custom => {
             quote! {
-                turbo_tasks::ValueType::new_with_any_serialization::<#ident>()
+                turbo_tasks::ValueType::new_with_any_serialization::<#ident>(
+                    concat!(module_path!(), "::", stringify!(#ident))
+                )
             }
         }
     };

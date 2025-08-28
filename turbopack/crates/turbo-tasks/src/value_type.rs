@@ -35,6 +35,8 @@ type RawCellFactoryFn = fn(TypedSharedReference) -> RawVc;
 pub struct ValueType {
     /// A readable name of the type
     pub name: &'static str,
+    /// The fully qualitifed global name of the type.
+    pub global_name: &'static str,
     /// Set of traits available
     traits: AutoSet<TraitTypeId>,
     /// List of trait methods available
@@ -105,9 +107,10 @@ pub fn any_as_serialize<T: Any + Serialize + Send + Sync + 'static>(
 
 impl ValueType {
     /// This is internally used by `#[turbo_tasks::value]`
-    pub fn new<T: VcValueType>() -> Self {
+    pub fn new<T: VcValueType>(global_name: &'static str) -> Self {
         Self {
             name: std::any::type_name::<T>(),
+            global_name,
             traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
             magic_serialization: None,
@@ -119,9 +122,12 @@ impl ValueType {
     /// This is internally used by `#[turbo_tasks::value]`
     pub fn new_with_any_serialization<
         T: VcValueType + Any + Serialize + for<'de> Deserialize<'de>,
-    >() -> Self {
+    >(
+        global_name: &'static str,
+    ) -> Self {
         Self {
             name: std::any::type_name::<T>(),
+            global_name,
             traits: AutoSet::new(),
             trait_methods: AutoMap::new(),
             magic_serialization: None,

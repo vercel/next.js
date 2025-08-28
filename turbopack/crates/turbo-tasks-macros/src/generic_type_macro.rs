@@ -75,7 +75,9 @@ pub fn generic_type(input: TokenStream) -> TokenStream {
             turbo_tasks::VcCellSharedMode<#ty>
         },
         quote! {
-            turbo_tasks::ValueType::new_with_any_serialization::<#repr>()
+            turbo_tasks::ValueType::new_with_any_serialization::<#repr>(
+                concat!(module_path!(), "::", stringify!(#repr))
+            )
         },
     );
 

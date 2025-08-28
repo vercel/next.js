@@ -44,7 +44,9 @@ pub fn primitive(input: TokenStream) -> TokenStream {
             turbo_tasks::VcCellSharedMode<#ty>
         },
         quote! {
-            turbo_tasks::ValueType::new_with_any_serialization::<#ty>()
+            turbo_tasks::ValueType::new_with_any_serialization::<#ty>(
+                concat!(module_path!(), "::", stringify!(#ty))
+            )
         },
     );
 

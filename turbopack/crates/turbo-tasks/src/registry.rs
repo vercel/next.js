@@ -41,11 +41,13 @@ struct Values {
 static VALUES: Lazy<Values> = Lazy::new(|| {
     // Inventory does not guarantee an order. So we sort by the global name to get a stable order
     // This ensures that assigned ids are also stable.
+    // We don't currently take advantage of this but we could in the future.  The remaining issue is
+    // ensuring the set of values is the same across runs.
     let mut all_values = inventory::iter::<CollectableValueType>
         .into_iter()
         .map(|t| &**t.0)
         .collect::<Vec<_>>();
-    all_values.sort_by_key(|t| t.name);
+    all_values.sort_by_key(|t| t.global_name);
 
     let mut value_to_id = FxHashMap::default();
     value_to_id.reserve(all_values.len());
@@ -56,11 +58,11 @@ static VALUES: Lazy<Values> = Lazy::new(|| {
         // SAFETY: as a usize, usize+1 is definitely non-zero.
         let id = unsafe { ValueTypeId::new_unchecked((index + 1).try_into().unwrap()) };
         value_to_id.insert(value_type, id);
-        let prev = global_name_to_value.insert(value_type.name, (id, value_type));
+        let prev = global_name_to_value.insert(value_type.global_name, (id, value_type));
         debug_assert!(
             prev.is_none(),
             "two traits registered with the same name: {}",
-            value_type.name
+            value_type.global_name
         );
     }
 
@@ -92,7 +94,7 @@ pub fn get_value_type(id: ValueTypeId) -> &'static ValueType {
 }
 
 pub fn get_value_type_global_name(id: ValueTypeId) -> &'static str {
-    get_value_type(id).name
+    get_value_type(id).global_name
 }
 
 struct Traits {
