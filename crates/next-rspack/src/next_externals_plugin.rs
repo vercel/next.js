@@ -21,18 +21,17 @@ static SUPPORTED_EDGE_POLYFILLS: LazyLock<FxHashSet<&'static str>> =
   LazyLock::new(|| EDGE_NODE_EXTERNALS.iter().copied().collect());
 
 fn get_edge_polyfilled_modules() -> ExternalItem {
-  let mut externals = ExternalItemObject::default();
-  for module in EDGE_NODE_EXTERNALS {
-    externals.insert(
-      module.to_string(),
-      ExternalItemValue::String(format!("commonjs node:{module}")),
-    );
-    externals.insert(
-      format!("node:{module}"),
-      ExternalItemValue::String(format!("commonjs node:{module}")),
-    );
-  }
-  ExternalItem::Object(externals)
+  ExternalItem::Object(
+    EDGE_NODE_EXTERNALS
+      .iter()
+      .flat_map(|module| {
+        [
+          (module.to_string(), ExternalItemValue::String(format!("commonjs node:{module}"))),
+          (format!("node:{module}"), ExternalItemValue::String(format!("commonjs node:{module}"))),
+        ]
+      })
+      .collect::<ExternalItemObject>()
+  )
 }
 
 fn is_node_js_module(module_name: &str, builtin_modules: &[String]) -> bool {
