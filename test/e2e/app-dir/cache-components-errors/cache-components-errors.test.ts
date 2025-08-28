@@ -2698,7 +2698,6 @@ describe('Cache Components Errors', () => {
                  "stack": [
                    "{module evaluation} app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
                    "<FIXME-next-dist-dir>",
-                   "<FIXME-next-dist-dir>",
                  ],
                }
               `)
