@@ -23,7 +23,7 @@ rustc-hash   = { version = "2.1.1" }
 napi        = { version = "=3.1.2" }
 napi-derive = { version = "=3.1.1" }
 
-next-taskless = { path = "../next-taskless" }
+next-taskless = { path = "../../../crates/next-taskless" }
 
 # Enable SWC plugin feature for targets that support it
 # Skip: wasm32-wasip1-threads, i686-pc-windows-msvc, aarch64-pc-windows-msvc, armv7-linux-androideabi, armv7-unknown-linux-gnueabihf

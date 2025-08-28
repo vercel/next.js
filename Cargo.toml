@@ -18,7 +18,7 @@ members = [
 
 exclude = [
   "crates/next-error-code-swc-plugin",
-  "rspack/crates/*"
+  "rspack/crates/binding"
 ]
 
 [workspace.lints.clippy]
