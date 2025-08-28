@@ -127,7 +127,7 @@ mod ser {
                 None
             };
             let mut state = serializer.serialize_tuple(3)?;
-            state.serialize_element(registry::get_value_type_global_name(self.0))?;
+            state.serialize_element(&self.0)?;
             if let Some(serializable) = serializable {
                 state.serialize_element(&true)?;
                 state.serialize_element(serializable)?;
@@ -157,11 +157,9 @@ mod ser {
                 where
                     A: de::SeqAccess<'de>,
                 {
-                    let value_type = seq
+                    let value_type: ValueTypeId = seq
                         .next_element()?
                         .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-                    let value_type = registry::get_value_type_id_by_global_name(value_type)
-                        .ok_or_else(|| de::Error::custom("Unknown value type"))?;
                     let has_value: bool = seq
                         .next_element()?
                         .ok_or_else(|| de::Error::invalid_length(1, &self))?;

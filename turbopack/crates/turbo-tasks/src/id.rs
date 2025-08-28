@@ -160,7 +160,7 @@ impl TaskId {
 }
 
 macro_rules! make_serializable {
-    ($ty:ty, $get_global_name:path, $visitor_name:ident) => {
+    ($ty:ty, $get_object:path, $visitor_name:ident) => {
         impl Serialize for $ty {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
@@ -201,20 +201,12 @@ macro_rules! make_serializable {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 f.debug_struct(stringify!($ty))
                     .field("id", &self.id)
-                    .field("name", &$get_global_name(*self))
+                    .field("name", &$get_object(*self))
                     .finish()
             }
         }
     };
 }
 
-make_serializable!(
-    ValueTypeId,
-    registry::get_value_type_global_name,
-    ValueTypeVisitor
-);
-make_serializable!(
-    TraitTypeId,
-    registry::get_trait_type_global_name,
-    TraitTypeVisitor
-);
+make_serializable!(ValueTypeId, registry::get_value_type, ValueTypeVisitor);
+make_serializable!(TraitTypeId, registry::get_trait, TraitTypeVisitor);

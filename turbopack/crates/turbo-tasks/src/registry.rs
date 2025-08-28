@@ -37,7 +37,6 @@ pub fn get_function_by_global_name(global_name: &str) -> &'static NativeFunction
 struct Values {
     id_to_value: Box<[&'static ValueType]>,
     value_to_id: FxHashMap<&'static ValueType, ValueTypeId>,
-    global_name_to_value: FxHashMap<&'static str, (ValueTypeId, &'static ValueType)>,
 }
 
 static VALUES: Lazy<Values> = Lazy::new(|| {
@@ -68,11 +67,9 @@ static VALUES: Lazy<Values> = Lazy::new(|| {
     }
 
     value_to_id.shrink_to_fit();
-    global_name_to_value.shrink_to_fit();
     Values {
         value_to_id,
         id_to_value: all_values.into_boxed_slice(),
-        global_name_to_value,
     }
 });
 
@@ -81,13 +78,6 @@ pub fn get_value_type_id(value: &'static ValueType) -> ValueTypeId {
         Some(id) => *id,
         None => panic!("Use of unregistered trait {value:?}"),
     }
-}
-
-pub fn get_value_type_id_by_global_name(global_name: &str) -> Option<ValueTypeId> {
-    VALUES
-        .global_name_to_value
-        .get(global_name)
-        .map(|(id, _)| *id)
 }
 
 pub fn get_value_type(id: ValueTypeId) -> &'static ValueType {
@@ -101,7 +91,6 @@ pub fn get_value_type_global_name(id: ValueTypeId) -> &'static str {
 struct Traits {
     id_to_trait: Box<[&'static TraitType]>,
     trait_to_id: FxHashMap<&'static TraitType, TraitTypeId>,
-    global_name_to_trait: FxHashMap<&'static str, (TraitTypeId, &'static TraitType)>,
 }
 
 static TRAITS: Lazy<Traits> = Lazy::new(|| {
@@ -130,11 +119,9 @@ static TRAITS: Lazy<Traits> = Lazy::new(|| {
         id = id.checked_add(1).expect("overflowing trait type ids");
     }
     trait_to_id.shrink_to_fit();
-    global_name_to_trait.shrink_to_fit();
     Traits {
         trait_to_id,
         id_to_trait: all_traits.into_boxed_slice(),
-        global_name_to_trait,
     }
 });
 

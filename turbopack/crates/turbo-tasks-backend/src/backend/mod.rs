@@ -36,7 +36,7 @@ use turbo_tasks::{
     },
     event::{Event, EventListener},
     message_queue::TimingEvent,
-    registry::{self, get_value_type_global_name},
+    registry::get_value_type_global_name,
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     turbo_tasks,
@@ -867,7 +867,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let _span = tracing::trace_span!(
             "recomputation",
-            cell_type = registry::get_value_type_global_name(cell.type_id),
+            cell_type = get_value_type_global_name(cell.type_id),
             cell_index = cell.index
         )
         .entered();
