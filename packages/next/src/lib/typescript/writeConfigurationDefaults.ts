@@ -56,6 +56,7 @@ function getDesiredCompilerOptions(
         ts.ModuleKind.AMD,
         ts.ModuleKind.NodeNext,
         ts.ModuleKind.Node16,
+        semver.gte(ts.version, '5.9.0') && (ts.ModuleKind as any).Node20,
       ],
       value: 'esnext',
       reason: 'for dynamic import() support',
