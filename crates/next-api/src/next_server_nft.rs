@@ -156,34 +156,30 @@ pub async fn next_server_nft_assets(project: Vc<Project>) -> Result<Vc<OutputAss
         "**/next/dist/server/lib/router-utils/setup-dev-bundler.js",
         // server/next.js doesn't guard this require
         "**/next/dist/server/dev/next-dev-server.js",
-        // next/dist/compiled/babel* pulls in this, even we never actually transpile with  Babel
+        // next/dist/compiled/babel* pulls in this, but we never actually transpile at deploy-time
         "**/next/dist/compiled/browserslist/**",
     ]
     .into_iter()
     .chain(additional_ignores)
-    .chain(
-        if has_next_support {
-            Some(["**/node_modules/sharp/**/*", "**/@img/sharp-libvips*/**/*"]).into_iter()
-        } else {
-            None.into_iter()
-        }
-        .flatten(),
-    )
+    // only ignore image-optimizer code when
+    // this is being handled outside of next-server
     .chain(if has_next_support {
-        // only ignore image-optimizer code when
-        // this is being handled outside of next-server
-        Some("**/next/dist/server/image-optimizer.js").into_iter()
+        Either::Left(
+            [
+                "**/node_modules/sharp/**/*",
+                "**/@img/sharp-libvips*/**/*",
+                "**/next/dist/server/image-optimizer.js",
+            ]
+            .into_iter(),
+        )
     } else {
-        None.into_iter()
+        Either::Right(std::iter::empty())
     })
-    .chain(
-        if is_standalone {
-            None.into_iter()
-        } else {
-            Some(["**/*/next/dist/server/next.js", "**/*/next/dist/bin/next"]).into_iter()
-        }
-        .flatten(),
-    )
+    .chain(if is_standalone {
+        Either::Left(std::iter::empty())
+    } else {
+        Either::Right(["**/*/next/dist/server/next.js", "**/*/next/dist/bin/next"].into_iter())
+    })
     .map(|g| Glob::new(g.into(), Default::default()))
     .collect::<Vec<_>>();
 
