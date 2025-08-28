@@ -126,14 +126,17 @@ async function nextMetadataImageLoader(
     }`
   }
 
+  let imageError
   const imageSize: { width?: number; height?: number } = await getImageSize(
     content
-  ).catch((err) => err)
+  ).catch((error) => {
+    const message = `Process image "${path.posix.join(segment || '/', interpolatedName)}" failed: ${error}`
+    imageError = new Error(message)
+    return {}
+  })
 
-  if (imageSize instanceof Error) {
-    const err = imageSize
-    err.name = 'InvalidImageFormatError'
-    throw err
+  if (imageError) {
+    throw imageError
   }
 
   const imageData: Omit<MetadataImageModule, 'url'> = {

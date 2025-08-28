@@ -3932,12 +3932,15 @@ async function prerenderToStream(
               ? DynamicHTMLPreludeState.Empty
               : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
-            resumeDataCache
+            resumeDataCache,
+            experimental.cacheComponents
           )
         } else {
           // Dynamic Data case
-          metadata.postponed =
-            await getDynamicDataPostponedState(resumeDataCache)
+          metadata.postponed = await getDynamicDataPostponedState(
+            resumeDataCache,
+            experimental.cacheComponents
+          )
         }
         reactServerResult.consume()
         return {
@@ -4155,12 +4158,14 @@ async function prerenderToStream(
               ? DynamicHTMLPreludeState.Empty
               : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
-            prerenderResumeDataCache
+            prerenderResumeDataCache,
+            experimental.cacheComponents
           )
         } else {
           // Dynamic Data case.
           metadata.postponed = await getDynamicDataPostponedState(
-            prerenderResumeDataCache
+            prerenderResumeDataCache,
+            experimental.cacheComponents
           )
         }
         // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
@@ -4185,7 +4190,8 @@ async function prerenderToStream(
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
         // Rendering the fallback case.
         metadata.postponed = await getDynamicDataPostponedState(
-          prerenderResumeDataCache
+          prerenderResumeDataCache,
+          experimental.cacheComponents
         )
 
         return {

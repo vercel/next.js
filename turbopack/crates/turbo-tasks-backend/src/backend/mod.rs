@@ -1215,7 +1215,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         if self.should_persist() {
             // Schedule the snapshot job
-            turbo_tasks.schedule_backend_background_job(TurboTasksBackendJob::InitialSnapshot);
+            turbo_tasks.schedule_backend_foreground_job(TurboTasksBackendJob::InitialSnapshot);
         }
     }
 
@@ -2215,7 +2215,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 Ordering::Relaxed,
                             );
 
-                            turbo_tasks.schedule_backend_background_job(
+                            turbo_tasks.schedule_backend_foreground_job(
                                 TurboTasksBackendJob::FollowUpSnapshot,
                             );
                             return;

@@ -794,5 +794,6 @@
   "793": "No value found for segment key: \"%s\"",
   "794": "Invalid <Link> with <a> child. Please remove <a>.\nLearn more: https://nextjs.org/docs/messages/invalid-new-link-with-extra-anchor",
   "795": "\\`%s\\` was called from a Server Component. Next.js should be preventing %s from being included in server components statically, but did not in this case.",
-  "796": "Page \"%s\" cannot use \\`export const unstable_prefetch = ...\\` without enabling \\`experimental.cacheComponents\\` and \\`experimental.clientSegmentCache\\`."
+  "796": "Page \"%s\" cannot use \\`export const unstable_prefetch = ...\\` without enabling \\`experimental.cacheComponents\\` and \\`experimental.clientSegmentCache\\`.",
+  "797": "Failed to transpile \"%s\"."
 }
