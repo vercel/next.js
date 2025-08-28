@@ -126,12 +126,18 @@ async function nextMetadataImageLoader(
     }`
   }
 
+  let imageError
   const imageSize: { width?: number; height?: number } = await getImageSize(
     content
   ).catch((error) => {
-    console.error(`Acquire image size of ${interpolatedName} failed:`, error)
-    return { width: undefined, height: undefined }
+    const message = `Process image "${path.posix.join(segment || '/', interpolatedName)}" failed: ${error}`
+    imageError = new Error(message)
+    return {}
   })
+
+  if (imageError) {
+    throw imageError
+  }
 
   const imageData: Omit<MetadataImageModule, 'url'> = {
     ...(extension in imageExtMimeTypeMap && {
