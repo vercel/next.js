@@ -1,3 +1,5 @@
+#![feature(impl_trait_in_bindings)]
+
 mod config_shared;
 mod handle_externals;
 mod next_externals_plugin;

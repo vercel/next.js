@@ -2,7 +2,7 @@ use std::{
     future::Future,
     path::Path,
     pin::Pin,
-    sync::{Arc, LazyLock, OnceLock},
+    sync::{LazyLock, OnceLock},
 };
 
 use next_taskless::NEVER_EXTERNAL_RE;
@@ -226,14 +226,17 @@ impl ExternalHandler {
         None
     }
 
-    pub async fn handle_externals(
+    pub async fn handle_externals<GetResolveFn>(
         &self,
         context: String,
         request: String,
         dependency_type: &str,
         layer: Option<&str>,
-        get_resolve: GetResolveFn,
-    ) -> rspack_error::Result<Option<String>> {
+        get_resolve: &GetResolveFn,
+    ) -> rspack_error::Result<Option<String>>
+    where
+        GetResolveFn: Fn(Option<ResolveOptionsWithDependencyType>) -> ResolveFn,
+    {
         // We need to externalize internal requests for files intended to
         // not be bundled.
         let is_local = request.starts_with('.') || Path::new(&request).is_absolute();
@@ -326,9 +329,9 @@ impl ExternalHandler {
             context.to_string(),
             request.to_string(),
             is_esm_requested,
-            get_resolve.clone(),
+            get_resolve,
             if is_local {
-                Some(resolve_next_external)
+                Some(&resolve_next_external)
             } else {
                 None
             },
@@ -409,9 +412,9 @@ impl ExternalHandler {
                     context.to_string(),
                     pkg_request,
                     is_esm_requested,
-                    get_resolve.clone(),
+                    get_resolve,
                     if is_local {
-                        Some(Box::new(resolve_next_external))
+                        Some(&resolve_next_external)
                     } else {
                         None
                     },
@@ -517,7 +520,7 @@ impl EsmExternalsConfig {
     }
 }
 
-type ResolveFn = Box<
+pub type ResolveFn = Box<
     dyn Fn(
             String,
             String,
@@ -526,25 +529,24 @@ type ResolveFn = Box<
         > + Send
         + 'static,
 >;
-type GetResolveFn =
-    Arc<dyn Fn(Option<ResolveOptionsWithDependencyType>) -> ResolveFn + Send + Sync + 'static>;
 
 #[allow(clippy::too_many_arguments)]
-pub async fn resolve_external<IsLocalCallbackFn>(
+pub async fn resolve_external<'a, GetResolveFn, IsLocalCallbackFn>(
     dir: String,
-    esm_externals_config: &EsmExternalsConfig,
+    esm_externals_config: &'a EsmExternalsConfig,
     context: String,
     request: String,
     is_esm_requested: bool,
-    get_resolve: GetResolveFn,
-    is_local_callback: Option<IsLocalCallbackFn>,
+    get_resolve: &'a GetResolveFn,
+    is_local_callback: Option<&'a IsLocalCallbackFn>,
     base_resolve_check: Option<bool>,
-    esm_resolve_options: Option<&ResolveOptionsWithDependencyType>,
-    node_resolve_options: Option<&ResolveOptionsWithDependencyType>,
-    base_esm_resolve_options: Option<&ResolveOptionsWithDependencyType>,
-    base_resolve_options: Option<&ResolveOptionsWithDependencyType>,
+    esm_resolve_options: Option<&'a ResolveOptionsWithDependencyType>,
+    node_resolve_options: Option<&'a ResolveOptionsWithDependencyType>,
+    base_esm_resolve_options: Option<&'a ResolveOptionsWithDependencyType>,
+    base_resolve_options: Option<&'a ResolveOptionsWithDependencyType>,
 ) -> rspack_error::Result<ResolveResult>
 where
+    GetResolveFn: Fn(Option<ResolveOptionsWithDependencyType>) -> ResolveFn,
     IsLocalCallbackFn: Fn(&str) -> Option<String> + Send + Sync + 'static,
 {
     let esm_externals = esm_externals_config.is_enabled();

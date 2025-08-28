@@ -15,7 +15,10 @@ use rspack_plugin_externals::ExternalsPlugin;
 use rspack_regex::RspackRegex;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use crate::{config_shared::NextConfigComplete, handle_externals::ExternalHandler};
+use crate::{
+    config_shared::NextConfigComplete,
+    handle_externals::{ExternalHandler, ResolveFn},
+};
 
 static SUPPORTED_EDGE_POLYFILLS: LazyLock<FxHashSet<&'static str>> =
     LazyLock::new(|| EDGE_NODE_EXTERNALS.iter().copied().collect());
@@ -60,7 +63,7 @@ async fn handle_webpack_external_for_edge_runtime(
     };
 
     let result = if is_middleware_or_api_edge
-        && is_node_js_module(&ctx.request, &builtin_modules)
+        && is_node_js_module(&ctx.request, builtin_modules)
         && !is_supported_edge_polyfill(&ctx.request)
     {
         let resolver = ctx
@@ -182,80 +185,92 @@ impl Plugin for NextExternalsPlugin {
             }
         } else {
             let external_handler = self.external_handler.clone();
-            self.builtin_modules
-                .iter()
-                .map(|module| ExternalItem::String(module.to_string()))
-                .chain([ExternalItem::Fn(Box::new(move |ctx| {
-                    let external_handler = external_handler.clone();
-                    let result = Box::pin(async move {
-                    let external_result = external_handler
-                        .handle_externals(
-                            ctx.context,
-                            ctx.request,
-                            &ctx.dependency_type,
-                            ctx.context_info.issuer_layer.as_deref(),
-                            Arc::new(move |options: Option<ResolveOptionsWithDependencyType>| {
-                            let first = ctx.resolve_options_with_dependency_type.clone();
-                            let second = options.unwrap_or(ResolveOptionsWithDependencyType {
-                                resolve_options: None,
-                                resolve_to_context: false,
-                                dependency_category: DependencyCategory::Unknown,
-                            });
 
-                            let merged_resolve_options = match second.resolve_options.as_ref() {
-                                Some(second_resolve_options) => match first.resolve_options.as_ref() {
+            let external_fn = ExternalItem::Fn(Box::new(move |ctx| {
+                let external_handler = external_handler.clone();
+
+                let get_resolve: impl Fn(Option<ResolveOptionsWithDependencyType>) -> ResolveFn =
+                    move |options: Option<ResolveOptionsWithDependencyType>| {
+                        let first = ctx.resolve_options_with_dependency_type.clone();
+                        let second = options.unwrap_or(ResolveOptionsWithDependencyType {
+                            resolve_options: None,
+                            resolve_to_context: false,
+                            dependency_category: DependencyCategory::Unknown,
+                        });
+
+                        let merged_resolve_options = match second.resolve_options.as_ref() {
+                            Some(second_resolve_options) => match first.resolve_options.as_ref() {
                                 Some(first_resolve_options) => Some(Box::new(
                                     first_resolve_options
-                                    .clone()
-                                    .merge(*second_resolve_options.clone()),
+                                        .clone()
+                                        .merge(*second_resolve_options.clone()),
                                 )),
                                 None => Some(second_resolve_options.clone()),
-                                },
-                                None => first.resolve_options.clone(),
-                            };
-                            let merged_options = ResolveOptionsWithDependencyType {
-                                resolve_options: merged_resolve_options,
-                                resolve_to_context: first.resolve_to_context,
-                                dependency_category: first.dependency_category,
-                            };
-                            let resolver = ctx.resolver_factory.get(merged_options);
+                            },
+                            None => first.resolve_options.clone(),
+                        };
+                        let merged_options = ResolveOptionsWithDependencyType {
+                            resolve_options: merged_resolve_options,
+                            resolve_to_context: first.resolve_to_context,
+                            dependency_category: first.dependency_category,
+                        };
+                        let resolver = ctx.resolver_factory.get(merged_options);
 
-                            Box::new(move |resolve_context: String, request_to_resolve: String| {
-                                let resolver = resolver.clone();
-                                Box::pin(async move {
+                        Box::new(move |resolve_context: String, request_to_resolve: String| {
+                            let resolver = resolver.clone();
+                            Box::pin(async move {
                                 let resolve_result = resolver
                                     .resolve(Path::new(&resolve_context), &request_to_resolve)
                                     .await
                                     .to_rspack_result()?;
                                 Ok(match resolve_result {
                                     ResolveResult::Resource(resource) => {
-                                    let is_esm = if resource.path.as_str().ends_with(".js") {
-                                        resource.description_data.as_ref().is_some_and(|description_data| {
-                                        if let Some(object) = description_data.json().as_object() {
-                                            object.get("type").is_some_and(|v| v.as_str() == Some("module"))
+                                        let is_esm = if resource.path.as_str().ends_with(".js") {
+                                            resource.description_data.as_ref().is_some_and(
+                                                |description_data| {
+                                                    if let Some(object) =
+                                                        description_data.json().as_object()
+                                                    {
+                                                        object.get("type").is_some_and(|v| {
+                                                            v.as_str() == Some("module")
+                                                        })
+                                                    } else {
+                                                        false
+                                                    }
+                                                },
+                                            )
                                         } else {
-                                            false
-                                        }
-                                        })
-                                    } else {
-                                        resource.path.as_str().ends_with(".mjs")
-                                    };
-                                    (Some(resource.full_path()), is_esm)
+                                            resource.path.as_str().ends_with(".mjs")
+                                        };
+                                        (Some(resource.full_path()), is_esm)
                                     }
                                     ResolveResult::Ignored => (None, false),
                                 })
-                                })
                             })
-                            }),
+                        })
+                    };
+
+                Box::pin(async move {
+                    let external_result = external_handler
+                        .handle_externals(
+                            ctx.context,
+                            ctx.request,
+                            &ctx.dependency_type,
+                            ctx.context_info.issuer_layer.as_deref(),
+                            &get_resolve,
                         )
                         .await?;
-                        Ok(ExternalItemFnResult {
-                            external_type: None,
-                            result: external_result.map(ExternalItemValue::String),
-                        })
-                    });
-                    result
-                }))])
+                    Ok(ExternalItemFnResult {
+                        external_type: None,
+                        result: external_result.map(ExternalItemValue::String),
+                    })
+                })
+            }));
+
+            self.builtin_modules
+                .iter()
+                .map(|module| ExternalItem::String(module.to_string()))
+                .chain([external_fn])
                 .collect::<Vec<_>>()
         };
 
