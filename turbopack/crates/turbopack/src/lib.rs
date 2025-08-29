@@ -205,12 +205,14 @@ async fn apply_module_type(
                                             part,
                                             side_effect_free_packages,
                                         )
+                                        .await?
                                     } else {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(*module),
                                             part,
                                             side_effect_free_packages,
                                         )
+                                        .await?
                                     }
                                 }
                                 _ => bail!(
@@ -280,7 +282,6 @@ async fn apply_module_type(
     .cell())
 }
 
-#[turbo_tasks::function]
 async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
