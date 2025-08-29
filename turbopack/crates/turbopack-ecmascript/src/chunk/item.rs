@@ -85,25 +85,27 @@ impl EcmascriptChunkItemContent {
         }
         .cell())
     }
+}
 
-    #[turbo_tasks::function]
-    pub async fn module_factory(&self) -> Result<Vc<Code>> {
+impl EcmascriptChunkItemContent {
+    async fn module_factory(self: Vc<Self>) -> Result<Vc<Code>> {
+        let this = self.await?;
         let mut code = CodeBuilder::default();
-        for additional_id in self.additional_ids.iter().try_join().await? {
+        for additional_id in this.additional_ids.iter().try_join().await? {
             writeln!(code, "{}, ", StringifyJs(&*additional_id))?;
         }
-        if self.options.module_and_exports {
+        if this.options.module_and_exports {
             code += "((__turbopack_context__, module, exports) => {\n";
         } else {
             code += "((__turbopack_context__) => {\n";
         }
-        if self.options.strict {
+        if this.options.strict {
             code += "\"use strict\";\n\n";
         } else {
             code += "\n";
         }
 
-        if self.options.async_module.is_some() {
+        if this.options.async_module.is_some() {
             writeln!(
                 code,
                 "return {TURBOPACK_ASYNC_MODULE}(async (__turbopack_handle_async_dependencies__, \
@@ -111,15 +113,15 @@ impl EcmascriptChunkItemContent {
             )?;
         }
 
-        let source_map = if let Some(rewrite_source_path) = &self.rewrite_source_path {
-            fileify_source_map(self.source_map.as_ref(), rewrite_source_path.clone()).await?
+        let source_map = if let Some(rewrite_source_path) = &this.rewrite_source_path {
+            fileify_source_map(this.source_map.as_ref(), rewrite_source_path.clone()).await?
         } else {
-            self.source_map.clone()
+            this.source_map.clone()
         };
 
-        code.push_source(&self.inner_code, source_map);
+        code.push_source(&this.inner_code, source_map);
 
-        if let Some(opts) = &self.options.async_module {
+        if let Some(opts) = &this.options.async_module {
             write!(
                 code,
                 "__turbopack_async_result__();\n}} catch(e) {{ __turbopack_async_result__(e); }} \
@@ -225,7 +227,6 @@ async fn module_factory_with_code_generation_issue(
         match chunk_item
             .content_with_async_module_info(async_module_info)
             .module_factory()
-            .resolve()
             .await
         {
             Ok(factory) => factory,
