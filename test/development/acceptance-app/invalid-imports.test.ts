@@ -71,6 +71,25 @@ describe('Error Overlay invalid imports', () => {
         'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
         The error was caused by using 'styled-jsx'. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default."
       `)
+    } else if (process.env.NEXT_RSPACK) {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+       "./app/comp2.js
+         × 'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
+         │     at Object.nextInvalidImportErrorLoader (/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0d30c425ba7f20e1f3fdaf5a9f4e75ebddecf5abbd4619da99b7bcc85a9ac6a4/node_modules/.pnpm/next@file+..+next-repo-66efd016986bb29e85ab16fb64fac4ad8048418bbf747c1fa0218b10a7e1a94d+packa_2qfrp2bj2u3wrk47vj2mij7oby/node_modules/next/dist/build/webpack/loaders/next-invalid-import-error-loader.js:13:33)
+         │     at /private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0d30c425ba7f20e1f3fdaf5a9f4e75ebddecf5abbd4619da99b7bcc85a9ac6a4/node_modules/.pnpm/@rspack+core@1.5.0_@swc+helpers@0.5.15/node_modules/@rspack/core/dist/index.js:3051:29
+         │     at node:internal/util:435:21
+         │     at new Promise (<anonymous>)
+         │     at node:internal/util:421:12
+         │     at isomorphoicRun (/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0d30c425ba7f20e1f3fdaf5a9f4e75ebddecf5abbd4619da99b7bcc85a9ac6a4/node_modules/.pnpm/@rspack+core@1.5.0_@swc+helpers@0.5.15/node_modules/@rspack/core/dist/index.js:3550:244)
+         │     at runLoaders (/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0d30c425ba7f20e1f3fdaf5a9f4e75ebddecf5abbd4619da99b7bcc85a9ac6a4/node_modules/.pnpm/@rspack+core@1.5.0_@swc+helpers@0.5.15/node_modules/@rspack/core/dist/index.js:3600:145)
+         │ 
+         │ The error was caused by using 'styled-jsx' in './app/comp2.js'. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+         │ 
+         │ Import trace for requested module:
+       │   ./app/comp2.js
+       │   ./app/comp1.js
+       │   ./app/page.js"
+      `)
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
               "./app/comp2.js
@@ -153,6 +172,25 @@ describe('Error Overlay invalid imports', () => {
         'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
         The error was caused by importing 'node_modules/client-only-package'"
       `)
+    } else if (process.env.NEXT_RSPACK) {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+       "./app/comp2.js
+         × 'client-only' cannot be imported from a Server Component module. It should only be used from a Client Component.
+         │     at Object.nextInvalidImportErrorLoader (/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0d30c425ba7f20e1f3fdaf5a9f4e75ebddecf5abbd4619da99b7bcc85a9ac6a4/node_modules/.pnpm/next@file+..+next-repo-66efd016986bb29e85ab16fb64fac4ad8048418bbf747c1fa0218b10a7e1a94d+packa_2qfrp2bj2u3wrk47vj2mij7oby/node_modules/next/dist/build/webpack/loaders/next-invalid-import-error-loader.js:13:33)
+         │     at /private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0d30c425ba7f20e1f3fdaf5a9f4e75ebddecf5abbd4619da99b7bcc85a9ac6a4/node_modules/.pnpm/@rspack+core@1.5.0_@swc+helpers@0.5.15/node_modules/@rspack/core/dist/index.js:3051:29
+         │     at node:internal/util:435:21
+         │     at new Promise (<anonymous>)
+         │     at node:internal/util:421:12
+         │     at isomorphoicRun (/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0d30c425ba7f20e1f3fdaf5a9f4e75ebddecf5abbd4619da99b7bcc85a9ac6a4/node_modules/.pnpm/@rspack+core@1.5.0_@swc+helpers@0.5.15/node_modules/@rspack/core/dist/index.js:3550:244)
+         │     at runLoaders (/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0d30c425ba7f20e1f3fdaf5a9f4e75ebddecf5abbd4619da99b7bcc85a9ac6a4/node_modules/.pnpm/@rspack+core@1.5.0_@swc+helpers@0.5.15/node_modules/@rspack/core/dist/index.js:3600:145)
+         │ 
+         │ The error was caused by importing 'client-only-package/index.js' in './app/comp2.js'.
+         │ 
+         │ Import trace for requested module:
+       │   ./app/comp2.js
+       │   ./app/comp1.js
+       │   ./app/page.js"
+      `)
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
         "./app/comp2.js
@@ -232,6 +270,25 @@ describe('Error Overlay invalid imports', () => {
         Invalid import
         'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.
         The error was caused by importing 'node_modules/server-only-package'"
+      `)
+    } else if (process.env.NEXT_RSPACK) {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+       "./app/comp2.js
+         × 'server-only' cannot be imported from a Client Component module. It should only be used from a Server Component.
+         │     at Object.nextInvalidImportErrorLoader (/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0d30c425ba7f20e1f3fdaf5a9f4e75ebddecf5abbd4619da99b7bcc85a9ac6a4/node_modules/.pnpm/next@file+..+next-repo-66efd016986bb29e85ab16fb64fac4ad8048418bbf747c1fa0218b10a7e1a94d+packa_2qfrp2bj2u3wrk47vj2mij7oby/node_modules/next/dist/build/webpack/loaders/next-invalid-import-error-loader.js:13:33)
+         │     at /private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0d30c425ba7f20e1f3fdaf5a9f4e75ebddecf5abbd4619da99b7bcc85a9ac6a4/node_modules/.pnpm/@rspack+core@1.5.0_@swc+helpers@0.5.15/node_modules/@rspack/core/dist/index.js:3051:29
+         │     at node:internal/util:435:21
+         │     at new Promise (<anonymous>)
+         │     at node:internal/util:421:12
+         │     at isomorphoicRun (/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0d30c425ba7f20e1f3fdaf5a9f4e75ebddecf5abbd4619da99b7bcc85a9ac6a4/node_modules/.pnpm/@rspack+core@1.5.0_@swc+helpers@0.5.15/node_modules/@rspack/core/dist/index.js:3550:244)
+         │     at runLoaders (/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0d30c425ba7f20e1f3fdaf5a9f4e75ebddecf5abbd4619da99b7bcc85a9ac6a4/node_modules/.pnpm/@rspack+core@1.5.0_@swc+helpers@0.5.15/node_modules/@rspack/core/dist/index.js:3600:145)
+         │ 
+         │ The error was caused by importing 'server-only-package/index.js' in './app/comp2.js'.
+         │ 
+         │ Import trace for requested module:
+       │   ./app/comp2.js
+       │   ./app/comp1.js
+       │   ./app/page.js"
       `)
     } else {
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
