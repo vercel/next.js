@@ -32,7 +32,7 @@ function resolveSWCOptions(
     env: {
       targets: {
         // Setting the Node.js version can reduce unnecessary code generation.
-        node: process?.versions?.node ?? '20.19.0',
+        node: process.versions.node,
       },
     },
   } satisfies SWCOptions
@@ -103,6 +103,9 @@ async function getTsConfig(cwd: string): Promise<CompilerOptions> {
   return parsedCommandLine.options
 }
 
+let compilerOptions: CompilerOptions | null = null
+let verifiedTsSetup = false
+
 export async function transpileConfig({
   nextConfigPath,
   configFileName,
@@ -113,9 +116,14 @@ export async function transpileConfig({
   cwd: string
 }) {
   try {
-    // Ensure TypeScript is installed to use the API.
-    await verifyTypeScriptSetup(cwd, configFileName)
-    const compilerOptions = await getTsConfig(cwd)
+    if (compilerOptions === null) {
+      if (process.env.NODE_ENV === 'development' && !verifiedTsSetup) {
+        // Ensure TypeScript is installed to use the API.
+        await verifyTypeScriptSetup(cwd, configFileName)
+        verifiedTsSetup = true
+      }
+      compilerOptions = await getTsConfig(cwd)
+    }
 
     return handleCJS({ cwd, nextConfigPath, compilerOptions })
   } catch (cause) {
@@ -128,13 +136,13 @@ export async function transpileConfig({
 async function handleCJS({
   cwd,
   nextConfigPath,
-  compilerOptions,
+  compilerOptions: compilerOptsParam,
 }: {
   cwd: string
   nextConfigPath: string
   compilerOptions: CompilerOptions
 }) {
-  const swcOptions = resolveSWCOptions(cwd, compilerOptions)
+  const swcOptions = resolveSWCOptions(cwd, compilerOptsParam)
   let hasRequire = false
   try {
     const nextConfigString = await readFile(nextConfigPath, 'utf8')
