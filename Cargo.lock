@@ -9246,6 +9246,7 @@ dependencies = [
  "codspeed-criterion-compat",
  "dashmap 6.1.0",
  "either",
+ "futures",
  "hashbrown 0.14.5",
  "indexmap 2.9.0",
  "lmdb-rkv",
@@ -9269,6 +9270,7 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-build",
+ "turbo-tasks-malloc",
  "turbo-tasks-testing",
 ]
 
