@@ -680,7 +680,7 @@ describe('app dir - metadata', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('content-type')).toBe('image/x-icon')
       expect(res.headers.get('cache-control')).toBe(
-        'public, max-age=0, must-revalidate'
+        isNextDev ? 'no-cache, no-store' : 'public, max-age=0, must-revalidate'
       )
     })
 
