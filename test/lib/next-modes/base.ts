@@ -40,7 +40,7 @@ export interface NextInstanceOpts {
   startCommand?: string
   startArgs?: string[]
   env?: Record<string, string>
-  dirSuffix?: string
+  subDir?: string
   turbo?: boolean
   forcedPort?: string
   serverReadyPattern?: RegExp
@@ -85,7 +85,7 @@ export class NextInstance {
   protected basePath?: string
   public env: Record<string, string>
   public forcedPort?: string
-  public dirSuffix: string = ''
+  public subDir: string = ''
   public startServerTimeout: number = 10_000 // 10 seconds
   public serverReadyPattern: RegExp = / ✓ Ready in /
   patchFileDelay: number = 0
@@ -201,9 +201,8 @@ export class NextInstance {
           : process.env.NEXT_TEST_DIR || (await fs.realpath(os.tmpdir()))
         this.testDir = path.join(
           tmpDir,
-          `next-test-${Date.now()}-${(Math.random() * 1000) | 0}${
-            this.dirSuffix
-          }`
+          `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`,
+          this.subDir
         )
 
         const reactVersion =
@@ -273,7 +272,7 @@ export class NextInstance {
               resolutions: this.resolutions ?? null,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
-              dirSuffix: this.dirSuffix,
+              subDir: this.subDir,
               keepRepoDir: true,
               beforeInstall: async (span, installDir) => {
                 this.testDir = installDir
@@ -330,6 +329,19 @@ export class NextInstance {
               ).replace(/"__func_[\d]{1,}"/g, function (str) {
                 return functions.shift()!
               })
+          )
+        }
+
+        const tsConfigTestFile = testDirFiles.find(
+          (file) => file === 'tsconfig.test.json'
+        )
+        if (tsConfigTestFile) {
+          require('console').log(
+            'tsconfig.test.json found, using it for this test'
+          )
+          await fs.copyFile(
+            path.join(this.testDir, 'tsconfig.test.json'),
+            path.join(this.testDir, 'tsconfig.json')
           )
         }
 

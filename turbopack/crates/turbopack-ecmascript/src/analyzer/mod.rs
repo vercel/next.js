@@ -1810,7 +1810,19 @@ impl JsValue {
             }
             JsValue::WellKnownFunction(func) => {
                 let (name, explainer) = match func {
-                   WellKnownFunctionKind::ObjectAssign => (
+                    WellKnownFunctionKind::ArrayFilter => (
+                      "Array.prototype.filter".to_string(),
+                      "The standard Array.prototype.filter method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter"
+                    ),
+                    WellKnownFunctionKind::ArrayForEach => (
+                      "Array.prototype.forEach".to_string(),
+                      "The standard Array.prototype.forEach method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach"
+                    ),
+                    WellKnownFunctionKind::ArrayMap => (
+                      "Array.prototype.map".to_string(),
+                      "The standard Array.prototype.map method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map"
+                    ),
+                    WellKnownFunctionKind::ObjectAssign => (
                         "Object.assign".to_string(),
                         "Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign",
                     ),
@@ -3433,7 +3445,7 @@ pub enum WellKnownObjectKind {
 impl WellKnownObjectKind {
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
-            Self::GlobalObject => Some(&["global"]),
+            Self::GlobalObject => Some(&["Object"]),
             Self::PathModule => Some(&["path"]),
             Self::FsModule => Some(&["fs"]),
             Self::UrlModule => Some(&["url"]),
@@ -3533,6 +3545,9 @@ impl Hash for RequireContextValue {
 /// A list of well-known functions that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownFunctionKind {
+    ArrayFilter,
+    ArrayForEach,
+    ArrayMap,
     ObjectAssign,
     PathJoin,
     PathDirname,
@@ -3813,7 +3828,7 @@ mod tests {
                     None,
                 );
 
-                let mut var_graph = create_graph(&m, &eval_context);
+                let mut var_graph = create_graph(&m, &eval_context, false);
                 let var_cache = Default::default();
 
                 let mut named_values = var_graph
@@ -4058,7 +4073,10 @@ mod tests {
                                 steps
                             }
                             Effect::FreeVar { var, .. } => {
-                                resolved.push((format!("{parent} -> {i} free var"), *var));
+                                resolved.push((
+                                    format!("{parent} -> {i} free var"),
+                                    JsValue::FreeVar(var),
+                                ));
                                 0
                             }
                             Effect::TypeOf { arg, .. } => {

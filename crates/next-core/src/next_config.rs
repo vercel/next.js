@@ -566,53 +566,104 @@ pub struct TurbopackConfig {
     pub module_ids: Option<ModuleIds>,
 }
 
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[derive(
+    Serialize, Deserialize, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, OperationValue,
+)]
+#[serde(deny_unknown_fields)]
 pub struct RegexComponents {
     source: RcStr,
     flags: RcStr,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
-#[serde(tag = "type", content = "value", rename_all = "camelCase")]
+/// This type should not be hand-written, but instead `packages/next/src/build/swc/index.ts` will
+/// transform a JS `RegExp` to a `RegexComponents` or a string to a `Glob` before passing it to us.
+///
+/// This is needed because `RegExp` objects are not otherwise serializable.
+#[derive(
+    Clone, PartialEq, Eq, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+)]
+#[serde(
+    tag = "type",
+    content = "value",
+    rename_all = "camelCase",
+    deny_unknown_fields
+)]
 pub enum ConfigConditionPath {
     Glob(RcStr),
     Regex(RegexComponents),
 }
 
-impl TryInto<ConditionPath> for ConfigConditionPath {
-    fn try_into(self) -> Result<ConditionPath> {
-        Ok(match self {
+impl TryFrom<ConfigConditionPath> for ConditionPath {
+    type Error = anyhow::Error;
+
+    fn try_from(config: ConfigConditionPath) -> Result<ConditionPath> {
+        Ok(match config {
             ConfigConditionPath::Glob(path) => ConditionPath::Glob(path),
-            ConfigConditionPath::Regex(path) => ConditionPath::Regex(path.try_into()?),
+            ConfigConditionPath::Regex(path) => {
+                ConditionPath::Regex(EsRegex::try_from(path)?.resolved_cell())
+            }
         })
     }
-
-    type Error = anyhow::Error;
 }
 
-impl TryInto<ResolvedVc<EsRegex>> for RegexComponents {
-    fn try_into(self) -> Result<ResolvedVc<EsRegex>> {
-        Ok(EsRegex::new(&self.source, &self.flags)?.resolved_cell())
+impl TryFrom<RegexComponents> for EsRegex {
+    type Error = anyhow::Error;
+
+    fn try_from(components: RegexComponents) -> Result<EsRegex> {
+        EsRegex::new(&components.source, &components.flags)
     }
+}
 
+#[derive(
+    Serialize, Deserialize, Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, OperationValue,
+)]
+// We can end up with confusing behaviors if we silently ignore extra properties, since `Base` will
+// match nearly every object, since it has no required field.
+#[serde(deny_unknown_fields)]
+pub enum ConfigConditionItem {
+    #[serde(rename = "all")]
+    All(Box<[ConfigConditionItem]>),
+    #[serde(rename = "any")]
+    Any(Box<[ConfigConditionItem]>),
+    #[serde(rename = "not")]
+    Not(Box<ConfigConditionItem>),
+    #[serde(untagged)]
+    Builtin(WebpackLoaderBuiltinCondition),
+    #[serde(untagged)]
+    Base {
+        #[serde(default)]
+        path: Option<ConfigConditionPath>,
+        #[serde(default)]
+        content: Option<RegexComponents>,
+    },
+}
+
+impl TryFrom<ConfigConditionItem> for ConditionItem {
     type Error = anyhow::Error;
-}
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct ConfigConditionItem {
-    pub path: Option<ConfigConditionPath>,
-    pub content: Option<RegexComponents>,
-}
-
-impl TryInto<ConditionItem> for ConfigConditionItem {
-    fn try_into(self) -> Result<ConditionItem> {
-        Ok(ConditionItem {
-            path: self.path.map(|p| p.try_into()).transpose()?,
-            content: self.content.map(|r| r.try_into()).transpose()?,
+    fn try_from(config: ConfigConditionItem) -> Result<Self> {
+        let try_from_vec = |conds: Box<[_]>| {
+            conds
+                .into_iter()
+                .map(ConditionItem::try_from)
+                .collect::<Result<_>>()
+        };
+        Ok(match config {
+            ConfigConditionItem::All(conds) => ConditionItem::All(try_from_vec(conds)?),
+            ConfigConditionItem::Any(conds) => ConditionItem::Any(try_from_vec(conds)?),
+            ConfigConditionItem::Not(cond) => ConditionItem::Not(Box::new((*cond).try_into()?)),
+            ConfigConditionItem::Builtin(cond) => {
+                ConditionItem::Builtin(RcStr::from(cond.as_str()))
+            }
+            ConfigConditionItem::Base { path, content } => ConditionItem::Base {
+                path: path.map(ConditionPath::try_from).transpose()?,
+                content: content
+                    .map(EsRegex::try_from)
+                    .transpose()?
+                    .map(EsRegex::resolved_cell),
+            },
         })
     }
-
-    type Error = anyhow::Error;
 }
 
 #[derive(
@@ -623,6 +674,8 @@ pub struct RuleConfigItemOptions {
     pub loaders: Vec<LoaderItem>,
     #[serde(default, alias = "as")]
     pub rename_as: Option<RcStr>,
+    #[serde(default)]
+    pub condition: Option<ConfigConditionItem>,
 }
 
 #[derive(
@@ -640,8 +693,8 @@ pub enum RuleConfigItemOrShortcut {
 #[serde(rename_all = "camelCase", untagged)]
 pub enum RuleConfigItem {
     Options(RuleConfigItemOptions),
-    Conditional(FxIndexMap<RcStr, RuleConfigItem>),
-    Boolean(bool),
+    LegacyConditional(FxIndexMap<RcStr, RuleConfigItem>),
+    LegacyBoolean(bool),
 }
 
 #[derive(
@@ -1137,59 +1190,91 @@ pub struct OptionServerActions(Option<ServerActions>);
 #[turbo_tasks::value(transparent)]
 pub struct OptionJsonValue(pub Option<serde_json::Value>);
 
+fn turbopack_config_documentation_link() -> RcStr {
+    rcstr!("https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders")
+}
+
 #[turbo_tasks::value(shared)]
-struct InvalidLoaderRuleError {
-    ext: RcStr,
-    rename_as: Option<RcStr>,
+struct InvalidLoaderRuleRenameAsIssue {
+    glob: RcStr,
+    rename_as: RcStr,
     config_file_path: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
-impl Issue for InvalidLoaderRuleError {
+impl Issue for InvalidLoaderRuleRenameAsIssue {
     #[turbo_tasks::function]
-    async fn file_path(self: turbo_tasks::Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.config_file_path.clone().cell())
+    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
+        Ok(self.config_file_path.clone().cell())
     }
 
     #[turbo_tasks::function]
-    fn stage(self: turbo_tasks::Vc<Self>) -> Vc<IssueStage> {
+    fn stage(&self) -> Vc<IssueStage> {
         IssueStage::Config.cell()
     }
 
     #[turbo_tasks::function]
-    async fn title(self: turbo_tasks::Vc<Self>) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text(
-            format!(
-                "Invalid loader rule for extension: {}",
-                self.await?.ext.as_str()
-            )
-            .into(),
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(
+            StyledString::Text(format!("Invalid loader rule for extension: {}", self.glob).into())
+                .cell(),
         )
-        .cell())
     }
 
     #[turbo_tasks::function]
-    async fn description(self: turbo_tasks::Vc<Self>) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(StyledString::Stack(vec![
-            StyledString::Text(
-                format!(
-                    "The extension {} contains a wildcard, but the `as` option does not: {}",
-                    self.await?.ext.as_str(),
-                    self.await?
-                        .rename_as
-                        .as_ref()
-                        .map(|r| r.as_str())
-                        .unwrap_or("")
-                )
-                .into(),
-            ),
-            StyledString::Text(
-                rcstr!("Check out the documentation here for more information:"),
-            ),
-            StyledString::Text(
-                rcstr!("https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders"),
-            ),
-        ]).resolved_cell())))
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        Ok(Vc::cell(Some(
+            StyledString::Text(RcStr::from(format!(
+                "The extension {} contains a wildcard, but the `as` option does not: {}",
+                self.glob, self.rename_as,
+            )))
+            .resolved_cell(),
+        )))
+    }
+
+    #[turbo_tasks::function]
+    fn documentation_link(&self) -> Vc<RcStr> {
+        Vc::cell(turbopack_config_documentation_link())
+    }
+}
+
+#[turbo_tasks::value(shared)]
+struct InvalidLoaderRuleConditionIssue {
+    condition: ConfigConditionItem,
+    config_file_path: FileSystemPath,
+}
+
+#[turbo_tasks::value_impl]
+impl Issue for InvalidLoaderRuleConditionIssue {
+    #[turbo_tasks::function]
+    async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        Ok(self.await?.config_file_path.clone().cell())
+    }
+
+    #[turbo_tasks::function]
+    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
+        IssueStage::Config.cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(StyledString::Text(rcstr!("Invalid condition for Turbopack loader rule")).cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+        Ok(Vc::cell(Some(
+            StyledString::Text(RcStr::from(
+                serde_json::to_string_pretty(&self.condition)
+                    .expect("condition must be serializable"),
+            ))
+            .resolved_cell(),
+        )))
+    }
+
+    #[turbo_tasks::function]
+    fn documentation_link(&self) -> Vc<RcStr> {
+        Vc::cell(turbopack_config_documentation_link())
     }
 }
 
@@ -1300,7 +1385,7 @@ impl NextConfig {
             return Ok(Vc::cell(None));
         }
         let mut rules = FxIndexMap::default();
-        for (ext, rule) in turbo_rules.iter() {
+        for (glob, rule) in turbo_rules.iter() {
             fn transform_loaders(loaders: &[LoaderItem]) -> ResolvedVc<WebpackLoaderItems> {
                 ResolvedVc::cell(
                     loaders
@@ -1320,13 +1405,16 @@ impl NextConfig {
                 NotFound,
                 Break,
             }
+            // This logic is needed for the `LegacyConditional`/`LegacyBoolean` configuration
+            // syntax. This is technically public syntax, but was never documented and it is
+            // unlikely that anyone is depending on it (outside of some Next.js internals).
             fn find_rule<'a>(
                 rule: &'a RuleConfigItem,
                 active_conditions: &BTreeSet<WebpackLoaderBuiltinCondition>,
             ) -> FindRuleResult<'a> {
                 match rule {
                     RuleConfigItem::Options(rule) => FindRuleResult::Found(rule),
-                    RuleConfigItem::Conditional(map) => {
+                    RuleConfigItem::LegacyConditional(map) => {
                         for (condition, rule) in map.iter() {
                             let condition = WebpackLoaderBuiltinCondition::from_str(condition);
                             if let Ok(condition) = condition
@@ -1346,43 +1434,67 @@ impl NextConfig {
                         }
                         FindRuleResult::NotFound
                     }
-                    RuleConfigItem::Boolean(_) => FindRuleResult::Break,
+                    RuleConfigItem::LegacyBoolean(_) => FindRuleResult::Break,
                 }
             }
+            let config_file_path = || project_path.join(&self.config_file_name);
             match rule {
                 RuleConfigItemOrShortcut::Loaders(loaders) => {
                     rules.insert(
-                        ext.clone(),
+                        glob.clone(),
                         LoaderRuleItem {
                             loaders: transform_loaders(loaders),
                             rename_as: None,
+                            condition: None,
                         },
                     );
                 }
                 RuleConfigItemOrShortcut::Advanced(rule) => {
-                    if let FindRuleResult::Found(RuleConfigItemOptions { loaders, rename_as }) =
-                        find_rule(rule, &active_conditions)
+                    if let FindRuleResult::Found(RuleConfigItemOptions {
+                        loaders,
+                        rename_as,
+                        condition,
+                    }) = find_rule(rule, &active_conditions)
                     {
                         // If the extension contains a wildcard, and the rename_as does not,
                         // emit an issue to prevent users from encountering duplicate module names.
-                        if ext.contains("*") && rename_as.as_ref().is_some_and(|r| !r.contains("*"))
+                        if glob.contains("*")
+                            && let Some(rename_as) = rename_as.as_ref()
+                            && !rename_as.contains("*")
                         {
-                            let config_file_path = project_path.join(&self.config_file_name)?;
-
-                            InvalidLoaderRuleError {
-                                ext: ext.clone(),
-                                config_file_path,
+                            InvalidLoaderRuleRenameAsIssue {
+                                glob: glob.clone(),
+                                config_file_path: config_file_path()?,
                                 rename_as: rename_as.clone(),
                             }
                             .resolved_cell()
                             .emit();
                         }
 
+                        // convert from Next.js-specific condition type to internal Turbopack
+                        // condition type
+                        let condition = if let Some(condition) = condition {
+                            if let Ok(cond) = ConditionItem::try_from(condition.clone()) {
+                                Some(cond)
+                            } else {
+                                InvalidLoaderRuleConditionIssue {
+                                    condition: condition.clone(),
+                                    config_file_path: config_file_path()?,
+                                }
+                                .resolved_cell()
+                                .emit();
+                                None
+                            }
+                        } else {
+                            None
+                        };
+
                         rules.insert(
-                            ext.clone(),
+                            glob.clone(),
                             LoaderRuleItem {
                                 loaders: transform_loaders(loaders),
                                 rename_as: rename_as.clone(),
+                                condition,
                             },
                         );
                     }
@@ -1818,5 +1930,68 @@ impl JsConfig {
     #[turbo_tasks::function]
     pub fn compiler_options(&self) -> Vc<serde_json::Value> {
         Vc::cell(self.compiler_options.clone().unwrap_or_default())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_serde_rule_config_item_options() {
+        let json_value = serde_json::json!({
+            "loaders": [],
+            "as": "*.js",
+            "condition": {
+                "all": [
+                    "production",
+                    {"not": "foreign"},
+                    {"any": [
+                        "browser",
+                        {
+                            "path": { "type": "glob", "value": "*.svg"},
+                            "content": {
+                                "source": "@someTag",
+                                "flags": ""
+                            }
+                        }
+                    ]},
+                ],
+            }
+        });
+
+        let rule_config: RuleConfigItemOptions = serde_json::from_value(json_value).unwrap();
+
+        assert_eq!(
+            rule_config,
+            RuleConfigItemOptions {
+                loaders: vec![],
+                rename_as: Some(rcstr!("*.js")),
+                condition: Some(ConfigConditionItem::All(
+                    [
+                        ConfigConditionItem::Builtin(WebpackLoaderBuiltinCondition::Production),
+                        ConfigConditionItem::Not(Box::new(ConfigConditionItem::Builtin(
+                            WebpackLoaderBuiltinCondition::Foreign
+                        ))),
+                        ConfigConditionItem::Any(
+                            vec![
+                                ConfigConditionItem::Builtin(
+                                    WebpackLoaderBuiltinCondition::Browser
+                                ),
+                                ConfigConditionItem::Base {
+                                    path: Some(ConfigConditionPath::Glob(rcstr!("*.svg"))),
+                                    content: Some(RegexComponents {
+                                        source: rcstr!("@someTag"),
+                                        flags: rcstr!(""),
+                                    }),
+                                },
+                            ]
+                            .into(),
+                        ),
+                    ]
+                    .into(),
+                )),
+            }
+        );
     }
 }

@@ -744,6 +744,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/hmr-intercept-routes/hmr-intercept-routes.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["hmr-intercept-routes should update intercept routes via HMR"],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/hmr-move-file/hmr-move-file.test.ts": {
     "passed": [
       "HMR Move File should work when moving a component to another directory"
@@ -1952,9 +1959,7 @@
       "Client Navigation with <a/> tag inside the <Link /> should navigate the page",
       "Client Navigation with <a/> tag inside the <Link /> should not navigate if the <a/> tag has a target",
       "Client Navigation with <a/> tag inside the <Link /> should not navigate if the click-event is modified",
-      "Client Navigation with <a/> tag inside the <Link /> should not reload when link in svg is clicked",
-      "Client Navigation with unexpected <a/> nested tag should not redirect if passHref prop is not defined in Link",
-      "Client Navigation with unexpected <a/> nested tag should redirect if passHref prop is defined in Link"
+      "Client Navigation with <a/> tag inside the <Link /> should not reload when link in svg is clicked"
     ],
     "failed": [],
     "pending": [],
@@ -2057,15 +2062,13 @@
   "test/development/pages-dir/client-navigation/link.test.ts": {
     "passed": [
       "Client Navigation with <Link/> should call mouse handlers with an absolute url",
-      "Client Navigation with <Link/> should error when calling onClick without event",
       "Client Navigation with <Link/> should navigate an absolute local url",
       "Client Navigation with <Link/> should navigate an absolute local url with as",
       "Client Navigation with <Link/> should navigate an absolute url",
       "Client Navigation with <Link/> should navigate back after reload",
       "Client Navigation with <Link/> should navigate forwards after reload",
       "Client Navigation with <Link/> should navigate the page",
-      "Client Navigation with <Link/> should navigate via the client side",
-      "Client Navigation with <Link/> should not throw error when one number type child is provided"
+      "Client Navigation with <Link/> should navigate via the client side"
     ],
     "failed": [],
     "pending": [],
@@ -2477,6 +2480,8 @@
       "app-dir action handling Edge SSR should handle unicode search params",
       "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
       "app-dir action handling HMR should support updating the action",
+      "app-dir action handling action discarding should not trigger a refresh for a server action that gets discarded due to a navigation (without revalidation)",
+      "app-dir action handling action discarding should trigger a refresh for a server action that gets discarded due to a navigation (with revalidation)",
       "app-dir action handling caching disabled by default should not override force-cache in server action",
       "app-dir action handling caching disabled by default should not override revalidate in server action",
       "app-dir action handling caching disabled by default should use no-store as default for server action",
@@ -2544,7 +2549,6 @@
       "app-dir action handling should support setting cookies when redirecting (with javascript)",
       "app-dir action handling should support uploading files",
       "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
-      "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
       "app-dir action handling should work with interception routes"
     ],
@@ -2605,6 +2609,8 @@
       "app-dir action handling Edge SSR should handle unicode search params",
       "app-dir action handling Edge SSR should return error response for hoc auth wrappers in edge runtime",
       "app-dir action handling HMR should support updating the action",
+      "app-dir action handling action discarding should not trigger a refresh for a server action that gets discarded due to a navigation (without revalidation)",
+      "app-dir action handling action discarding should trigger a refresh for a server action that gets discarded due to a navigation (with revalidation)",
       "app-dir action handling caching disabled by default should not override force-cache in server action",
       "app-dir action handling caching disabled by default should not override revalidate in server action",
       "app-dir action handling caching disabled by default should use no-store as default for server action",
@@ -2672,7 +2678,6 @@
       "app-dir action handling should support setting cookies when redirecting (with javascript)",
       "app-dir action handling should support uploading files",
       "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
-      "app-dir action handling should trigger a refresh for a server action that gets discarded due to a navigation",
       "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
       "app-dir action handling should work with interception routes"
     ],
@@ -3459,6 +3464,7 @@
       "app-dir static/dynamic handling it should revalidate tag correctly with edge route handler",
       "app-dir static/dynamic handling it should revalidate tag correctly with node route handler",
       "app-dir static/dynamic handling should allow dynamic routes to access cookies",
+      "app-dir static/dynamic handling should build dynamic param with edge runtime correctly",
       "app-dir static/dynamic handling should bypass fetch cache with cache-control: no-cache",
       "app-dir static/dynamic handling should cache correctly for cache: \"force-cache\" and \"revalidate\"",
       "app-dir static/dynamic handling should cache correctly for cache: no-store",
@@ -3537,9 +3543,7 @@
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite"
     ],
-    "failed": [
-      "app-dir static/dynamic handling should build dynamic param with edge runtime correctly"
-    ],
+    "failed": [],
     "pending": [
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-edge",
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-node",
@@ -3547,7 +3551,7 @@
       "app-dir static/dynamic handling useSearchParams client should have empty search params on force-static"
     ],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/app-validation/validation.test.ts": {
     "passed": [
@@ -3612,7 +3616,6 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -3627,6 +3630,7 @@
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
+      "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
       "app dir - basic server components should not serve .client.js as a path",
@@ -3670,7 +3674,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components next/router should support router.back and router.forward"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -4682,6 +4686,8 @@
       "app dir - next/dynamic should handle next/dynamic in SSR correctly",
       "app dir - next/dynamic should handle next/dynamic in hydration correctly",
       "app dir - next/dynamic should handle ssr: false in pages when appDir is enabled",
+      "app dir - next/dynamic should ignore next/dynamic in routes",
+      "app dir - next/dynamic should ignore next/dynamic in sitemap",
       "app dir - next/dynamic should not render loading by default",
       "app dir - next/dynamic should render loading by default if loading is specified and loader is slow"
     ],
@@ -4980,6 +4986,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/global-not-found/cache-components/cache-components.test.ts": {
+    "passed": [
+      "global-not-found - cache-components should render global-not-found for 404 routes",
+      "global-not-found - cache-components should render not-found boundary when calling notFound() in a page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/global-not-found/css/global-not-found-css.test.ts": {
     "passed": [
       "global-not-found - css should include css for global-not-found properly"
@@ -5232,15 +5248,6 @@
       "app dir - layout params catchall params should give catchall params just to last layout",
       "app dir - layout params catchall params should give empty optional catchall params won't give params to any layout",
       "app dir - layout params catchall params should give optional catchall params just to last layout"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/link-component-deprecations/link-component-deprecations.test.ts": {
-    "passed": [
-      "Link component deprecations logs deprecation warning for legacyBehavior prop"
     ],
     "failed": [],
     "pending": [],
@@ -7243,8 +7250,10 @@
       "app dir - rsc basics client references with TLA (edge) should support TLA in sync client reference imports",
       "app dir - rsc basics client references with TLA (node) should support TLA in lazy client reference",
       "app dir - rsc basics client references with TLA (node) should support TLA in sync client reference imports",
+      "app dir - rsc basics edge should handle dynamic routes when URL segment matches the folder bracket syntax",
       "app dir - rsc basics next internal shared context should not error if just load next/navigation module in pages/api",
       "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
+      "app dir - rsc basics node should handle dynamic routes when URL segment matches the folder bracket syntax",
       "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
       "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",
@@ -7909,6 +7918,13 @@
   },
   "test/e2e/app-dir/segment-cache/search-params/segment-cache-search-params.test.ts": {
     "passed": ["segment cache (search params) ppr is disabled"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/segment-prefetch-config/segment-prefetch-config.test.ts": {
+    "passed": ["export const unstable_prefetch = ... disabled in development"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -10303,16 +10319,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/new-link-behavior/typescript.test.ts": {
-    "passed": [
-      "New Link Behavior should apply ref on link",
-      "New Link Behavior should render link with <a>"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/next-config-warnings/esm-externals-false/esm-externals-false.test.ts": {
     "passed": [
       "next-config-warnings - esm-externals-false should warn when using ESM externals: false"
@@ -10494,9 +10500,7 @@
   "test/e2e/next-link-errors/next-link-errors.test.ts": {
     "passed": [
       "next-link errors on invalid href",
-      "next-link invalid `prefetch` causes runtime error (dev-only)",
-      "next-link multiple children",
-      "next-link no children"
+      "next-link invalid `prefetch` causes runtime error (dev-only)"
     ],
     "failed": [],
     "pending": [],
@@ -12169,7 +12173,7 @@
       "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation",
       "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
       "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
-      "Build Activity Indicator should validate buildActivityPosition config"
+      "Build Activity Indicator should validate position config"
     ],
     "failed": [],
     "pending": [],
@@ -18136,17 +18140,6 @@
       "Link Component with Encoding spaces should have correct query on Router#push",
       "Link Component with Encoding spaces should have correct query on SSR",
       "Link Component with Encoding spaces should have correct query on simple client-side <Link>"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/link-with-multiple-child/test/index.test.js": {
-    "passed": [
-      "multiple child with default legacyBehavior",
-      "multiple child with forced legacyBehavior=false",
-      "single child"
     ],
     "failed": [],
     "pending": [],

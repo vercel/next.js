@@ -259,7 +259,7 @@ export type TurbopackLoaderItem =
   | {
       loader: string
       // At the moment, Turbopack options must be JSON-serializable, so restrict values.
-      options: Record<string, JSONValue>
+      options?: Record<string, JSONValue>
     }
 
 export type TurbopackLoaderBuiltinCondition =
@@ -271,24 +271,30 @@ export type TurbopackLoaderBuiltinCondition =
   | 'node'
   | 'edge-light'
 
-export type TurbopackRuleCondition = {
-  path?: string | RegExp
-  content?: RegExp
-}
-
-export type TurbopackRuleConfigItemOrShortcut =
-  | TurbopackLoaderItem[]
-  | TurbopackRuleConfigItem
+export type TurbopackRuleCondition =
+  | { all: TurbopackRuleCondition[] }
+  | { any: TurbopackRuleCondition[] }
+  | { not: TurbopackRuleCondition }
+  | TurbopackLoaderBuiltinCondition
+  | {
+      path?: string | RegExp
+      content?: RegExp
+    }
 
 export type TurbopackRuleConfigItemOptions = {
   loaders: TurbopackLoaderItem[]
   as?: string
+  condition?: TurbopackRuleCondition
 }
 
 export type TurbopackRuleConfigItem =
   | TurbopackRuleConfigItemOptions
   | { [condition in TurbopackLoaderBuiltinCondition]?: TurbopackRuleConfigItem }
   | false
+
+export type TurbopackRuleConfigItemOrShortcut =
+  | TurbopackLoaderItem[]
+  | TurbopackRuleConfigItem
 
 export interface TurbopackOptions {
   /**
@@ -320,7 +326,7 @@ export interface TurbopackOptions {
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
-  conditions?: Record<string, TurbopackRuleCondition>
+  conditions?: Record<`#${string}`, TurbopackRuleCondition>
 
   /**
    * The module ID strategy to use for Turbopack.
@@ -1145,28 +1151,6 @@ export interface NextConfig extends Record<string, any> {
   devIndicators?:
     | false
     | {
-        /**
-         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
-         * */
-        appIsrStatus?: boolean
-
-        /**
-         * Show "building..." indicator in development
-         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
-         */
-        buildActivity?: boolean
-
-        /**
-         * Position of "building..." indicator in browser
-         * @default "bottom-right"
-         * @deprecated Renamed as `position`.
-         */
-        buildActivityPosition?:
-          | 'top-left'
-          | 'top-right'
-          | 'bottom-left'
-          | 'bottom-right'
-
         /**
          * Position of the development tools indicator in the browser window.
          * @default "bottom-left"

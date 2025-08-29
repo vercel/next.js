@@ -387,13 +387,6 @@ export default class NextNodeServer extends BaseServer<
         // otherwise if the fetch is patched by user code, we will be patching it
         // too late and there won't be any caching behaviors
         ComponentMod.patchFetch()
-
-        const webpackRequire = ComponentMod.__next_app__.require
-        if (webpackRequire?.m) {
-          for (const id of Object.keys(webpackRequire.m)) {
-            await webpackRequire(id)
-          }
-        }
       } catch (_err) {
         // Intentionally ignored because this is a preload step.
       }

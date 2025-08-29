@@ -484,7 +484,8 @@ describe('app-dir - server source maps', () => {
              "{module evaluation} app/module-evaluation/module.js (1:22)",
              "{module evaluation} app/module-evaluation/page.js (1:1)",
              "{module evaluation} app/module-evaluation/page.js (6:1)",
-             "<FIXME-next-dist-dir>",
+             "Array.map <anonymous>",
+             "Function.all <anonymous>",
              "Page <anonymous>",
            ],
          }
@@ -515,9 +516,8 @@ describe('app-dir - server source maps', () => {
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
             '\nError: module-evaluation' +
-            '\n    at __TURBOPACK__module__evaluation__ (bundler:///app/module-evaluation/module.js:1:22)' +
             // TODO(veil): Turbopack internals. Feel free to update. Tracked in https://linear.app/vercel/issue/NEXT-4362
-            '\n    at Object.<anonymous>'
+            '\n    at __TURBOPACK__module__evaluation__ (bundler:///app/module-evaluation/module.js:1:22)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +

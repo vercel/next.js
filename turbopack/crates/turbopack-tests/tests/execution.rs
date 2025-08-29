@@ -102,8 +102,12 @@ fn register() {
 //
 // "Skip" directories named `__skipped__`, which include test directories to
 // skip.
-#[testing::fixture("tests/execution/*/*/*", exclude("node_modules|__skipped__"))]
+#[testing::fixture(
+    "tests/execution/*/*/*/input/index.js",
+    exclude("node_modules|__skipped__")
+)]
 fn test(resource: PathBuf) {
+    let resource = resource.parent().unwrap().parent().unwrap().to_path_buf();
     let messages = get_messages(run(resource, IssueSnapshotMode::Snapshots).unwrap());
     if !messages.is_empty() {
         panic!(
@@ -113,10 +117,10 @@ fn test(resource: PathBuf) {
     }
 }
 
-#[testing::fixture("tests/execution/*/*/__skipped__/*/input")]
+#[testing::fixture("tests/execution/*/*/__skipped__/*/input/index.js")]
 #[should_panic]
 fn test_skipped_fails(resource: PathBuf) {
-    let resource = resource.parent().unwrap().to_path_buf();
+    let resource = resource.parent().unwrap().parent().unwrap().to_path_buf();
 
     let JsResult {
         // Ignore uncaught exceptions for skipped tests.
