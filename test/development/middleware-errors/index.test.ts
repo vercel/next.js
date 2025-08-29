@@ -5,7 +5,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('middleware - development errors', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
     patchFileDelay: 500,
   })
   beforeEach(async () => {

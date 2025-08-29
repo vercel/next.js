@@ -2938,6 +2938,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/global-not-found/cache-components/cache-components.test.ts": {
+    "passed": [
+      "global-not-found - cache-components should render global-not-found for 404 routes",
+      "global-not-found - cache-components should render not-found boundary when calling notFound() in a page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/global-not-found/css/global-not-found-css.test.ts": {
     "passed": [
       "global-not-found - css should include css for global-not-found properly"
@@ -3288,7 +3298,6 @@
       "app dir - metadata dynamic routes robots.txt should handle robots.[ext] dynamic routes",
       "app dir - metadata dynamic routes route segment config should generate dynamic route if dynamic config is force-dynamic",
       "app dir - metadata dynamic routes should generate unique path for image routes under group routes",
-      "app dir - metadata dynamic routes should include default og font files in file trace",
       "app dir - metadata dynamic routes should inject dynamic metadata properly to head",
       "app dir - metadata dynamic routes should pick configured metadataBase instead of deployment url for canonical url",
       "app dir - metadata dynamic routes should statically optimized single image route",
@@ -3310,7 +3319,9 @@
       "app dir - metadata dynamic routes social image routes should support generate multi images with generateImageMetadata",
       "app dir - metadata dynamic routes social image routes should support params as argument in dynamic routes"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - metadata dynamic routes should include default og font files in file trace"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5385,8 +5396,10 @@
       "app dir - rsc basics client references with TLA (edge) should support TLA in sync client reference imports",
       "app dir - rsc basics client references with TLA (node) should support TLA in lazy client reference",
       "app dir - rsc basics client references with TLA (node) should support TLA in sync client reference imports",
+      "app dir - rsc basics edge should handle dynamic routes when URL segment matches the folder bracket syntax",
       "app dir - rsc basics next internal shared context should not error if just load next/navigation module in pages/api",
       "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
+      "app dir - rsc basics node should handle dynamic routes when URL segment matches the folder bracket syntax",
       "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
       "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",
@@ -20352,14 +20365,13 @@
       "Production Usage should not replace non-static pages with HTML files",
       "Production Usage should not show target deprecation warning",
       "Production Usage should only have one DOCTYPE",
-      "Production Usage should output traces",
       "Production Usage should preserve query when hard navigating from page 404",
       "Production Usage should remove placeholder for next/image correctly",
       "Production Usage should replace static pages with HTML files",
       "Production Usage should respond with 405 for POST to static page",
       "Production Usage should warn when prefetch is true"
     ],
-    "failed": [],
+    "failed": ["Production Usage should output traces"],
     "pending": [
       "Production Usage With Security Related Issues should handle invalid URL properly",
       "Production Usage With basic usage should allow etag header support with getServerSideProps"
@@ -20369,10 +20381,11 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm",
+      "pnpm support should build with dependencies installed via pnpm"
+    ],
+    "failed": [
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -20581,10 +20594,11 @@
       "required server files should set correct SWR headers with notFound gsp",
       "required server files should set correct SWR headers with notFound gssp",
       "required server files should show invariant when an automatic static page is requested",
-      "required server files should warn when \"next\" is imported directly",
+      "required server files should warn when \"next\" is imported directly"
+    ],
+    "failed": [
       "required server files without minimalMode, with wasm should run middleware correctly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

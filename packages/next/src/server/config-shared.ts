@@ -251,15 +251,12 @@ type JSONValue =
   | JSONValue[]
   | { [k: string]: JSONValue }
 
-/**
- * @deprecated Use `TurbopackRuleConfigItem` instead.
- */
 export type TurbopackLoaderItem =
   | string
   | {
       loader: string
       // At the moment, Turbopack options must be JSON-serializable, so restrict values.
-      options: Record<string, JSONValue>
+      options?: Record<string, JSONValue>
     }
 
 export type TurbopackLoaderBuiltinCondition =
@@ -271,24 +268,39 @@ export type TurbopackLoaderBuiltinCondition =
   | 'node'
   | 'edge-light'
 
-export type TurbopackRuleCondition = {
-  path?: string | RegExp
-  content?: RegExp
-}
-
-export type TurbopackRuleConfigItemOrShortcut =
-  | TurbopackLoaderItem[]
-  | TurbopackRuleConfigItem
+export type TurbopackRuleCondition =
+  | { all: TurbopackRuleCondition[] }
+  | { any: TurbopackRuleCondition[] }
+  | { not: TurbopackRuleCondition }
+  | TurbopackLoaderBuiltinCondition
+  | {
+      path?: string | RegExp
+      content?: RegExp
+    }
 
 export type TurbopackRuleConfigItemOptions = {
   loaders: TurbopackLoaderItem[]
   as?: string
+  condition?: TurbopackRuleCondition
 }
 
 export type TurbopackRuleConfigItem =
   | TurbopackRuleConfigItemOptions
   | { [condition in TurbopackLoaderBuiltinCondition]?: TurbopackRuleConfigItem }
   | false
+
+/**
+ * This can be an object representing a single configuration, or a list of
+ * loaders and/or rule configuration objects.
+ *
+ * - A list of loader path strings or objects is the "shorthand" syntax.
+ * - A list of rule configuration objects can be useful when each configuration
+ *   object has different `condition` fields, but still match the same top-level
+ *   path glob.
+ */
+export type TurbopackRuleConfigCollection =
+  | TurbopackRuleConfigItem
+  | (TurbopackLoaderItem | TurbopackRuleConfigItemOptions)[]
 
 export interface TurbopackOptions {
   /**
@@ -313,14 +325,14 @@ export interface TurbopackOptions {
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
-  rules?: Record<string, TurbopackRuleConfigItemOrShortcut>
+  rules?: Record<string, TurbopackRuleConfigCollection>
 
   /**
    * (`next --turbopack` only) A list of conditions to apply when running webpack loaders with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
-  conditions?: Record<string, TurbopackRuleCondition>
+  conditions?: Record<`#${string}`, TurbopackRuleCondition>
 
   /**
    * The module ID strategy to use for Turbopack.
@@ -608,6 +620,43 @@ export interface ExperimentalConfig {
    * Enable removing unused exports for turbopack dev server and build.
    */
   turbopackRemoveUnusedExports?: boolean
+
+  /**
+   * Use the system-provided CA roots instead of bundled CA roots for external HTTPS requests
+   * made by Turbopack. Currently this is only used for fetching data from Google Fonts.
+   *
+   * This may be useful in cases where you or an employer are MITMing traffic.
+   *
+   * This option is experimental because:
+   * - This may cause small performance problems, as it uses [`rustls-native-certs`](
+   *   https://github.com/rustls/rustls-native-certs).
+   * - In the future, this may become the default, and this option may be eliminated, once
+   *   <https://github.com/seanmonstar/reqwest/issues/2159> is resolved.
+   *
+   * Users who need to configure this behavior system-wide can override the project
+   * configuration using the `NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS=1` environment
+   * variable.
+   *
+   * This option is ignored on Windows on ARM, where the native TLS implementation is always
+   * used.
+   *
+   * If you need to set a proxy, Turbopack [respects the common `HTTP_PROXY` and `HTTPS_PROXY`
+   * environment variable convention](https://docs.rs/reqwest/latest/reqwest/#proxies). HTTP
+   * proxies are supported, SOCKS proxies are not currently supported.
+   */
+  turbopackUseSystemTlsCerts?: boolean
+
+  /**
+   * Set this to `false` to disable the automatic configuration of the babel loader when a babel
+   * configuration file is present. The babel loader configuration is enabled by default.
+   */
+  turbopackUseBuiltinBabel?: boolean
+
+  /**
+   * Set this to `false` to disable the automatic configuration of the sass loader. The sass loader
+   * configuration is enabled by default.
+   */
+  turbopackUseBuiltinSass?: boolean
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.

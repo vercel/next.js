@@ -15,7 +15,7 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.21.0"
-either = { workspace = true }
+either = { workspace = true, features = ["serde"] }
 once_cell = { workspace = true }
 qstring = { workspace = true }
 regex = { workspace = true }

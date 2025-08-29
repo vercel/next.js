@@ -2,6 +2,8 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../shared'
 import { connection } from 'next/server'
 
+export const unstable_prefetch = 'unstable_runtime'
+
 type AnySearchParams = { [key: string]: string | string[] | undefined }
 
 export default async function Page({
