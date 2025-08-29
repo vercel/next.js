@@ -432,8 +432,8 @@ impl ModuleTypeResult {
 impl EcmascriptParsable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>> {
-        let real_result = self.parse();
         let this = self.await?;
+        let real_result = this.parse();
         if this.options.await?.keep_last_successful_parse {
             let real_result_value = real_result.await?;
             let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
@@ -476,7 +476,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     ) -> Result<Vc<EcmascriptModuleContent>> {
         let this = self.await?;
 
-        let parsed = self.parse();
+        let parsed = this.parse();
 
         Ok(EcmascriptModuleContent::new_without_analysis(
             parsed,
@@ -492,7 +492,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
-        let parsed = self.parse().to_resolved().await?;
+        let parsed = self.await?.parse().to_resolved().await?;
 
         let analyze = self.analyze();
         let analyze_ref = analyze.await?;
@@ -622,14 +622,13 @@ impl EcmascriptModuleAsset {
     pub fn options(&self) -> Vc<EcmascriptOptions> {
         *self.options
     }
-
-    #[turbo_tasks::function]
-    pub fn parse(&self) -> Vc<ParseResult> {
-        parse(*self.source, self.ty, *self.transforms)
-    }
 }
 
 impl EcmascriptModuleAsset {
+    pub fn parse(&self) -> Vc<ParseResult> {
+        parse(*self.source, self.ty, *self.transforms)
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) async fn determine_module_type(self: Vc<Self>) -> Result<ReadRef<ModuleTypeResult>> {
         let this = self.await?;

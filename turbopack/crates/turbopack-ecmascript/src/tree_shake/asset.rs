@@ -14,7 +14,7 @@ use turbopack_core::{
 };
 
 use super::{
-    SplitResult, chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module, split,
+    SplitResult, chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module,
     split_module,
 };
 use crate::{
@@ -43,8 +43,7 @@ pub struct EcmascriptModulePartAsset {
 impl EcmascriptParsable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn failsafe_parse(&self) -> Result<Vc<ParseResult>> {
-        let parsed = self.full_module.failsafe_parse();
-        let split_data = split(self.full_module.ident(), self.full_module.source(), parsed);
+        let split_data = split_module(*self.full_module);
         Ok(part_of_module(split_data, self.part.clone()))
     }
     #[turbo_tasks::function]

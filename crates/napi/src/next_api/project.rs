@@ -438,8 +438,7 @@ pub fn project_new(
         )?;
         let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 
-        let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
-        if let Some(stats_path) = stats_path {
+        if let Some(stats_path) = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS") {
             let task_stats = turbo_tasks.task_statistics().enable().clone();
             exit.on_exit(async move {
                 tokio::task::spawn_blocking(move || {

@@ -100,7 +100,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
     ) -> Result<Vc<EcmascriptModuleContentOptions>> {
         let exports = self.get_exports().to_resolved().await?;
         let original_module = self.await?.module;
-        let parsed = original_module.parse().to_resolved().await?;
+        let parsed = original_module.await?.parse().to_resolved().await?;
 
         let analyze = original_module.analyze();
         let analyze_result = analyze.await?;

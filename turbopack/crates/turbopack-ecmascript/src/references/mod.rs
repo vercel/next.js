@@ -143,7 +143,6 @@ use crate::{
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
     export::Liveness,
     magic_identifier,
-    parse::parse,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
         cjs::{CjsRequireAssetReference, CjsRequireCacheAccess, CjsRequireResolveAssetReference},
@@ -163,7 +162,7 @@ use crate::{
         TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXPORTS, TURBOPACK_GLOBAL,
         TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
-    tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
+    tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split_module},
     utils::{AstPathRange, module_value_to_well_known_object},
 };
 
@@ -530,9 +529,8 @@ pub async fn analyse_ecmascript_module_internal(
     };
 
     let parsed = if let Some(part) = part {
-        let parsed = parse(*source, ty, *transforms);
-        let split_data = split(source.ident(), *source, parsed);
-        part_of_module(split_data, part.clone())
+        let split_data = split_module(*module);
+        part_of_module(split_data, part)
     } else {
         module.failsafe_parse()
     };
