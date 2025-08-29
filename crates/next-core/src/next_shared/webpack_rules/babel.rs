@@ -5,13 +5,15 @@ use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{self, FileSystemEntryType, FileSystemPath};
-use turbopack::module_options::LoaderRuleItem;
+use turbopack::module_options::{ConditionItem, LoaderRuleItem};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{node::node_cjs_resolve_options, parse::Request, pattern::Pattern, resolve},
 };
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
+
+use crate::next_shared::webpack_rules::WebpackLoaderBuiltinCondition;
 
 // https://babeljs.io/docs/config-files
 // TODO: Also support a `babel` key in a package.json file
@@ -89,7 +91,9 @@ pub async fn get_babel_loader_rules(
                 options: Default::default(),
             }]),
             rename_as: Some(rcstr!("*")),
-            condition: None,
+            condition: Some(ConditionItem::Not(Box::new(ConditionItem::Builtin(
+                RcStr::from(WebpackLoaderBuiltinCondition::Foreign.as_str()),
+            )))),
         },
     )])
 }

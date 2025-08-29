@@ -12,13 +12,11 @@ export function logStartInfo({
   appUrl,
   envInfo,
   experimentalFeatures,
-  maxExperimentalFeatures = Infinity,
 }: {
   networkUrl: string | null
   appUrl: string | null
   envInfo?: string[]
   experimentalFeatures?: ConfiguredExperimentalFeature[]
-  maxExperimentalFeatures?: number
 }) {
   let bundlerSuffix
   if (process.env.TURBOPACK) {
@@ -44,8 +42,7 @@ export function logStartInfo({
 
   if (experimentalFeatures?.length) {
     Log.bootstrap(`- Experiments (use with caution):`)
-    // only show a maximum number of flags
-    for (const exp of experimentalFeatures.slice(0, maxExperimentalFeatures)) {
+    for (const exp of experimentalFeatures) {
       const symbol =
         typeof exp.value === 'boolean'
           ? exp.value === true
@@ -61,10 +58,6 @@ export function logStartInfo({
       const reason = exp.reason ? ` (${exp.reason})` : ''
 
       Log.bootstrap(`  ${symbol} ${exp.key}${suffix}${reason}`)
-    }
-    /* indicate if there are more than the maximum shown no. flags */
-    if (experimentalFeatures.length > maxExperimentalFeatures) {
-      Log.bootstrap(`  · ...`)
     }
   }
 
@@ -90,8 +83,8 @@ export async function getStartServerInfo({
     dir,
     {
       reportExperimentalFeatures(features) {
-        experimentalFeatures = features.sort(
-          ({ key: a }, { key: b }) => a.length - b.length
+        experimentalFeatures = features.sort(({ key: a }, { key: b }) =>
+          a.localeCompare(b)
         )
       },
       debugPrerender,

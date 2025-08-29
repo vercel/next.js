@@ -79,7 +79,7 @@ impl Span {
         self.time_data.get_or_init(|| {
             Box::new(SpanTimeData {
                 self_end: self.start,
-                ignore_self_time: &self.name == "thread",
+                ignore_self_time: &self.name == "thread" || &self.name == "blocking",
                 ..Default::default()
             })
         })

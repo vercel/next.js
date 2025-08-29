@@ -278,16 +278,11 @@ export type TurbopackRuleCondition =
       content?: RegExp
     }
 
-export type TurbopackRuleConfigItemOptions = {
+export type TurbopackRuleConfigItem = {
   loaders: TurbopackLoaderItem[]
   as?: string
   condition?: TurbopackRuleCondition
 }
-
-export type TurbopackRuleConfigItem =
-  | TurbopackRuleConfigItemOptions
-  | { [condition in TurbopackLoaderBuiltinCondition]?: TurbopackRuleConfigItem }
-  | false
 
 /**
  * This can be an object representing a single configuration, or a list of
@@ -300,7 +295,7 @@ export type TurbopackRuleConfigItem =
  */
 export type TurbopackRuleConfigCollection =
   | TurbopackRuleConfigItem
-  | (TurbopackLoaderItem | TurbopackRuleConfigItemOptions)[]
+  | (TurbopackLoaderItem | TurbopackRuleConfigItem)[]
 
 export interface TurbopackOptions {
   /**
@@ -466,6 +461,13 @@ export interface ExperimentalConfig {
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   clientSegmentCache?: boolean | 'client-only'
+
+  /**
+   * Enables RDC for Dynamic Navigations. This is only supported for App Router
+   * when Partial Prerendering is also enabled. This is enabled by default when
+   * Partial Prerendering is enabled.
+   */
+  rdcForNavigations?: boolean
   clientParamParsing?: boolean
 
   /**
@@ -1573,6 +1575,7 @@ export const defaultConfig = Object.freeze({
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientSegmentCache: false,
+    rdcForNavigations: false,
     clientParamParsing: false,
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
