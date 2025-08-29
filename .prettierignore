@@ -71,6 +71,8 @@ test/e2e/async-modules/amp-validator-wasm.js
 /turbopack/crates/turbopack-tests/tests/snapshot/source_maps/*
 /turbopack/crates/turbopack-tests/tests/**/output*
 /turbopack/crates/turbopack-tests/tests/**/static
+/turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/syntax-err/input.js
+/turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/tsx/lib.tsx
 
 /apps/docs/.source/*
 

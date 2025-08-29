@@ -10084,6 +10084,7 @@ dependencies = [
  "rstest",
  "rstest_reuse",
  "serde",
+ "serde_json",
  "tokio",
  "turbo-rcstr",
  "turbo-tasks",
