@@ -225,7 +225,7 @@ export default async function Page({ params }) {
 
 On slow or unstable networks, prefetching may not finish before the user clicks a link. This can affect both static and dynamic routes. In these cases, the `loading.js` fallback may not appear immediately because it hasn't been prefetched yet.
 
-To improve perceived performance, you can use the [`useLinkStatus` hook](/docs/app/api-reference/functions/use-link-status) to add subtle, inline confirmation while the transition is in progress.
+To improve perceived performance, you can use the [`useLinkStatus` hook](/docs/app/api-reference/functions/use-link-status) to show immediate feedback while the transition is in progress.
 
 ```tsx filename="app/ui/loading-indicator.tsx" switcher
 'use client'
