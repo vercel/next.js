@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { assertNoConsoleErrors, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { format } from 'util'
 import { Playwright } from 'next-webdriver'
@@ -11,6 +11,11 @@ import { PrerenderManifest } from 'next/dist/build'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+
+const withPPR = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
+const withCacheComponents =
+  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
 
 describe('use-cache', () => {
   const { next, isNextDev, isNextDeploy, isNextStart, skipped } = nextTestSetup(
@@ -444,11 +449,6 @@ describe('use-cache', () => {
         await next.readFile('.next/prerender-manifest.json')
       ) as PrerenderManifest
 
-      const withPPR = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
-      const withCacheComponents =
-        process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
-
       let prerenderedRoutes = Object.entries(prerenderManifest.routes)
 
       if (withPPR || withCacheComponents) {
@@ -518,6 +518,23 @@ describe('use-cache', () => {
       expect(routes['/cache-life'].initialRevalidateSeconds).toBe(100)
       expect(routes['/cache-life'].initialExpireSeconds).toBe(300)
 
+      if (withCacheComponents) {
+        expect(
+          routes['/cache-life-with-dynamic'].initialRevalidateSeconds
+        ).toBe(100)
+        expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(
+          300
+        )
+      } else if (withPPR) {
+        // We don't exclude dynamic caches for the legacy PPR prerendering.
+        expect(
+          routes['/cache-life-with-dynamic'].initialRevalidateSeconds
+        ).toBe(99)
+        expect(routes['/cache-life-with-dynamic'].initialExpireSeconds).toBe(
+          299
+        )
+      }
+
       // default expireTime
       expect(routes['/cache-fetch'].initialExpireSeconds).toBe(31536000)
 
@@ -525,7 +542,7 @@ describe('use-cache', () => {
       // config for the page.
       expect(routes['/cache-tag'].initialRevalidateSeconds).toBe(42)
 
-      if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+      if (withPPR) {
         // cache life profile "weeks"
         expect(dynamicRoutes['/[id]'].fallbackRevalidate).toBe(604800)
         expect(dynamicRoutes['/[id]'].fallbackExpire).toBe(2592000)
@@ -533,10 +550,27 @@ describe('use-cache', () => {
     })
 
     it('should match the expected stale config in the page header', async () => {
-      const meta = JSON.parse(
+      const cacheLifeMeta = JSON.parse(
         await next.readFile('.next/server/app/cache-life.meta')
       )
-      expect(meta.headers['x-nextjs-stale-time']).toBe('19')
+      expect(cacheLifeMeta.headers['x-nextjs-stale-time']).toBe('19')
+
+      if (withCacheComponents) {
+        const cacheLifeWithDynamicMeta = JSON.parse(
+          await next.readFile('.next/server/app/cache-life-with-dynamic.meta')
+        )
+        expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe(
+          '19'
+        )
+      } else if (withPPR) {
+        const cacheLifeWithDynamicMeta = JSON.parse(
+          await next.readFile('.next/server/app/cache-life-with-dynamic.meta')
+        )
+        // We don't exclude dynamic caches for the legacy PPR prerendering.
+        expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe(
+          '18'
+        )
+      }
     })
 
     it('should send an SWR cache-control header based on the revalidate and expire values', async () => {
@@ -554,6 +588,30 @@ describe('use-cache', () => {
         // expireTime) => SWR 31535100
         's-maxage=900, stale-while-revalidate=31535100'
       )
+    })
+
+    if (withCacheComponents) {
+      it('should omit dynamic caches from prerendered shells', async () => {
+        const browser = await next.browser('/cache-life-with-dynamic', {
+          disableJavaScript: true,
+        })
+
+        expect(await browser.elementById('y').text()).toBe('Loading...')
+      })
+    }
+
+    it('should not have hydration errors when resuming a partial shell with dynamic caches', async () => {
+      const browser = await next.browser('/cache-life-with-dynamic', {
+        pushErrorAsConsoleLog: true,
+      })
+
+      await retry(async () => {
+        expect(await browser.elementById('y').text()).not.toBe('Loading...')
+      })
+
+      // There should be no hydration errors due to a buildtime date being
+      // replaced by a new runtime date.
+      await assertNoConsoleErrors(browser)
     })
 
     it('should propagate unstable_cache tags correctly', async () => {
@@ -962,8 +1020,8 @@ describe('use-cache', () => {
     })
   }
 
-  if (isNextStart && process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
-    it('should exclude inner caches from the resume data cache (RDC)', async () => {
+  if (isNextStart && withPPR) {
+    it('should exclude inner caches and omitted caches from the resume data cache (RDC)', async () => {
       await next.fetch('/rdc')
 
       const resumeDataCache = extractResumeDataCacheFromPostponedState(
@@ -974,11 +1032,21 @@ describe('use-cache', () => {
 
       // There should be no cache entry for the "middle" cache function, because
       // it's only used inside another cache scope ("outer"). Whereas "inner" is
-      // also used inside a prerender scope (the page). Note: We're matching on
-      // the "id" args that are encoded into the respective cache keys.
+      // also used inside a prerender scope (the page). Additionally, there
+      // should also be no cache entry for "short", because it has a short
+      // lifetime and is subsequently omitted from the prerendered shell. The
+      // following expectation is matching on the full list. If any additional
+      // keys are found, the test will fail and print the unexpected keys.
       expect(cacheKeys).toMatchObject([
+        // Note: We're matching on the args that are encoded into the respective
+        // cache keys.
         expect.stringContaining('["outer"]'),
         expect.stringContaining('["inner"]'),
+        ...(withCacheComponents
+          ? []
+          : // With legacy PPR, the "short" cache is included in the prerendered
+            // shell.
+            [expect.stringContaining('[{"id":"short"},"$undefined"]]')]),
       ])
     })
   }

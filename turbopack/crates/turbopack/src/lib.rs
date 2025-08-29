@@ -709,6 +709,7 @@ async fn externals_tracing_module_context(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
+            is_tracing: true,
             ..Default::default()
         }
         .cell(),

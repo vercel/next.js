@@ -359,7 +359,7 @@ function readRenderSnapshotFromCache(
   )
 
   // We don't need this information in a render snapshot, so this can just be a placeholder.
-  const shouldUseRuntimePrefetch = false
+  const hasRuntimePrefetch = false
 
   return {
     flightRouterState: [
@@ -375,7 +375,7 @@ function readRenderSnapshotFromCache(
       childSeedDatas,
       loading,
       isPartial,
-      shouldUseRuntimePrefetch,
+      hasRuntimePrefetch,
     ],
   }
 }

@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, fxindexmap};
+use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -13,10 +13,7 @@ use turbopack_core::{
     source::Source,
     virtual_source::VirtualSource,
 };
-use turbopack_ecmascript::{
-    runtime_functions::{TURBOPACK_LOAD, TURBOPACK_REQUIRE},
-    utils::StringifyJs,
-};
+use turbopack_ecmascript::runtime_functions::{TURBOPACK_LOAD, TURBOPACK_REQUIRE};
 
 use super::app_entry::AppEntry;
 use crate::{
@@ -64,7 +61,6 @@ pub async fn get_app_page_entry(
         inner_assets,
         imports,
         loader_tree_code,
-        pages,
     } = loader_tree;
 
     let mut result = RopeBuilder::default();
@@ -72,12 +68,6 @@ pub async fn get_app_page_entry(
     for import in imports {
         writeln!(result, "{import}")?;
     }
-
-    let pages = pages
-        .iter()
-        .map(|page| page.value_to_string())
-        .try_join()
-        .await?;
 
     let original_name: RcStr = page.to_string().into();
     let pathname: RcStr = AppPath::from(page.clone()).to_string().into();
@@ -100,7 +90,6 @@ pub async fn get_app_page_entry(
         ],
         &[
             ("tree", &*loader_tree_code),
-            ("pages", &StringifyJs(&pages).to_string()),
             ("__next_app_require__", &TURBOPACK_REQUIRE.bound()),
             ("__next_app_load_chunk__", &TURBOPACK_LOAD.bound()),
         ],
