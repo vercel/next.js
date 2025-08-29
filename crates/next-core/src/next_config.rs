@@ -870,11 +870,11 @@ pub struct ExperimentalConfig {
     turbopack_use_system_tls_certs: Option<bool>,
     /// Disable automatic configuration of the sass loader.
     #[serde(default)]
-    turbopack_disable_builtin_sass: Option<bool>,
+    turbopack_use_builtin_sass: Option<bool>,
     /// Disable automatic configuration of the babel loader when a babel configuration file is
     /// present.
     #[serde(default)]
-    turbopack_disable_builtin_babel: Option<bool>,
+    turbopack_use_builtin_babel: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1646,13 +1646,13 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn experimental_turbopack_disable_builtin_babel(&self) -> Vc<Option<bool>> {
-        Vc::cell(self.experimental.turbopack_disable_builtin_babel)
+    pub fn experimental_turbopack_use_builtin_babel(&self) -> Vc<Option<bool>> {
+        Vc::cell(self.experimental.turbopack_use_builtin_babel)
     }
 
     #[turbo_tasks::function]
-    pub fn experimental_turbopack_disable_builtin_sass(&self) -> Vc<Option<bool>> {
-        Vc::cell(self.experimental.turbopack_disable_builtin_sass)
+    pub fn experimental_turbopack_use_builtin_sass(&self) -> Vc<Option<bool>> {
+        Vc::cell(self.experimental.turbopack_use_builtin_sass)
     }
 
     #[turbo_tasks::function]

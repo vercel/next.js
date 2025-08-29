@@ -155,17 +155,17 @@ pub async fn webpack_loader_options(
 
     let config_file_path = async || project_path.join(&next_config.await?.config_file_name);
 
-    let disable_builtin_sass = next_config
-        .experimental_turbopack_disable_builtin_sass()
+    let use_builtin_sass = next_config
+        .experimental_turbopack_use_builtin_sass()
         .await?;
-    if !disable_builtin_sass.unwrap_or(false) {
-        if disable_builtin_sass.is_none()
+    if use_builtin_sass.unwrap_or(true) {
+        if use_builtin_sass.is_none()
             && let Some(glob) = detect_likely_sass_loader(&rules).await?
         {
             ManuallyConfiguredBuiltinLoaderIssue {
                 glob,
                 loader: rcstr!("sass-loader"),
-                disable_builtin_config_key: rcstr!("experimental.turbopackDisableBuiltinSass"),
+                config_key: rcstr!("experimental.turbopackUseBuiltinSass"),
                 config_file_path: config_file_path().await?,
             }
             .resolved_cell()
@@ -178,13 +178,13 @@ pub async fn webpack_loader_options(
     // (https://github.com/vercel/next.js/pull/82676) and the react-compiler logic is moved into
     // here. React-compiler is currently configured in JS before it gets to us, which could trigger
     // false-positives.
-    let disable_builtin_babel = next_config
-        .experimental_turbopack_disable_builtin_babel()
+    let use_builtin_babel = next_config
+        .experimental_turbopack_use_builtin_babel()
         .await?;
     if !builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Foreign)
-        && !disable_builtin_babel.unwrap_or(false)
+        && use_builtin_babel.unwrap_or(true)
     {
-        if disable_builtin_babel.is_none()
+        if use_builtin_babel.is_none()
             && let Some(glob) = detect_likely_babel_loader(&rules).await?
         {
             let _ = glob;
@@ -196,7 +196,7 @@ pub async fn webpack_loader_options(
             ManuallyConfiguredBuiltinLoaderIssue {
                 glob,
                 loader: rcstr!("babel-loader"),
-                disable_builtin_config_key: rcstr!("experimental.turbopackDisableBuiltinBabel"),
+                disable_builtin_config_key: rcstr!("experimental.turbopackUseBuiltinBabel"),
                 config_file_path: config_file_path().await?,
             }
             .resolved_cell()
@@ -241,7 +241,7 @@ fn loader_runner_package_mapping() -> Result<Vc<ImportMapping>> {
 struct ManuallyConfiguredBuiltinLoaderIssue {
     glob: RcStr,
     loader: RcStr,
-    disable_builtin_config_key: RcStr,
+    config_key: RcStr,
     config_file_path: FileSystemPath,
 }
 
@@ -282,13 +282,14 @@ impl Issue for ManuallyConfiguredBuiltinLoaderIssue {
                 )),
                 StyledString::Line(vec![
                     StyledString::Text(rcstr!("You can silence this warning by setting ")),
-                    StyledString::Code(self.disable_builtin_config_key.clone()),
+                    StyledString::Code(self.config_key.clone()),
                     StyledString::Text(rcstr!(" in ")),
                     StyledString::Text(self.config_file_path.path.clone()),
                     StyledString::Text(rcstr!(" to ")),
                     StyledString::Code(rcstr!("true")),
-                    StyledString::Text(rcstr!(" or ")),
+                    StyledString::Text(rcstr!(" (to silence this warning) or ")),
                     StyledString::Code(rcstr!("false")),
+                    StyledString::Text(rcstr!(" (to disable the default built-in loader)")),
                 ]),
             ])
             .resolved_cell(),

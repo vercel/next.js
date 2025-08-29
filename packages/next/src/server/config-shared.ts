@@ -638,15 +638,16 @@ export interface ExperimentalConfig {
   turbopackUseSystemTlsCerts?: boolean
 
   /**
-   * Disable automatic configuration of the babel loader when a babel configuration file is
-   * present.
+   * Set this to `false` to disable the automatic configuration of the babel loader when a babel
+   * configuration file is present. The babel loader configuration is enabled by default.
    */
-  turbopackDisableBuiltinBabel?: boolean
+  turbopackUseBuiltinBabel?: boolean
 
   /**
-   * Disable automatic configuration of the sass loader.
+   * Set this to `false` to disable the automatic configuration of the sass loader. The sass loader
+   * configuration is enabled by default.
    */
-  turbopackDisableBuiltinSass?: boolean
+  turbopackUseBuiltinSass?: boolean
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
