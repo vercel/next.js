@@ -43,11 +43,7 @@ async function nextMetadataImageLoader(
 
   const opts = { context, content }
 
-  // No hash query for favicon.ico
-  const contentHash =
-    type === 'favicon'
-      ? ''
-      : loaderUtils.interpolateName(this, '[contenthash]', opts)
+  const contentHash = loaderUtils.interpolateName(this, '[contenthash]', opts)
 
   const interpolatedName = loaderUtils.interpolateName(
     this,
@@ -179,7 +175,7 @@ async function nextMetadataImageLoader(
 
     return [{
       ...imageData,
-      url: imageUrl + ${JSON.stringify(type === 'favicon' ? '' : hashQuery)},
+      url: imageUrl + ${JSON.stringify(hashQuery)},
     }]
   }`
 }
