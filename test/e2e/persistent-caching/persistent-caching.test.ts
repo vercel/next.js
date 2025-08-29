@@ -193,8 +193,8 @@ describe('persistent-caching', () => {
 
       let current = inner
       for (const key of combination) {
-        const inner = current
-        current = () => POTENTIAL_CHANGES[key].withChange(inner)
+        const prev = current
+        current = () => POTENTIAL_CHANGES[key].withChange(prev)
       }
       await current()
 
