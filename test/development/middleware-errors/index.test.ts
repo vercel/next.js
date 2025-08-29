@@ -8,6 +8,8 @@ describe('middleware - development errors', () => {
     env: { __NEXT_TEST_WITH_DEVTOOL: '1' },
     patchFileDelay: 500,
   })
+  const isRspack = !!process.env.NEXT_RSPACK
+
   beforeEach(async () => {
     await next.stop()
   })
@@ -62,6 +64,20 @@ describe('middleware - development errors', () => {
              |               ^",
            "stack": [
              "{default export} middleware.js (3:15)",
+           ],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "boom",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "middleware.js (3:15) @ default
+         > 3 |         throw new Error('boom')
+             |               ^",
+           "stack": [
+             "default middleware.js (3:15)",
            ],
          }
         `)
@@ -214,6 +230,21 @@ describe('middleware - development errors', () => {
            ],
          }
         `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "test is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "middleware.js (4:9) @ default
+         > 4 |         eval('test')
+             |         ^",
+           "stack": [
+             "<FIXME-file-protocol>",
+             "default middleware.js (4:9)",
+           ],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
@@ -292,6 +323,29 @@ describe('middleware - development errors', () => {
              |             ^",
            "stack": [
              "{module evaluation} middleware.js (3:13)",
+           ],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "booooom!",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "middleware.js (3:13) @ eval
+         > 3 |       throw new Error('booooom!')
+             |             ^",
+           "stack": [
+             "<FIXME-next-dist-dir>",
+             "eval middleware.js (3:13)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
            ],
          }
         `)
@@ -435,6 +489,26 @@ describe('middleware - development errors', () => {
            "stack": [],
          }
         `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "  × Module build failed:",
+           "environmentLabel": null,
+           "label": "Build Error",
+           "source": "./middleware.js
+           × Module build failed:
+           ╰─▶   × Error:   x Expected '{', got '}'
+                 │    ,----
+                 │  1 | export default function () }
+                 │    :                            ^
+                 │    \`----
+                 │
+                 │
+                 │ Caused by:
+                 │     Syntax Error",
+           "stack": [],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
@@ -498,6 +572,26 @@ describe('middleware - development errors', () => {
          Parsing ecmascript source code failed
          > 1 | export default function () }
              |                            ^",
+           "stack": [],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "  × Module build failed:",
+           "environmentLabel": null,
+           "label": "Build Error",
+           "source": "./middleware.js
+           × Module build failed:
+           ╰─▶   × Error:   x Expected '{', got '}'
+                 │    ,----
+                 │  1 | export default function () }
+                 │    :                            ^
+                 │    \`----
+                 │
+                 │
+                 │ Caused by:
+                 │     Syntax Error",
            "stack": [],
          }
         `)
