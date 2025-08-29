@@ -17,6 +17,7 @@ describe('Client Navigation rendering', () => {
       TEST_STRICT_NEXT_HEAD: String(true),
     },
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   function render(
     pathname: Parameters<typeof renderViaHTTP>[1],
@@ -278,6 +279,29 @@ describe('Client Navigation rendering', () => {
              | ^",
            "stack": [
              "{module evaluation} pages/error-in-the-global-scope.js (1:1)",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "aa is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "pages/error-in-the-global-scope.js (1:1) @ eval
+         > 1 | aa = 10 //eslint-disable-line
+             | ^",
+           "stack": [
+             "eval pages/error-in-the-global-scope.js (1:1)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
              "<FIXME-next-dist-dir>",
            ],
          }
