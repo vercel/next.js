@@ -16,19 +16,21 @@ export async function runTypegen(
 
     switch (packageManager) {
       case 'npm':
-        command = 'npx'
-        args = ['next', 'typegen']
+        command = 'npm'
+        args = ['exec', 'next', '--', 'typegen']
         break
       case 'yarn':
         command = 'yarn'
-        args = ['next', 'typegen']
+        args = ['exec', 'next', '--', 'typegen']
         break
       case 'pnpm':
         command = 'pnpm'
-        args = ['next', 'typegen']
+        args = ['exec', 'next', '--', 'typegen']
         break
       case 'bun':
         command = 'bun'
+        // Bun only has `bun x` which is not the same thing.
+        // We need to hope Bun never implements their own `bun next`.
         args = ['next', 'typegen']
         break
       default:
