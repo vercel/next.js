@@ -30,6 +30,7 @@ pub(crate) mod sass;
 // Note: If you add a field here, make sure to also add it in:
 // - The typescript definition in `packages/next/src/server/config-shared.ts`
 // - The zod schema in `packages/next/src/server/config-schema.ts`
+// - The documentation in `docs/01-app/03-api-reference/05-config/01-next-config-js/turbopack.mdx`
 //
 // Note: Sets of conditions could be stored more efficiently as a bitset, but it's probably not used
 // in enough places for it to matter.
