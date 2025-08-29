@@ -461,7 +461,7 @@ describe('ReactRefreshLogBox app', () => {
        }
       `)
     } else if (isRspack) {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
          "environmentLabel": null,
@@ -470,7 +470,7 @@ describe('ReactRefreshLogBox app', () => {
          × Module build failed:
          ╰─▶   × SyntaxError
                │
-               │ (1:1) /private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0fb23711c93e7aa4710d22b4c761e31aac5d85ddcb32cb0c68dfb41b94d4e126/index.module.css Unknown word
+               │ (1:1) <FIXME-project-root>/index.module.css Unknown word
                │
                │ > 1 | .button
                │     | ^
@@ -1393,13 +1393,13 @@ describe('ReactRefreshLogBox app', () => {
        }
       `)
     } else if (isRspack) {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module not found: Can't resolve 'non-existing-module' in '/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0fb23711c93e7aa4710d22b4c761e31aac5d85ddcb32cb0c68dfb41b94d4e126/app'",
+         "description": "  × Module not found: Can't resolve 'non-existing-module' in '<FIXME-project-root>/app'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/module.js
-         × Module not found: Can't resolve 'non-existing-module' in '/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-0fb23711c93e7aa4710d22b4c761e31aac5d85ddcb32cb0c68dfb41b94d4e126/app'
+         × Module not found: Can't resolve 'non-existing-module' in '<FIXME-project-root>/app'
           ╭────
         1 │ import "non-existing-module";
           ·        ─────────────────────
