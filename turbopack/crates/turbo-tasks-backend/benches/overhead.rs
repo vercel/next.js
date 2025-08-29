@@ -26,7 +26,7 @@ pub fn overhead(c: &mut Criterion) {
     register();
 
     let mut group = c.benchmark_group("task_overhead");
-    group.sample_size(50);
+    group.sample_size(100);
     // Test durations between 10us and 1ms
     for micros in [1, 10, 50, 100, 500, 1000] {
         let duration = Duration::from_micros(micros);
@@ -35,28 +35,76 @@ pub fn overhead(c: &mut Criterion) {
             b.iter(|| busy_task(black_box(d)))
         });
 
-        group.bench_with_input(BenchmarkId::new("turbo", micros), &duration, |b, &d| {
-            run_turbo::<false>(b, d);
-        });
-
         group.bench_with_input(
-            BenchmarkId::new("turbo-cached", micros),
+            BenchmarkId::new("turbo-uncached", micros),
             &duration,
             |b, &d| {
-                run_turbo::<true>(b, d);
+                run_turbo::<Uncached>(b, d);
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("turbo-cached-same", micros),
+            &duration,
+            |b, &d| {
+                run_turbo::<CachedSame>(b, d);
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("turbo-cached-different", micros),
+            &duration,
+            |b, &d| {
+                run_turbo::<CachedDifferent>(b, d);
             },
         );
     }
     group.finish();
 }
 
-fn run_turbo<const CACHED: bool>(b: &mut criterion::Bencher<'_>, d: Duration) {
+trait TurboMode {
+    fn key(index: u64) -> u64;
+    fn is_cached() -> bool;
+}
+struct Uncached;
+impl TurboMode for Uncached {
+    fn key(index: u64) -> u64 {
+        index
+    }
+
+    fn is_cached() -> bool {
+        false
+    }
+}
+struct CachedSame;
+impl TurboMode for CachedSame {
+    fn key(_index: u64) -> u64 {
+        0
+    }
+
+    fn is_cached() -> bool {
+        true
+    }
+}
+struct CachedDifferent;
+impl TurboMode for CachedDifferent {
+    fn key(index: u64) -> u64 {
+        index
+    }
+
+    fn is_cached() -> bool {
+        true
+    }
+}
+fn run_turbo<Mode: TurboMode>(b: &mut criterion::Bencher<'_>, d: Duration) {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .unwrap();
 
     b.to_async(rt).iter_custom(|iters| {
+        // It is important to create the tt instance here to ensure the cache is not shared across
+        // iterations.
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
                 storage_mode: None,
@@ -67,13 +115,15 @@ fn run_turbo<const CACHED: bool>(b: &mut criterion::Bencher<'_>, d: Duration) {
 
         async move {
             tt.run_once(async move {
-                // If cached run once outside the loop to ensure the task is cached.
-                if CACHED {
-                    busy_turbo(0, black_box(d)).await?;
+                // If cached run once outside the loop to ensure the tasks are cached.
+                if Mode::is_cached() {
+                    for i in 0..iters {
+                        black_box(busy_turbo(i, black_box(d)).await?);
+                    }
                 }
                 let start = Instant::now();
                 for i in 0..iters {
-                    black_box(busy_turbo(if CACHED { 0 } else { i }, black_box(d)).await?);
+                    black_box(busy_turbo(Mode::key(i), black_box(d)).await?);
                 }
                 Ok(start.elapsed())
             })
