@@ -11,10 +11,12 @@ import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type {
   NextConfigComplete,
   ReactCompilerOptions,
+  TurbopackLoaderBuiltinCondition,
   TurbopackLoaderItem,
+  TurbopackRuleCondition,
+  TurbopackRuleConfigCollection,
   TurbopackRuleConfigItem,
   TurbopackRuleConfigItemOptions,
-  TurbopackRuleConfigItemOrShortcut,
 } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 import { type DefineEnvOptions, getDefineEnv } from '../define-env'
@@ -869,7 +871,7 @@ function bindingToApi(
     nextConfig: NextConfigComplete,
     projectPath: string
   ): Promise<string> {
-    // Avoid mutating the existing `nextConfig` object.
+    // Avoid mutating the existing `nextConfig` object. NOTE: This does a shallow clone.
     let nextConfigSerializable = augmentNextConfig(nextConfig, projectPath)
 
     nextConfigSerializable.generateBuildId =
@@ -878,12 +880,6 @@ function bindingToApi(
     // TODO: these functions takes arguments, have to be supported in a different way
     nextConfigSerializable.exportPathMap = {}
     nextConfigSerializable.webpack = nextConfigSerializable.webpack && {}
-
-    if (nextConfigSerializable.turbopack?.rules) {
-      ensureLoadersHaveSerializableOptions(
-        nextConfigSerializable.turbopack?.rules
-      )
-    }
 
     if (nextConfigSerializable.modularizeImports) {
       nextConfigSerializable.modularizeImports = Object.fromEntries(
@@ -942,86 +938,141 @@ function bindingToApi(
       }
     }
 
-    const conditions: (typeof nextConfig)['turbopack']['conditions'] =
-      nextConfigSerializable.turbopack?.conditions
-    if (conditions) {
-      type SerializedConditions = {
-        [key: string]: {
-          path?:
-            | { type: 'regex'; value: { source: string; flags: string } }
-            | { type: 'glob'; value: string }
-          content?: { source: string; flags: string }
-        }
+    if (nextConfigSerializable.turbopack != null) {
+      // clone to allow in-place mutations
+      const turbopack = { ...nextConfigSerializable.turbopack }
+
+      if (turbopack.rules) {
+        turbopack.rules = serializeTurbopackRules(turbopack.rules)
       }
 
-      function regexComponents(regex: RegExp): {
-        source: string
-        flags: string
-      } {
-        return {
-          source: regex.source,
-          flags: regex.flags,
+      const conditions: (typeof nextConfig)['turbopack']['conditions'] =
+        turbopack.conditions
+      if (conditions) {
+        const serializedConditions: { [key: string]: SerializedRuleCondition } =
+          {}
+        for (const [key, value] of Object.entries(conditions)) {
+          serializedConditions[key] = serializeRuleCondition(value)
         }
+        turbopack.conditions = serializedConditions
       }
 
-      const serializedConditions: SerializedConditions = {}
-      for (const [key, value] of Object.entries(conditions)) {
-        serializedConditions[key] = {
-          ...value,
-          path: !value.path
-            ? undefined
-            : value.path instanceof RegExp
-              ? {
-                  type: 'regex',
-                  value: regexComponents(value.path),
-                }
-              : { type: 'glob', value: value.path },
-          content: !value.content ? undefined : regexComponents(value.content),
-        }
-      }
-      nextConfigSerializable.turbopack.conditions = serializedConditions
+      nextConfigSerializable.turbopack = turbopack
     }
 
     return JSON.stringify(nextConfigSerializable, null, 2)
   }
 
-  function ensureLoadersHaveSerializableOptions(
-    turbopackRules: Record<string, TurbopackRuleConfigItemOrShortcut>
-  ) {
-    for (const [glob, rule] of Object.entries(turbopackRules)) {
-      if (Array.isArray(rule)) {
-        checkLoaderItems(rule, glob)
-      } else {
-        checkConfigItem(rule, glob)
+  type SerializedRuleCondition =
+    | { all: SerializedRuleCondition[] }
+    | { any: SerializedRuleCondition[] }
+    | { not: SerializedRuleCondition }
+    | TurbopackLoaderBuiltinCondition
+    | {
+        path?:
+          | { type: 'regex'; value: { source: string; flags: string } }
+          | { type: 'glob'; value: string }
+        content?: { source: string; flags: string }
+      }
+
+  // converts regexes to a `RegexComponents` object so that it can be JSON-serialized when passed to
+  // Turbopack
+  function serializeRuleCondition(
+    cond: TurbopackRuleCondition
+  ): SerializedRuleCondition {
+    function regexComponents(regex: RegExp) {
+      return {
+        source: regex.source,
+        flags: regex.flags,
       }
     }
 
-    function checkConfigItem(rule: TurbopackRuleConfigItem, glob: string) {
-      if (!rule) return
-      if ('loaders' in rule) {
-        checkLoaderItems((rule as TurbopackRuleConfigItemOptions).loaders, glob)
+    if (typeof cond === 'string') {
+      return cond
+    } else if ('all' in cond) {
+      return { ...cond, all: cond.all.map(serializeRuleCondition) }
+    } else if ('any' in cond) {
+      return { ...cond, any: cond.any.map(serializeRuleCondition) }
+    } else if ('not' in cond) {
+      return { ...cond, not: serializeRuleCondition(cond.not) }
+    } else {
+      return {
+        ...cond,
+        path:
+          cond.path == null
+            ? undefined
+            : cond.path instanceof RegExp
+              ? {
+                  type: 'regex',
+                  value: regexComponents(cond.path),
+                }
+              : { type: 'glob', value: cond.path },
+        content: cond.content && regexComponents(cond.content),
+      }
+    }
+  }
+
+  // Note: Returns an updated `turbopackRules` with serialized conditions. Does not mutate in-place.
+  function serializeTurbopackRules(
+    turbopackRules: Record<string, TurbopackRuleConfigCollection>
+  ): Record<string, any> {
+    const serializedRules: Record<string, any> = {}
+    for (const [glob, rule] of Object.entries(turbopackRules)) {
+      if (Array.isArray(rule)) {
+        serializedRules[glob] = rule.map((item) => {
+          if (typeof item !== 'string' && 'loaders' in item) {
+            return serializeConfigItem(item, glob)
+          } else {
+            checkLoaderItem(item, glob)
+            return item
+          }
+        })
       } else {
-        for (const value of Object.values(rule)) {
+        serializedRules[glob] = serializeConfigItem(rule, glob)
+      }
+    }
+
+    return serializedRules
+
+    function serializeConfigItem(
+      rule: TurbopackRuleConfigItem,
+      glob: string
+    ): any {
+      if (!rule) return rule
+      let serializedRule: any = rule
+      if ('loaders' in rule) {
+        const narrowedRule = rule as TurbopackRuleConfigItemOptions
+        for (const item of narrowedRule.loaders) {
+          checkLoaderItem(item, glob)
+        }
+        if (narrowedRule.condition != null) {
+          serializedRule = {
+            ...rule,
+            condition: serializeRuleCondition(narrowedRule.condition),
+          }
+        }
+      } else {
+        serializedRule = {}
+        for (const [key, value] of Object.entries(rule)) {
           if (typeof value === 'object' && value) {
-            checkConfigItem(value, glob)
+            serializedRule[key] = serializeConfigItem(value, glob)
+          } else {
+            serializedRule[key] = value
           }
         }
       }
+      return serializedRule
     }
 
-    function checkLoaderItems(
-      loaderItems: TurbopackLoaderItem[],
-      glob: string
-    ) {
-      for (const loaderItem of loaderItems) {
-        if (
-          typeof loaderItem !== 'string' &&
-          !isDeepStrictEqual(loaderItem, JSON.parse(JSON.stringify(loaderItem)))
-        ) {
-          throw new Error(
-            `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. Ensure that options passed are plain JavaScript objects and values.`
-          )
-        }
+    function checkLoaderItem(loaderItem: TurbopackLoaderItem, glob: string) {
+      if (
+        typeof loaderItem !== 'string' &&
+        !isDeepStrictEqual(loaderItem, JSON.parse(JSON.stringify(loaderItem)))
+      ) {
+        throw new Error(
+          `loader ${loaderItem.loader} for match "${glob}" does not have serializable options. ` +
+            'Ensure that options passed are plain JavaScript objects and values.'
+        )
       }
     }
   }

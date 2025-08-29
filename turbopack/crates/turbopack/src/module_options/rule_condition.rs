@@ -1,4 +1,10 @@
+use std::{
+    iter,
+    mem::{replace, take},
+};
+
 use anyhow::{Result, bail};
+use either::Either;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 use turbo_esregex::EsRegex;
@@ -13,6 +19,8 @@ pub enum RuleCondition {
     All(Vec<RuleCondition>),
     Any(Vec<RuleCondition>),
     Not(Box<RuleCondition>),
+    True,
+    False,
     ReferenceType(ReferenceType),
     ResourceIsVirtualSource,
     ResourcePathEquals(FileSystemPath),
@@ -52,9 +60,101 @@ impl RuleCondition {
     pub fn not(condition: RuleCondition) -> RuleCondition {
         RuleCondition::Not(Box::new(condition))
     }
-}
 
-impl RuleCondition {
+    /// Slightly optimize a `RuleCondition` by flattening nested `Any`, `All`, or `Not` variants.
+    ///
+    /// Does not apply general re-ordering of rules (which may also be a valid optimization using a
+    /// cost heuristic), but does flatten constant `True` and `False` conditions, potentially
+    /// skipping other rules.
+    pub fn flatten(&mut self) {
+        match self {
+            RuleCondition::Any(conds) => {
+                // fast path: flatten children in-place and avoid constructing an additional vec
+                let mut needs_flattening = false;
+                for c in conds.iter_mut() {
+                    c.flatten();
+                    if *c == RuleCondition::True {
+                        // short-circuit: all conditions are side-effect free
+                        *self = RuleCondition::True;
+                        return;
+                    }
+                    needs_flattening = needs_flattening
+                        || matches!(c, RuleCondition::Any(_) | RuleCondition::False);
+                }
+
+                if needs_flattening {
+                    *conds = take(conds)
+                        .into_iter()
+                        .flat_map(|c| match c {
+                            RuleCondition::Any(nested) => {
+                                debug_assert!(!nested.is_empty(), "empty Any should be False");
+                                Either::Left(nested.into_iter())
+                            }
+                            RuleCondition::False => Either::Right(Either::Left(iter::empty())),
+                            c => Either::Right(Either::Right(iter::once(c))),
+                        })
+                        .collect();
+                }
+
+                match conds.len() {
+                    0 => *self = RuleCondition::False,
+                    1 => *self = take(conds).into_iter().next().unwrap(),
+                    _ => {}
+                }
+            }
+            RuleCondition::All(conds) => {
+                // fast path: flatten children in-place and avoid constructing an additional vec
+                let mut needs_flattening = false;
+                for c in conds.iter_mut() {
+                    c.flatten();
+                    if *c == RuleCondition::False {
+                        // short-circuit: all conditions are side-effect free
+                        *self = RuleCondition::False;
+                        return;
+                    }
+                    needs_flattening = needs_flattening
+                        || matches!(c, RuleCondition::All(_) | RuleCondition::True);
+                }
+
+                if needs_flattening {
+                    *conds = take(conds)
+                        .into_iter()
+                        .flat_map(|c| match c {
+                            RuleCondition::All(nested) => {
+                                debug_assert!(!nested.is_empty(), "empty All should be True");
+                                Either::Left(nested.into_iter())
+                            }
+                            RuleCondition::True => Either::Right(Either::Left(iter::empty())),
+                            c => Either::Right(Either::Right(iter::once(c))),
+                        })
+                        .collect();
+                }
+
+                match conds.len() {
+                    0 => *self = RuleCondition::True,
+                    1 => *self = take(conds).into_iter().next().unwrap(),
+                    _ => {}
+                }
+            }
+            RuleCondition::Not(cond) => {
+                match &mut **cond {
+                    // nested `Not`s negate each other
+                    RuleCondition::Not(inner) => {
+                        let inner = &mut **inner;
+                        inner.flatten();
+                        // Use `replace` with a dummy condition instead of `take` since
+                        // `RuleCondition` doesn't implement `Default`.
+                        *self = replace(inner, RuleCondition::False)
+                    }
+                    RuleCondition::True => *self = RuleCondition::False,
+                    RuleCondition::False => *self = RuleCondition::True,
+                    other => other.flatten(),
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub async fn matches(
         &self,
         source: ResolvedVc<Box<dyn Source>>,
@@ -107,6 +207,12 @@ impl RuleCondition {
                         stack.push(Op::Not);
                         cond = inner.as_ref();
                         continue;
+                    }
+                    RuleCondition::True => {
+                        return Ok(true);
+                    }
+                    RuleCondition::False => {
+                        return Ok(false);
                     }
                     RuleCondition::ReferenceType(condition_ty) => {
                         return Ok(condition_ty.includes(reference_type));
@@ -239,6 +345,104 @@ pub mod tests {
     use turbopack_core::{asset::AssetContent, file_source::FileSource};
 
     use super::*;
+
+    #[test]
+    fn flatten_any_with_single_child_collapses() {
+        let mut rc = RuleCondition::Any(vec![RuleCondition::True]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::True);
+
+        let mut rc = RuleCondition::Any(vec![RuleCondition::ContentTypeEmpty]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::ContentTypeEmpty);
+    }
+
+    #[test]
+    fn flatten_any_nested_and_false() {
+        let mut rc = RuleCondition::Any(vec![
+            RuleCondition::False,
+            RuleCondition::Any(vec![RuleCondition::ContentTypeEmpty, RuleCondition::False]),
+        ]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::ContentTypeEmpty);
+    }
+
+    #[test]
+    fn flatten_any_short_circuits_on_true() {
+        let mut rc = RuleCondition::Any(vec![
+            RuleCondition::False,
+            RuleCondition::True,
+            RuleCondition::ContentTypeEmpty,
+        ]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::True);
+    }
+
+    #[test]
+    fn flatten_any_empty_becomes_false() {
+        let mut rc = RuleCondition::Any(vec![]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::False);
+    }
+
+    #[test]
+    fn flatten_all_with_single_child_collapses() {
+        let mut rc = RuleCondition::All(vec![RuleCondition::ContentTypeEmpty]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::ContentTypeEmpty);
+
+        let mut rc = RuleCondition::All(vec![RuleCondition::True]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::True);
+    }
+
+    #[test]
+    fn flatten_all_nested_and_true() {
+        let mut rc = RuleCondition::All(vec![
+            RuleCondition::True,
+            RuleCondition::All(vec![RuleCondition::ContentTypeEmpty, RuleCondition::True]),
+        ]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::ContentTypeEmpty);
+    }
+
+    #[test]
+    fn flatten_all_short_circuits_on_false() {
+        let mut rc = RuleCondition::All(vec![
+            RuleCondition::True,
+            RuleCondition::False,
+            RuleCondition::ContentTypeEmpty,
+        ]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::False);
+    }
+
+    #[test]
+    fn flatten_all_empty_becomes_true() {
+        let mut rc = RuleCondition::All(vec![]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::True);
+    }
+
+    #[test]
+    fn flatten_not_of_not() {
+        let mut rc = RuleCondition::Not(Box::new(RuleCondition::Not(Box::new(
+            RuleCondition::All(vec![RuleCondition::ContentTypeEmpty]),
+        ))));
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::ContentTypeEmpty);
+    }
+
+    #[test]
+    fn flatten_not_constants() {
+        let mut rc = RuleCondition::Not(Box::new(RuleCondition::True));
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::False);
+
+        let mut rc = RuleCondition::Not(Box::new(RuleCondition::False));
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::True);
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_rule_condition_leaves() {

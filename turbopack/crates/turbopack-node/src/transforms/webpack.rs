@@ -88,6 +88,7 @@ struct WebpackLoadersProcessingResult {
 )]
 pub struct WebpackLoaderItem {
     pub loader: RcStr,
+    #[serde(default)]
     pub options: serde_json::Map<String, serde_json::Value>,
 }
 

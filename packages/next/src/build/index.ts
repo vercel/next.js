@@ -480,6 +480,7 @@ export type RoutesManifest = {
      * rewrites will get the rewrite headers.
      */
     clientParamParsingOrigins: string[] | undefined
+    dynamicRSCPrerender: boolean
   }
   rewriteHeaders: {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
@@ -1567,6 +1568,17 @@ export default async function build(
               clientParamParsingOrigins: config.experimental.clientParamParsing
                 ? config.experimental.clientParamParsingOrigins
                 : undefined,
+              dynamicRSCPrerender:
+                // Only enable RDC for Navigations if the feature is enabled.
+                // Once we've made RDC for Navigations the default for PPR, we
+                // can remove the check for `config.experimental.rdcForNavigations`.
+                isAppPPREnabled &&
+                config.experimental.rdcForNavigations === true &&
+                // Temporarily we require that clientParamParsing is enabled for
+                // RDC for Navigations. This is due to a builder configuration
+                // bug that manifests as invalid query params being passed to
+                // the resume lambdas.
+                config.experimental.clientParamParsing === true,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,

@@ -744,6 +744,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/hmr-intercept-routes/hmr-intercept-routes.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["hmr-intercept-routes should update intercept routes via HMR"],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/hmr-move-file/hmr-move-file.test.ts": {
     "passed": [
       "HMR Move File should work when moving a component to another directory"
@@ -1111,10 +1118,10 @@
     "runtimeError": false
   },
   "test/development/basic/barrel-optimization/barrel-optimization-mui.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Skipped in Turbopack optimizePackageImports - mui should support MUI"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3457,6 +3464,7 @@
       "app-dir static/dynamic handling it should revalidate tag correctly with edge route handler",
       "app-dir static/dynamic handling it should revalidate tag correctly with node route handler",
       "app-dir static/dynamic handling should allow dynamic routes to access cookies",
+      "app-dir static/dynamic handling should build dynamic param with edge runtime correctly",
       "app-dir static/dynamic handling should bypass fetch cache with cache-control: no-cache",
       "app-dir static/dynamic handling should cache correctly for cache: \"force-cache\" and \"revalidate\"",
       "app-dir static/dynamic handling should cache correctly for cache: no-store",
@@ -3535,9 +3543,7 @@
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite"
     ],
-    "failed": [
-      "app-dir static/dynamic handling should build dynamic param with edge runtime correctly"
-    ],
+    "failed": [],
     "pending": [
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-edge",
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-node",
@@ -3545,7 +3551,7 @@
       "app-dir static/dynamic handling useSearchParams client should have empty search params on force-static"
     ],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/e2e/app-dir/app-validation/validation.test.ts": {
     "passed": [
@@ -3610,7 +3616,6 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -3624,6 +3629,7 @@
       "app dir - basic server components client components should have consistent query and params handling",
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
+      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
       "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
@@ -3668,7 +3674,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -4974,6 +4980,16 @@
     "passed": [
       "global-not-found - both-present should render global-not-found for 404 routes",
       "global-not-found - both-present should render not-found boundary when calling notFound() in a page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/global-not-found/cache-components/cache-components.test.ts": {
+    "passed": [
+      "global-not-found - cache-components should render global-not-found for 404 routes",
+      "global-not-found - cache-components should render not-found boundary when calling notFound() in a page"
     ],
     "failed": [],
     "pending": [],
@@ -7234,8 +7250,10 @@
       "app dir - rsc basics client references with TLA (edge) should support TLA in sync client reference imports",
       "app dir - rsc basics client references with TLA (node) should support TLA in lazy client reference",
       "app dir - rsc basics client references with TLA (node) should support TLA in sync client reference imports",
+      "app dir - rsc basics edge should handle dynamic routes when URL segment matches the folder bracket syntax",
       "app dir - rsc basics next internal shared context should not error if just load next/navigation module in pages/api",
       "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
+      "app dir - rsc basics node should handle dynamic routes when URL segment matches the folder bracket syntax",
       "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
       "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",

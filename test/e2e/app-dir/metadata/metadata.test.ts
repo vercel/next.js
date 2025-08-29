@@ -691,14 +691,18 @@ describe('app dir - metadata', () => {
       expect(resAppleIcon.headers.get('cache-control')).toBe(
         isNextDev
           ? 'no-cache, no-store'
-          : 'public, immutable, no-transform, max-age=31536000'
+          : isNextDeploy
+            ? 'public, max-age=0, must-revalidate'
+            : 'public, immutable, no-transform, max-age=31536000'
       )
       expect(resIcon.status).toBe(200)
       expect(resIcon.headers.get('content-type')).toBe('image/png')
       expect(resIcon.headers.get('cache-control')).toBe(
         isNextDev
           ? 'no-cache, no-store'
-          : 'public, immutable, no-transform, max-age=31536000'
+          : isNextDeploy
+            ? 'public, max-age=0, must-revalidate'
+            : 'public, immutable, no-transform, max-age=31536000'
       )
     })
 

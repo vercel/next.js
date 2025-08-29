@@ -11,8 +11,8 @@ on:
 # of that workflow. Environment variables are not automatically passed to
 # reusable workflows.
 env:
-  NODE_MAINTENANCE_VERSION: 18
-  NODE_LTS_VERSION: 20
+  NODE_MAINTENANCE_VERSION: 20
+  NODE_LTS_VERSION: 22
 
 jobs:
   optimize-ci:
@@ -109,7 +109,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
       - name: Setup corepack
         run: |
           npm i -g corepack@0.31
@@ -275,7 +275,7 @@ jobs:
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
@@ -308,7 +308,7 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
@@ -330,7 +330,7 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
@@ -381,7 +381,7 @@ jobs:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
 
@@ -414,7 +414,7 @@ jobs:
         # Empty value uses default
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
         export NEXT_TEST_MODE=start
@@ -441,7 +441,7 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
 
@@ -511,7 +511,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [18, 20] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
+        node: [20, 22] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -529,7 +529,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [18, 20] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
+        node: [20, 22] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -680,7 +680,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         node run-tests.js \
           --concurrency 4 \
@@ -775,7 +775,7 @@ jobs:
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
@@ -821,7 +821,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export __NEXT_EXPERIMENTAL_PPR=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json"
@@ -887,7 +887,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
         export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true

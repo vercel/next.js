@@ -9482,6 +9482,7 @@ dependencies = [
  "anyhow",
  "codspeed-criterion-compat",
  "difference",
+ "either",
  "regex",
  "rstest",
  "rstest_reuse",

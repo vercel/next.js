@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 
-describe('<Link prefetch={true}> (runtime prefetch)', () => {
+describe('runtime prefetching', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })

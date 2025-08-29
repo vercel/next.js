@@ -170,6 +170,46 @@ describe('loadConfig', () => {
       )
     })
 
+    it('errors when rdcForNavigations is enabled but ppr is disabled', async () => {
+      await expect(
+        loadConfig('', __dirname, {
+          customConfig: {
+            experimental: {
+              rdcForNavigations: true,
+              ppr: false,
+            },
+          },
+        })
+      ).rejects.toThrow(
+        '`experimental.rdcForNavigations` is enabled, but `experimental.ppr` is not.'
+      )
+    })
+
+    it('defaults rdcForNavigations to true when ppr is enabled', async () => {
+      const result = await loadConfig('', __dirname, {
+        customConfig: {
+          experimental: {
+            ppr: true,
+          },
+        },
+      })
+
+      expect(result.experimental.rdcForNavigations).toBe(true)
+    })
+
+    it('allows explicitly disabling rdcForNavigations when ppr is enabled', async () => {
+      const result = await loadConfig('', __dirname, {
+        customConfig: {
+          experimental: {
+            ppr: true,
+            rdcForNavigations: false,
+          },
+        },
+      })
+
+      expect(result.experimental.rdcForNavigations).toBe(false)
+    })
+
     it('errors when cacheComponents is enabled but PPR set to "incremental"', async () => {
       await expect(
         loadConfig('', __dirname, {
