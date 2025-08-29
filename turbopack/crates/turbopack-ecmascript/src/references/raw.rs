@@ -3,6 +3,7 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
+    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     reference::ModuleReference,
     resolve::{ModuleResolveResult, pattern::Pattern, resolve_raw},
     source::Source,
@@ -41,6 +42,14 @@ impl ModuleReference for FileSourceReference {
         }
         .instrument(span)
         .await
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for FileSourceReference {
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Traced))
     }
 }
 
