@@ -1910,7 +1910,10 @@
         });
         weakResponse = response._debugChannel;
         void 0 !== weakResponse &&
-          (closeDebugChannel(weakResponse), (response._debugChannel = void 0));
+          (closeDebugChannel(weakResponse),
+          (response._debugChannel = void 0),
+          null !== debugChannelRegistry &&
+            debugChannelRegistry.unregister(response));
       }
     }
     function nullRefGetter() {
@@ -2713,7 +2716,7 @@
       debugChannel &&
         (null === debugChannelRegistry
           ? (closeDebugChannel(debugChannel), (this._debugChannel = void 0))
-          : debugChannelRegistry.register(this, debugChannel));
+          : debugChannelRegistry.register(this, debugChannel, this));
       replayConsole && markAllTracksInOrder();
       this._fromJSON = createFromJSONCallback(this);
     }

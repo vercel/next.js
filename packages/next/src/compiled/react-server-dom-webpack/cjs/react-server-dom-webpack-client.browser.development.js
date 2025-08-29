@@ -1290,7 +1290,10 @@
         });
         weakResponse = response._debugChannel;
         void 0 !== weakResponse &&
-          (closeDebugChannel(weakResponse), (response._debugChannel = void 0));
+          (closeDebugChannel(weakResponse),
+          (response._debugChannel = void 0),
+          null !== debugChannelRegistry &&
+            debugChannelRegistry.unregister(response));
       }
     }
     function nullRefGetter() {
@@ -2075,7 +2078,7 @@
       debugChannel &&
         (null === debugChannelRegistry
           ? (closeDebugChannel(debugChannel), (this._debugChannel = void 0))
-          : debugChannelRegistry.register(this, debugChannel));
+          : debugChannelRegistry.register(this, debugChannel, this));
       this._fromJSON = createFromJSONCallback(this);
     }
     function createStreamState() {
@@ -3480,10 +3483,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-8d7b5e49-20250827",
+      version: "19.2.0-canary-aad7c664-20250829",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-8d7b5e49-20250827",
+      reconcilerVersion: "19.2.0-canary-aad7c664-20250829",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
