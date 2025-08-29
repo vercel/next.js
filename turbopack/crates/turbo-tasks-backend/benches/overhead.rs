@@ -52,7 +52,7 @@ pub fn overhead(c: &mut Criterion) {
         );
 
         group.bench_with_input(
-            BenchmarkId::new("turbo-cached-same", micros),
+            BenchmarkId::new("turbo-cached-same-keys", micros),
             &duration,
             |b, &d| {
                 run_turbo::<CachedSame>(&rt, b, d);
@@ -60,7 +60,7 @@ pub fn overhead(c: &mut Criterion) {
         );
 
         group.bench_with_input(
-            BenchmarkId::new("turbo-cached-different", micros),
+            BenchmarkId::new("turbo-cached-different-keys", micros),
             &duration,
             |b, &d| {
                 run_turbo::<CachedDifferent>(&rt, b, d);
