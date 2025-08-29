@@ -229,6 +229,7 @@ export async function createApp({
         console.log()
       } catch (err) {
         // Best effort: do not fail app creation if typegen fails
+        console.error('Error running typegen:', err)
       }
     }
   } else {
