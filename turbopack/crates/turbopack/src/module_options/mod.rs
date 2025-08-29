@@ -577,37 +577,11 @@ impl ModuleOptions {
             for (key, rule) in webpack_loaders_options.rules.await?.iter() {
                 let mut rule_conditions = Vec::new();
 
-                if key.starts_with("#") {
-                    // Legacy (undocumented) condition reference syntax:
-                    // https://www.notion.so/vercel/Turbopack-loader-rule-syntax-254e06b059c4809096d1e7c9afad278c
-                    //
-                    // This is a custom marker requiring a corresponding condition entry
-                    let conditions = (*webpack_loaders_options.conditions.await?)
-                        .context(
-                            "Expected a condition entry for the webpack loader rule matching \
-                             {key}. Create a `conditions` mapping in your next.config.js",
-                        )?
-                        .await?;
-
-                    let condition = conditions.get(key).context(
-                        "Expected a condition entry for the webpack loader rule matching {key}.",
-                    )?;
-
-                    rule_conditions.push(
-                        rule_condition_from_webpack_condition(
-                            execution_context,
-                            &*builtin_conditions,
-                            condition,
-                        )
-                        .await?,
-                    )
-                } else {
-                    // prefer to add this condition ahead of the user-defined `condition` field,
-                    // because we know it's cheap to check
-                    rule_conditions.push(
-                        rule_condition_from_webpack_condition_glob(execution_context, key).await?,
-                    )
-                };
+                // prefer to add the glob condition ahead of the user-defined `condition` field,
+                // because we know it's cheap to check
+                rule_conditions.push(
+                    rule_condition_from_webpack_condition_glob(execution_context, key).await?,
+                );
 
                 if let Some(condition) = &rule.condition {
                     rule_conditions.push(

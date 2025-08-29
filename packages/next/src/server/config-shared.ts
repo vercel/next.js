@@ -301,7 +301,7 @@ export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A mapping of aliased imports to modules to load in their place.
    *
-   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-alias)
+   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#resolving-aliases)
    */
   resolveAlias?: Record<
     string,
@@ -311,23 +311,16 @@ export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A list of extensions to resolve when importing files.
    *
-   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
+   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#resolving-custom-extensions)
    */
   resolveExtensions?: string[]
 
   /**
    * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)
    */
   rules?: Record<string, TurbopackRuleConfigCollection>
-
-  /**
-   * (`next --turbopack` only) A list of conditions to apply when running webpack loaders with Turbopack.
-   *
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
-   */
-  conditions?: Record<`#${string}`, TurbopackRuleCondition>
 
   /**
    * The module ID strategy to use for Turbopack.
@@ -348,7 +341,7 @@ export interface DeprecatedExperimentalTurboOptions extends TurbopackOptions {
    * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @deprecated Use `rules` instead.
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)
    */
   loaders?: Record<string, TurbopackLoaderItem[]>
 
