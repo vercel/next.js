@@ -148,7 +148,7 @@ impl ModuleReference for DirAssetReference {
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let parent_path = self.source.ident().path().await?.parent();
         let span = tracing::info_span!(
-            "resolve DirAssetReference",
+            "trace directory",
             pattern = display(self.path.to_string().await?)
         );
         async {

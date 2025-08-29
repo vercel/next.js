@@ -30,7 +30,7 @@ impl ModuleReference for FileSourceReference {
         let context_dir = self.source.ident().path().await?.parent();
 
         let span = tracing::info_span!(
-            "resolve FileSourceReference",
+            "trace file",
             pattern = display(self.path.to_string().await?)
         );
         async {
