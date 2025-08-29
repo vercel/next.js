@@ -202,6 +202,9 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         event_types: Option<Vec<String>>,
     ) -> Receiver<Arc<dyn CompilationEvent>>;
     fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>);
+
+    // Returns true if TurboTasks is configured to track dependencies.
+    fn is_tracking_dependencies(&self) -> bool;
 }
 
 /// A wrapper around a value that is unused.
@@ -1441,6 +1444,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         if let Err(e) = self.compilation_events.send(event) {
             tracing::warn!("Failed to send compilation event: {e}");
         }
+    }
+
+    fn is_tracking_dependencies(&self) -> bool {
+        self.backend.is_tracking_dependencies()
     }
 }
 
