@@ -27,8 +27,16 @@ pub fn overhead(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("task_overhead");
     group.sample_size(100);
-    // Test durations between 10us and 1ms
-    for micros in [1, 10, 50, 100, 500, 1000] {
+    let rt: tokio::runtime::Runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
+
+    // Test durations between 10us and 1ms.  This enables two things
+    // 1. ensure that our busy task is working correctly, we should see uncached times scale with
+    //    this metric
+    // 2. see if there are effects related to how long await points take
+    for micros in [1, 10, 100, 1000] {
         let duration = Duration::from_micros(micros);
 
         group.bench_with_input(BenchmarkId::new("direct", micros), &duration, |b, &d| {
@@ -39,7 +47,7 @@ pub fn overhead(c: &mut Criterion) {
             BenchmarkId::new("turbo-uncached", micros),
             &duration,
             |b, &d| {
-                run_turbo::<Uncached>(b, d);
+                run_turbo::<Uncached>(&rt, b, d);
             },
         );
 
@@ -47,7 +55,7 @@ pub fn overhead(c: &mut Criterion) {
             BenchmarkId::new("turbo-cached-same", micros),
             &duration,
             |b, &d| {
-                run_turbo::<CachedSame>(b, d);
+                run_turbo::<CachedSame>(&rt, b, d);
             },
         );
 
@@ -55,7 +63,7 @@ pub fn overhead(c: &mut Criterion) {
             BenchmarkId::new("turbo-cached-different", micros),
             &duration,
             |b, &d| {
-                run_turbo::<CachedDifferent>(b, d);
+                run_turbo::<CachedDifferent>(&rt, b, d);
             },
         );
     }
@@ -96,12 +104,11 @@ impl TurboMode for CachedDifferent {
         true
     }
 }
-fn run_turbo<Mode: TurboMode>(b: &mut criterion::Bencher<'_>, d: Duration) {
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-
+fn run_turbo<Mode: TurboMode>(
+    rt: &tokio::runtime::Runtime,
+    b: &mut criterion::Bencher<'_>,
+    d: Duration,
+) {
     b.to_async(rt).iter_custom(|iters| {
         // It is important to create the tt instance here to ensure the cache is not shared across
         // iterations.
