@@ -32,9 +32,8 @@ export async function runTypegen(
         args = ['next', 'typegen']
         break
       default:
-        command = 'npx'
-        args = ['next', 'typegen']
-        break
+        packageManager satisfies never
+        throw new Error(`Unsupported package manager: ${packageManager}`)
     }
 
     const child = spawn(command, args, {
