@@ -372,17 +372,17 @@ pub struct TurboTasks<B: Backend + 'static> {
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
     execution_id_factory: IdFactory<ExecutionId>,
     stopped: AtomicBool,
-    currently_scheduled_foreground_tasks: AtomicUsize,
+    currently_scheduled_foreground_jobs: AtomicUsize,
     currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
     start: Mutex<Option<Instant>>,
     aggregated_update: Mutex<(Option<(Duration, usize)>, InvalidationReasonSet)>,
-    /// Event that is triggered when currently_scheduled_foreground_tasks becomes non-zero
+    /// Event that is triggered when currently_scheduled_foreground_jobs becomes non-zero
     event_foreground_start: Event,
-    /// Event that is triggered when all foreground tasks are done
-    /// (currently_scheduled_foreground_tasks becomes zero)
+    /// Event that is triggered when all foreground jobs are done
+    /// (currently_scheduled_foreground_jobs becomes zero)
     event_foreground_done: Event,
-    /// Event that is triggered when all background tasks are done
+    /// Event that is triggered when all background jobs are done
     event_background_done: Event,
     program_start: Instant,
     compilation_events: CompilationEventQueue,
@@ -504,7 +504,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             transient_task_id_factory,
             execution_id_factory,
             stopped: AtomicBool::new(false),
-            currently_scheduled_foreground_tasks: AtomicUsize::new(0),
+            currently_scheduled_foreground_jobs: AtomicUsize::new(0),
             currently_scheduled_background_jobs: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
             start: Default::default(),
@@ -877,7 +877,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     fn begin_foreground_job(&self) {
         if self
-            .currently_scheduled_foreground_tasks
+            .currently_scheduled_foreground_jobs
             .fetch_add(1, Ordering::AcqRel)
             == 0
         {
@@ -889,7 +889,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     fn finish_foreground_job(&self) {
         if self
-            .currently_scheduled_foreground_tasks
+            .currently_scheduled_foreground_jobs
             .fetch_sub(1, Ordering::AcqRel)
             == 1
         {
@@ -911,12 +911,12 @@ impl<B: Backend + 'static> TurboTasks<B> {
         }
     }
 
-    fn begin_background_task(&self) {
+    fn begin_background_job(&self) {
         self.currently_scheduled_background_jobs
             .fetch_add(1, Ordering::Relaxed);
     }
 
-    fn finish_background_task(&self) {
+    fn finish_background_job(&self) {
         if self
             .currently_scheduled_background_jobs
             .fetch_sub(1, Ordering::Relaxed)
@@ -927,7 +927,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub fn get_in_progress_count(&self) -> usize {
-        self.currently_scheduled_foreground_tasks
+        self.currently_scheduled_foreground_jobs
             .load(Ordering::Acquire)
     }
 
@@ -998,7 +998,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     .event_foreground_start
                     .listen_with_note(|| || "wait for update info".to_string());
                 if self
-                    .currently_scheduled_foreground_tasks
+                    .currently_scheduled_foreground_jobs
                     .load(Ordering::Acquire)
                     == 0
                 {
@@ -1057,7 +1057,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     .event_foreground_done
                     .listen_with_note(|| || "wait for stop".to_string());
                 if self
-                    .currently_scheduled_foreground_tasks
+                    .currently_scheduled_foreground_jobs
                     .load(Ordering::Acquire)
                     != 0
                 {
@@ -1106,14 +1106,14 @@ impl<B: Backend + 'static> TurboTasks<B> {
         T::CallOnceFuture: Send,
     {
         let mut this = self.pin();
-        self.begin_background_task();
+        self.begin_background_job();
         tokio::spawn(
             TURBO_TASKS
                 .scope(this.clone(), async move {
                     if !this.stopped.load(Ordering::Acquire) {
                         this = func(this).await;
                     }
-                    this.finish_background_task();
+                    this.finish_background_job();
                 })
                 .in_current_span(),
         );
@@ -1536,7 +1536,7 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
     }
 
     fn is_idle(&self) -> bool {
-        self.currently_scheduled_foreground_tasks
+        self.currently_scheduled_foreground_jobs
             .load(Ordering::Acquire)
             == 0
     }
