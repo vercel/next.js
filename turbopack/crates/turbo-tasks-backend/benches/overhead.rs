@@ -190,6 +190,8 @@ fn run_turbo<Mode: TurboMode>(
                 // If cached run once outside the loop to ensure the tasks are cached.
                 if Mode::is_cached() {
                     for i in 0..iters {
+                        // Precache all possible tasks even if we might only check a few below.
+                        // This ensures we are testing a large cache
                         // Do not use Mode::key here, to create a large task set
                         black_box(busy_turbo(i, black_box(d)).await?);
                     }
