@@ -165,6 +165,7 @@ describe('persistent-caching', () => {
         combination.push(KEYS[i])
       }
     }
+    // Checking only single change and all combined for performance reasons.
     if (combination.length !== 1 && combination.length !== KEYS.length) continue
 
     it(`should allow to change files while stopped (${combination.join(', ')})`, async () => {
