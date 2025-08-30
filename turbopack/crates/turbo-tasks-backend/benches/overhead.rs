@@ -190,7 +190,8 @@ fn run_turbo<Mode: TurboMode>(
                 // If cached run once outside the loop to ensure the tasks are cached.
                 if Mode::is_cached() {
                     for i in 0..iters {
-                        black_box(busy_turbo(Mode::key(i), black_box(d)).await?);
+                        // Do not use Mode::key here, to create a large task set
+                        black_box(busy_turbo(i, black_box(d)).await?);
                     }
                 }
                 if is_parallel {
