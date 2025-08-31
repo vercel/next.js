@@ -13,9 +13,12 @@ use turbo_tasks_macros_shared::{
     get_trait_impl_function_ident, get_type_ident, is_self_used,
 };
 
-use crate::func::{
-    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
-    split_function_attributes,
+use crate::{
+    func::{
+        DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+        split_function_attributes,
+    },
+    global_name::global_name,
 };
 
 struct ValueImplArguments {
@@ -110,7 +113,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
                 let function_path_string = format!("{ty}::{ident}", ty = ty.to_token_stream());
                 let native_fn = NativeFn {
-                    function_global_name: quote! { concat!(module_path!(), "::", #function_path_string)},
+                    function_global_name: global_name(&function_path_string),
                     function_path_string,
                     function_path: parse_quote! { <#ty>::#inline_function_ident },
                     is_method: turbo_fn.is_method(),
@@ -224,10 +227,13 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let (inline_signature, inline_block) =
                     turbo_fn.inline_signature_and_block(block, is_self_used);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
-
                 let native_fn = NativeFn {
                     // This global name breaks the pattern.  It isn't clear if it is intentional
-                    function_global_name: quote! { concat!(module_path!(), "::", stringify!(#ty), "::", stringify!(#trait_path), "::", stringify!(#ident))},
+                    function_global_name: global_name(format!(
+                        "{ty}::{trait_path}::{ident}",
+                        ty = ty.to_token_stream(),
+                        trait_path = trait_path.to_token_stream()
+                    )),
                     function_path_string: format!(
                         "<{ty} as {trait_path}>::{ident}",
                         ty = ty.to_token_stream(),
@@ -287,7 +293,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 });
             }
         }
-
+        let value_name = global_name(quote! {stringify!(#ty_ident)});
         quote! {
             // Register all the function impls so the ValueType can find them
             // This means objects resolve as
@@ -297,13 +303,13 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
             // 4.VTableRegistries (requires ValueTypeIds)
             turbo_tasks::macro_helpers::inventory_submit!{
                 turbo_tasks::macro_helpers::CollectableTraitMethods(
-                    concat!(module_path!(), "::", stringify!(#ty_ident)),
+                    #value_name,
                     || (<::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(),
                         vec![#(#trait_methods)*])
                 )
             }
 
-            // These can execute later so they can reference value_types during registration
+            // These can execute later so they can reference trait_types during registration
 
             turbo_tasks::macro_helpers::inventory_submit!{
                 turbo_tasks::macro_helpers::CollectableTraitCastFunctions(

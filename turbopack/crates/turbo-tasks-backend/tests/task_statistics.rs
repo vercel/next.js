@@ -5,6 +5,8 @@
 use std::future::IntoFuture;
 
 use anyhow::Result;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use serde_json::json;
 use turbo_tasks::Vc;
 use turbo_tasks_testing::{Registration, register, run_without_cache_check};
@@ -257,16 +259,12 @@ fn stats_json() -> serde_json::Value {
 
 // Global task identifiers can contain the crate name, remove it to simplify test assertions
 fn remove_crate(mut json: serde_json::Value) -> serde_json::Value {
+    static HASH_RE: Lazy<Regex> = Lazy::new(|| Regex::new("^[^:@]+@[^:]+:+").unwrap());
     match &mut json {
         serde_json::Value::Object(map) => {
             let old_map = std::mem::take(map);
             for (k, v) in old_map {
-                map.insert(
-                    k.strip_prefix(concat!(module_path!(), "::"))
-                        .unwrap()
-                        .to_string(),
-                    v,
-                );
+                map.insert(HASH_RE.replace(&k, "").into_owned(), v);
             }
         }
         _ => unreachable!("expected object"),

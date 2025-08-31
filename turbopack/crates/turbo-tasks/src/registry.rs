@@ -19,7 +19,7 @@ pub fn get_function_by_global_name(global_name: &str) -> &'static NativeFunction
                 let prev = map.insert(global_name, native_function);
                 debug_assert!(
                     prev.is_none(),
-                    "registration mappings for {global_name} are inconsistent!"
+                    "multiple functions registered with the name {global_name}!"
                 );
             }
             map.shrink_to_fit();

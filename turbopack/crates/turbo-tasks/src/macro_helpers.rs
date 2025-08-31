@@ -167,7 +167,7 @@ pub fn register_trait_methods(value: &mut ValueType) {
         }
         map
     });
-    match TRAIT_METHODS_BY_VALUE.remove(value.name) {
+    match TRAIT_METHODS_BY_VALUE.remove(value.global_name) {
         Some((_, traits)) => {
             for (trait_type_id, methods) in traits {
                 let trait_type = crate::registry::get_trait(trait_type_id);

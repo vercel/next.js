@@ -8,9 +8,12 @@ use turbo_tasks_macros_shared::{
     ValueTraitArguments, get_trait_default_impl_function_ident, get_trait_type_ident, is_self_used,
 };
 
-use crate::func::{
-    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
-    split_function_attributes,
+use crate::{
+    func::{
+        DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+        split_function_attributes,
+    },
+    global_name::global_name,
 };
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -177,7 +180,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
             let function_path_string = format!("{trait_ident}::{ident}");
             let native_function = NativeFn {
-                function_global_name: quote! { concat!(module_path!(), "::", #function_path_string)},
+                function_global_name: global_name(&function_path_string),
                 function_path_string,
                 function_path: parse_quote! {
                     <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident
@@ -266,6 +269,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         extended_supertraits.push(quote!(turbo_tasks::debug::ValueDebug));
     }
 
+    let trait_name = global_name(quote! {stringify!(#trait_ident)});
     let expanded = quote! {
         #[must_use]
         #(#attrs)*
@@ -280,7 +284,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_tasks::macro_helpers::Lazy::new(|| {
                 turbo_tasks::TraitType::new(
                     stringify!(#trait_ident),
-                    concat!(module_path!(), "::", stringify!(#trait_ident)),
+                    #trait_name,
                     vec![#(#trait_methods)*])
             });
 

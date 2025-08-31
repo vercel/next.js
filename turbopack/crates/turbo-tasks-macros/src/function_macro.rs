@@ -3,8 +3,9 @@ use quote::quote;
 use syn::{ItemFn, parse_macro_input, parse_quote};
 use turbo_tasks_macros_shared::{get_native_function_ident, is_self_used};
 
-use crate::func::{
-    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+use crate::{
+    func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes},
+    global_name::global_name,
 };
 
 /// This macro generates the virtual function that powers turbo tasks.
@@ -58,7 +59,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let function_path_string = ident.to_string();
 
     let native_fn = NativeFn {
-        function_global_name: quote! { concat!(module_path!(), "::", #function_path_string)},
+        function_global_name: global_name(&function_path_string),
         function_path_string,
         function_path: parse_quote! { #inline_function_ident },
         is_method: turbo_fn.is_method(),

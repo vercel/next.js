@@ -13,6 +13,8 @@ use syn::{
 };
 use turbo_tasks_macros_shared::get_value_type_ident;
 
+use crate::global_name::global_name;
+
 enum IntoMode {
     None,
     New,
@@ -384,17 +386,14 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         });
     }
 
+    let name = global_name(quote! {stringify!(#ident) });
     let new_value_type = match serialization_mode {
         SerializationMode::None => quote! {
-            turbo_tasks::ValueType::new::<#ident>(
-                concat!(module_path!(), "::", stringify!(#ident))
-            )
+            turbo_tasks::ValueType::new::<#ident>(#name)
         },
         SerializationMode::Auto | SerializationMode::Custom => {
             quote! {
-                turbo_tasks::ValueType::new_with_any_serialization::<#ident>(
-                    concat!(module_path!(), "::", stringify!(#ident))
-                )
+                turbo_tasks::ValueType::new_with_any_serialization::<#ident>(#name)
             }
         }
     };
