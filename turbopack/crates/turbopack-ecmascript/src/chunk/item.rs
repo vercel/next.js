@@ -88,7 +88,7 @@ impl EcmascriptChunkItemContent {
 }
 
 impl EcmascriptChunkItemContent {
-    async fn module_factory(self: Vc<Self>) -> Result<Vc<Code>> {
+    async fn module_factory(self: Vc<Self>) -> Result<ResolvedVc<Code>> {
         let this = self.await?;
         let mut code = CodeBuilder::default();
         for additional_id in this.additional_ids.iter().try_join().await? {
@@ -132,7 +132,7 @@ impl EcmascriptChunkItemContent {
 
         code += "})";
 
-        Ok(code.build().cell())
+        Ok(code.build().resolved_cell())
     }
 }
 
@@ -229,7 +229,7 @@ async fn module_factory_with_code_generation_issue(
             .module_factory()
             .await
         {
-            Ok(factory) => factory,
+            Ok(factory) => *factory,
             Err(error) => {
                 let id = chunk_item.asset_ident().to_string().await;
                 let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
