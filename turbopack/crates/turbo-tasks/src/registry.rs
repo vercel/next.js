@@ -28,9 +28,8 @@ static FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     for &native_function in functions.iter() {
         value_to_id.insert(native_function, id.into());
         let global_name = native_function.global_name;
-        let new = names.insert(global_name);
         assert!(
-            !new,
+            names.insert(global_name),
             "multiple functions registered with name: {global_name}!"
         );
         id = id.checked_add(1).expect("overflowing function ids");
@@ -101,10 +100,6 @@ pub fn get_value_type(id: ValueTypeId) -> &'static ValueType {
     VALUES.id_to_value[*id as usize - 1]
 }
 
-pub fn get_value_type_global_name(id: ValueTypeId) -> &'static str {
-    get_value_type(id).global_name
-}
-
 struct Traits {
     id_to_trait: Box<[&'static TraitType]>,
     trait_to_id: FxHashMap<&'static TraitType, TraitTypeId>,
@@ -148,8 +143,4 @@ pub fn get_trait_type_id(trait_type: &'static TraitType) -> TraitTypeId {
 
 pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
     TRAITS.id_to_trait[*id as usize - 1]
-}
-
-pub fn get_trait_type_global_name(id: TraitTypeId) -> &'static str {
-    get_trait(id).global_name
 }

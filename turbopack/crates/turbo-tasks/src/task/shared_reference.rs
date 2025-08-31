@@ -116,7 +116,7 @@ impl Serialize for TypedSharedReference {
         } else {
             Err(serde::ser::Error::custom(format!(
                 "{:?} is not serializable",
-                registry::get_value_type_global_name(*ty)
+                registry::get_value_type(*ty).global_name
             )))
         }
     }
