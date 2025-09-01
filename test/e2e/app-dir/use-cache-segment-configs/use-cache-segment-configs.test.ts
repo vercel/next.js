@@ -2,8 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 import { assertHasRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-const isRspack = !!process.env.NEXT_RSPACK
-
 describe('use-cache-segment-configs', () => {
   const { next, skipped, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,

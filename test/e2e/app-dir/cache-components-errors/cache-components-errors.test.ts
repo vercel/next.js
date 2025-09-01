@@ -5,8 +5,6 @@ import {
   getPrerenderOutput,
 } from './utils'
 
-const isRspack = process.env.NEXT_RSPACK !== undefined
-
 describe('Cache Components Errors', () => {
   const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
