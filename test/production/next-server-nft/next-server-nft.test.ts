@@ -2,6 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import fs from 'fs'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+
 // Only run this test for Turbopack as it is more conservative (i.e. aggressive) in including
 // referenced files and might include too many. (The Webpack snapshots would different slightly from
 // the Turbopack ones below.)
@@ -9,7 +11,9 @@ import fs from 'fs'
 // This test is not meant for testing correctness (which is done by the behavioral tests), but as a
 // regression test to ensure that some stray `path.join` doesn't cause all of the Next.js package to
 // get included.
-;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
+//
+// Also skip alternate React versions, as they would require different snapshots.
+;(process.env.IS_TURBOPACK_TEST && !isReact18 ? describe : describe.skip)(
   'next-server-nft',
   () => {
     const { next, skipped } = nextTestSetup({
