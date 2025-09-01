@@ -973,7 +973,6 @@ function createPendingCacheNode(
   }
 
   const maybePrefetchRsc = prefetchData !== null ? prefetchData[1] : null
-  const maybePrefetchLoading = prefetchData !== null ? prefetchData[3] : null
   return {
     lazyData: null,
     parallelRoutes: parallelRoutes,
@@ -981,15 +980,20 @@ function createPendingCacheNode(
     prefetchRsc: maybePrefetchRsc !== undefined ? maybePrefetchRsc : null,
     prefetchHead: isLeafSegment ? prefetchHead : [null, null],
 
-    // TODO: Technically, a loading boundary could contain dynamic data. We must
-    // have separate `loading` and `prefetchLoading` fields to handle this, like
-    // we do for the segment data and head.
-    loading: maybePrefetchLoading !== undefined ? maybePrefetchLoading : null,
-
     // Create a deferred promise. This will be fulfilled once the dynamic
     // response is received from the server.
     rsc: createDeferredRsc() as React.ReactNode,
     head: isLeafSegment ? (createDeferredRsc() as React.ReactNode) : null,
+
+    // TODO: Technically, a loading boundary could contain dynamic data. We must
+    // have separate `loading` and `prefetchLoading` fields to handle this, like
+    // we do for the segment data and head.
+    loading:
+      prefetchData !== null
+        ? (prefetchData[3] ?? null)
+        : // If we don't have a prefetch, then we don't know if there's a loading component.
+          // We'll fulfill it based on the dynamic response, just like `rsc` and `head`.
+          createDeferredRsc<LoadingModuleData>(),
 
     navigatedAt,
   }
@@ -1089,6 +1093,14 @@ function finishPendingCacheNode(
     // been populated by a different navigation. We must not overwrite it.
   }
 
+  // If we navigated without a prefetch, then `loading` will be a deferred promise too.
+  // Fulfill it using the dynamic response so that we can display the loading boundary.
+  const loading = cacheNode.loading
+  if (isDeferredRsc(loading)) {
+    const dynamicLoading = dynamicData[3]
+    loading.resolve(dynamicLoading)
+  }
+
   // Check if this is a leaf segment. If so, it will have a `head` property with
   // a pending promise that needs to be resolved with the dynamic head from
   // the server.
@@ -1153,6 +1165,7 @@ function abortPendingCacheNode(
       // used to construct the cache nodes in the first place.
     }
   }
+
   const rsc = cacheNode.rsc
   if (isDeferredRsc(rsc)) {
     if (error === null) {
@@ -1162,6 +1175,11 @@ function abortPendingCacheNode(
       // This will trigger an error during rendering.
       rsc.reject(error)
     }
+  }
+
+  const loading = cacheNode.loading
+  if (isDeferredRsc(loading)) {
+    loading.resolve(null)
   }
 
   // Check if this is a leaf segment. If so, it will have a `head` property with
