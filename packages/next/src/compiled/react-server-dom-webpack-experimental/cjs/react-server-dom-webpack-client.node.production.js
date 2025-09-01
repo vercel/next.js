@@ -917,12 +917,7 @@ function reportGlobalError(weakResponse, error) {
   });
 }
 function createLazyChunkWrapper(chunk) {
-  return {
-    $$typeof: REACT_LAZY_TYPE,
-    _payload: chunk,
-    _store: { validated: 0 },
-    _init: readChunk
-  };
+  return { $$typeof: REACT_LAZY_TYPE, _payload: chunk, _init: readChunk };
 }
 function getChunk(response, id) {
   var chunks = response._chunks,
