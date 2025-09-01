@@ -2230,7 +2230,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             let chunk_size = good_chunk_size(data.len());
                             let chunks = data.len().div_ceil(chunk_size);
                             for i in 0..chunks {
-                                turbo_tasks.schedule_backend_foreground_job(
+                                turbo_tasks.schedule_backend_background_job(
                                     TurboTasksBackendJob::Prefetch {
                                         data: data.clone(),
                                         range: Some(

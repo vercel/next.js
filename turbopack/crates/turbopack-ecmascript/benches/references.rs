@@ -38,7 +38,7 @@ pub fn benchmark(c: &mut Criterion) {
 
     let cases = rt
         .block_on(tt.run_once(async {
-            let root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../");
+            let root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/benches/");
             let fs = DiskFileSystem::new(rcstr!("project"), root_dir.to_str().unwrap().into());
 
             let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
@@ -54,10 +54,12 @@ pub fn benchmark(c: &mut Criterion) {
 
             let mut cases = vec![];
             for (file, is_tracing) in [
-                (r#"packages/next/dist/compiled/babel-packages/packages-bundle.js"#, false),
-                (r#"packages/next/dist/compiled/babel-packages/packages-bundle.js"#, true),
-                (r#"node_modules/.pnpm/react-dom@19.2.0-canary-03fda05d-20250820_react@19.2.0-canary-03fda05d-20250820/node_modules/react-dom/cjs/react-dom-client.development.js"#, false),
-                (r#"node_modules/.pnpm/react-dom@19.2.0-canary-03fda05d-20250820_react@19.2.0-canary-03fda05d-20250820/node_modules/react-dom/cjs/react-dom-client.development.js"#, true),
+                (r#"packages-bundle.js"#, false),
+                (r#"packages-bundle.js"#, true),
+                (r#"app-page-turbo.runtime.prod.js"#, false),
+                (r#"app-page-turbo.runtime.prod.js"#, true),
+                (r#"react-dom-client.development.js"#, false),
+                (r#"react-dom-client.development.js"#, true),
             ] {
                 let module = EcmascriptModuleAsset::builder(
                     ResolvedVc::upcast(
@@ -79,7 +81,11 @@ pub fn benchmark(c: &mut Criterion) {
                 .to_resolved()
                 .await?;
 
-                cases.push((file.rsplit("/").next().unwrap(), if is_tracing { "tracing" } else { "full" }, module));
+                cases.push((
+                    file.rsplit("/").next().unwrap(),
+                    if is_tracing { "tracing" } else { "full" },
+                    module,
+                ));
             }
             anyhow::Ok(cases)
         }))
@@ -117,9 +123,11 @@ where
         .build()
         .unwrap();
 
-    b.to_async(rt).iter(|| {
+    b.to_async(rt).iter(async || {
         input
             .storage
             .run_once(analyse_ecmascript_module_internal(input.module, None))
+            .await
+            .unwrap()
     });
 }
