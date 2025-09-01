@@ -5,14 +5,11 @@ import { check } from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
-const isRspack = !!process.env.NEXT_RSPACK
-
 describe('Error recovery app', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
-
   const isRspack = !!process.env.NEXT_RSPACK
 
   test('can recover from a syntax error without losing state', async () => {
