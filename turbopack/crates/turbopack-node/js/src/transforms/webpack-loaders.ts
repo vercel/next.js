@@ -3,7 +3,7 @@ declare const __turbopack_external_require__: {
 } & ((id: string, thunk: () => any, esm?: boolean) => any)
 
 import type { Ipc } from '../ipc/evaluate'
-import { dirname, resolve as pathResolve } from 'path'
+import { dirname, resolve as pathResolve, relative } from 'path'
 import {
   StackFrame,
   parse as parseStackTrace,
@@ -184,6 +184,60 @@ const transform = (
             return entry.options && typeof entry.options === 'object'
               ? entry.options
               : {}
+          },
+          fs: {
+            readFile(p: string, encodingOrCb: any, maybeCb: any) {
+              let encoding: BufferEncoding | undefined,
+                callback: (err?: Error, data?: string | Buffer) => void
+              if (maybeCb == null) {
+                callback = encodingOrCb
+                encoding = undefined
+              } else {
+                callback = maybeCb
+                encoding = encodingOrCb
+                  ? encodingOrCb.toLowerCase()
+                  : encodingOrCb
+              }
+
+              ipc
+                .sendRequest({
+                  type: 'readFile',
+                  file: relative(contextDir, pathResolve(p)),
+                })
+                .then((unknownResult) => {
+                  let result = unknownResult as {
+                    content: string | { binary: string }
+                  }
+                  if (result && result.content) {
+                    return result.content
+                  } else {
+                    throw Error(
+                      'Expected { content: ... } from readFile request'
+                    )
+                  }
+                })
+                .then(
+                  (content) => {
+                    if (
+                      typeof content === 'string' &&
+                      (encoding === 'utf8' || encoding === 'utf-8')
+                    ) {
+                      callback(undefined, content)
+                    } else {
+                      let buffer =
+                        typeof content === 'string'
+                          ? Buffer.from(content, 'utf-8')
+                          : Buffer.from(content.binary, 'base64')
+                      let result = encoding ? buffer.toString(encoding) : buffer
+                      callback(undefined, result)
+                    }
+                  },
+                  (err) => callback(err)
+                )
+                .catch((err) => {
+                  ipc.sendError(err)
+                })
+            },
           },
           getResolve: (options: ResolveOptions) => {
             const rustOptions = {
