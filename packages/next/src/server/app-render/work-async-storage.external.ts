@@ -97,6 +97,7 @@ export interface WorkStore {
     Record<string, { files: string[] }>
   >
   readonly assetPrefix?: string
+  readonly nonce?: string
 
   cacheComponentsEnabled: boolean
   dev: boolean

@@ -1982,7 +1982,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
     previewModeId: renderOpts.previewProps?.previewModeId,
   })
 
-  const { isPrefetchRequest, previouslyRevalidatedTags } = parsedRequestHeaders
+  const { isPrefetchRequest, previouslyRevalidatedTags, nonce } =
+    parsedRequestHeaders
 
   let postponedState: PostponedState | null = null
 
@@ -2018,6 +2019,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     isPrefetchRequest,
     buildId: sharedContext.buildId,
     previouslyRevalidatedTags,
+    nonce,
   })
 
   return workAsyncStorage.run(
