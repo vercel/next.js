@@ -1466,7 +1466,7 @@
         return "<...>";
       }
     }
-    function initializeElement(response, element) {
+    function initializeElement(response, element, lazyType) {
       var stack = element._debugStack,
         owner = element._owner;
       null === owner && (element._owner = response._debugRootOwner);
@@ -1503,12 +1503,18 @@
           : (normalizedStackTrace = env.run(stack)));
       element._debugTask = normalizedStackTrace;
       null !== owner && initializeFakeStack(response, owner);
+      lazyType &&
+        lazyType._store &&
+        lazyType._store.validated &&
+        !element._store.validated &&
+        (element._store.validated = lazyType._store.validated);
       Object.freeze(element.props);
     }
     function createLazyChunkWrapper(chunk) {
       var lazyType = {
         $$typeof: REACT_LAZY_TYPE,
         _payload: chunk,
+        _store: { validated: 0 },
         _init: readChunk
       };
       chunk = chunk._debugInfo || (chunk._debugInfo = []);
@@ -3235,7 +3241,7 @@
                 initializingHandler = validated.parent;
                 if (validated.errored) {
                   key = new ReactPromise("rejected", null, validated.reason);
-                  initializeElement(response, value);
+                  initializeElement(response, value, null);
                   validated = {
                     name: getComponentNameFromType(value.type) || "",
                     owner: value._owner
@@ -3251,13 +3257,19 @@
                   key = new ReactPromise("blocked", null, null);
                   validated.value = value;
                   validated.chunk = key;
-                  value = initializeElement.bind(null, response, value);
+                  validated = createLazyChunkWrapper(key);
+                  value = initializeElement.bind(
+                    null,
+                    response,
+                    value,
+                    validated
+                  );
                   key.then(value, value);
-                  value = createLazyChunkWrapper(key);
+                  value = validated;
                   break b;
                 }
               }
-              initializeElement(response, value);
+              initializeElement(response, value, null);
             }
           return value;
         }
