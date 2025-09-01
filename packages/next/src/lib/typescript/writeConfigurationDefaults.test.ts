@@ -115,7 +115,7 @@ describe('writeConfigurationDefaults()', () => {
            	- moduleResolution was set to node (to match webpack resolution)
            	- resolveJsonModule was set to true (to match webpack resolution)
            	- isolatedModules was set to true (requirement for SWC / Babel)
-           	- jsx was set to preserve (next.js implements its own optimized jsx transform)
+           	- jsx was set to react-jsx (next.js uses the React automatic runtime)
         "
       `)
     })
