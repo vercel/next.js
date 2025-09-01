@@ -798,5 +798,10 @@
   "797": "Failed to transpile \"%s\".",
   "798": "expected a result to be returned",
   "799": "expected a page response, got %s",
-  "800": "`experimental.rdcForNavigations` is enabled, but `experimental.ppr` is not."
+  "800": "`experimental.rdcForNavigations` is enabled, but `experimental.ppr` is not.",
+  "801": "Did not start HotReloaderWebpack.",
+  "802": "Expected a request ID to be defined for the document via self.__next_r.",
+  "803": "Expected a %s response header.",
+  "804": "Request ID is too long for the binary message format.",
+  "805": "Invalid binary HMR message of type %s"
 }
