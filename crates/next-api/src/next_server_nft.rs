@@ -38,18 +38,26 @@ enum ServerNftType {
 
 #[turbo_tasks::function]
 pub async fn next_server_nft_assets(project: Vc<Project>) -> Result<Vc<OutputAssets>> {
-    Ok(Vc::cell(vec![
-        ResolvedVc::upcast(
-            ServerNftJsonAsset::new(project, ServerNftType::Full)
-                .to_resolved()
-                .await?,
-        ),
-        ResolvedVc::upcast(
-            ServerNftJsonAsset::new(project, ServerNftType::Minimal)
-                .to_resolved()
-                .await?,
-        ),
-    ]))
+    let has_next_support = *project.next_config().ci_has_next_support().await?;
+
+    let minimal = ResolvedVc::upcast(
+        ServerNftJsonAsset::new(project, ServerNftType::Minimal)
+            .to_resolved()
+            .await?,
+    );
+
+    if has_next_support {
+        Ok(Vc::cell(vec![minimal]))
+    } else {
+        Ok(Vc::cell(vec![
+            minimal,
+            ResolvedVc::upcast(
+                ServerNftJsonAsset::new(project, ServerNftType::Full)
+                    .to_resolved()
+                    .await?,
+            ),
+        ]))
+    }
 }
 
 #[turbo_tasks::value]
