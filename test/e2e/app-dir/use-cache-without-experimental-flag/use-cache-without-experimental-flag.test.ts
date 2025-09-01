@@ -73,7 +73,7 @@ describe('use-cache-without-experimental-flag', () => {
          ./app/page.tsx
 
 
-         > Build failed because of rspack errors
+         > Build failed because of Rspack errors
          "
         `)
       } else {

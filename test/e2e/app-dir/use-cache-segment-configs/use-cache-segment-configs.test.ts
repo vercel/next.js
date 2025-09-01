@@ -115,7 +115,7 @@ describe('use-cache-segment-configs', () => {
          // TODO(veil): Fix broken import trace for Webpack loader resource.
 
 
-         > Build failed because of rspack errors
+         > Build failed because of Rspack errors
          "
         `)
       } else {
