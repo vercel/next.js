@@ -24,11 +24,16 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
-    analyzer::{ConstantNumber, ConstantValue, JsValue, graph::EvalContext},
+    analyzer::{ConstantNumber, ConstantValue, JsValue, ObjectPart, graph::EvalContext},
     parse::{ParseResult, parse},
 };
 
-use crate::{app_structure::AppPageLoaderTree, util::NextRuntime};
+use crate::{
+    app_structure::AppPageLoaderTree,
+    next_config::RouteHas,
+    next_manifests::MiddlewareMatcher,
+    util::{MiddlewareMatcherKind, NextRuntime},
+};
 
 #[derive(
     Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
@@ -69,7 +74,7 @@ pub enum NextRevalidate {
     },
 }
 
-#[turbo_tasks::value(into = "shared")]
+#[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Clone)]
 pub struct NextSegmentConfig {
     pub dynamic: Option<NextSegmentDynamic>,
@@ -82,6 +87,8 @@ pub struct NextSegmentConfig {
     /// Whether these metadata exports are defined in the source file.
     pub generate_image_metadata: bool,
     pub generate_sitemaps: bool,
+
+    pub middleware_matcher: Option<Vec<MiddlewareMatcherKind>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -204,11 +211,15 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!(
-            "Next.js can't recognize the exported `config` field in route"
-        ))
-        .cell()
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        // The detail shouldn't be inlined here, but Next.js currently doesn't print `detail()`
+        Ok(StyledString::Line(vec![
+            StyledString::Text(rcstr!(
+                "Next.js can't recognize the exported `config` field in route."
+            )),
+            self.detail.owned().await?,
+        ])
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -250,9 +261,29 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 }
 
+#[derive(
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    Hash,
+    TaskInput,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    NonLocalValue,
+)]
+enum ConfigType {
+    App,
+    Pages,
+    Middleware,
+}
+
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_source(
     source: ResolvedVc<Box<dyn Source>>,
+    is_config_obj_deprecated: bool,
 ) -> Result<Vc<NextSegmentConfig>> {
     let path = source.ident().path().await?;
 
@@ -317,8 +348,15 @@ pub async fn parse_segment_config_from_source(
                             };
 
                             if let Some(init) = decl.init.as_ref() {
-                                parse_config_value(source, &mut config, ident, init, eval_context)
-                                    .await?;
+                                parse_config_value(
+                                    source,
+                                    is_config_obj_deprecated,
+                                    &mut config,
+                                    ident,
+                                    init,
+                                    eval_context,
+                                )
+                                .await?;
                             }
                         }
                     }
@@ -329,7 +367,15 @@ pub async fn parse_segment_config_from_source(
                             ident: None,
                             function: fn_decl.function.clone(),
                         });
-                        parse_config_value(source, &mut config, ident, &init, eval_context).await?;
+                        parse_config_value(
+                            source,
+                            is_config_obj_deprecated,
+                            &mut config,
+                            ident,
+                            &init,
+                            eval_context,
+                        )
+                        .await?;
                     }
                     _ => {}
                 }
@@ -343,74 +389,193 @@ pub async fn parse_segment_config_from_source(
     Ok(config.cell())
 }
 
+async fn invalid_config(
+    source: ResolvedVc<Box<dyn Source>>,
+    span: Span,
+    detail: &str,
+    value: &JsValue,
+) -> Result<()> {
+    let (explainer, hints) = value.explain(2, 0);
+    let detail =
+        StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).resolved_cell();
+
+    NextSegmentConfigParsingIssue::new(
+        source.ident(),
+        *detail,
+        IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32()),
+    )
+    .to_resolved()
+    .await?
+    .emit();
+    Ok(())
+}
+
 async fn parse_config_value(
     source: ResolvedVc<Box<dyn Source>>,
+    is_config_obj_deprecated: bool,
     config: &mut NextSegmentConfig,
     ident: &Ident,
     init: &Expr,
     eval_context: &EvalContext,
 ) -> Result<()> {
     let span = init.span();
-    async fn invalid_config(
-        source: ResolvedVc<Box<dyn Source>>,
-        span: Span,
-        detail: &str,
-        value: &JsValue,
-    ) -> Result<()> {
-        let (explainer, hints) = value.explain(2, 0);
-        let detail =
-            StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).resolved_cell();
-
-        NextSegmentConfigParsingIssue::new(
-            source.ident(),
-            *detail,
-            IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32()),
-        )
-        .to_resolved()
-        .await?
-        .emit();
-        Ok(())
-    }
 
     match &*ident.sym {
+        "config" => {
+            let value = eval_context.eval(init);
+
+            if is_config_obj_deprecated {
+                return invalid_config(
+                    source,
+                    span,
+                    "Page config in `config` is deprecated.",
+                    &value,
+                )
+                .await;
+            }
+
+            let JsValue::Object { parts, .. } = &value else {
+                return invalid_config(
+                    source,
+                    span,
+                    "`config` needs to be a static object",
+                    &value,
+                )
+                .await;
+            };
+
+            for part in parts {
+                let ObjectPart::KeyValue(key, val) = part else {
+                    return invalid_config(
+                        source,
+                        span,
+                        "`config` contains unsupported spread",
+                        &value,
+                    )
+                    .await;
+                };
+
+                let Some(key) = key.as_str() else {
+                    return invalid_config(
+                        source,
+                        span,
+                        "`config` must only contain string keys",
+                        &value,
+                    )
+                    .await;
+                };
+
+                match key {
+                    "runtime" => {
+                        let Some(val) = val.as_str() else {
+                            return invalid_config(
+                                source,
+                                span,
+                                "`runtime` needs to be a static string",
+                                &value,
+                            )
+                            .await;
+                        };
+
+                        config.runtime =
+                            match serde_json::from_value(Value::String(val.to_string())) {
+                                Ok(runtime) => Some(runtime),
+                                Err(err) => {
+                                    return invalid_config(
+                                        source,
+                                        span,
+                                        &format!("`runtime` has an invalid value: {err}"),
+                                        &value,
+                                    )
+                                    .await;
+                                }
+                            };
+                    }
+                    "matcher" => {
+                        config.middleware_matcher =
+                            parse_route_matcher_from_js_value(source, span, val).await?;
+                    }
+                    "regions" => {
+                        config.preferred_region = match val {
+                            // Single value is turned into a single-element Vec.
+                            JsValue::Constant(ConstantValue::Str(str)) => {
+                                Some(vec![str.to_string().into()])
+                            }
+                            // Array of strings is turned into a Vec. If one of the values
+                            // in not a String it will
+                            // error.
+                            JsValue::Array { items, .. } => {
+                                let mut regions: Vec<RcStr> = Vec::new();
+                                for item in items {
+                                    if let Some(str) = item.as_str() {
+                                        regions.push(str.to_string().into());
+                                    } else {
+                                        invalid_config(
+                                            source,
+                                            span,
+                                            "Values of the `config.regions` array need to be \
+                                             static strings",
+                                            item,
+                                        )
+                                        .await?;
+                                    }
+                                }
+                                Some(regions)
+                            }
+                            _ => {
+                                invalid_config(
+                                    source,
+                                    span,
+                                    "`config.regions` needs to be a static string or array of \
+                                     static strings",
+                                    &value,
+                                )
+                                .await?;
+                                None
+                            }
+                        };
+                    }
+                    _ => {
+                        // Ignore,
+                    }
+                }
+            }
+        }
         "dynamic" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_str() else {
-                invalid_config(
+                return invalid_config(
                     source,
                     span,
                     "`dynamic` needs to be a static string",
                     &value,
                 )
-                .await?;
-                return Ok(());
+                .await;
             };
 
             config.dynamic = match serde_json::from_value(Value::String(val.to_string())) {
                 Ok(dynamic) => Some(dynamic),
                 Err(err) => {
-                    invalid_config(
+                    return invalid_config(
                         source,
                         span,
                         &format!("`dynamic` has an invalid value: {err}"),
                         &value,
                     )
-                    .await?;
-                    return Ok(());
+                    .await;
                 }
             };
         }
         "dynamicParams" => {
             let value = eval_context.eval(init);
             let Some(val) = value.as_bool() else {
-                invalid_config(
+                return invalid_config(
                     source,
                     span,
                     "`dynamicParams` needs to be a static boolean",
                     &value,
                 )
-                .await?;
-                return Ok(());
+                .await;
             };
 
             config.dynamic_params = Some(val);
@@ -551,6 +716,141 @@ async fn parse_config_value(
     Ok(())
 }
 
+async fn parse_route_matcher_from_js_value(
+    source: ResolvedVc<Box<dyn Source>>,
+    span: Span,
+    value: &JsValue,
+) -> Result<Option<Vec<MiddlewareMatcherKind>>> {
+    let parse_matcher_kind_matcher = |value: &JsValue| {
+        let mut route_has = vec![];
+        if let JsValue::Array { items, .. } = value {
+            for item in items {
+                if let JsValue::Object { parts, .. } = item {
+                    let mut route_type = None;
+                    let mut route_key = None;
+                    let mut route_value = None;
+
+                    for matcher_part in parts {
+                        if let ObjectPart::KeyValue(part_key, part_value) = matcher_part {
+                            match part_key.as_str() {
+                                Some("type") => {
+                                    route_type = part_value.as_str().map(|v| v.to_string())
+                                }
+                                Some("key") => {
+                                    route_key = part_value.as_str().map(|v| v.to_string())
+                                }
+                                Some("value") => {
+                                    route_value = part_value.as_str().map(|v| v.to_string())
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    let r = match route_type.as_deref() {
+                        Some("header") => route_key.map(|route_key| RouteHas::Header {
+                            key: route_key.into(),
+                            value: route_value.map(From::from),
+                        }),
+                        Some("cookie") => route_key.map(|route_key| RouteHas::Cookie {
+                            key: route_key.into(),
+                            value: route_value.map(From::from),
+                        }),
+                        Some("query") => route_key.map(|route_key| RouteHas::Query {
+                            key: route_key.into(),
+                            value: route_value.map(From::from),
+                        }),
+                        Some("host") => route_value.map(|route_value| RouteHas::Host {
+                            value: route_value.into(),
+                        }),
+                        _ => None,
+                    };
+
+                    if let Some(r) = r {
+                        route_has.push(r);
+                    }
+                }
+            }
+        }
+
+        route_has
+    };
+
+    let mut matchers = vec![];
+
+    match value {
+        JsValue::Constant(matcher) => {
+            if let Some(matcher) = matcher.as_str() {
+                matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
+            } else {
+                invalid_config(
+                    source,
+                    span,
+                    "The matcher property must be a string or array of strings",
+                    value,
+                )
+                .await?;
+            }
+        }
+        JsValue::Array { items, .. } => {
+            for item in items {
+                if let Some(matcher) = item.as_str() {
+                    matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
+                } else if let JsValue::Object { parts, .. } = item {
+                    let mut matcher = MiddlewareMatcher::default();
+                    for matcher_part in parts {
+                        if let ObjectPart::KeyValue(key, value) = matcher_part {
+                            match key.as_str() {
+                                Some("source") => {
+                                    if let Some(value) = value.as_str() {
+                                        matcher.original_source = value.into();
+                                    }
+                                }
+                                Some("locale") => {
+                                    matcher.locale = value.as_bool().unwrap_or_default();
+                                }
+                                Some("missing") => {
+                                    matcher.missing = Some(parse_matcher_kind_matcher(value))
+                                }
+                                Some("has") => {
+                                    matcher.has = Some(parse_matcher_kind_matcher(value))
+                                }
+                                _ => {
+                                    //noop
+                                }
+                            }
+                        }
+                    }
+
+                    matchers.push(MiddlewareMatcherKind::Matcher(matcher));
+                } else {
+                    invalid_config(
+                        source,
+                        span,
+                        "The matcher property must be a string or array of strings",
+                        value,
+                    )
+                    .await?;
+                }
+            }
+        }
+        _ => {
+            invalid_config(
+                source,
+                span,
+                "The matcher property must be a string or array of strings",
+                value,
+            )
+            .await?
+        }
+    }
+
+    Ok(if matchers.is_empty() {
+        None
+    } else {
+        Some(matchers)
+    })
+}
+
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: Vc<AppPageLoaderTree>,
@@ -562,7 +862,7 @@ pub async fn parse_segment_config_from_loader_tree(
         .cell())
 }
 
-pub async fn parse_segment_config_from_loader_tree_internal(
+async fn parse_segment_config_from_loader_tree_internal(
     loader_tree: &AppPageLoaderTree,
 ) -> Result<NextSegmentConfig> {
     let mut config = NextSegmentConfig::default();
@@ -590,7 +890,7 @@ pub async fn parse_segment_config_from_loader_tree_internal(
     .flatten()
     {
         let source = Vc::upcast(FileSource::new(path.clone()));
-        config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
+        config.apply_parent_config(&*parse_segment_config_from_source(source, true).await?);
     }
 
     Ok(config)

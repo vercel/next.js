@@ -21,7 +21,8 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
     },
     next_telemetry::NextFeatureTelemetry,
-    util::{NextRuntime, OptionEnvMap, parse_config_from_source},
+    parse_segment_config_from_source,
+    util::{NextRuntime, OptionEnvMap},
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -66,7 +67,6 @@ use turbopack_core::{
         export_usage::{OptionExportUsageInfo, compute_export_usage_info},
     },
     output::{OutputAsset, OutputAssets},
-    reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
     source_map::OptionStringifiedSourceMap,
     version::{
@@ -1412,16 +1412,12 @@ impl Project {
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
 
-        let module = edge_module_context
-            .process(
-                source,
-                ReferenceType::Entry(EntryReferenceSubType::Middleware),
-            )
-            .module();
+        let runtime = parse_segment_config_from_source(source, false)
+            .await?
+            .runtime
+            .unwrap_or(NextRuntime::Edge);
 
-        let config = parse_config_from_source(source, module, NextRuntime::Edge).await?;
-
-        if matches!(config.runtime, NextRuntime::NodeJs) {
+        if matches!(runtime, NextRuntime::NodeJs) {
             Ok(self.node_middleware_context())
         } else {
             Ok(edge_module_context)

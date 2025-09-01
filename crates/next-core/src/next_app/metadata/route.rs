@@ -68,7 +68,7 @@ pub async fn get_app_metadata_route_entry(
     let original_path = metadata.clone().into_path();
 
     let source = Vc::upcast(FileSource::new(original_path));
-    let segment_config = parse_segment_config_from_source(source);
+    let segment_config = parse_segment_config_from_source(source, true);
     let is_dynamic_metadata = matches!(metadata, MetadataItem::Dynamic { .. });
     let is_multi_dynamic: bool = if Some(segment_config).is_some() {
         // is_multi_dynamic is true when config.generateSitemaps or
