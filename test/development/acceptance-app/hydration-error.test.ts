@@ -228,7 +228,6 @@ describe('Error overlay for hydration errors in App router', () => {
                              <SegmentTrieNode>
                              <script>
                              <script>
-                             <script>
                              <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
                                <Root params={Promise}>
                                  <html
@@ -1107,10 +1106,12 @@ describe('Error overlay for hydration errors in App router', () => {
                              <script>
                              <script>
                              <Layout>
-       >                       <html>
-                                 <body>
-                                 <Script src="https://ex..." strategy="beforeInte...">
-       >                           <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
+                               <NotFound>
+                                 <HTTPAccessErrorFallback>
+       >                           <html>
+                                     <body>
+                                     <Script src="https://ex..." strategy="beforeInte...">
+       >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                          ...",
            "description": "In HTML, <script> cannot be a child of <html>.
        This will cause a hydration error.",
@@ -1168,10 +1169,12 @@ describe('Error overlay for hydration errors in App router', () => {
                            <SegmentViewNode type="layout" pagePath="layout.js">
                              <SegmentTrieNode>
                              <Layout>
-       >                       <html>
-                                 <body>
-                                 <Script src="https://ex..." strategy="beforeInte...">
-       >                           <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
+                               <NotFound>
+                                 <HTTPAccessErrorFallback>
+       >                           <html>
+                                     <body>
+                                     <Script src="https://ex..." strategy="beforeInte...">
+       >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                          ...",
            "description": "In HTML, <script> cannot be a child of <html>.
        This will cause a hydration error.",

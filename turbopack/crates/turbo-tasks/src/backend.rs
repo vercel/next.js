@@ -1,5 +1,4 @@
 use std::{
-    any::Any,
     borrow::Cow,
     error::Error,
     fmt::{self, Debug, Display},
@@ -17,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 use turbo_rcstr::RcStr;
 
-pub use crate::id::BackendJobId;
 use crate::{
     RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef, TraitTypeId,
     TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
@@ -583,10 +581,11 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;
 
+    type BackendJob: Send + 'static;
+
     fn run_backend_job<'a>(
         &'a self,
-        id: BackendJobId,
-        data: Option<Box<dyn Any + Send>>,
+        job: Self::BackendJob,
         turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 

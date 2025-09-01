@@ -1,5 +1,5 @@
 use anyhow::Result;
-use either::Either;
+use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -77,51 +77,42 @@ async fn resolve_reference_from_dir(
 ) -> Result<Vc<ModuleResolveResult>> {
     let path_ref = path.await?;
     let (abs_path, rel_path) = path_ref.split_could_match("/ROOT/");
-    let matches = match (abs_path, rel_path) {
-        (Some(abs_path), Some(rel_path)) => Either::Right(
+    if abs_path.is_none() && rel_path.is_none() {
+        return Ok(*ModuleResolveResult::unresolvable());
+    }
+
+    let abs_matches = if let Some(abs_path) = &abs_path {
+        Some(
             read_matches(
                 parent_path.root().owned().await?,
                 rcstr!("/ROOT/"),
                 true,
                 Pattern::new(abs_path.or_any_nested_file()),
             )
-            .await?
-            .into_iter()
-            .chain(
-                read_matches(
-                    parent_path,
-                    rcstr!(""),
-                    true,
-                    Pattern::new(rel_path.or_any_nested_file()),
-                )
-                .await?
-                .into_iter(),
-            ),
-        ),
-        (Some(abs_path), None) => Either::Left(
-            // absolute path only
-            read_matches(
-                parent_path.root().owned().await?,
-                rcstr!("/ROOT/"),
-                true,
-                Pattern::new(abs_path.or_any_nested_file()),
-            )
-            .await?
-            .into_iter(),
-        ),
-        (None, Some(rel_path)) => Either::Left(
-            // relative path only
+            .await?,
+        )
+    } else {
+        None
+    };
+    let rel_matches = if let Some(rel_path) = &rel_path {
+        Some(
             read_matches(
                 parent_path,
                 rcstr!(""),
                 true,
                 Pattern::new(rel_path.or_any_nested_file()),
             )
-            .await?
-            .into_iter(),
-        ),
-        (None, None) => return Ok(*ModuleResolveResult::unresolvable()),
+            .await?,
+        )
+    } else {
+        None
     };
+
+    let matches = abs_matches
+        .into_iter()
+        .flatten()
+        .chain(rel_matches.into_iter().flatten());
+
     let mut affecting_sources = Vec::new();
     let mut results = Vec::new();
     for pat_match in matches {
@@ -156,7 +147,17 @@ impl ModuleReference for DirAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let parent_path = self.source.ident().path().await?.parent();
-        Ok(resolve_reference_from_dir(parent_path, *self.path))
+        let span = tracing::info_span!(
+            "trace directory",
+            pattern = display(self.path.to_string().await?)
+        );
+        async {
+            resolve_reference_from_dir(parent_path, *self.path)
+                .resolve()
+                .await
+        }
+        .instrument(span)
+        .await
     }
 }
 

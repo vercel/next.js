@@ -25,7 +25,7 @@ const installCheckVisible = (browser) => {
 }
 
 describe('Build Activity Indicator', () => {
-  it('should validate buildActivityPosition config', async () => {
+  it('should validate position config', async () => {
     let stderr = ''
     const configPath = join(appDir, 'next.config.js')
     await fs.writeFile(
@@ -33,7 +33,7 @@ describe('Build Activity Indicator', () => {
       `
       module.exports = {
         devIndicators: {
-          buildActivityPosition: 'ttop-leff'
+          position: 'ttop-leff'
         }
       }
     `

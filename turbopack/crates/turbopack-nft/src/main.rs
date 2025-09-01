@@ -31,6 +31,9 @@ pub struct Arguments {
 
     #[clap(long)]
     pub show_issues: bool,
+
+    #[clap(long)]
+    pub depth: Option<usize>,
 }
 
 #[global_allocator]
@@ -95,6 +98,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
             args.entry.into(),
             args.graph,
             args.show_issues,
+            args.depth,
         )
         .await?;
         Ok(Default::default())

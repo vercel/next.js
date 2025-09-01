@@ -197,10 +197,10 @@ pub async fn internal_assets_conditions() -> Result<ContextCondition> {
     ]))
 }
 
-pub fn app_middleware_function_name(page: impl Display) -> String {
+pub fn app_function_name(page: impl Display) -> String {
     format!("app{page}")
 }
-pub fn pages_middleware_function_name(page: impl Display) -> String {
+pub fn pages_function_name(page: impl Display) -> String {
     format!("pages{page}")
 }
 

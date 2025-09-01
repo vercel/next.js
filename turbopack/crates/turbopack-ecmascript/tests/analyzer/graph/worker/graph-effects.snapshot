@@ -1,8 +1,6 @@
 [
     FreeVar {
-        var: FreeVar(
-            "URL",
-        ),
+        var: "URL",
         ast_path: [
             Program(
                 Module,
@@ -213,9 +211,7 @@
         new: true,
     },
     FreeVar {
-        var: FreeVar(
-            "Worker",
-        ),
+        var: "Worker",
         ast_path: [
             Program(
                 Module,

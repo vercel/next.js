@@ -382,6 +382,15 @@ describe('app dir - rsc basics', () => {
     expect(dynamicRouteUrl).toBe(`${next.url}/edge/dynamic/123`)
   })
 
+  describe.each(['node', 'edge'])(`%s`, (runtime) => {
+    it('should handle dynamic routes when URL segment matches the folder bracket syntax', async () => {
+      const browser = await next.browser(`/${runtime}/dynamic/[id]`)
+      expect(await browser.elementByCss('body').text()).toBe(
+        'dynamic route [id] page'
+      )
+    })
+  })
+
   it('should support streaming for flight response', async () => {
     await next
       .fetch(`/?${NEXT_RSC_UNION_QUERY}`, {

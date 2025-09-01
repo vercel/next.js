@@ -343,16 +343,19 @@ function parseRequestHeaders(
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   const components = loaderTree[2]
   const hasGlobalNotFound = !!components['global-not-found']
+  const notFoundTreeComponents: LoaderTree[2] = hasGlobalNotFound
+    ? {
+        layout: components['global-not-found']!,
+        page: [() => null, 'next/dist/client/components/builtin/empty-stub'],
+      }
+    : {
+        page: components['not-found'],
+      }
+
   return [
     '',
     {
-      children: [
-        PAGE_SEGMENT_KEY,
-        {},
-        {
-          page: components['global-not-found'] ?? components['not-found'],
-        },
-      ],
+      children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents],
     },
     // When global-not-found is present, skip layout from components
     hasGlobalNotFound ? components : {},
@@ -430,7 +433,9 @@ async function generateDynamicRSCPayload(
 
   const {
     componentMod: {
-      tree: loaderTree,
+      routeModule: {
+        userland: { loaderTree },
+      },
       createMetadataComponents,
       MetadataBoundary,
       ViewportBoundary,
@@ -619,10 +624,14 @@ async function generateRuntimePrefetchResult(
   const generatePayload = () => generateDynamicRSCPayload(ctx, undefined)
 
   const {
-    componentMod: { tree },
+    componentMod: {
+      routeModule: {
+        userland: { loaderTree },
+      },
+    },
     getDynamicParamFromSegment,
   } = ctx
-  const rootParams = getRootParams(tree, getDynamicParamFromSegment)
+  const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
 
   // We need to share caches between the prospective prerender and the final prerender,
   // but we're not going to persist this anywhere.
@@ -953,7 +962,7 @@ async function warmupDevRender(
   }
 
   const rootParams = getRootParams(
-    ComponentMod.tree,
+    ComponentMod.routeModule.userland.loaderTree,
     getDynamicParamFromSegment
   )
 
@@ -1279,6 +1288,7 @@ async function getErrorRSCPayload(
     {},
     null,
     false,
+    false, // We don't currently support runtime prefetching for error pages.
   ]
 
   const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
@@ -1589,7 +1599,12 @@ async function renderToHTMLOrFlightImpl(
   ComponentMod.patchFetch()
 
   // Pull out the hooks/references from the component.
-  const { tree: loaderTree, taintObjectReference } = ComponentMod
+  const {
+    routeModule: {
+      userland: { loaderTree },
+    },
+    taintObjectReference,
+  } = ComponentMod
   if (enableTainting) {
     taintObjectReference(
       'Do not pass process.env to Client Components since it will leak sensitive data',
@@ -1767,7 +1782,9 @@ async function renderToHTMLOrFlightImpl(
   } else {
     // We're rendering dynamically
     const renderResumeDataCache =
-      renderOpts.renderResumeDataCache ?? postponedState?.renderResumeDataCache
+      renderOpts.renderResumeDataCache ??
+      postponedState?.renderResumeDataCache ??
+      null
 
     const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
     const devValidatingFallbackParams =
@@ -1828,6 +1845,9 @@ async function renderToHTMLOrFlightImpl(
 
     let formState: null | any = null
     if (isPossibleActionRequest) {
+      // For action requests, we don't want to use the resume data cache.
+      requestStore.renderResumeDataCache = null
+
       // For action requests, we handle them differently with a special render result.
       const actionRequestResult = await handleAction({
         req,
@@ -1872,6 +1892,9 @@ async function renderToHTMLOrFlightImpl(
           }
         }
       }
+
+      // Restore the resume data cache
+      requestStore.renderResumeDataCache = renderResumeDataCache
     }
 
     const options: RenderResultOptions = {
@@ -2056,7 +2079,7 @@ function applyMetadataFromPrerenderResult(
   }
 
   // provide bailout info for debugging
-  if (metadata.cacheControl?.revalidate === 0) {
+  if (metadata.cacheControl.revalidate === 0) {
     metadata.staticBailoutInfo = {
       description: workStore.dynamicUsageDescription,
       stack: workStore.dynamicUsageStack,
@@ -2601,7 +2624,7 @@ async function spawnDynamicValidationInDev(
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
 
   const rootParams = getRootParams(
-    ComponentMod.tree,
+    ComponentMod.routeModule.userland.loaderTree,
     getDynamicParamFromSegment
   )
 
@@ -3501,6 +3524,7 @@ async function prerenderToStream(
         'abort',
         () => {
           initialServerRenderController.abort()
+          initialServerPrerenderController.abort()
         },
         { once: true }
       )
@@ -3917,12 +3941,15 @@ async function prerenderToStream(
               ? DynamicHTMLPreludeState.Empty
               : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
-            resumeDataCache
+            resumeDataCache,
+            experimental.cacheComponents
           )
         } else {
           // Dynamic Data case
-          metadata.postponed =
-            await getDynamicDataPostponedState(resumeDataCache)
+          metadata.postponed = await getDynamicDataPostponedState(
+            resumeDataCache,
+            experimental.cacheComponents
+          )
         }
         reactServerResult.consume()
         return {
@@ -4140,12 +4167,14 @@ async function prerenderToStream(
               ? DynamicHTMLPreludeState.Empty
               : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
-            prerenderResumeDataCache
+            prerenderResumeDataCache,
+            experimental.cacheComponents
           )
         } else {
           // Dynamic Data case.
           metadata.postponed = await getDynamicDataPostponedState(
-            prerenderResumeDataCache
+            prerenderResumeDataCache,
+            experimental.cacheComponents
           )
         }
         // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
@@ -4170,7 +4199,8 @@ async function prerenderToStream(
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
         // Rendering the fallback case.
         metadata.postponed = await getDynamicDataPostponedState(
-          prerenderResumeDataCache
+          prerenderResumeDataCache,
+          experimental.cacheComponents
         )
 
         return {

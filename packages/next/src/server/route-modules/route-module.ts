@@ -152,6 +152,7 @@ export abstract class RouteModule<
     } else {
       const { join } = require('node:path') as typeof import('node:path')
       const absoluteProjectDir = join(
+        /* turbopackIgnore: true */
         process.cwd(),
         getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
       )
@@ -390,6 +391,7 @@ export abstract class RouteModule<
 
         const { join } = require('node:path') as typeof import('node:path')
         const absoluteProjectDir = join(
+          /* turbopackIgnore: true */
           process.cwd(),
           getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
         )
@@ -432,6 +434,7 @@ export abstract class RouteModule<
       }
       const { join } = require('node:path') as typeof import('node:path')
       const projectDir = join(
+        /* turbopackIgnore: true */
         process.cwd(),
         getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
       )
@@ -539,6 +542,7 @@ export abstract class RouteModule<
         require('node:path') as typeof import('node:path')
 
       absoluteProjectDir = join(
+        /* turbopackIgnore: true */
         process.cwd(),
         getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
       )
@@ -598,8 +602,13 @@ export abstract class RouteModule<
       }
     }
 
+    // Normalize the page path for route matching. The srcPage contains the
+    // internal page path (e.g., /app/[slug]/page), but route matchers expect
+    // the pathname format (e.g., /app/[slug]).
+    const normalizedSrcPage = normalizeAppPath(srcPage)
+
     const serverUtils = getServerUtils({
-      page: srcPage,
+      page: normalizedSrcPage,
       i18n,
       basePath,
       rewrites,
@@ -807,7 +816,6 @@ export abstract class RouteModule<
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest.config
 
-    const normalizedSrcPage = normalizeAppPath(srcPage)
     let resolvedPathname =
       getRequestMeta(req, 'rewroteURL') || normalizedSrcPage
 

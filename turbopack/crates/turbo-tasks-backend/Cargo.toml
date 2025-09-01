@@ -56,8 +56,10 @@ turbo-tasks-testing = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+futures = { workspace = true }
 regex = { workspace = true }
 tempfile = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
 rstest = { workspace = true }
 
 [build-dependencies]

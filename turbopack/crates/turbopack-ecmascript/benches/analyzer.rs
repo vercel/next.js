@@ -64,7 +64,7 @@ pub fn benchmark(c: &mut Criterion) {
                     None,
                     None,
                 );
-                let var_graph = create_graph(&program, &eval_context);
+                let var_graph = create_graph(&program, &eval_context, false);
 
                 let input = BenchInput {
                     program,
@@ -90,7 +90,7 @@ struct BenchInput {
 }
 
 fn bench_create_graph(b: &mut Bencher, input: &BenchInput) {
-    b.iter(|| create_graph(&input.program, &input.eval_context));
+    b.iter(|| create_graph(&input.program, &input.eval_context, false));
 }
 
 fn bench_link(b: &mut Bencher, input: &BenchInput) {

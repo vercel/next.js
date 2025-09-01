@@ -358,6 +358,9 @@ function readRenderSnapshotFromCache(
     Object.fromEntries(new URLSearchParams(route.renderedSearch))
   )
 
+  // We don't need this information in a render snapshot, so this can just be a placeholder.
+  const hasRuntimePrefetch = false
+
   return {
     flightRouterState: [
       segment,
@@ -366,7 +369,14 @@ function readRenderSnapshotFromCache(
       null,
       tree.isRootLayout,
     ],
-    seedData: [segment, rsc, childSeedDatas, loading, isPartial],
+    seedData: [
+      segment,
+      rsc,
+      childSeedDatas,
+      loading,
+      isPartial,
+      hasRuntimePrefetch,
+    ],
   }
 }
 

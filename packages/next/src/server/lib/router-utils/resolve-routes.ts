@@ -71,37 +71,40 @@ export function getResolveRoutes(
   } & Partial<Header> &
     Partial<Redirect>
 
-  const routes: Route[] = [
-    // _next/data with middleware handling
-    { match: () => ({}), name: 'middleware_next_data' },
+  let routes: Route[] | null = null
+  const calculateRoutes = () => {
+    return [
+      // _next/data with middleware handling
+      { match: () => ({}), name: 'middleware_next_data' },
 
-    ...(opts.minimalMode ? [] : fsChecker.headers),
-    ...(opts.minimalMode ? [] : fsChecker.redirects),
+      ...(opts.minimalMode ? [] : fsChecker.headers),
+      ...(opts.minimalMode ? [] : fsChecker.redirects),
 
-    // check middleware (using matchers)
-    { match: () => ({}), name: 'middleware' },
+      // check middleware (using matchers)
+      { match: () => ({}), name: 'middleware' },
 
-    ...(opts.minimalMode ? [] : fsChecker.rewrites.beforeFiles),
+      ...(opts.minimalMode ? [] : fsChecker.rewrites.beforeFiles),
 
-    // check middleware (using matchers)
-    { match: () => ({}), name: 'before_files_end' },
+      // check middleware (using matchers)
+      { match: () => ({}), name: 'before_files_end' },
 
-    // we check exact matches on fs before continuing to
-    // after files rewrites
-    { match: () => ({}), name: 'check_fs' },
+      // we check exact matches on fs before continuing to
+      // after files rewrites
+      { match: () => ({}), name: 'check_fs' },
 
-    ...(opts.minimalMode ? [] : fsChecker.rewrites.afterFiles),
+      ...(opts.minimalMode ? [] : fsChecker.rewrites.afterFiles),
 
-    // we always do the check: true handling before continuing to
-    // fallback rewrites
-    {
-      check: true,
-      match: () => ({}),
-      name: 'after files check: true',
-    },
+      // we always do the check: true handling before continuing to
+      // fallback rewrites
+      {
+        check: true,
+        match: () => ({}),
+        name: 'after files check: true',
+      },
 
-    ...(opts.minimalMode ? [] : fsChecker.rewrites.fallback),
-  ]
+      ...(opts.minimalMode ? [] : fsChecker.rewrites.fallback),
+    ]
+  }
 
   async function resolveRoutes({
     req,
@@ -130,6 +133,13 @@ export function getResolveRoutes(
 
     const urlParts = (req.url || '').split('?', 1)
     const urlNoQuery = urlParts[0]
+
+    // Refresh the routes every time in development mode, but only initialize them
+    // once in production. We don't need to recompute these every time unless the routes
+    // are changing like in development, and the performance can be costly.
+    if (!routes || opts.dev) {
+      routes = calculateRoutes()
+    }
 
     // this normalizes repeated slashes in the path e.g. hello//world ->
     // hello/world or backslashes to forward slashes, this does not

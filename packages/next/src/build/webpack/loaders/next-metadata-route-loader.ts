@@ -35,10 +35,9 @@ async function createReExportsCode(
     : ''
 }
 
-const cacheHeader = {
-  none: 'no-cache, no-store',
-  longCache: 'public, immutable, no-transform, max-age=31536000',
-  revalidate: 'public, max-age=0, must-revalidate',
+const CACHE_HEADERS = {
+  NO_CACHE: 'no-cache, no-store',
+  REVALIDATE: 'public, max-age=0, must-revalidate',
 }
 
 export type MetadataRouteLoaderOptions = {
@@ -77,11 +76,9 @@ async function getStaticAssetRouteCode(
   fileBaseName: string
 ) {
   const cache =
-    fileBaseName === 'favicon'
-      ? 'public, max-age=0, must-revalidate'
-      : process.env.NODE_ENV !== 'production'
-        ? cacheHeader.none
-        : cacheHeader.longCache
+    process.env.NODE_ENV !== 'production'
+      ? CACHE_HEADERS.NO_CACHE
+      : CACHE_HEADERS.REVALIDATE
 
   const isTwitter = fileBaseName === 'twitter-image'
   const isOpenGraph = fileBaseName === 'opengraph-image'
@@ -149,7 +146,7 @@ export async function GET() {
   return new NextResponse(content, {
     headers: {
       'Content-Type': contentType,
-      'Cache-Control': ${JSON.stringify(cacheHeader.revalidate)},
+      'Cache-Control': ${JSON.stringify(CACHE_HEADERS.REVALIDATE)},
     },
   })
 }
@@ -271,7 +268,7 @@ export async function GET(_, ctx) {
   return new NextResponse(content, {
     headers: {
       'Content-Type': contentType,
-      'Cache-Control': ${JSON.stringify(cacheHeader.revalidate)},
+      'Cache-Control': ${JSON.stringify(CACHE_HEADERS.REVALIDATE)},
     },
   })
 }

@@ -266,13 +266,13 @@ impl Visit<FindServerEntriesNode> for FindServerEntries {
                 tracing::info_span!("client reference")
             }
             FindServerEntriesNode::Internal(_, name) => {
-                tracing::info_span!("module", name = name.to_string())
+                tracing::info_span!("module", name = display(name))
             }
             FindServerEntriesNode::ServerUtilEntry(_, name) => {
-                tracing::info_span!("server util", name = name.to_string())
+                tracing::info_span!("server util", name = display(name))
             }
             FindServerEntriesNode::ServerComponentEntry(_, name) => {
-                tracing::info_span!("layout segment", name = name.to_string())
+                tracing::info_span!("layout segment", name = display(name))
             }
         }
     }

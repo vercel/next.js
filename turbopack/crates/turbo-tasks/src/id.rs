@@ -115,7 +115,6 @@ macro_rules! define_id {
 define_id!(TaskId: u32, derive(Serialize, Deserialize), serde(transparent));
 define_id!(ValueTypeId: u32);
 define_id!(TraitTypeId: u32);
-define_id!(BackendJobId: u32);
 define_id!(SessionId: u32, derive(Debug, Serialize, Deserialize), serde(transparent));
 define_id!(
     LocalTaskId: u32,
