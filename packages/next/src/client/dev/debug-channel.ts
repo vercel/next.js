@@ -6,13 +6,11 @@ export interface DebugChannelReadableWriterPair {
   readonly writer: WritableStreamDefaultWriter<Uint8Array>
 }
 
+const pairs = new Map<string, DebugChannelReadableWriterPair>()
+
 export function getOrCreateDebugChannelReadableWriterPair(
   requestId: string
 ): DebugChannelReadableWriterPair {
-  const pairs: Map<string, DebugChannelReadableWriterPair> =
-    (window.__NEXT_REACT_DEBUG_CHANNEL_READABLE_WRITER_PAIRS_BY_REQUEST_ID ??=
-      new Map())
-
   let pair = pairs.get(requestId)
 
   if (!pair) {
