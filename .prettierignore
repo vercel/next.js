@@ -60,6 +60,7 @@ test/e2e/async-modules/amp-validator-wasm.js
 /turbopack/crates/*/js/src/compiled
 /turbopack/crates/turbopack/bench.json
 /turbopack/crates/turbopack-ecmascript/tests/analyzer/graph
+/turbopack/crates/turbopack-ecmascript/tests/benches
 /turbopack/crates/turbopack-ecmascript/tests/tree-shaker
 /turbopack/crates/next-transform-strip-page-exports/tests
 /turbopack/crates/next-transform-dynamic/tests

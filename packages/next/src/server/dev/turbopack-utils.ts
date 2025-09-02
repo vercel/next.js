@@ -266,7 +266,7 @@ export async function handleRouteType({
               // Report the next compilation again
               readyIds?.delete(pathname)
               return {
-                event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
+                action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
                 pages: [page],
               }
             },
@@ -283,7 +283,7 @@ export async function handleRouteType({
             route.htmlEndpoint,
             () => {
               return {
-                event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
+                action: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
               }
             },
             (e) => {
@@ -650,12 +650,12 @@ export async function handleEntrypoints({
     await dev?.hooks.unsubscribeFromChanges(key)
     currentEntryIssues.delete(key)
     dev.hooks.sendHmr('middleware', {
-      event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+      action: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
   } else if (!currentEntrypoints.global.middleware && middleware) {
     // Went from no middleware to middleware
     dev.hooks.sendHmr('middleware', {
-      event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+      action: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
     })
   }
 
@@ -763,11 +763,13 @@ export async function handleEntrypoints({
           })
 
           finishBuilding?.()
-          return { event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES }
+          return {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+          }
         },
         () => {
           return {
-            event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+            action: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
           }
         }
       )
@@ -879,7 +881,9 @@ export async function handlePagesErrorRoute({
       () => {
         // There's a special case for this in `../client/page-bootstrap.ts`.
         // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
-        return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
+        return {
+          action: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
+        }
       },
       () => {
         return {
@@ -932,7 +936,9 @@ export async function handlePagesErrorRoute({
       () => {
         // There's a special case for this in `../client/page-bootstrap.ts`.
         // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
-        return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
+        return {
+          action: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
+        }
       },
       (e) => {
         return {

@@ -1462,16 +1462,13 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             parallel_routes: FxIndexMap::default(),
                             modules: if use_global_not_found {
                                 // if global-not-found.js is present:
-                                // we use it for the page and no layout, since layout is included in global-not-found.js;
+                                // leaf module only keeps page pointing to empty-stub
                                 AppDirModules {
-                                    layout: None,
-                                    page: match modules.global_not_found {
-                                        Some(v) => Some(v),
-                                        None =>  Some(get_next_package(app_dir.clone())
-                                            .await?
-                                            .join("dist/client/components/builtin/global-not-found.js")?,
-                                        ),
-                                    },
+                                    // page is built-in/empty-stub
+                                    page: Some(get_next_package(app_dir.clone())
+                                        .await?
+                                        .join("dist/client/components/builtin/empty-stub.js")?,
+                                    ),
                                     ..Default::default()
                                 }
                             } else {
@@ -1503,7 +1500,14 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 // Otherwise, we need to compose it with the root layout to compose with
                 // not-found.js boundary.
                 layout: if use_global_not_found {
-                    None
+                    match modules.global_not_found {
+                        Some(v) => Some(v),
+                        None => Some(
+                            get_next_package(app_dir.clone())
+                                .await?
+                                .join("dist/client/components/builtin/global-not-found.js")?,
+                        ),
+                    }
                 } else {
                     modules.layout
                 },
@@ -1511,7 +1515,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             },
             global_metadata,
         }
-            .resolved_cell();
+        .resolved_cell();
 
         {
             let app_page = app_page

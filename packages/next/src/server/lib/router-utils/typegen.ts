@@ -446,12 +446,19 @@ export function generateValidatorFile(
             type === 'RouteHandlerConfig')
             ? `${type}<${JSON.stringify(route)}>`
             : type
+
+        // NOTE: we previously used `satisfies` here, but it's not supported by TypeScript 4.8 and below.
+        // If we ever raise the TS minimum version, we can switch back.
+
         return `// Validate ${filePath}
 {
+  type __IsExpected<Specific extends ${typeWithRoute}> = Specific
   const handler = {} as typeof import(${JSON.stringify(
     importPath.replace(/\.tsx?$/, '.js')
   )})
-  handler satisfies ${typeWithRoute}
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
 }`
       })
       .join('\n\n')
@@ -565,7 +572,7 @@ export function generateValidatorFile(
 
   if (pagesApiRouteValidations) {
     typeDefinitions += `type ApiRouteConfig = {
-  default: (req: any, res: any) => Promise<Response | void> | Response | void
+  default: (req: any, res: any) => ReturnType<NextApiHandler>
   config?: {
     api?: {
       bodyParser?: boolean | { sizeLimit?: string }
@@ -611,10 +618,17 @@ export function generateValidatorFile(
     ? "import type { NextRequest } from 'next/server.js'\n"
     : ''
 
-  // Only import metadata types if there are App Router pages or layouts that might use them
-  const metadataImport =
-    appPageValidations || layoutValidations
-      ? 'import type { ResolvingMetadata, ResolvingViewport } from "next/dist/lib/metadata/types/metadata-interface.js"\n'
+  // Conditionally import types from next/types, merged into a single statement
+  const nextTypes: string[] = []
+  if (pagesApiRouteValidations) {
+    nextTypes.push('NextApiHandler')
+  }
+  if (appPageValidations || layoutValidations) {
+    nextTypes.push('ResolvingMetadata', 'ResolvingViewport')
+  }
+  const nextTypesImport =
+    nextTypes.length > 0
+      ? `import type { ${nextTypes.join(', ')} } from "next/types.js"\n`
       : ''
 
   return `// This file is generated automatically by Next.js
@@ -622,7 +636,7 @@ export function generateValidatorFile(
 // This file validates that all pages and layouts export the correct types
 
 ${routeImportStatement}
-${metadataImport}${nextRequestImport}
+${nextTypesImport}${nextRequestImport}
 ${typeDefinitions}
 ${appPageValidations}
 

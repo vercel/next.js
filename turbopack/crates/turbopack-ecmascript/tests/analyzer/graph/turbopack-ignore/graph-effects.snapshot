@@ -55,9 +55,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -205,9 +203,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -300,9 +296,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -395,9 +389,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -490,9 +482,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -585,9 +575,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,
@@ -680,9 +668,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Module,

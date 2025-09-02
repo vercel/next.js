@@ -36,8 +36,14 @@ export function DragProvider({
   }, [])
 
   const value = useMemo<DragContextValue>(
-    // eslint-disable-next-line react-hooks/react-compiler -- TODO
-    () => ({ register, unregister, handles: handlesRef.current, disabled }),
+    () => ({
+      register,
+      unregister,
+      handles:
+        // eslint-disable-next-line react-hooks/refs -- TODO
+        handlesRef.current,
+      disabled,
+    }),
     [register, unregister, disabled]
   )
 

@@ -43,11 +43,7 @@ async function nextMetadataImageLoader(
 
   const opts = { context, content }
 
-  // No hash query for favicon.ico
-  const contentHash =
-    type === 'favicon'
-      ? ''
-      : loaderUtils.interpolateName(this, '[contenthash]', opts)
+  const contentHash = loaderUtils.interpolateName(this, '[contenthash]', opts)
 
   const interpolatedName = loaderUtils.interpolateName(
     this,
@@ -126,14 +122,17 @@ async function nextMetadataImageLoader(
     }`
   }
 
+  let imageError
   const imageSize: { width?: number; height?: number } = await getImageSize(
     content
-  ).catch((err) => err)
+  ).catch((error) => {
+    const message = `Process image "${path.posix.join(segment || '/', interpolatedName)}" failed: ${error}`
+    imageError = new Error(message)
+    return {}
+  })
 
-  if (imageSize instanceof Error) {
-    const err = imageSize
-    err.name = 'InvalidImageFormatError'
-    throw err
+  if (imageError) {
+    throw imageError
   }
 
   const imageData: Omit<MetadataImageModule, 'url'> = {
@@ -176,7 +175,7 @@ async function nextMetadataImageLoader(
 
     return [{
       ...imageData,
-      url: imageUrl + ${JSON.stringify(type === 'favicon' ? '' : hashQuery)},
+      url: imageUrl + ${JSON.stringify(hashQuery)},
     }]
   }`
 }

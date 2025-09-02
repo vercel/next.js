@@ -1466,13 +1466,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
       if (middlewareChanges.length > 0) {
         this.send({
-          event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+          action: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
         })
       }
 
       if (pageChanges.length > 0) {
         this.send({
-          event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
+          action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
           pages: serverOnlyChanges.map((pg) =>
             denormalizePagePath(pg.slice('pages'.length))
           ),

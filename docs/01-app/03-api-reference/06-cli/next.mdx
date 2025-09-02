@@ -139,7 +139,15 @@ The following options are available for the `next info` command:
 
 ### `next lint` options
 
-> **Warning**: This option is deprecated and will be removed in Next 16. A [codemod](/blog/next-15-5#next-lint-deprecation) is available to migrate to ESLint CLI.
+> **Warning**: This command is deprecated and will be removed in Next.js 16.
+>
+> We recommend migrating to invoking ESLint directly (or using Biome). A [codemod](https://nextjs.org/blog/next-15-5#next-lint-deprecation) is available to migrate scripts to the ESLint CLI.
+>
+> `next lint` generates a `next-env.d.ts` file, which is often needed during type-check. To ensure `next-env.d.ts` is present run [`next typegen`](#next-typegen-options) before type-checking. `next dev` and `next build` also generate the `next-env.d.ts` file, but it is often undesirable to run these just to type-check.
+>
+> ```bash filename="Terminal"
+> next typegen && tsc --noEmit
+> ```
 
 `next lint` runs ESLint for all files in the `pages/`, `app/`, `components/`, `lib/`, and `src/` directories. It also provides a guided setup to install any required dependencies if ESLint is not already configured in your application.
 

@@ -9,6 +9,7 @@ use napi::{
 };
 use next_api::{
     entrypoints::Entrypoints,
+    next_server_nft::next_server_nft_assets,
     operation::{
         EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, OptionEndpoint,
         RouteOperation,
@@ -988,7 +989,14 @@ async fn output_assets_operation(
         .flat_map(|assets| assets.iter().copied())
         .collect();
 
-    Ok(Vc::cell(output_assets.into_iter().collect()))
+    let nft = next_server_nft_assets(container.project()).await?;
+
+    Ok(Vc::cell(
+        output_assets
+            .into_iter()
+            .chain(nft.iter().copied())
+            .collect(),
+    ))
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]

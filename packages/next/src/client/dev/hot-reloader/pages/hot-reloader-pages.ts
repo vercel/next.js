@@ -74,10 +74,6 @@ export default function connect() {
   register()
 
   addMessageListener((payload) => {
-    if (!('action' in payload)) {
-      return
-    }
-
     try {
       processMessage(payload)
     } catch (err: unknown) {
@@ -253,10 +249,6 @@ export function handleStaticIndicator() {
 
 /** Handles messages from the server for the Pages Router. */
 function processMessage(obj: HMR_ACTION_TYPES) {
-  if (!('action' in obj)) {
-    return
-  }
-
   switch (obj.action) {
     case HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST: {
       isrManifest = obj.data
@@ -373,6 +365,11 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       break
     case HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG:
       dispatcher.onDevToolsConfig(obj.data)
+      break
+    case HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:
+    case HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES:
+    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:
+      // These action types are handled in src/client/page-bootstrap.ts
       break
     default:
       obj satisfies never
