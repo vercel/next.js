@@ -41,11 +41,12 @@ use turbopack_core::{
     ident::Layer,
     issue::IssueDescriptionExt,
     module_graph::{
-        chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info, ModuleGraph
+        ModuleGraph, chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info,
     },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
-        options::{ImportMap, ImportMapping}, ExternalTraced, ExternalType
+        ExternalTraced, ExternalType,
+        options::{ImportMap, ImportMapping},
     },
 };
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -351,9 +352,10 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .get_relative_path_to(project_root)
         .context("Project path is in root path")?;
 
-    let env = Environment::new(ExecutionEnvironment::NodeJsBuildTime(
-        NodeJsEnvironment::default().resolved_cell(),
-    ),BrowserEnvironment::default().cell())
+    let env = Environment::new(
+        ExecutionEnvironment::NodeJsBuildTime(NodeJsEnvironment::default().resolved_cell()),
+        BrowserEnvironment::default().cell(),
+    )
     .to_resolved()
     .await?;
 

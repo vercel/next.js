@@ -107,11 +107,9 @@ pub async fn get_client_compile_time_info(
     .resolved_cell();
 
     CompileTimeInfo::builder(
-        Environment::new(ExecutionEnvironment::Browser(
-            environment,
-        ),*environment)
-        .to_resolved()
-        .await?,
+        Environment::new(ExecutionEnvironment::Browser(environment), *environment)
+            .to_resolved()
+            .await?,
     )
     .defines(next_client_defines(define_env).to_resolved().await?)
     .free_var_references(next_client_free_vars(define_env).to_resolved().await?)

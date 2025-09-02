@@ -14,7 +14,9 @@ use turbo_tasks::ResolvedVc;
 use turbo_tasks_testing::VcStorage;
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
-    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
+    environment::{
+        BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion,
+    },
     target::CompileTarget,
 };
 use turbopack_ecmascript::analyzer::{
@@ -105,15 +107,17 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                 let css_environment = BrowserEnvironment::default().cell();
 
                 let compile_time_info = CompileTimeInfo::builder(
-                    Environment::new(ExecutionEnvironment::NodeJsLambda(
-                        NodeJsEnvironment {
-                            compile_target: CompileTarget::unknown().to_resolved().await?,
-                            node_version: NodeJsVersion::default().resolved_cell(),
-                            cwd: ResolvedVc::cell(None),
-                        }
-                        .resolved_cell(),
-                     
-                    ),   css_environment,)
+                    Environment::new(
+                        ExecutionEnvironment::NodeJsLambda(
+                            NodeJsEnvironment {
+                                compile_target: CompileTarget::unknown().to_resolved().await?,
+                                node_version: NodeJsVersion::default().resolved_cell(),
+                                cwd: ResolvedVc::cell(None),
+                            }
+                            .resolved_cell(),
+                        ),
+                        css_environment,
+                    )
                     .to_resolved()
                     .await?,
                 )

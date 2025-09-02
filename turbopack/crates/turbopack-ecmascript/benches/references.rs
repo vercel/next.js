@@ -41,9 +41,10 @@ pub fn benchmark(c: &mut Criterion) {
             let root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/benches/");
             let fs = DiskFileSystem::new(rcstr!("project"), root_dir.to_str().unwrap().into());
 
-            let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
-                NodeJsEnvironment::default().resolved_cell(),
-            ),BrowserEnvironment::default().cell());
+            let environment = Environment::new(
+                ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().resolved_cell()),
+                BrowserEnvironment::default().cell(),
+            );
             let compile_time_info = CompileTimeInfo::new(environment).to_resolved().await?;
             let layer = Layer::new(rcstr!("test"));
             let module_asset_context = NoopAssetContext {

@@ -285,17 +285,18 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             }
             .resolved_cell();
 
-            Environment::new(ExecutionEnvironment::Browser(
-                environment,
-            ),*environment)
-    .to_resolved()
-    .await?
+            Environment::new(ExecutionEnvironment::Browser(environment), *environment)
+                .to_resolved()
+                .await?
         }
         SnapshotEnvironment::NodeJs => {
-            Environment::new( ExecutionEnvironment::NodeJsBuildTime(
-                // TODO: load more from options.json
-                NodeJsEnvironment::default().resolved_cell(),
-            ),BrowserEnvironment::default().cell())
+            Environment::new(
+                ExecutionEnvironment::NodeJsBuildTime(
+                    // TODO: load more from options.json
+                    NodeJsEnvironment::default().resolved_cell(),
+                ),
+                BrowserEnvironment::default().cell(),
+            )
             .to_resolved()
             .await?
         }

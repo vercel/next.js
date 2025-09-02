@@ -24,9 +24,10 @@ use crate::{
 
 #[turbo_tasks::function]
 pub fn node_build_environment() -> Vc<Environment> {
-    Environment::new(ExecutionEnvironment::NodeJsBuildTime(
-        NodeJsEnvironment::default().resolved_cell(),
-    ), BrowserEnvironment::default().cell())
+    Environment::new(
+        ExecutionEnvironment::NodeJsBuildTime(NodeJsEnvironment::default().resolved_cell()),
+        BrowserEnvironment::default().cell(),
+    )
 }
 
 #[turbo_tasks::function]

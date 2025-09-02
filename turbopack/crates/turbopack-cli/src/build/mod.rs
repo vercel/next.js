@@ -237,9 +237,12 @@ async fn build_internal(
                 build_output_root.clone(),
                 build_output_root.clone(),
                 build_output_root.clone(),
-                Environment::new(ExecutionEnvironment::NodeJsLambda(
-                    NodeJsEnvironment::default().resolved_cell(),
-                ),compile_time_info.css_environment())
+                Environment::new(
+                    ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment::default().resolved_cell(),
+                    ),
+                    compile_time_info.css_environment(),
+                )
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -336,9 +339,10 @@ async fn build_internal(
                 build_output_root.clone(),
                 build_output_root.clone(),
                 build_output_root.clone(),
-                Environment::new(ExecutionEnvironment::Browser(
-                    browser_environment,
-                ),*browser_environment)
+                Environment::new(
+                    ExecutionEnvironment::Browser(browser_environment),
+                    *browser_environment,
+                )
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -384,9 +388,12 @@ async fn build_internal(
                 build_output_root.clone(),
                 build_output_root.clone(),
                 build_output_root.clone(),
-                Environment::new(ExecutionEnvironment::NodeJsLambda(
-                    NodeJsEnvironment::default().resolved_cell(),
-                ),BrowserEnvironment::default().cell())
+                Environment::new(
+                    ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment::default().resolved_cell(),
+                    ),
+                    BrowserEnvironment::default().cell(),
+                )
                 .to_resolved()
                 .await?,
                 runtime_type,
