@@ -15,6 +15,12 @@ describe('validateLocalFontFunctionCall', () => {
     ).toThrowErrorMatchingInlineSnapshot(`"Missing required \`src\` property"`)
   })
 
+  test('Invalid src type', async () => {
+    expect(() =>
+      validateLocalFontFunctionCall('', { src: 123 })
+    ).toThrowErrorMatchingInlineSnapshot(`"Unexpected file \`123\`"`)
+  })
+
   test('Invalid file extension', async () => {
     expect(() =>
       validateLocalFontFunctionCall('', { src: './font/font-file.abc' })

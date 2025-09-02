@@ -72,7 +72,9 @@ export function validateLocalFontFunctionCall(
 
   src = src.map((fontFile: any) => {
     const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(
-      fontFile.path?.toLowerCase()
+      typeof fontFile.path === 'string'
+        ? fontFile.path.toLowerCase()
+        : String(fontFile.path || '')
     )?.[1]
 
     if (!ext) {
