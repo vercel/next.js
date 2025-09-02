@@ -12,6 +12,11 @@ The `middleware.js|ts` file is used to write [Middleware](/docs/app/api-referenc
 
 Middleware executes before routes are rendered. It's particularly useful for implementing custom server-side logic like authentication, logging, or handling redirects.
 
+> **Good to know**:
+>
+> - Middleware is built as its own bundle and runs in an isolated [runtime](#runtime). It does not share the same JavaScript global environment or module instances as your server or rendering code.
+> - You cannot share in-memory objects, singletons, or other mutable state between Middleware and rendering. To pass information from Middleware to your application, use headers, cookies, rewrites, redirects, or the URL.
+
 Create a `middleware.ts` (or `.js`) file in the project root, or inside `src` if applicable, so that it is located at the same level as `pages` or `app`.
 
 ```tsx filename="middleware.ts" switcher
