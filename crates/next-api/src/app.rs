@@ -1,7 +1,6 @@
 use anyhow::{Context, Result, bail};
 use next_core::{
     all_assets_from_entries,
-    app_segment_config::NextSegmentConfig,
     app_structure::{
         AppPageLoaderTree, CollectedRootParams, Entrypoint as AppEntrypoint,
         Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem, collect_root_params,
@@ -34,6 +33,7 @@ use next_core::{
     },
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
+    segment_config::NextSegmentConfig,
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
 use serde::{Deserialize, Serialize};

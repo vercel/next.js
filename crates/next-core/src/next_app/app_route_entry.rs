@@ -11,11 +11,11 @@ use turbopack_core::{
 };
 
 use crate::{
-    app_segment_config::NextSegmentConfig,
     next_app::{AppEntry, AppPage, AppPath},
     next_config::{NextConfig, OutputType},
     next_edge::entry::wrap_edge_entry,
     parse_segment_config_from_source,
+    segment_config::NextSegmentConfig,
     util::{NextRuntime, app_function_name, load_next_js_template},
 };
 
