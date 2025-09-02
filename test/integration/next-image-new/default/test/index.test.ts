@@ -1079,8 +1079,8 @@ function runTests(mode) {
       expect(warnings).not.toMatch(/cannot appear as a descendant/gm)
     })
 
-    it('should warn when priority prop is missing on LCP image', async () => {
-      let browser = await webdriver(appPort, '/priority-missing-warning')
+    it('should warn when preload prop is missing on LCP image', async () => {
+      let browser = await webdriver(appPort, '/preload-missing-warning')
       try {
         // Wait for image to load:
         await check(async () => {

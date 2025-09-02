@@ -61,6 +61,47 @@ describe('getImageProps()', () => {
     expect(props.srcSet).toBeString()
   })
 
+  it('should handle preload', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 100,
+      height: 200,
+      preload: true,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
+    ])
+  })
+
+  it('should error when both priority and preload are used', async () => {
+    expect(() =>
+      getImageProps({
+        alt: 'a nice desc',
+        id: 'my-image',
+        src: '/test.png',
+        width: 100,
+        height: 200,
+        preload: true,
+        priority: true,
+      })
+    ).toThrow(
+      'Image with src "/test.png" has both "preload" and "priority" properties. Only "preload" should be used.'
+    )
+  })
+
   it('should handle priority', async () => {
     const { props } = getImageProps({
       alt: 'a nice desc',

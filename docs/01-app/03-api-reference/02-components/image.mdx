@@ -45,7 +45,7 @@ The following props are available:
 | [`loader`](#loader)                       | `loader={imageLoader}`                   | Function        | -          |
 | [`sizes`](#sizes)                         | `sizes="(max-width: 768px) 100vw, 33vw"` | String          | -          |
 | [`quality`](#quality)                     | `quality={80}`                           | Integer (1-100) | -          |
-| [`priority`](#priority)                   | `priority={true}`                        | Boolean         | -          |
+| [`preload`](#preload)                     | `preload={true}`                         | Boolean         | -          |
 | [`placeholder`](#placeholder)             | `placeholder="blur"`                     | String          | -          |
 | [`style`](#style)                         | `style={{objectFit: "contain"}}`         | Object          | -          |
 | [`onLoadingComplete`](#onloadingcomplete) | `onLoadingComplete={img => done())}`     | Function        | Deprecated |
@@ -259,27 +259,33 @@ export default function ProfileImage() {
 
 > **Good to know**: If you’re using the `style` prop to set a custom width, be sure to also set `height: 'auto'` to preserve the image’s aspect ratio.
 
-#### `priority`
+#### `preload`
 
 A boolean that indicates if the image should be preloaded.
 
 ```jsx
-// Default priority is false
-<Image priority={false} />
+// Default preload is false
+<Image preload={false} />
 ```
 
-- `true`: [Preloads](https://web.dev/preload-responsive-images/) the image. Disables lazy loading.
-- `false`: Lazy loads the image.
+- `true`: [Preloads](https://web.dev/preload-responsive-images/) the image by inserting a `<link>` in the `<head>`.
+- `false`: Does not preload the image.
 
 **When to use it:**
 
-- The image is above the fold.
 - The image is the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element.
-- You want to improve the initial loading performance of your page.
+- The image is above the fold, typically the hero image.
+- You want to begin loading the image in the `<head>`, before its discovered later in the `<body>`.
 
 **When not to use it:**
 
-- When the `loading` prop is used (will trigger warnings).
+- When you have multiple images that could be considered LCP the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element depending on the viewport.
+- When the `loading` property is used.
+- When the `fetchPriority` property is used.
+
+#### `priority`
+
+Starting with Next.js 16, the `priority` property has been deprecated in favor of the [`preload`](#preload) property in order to make the behavior clear.
 
 #### `loading`
 

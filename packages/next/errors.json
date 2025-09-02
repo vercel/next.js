@@ -798,5 +798,7 @@
   "797": "Failed to transpile \"%s\".",
   "798": "expected a result to be returned",
   "799": "expected a page response, got %s",
-  "800": "`experimental.rdcForNavigations` is enabled, but `experimental.ppr` is not."
+  "800": "`experimental.rdcForNavigations` is enabled, but `experimental.ppr` is not.",
+  "801": "Image with src \"%s\" has both \"preload\" and \"priority\" properties. Only \"preload\" should be used.",
+  "802": "Image with src \"%s\" has both \"preload\" and \"loading='lazy'\" properties. Only one should be used."
 }
