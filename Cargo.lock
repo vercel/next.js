@@ -4347,6 +4347,7 @@ dependencies = [
  "qstring",
  "react_remove_properties",
  "regex",
+ "regress",
  "remove_console",
  "rustc-hash 2.1.1",
  "serde",
@@ -5832,9 +5833,9 @@ dependencies = [
 
 [[package]]
 name = "regress"
-version = "0.10.3"
+version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78ef7fa9ed0256d64a688a3747d0fef7a88851c18a5e1d57f115f38ec2e09366"
+checksum = "145bb27393fe455dd64d6cbc8d059adfa392590a45eadf079c01b11857e7b010"
 dependencies = [
  "hashbrown 0.15.4",
  "memchr",
