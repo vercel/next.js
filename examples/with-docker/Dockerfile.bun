@@ -24,13 +24,6 @@ COPY . .
 # Uncomment the following line in case you want to disable telemetry during the build.
 # ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create next.config.js for standalone output, if it doesn't exist
-RUN if [ ! -f next.config.js ] && [ ! -f next.config.mjs ]; then \
-    echo "/** @type {import('next').NextConfig} */" > next.config.js && \
-    echo "const nextConfig = { output: 'standalone' };" >> next.config.js && \
-    echo "module.exports = nextConfig;" >> next.config.js; \
-    fi
-
 RUN bun run build
 
 # Production image, copy all the files and run next
