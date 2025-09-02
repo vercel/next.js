@@ -672,7 +672,7 @@ async fn process_default_internal(
 }
 
 #[turbo_tasks::function]
-async fn externals_tracing_module_context(
+pub async fn externals_tracing_module_context(
     ty: ExternalType,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ModuleAssetContext>> {
@@ -709,6 +709,7 @@ async fn externals_tracing_module_context(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
+            is_tracing: true,
             ..Default::default()
         }
         .cell(),

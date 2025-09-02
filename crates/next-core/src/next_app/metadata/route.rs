@@ -112,7 +112,6 @@ pub async fn get_app_metadata_route_entry(
 }
 
 const CACHE_HEADER_NONE: &str = "no-cache, no-store";
-const CACHE_HEADER_LONG_CACHE: &str = "public, immutable, no-transform, max-age=31536000";
 const CACHE_HEADER_REVALIDATE: &str = "public, max-age=0, must-revalidate";
 
 async fn get_base64_file_content(path: FileSystemPath) -> Result<String> {
@@ -137,10 +136,8 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
 
-    let cache_control = if stem == "favicon" {
+    let cache_control = if mode.is_production() {
         CACHE_HEADER_REVALIDATE
-    } else if mode.is_production() {
-        CACHE_HEADER_LONG_CACHE
     } else {
         CACHE_HEADER_NONE
     };

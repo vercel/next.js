@@ -121,8 +121,7 @@ where
     }
 }
 
-/// An [`IdFactory`], but extended with a free list to allow for id reuse for ids such as
-/// [`BackendJobId`][crate::backend::BackendJobId].
+/// An [`IdFactory`], but extended with a free list to allow for id reuse.
 ///
 /// If silent untracked re-use of ids is okay, consider using the cheaper
 /// [`IdFactory::wrapping_get`] method.

@@ -347,7 +347,7 @@ impl NodeJsPoolProcess {
         shared_stderr: SharedOutputSet,
         debug: bool,
     ) -> Result<Self> {
-        let guard = Box::new(duration_span!("Node.js process startup"));
+        let guard = duration_span!("Node.js process startup");
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .context("binding to a port")?;

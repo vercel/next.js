@@ -121,6 +121,12 @@ export type RouteTree = {
   // this value is disregarded, because in that model `loading.tsx` is treated
   // like any other Suspense boundary.)
   hasLoadingBoundary: HasLoadingBoundary
+
+  // Indicates whether this route has a runtime prefetch that we can request.
+  // This is determined by the server; it's not purely a user configuration
+  // because the server may determine that a route is fully static and doesn't
+  // need runtime prefetching regardless of the configuration.
+  hasRuntimePrefetch: boolean
 }
 
 type RouteCacheEntryShared = {
@@ -147,10 +153,10 @@ type RouteCacheEntryShared = {
  * Rejected depending on the response from the server.
  */
 export const enum EntryStatus {
-  Empty,
-  Pending,
-  Fulfilled,
-  Rejected,
+  Empty = 0,
+  Pending = 1,
+  Fulfilled = 2,
+  Rejected = 3,
 }
 
 type PendingRouteCacheEntry = RouteCacheEntryShared & {
@@ -431,8 +437,8 @@ export function readRouteCacheEntry(
   return readExactRouteCacheEntry(now, key.href, key.nextUrl)
 }
 
-export function getSegmentKeypathForTask(
-  task: PrefetchTask,
+export function getSegmentKeypath(
+  fetchStrategy: FetchStrategy,
   route: FulfilledRouteCacheEntry,
   cacheKey: SegmentCacheKey
 ): Prefix<SegmentCacheKeypath> {
@@ -443,11 +449,11 @@ export function getSegmentKeypathForTask(
   // If we're fetching using PPR, we do not need to include the search params in
   // the cache key, because the search params are treated as dynamic data. The
   // cache entry is valid for all possible search param values.
-  const isDynamicTask =
-    task.fetchStrategy === FetchStrategy.Full ||
-    task.fetchStrategy === FetchStrategy.PPRRuntime ||
+  const isDynamic =
+    fetchStrategy === FetchStrategy.Full ||
+    fetchStrategy === FetchStrategy.PPRRuntime ||
     !route.isPPREnabled
-  return isDynamicTask && cacheKey.endsWith('/' + PAGE_SEGMENT_KEY)
+  return isDynamic && cacheKey.endsWith('/' + PAGE_SEGMENT_KEY)
     ? [cacheKey, route.renderedSearch]
     : [cacheKey]
 }
@@ -481,7 +487,7 @@ export function readSegmentCacheEntry(
   // is the common case because PPR/static prerenders always treat search params
   // as dynamic.
   //
-  // See corresponding logic in `getSegmentKeypathForTask`.
+  // See corresponding logic in `getSegmentKeypath`.
   const entryWithoutSearchParams = readExactSegmentCacheEntry(now, [cacheKey])
   return entryWithoutSearchParams
 }
@@ -744,11 +750,11 @@ export function requestOptimisticRouteCacheEntry(
  */
 export function readOrCreateSegmentCacheEntry(
   now: number,
-  task: PrefetchTask,
+  fetchStrategy: FetchStrategy,
   route: FulfilledRouteCacheEntry,
   cacheKey: SegmentCacheKey
 ): SegmentCacheEntry {
-  const keypath = getSegmentKeypathForTask(task, route, cacheKey)
+  const keypath = getSegmentKeypath(fetchStrategy, route, cacheKey)
   const existingEntry = readExactSegmentCacheEntry(now, keypath)
   if (existingEntry !== null) {
     return existingEntry
@@ -1158,6 +1164,7 @@ function convertTreePrefetchToRouteTree(
     // This field is only relevant to dynamic routes. For a PPR/static route,
     // there's always some partial loading state we can fetch.
     hasLoadingBoundary: HasLoadingBoundary.SegmentHasLoadingBoundary,
+    hasRuntimePrefetch: prefetch.hasRuntimePrefetch,
   }
 }
 
@@ -1251,6 +1258,10 @@ function convertFlightRouterStateToRouteTree(
       flightRouterState[5] !== undefined
         ? flightRouterState[5]
         : HasLoadingBoundary.SubtreeHasNoLoadingBoundary,
+
+    // Non-static tree responses are only used by apps that haven't adopted
+    // Cache Components. So this is always false.
+    hasRuntimePrefetch: false,
   }
 }
 
@@ -2036,7 +2047,7 @@ function writeSeedDataIntoCache(
     // There's no matching entry. Attempt to create a new one.
     const possiblyNewEntry = readOrCreateSegmentCacheEntry(
       now,
-      task,
+      fetchStrategy,
       route,
       cacheKey
     )
@@ -2065,7 +2076,7 @@ function writeSeedDataIntoCache(
       )
       upsertSegmentEntry(
         now,
-        getSegmentKeypathForTask(task, route, cacheKey),
+        getSegmentKeypath(fetchStrategy, route, cacheKey),
         newEntry
       )
     }

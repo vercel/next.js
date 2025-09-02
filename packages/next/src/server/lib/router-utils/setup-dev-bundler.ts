@@ -576,10 +576,7 @@ async function startWatcher(
                   ''
                 )
               ),
-              filePath: path.relative(
-                path.dirname(validatorFilePath),
-                fileName
-              ),
+              filePath: fileName,
             })
           }
 
@@ -606,18 +603,12 @@ async function startWatcher(
           if (validFileMatcher.isAppRouterRoute(fileName)) {
             appRouteHandlers.push({
               route: normalizePathSep(pageName),
-              filePath: path.relative(
-                path.dirname(validatorFilePath),
-                fileName
-              ),
+              filePath: fileName,
             })
           } else {
             appRoutes.push({
               route: normalizePathSep(pageName),
-              filePath: path.relative(
-                path.dirname(validatorFilePath),
-                fileName
-              ),
+              filePath: fileName,
             })
           }
 
@@ -635,18 +626,12 @@ async function startWatcher(
           if (pageName.startsWith('/api/')) {
             pageApiRoutes.push({
               route: normalizePathSep(pageName),
-              filePath: path.relative(
-                path.dirname(validatorFilePath),
-                fileName
-              ),
+              filePath: fileName,
             })
           } else {
             pageRoutes.push({
               route: normalizePathSep(pageName),
-              filePath: path.relative(
-                path.dirname(validatorFilePath),
-                fileName
-              ),
+              filePath: fileName,
             })
           }
         }
@@ -1062,6 +1047,9 @@ async function startWatcher(
             slots,
             redirects: opts.nextConfig.redirects,
             rewrites: opts.nextConfig.rewrites,
+            // Ensure relative paths in validator.ts are computed from validatorFilePath,
+            // matching behavior of build and CLI typegen.
+            validatorFilePath,
             appRouteHandlers,
             pageApiRoutes,
           })
