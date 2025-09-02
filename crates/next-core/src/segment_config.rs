@@ -4,7 +4,7 @@ use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
-    common::{GLOBALS, Span, Spanned, source_map::SmallPos},
+    common::{DUMMY_SP, GLOBALS, Span, Spanned, source_map::SmallPos},
     ecma::{
         ast::{
             ClassExpr, Decl, ExportSpecifier, Expr, ExprStmt, FnExpr, Lit, ModuleDecl,
@@ -378,7 +378,11 @@ pub async fn parse_segment_config_from_source(
 
                                 parse(
                                     &ident.id.sym,
-                                    decl.init.as_deref().map(Cow::Borrowed),
+                                    Some(
+                                        decl.init.as_deref().map(Cow::Borrowed).unwrap_or_else(
+                                            || Cow::Owned(*Expr::undefined(DUMMY_SP)),
+                                        ),
+                                    ),
                                     decl.span(),
                                 )
                                 .await?;
@@ -486,13 +490,32 @@ async fn parse_config_value(
     span: Span,
 ) -> Result<()> {
     let get_value = || {
-        init.map(|init| eval_context.eval(&init))
-            .unwrap_or(JsValue::Constant(ConstantValue::Undefined))
+        init.map(|init| eval_context.eval(&init)).map(|v| {
+            // Special case, as we don't call `link` here: assume that `undefined` is a free
+            // variable.
+            if let JsValue::FreeVar(name) = &v
+                && name == "undefined"
+            {
+                JsValue::Constant(ConstantValue::Undefined)
+            } else {
+                v
+            }
+        })
     };
 
     match key {
         "config" => {
-            let value = get_value();
+            let Some(value) = get_value() else {
+                return invalid_config(
+                    source,
+                    "config",
+                    span,
+                    rcstr!("It mustn't be reexported."),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
 
             if is_app_router {
                 return invalid_config(
@@ -546,6 +569,9 @@ async fn parse_config_value(
                     .await;
                 };
 
+                if matches!(val, JsValue::Constant(ConstantValue::Undefined)) {
+                    continue;
+                }
                 match key {
                     "runtime" => {
                         let Some(val) = val.as_str() else {
@@ -635,7 +661,20 @@ async fn parse_config_value(
             }
         }
         "dynamic" => {
-            let value = get_value();
+            let Some(value) = get_value() else {
+                return invalid_config(
+                    source,
+                    "dynamic",
+                    span,
+                    rcstr!("It mustn't be reexported."),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
+            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                return Ok(());
+            }
             let Some(val) = value.as_str() else {
                 return invalid_config(
                     source,
@@ -664,8 +703,20 @@ async fn parse_config_value(
             };
         }
         "dynamicParams" => {
-            let value = get_value();
-
+            let Some(value) = get_value() else {
+                return invalid_config(
+                    source,
+                    "dynamicParams",
+                    span,
+                    rcstr!("It mustn't be reexported."),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
+            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                return Ok(());
+            }
             let Some(val) = value.as_bool() else {
                 return invalid_config(
                     source,
@@ -681,7 +732,17 @@ async fn parse_config_value(
             config.dynamic_params = Some(val);
         }
         "revalidate" => {
-            let value = get_value();
+            let Some(value) = get_value() else {
+                return invalid_config(
+                    source,
+                    "revalidate",
+                    span,
+                    rcstr!("It mustn't be reexported."),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
 
             match value {
                 JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if val >= 0.0 => {
@@ -702,8 +763,20 @@ async fn parse_config_value(
             }
         }
         "fetchCache" => {
-            let value = get_value();
-
+            let Some(value) = get_value() else {
+                return invalid_config(
+                    source,
+                    "fetchCache",
+                    span,
+                    rcstr!("It mustn't be reexported."),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
+            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                return Ok(());
+            }
             let Some(val) = value.as_str() else {
                 return invalid_config(
                     source,
@@ -732,8 +805,20 @@ async fn parse_config_value(
             };
         }
         "runtime" => {
-            let value = get_value();
-
+            let Some(value) = get_value() else {
+                return invalid_config(
+                    source,
+                    "runtime",
+                    span,
+                    rcstr!("It mustn't be reexported."),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
+            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                return Ok(());
+            }
             let Some(val) = value.as_str() else {
                 return invalid_config(
                     source,
@@ -762,8 +847,20 @@ async fn parse_config_value(
             };
         }
         "preferredRegion" => {
-            let value = get_value();
-
+            let Some(value) = get_value() else {
+                return invalid_config(
+                    source,
+                    "preferredRegion",
+                    span,
+                    rcstr!("It mustn't be reexported."),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
+            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                return Ok(());
+            }
             let preferred_region = match value {
                 // Single value is turned into a single-element Vec.
                 JsValue::Constant(ConstantValue::Str(str)) => vec![str.to_string().into()],
@@ -813,7 +910,20 @@ async fn parse_config_value(
             config.generate_static_params = Some(span);
         }
         "experimental_ppr" => {
-            let value = get_value();
+            let Some(value) = get_value() else {
+                return invalid_config(
+                    source,
+                    "experimental_ppr",
+                    span,
+                    rcstr!("It mustn't be reexported."),
+                    None,
+                    IssueSeverity::Error,
+                )
+                .await;
+            };
+            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                return Ok(());
+            }
             let Some(val) = value.as_bool() else {
                 return invalid_config(
                     source,
