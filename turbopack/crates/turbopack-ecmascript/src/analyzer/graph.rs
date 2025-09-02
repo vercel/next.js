@@ -419,6 +419,12 @@ impl EvalContext {
             Expr::Ident(i) => self.eval_ident(i),
 
             Expr::Unary(UnaryExpr {
+                op: op!("void"),
+                arg: box Expr::Lit(Lit::Num(num)),
+                ..
+            }) if num.value == 0.0 => JsValue::Constant(ConstantValue::Undefined),
+
+            Expr::Unary(UnaryExpr {
                 op: op!("!"), arg, ..
             }) => {
                 let arg = self.eval(arg);
