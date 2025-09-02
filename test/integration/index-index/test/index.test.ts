@@ -16,11 +16,14 @@ import {
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
-let app
-let appPort
+let app: Awaited<ReturnType<typeof launchApp>>
+let appPort: number
 const appDir = join(__dirname, '../')
 
-function runTests() {
+function runTests(testMode: 'start' | 'dev') {
+  const testNotWebpackDev =
+    testMode !== 'dev' || process.env.IS_TURBOPACK_TEST ? it : it.failing
+
   it('should ssr page /', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
@@ -54,7 +57,8 @@ function runTests() {
     expect($('#page').text()).toBe('index > index')
   })
 
-  it('should client render page /index', async () => {
+  // FIXME: pages named "index" are never hydrated in Webpack during development
+  testNotWebpackDev('should client render page /index', async () => {
     const browser = await webdriver(appPort, '/index')
     try {
       const text = await browser.elementByCss('#page').text()
@@ -81,7 +85,8 @@ function runTests() {
     expect($('#page').text()).toBe('index > user')
   })
 
-  it('should client render page /index/user', async () => {
+  // FIXME: pages named "index" are never hydrated in Webpack during development
+  testNotWebpackDev('should client render page /index/user', async () => {
     const browser = await webdriver(appPort, '/index/user')
     try {
       const text = await browser.elementByCss('#page').text()
@@ -108,7 +113,8 @@ function runTests() {
     expect($('#page').text()).toBe('index > project')
   })
 
-  it('should client render page /index/project', async () => {
+  // FIXME: pages named "index" are never hydrated in Webpack during development
+  testNotWebpackDev('should client render page /index/project', async () => {
     const browser = await webdriver(appPort, '/index/project')
     try {
       const text = await browser.elementByCss('#page').text()
@@ -138,7 +144,8 @@ function runTests() {
     expect($('#page').text()).toBe('index > index > index')
   })
 
-  it('should client render page /index/index', async () => {
+  // FIXME: pages named "index" are never hydrated in Webpack during development
+  testNotWebpackDev('should client render page /index/index', async () => {
     const browser = await webdriver(appPort, '/index/index')
     try {
       const text = await browser.elementByCss('#page').text()
@@ -191,7 +198,7 @@ describe('nested index.js', () => {
       })
       afterAll(() => killApp(app))
 
-      runTests()
+      runTests('dev')
     }
   )
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -210,7 +217,7 @@ describe('nested index.js', () => {
       })
       afterAll(() => killApp(app))
 
-      runTests()
+      runTests('start')
     }
   )
 })

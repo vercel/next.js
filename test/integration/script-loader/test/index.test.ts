@@ -12,7 +12,7 @@ import {
   launchApp,
   killApp,
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
+import webdriver, { type Playwright } from 'next-webdriver'
 import cheerio from 'cheerio'
 
 let appDir = join(__dirname, '../base')
@@ -24,16 +24,16 @@ const runTests = (isDev) => {
   // TODO: We will refactor the next/script to be strict mode resilient
   // Don't skip the test case for development mode (strict mode) once refactoring is finished
   it('priority afterInteractive', async () => {
-    let browser
+    let browser: Playwright
     try {
       browser = await webdriver(appPort, '/')
       await waitFor(1000)
 
-      async function test(id) {
-        const script = await browser.elementById(id)
+      async function test(scriptID: string) {
+        const script = await browser.elementByCss(`script#${scriptID}`)
         const dataAttr = await script.getAttribute('data-nscript')
         const endScripts = await browser.elementsByCss(
-          `#__NEXT_DATA__ ~ #${id}`
+          `#__NEXT_DATA__ ~ script#${scriptID}`
         )
 
         // Renders script tag
@@ -54,27 +54,18 @@ const runTests = (isDev) => {
   })
 
   it('priority lazyOnload', async () => {
-    let browser
+    let browser: Playwright
     try {
       browser = await webdriver(appPort, '/page3')
 
-      await browser.waitForElementByCss('#onload-div')
+      await browser.waitForElementByCss('#onload-div', { state: 'attached' })
       await waitFor(1000)
 
-      const logs = await browser.log()
-      const filteredLogs = logs.filter(
-        (log) =>
-          !log.message.includes('Failed to load resource') &&
-          !log.message === 'error' &&
-          !log.message === 'Event'
-      )
-      expect(filteredLogs.length).toBe(0)
-
-      async function test(id, css) {
-        const script = await browser.elementById(id)
+      async function test(scriptId: string, css?: string) {
+        const script = await browser.elementByCss(`script#${scriptId}`)
         const dataAttr = await script.getAttribute('data-nscript')
         const endScripts = await browser.elementsByCss(
-          `#__NEXT_DATA__ ~ #${id}`
+          `#__NEXT_DATA__ ~ #${scriptId}`
         )
 
         // Renders script tag
@@ -176,7 +167,7 @@ const runTests = (isDev) => {
   })
 
   it('priority beforeInteractive on navigate', async () => {
-    let browser
+    let browser: Playwright
     try {
       browser = await webdriver(appPort, '/')
 
@@ -201,13 +192,13 @@ const runTests = (isDev) => {
   })
 
   it('onload fires correctly', async () => {
-    let browser
+    let browser: Playwright
     try {
       browser = await webdriver(appPort, '/page4')
       await waitFor(3000)
 
       const text = await browser.elementById('onload-div-1').text()
-      expect(text).toBe('aaabbbccc')
+      expect(text).toBe('initialaaabbbccc')
 
       // Navigate to different page and back
       await browser.waitForElementByCss('[href="/page9"]').click()
@@ -216,7 +207,7 @@ const runTests = (isDev) => {
       await browser.waitForElementByCss('#onload-div-1')
       const sameText = await browser.elementById('onload-div-1').text()
       // onload should only be fired once, not on sequential re-mount
-      expect(sameText).toBe('')
+      expect(sameText).toBe('initial')
     } finally {
       if (browser) await browser.close()
     }
@@ -241,7 +232,7 @@ const runTests = (isDev) => {
   })
 
   it('priority beforeInteractive with inline script should execute', async () => {
-    let browser
+    let browser: Playwright
     try {
       browser = await webdriver(appPort, '/page7')
       await waitFor(1000)
@@ -259,7 +250,7 @@ const runTests = (isDev) => {
   })
 
   it('Does not duplicate inline scripts', async () => {
-    let browser
+    let browser: Playwright
     try {
       browser = await webdriver(appPort, '/')
 
@@ -298,7 +289,7 @@ const runTests = (isDev) => {
   }
 
   it('onReady fires after load event and then on every subsequent re-mount', async () => {
-    let browser
+    let browser: Playwright
     try {
       browser = await webdriver(appPort, '/page8')
 
@@ -321,7 +312,7 @@ const runTests = (isDev) => {
 
   // https://github.com/vercel/next.js/issues/39993
   it('onReady should only fires once after loaded (issue #39993)', async () => {
-    let browser
+    let browser: Playwright
     try {
       browser = await webdriver(appPort, '/page10')
 
@@ -361,7 +352,10 @@ describe('Next.js Script - Primary Strategies - Production Mode', () => {
           quiet: true,
         })
 
-        server = await startApp(app)
+        server = await startApp(
+          // @ts-expect-error -- Discovered when converting from JS to TS
+          app
+        )
         appPort = server.address().port
       })
       afterAll(async () => {

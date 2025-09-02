@@ -968,6 +968,7 @@ export async function getSegmentExplorerRoute(browser: Playwright) {
   return await browser
     .elementByCss('.segment-explorer-page-route-bar-path')
     .text()
+    .catch(() => '<empty>')
 }
 
 export async function getSegmentExplorerContent(browser: Playwright) {
@@ -1581,7 +1582,7 @@ export function getUrlFromBackgroundImage(backgroundImage: string) {
 }
 
 export const getTitle = (browser: Playwright) =>
-  browser.elementByCss('title').text()
+  browser.elementByCss('title', { state: 'attached' }).text()
 
 async function checkMeta(
   browser: Playwright,

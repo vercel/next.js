@@ -10,7 +10,7 @@ import {
   runDevSuite,
   runProdSuite,
 } from 'next-test-utils'
-import webdriver from 'next-webdriver'
+import webdriver, { type Playwright } from 'next-webdriver'
 
 const appDir = join(__dirname, '../app')
 const indexPage = new File(join(appDir, 'pages/index.js'))
@@ -77,9 +77,12 @@ describe('Basics', () => {
 function runTestsAgainstRuntime(runtime) {
   runTests(
     `Concurrent mode in the ${runtime} runtime`,
-    (context, env) => {
-      async function withBrowser(path, cb) {
-        let browser
+    (context) => {
+      async function withBrowser(
+        path: string,
+        cb: (browser: Playwright) => Promise<void>
+      ) {
+        let browser: Playwright
         try {
           browser = await webdriver(context.appPort, path)
           await cb(browser)
@@ -100,11 +103,21 @@ function runTestsAgainstRuntime(runtime) {
 
         await withBrowser('/use-flush-effect/styled-jsx', async (browser) => {
           await check(
-            () => browser.waitForElementByCss('#__jsx-900f996af369fc74').text(),
+            () =>
+              browser
+                .waitForElementByCss('style#__jsx-900f996af369fc74', {
+                  state: 'attached',
+                })
+                .text(),
             /(?:blue|#00f)/
           )
           await check(
-            () => browser.waitForElementByCss('#__jsx-8b0811664c4e575e').text(),
+            () =>
+              browser
+                .waitForElementByCss('style#__jsx-8b0811664c4e575e', {
+                  state: 'attached',
+                })
+                .text(),
             /red/
           )
         })
@@ -114,7 +127,9 @@ function runTestsAgainstRuntime(runtime) {
         it('should not have the initial route announced', async () => {
           const browser = await webdriver(context.appPort, '/')
           const title = await browser
-            .waitForElementByCss('#__next-route-announcer__')
+            .waitForElementByCss('#__next-route-announcer__', {
+              state: 'attached',
+            })
             .text()
 
           expect(title).toBe('')
@@ -143,7 +158,11 @@ function runTestsAgainstRuntime(runtime) {
 runTestsAgainstRuntime('experimental-edge')
 runTestsAgainstRuntime('nodejs')
 
-function runTests(name, fn, opts) {
+function runTests(
+  name: string,
+  fn: (context: any, env: any) => void,
+  opts?: any
+) {
   const suiteOptions = { ...opts, runTests: fn }
   runDevSuite(name, appDir, suiteOptions)
   runProdSuite(name, appDir, suiteOptions)

@@ -6,7 +6,7 @@ import webdriver from 'next-webdriver'
 import fetch from 'node-fetch'
 import { join } from 'path'
 
-const context = {}
+const context = { output: '', appPort: -1, server: undefined }
 
 describe('Configuration', () => {
   beforeAll(async () => {
@@ -33,7 +33,7 @@ describe('Configuration', () => {
     await killApp(context.server)
   })
 
-  async function get$(path, query) {
+  async function get$(path: string, query?: any) {
     const html = await renderViaHTTP(context.appPort, path, query)
     return cheerio.load(html)
   }
@@ -46,7 +46,7 @@ describe('Configuration', () => {
 
   test('renders server config on the server only', async () => {
     const $ = await get$('/next-config')
-    expect($('#server-only').text()).toBe('secret')
+    expect($('#server-only').text()).toBe('server-only: secret')
   })
 
   test('renders public config on the server only', async () => {
@@ -68,7 +68,7 @@ describe('Configuration', () => {
       .text()
     const envValue = await browser.elementByCss('#env').text()
 
-    expect(serverText).toBe('')
+    expect(serverText).toBe('server-only: ***')
     expect(serverClientText).toBe('/static')
     expect(envValue).toBe('hello')
     await browser.close()
