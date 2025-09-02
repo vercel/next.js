@@ -42,7 +42,7 @@ describe('Page using eval in development mode', () => {
   beforeEach(() => (output = ''))
   afterAll(() => killApp(context.app))
 
-  it('does issue dynamic code evaluation warnings', async () => {
+  it('does not issue dynamic code evaluation warnings', async () => {
     const html = await renderViaHTTP(context.appPort, '/')
     expect(html).toMatch(/>.*?100.*?and.*?100.*?<\//)
     await waitFor(500)
@@ -108,10 +108,10 @@ describe.each([
               isTurbopack
                 ? '' +
                     // TODO(veil): Turbopack duplicates project path
-                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:11:17)' +
+                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:3:17)' +
                     '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:12:54)' +
-                    '\n   9 | export async function usingEval() {'
-                : '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:11:19)' +
+                    '\n  1 | export async function usingEval() {'
+                : '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:3:19)' +
                     '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:12:54)' +
                     // Next.js internal frame. Feel free to adjust.
                     // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
@@ -122,12 +122,12 @@ describe.each([
               isTurbopack
                 ? '' +
                     // TODO(veil): Turbopack duplicates project path
-                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:11:17)' +
-                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:13:24)' +
-                    '\n   9 | export async function usingEval() {'
-                : '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:11:19)' +
-                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:13:24)' +
-                    '\n   9 | export async function usingEval() {'
+                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:3:17)' +
+                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:12:41)' +
+                    '\n  1 | export async function usingEval() {'
+                : '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:3:19)' +
+                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:12:41)' +
+                    '\n  1 | export async function usingEval() {'
             )
           }
 
@@ -135,14 +135,14 @@ describe.each([
           if (isTurbopack) {
             expect(output).toContain(
               '' +
-                "\n> 11 |   return { value: eval('100') }" +
-                '\n     |                 ^'
+                "\n> 3 |   return { value: eval('100') }" +
+                '\n    |                 ^'
             )
           } else {
             expect(output).toContain(
               '' +
-                "\n> 11 |   return { value: eval('100') }" +
-                '\n     |                   ^'
+                "\n> 3 |   return { value: eval('100') }" +
+                '\n    |                   ^'
             )
           }
         })
@@ -189,14 +189,12 @@ describe.each([
                 ? '' +
                     // TODO(veil): Turbopack duplicates project path
                     '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:18)' +
-                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:17:42)' +
+                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:20:55)' +
                     '\n  20 |'
                 : '' +
                     '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:24)' +
-                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:17:42)' +
-                    // Next.js internal frame. Feel free to adjust.
-                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-                    '\n    at'
+                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:20:55)' +
+                    '\n  20 |'
             )
 
             // Turbopack produces incorrect mappings in the sourcemap.
@@ -230,11 +228,11 @@ describe.each([
               isTurbopack
                 ? '' +
                     '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)' +
-                    '\n    at async middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:37:30)' +
+                    '\n    at async middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:39:30)' +
                     '\n  26 |\n'
                 : '' +
                     '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)' +
-                    '\n    at async middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:37:30)' +
+                    '\n    at async middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:39:30)' +
                     // Next.js internal frame. Feel free to adjust.
                     // TODO(veil): https://linear.app/vercel/issue/NDX-464
                     '\n    at '
@@ -250,14 +248,12 @@ describe.each([
                 ? '' +
                     // TODO(veil): Turbopack duplicates project path
                     '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)' +
-                    '\n    at async handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:21:17)' +
+                    '\n    at async handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:28:26)' +
                     '\n  26 |'
                 : '' +
                     '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:24)' +
-                    '\n    at async handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:21:17)' +
-                    // Next.js internal frame. Feel free to adjust.
-                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-                    '\n    at'
+                    '\n    at async handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:28:26)' +
+                    '\n  26 |'
             )
             // TODO(veil): Inconsistent cursor position
             expect(stripAnsi(output)).toContain(
