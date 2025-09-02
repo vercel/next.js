@@ -197,11 +197,12 @@ async fn track_glob_internal(
                             reads.push(fs.read(path.clone()))
                         }
                     }
-                    DirectoryEntry::Symlink(symlink_path) => unreachable!(
+                    DirectoryEntry::Symlink(symlink_path) => bail!(
                         "resolve_symlink_safely() should have resolved all symlinks, but found \
                          unresolved symlink at path: '{}'. Found path: '{}'. Please report this \
                          as a bug.",
-                        entry_path, symlink_path
+                        entry_path,
+                        symlink_path
                     ),
                     DirectoryEntry::Other(path) => {
                         if glob_value.matches(&entry_path) {
