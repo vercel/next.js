@@ -14,8 +14,10 @@ Middleware executes before routes are rendered. It's particularly useful for imp
 
 > **Good to know**:
 >
-> - Middleware is built as its own bundle and runs in an isolated [runtime](#runtime). It does not share the same JavaScript global environment or module instances as your server or rendering code.
-> - You cannot share in-memory objects, singletons, or other mutable state between Middleware and rendering. To pass information from Middleware to your application, use headers, cookies, rewrites, redirects, or the URL.
+> - Middleware is built as a separate entry.
+>   - Edge runtime: runs in an isolated environment and does not share `globalThis` or module instances with your server code.
+>   - Node.js runtime: in `next dev` and `next start`, the process may be shared (same `globalThis`). Middleware is compiled as a separate bundle, so module-level singletons aren't shared. Middleware may still be deployed separately (at the edge) by your hosting provider. Avoid relying on in-memory sharing.
+> - To pass information from Middleware to your application, use headers, cookies, rewrites, redirects, or the URL.
 
 Create a `middleware.ts` (or `.js`) file in the project root, or inside `src` if applicable, so that it is located at the same level as `pages` or `app`.
 
