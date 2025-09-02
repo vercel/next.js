@@ -76,10 +76,10 @@ import {
 } from '../../lib/is-internal-component'
 import { RouteKind } from '../route-kind'
 import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
+  HMR_MESSAGE_SENT_TO_BROWSER,
   type NextJsHotReloaderInterface,
 } from './hot-reloader-types'
-import type { HMR_ACTION_TYPES } from './hot-reloader-types'
+import type { HmrMessageSentToBrowser } from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
@@ -416,7 +416,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     if (this.hmrServerError) {
       this.setHmrServerError(null)
       this.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+        type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
         data: 'clear hmr server error',
       })
     }
@@ -424,7 +424,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
   protected async refreshServerComponents(hash: string): Promise<void> {
     this.send({
-      action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
       hash,
       // TODO: granular reloading of changes
       // entrypoints: serverComponentChanges,
@@ -1435,7 +1435,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
         this.send({
-          action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+          type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
           data: '_document has changed',
         })
       }
@@ -1466,13 +1466,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
       if (middlewareChanges.length > 0) {
         this.send({
-          action: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+          type: HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
         })
       }
 
       if (pageChanges.length > 0) {
         this.send({
-          action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
+          type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
           pages: serverOnlyChanges.map((pg) =>
             denormalizePagePath(pg.slice('pages'.length))
           ),
@@ -1525,7 +1525,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             for (const addedPage of addedPages) {
               const page = getRouteFromEntrypoint(addedPage)
               this.send({
-                action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE,
+                type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
                 data: [page],
               })
             }
@@ -1535,7 +1535,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             for (const removedPage of removedPages) {
               const page = getRouteFromEntrypoint(removedPage)
               this.send({
-                action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE,
+                type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
                 data: [page],
               })
             }
@@ -1613,7 +1613,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           this.webpackHotMiddleware?.updateDevToolsConfig(data)
 
           this.send({
-            action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG,
+            type: HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG,
             data,
           })
         },
@@ -1659,8 +1659,8 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
   }
 
-  public send(action: HMR_ACTION_TYPES): void {
-    this.webpackHotMiddleware!.publish(action)
+  public send(message: HmrMessageSentToBrowser): void {
+    this.webpackHotMiddleware!.publish(message)
   }
 
   public async ensurePage({
