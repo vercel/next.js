@@ -1,11 +1,14 @@
-use std::{future::Future, ops::Deref};
+use std::{borrow::Cow, future::Future};
 
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use swc_core::{
     common::{GLOBALS, Span, Spanned, source_map::SmallPos},
-    ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
+    ecma::ast::{
+        ClassExpr, Decl, ExportSpecifier, Expr, FnExpr, ModuleDecl, ModuleExportName, ModuleItem,
+        Program,
+    },
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -183,6 +186,8 @@ impl NextSegmentConfig {
 #[turbo_tasks::value(shared)]
 pub struct NextSegmentConfigParsingIssue {
     ident: ResolvedVc<AssetIdent>,
+    key: RcStr,
+    error: RcStr,
     detail: ResolvedVc<StyledString>,
     source: IssueSource,
 }
@@ -192,11 +197,15 @@ impl NextSegmentConfigParsingIssue {
     #[turbo_tasks::function]
     pub fn new(
         ident: ResolvedVc<AssetIdent>,
+        key: RcStr,
+        error: RcStr,
         detail: ResolvedVc<StyledString>,
         source: IssueSource,
     ) -> Vc<Self> {
         Self {
             ident,
+            key,
+            error,
             detail,
             source,
         }
@@ -212,12 +221,16 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<StyledString>> {
-        // The detail shouldn't be inlined here, but Next.js currently doesn't print `detail()`
         Ok(StyledString::Line(vec![
-            StyledString::Text(rcstr!(
-                "Next.js can't recognize the exported `config` field in route."
-            )),
-            self.detail.owned().await?,
+            StyledString::Text(
+                format!(
+                    "Next.js can't recognize the exported `{}` field in route. ",
+                    self.key
+                )
+                .into(),
+            ),
+            // TODO include route here
+            StyledString::Text(self.error.clone()),
         ])
         .cell())
     }
@@ -331,53 +344,78 @@ pub async fn parse_segment_config_from_source(
         async {
             let mut config = NextSegmentConfig::default();
 
+            let mut parse = async |ident, init, span| {
+                parse_config_value(
+                    source,
+                    is_config_obj_deprecated,
+                    &mut config,
+                    eval_context,
+                    ident,
+                    init,
+                    span,
+                )
+                .await
+            };
+
             for item in &module_ast.body {
-                let Some(export_decl) = item
-                    .as_module_decl()
-                    .and_then(|mod_decl| mod_decl.as_export_decl())
-                else {
-                    continue;
-                };
+                match item {
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(decl)) => match &decl.decl {
+                        Decl::Class(decl) => {
+                            parse(
+                                &decl.ident.sym,
+                                Some(Cow::Owned(Expr::Class(ClassExpr {
+                                    ident: None,
+                                    class: decl.class.clone(),
+                                }))),
+                                decl.span(),
+                            )
+                            .await?
+                        }
+                        Decl::Fn(decl) => {
+                            parse(
+                                &decl.ident.sym,
+                                Some(Cow::Owned(Expr::Fn(FnExpr {
+                                    ident: None,
+                                    function: decl.function.clone(),
+                                }))),
+                                decl.span(),
+                            )
+                            .await?
+                        }
+                        Decl::Var(decl) => {
+                            for decl in &decl.decls {
+                                let Some(ident) = decl.name.as_ident() else {
+                                    continue;
+                                };
 
-                match &export_decl.decl {
-                    Decl::Var(var_decl) => {
-                        for decl in &var_decl.decls {
-                            let Some(ident) = decl.name.as_ident().map(|ident| ident.deref())
-                            else {
-                                continue;
-                            };
-
-                            if let Some(init) = decl.init.as_ref() {
-                                parse_config_value(
-                                    source,
-                                    is_config_obj_deprecated,
-                                    &mut config,
-                                    ident,
-                                    init,
-                                    eval_context,
+                                parse(
+                                    &ident.id.sym,
+                                    decl.init.as_deref().map(Cow::Borrowed),
+                                    decl.span(),
+                                )
+                                .await?;
+                            }
+                        }
+                        _ => continue,
+                    },
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named)) => {
+                        for specifier in &named.specifiers {
+                            if let ExportSpecifier::Named(named) = specifier {
+                                parse(
+                                    match named.exported.as_ref().unwrap_or(&named.orig) {
+                                        ModuleExportName::Ident(ident) => &ident.sym,
+                                        ModuleExportName::Str(s) => &*s.value,
+                                    },
+                                    None,
+                                    specifier.span(),
                                 )
                                 .await?;
                             }
                         }
                     }
-                    Decl::Fn(fn_decl) => {
-                        let ident = &fn_decl.ident;
-                        // create an empty expression of {}, we don't need init for function
-                        let init = Expr::Fn(FnExpr {
-                            ident: None,
-                            function: fn_decl.function.clone(),
-                        });
-                        parse_config_value(
-                            source,
-                            is_config_obj_deprecated,
-                            &mut config,
-                            ident,
-                            &init,
-                            eval_context,
-                        )
-                        .await?;
+                    _ => {
+                        continue;
                     }
-                    _ => {}
                 }
             }
             anyhow::Ok(config)
@@ -391,16 +429,18 @@ pub async fn parse_segment_config_from_source(
 
 async fn invalid_config(
     source: ResolvedVc<Box<dyn Source>>,
+    key: &str,
     span: Span,
-    detail: &str,
+    error: RcStr,
     value: &JsValue,
 ) -> Result<()> {
     let (explainer, hints) = value.explain(2, 0);
-    let detail =
-        StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).resolved_cell();
+    let detail = StyledString::Text(format!("Got {explainer}.{hints}").into()).resolved_cell();
 
     NextSegmentConfigParsingIssue::new(
         source.ident(),
+        key.into(),
+        error,
         *detail,
         IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32()),
     )
@@ -414,21 +454,26 @@ async fn parse_config_value(
     source: ResolvedVc<Box<dyn Source>>,
     is_config_obj_deprecated: bool,
     config: &mut NextSegmentConfig,
-    ident: &Ident,
-    init: &Expr,
     eval_context: &EvalContext,
+    key: &str,
+    init: Option<Cow<'_, Expr>>,
+    span: Span,
 ) -> Result<()> {
-    let span = init.span();
+    let get_value = || {
+        init.map(|init| eval_context.eval(&init))
+            .unwrap_or(JsValue::Constant(ConstantValue::Undefined))
+    };
 
-    match &*ident.sym {
+    match key {
         "config" => {
-            let value = eval_context.eval(init);
+            let value = get_value();
 
             if is_config_obj_deprecated {
                 return invalid_config(
                     source,
+                    "config",
                     span,
-                    "Page config in `config` is deprecated.",
+                    rcstr!("Page config in `config` is deprecated."),
                     &value,
                 )
                 .await;
@@ -437,8 +482,9 @@ async fn parse_config_value(
             let JsValue::Object { parts, .. } = &value else {
                 return invalid_config(
                     source,
+                    "config",
                     span,
-                    "`config` needs to be a static object",
+                    rcstr!("It needs to be a static object."),
                     &value,
                 )
                 .await;
@@ -448,8 +494,9 @@ async fn parse_config_value(
                 let ObjectPart::KeyValue(key, val) = part else {
                     return invalid_config(
                         source,
+                        "config",
                         span,
-                        "`config` contains unsupported spread",
+                        rcstr!("It contains unsupported spread."),
                         &value,
                     )
                     .await;
@@ -458,8 +505,9 @@ async fn parse_config_value(
                 let Some(key) = key.as_str() else {
                     return invalid_config(
                         source,
+                        "config",
                         span,
-                        "`config` must only contain string keys",
+                        rcstr!("It must only contain string keys."),
                         &value,
                     )
                     .await;
@@ -470,8 +518,9 @@ async fn parse_config_value(
                         let Some(val) = val.as_str() else {
                             return invalid_config(
                                 source,
+                                "config.runtime",
                                 span,
-                                "`runtime` needs to be a static string",
+                                rcstr!("It needs to be a static string."),
                                 &value,
                             )
                             .await;
@@ -483,8 +532,9 @@ async fn parse_config_value(
                                 Err(err) => {
                                     return invalid_config(
                                         source,
+                                        "config.runtime",
                                         span,
-                                        &format!("`runtime` has an invalid value: {err}"),
+                                        format!("It has an invalid value: {err}.").into(),
                                         &value,
                                     )
                                     .await;
@@ -512,9 +562,11 @@ async fn parse_config_value(
                                     } else {
                                         invalid_config(
                                             source,
+                                            "config.regions",
                                             span,
-                                            "Values of the `config.regions` array need to be \
-                                             static strings",
+                                            rcstr!(
+                                                "Values of the array need to be static strings."
+                                            ),
                                             item,
                                         )
                                         .await?;
@@ -525,9 +577,12 @@ async fn parse_config_value(
                             _ => {
                                 invalid_config(
                                     source,
+                                    "config.regions",
                                     span,
-                                    "`config.regions` needs to be a static string or array of \
-                                     static strings",
+                                    rcstr!(
+                                        "It needs to be a static string or array of static \
+                                         strings."
+                                    ),
                                     &value,
                                 )
                                 .await?;
@@ -542,12 +597,13 @@ async fn parse_config_value(
             }
         }
         "dynamic" => {
-            let value = eval_context.eval(init);
+            let value = get_value();
             let Some(val) = value.as_str() else {
                 return invalid_config(
                     source,
+                    "dynamic",
                     span,
-                    "`dynamic` needs to be a static string",
+                    rcstr!("It needs to be a static string."),
                     &value,
                 )
                 .await;
@@ -558,8 +614,9 @@ async fn parse_config_value(
                 Err(err) => {
                     return invalid_config(
                         source,
+                        "dynamic",
                         span,
-                        &format!("`dynamic` has an invalid value: {err}"),
+                        format!("It has an invalid value: {err}.").into(),
                         &value,
                     )
                     .await;
@@ -567,12 +624,14 @@ async fn parse_config_value(
             };
         }
         "dynamicParams" => {
-            let value = eval_context.eval(init);
+            let value = get_value();
+
             let Some(val) = value.as_bool() else {
                 return invalid_config(
                     source,
+                    "dynamicParams",
                     span,
-                    "`dynamicParams` needs to be a static boolean",
+                    rcstr!("It needs to be a static boolean."),
                     &value,
                 )
                 .await;
@@ -581,7 +640,8 @@ async fn parse_config_value(
             config.dynamic_params = Some(val);
         }
         "revalidate" => {
-            let value = eval_context.eval(init);
+            let value = get_value();
+
             match value {
                 JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if val >= 0.0 => {
                     config.revalidate = Some(NextRevalidate::Frequency {
@@ -601,12 +661,14 @@ async fn parse_config_value(
             }
         }
         "fetchCache" => {
-            let value = eval_context.eval(init);
+            let value = get_value();
+
             let Some(val) = value.as_str() else {
                 return invalid_config(
                     source,
+                    "fetchCache",
                     span,
-                    "`fetchCache` needs to be a static string",
+                    rcstr!("It needs to be a static string."),
                     &value,
                 )
                 .await;
@@ -617,8 +679,9 @@ async fn parse_config_value(
                 Err(err) => {
                     return invalid_config(
                         source,
+                        "fetchCache",
                         span,
-                        &format!("`fetchCache` has an invalid value: {err}"),
+                        format!("It has an invalid value: {err}.").into(),
                         &value,
                     )
                     .await;
@@ -626,12 +689,14 @@ async fn parse_config_value(
             };
         }
         "runtime" => {
-            let value = eval_context.eval(init);
+            let value = get_value();
+
             let Some(val) = value.as_str() else {
                 return invalid_config(
                     source,
+                    "runtime",
                     span,
-                    "`runtime` needs to be a static string",
+                    rcstr!("It needs to be a static string."),
                     &value,
                 )
                 .await;
@@ -642,8 +707,9 @@ async fn parse_config_value(
                 Err(err) => {
                     return invalid_config(
                         source,
+                        "runtime",
                         span,
-                        &format!("`runtime` has an invalid value: {err}"),
+                        format!("It has an invalid value: {err}.").into(),
                         &value,
                     )
                     .await;
@@ -651,7 +717,7 @@ async fn parse_config_value(
             };
         }
         "preferredRegion" => {
-            let value = eval_context.eval(init);
+            let value = get_value();
 
             let preferred_region = match value {
                 // Single value is turned into a single-element Vec.
@@ -661,13 +727,14 @@ async fn parse_config_value(
                 JsValue::Array { items, .. } => {
                     let mut regions = Vec::new();
                     for item in items {
-                        if let JsValue::Constant(ConstantValue::Str(str)) = item {
+                        if let Some(str) = item.as_str() {
                             regions.push(str.to_string().into());
                         } else {
                             return invalid_config(
                                 source,
+                                "preferredRegion",
                                 span,
-                                "Values of the `preferredRegion` array need to static strings",
+                                rcstr!("Values of the array need to be static strings."),
                                 &item,
                             )
                             .await;
@@ -678,8 +745,9 @@ async fn parse_config_value(
                 _ => {
                     return invalid_config(
                         source,
+                        "preferredRegion",
                         span,
-                        "`preferredRegion` needs to be a static string or array of static strings",
+                        rcstr!("It needs to be a static string or array of static strings."),
                         &value,
                     )
                     .await;
@@ -697,12 +765,13 @@ async fn parse_config_value(
             config.generate_sitemaps = true;
         }
         "experimental_ppr" => {
-            let value = eval_context.eval(init);
+            let value = get_value();
             let Some(val) = value.as_bool() else {
                 return invalid_config(
                     source,
+                    "experimental_ppr",
                     span,
-                    "`experimental_ppr` needs to be a static boolean",
+                    rcstr!("`experimental_ppr` needs to be a static boolean."),
                     &value,
                 )
                 .await;
@@ -778,18 +847,8 @@ async fn parse_route_matcher_from_js_value(
     let mut matchers = vec![];
 
     match value {
-        JsValue::Constant(matcher) => {
-            if let Some(matcher) = matcher.as_str() {
-                matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
-            } else {
-                invalid_config(
-                    source,
-                    span,
-                    "The matcher property must be a string or array of strings",
-                    value,
-                )
-                .await?;
-            }
+        JsValue::Constant(ConstantValue::Str(matcher)) => {
+            matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
         }
         JsValue::Array { items, .. } => {
             for item in items {
@@ -825,8 +884,9 @@ async fn parse_route_matcher_from_js_value(
                 } else {
                     invalid_config(
                         source,
+                        "config.matcher",
                         span,
-                        "The matcher property must be a string or array of strings",
+                        rcstr!("Values of the array need to be static strings"),
                         value,
                     )
                     .await?;
@@ -836,8 +896,9 @@ async fn parse_route_matcher_from_js_value(
         _ => {
             invalid_config(
                 source,
+                "config.matcher",
                 span,
-                "The matcher property must be a string or array of strings",
+                rcstr!("It needs to be a static string or array of static strings"),
                 value,
             )
             .await?
