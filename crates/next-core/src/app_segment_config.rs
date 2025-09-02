@@ -473,7 +473,10 @@ async fn parse_config_value(
                     source,
                     "config",
                     span,
-                    rcstr!("Page config in `config` is deprecated."),
+                    rcstr!(
+                        "Page config in `config` is deprecated and ignored, use individual \
+                         exports instead."
+                    ),
                     &value,
                 )
                 .await;
