@@ -551,9 +551,9 @@ async fn parse_config_value(
                         let Some(val) = val.as_str() else {
                             return invalid_config(
                                 source,
-                                "config.runtime",
+                                "config",
                                 span,
-                                rcstr!("It needs to be a static string."),
+                                rcstr!("`runtime` needs to be a static string."),
                                 Some(&value),
                                 IssueSeverity::Warning,
                             )
@@ -566,9 +566,9 @@ async fn parse_config_value(
                                 Err(err) => {
                                     return invalid_config(
                                         source,
-                                        "config.runtime",
+                                        "config",
                                         span,
-                                        format!("It has an invalid value: {err}.").into(),
+                                        format!("`runtime` has an invalid value: {err}.").into(),
                                         Some(&value),
                                         IssueSeverity::Warning,
                                     )
@@ -597,10 +597,11 @@ async fn parse_config_value(
                                     } else {
                                         invalid_config(
                                             source,
-                                            "config.regions",
+                                            "config",
                                             span,
                                             rcstr!(
-                                                "Values of the array need to be static strings."
+                                                "The values of the `regions` array need to be \
+                                                 static strings."
                                             ),
                                             Some(item),
                                             IssueSeverity::Warning,
@@ -616,7 +617,7 @@ async fn parse_config_value(
                                     "config.regions",
                                     span,
                                     rcstr!(
-                                        "It needs to be a static string or array of static \
+                                        "`regions` needs to be a static string or array of static \
                                          strings."
                                     ),
                                     Some(&value),
@@ -932,9 +933,9 @@ async fn parse_route_matcher_from_js_value(
                 } else {
                     invalid_config(
                         source,
-                        "config.matcher",
+                        "config",
                         span,
-                        rcstr!("Values of the array need to be static strings"),
+                        rcstr!("Values of the `matcher` array need to be static strings"),
                         Some(value),
                         IssueSeverity::Warning,
                     )
@@ -945,9 +946,9 @@ async fn parse_route_matcher_from_js_value(
         _ => {
             invalid_config(
                 source,
-                "config.matcher",
+                "config",
                 span,
-                rcstr!("It needs to be a static string or array of static strings"),
+                rcstr!("`matcher` needs to be a static string or array of static strings"),
                 Some(value),
                 IssueSeverity::Warning,
             )
