@@ -78,10 +78,6 @@ pub async fn get_decorators_transform_options(
         false
     };
 
-    NextFeatureTelemetry::new("swcExperimentalDecorators".into(), experimental_decorators)
-        .resolved_cell()
-        .emit();
-
     let decorators_kind = if experimental_decorators {
         Some(DecoratorsKind::Legacy)
     } else {
@@ -180,10 +176,6 @@ pub async fn get_jsx_transform_options(
             let jsx_import_source = json["compilerOptions"]["jsxImportSource"]
                 .as_str()
                 .map(|s| s.into());
-
-            NextFeatureTelemetry::new("swcImportSource".into(), jsx_import_source.is_some())
-                .resolved_cell()
-                .emit();
 
             Some(JsxTransformOptions {
                 import_source: if jsx_import_source.is_some() {
