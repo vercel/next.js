@@ -601,10 +601,17 @@ pub mod tests {
             assert_eq!(inner_sub.inner.len(), 0);
             assert_eq!(
                 inner_sub.results,
-                HashMap::from_iter([(
-                    "foo.js".into(),
-                    DirectoryEntry::File(root.join("sub/foo.js")?),
-                )])
+                HashMap::from_iter([
+                    (
+                        "foo.js".into(),
+                        DirectoryEntry::File(root.join("sub/foo.js")?),
+                    ),
+                    // read_glob doesn't resolve symlinks and thus doesn't detect that it is dead
+                    (
+                        "dead_link.js".into(),
+                        DirectoryEntry::Symlink(root.join("sub/dead_link.js")?),
+                    )
+                ])
             );
 
             anyhow::Ok(())
