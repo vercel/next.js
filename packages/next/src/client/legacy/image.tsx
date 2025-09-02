@@ -23,13 +23,13 @@ import { useIntersection } from '../use-intersection'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
+import { findClosestQuality } from '../../shared/lib/find-closest-quality'
 
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
 
 const supportsFloat = typeof ReactDOM.preload === 'function'
-const DEFAULT_Q = 75
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -190,14 +190,7 @@ function defaultLoader({
     }
   }
 
-  // find the closest matching `quality` in the list of `config.qualities`
-  const q =
-    config.qualities?.reduce((prev, cur) =>
-      Math.abs(cur - (quality || DEFAULT_Q)) <
-      Math.abs(prev - (quality || DEFAULT_Q))
-        ? cur
-        : prev
-    ) || DEFAULT_Q
+  const q = findClosestQuality(quality, config)
 
   if (!config.dangerouslyAllowSVG && src.split('?', 1)[0].endsWith('.svg')) {
     // Special case to make svg serve as-is to avoid proxying

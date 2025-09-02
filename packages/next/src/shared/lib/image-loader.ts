@@ -1,6 +1,5 @@
 import type { ImageLoaderPropsWithConfig } from './image-config'
-
-const DEFAULT_Q = 75
+import { findClosestQuality } from './find-closest-quality'
 
 function defaultLoader({
   config,
@@ -79,14 +78,8 @@ function defaultLoader({
       }
     }
   }
-  // find the closest matching `quality` in the list of `config.qualities`
-  const q =
-    config.qualities?.reduce((prev, cur) =>
-      Math.abs(cur - (quality || DEFAULT_Q)) <
-      Math.abs(prev - (quality || DEFAULT_Q))
-        ? cur
-        : prev
-    ) || DEFAULT_Q
+
+  const q = findClosestQuality(quality, config)
 
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${q}${
     src.startsWith('/_next/static/media/') && process.env.NEXT_DEPLOYMENT_ID
