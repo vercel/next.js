@@ -10,14 +10,13 @@ use turbopack::{
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
-    diagnostics::DiagnosticExt,
     file_source::FileSource,
     resolve::{FindContextFileResult, find_context_file, node::node_cjs_resolve_options},
     source::Source,
 };
 use turbopack_ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig};
 
-use crate::{mode::NextMode, next_config::NextConfig, next_telemetry::NextFeatureTelemetry};
+use crate::{mode::NextMode, next_config::NextConfig};
 
 async fn get_typescript_options(
     project_path: FileSystemPath,
