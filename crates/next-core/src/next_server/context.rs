@@ -506,6 +506,7 @@ pub async fn get_server_module_options_context(
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
     let versions = RuntimeVersions(Default::default()).cell();
+    let css_versions = environment.css_runtime_versions();
 
     // ModuleOptionsContext related options
     let tsconfig = get_typescript_transform_options(project_path.clone())
@@ -546,7 +547,7 @@ pub async fn get_server_module_options_context(
     // context type.
     let styled_components_transform_rule =
         get_styled_components_transform_rule(next_config).await?;
-    let styled_jsx_transform_rule = get_styled_jsx_transform_rule(next_config, versions).await?;
+    let styled_jsx_transform_rule = get_styled_jsx_transform_rule(next_config, css_versions).await?;
 
     let source_maps = if *next_config.server_source_maps().await? {
         SourceMapsType::Full

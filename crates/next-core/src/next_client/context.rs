@@ -261,6 +261,7 @@ pub async fn get_client_module_options_context(
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
     let target_browsers = env.runtime_versions();
+    let css_target_browsers = env.css_runtime_versions();
 
     let mut next_client_rules =
         get_next_client_transforms_rules(next_config, ty.clone(), mode, false, encryption_key)
@@ -273,7 +274,7 @@ pub async fn get_client_module_options_context(
         get_relay_transform_rule(next_config, project_path.clone()).await?,
         get_emotion_transform_rule(next_config).await?,
         get_styled_components_transform_rule(next_config).await?,
-        get_styled_jsx_transform_rule(next_config, target_browsers).await?,
+        get_styled_jsx_transform_rule(next_config, css_target_browsers).await?,
         get_react_remove_properties_transform_rule(next_config).await?,
         get_remove_console_transform_rule(next_config).await?,
     ]
