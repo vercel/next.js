@@ -42,13 +42,14 @@ pub enum ChunkLoading {
 pub struct Environment {
     // members must be private to avoid leaking non-custom types
     execution: ExecutionEnvironment,
+    css_runtime_versions: ResolvedVc<RuntimeVersions>,
 }
 
 #[turbo_tasks::value_impl]
 impl Environment {
     #[turbo_tasks::function]
-    pub fn new(execution: ExecutionEnvironment) -> Vc<Self> {
-        Self::cell(Environment { execution })
+    pub fn new(execution: ExecutionEnvironment, css_runtime_versions: ResolvedVc<RuntimeVersions>) -> Vc<Self> {
+        Self::cell(Environment { execution, css_runtime_versions })
     }
 }
 
@@ -98,6 +99,11 @@ impl Environment {
             ExecutionEnvironment::EdgeWorker(edge_env) => edge_env.runtime_versions(),
             ExecutionEnvironment::Custom(_) => todo!(),
         })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn css_runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
+        Ok(*self.css_runtime_versions)
     }
 
     #[turbo_tasks::function]
