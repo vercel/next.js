@@ -176,7 +176,7 @@ impl NextSegmentConfig {
         merge_parallel(
             preferred_region,
             &parallel_config.preferred_region,
-            "referredRegion",
+            "preferredRegion",
         )?;
         merge_parallel(
             experimental_ppr,
