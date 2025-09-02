@@ -6,9 +6,13 @@ title: Missing Suspense boundary with useSearchParams
 
 Reading search parameters through `useSearchParams()` without a Suspense boundary will opt the entire page into client-side rendering. This could cause your page to be blank until the client-side JavaScript has loaded.
 
+Common scenarios include:
+- Directly calling `useSearchParams()` in a page or nested component without wrapping it in `<Suspense>`.
+- A provider (e.g. a query or context provider) in the component tree using `useSearchParams()` without `<Suspense>`, triggering the CSR bailout indirectly.
+
 ## Possible Ways to Fix It
 
-Ensure that calls to `useSearchParams()` are wrapped in a Suspense boundary.
+To prevent the CSR bailout, ensure that all calls to `useSearchParams()`, whether in a page, component, or provider, are wrapped in a `<Suspense>` boundary.
 
 ```tsx filename="app/search.tsx" switcher
 'use client'
@@ -55,6 +59,21 @@ export function Searchbar() {
 ```
 
 This will ensure the page does not de-opt to client-side rendering.
+
+## Debugging Steps
+
+If you encounter a CSR bailout but cannot identify the source, the issue may stem from a provider or parent component rather than the page itself. Follow these steps to debug:
+### 1. Inspect the Component Tree:
+- Review your page and layout components for direct calls to `useSearchParams()`.
+- Check for providers (e.g. `QueryClientProvider`, custom context providers and external packages like `nuqs`) that might internally call `useSearchParams()`.
+- Use React Developer Tools to inspect the component hierarchy and identify where `useSearchParams()` is used.
+- Run a global search in your codebase for `useSearchParams()` and check that each usage is wrapped in a `<Suspense>` boundary.
+
+
+### 2. Add `<Suspense>` incrementally
+- Temporarily wrap individual components or providers in `<Suspense>` boundaries to isolate the components.
+- Example: If a provider in layout.tsx is suspected, wrap it in `<Suspense>` and observe if the bailout resolves.
+
 
 ## Disabling
 
