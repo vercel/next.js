@@ -576,7 +576,7 @@ async function generateDynamicFlightRenderResult(
   const {
     dev = false,
     onInstrumentationRequestError,
-    sendReactDebugChunk,
+    setReactDebugChannel,
   } = renderOpts
 
   function onFlightDataRenderError(err: DigestedError) {
@@ -601,6 +601,12 @@ async function generateDynamicFlightRenderResult(
     options
   )
 
+  const debugChannel = setReactDebugChannel && createDebugChannel()
+
+  if (debugChannel) {
+    setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
+  }
+
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
   const flightReadableStream = workUnitAsyncStorage.run(
@@ -612,11 +618,7 @@ async function generateDynamicFlightRenderResult(
       onError,
       temporaryReferences: options?.temporaryReferences,
       filterStackFrame,
-      debugChannel: createDebugChannel(
-        sendReactDebugChunk,
-        htmlRequestId,
-        requestId
-      ),
+      debugChannel: debugChannel?.serverSide,
     }
   )
 
@@ -2147,7 +2149,7 @@ async function renderToStream(
     onInstrumentationRequestError,
     page,
     reactMaxHeadersLength,
-    sendReactDebugChunk,
+    setReactDebugChannel,
     shouldWaitOnAllReady,
     subresourceIntegrityManifest,
     supportsDynamicResponse,
@@ -2259,6 +2261,21 @@ async function renderToStream(
       const [resolveValidation, validationOutlet] = createValidationOutlet()
       RSCPayload._validation = validationOutlet
 
+      const debugChannel = setReactDebugChannel && createDebugChannel()
+
+      if (debugChannel) {
+        const [readableSsr, readableBrowser] =
+          debugChannel.clientSide.readable.tee()
+
+        reactDebugStream = readableSsr
+
+        setReactDebugChannel(
+          { readable: readableBrowser },
+          htmlRequestId,
+          requestId
+        )
+      }
+
       const reactServerStream = await workUnitAsyncStorage.run(
         requestStore,
         scheduleInSequentialTasks,
@@ -2272,12 +2289,7 @@ async function renderToStream(
               environmentName: () =>
                 requestStore.prerenderPhase === true ? 'Prerender' : 'Server',
               filterStackFrame,
-              debugChannel: createDebugChannel(
-                sendReactDebugChunk,
-                htmlRequestId,
-                requestId,
-                (stream) => (reactDebugStream = stream)
-              ),
+              debugChannel: debugChannel?.serverSide,
             }
           )
         },
@@ -2307,6 +2319,21 @@ async function renderToStream(
         res.statusCode === 404
       )
 
+      const debugChannel = setReactDebugChannel && createDebugChannel()
+
+      if (debugChannel) {
+        const [readableSsr, readableBrowser] =
+          debugChannel.clientSide.readable.tee()
+
+        reactDebugStream = readableSsr
+
+        setReactDebugChannel(
+          { readable: readableBrowser },
+          htmlRequestId,
+          requestId
+        )
+      }
+
       reactServerResult = new ReactServerResult(
         workUnitAsyncStorage.run(
           requestStore,
@@ -2316,12 +2343,7 @@ async function renderToStream(
           {
             filterStackFrame,
             onError: serverComponentsErrorHandler,
-            debugChannel: createDebugChannel(
-              sendReactDebugChunk,
-              htmlRequestId,
-              requestId,
-              (stream) => (reactDebugStream = stream)
-            ),
+            debugChannel: debugChannel?.serverSide,
           }
         )
       )
@@ -2640,44 +2662,41 @@ async function renderToStream(
   }
 }
 
-function createDebugChannel(
-  sendReactDebugChunk:
-    | ((
-        chunk: Uint8Array | null,
-        htmlRequestId: string,
-        requestId: string
-      ) => void)
-    | undefined,
-  htmlRequestId: string,
-  requestId: string,
-  createReadable?: (stream: ReadableStream<Uint8Array>) => void
-): { readable?: ReadableStream; writable?: WritableStream } | undefined {
-  if (process.env.NODE_ENV === 'production' || !sendReactDebugChunk) {
+function createDebugChannel():
+  | {
+      serverSide: { readable?: ReadableStream; writable: WritableStream }
+      clientSide: { readable: ReadableStream; writable?: WritableStream }
+    }
+  | undefined {
+  if (process.env.NODE_ENV === 'production') {
     return undefined
   }
 
   let readableController: ReadableStreamDefaultController | undefined
 
-  createReadable?.(
-    new ReadableStream<Uint8Array>({
-      start(controller) {
-        readableController = controller
-      },
-    })
-  )
+  const clientSideReadable = new ReadableStream<Uint8Array>({
+    start(controller) {
+      readableController = controller
+    },
+  })
 
   return {
-    writable: new WritableStream<Uint8Array>({
-      write(chunk) {
-        readableController?.enqueue(chunk)
-        sendReactDebugChunk(chunk, htmlRequestId, requestId)
-      },
-      close() {
-        // A null chunk signals to the client that no more chunks will be sent.
-        sendReactDebugChunk(null, htmlRequestId, requestId)
-        readableController?.close()
-      },
-    }),
+    serverSide: {
+      writable: new WritableStream<Uint8Array>({
+        write(chunk) {
+          readableController?.enqueue(chunk)
+        },
+        close() {
+          readableController?.close()
+        },
+        abort(err) {
+          readableController?.error(err)
+        },
+      }),
+    },
+    clientSide: {
+      readable: clientSideReadable,
+    },
   }
 }
 

@@ -106,13 +106,13 @@ export class DevBundlerService {
     })
   }
 
-  public sendReactDebugChunk(
-    chunk: Uint8Array | null,
+  public setReactDebugChannel(
+    debugChannel: { readable: ReadableStream<Uint8Array> },
     htmlRequestId: string,
     requestId: string
-  ) {
-    this.bundler.hotReloader.sendReactDebugChunk(
-      chunk,
+  ): void {
+    this.bundler.hotReloader.setReactDebugChannel(
+      debugChannel,
       htmlRequestId,
       requestId
     )

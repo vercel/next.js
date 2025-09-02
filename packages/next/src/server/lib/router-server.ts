@@ -724,8 +724,8 @@ export async function initialize(opts: {
       ? handlers.server.logErrorWithOriginalStack.bind(handlers.server)
       : (err: unknown) => !opts.quiet && Log.error(err),
     setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
-    sendReactDebugChunk:
-      devBundlerService?.sendReactDebugChunk.bind(devBundlerService),
+    setReactDebugChannel:
+      devBundlerService?.setReactDebugChannel.bind(devBundlerService),
   }
 
   const logError = async (
