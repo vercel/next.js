@@ -91,15 +91,15 @@ interface ServerComponentChangesAction {
 }
 
 interface MiddlewareChangesAction {
-  event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES
+  action: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES
 }
 
 interface ClientChangesAction {
-  event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES
+  action: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES
 }
 
 interface ServerOnlyChangesAction {
-  event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
+  action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
   pages: ReadonlyArray<string>
 }
 

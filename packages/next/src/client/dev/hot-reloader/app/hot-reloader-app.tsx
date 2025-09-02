@@ -202,10 +202,6 @@ export function processMessage(
   processTurbopackMessage: (msg: TurbopackMsgToBrowser) => void,
   staticIndicatorState: StaticIndicatorState
 ) {
-  if (!('action' in obj)) {
-    return
-  }
-
   function handleErrors(errors: ReadonlyArray<unknown>) {
     // "Massage" webpack messages.
     const formatted = formatWebpackMessages({
@@ -452,6 +448,11 @@ export function processMessage(
       dispatcher.onDevToolsConfig(obj.data)
       return
     }
+    case HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:
+    case HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES:
+    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:
+      // These action types are handled in src/client/page-bootstrap.ts
+      break
     default: {
       obj satisfies never
     }

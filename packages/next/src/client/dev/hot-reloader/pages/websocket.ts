@@ -49,10 +49,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
       // Coerce into HMR_ACTION_TYPES as that is the format.
       const msg: HMR_ACTION_TYPES = JSON.parse(event.data)
 
-      if (
-        'action' in msg &&
-        msg.action === HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
-      ) {
+      if (msg.action === HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED) {
         if (
           serverSessionId !== null &&
           serverSessionId !== msg.data.sessionId

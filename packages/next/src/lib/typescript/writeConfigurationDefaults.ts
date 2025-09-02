@@ -110,9 +110,9 @@ function getDesiredCompilerOptions(
           },
         }),
     jsx: {
-      parsedValue: ts.JsxEmit.Preserve,
-      value: 'preserve',
-      reason: 'next.js implements its own optimized jsx transform',
+      parsedValue: ts.JsxEmit.ReactJSX,
+      value: 'react-jsx',
+      reason: 'next.js uses the React automatic runtime',
     },
   }
 
