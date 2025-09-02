@@ -108,6 +108,11 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
+    pub fn css_environment(&self) -> Vc<BrowserEnvironment> {
+        *self.css_environment
+    }
+
+    #[turbo_tasks::function]
     pub async fn css_runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
         let distribs = resolve_browserslist(self.css_environment).await?;
         Ok(Vc::cell(Versions::parse_versions(distribs)?))
