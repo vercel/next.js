@@ -1,10 +1,15 @@
 use std::time::{Duration, Instant};
 
 use criterion::{BenchmarkId, Criterion, black_box};
+use futures::{FutureExt, StreamExt, stream::FuturesUnordered};
+use tokio::spawn;
 use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
 use super::register;
+
+#[global_allocator]
+static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
 // Tunable task: busy-wait for a given duration
 #[inline(never)]
@@ -18,7 +23,7 @@ fn busy_task(duration: Duration) {
 // Simulate running the task inside turbo-tasks (replace with actual turbo-tasks API)
 #[turbo_tasks::function]
 fn busy_turbo(key: u64, duration: Duration) {
-    busy_task(duration);
+    busy_task(black_box(duration));
     black_box(key); // consume the key, we need it to be part of the cache key.
 }
 
@@ -27,7 +32,18 @@ pub fn overhead(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("task_overhead");
     group.sample_size(100);
-    let rt: tokio::runtime::Runtime = tokio::runtime::Builder::new_multi_thread()
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .disable_lifo_slot()
+        .worker_threads(1)
+        .thread_name("tokio-thread")
+        .enable_all()
+        .build()
+        .unwrap();
+
+    let rt_parallel = tokio::runtime::Builder::new_multi_thread()
+        .disable_lifo_slot()
+        .thread_name("tokio-parallel-thread")
         .enable_all()
         .build()
         .unwrap();
@@ -43,11 +59,28 @@ pub fn overhead(c: &mut Criterion) {
             b.iter(|| busy_task(black_box(d)))
         });
 
+        group.bench_with_input(BenchmarkId::new("tokio", micros), &duration, |b, &d| {
+            b.to_async(&rt).iter_custom(move |iters| {
+                spawn(async move {
+                    let start = Instant::now();
+                    for _ in 0..iters {
+                        spawn(async move {
+                            busy_task(black_box(d));
+                        })
+                        .await
+                        .unwrap();
+                    }
+                    start.elapsed()
+                })
+                .then(|r| async { r.unwrap() })
+            });
+        });
+
         group.bench_with_input(
             BenchmarkId::new("turbo-uncached", micros),
             &duration,
             |b, &d| {
-                run_turbo::<Uncached>(&rt, b, d);
+                run_turbo::<Uncached>(&rt, b, d, false);
             },
         );
 
@@ -55,7 +88,7 @@ pub fn overhead(c: &mut Criterion) {
             BenchmarkId::new("turbo-cached-same-keys", micros),
             &duration,
             |b, &d| {
-                run_turbo::<CachedSame>(&rt, b, d);
+                run_turbo::<CachedSame>(&rt, b, d, false);
             },
         );
 
@@ -63,7 +96,37 @@ pub fn overhead(c: &mut Criterion) {
             BenchmarkId::new("turbo-cached-different-keys", micros),
             &duration,
             |b, &d| {
-                run_turbo::<CachedDifferent>(&rt, b, d);
+                run_turbo::<CachedDifferent>(&rt, b, d, false);
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("tokio-parallel", micros),
+            &duration,
+            |b, &d| {
+                b.to_async(&rt_parallel).iter_custom(move |iters| {
+                    spawn(async move {
+                        let start = Instant::now();
+                        let mut futures = (0..iters)
+                            .map(|_| {
+                                spawn(async move {
+                                    busy_task(black_box(d));
+                                })
+                            })
+                            .collect::<FuturesUnordered<_>>();
+                        while futures.next().await.is_some() {}
+                        start.elapsed()
+                    })
+                    .then(|r| async { r.unwrap() })
+                });
+            },
+        );
+
+        group.bench_with_input(
+            BenchmarkId::new("turbo-uncached-parallel", micros),
+            &duration,
+            |b, &d| {
+                run_turbo::<Uncached>(&rt_parallel, b, d, true);
             },
         );
     }
@@ -104,10 +167,12 @@ impl TurboMode for CachedDifferent {
         true
     }
 }
+
 fn run_turbo<Mode: TurboMode>(
     rt: &tokio::runtime::Runtime,
     b: &mut criterion::Bencher<'_>,
     d: Duration,
+    is_parallel: bool,
 ) {
     b.to_async(rt).iter_custom(|iters| {
         // It is important to create the tt instance here to ensure the cache is not shared across
@@ -125,14 +190,29 @@ fn run_turbo<Mode: TurboMode>(
                 // If cached run once outside the loop to ensure the tasks are cached.
                 if Mode::is_cached() {
                     for i in 0..iters {
+                        // Precache all possible tasks even if we might only check a few below.
+                        // This ensures we are testing a large cache
+                        // Do not use Mode::key here, to create a large task set
                         black_box(busy_turbo(i, black_box(d)).await?);
                     }
                 }
-                let start = Instant::now();
-                for i in 0..iters {
-                    black_box(busy_turbo(Mode::key(i), black_box(d)).await?);
+                if is_parallel {
+                    let mut vcs = Vec::with_capacity(iters as usize);
+                    let start = Instant::now();
+                    vcs.extend(
+                        (0..iters).map(|i| black_box(busy_turbo(Mode::key(i), black_box(d)))),
+                    );
+                    for vc in vcs {
+                        vc.await?;
+                    }
+                    Ok(start.elapsed())
+                } else {
+                    let start = Instant::now();
+                    for i in 0..iters {
+                        black_box(busy_turbo(Mode::key(i), black_box(d)).await?);
+                    }
+                    Ok(start.elapsed())
                 }
-                Ok(start.elapsed())
             })
             .await
             .unwrap()

@@ -60,7 +60,7 @@ See the [`fetch` API reference](/docs/app/api-reference/functions/fetch) to lear
 
 `unstable_cache` allows you to cache the result of database queries and other async functions. To use it, wrap `unstable_cache` around the function. For example:
 
-```tsx filename="app/lib/data.ts swichter
+```ts filename="app/lib/data.ts" switcher
 import { db } from '@/lib/db'
 export async function getUserById(id: string) {
   return db
@@ -103,11 +103,11 @@ export default async function Page({
 }
 ```
 
-```jsx filename="app/page.jsx" highlight={2,7,9} switcher
-import { unstable_cache } from 'next/cache';
-import { getUserById } from '@/app/lib/data';
+```jsx filename="app/page.js" highlight={2,7,9} switcher
+import { unstable_cache } from 'next/cache'
+import { getUserById } from '@/app/lib/data'
 
-export default async function Page({ params } }) {
+export default async function Page({ params }) {
   const { userId } = await params
 
   const getCachedUser = unstable_cache(
@@ -115,7 +115,7 @@ export default async function Page({ params } }) {
       return getUserById(userId)
     },
     [userId] // add the user ID to the cache key
-  );
+  )
 }
 ```
 

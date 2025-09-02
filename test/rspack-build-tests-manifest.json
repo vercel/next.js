@@ -3382,6 +3382,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/metadata-invalid-image-file/metadata-invalid-image-file.test.ts": {
+    "passed": [],
+    "failed": [
+      "metadata-invalid-image-file should error on invalid metadata image file"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/metadata-json-manifest/index.test.ts": {
     "passed": [
       "app-dir metadata-json-manifest should support metadata.json manifest"
@@ -3932,100 +3941,207 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/next-config-ts/config-as-async-function/index.test.ts": {
+  "test/e2e/app-dir/next-config-ts/async-function/async-function-cjs.test.ts": {
     "passed": [
-      "next-config-ts-config-as-async-function should support config as async function"
+      "next-config-ts-async-function-cjs should support config as async function (CJS)"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/next-config-ts/export-as-default/index.test.ts": {
+  "test/e2e/app-dir/next-config-ts/async-function/async-function-esm.test.ts": {
     "passed": [
-      "next-config-ts-export-as-default should support export { x as default }"
+      "next-config-ts-async-function-esm should support config as async function (ESM)"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/next-config-ts/export-default/index.test.ts": {
+  "test/e2e/app-dir/next-config-ts/export-as-default/next-config-ts-export-as-default-cjs.test.ts": {
     "passed": [
-      "next-config-ts-export-default should support export default { ... }"
+      "next-config-ts-export-as-default-cjs should support export as default (CJS)"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/next-config-ts/import-alias/index.test.ts": {
-    "passed": ["next-config-ts-import-alias should support import alias"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-config-ts/import-from-node-modules/index.test.ts": {
+  "test/e2e/app-dir/next-config-ts/export-as-default/next-config-ts-export-as-default-esm.test.ts": {
     "passed": [
-      "next-config-ts-import-from-node-modules should import from node_modules"
+      "next-config-ts-export-as-default-esm should support export as default (ESM)"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/next-config-ts/import-json/index.test.ts": {
-    "passed": ["next-config-ts-import-json should support import json"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-config-ts/nested-imports/index.test.ts": {
-    "passed": ["next-config-ts-nested-imports should handle nested imports"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-config-ts/node-api/index.test.ts": {
-    "passed": ["next-config-ts-node-api should be able to use Node.js API"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/next-config-ts/pkg-commonjs/index.test.ts": {
+  "test/e2e/app-dir/next-config-ts/export-default/next-config-ts-export-default-cjs.test.ts": {
     "passed": [
-      "next-config-ts-pkg-commonjs should handle ESM modules in CommonJS project"
+      "next-config-ts-export-default-cjs should support export default (CJS)"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/next-config-ts/pkg-module/index.test.ts": {
+  "test/e2e/app-dir/next-config-ts/export-default/next-config-ts-export-default-esm.test.ts": {
     "passed": [
-      "next-config-ts-pkg-module should handle ESM modules in CommonJS project"
+      "next-config-ts-export-default-esm should support export default (ESM)"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/next-config-ts/tsconfig-extends/index.test.ts": {
+  "test/e2e/app-dir/next-config-ts/import-alias-paths-only/next-config-ts-import-alias-paths-only-cjs.test.ts": {
     "passed": [
-      "next-config-ts-tsconfig-extends should support tsconfig extends"
+      "next-config-ts-import-alias-paths-only-cjs should support import alias paths only (CJS)"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/next-config-ts/type-error/index.test.ts": {
+  "test/e2e/app-dir/next-config-ts/import-alias-paths-only/next-config-ts-import-alias-paths-only-esm.test.ts": {
     "passed": [
-      "next-config-ts-type-error should throw with type error on build"
+      "next-config-ts-import-alias-paths-only-esm should support import alias paths only (ESM)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/import-alias-paths-with-baseurl/next-config-ts-import-alias-paths-with-baseurl-cjs.test.ts": {
+    "passed": [
+      "next-config-ts-import-alias-paths-with-baseurl-cjs should support import alias paths with baseUrl (CJS)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/import-alias-paths-with-baseurl/next-config-ts-import-alias-paths-with-baseurl-esm.test.ts": {
+    "passed": [
+      "next-config-ts-import-alias-paths-with-baseurl-esm should support import alias paths with baseUrl (ESM)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/import-from-node-modules/next-config-ts-import-from-node-modules-cjs.test.ts": {
+    "passed": [
+      "next-config-ts-import-from-node-modules-cjs should import from node_modules (CJS)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/import-from-node-modules/next-config-ts-import-from-node-modules-esm.test.ts": {
+    "passed": [
+      "next-config-ts-import-from-node-modules-esm should import from node_modules (ESM)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/import-js-extensions-cjs/next-config-ts-import-js-extensions-cjs.test.ts": {
+    "passed": [
+      "next-config-ts-import-js-extensions-cjs should import js extensions (CJS)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/import-js-extensions-esm/next-config-ts-import-js-extensions-esm.test.ts": {
+    "passed": [
+      "next-config-ts-import-js-extensions-esm should import js extensions (ESM)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/import-json/next-config-ts-import-json-cjs.test.ts": {
+    "passed": [
+      "next-config-ts-import-json-cjs should support import json (CJS)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/import-json/next-config-ts-import-json-esm.test.ts": {
+    "passed": [
+      "next-config-ts-import-json-esm should support import json (ESM)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/nested-imports/next-config-ts-nested-imports-cjs.test.ts": {
+    "passed": [
+      "next-config-ts-nested-imports-cjs should handle nested imports (CJS)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/nested-imports/next-config-ts-nested-imports-esm.test.ts": {
+    "passed": [
+      "next-config-ts-nested-imports-esm should handle nested imports (ESM)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/node-api-cjs/next-config-ts-node-api-cjs.test.ts": {
+    "passed": [
+      "next-config-ts-node-api-cjs should be able to use Node.js API (CJS)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/tsconfig-extends/next-config-ts-tsconfig-extends-cjs.test.ts": {
+    "passed": [
+      "next-config-ts-tsconfig-extends-cjs should support tsconfig extends (CJS)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/tsconfig-extends/next-config-ts-tsconfig-extends-esm.test.ts": {
+    "passed": [
+      "next-config-ts-tsconfig-extends-esm should support tsconfig extends (ESM)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/type-error/next-config-ts-type-error-cjs.test.ts": {
+    "passed": [
+      "next-config-ts-type-error-cjs should throw with type error on build (CJS)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts/type-error/next-config-ts-type-error-esm.test.ts": {
+    "passed": [
+      "next-config-ts-type-error-esm should throw with type error on build (ESM)"
     ],
     "failed": [],
     "pending": [],
@@ -6186,6 +6302,7 @@
   },
   "test/e2e/app-dir/segment-cache/staleness/segment-cache-stale-time.test.ts": {
     "passed": [
+      "segment cache (staleness) caches omitted from the prerender should not affect when the prefetch is expired",
       "segment cache (staleness) entry expires when its stale time has elapsed",
       "segment cache (staleness) expires runtime prefetches when their stale time has elapsed",
       "segment cache (staleness) reuses dynamic data up to the staleTimes.dynamic threshold"
@@ -6564,6 +6681,7 @@
       "use-cache-custom-handler should not call getExpiration after an action",
       "use-cache-custom-handler should revalidate after redirect using a legacy custom cache handler",
       "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
+      "use-cache-custom-handler should save a short-lived cache during prerendering at buildtime",
       "use-cache-custom-handler should use a legacy custom cache handler if provided",
       "use-cache-custom-handler should use a modern custom cache handler if provided"
     ],
@@ -6698,6 +6816,7 @@
       "use-cache should dedupe with react cache inside \"use cache\"",
       "use-cache should match the expected revalidate and expire configs on the prerender manifest",
       "use-cache should match the expected stale config in the page header",
+      "use-cache should not have hydration errors when resuming a partial shell with dynamic caches",
       "use-cache should not read nor write cached data when draft mode is enabled js disabled, with cookies",
       "use-cache should not read nor write cached data when draft mode is enabled js disabled, without cookies",
       "use-cache should not read nor write cached data when draft mode is enabled js enabled, with cookies",
@@ -9599,6 +9718,13 @@
       "specified tsconfig middleware: allows a user-specific tsconfig via the next config",
       "specified tsconfig pages router: allows a user-specific tsconfig via the next config"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/turbopack-loader-config/index.test.ts": {
+    "passed": ["turbopack-loader-config should only run the test in turbopack"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -20381,11 +20507,10 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm"
-    ],
-    "failed": [
+      "pnpm support should build with dependencies installed via pnpm",
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

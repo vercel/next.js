@@ -265,7 +265,7 @@ where
     fn schedule_task(&self, mut task: impl TaskGuard + '_) {
         if let Some(tasks_to_prefetch) = task.prefetch() {
             self.turbo_tasks
-                .schedule_backend_foreground_job(TurboTasksBackendJob::Prefetch {
+                .schedule_backend_background_job(TurboTasksBackendJob::Prefetch {
                     data: Arc::new(tasks_to_prefetch),
                     range: None,
                 });
