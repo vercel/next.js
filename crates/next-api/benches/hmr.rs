@@ -192,7 +192,6 @@ impl HmrBenchmark {
                 root_path: RcStr::from(root_path),
                 project_path: RcStr::from(project_path.clone()),
                 next_config: load_next_config(),
-                js_config: rcstr!("{}"),
                 env: vec![],
                 define_env: DefineEnv {
                     client: vec![],

@@ -625,7 +625,6 @@ function bindingToApi(
         options.nextConfig,
         path.join(options.rootPath, options.projectPath)
       ),
-      jsConfig: JSON.stringify(options.jsConfig),
       env: rustifyEnv(options.env),
     }
   }
@@ -641,7 +640,6 @@ function bindingToApi(
           options.nextConfig,
           path.join(options.rootPath!, options.projectPath!)
         )),
-      jsConfig: options.jsConfig && JSON.stringify(options.jsConfig),
       env: options.env && rustifyEnv(options.env),
     }
   }

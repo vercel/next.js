@@ -10,13 +10,14 @@ use turbopack::{
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
+    diagnostics::DiagnosticExt,
     file_source::FileSource,
     resolve::{FindContextFileResult, find_context_file, node::node_cjs_resolve_options},
     source::Source,
 };
 use turbopack_ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig};
 
-use crate::{mode::NextMode, next_config::NextConfig};
+use crate::{mode::NextMode, next_config::NextConfig, next_telemetry::NextFeatureTelemetry};
 
 async fn get_typescript_options(
     project_path: FileSystemPath,
@@ -52,6 +53,13 @@ pub async fn get_typescript_transform_options(
         false
     };
 
+    NextFeatureTelemetry::new(
+        "swcExperimentalDecorators".into(),
+        use_define_for_class_fields,
+    )
+    .resolved_cell()
+    .emit();
+
     let ts_transform_options = TypescriptTransformOptions {
         use_define_for_class_fields,
     };
@@ -60,7 +68,7 @@ pub async fn get_typescript_transform_options(
 }
 
 /// Build the transform options for the decorators.
-/// **TODO** Currnently only typescript's legacy decorators are supported
+/// **TODO** Currently only typescript's legacy decorators are supported
 #[turbo_tasks::function]
 pub async fn get_decorators_transform_options(
     project_path: FileSystemPath,
@@ -175,6 +183,10 @@ pub async fn get_jsx_transform_options(
             let jsx_import_source = json["compilerOptions"]["jsxImportSource"]
                 .as_str()
                 .map(|s| s.into());
+
+            NextFeatureTelemetry::new("swcImportSource".into(), jsx_import_source.is_some())
+                .resolved_cell()
+                .emit();
 
             Some(JsxTransformOptions {
                 import_source: if jsx_import_source.is_some() {

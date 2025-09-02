@@ -34,12 +34,6 @@ export declare class ExternalObject<T> {
     [K: symbol]: T
   }
 }
-export interface TransformOutput {
-  code: string
-  map?: string
-  output?: string
-  diagnostics: Array<string>
-}
 export declare function mdxCompile(
   value: string,
   option: Buffer,
@@ -120,8 +114,6 @@ export interface NapiProjectOptions {
   watch: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
   nextConfig: RcStr
-  /** The contents of ts/config read by load-jsconfig, serialized to JSON. */
-  jsConfig: RcStr
   /** A map of environment variables to use when compiling code. */
   env: Array<NapiEnvVar>
   /**
@@ -172,8 +164,6 @@ export interface NapiPartialProjectOptions {
   watch?: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
   nextConfig?: RcStr
-  /** The contents of ts/config read by load-jsconfig, serialized to JSON. */
-  jsConfig?: RcStr
   /** A map of environment variables to use when compiling code. */
   env?: Array<NapiEnvVar>
   /**
