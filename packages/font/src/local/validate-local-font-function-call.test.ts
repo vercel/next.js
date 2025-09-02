@@ -23,6 +23,12 @@ describe('validateLocalFontFunctionCall', () => {
     )
   })
 
+  test('File extension case insensitivity', async () => {
+    expect(() =>
+      validateLocalFontFunctionCall('', { src: './FONT/FONT-FILE.WOFF' })
+    ).not.toThrow()
+  })
+
   test('Invalid display value', async () => {
     expect(() =>
       validateLocalFontFunctionCall('', {
