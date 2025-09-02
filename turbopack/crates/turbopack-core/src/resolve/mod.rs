@@ -1185,7 +1185,10 @@ async fn realpath(
             .try_join()
             .await?,
     );
-    Ok(result.path)
+    match result.path_or_error {
+        Ok(path) => Ok(path),
+        Err(e) => bail!("error resolving symlink {fs_path}: {e:?}"),
+    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -1516,7 +1519,14 @@ pub async fn resolve_raw(
     force_in_lookup_dir: bool,
 ) -> Result<Vc<ResolveResult>> {
     async fn to_result(request: RcStr, path: FileSystemPath) -> Result<Vc<ResolveResult>> {
-        let RealPathResult { path, symlinks } = &*path.realpath_with_links().await?;
+        let RealPathResult {
+            path_or_error,
+            symlinks,
+        } = &*path.realpath_with_links().await?;
+        let path = match path_or_error {
+            Ok(path) => path,
+            Err(e) => bail!("error resolving symlink {path}: {e:?}"),
+        };
         Ok(*ResolveResult::source_with_affecting_sources(
             RequestKey::new(request),
             ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
@@ -2864,7 +2874,14 @@ async fn resolved(
     query: RcStr,
     fragment: RcStr,
 ) -> Result<Vc<ResolveResult>> {
-    let RealPathResult { path, symlinks } = &*fs_path.realpath_with_links().await?;
+    let RealPathResult {
+        path_or_error,
+        symlinks,
+    } = &*fs_path.realpath_with_links().await?;
+    let path = match path_or_error {
+        Ok(path) => path,
+        Err(e) => bail!("error resolving symlink {fs_path}: {e:?}"),
+    };
 
     let path_ref = path.clone();
     // Check alias field for path aliases first

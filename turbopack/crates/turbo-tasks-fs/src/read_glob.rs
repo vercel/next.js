@@ -99,7 +99,7 @@ async fn read_glob_internal(
                             }
                         }
                     }
-                    DirectoryEntry::Other(_) | DirectoryEntry::Error => continue,
+                    DirectoryEntry::Other(_) | DirectoryEntry::Error(_) => continue,
                 }
             }
         }
@@ -198,9 +198,9 @@ async fn track_glob_internal(
                         }
                     }
                     DirectoryEntry::Symlink(symlink_path) => bail!(
-                        "resolve_symlink_safely() should have resolved all symlinks, but found \
-                         unresolved symlink at path: '{}'. Found path: '{}'. Please report this \
-                         as a bug.",
+                        "resolve_symlink_safely() should have resolved all symlinks or returned \
+                         an error, but found unresolved symlink at path: '{}'. Found path: '{}'. \
+                         Please report this as a bug.",
                         entry_path,
                         symlink_path
                     ),
@@ -209,7 +209,7 @@ async fn track_glob_internal(
                             types.push(path.get_type())
                         }
                     }
-                    DirectoryEntry::Error => {}
+                    DirectoryEntry::Error(_) => {}
                 }
             }
         }
@@ -524,8 +524,6 @@ pub mod tests {
         ));
         let path: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async {
-            use turbo_rcstr::rcstr;
-
             let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
             let err = fs
                 .root()
@@ -550,6 +548,63 @@ pub mod tests {
             assert_eq!(
                 "'sub/link' is a symlink causes that causes an infinite loop!",
                 format!("{}", err.root_cause())
+            );
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    // Reproduces an issue where a dead symlink would cause a panic when tracking/reading a glob
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn dead_symlinks() {
+        crate::register();
+        let scratch = tempfile::tempdir().unwrap();
+        {
+            use std::os::unix::fs::symlink;
+
+            // Create a simple directory with 1 file and a symlink pointing at a non-existent file
+            let path = scratch.path();
+            let sub = &path.join("sub");
+            create_dir(sub).unwrap();
+            let foo = sub.join("foo.js");
+            File::create_new(&foo).unwrap().write_all(b"foo").unwrap();
+            // put a link in sub that points to a sibling file that doesn't exist
+            symlink(sub.join("doesntexist.js"), sub.join("dead_link.js")).unwrap();
+        }
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let path: RcStr = scratch.path().to_str().unwrap().into();
+        tt.run_once(async {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
+            fs.root()
+                .await?
+                .track_glob(Glob::new(rcstr!("sub/*.js"), GlobOptions::default()), false)
+                .await
+        })
+        .await
+        .unwrap();
+        let path: RcStr = scratch.path().to_str().unwrap().into();
+        tt.run_once(async {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
+            let root = fs.root().owned().await?;
+            let read_dir = root
+                .read_glob(Glob::new(rcstr!("sub/*.js"), GlobOptions::default()))
+                .await?;
+            assert_eq!(read_dir.results.len(), 0);
+            assert_eq!(read_dir.inner.len(), 1);
+            let inner_sub = &*read_dir.inner.get("sub").unwrap().await?;
+            assert_eq!(inner_sub.inner.len(), 0);
+            assert_eq!(
+                inner_sub.results,
+                HashMap::from_iter([(
+                    "foo.js".into(),
+                    DirectoryEntry::File(root.join("sub/foo.js")?),
+                )])
             );
 
             anyhow::Ok(())
