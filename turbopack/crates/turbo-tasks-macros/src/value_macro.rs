@@ -207,7 +207,7 @@ impl Parse for ValueArguments {
 }
 
 pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
-    let mut item = parse_macro_input!(input as Item);
+    let item = parse_macro_input!(input as Item);
     let ValueArguments {
         serialization_mode,
         into_mode,
@@ -217,13 +217,21 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         operation,
     } = parse_macro_input!(args as ValueArguments);
 
+    let mut struct_attributes = vec![quote! {
+        #[derive(
+            turbo_tasks::ShrinkToFit,
+            turbo_tasks::trace::TraceRawVcs,
+            turbo_tasks::NonLocalValue,
+        )]
+        #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
+    }];
+
     let mut inner_type = None;
     if transparent {
         if let Item::Struct(ItemStruct {
-            attrs,
             fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
             ..
-        }) = &mut item
+        }) = &item
             && unnamed.len() == 1
         {
             let field = unnamed.iter().next().unwrap();
@@ -251,7 +259,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                  [`{inner_type_string}`].",
             );
 
-            attrs.push(parse_quote! {
+            struct_attributes.push(parse_quote! {
                 #[doc = #doc_str]
             });
         }
@@ -343,22 +351,21 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let mut struct_attributes = vec![quote! {
-        #[derive(
-            turbo_tasks::ShrinkToFit,
-            turbo_tasks::trace::TraceRawVcs,
-            turbo_tasks::NonLocalValue,
-        )]
-        #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
-    }];
     match serialization_mode {
-        SerializationMode::Auto => struct_attributes.push(quote! {
-            #[derive(
-                turbo_tasks::macro_helpers::serde::Serialize,
-                turbo_tasks::macro_helpers::serde::Deserialize,
-            )]
-            #[serde(crate = "turbo_tasks::macro_helpers::serde")]
-        }),
+        SerializationMode::Auto => {
+            struct_attributes.push(quote! {
+                #[derive(
+                    turbo_tasks::macro_helpers::serde::Serialize,
+                    turbo_tasks::macro_helpers::serde::Deserialize,
+                )]
+                #[serde(crate = "turbo_tasks::macro_helpers::serde")]
+            });
+            if transparent {
+                struct_attributes.push(quote! {
+                    #[serde(transparent)]
+                });
+            }
+        }
         SerializationMode::None | SerializationMode::Custom => {}
     };
     if inner_type.is_some() {
