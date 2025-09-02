@@ -53,13 +53,6 @@ pub async fn get_typescript_transform_options(
         false
     };
 
-    NextFeatureTelemetry::new(
-        "swcExperimentalDecorators".into(),
-        use_define_for_class_fields,
-    )
-    .resolved_cell()
-    .emit();
-
     let ts_transform_options = TypescriptTransformOptions {
         use_define_for_class_fields,
     };
@@ -84,6 +77,10 @@ pub async fn get_decorators_transform_options(
     } else {
         false
     };
+
+    NextFeatureTelemetry::new("swcExperimentalDecorators".into(), experimental_decorators)
+        .resolved_cell()
+        .emit();
 
     let decorators_kind = if experimental_decorators {
         Some(DecoratorsKind::Legacy)
