@@ -516,7 +516,7 @@ async fn parse_config_value(
                     span,
                     rcstr!("It needs to be a static object."),
                     Some(&value),
-                    IssueSeverity::Warning,
+                    IssueSeverity::Error,
                 )
                 .await;
             };
@@ -529,7 +529,7 @@ async fn parse_config_value(
                         span,
                         rcstr!("It contains unsupported spread."),
                         Some(&value),
-                        IssueSeverity::Warning,
+                        IssueSeverity::Error,
                     )
                     .await;
                 };
@@ -541,7 +541,7 @@ async fn parse_config_value(
                         span,
                         rcstr!("It must only contain string keys."),
                         Some(&value),
-                        IssueSeverity::Warning,
+                        IssueSeverity::Error,
                     )
                     .await;
                 };
@@ -555,7 +555,7 @@ async fn parse_config_value(
                                 span,
                                 rcstr!("`runtime` needs to be a static string."),
                                 Some(&value),
-                                IssueSeverity::Warning,
+                                IssueSeverity::Error,
                             )
                             .await;
                         };
@@ -570,7 +570,7 @@ async fn parse_config_value(
                                         span,
                                         format!("`runtime` has an invalid value: {err}.").into(),
                                         Some(&value),
-                                        IssueSeverity::Warning,
+                                        IssueSeverity::Error,
                                     )
                                     .await;
                                 }
@@ -604,7 +604,7 @@ async fn parse_config_value(
                                                  static strings."
                                             ),
                                             Some(item),
-                                            IssueSeverity::Warning,
+                                            IssueSeverity::Error,
                                         )
                                         .await?;
                                     }
@@ -621,7 +621,7 @@ async fn parse_config_value(
                                          strings."
                                     ),
                                     Some(&value),
-                                    IssueSeverity::Warning,
+                                    IssueSeverity::Error,
                                 )
                                 .await?;
                                 None
@@ -643,7 +643,7 @@ async fn parse_config_value(
                     span,
                     rcstr!("It needs to be a static string."),
                     Some(&value),
-                    IssueSeverity::Warning,
+                    IssueSeverity::Error,
                 )
                 .await;
             };
@@ -657,7 +657,7 @@ async fn parse_config_value(
                         span,
                         format!("It has an invalid value: {err}.").into(),
                         Some(&value),
-                        IssueSeverity::Warning,
+                        IssueSeverity::Error,
                     )
                     .await;
                 }
@@ -673,7 +673,7 @@ async fn parse_config_value(
                     span,
                     rcstr!("It needs to be a static boolean."),
                     Some(&value),
-                    IssueSeverity::Warning,
+                    IssueSeverity::Error,
                 )
                 .await;
             };
@@ -711,7 +711,7 @@ async fn parse_config_value(
                     span,
                     rcstr!("It needs to be a static string."),
                     Some(&value),
-                    IssueSeverity::Warning,
+                    IssueSeverity::Error,
                 )
                 .await;
             };
@@ -725,7 +725,7 @@ async fn parse_config_value(
                         span,
                         format!("It has an invalid value: {err}.").into(),
                         Some(&value),
-                        IssueSeverity::Warning,
+                        IssueSeverity::Error,
                     )
                     .await;
                 }
@@ -741,7 +741,7 @@ async fn parse_config_value(
                     span,
                     rcstr!("It needs to be a static string."),
                     Some(&value),
-                    IssueSeverity::Warning,
+                    IssueSeverity::Error,
                 )
                 .await;
             };
@@ -755,7 +755,7 @@ async fn parse_config_value(
                         span,
                         format!("It has an invalid value: {err}.").into(),
                         Some(&value),
-                        IssueSeverity::Warning,
+                        IssueSeverity::Error,
                     )
                     .await;
                 }
@@ -781,7 +781,7 @@ async fn parse_config_value(
                                 span,
                                 rcstr!("Values of the array need to be static strings."),
                                 Some(&item),
-                                IssueSeverity::Warning,
+                                IssueSeverity::Error,
                             )
                             .await;
                         }
@@ -795,7 +795,7 @@ async fn parse_config_value(
                         span,
                         rcstr!("It needs to be a static string or array of static strings."),
                         Some(&value),
-                        IssueSeverity::Warning,
+                        IssueSeverity::Error,
                     )
                     .await;
                 }
@@ -821,7 +821,7 @@ async fn parse_config_value(
                     span,
                     rcstr!("`experimental_ppr` needs to be a static boolean."),
                     Some(&value),
-                    IssueSeverity::Warning,
+                    IssueSeverity::Error,
                 )
                 .await;
             };
@@ -937,7 +937,7 @@ async fn parse_route_matcher_from_js_value(
                         span,
                         rcstr!("Values of the `matcher` array need to be static strings"),
                         Some(value),
-                        IssueSeverity::Warning,
+                        IssueSeverity::Error,
                     )
                     .await?;
                 }
@@ -950,7 +950,7 @@ async fn parse_route_matcher_from_js_value(
                 span,
                 rcstr!("`matcher` needs to be a static string or array of static strings"),
                 Some(value),
-                IssueSeverity::Warning,
+                IssueSeverity::Error,
             )
             .await?
         }
