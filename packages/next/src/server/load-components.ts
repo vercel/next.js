@@ -177,9 +177,13 @@ async function loadComponentsImpl<N = any>({
 
   let reactLoadableManifestPath
   if (!process.env.TURBOPACK) {
-    reactLoadableManifestPath = join(distDir, REACT_LOADABLE_MANIFEST)
+    reactLoadableManifestPath = join(
+      /* turbopackIgnore: true */ distDir,
+      REACT_LOADABLE_MANIFEST
+    )
   } else if (isAppPath) {
     reactLoadableManifestPath = join(
+      /* turbopackIgnore: true */
       distDir,
       'server',
       'app',
@@ -188,6 +192,7 @@ async function loadComponentsImpl<N = any>({
     )
   } else {
     reactLoadableManifestPath = join(
+      /* turbopackIgnore: true */
       distDir,
       'server',
       'pages',
@@ -213,7 +218,7 @@ async function loadComponentsImpl<N = any>({
     subresourceIntegrityManifest,
   ] = await Promise.all([
     loadManifestWithRetries<BuildManifest>(
-      join(distDir, BUILD_MANIFEST),
+      join(/* turbopackIgnore: true */ distDir, BUILD_MANIFEST),
       manifestLoadAttempts
     ),
     tryLoadManifestWithRetries<ReactLoadableManifest>(
@@ -224,12 +229,16 @@ async function loadComponentsImpl<N = any>({
     isAppPath || process.env.TURBOPACK
       ? undefined
       : loadManifestWithRetries<DynamicCssManifest>(
-          join(distDir, `${DYNAMIC_CSS_MANIFEST}.json`),
+          join(
+            /* turbopackIgnore: true */ distDir,
+            `${DYNAMIC_CSS_MANIFEST}.json`
+          ),
           manifestLoadAttempts
         ).catch(() => undefined),
     isAppPath && hasClientManifest
       ? tryLoadClientReferenceManifest(
           join(
+            /* turbopackIgnore: true */
             distDir,
             'server',
             'app',
@@ -241,13 +250,21 @@ async function loadComponentsImpl<N = any>({
       : undefined,
     isAppPath
       ? loadManifestWithRetries<ActionManifest>(
-          join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json'),
+          join(
+            /* turbopackIgnore: true */ distDir,
+            'server',
+            SERVER_REFERENCE_MANIFEST + '.json'
+          ),
           manifestLoadAttempts
         ).catch(() => null)
       : null,
     sriEnabled
       ? loadManifestWithRetries<DeepReadonly<Record<string, string>>>(
-          join(distDir, 'server', SUBRESOURCE_INTEGRITY_MANIFEST + '.json')
+          join(
+            /* turbopackIgnore: true */ distDir,
+            'server',
+            SUBRESOURCE_INTEGRITY_MANIFEST + '.json'
+          )
         ).catch(() => undefined)
       : undefined,
   ])

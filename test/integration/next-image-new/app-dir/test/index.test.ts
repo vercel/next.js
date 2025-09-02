@@ -792,10 +792,10 @@ function runTests(mode: 'dev' | 'server') {
     expect(await img.getAttribute('data-nimg')).toBe('fill')
     expect(await img.getAttribute('sizes')).toBe('200px')
     expect(await img.getAttribute('src')).toBe(
-      '/_next/image?url=%2Ftest.jpg&w=3840&q=50'
+      '/_next/image?url=%2Ftest.jpg&w=3840&q=75'
     )
     expect(await img.getAttribute('srcset')).toContain(
-      '/_next/image?url=%2Ftest.jpg&w=640&q=50 640w,'
+      '/_next/image?url=%2Ftest.jpg&w=640&q=75 640w,'
     )
     expect(await img.getAttribute('style')).toBe(
       'position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;object-position:10% 10%;color:transparent'
@@ -1060,7 +1060,7 @@ function runTests(mode: 'dev' | 'server') {
         .join('\n')
       await assertNoRedbox(browser)
       expect(warnings).toMatch(
-        /Image with src (.*)jpg(.*) is using quality "50" which is not configured in images.qualities. This config will be required starting in Next.js 16./gm
+        /Image with src (.*)jpg(.*) is using quality "50" which is not configured in images.qualities \[75\]. Please update your config to \[50, 75\]./gm
       )
     })
 
@@ -1636,7 +1636,7 @@ function runTests(mode: 'dev' | 'server') {
           localPatterns: undefined,
           minimumCacheTTL: 60,
           path: '/_next/image',
-          qualities: undefined,
+          qualities: [75],
           sizes: [
             640, 750, 828, 1080, 1200, 1920, 2048, 3840, 16, 32, 48, 64, 96,
             128, 256, 384,

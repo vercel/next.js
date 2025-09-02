@@ -532,9 +532,13 @@ export function getImgProps(
         )
       }
     }
-    if (qualityInt && qualityInt !== 75 && !config.qualities) {
+    if (
+      qualityInt &&
+      config.qualities &&
+      !config.qualities.includes(qualityInt)
+    ) {
       warnOnce(
-        `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities. This config will be required starting in Next.js 16.` +
+        `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(', ')}].` +
           `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
       )
     }

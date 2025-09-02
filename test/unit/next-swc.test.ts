@@ -125,7 +125,7 @@ describe('next/swc', () => {
         '__NEXT_REQUIRED_NODE_VERSION_RANGE'
       )
       expect(nextEntryContent).toMatch(
-        /For Next.js, Node.js version "\$\{">=\d+\.\d+\.\d*"\}" is required./
+        /For Next.js, Node.js version "\$\{"\^\d+\.\d+\.\d* \|\| \^\d+\.\d+\.\d* \|\| >= \d+\.\d+\.\d*"\}" is required./
       )
     })
   })

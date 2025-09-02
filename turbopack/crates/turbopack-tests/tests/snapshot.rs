@@ -274,28 +274,33 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let entry_asset = project_path.join(&options.entry)?;
 
-    let env = Environment::new(match options.environment {
+    let env = match options.environment {
         SnapshotEnvironment::Browser => {
-            ExecutionEnvironment::Browser(
-                // TODO: load more from options.json
-                BrowserEnvironment {
-                    dom: true,
-                    web_worker: false,
-                    service_worker: false,
-                    browserslist_query: options.browserslist.into(),
-                }
-                .resolved_cell(),
-            )
+            let environment=// TODO: load more from options.json
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: options.browserslist.into(),
+            }
+            .resolved_cell();
+
+            Environment::new(ExecutionEnvironment::Browser(environment), *environment)
+                .to_resolved()
+                .await?
         }
         SnapshotEnvironment::NodeJs => {
-            ExecutionEnvironment::NodeJsBuildTime(
-                // TODO: load more from options.json
-                NodeJsEnvironment::default().resolved_cell(),
+            Environment::new(
+                ExecutionEnvironment::NodeJsBuildTime(
+                    // TODO: load more from options.json
+                    NodeJsEnvironment::default().resolved_cell(),
+                ),
+                BrowserEnvironment::default().cell(),
             )
+            .to_resolved()
+            .await?
         }
-    })
-    .to_resolved()
-    .await?;
+    };
 
     let mut defines = compile_time_defines!(
         process.turbopack = true,

@@ -149,7 +149,7 @@ pub async fn webpack_loader_options(
     builtin_conditions: BTreeSet<WebpackLoaderBuiltinCondition>,
 ) -> Result<Vc<OptionWebpackLoadersOptions>> {
     let mut rules = next_config
-        .webpack_rules(builtin_conditions.clone(), project_path.clone())
+        .webpack_rules(project_path.clone())
         .owned()
         .await?;
 
