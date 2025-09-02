@@ -16,7 +16,6 @@
     "@types/node": "^24.3.0",
     "@types/react": "^19.1.1",
     "@types/react-dom": "^19.1.1",
-    "autoprefixer": "^10.4.21",
     "eslint": "^9.34.0",
     "eslint-config-next": "15.5.2",
     "tailwindcss": "^4.1.12",
