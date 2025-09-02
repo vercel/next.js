@@ -77,8 +77,8 @@ describe('Error overlay for hydration errors in App router', () => {
            <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
              <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                <LoadingBoundary loading={null}>
-                 <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                 <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} ...>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
@@ -157,8 +157,8 @@ describe('Error overlay for hydration errors in App router', () => {
            <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
              <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                <LoadingBoundary loading={null}>
-                 <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                 <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} ...>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
@@ -228,7 +228,7 @@ describe('Error overlay for hydration errors in App router', () => {
                              <SegmentTrieNode>
                              <script>
                              <script>
-                             <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                             <ClientSegmentRoot Component={function Root} slots={{children:{...}}} params={{}}>
                                <Root params={Promise}>
                                  <html
        -                           className="server-html"
@@ -262,7 +262,7 @@ describe('Error overlay for hydration errors in App router', () => {
                          <__next_root_layout_boundary__>
                            <SegmentViewNode type="layout" pagePath="layout.js">
                              <SegmentTrieNode>
-                             <ClientSegmentRoot Component={function Root} slots={{...}} params={{}}>
+                             <ClientSegmentRoot Component={function Root} slots={{children:{...}}} params={{}}>
                                <Root params={Promise}>
                                  <html
        -                           className="server-html"
@@ -314,8 +314,8 @@ describe('Error overlay for hydration errors in App router', () => {
            <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
              <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                <LoadingBoundary loading={null}>
-                 <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                 <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+                   <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} ...>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
@@ -375,8 +375,8 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
@@ -429,8 +429,8 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
@@ -491,8 +491,8 @@ describe('Error overlay for hydration errors in App router', () => {
          <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
            <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
              <LoadingBoundary loading={null}>
-               <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                 <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+               <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+                 <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} unauthorized={undefined} ...>
                    <RedirectBoundary>
                      <RedirectErrorBoundary router={{...}}>
                        <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
@@ -526,8 +526,8 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
@@ -585,8 +585,8 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
@@ -647,8 +647,8 @@ describe('Error overlay for hydration errors in App router', () => {
        "componentStack": "...
          <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
            <LoadingBoundary loading={null}>
-             <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-               <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+             <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+               <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} unauthorized={undefined} ...>
                  <RedirectBoundary>
                    <RedirectErrorBoundary router={{...}}>
                      <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
@@ -744,8 +744,8 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
@@ -824,8 +824,8 @@ describe('Error overlay for hydration errors in App router', () => {
          <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
            <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
              <LoadingBoundary loading={null}>
-               <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                 <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+               <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+                 <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} unauthorized={undefined} ...>
                    <RedirectBoundary>
                      <RedirectErrorBoundary router={{...}}>
                        <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
@@ -899,8 +899,8 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
@@ -975,8 +975,8 @@ describe('Error overlay for hydration errors in App router', () => {
              <InnerScrollAndFocusHandler segmentPath={[...]} focusAndScrollRef={{apply:false, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={<SegmentViewNode>} forbidden={undefined} unauthorized={undefined}>
-                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<SegmentViewNode>} forbidden={undefined} ...>
+                   <HTTPAccessFallbackBoundary notFound={{...}} forbidden={undefined} unauthorized={undefined}>
+                     <HTTPAccessFallbackErrorBoundary pathname="/" notFound={{...}} forbidden={undefined} ...>
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
@@ -1103,15 +1103,13 @@ describe('Error overlay for hydration errors in App router', () => {
                          <__next_root_layout_boundary__>
                            <SegmentViewNode type="layout" pagePath="layout.js">
                              <SegmentTrieNode>
-                             <script>
-                             <script>
                              <Layout>
-                               <NotFound>
-                                 <HTTPAccessErrorFallback>
-       >                           <html>
-                                     <body>
-                                     <Script src="https://ex..." strategy="beforeInte...">
-       >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
+                               <script>
+                               <script>
+       >                       <html>
+                                 <body>
+                                 <Script src="https://ex..." strategy="beforeInte...">
+       >                           <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                          ...",
            "description": "In HTML, <script> cannot be a child of <html>.
        This will cause a hydration error.",
@@ -1169,12 +1167,10 @@ describe('Error overlay for hydration errors in App router', () => {
                            <SegmentViewNode type="layout" pagePath="layout.js">
                              <SegmentTrieNode>
                              <Layout>
-                               <NotFound>
-                                 <HTTPAccessErrorFallback>
-       >                           <html>
-                                     <body>
-                                     <Script src="https://ex..." strategy="beforeInte...">
-       >                               <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
+       >                       <html>
+                                 <body>
+                                 <Script src="https://ex..." strategy="beforeInte...">
+       >                           <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                          ...",
            "description": "In HTML, <script> cannot be a child of <html>.
        This will cause a hydration error.",
