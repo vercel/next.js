@@ -3777,7 +3777,9 @@ mod tests {
     use turbo_tasks::{ResolvedVc, util::FormatDuration};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
-        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
+        environment::{
+            BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion,
+        },
         target::{Arch, CompileTarget, Endianness, Libc, Platform},
     };
 
@@ -4177,21 +4179,26 @@ mod tests {
         var_cache: &Mutex<FxHashMap<Id, JsValue>>,
     ) -> (JsValue, u32) {
         turbo_tasks_testing::VcStorage::with(async {
+            let css_environment = BrowserEnvironment::default().resolved_cell();
+
             let compile_time_info = CompileTimeInfo::builder(
-                Environment::new(ExecutionEnvironment::NodeJsLambda(
-                    NodeJsEnvironment {
-                        compile_target: CompileTarget {
-                            arch: Arch::X64,
-                            platform: Platform::Linux,
-                            endianness: Endianness::Little,
-                            libc: Libc::Glibc,
+                Environment::new(
+                    ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment {
+                            compile_target: CompileTarget {
+                                arch: Arch::X64,
+                                platform: Platform::Linux,
+                                endianness: Endianness::Little,
+                                libc: Libc::Glibc,
+                            }
+                            .resolved_cell(),
+                            node_version: NodeJsVersion::default().resolved_cell(),
+                            cwd: ResolvedVc::cell(None),
                         }
                         .resolved_cell(),
-                        node_version: NodeJsVersion::default().resolved_cell(),
-                        cwd: ResolvedVc::cell(None),
-                    }
-                    .resolved_cell(),
-                ))
+                    ),
+                    *css_environment,
+                )
                 .to_resolved()
                 .await?,
             )

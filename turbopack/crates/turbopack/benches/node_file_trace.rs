@@ -14,7 +14,7 @@ use turbopack::{
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
     rebase::RebasedAsset,
@@ -88,9 +88,12 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
 
                 let source = FileSource::new(input);
                 let compile_time_info = CompileTimeInfo::builder(
-                    Environment::new(ExecutionEnvironment::NodeJsLambda(
-                        NodeJsEnvironment::default().resolved_cell(),
-                    ))
+                    Environment::new(
+                        ExecutionEnvironment::NodeJsLambda(
+                            NodeJsEnvironment::default().resolved_cell(),
+                        ),
+                        BrowserEnvironment::default().cell(),
+                    )
                     .to_resolved()
                     .await?,
                 )

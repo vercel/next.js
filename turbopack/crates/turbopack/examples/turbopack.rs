@@ -17,7 +17,7 @@ use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
     rebase::RebasedAsset,
@@ -49,9 +49,12 @@ async fn main() -> Result<()> {
             let source = FileSource::new(entry);
             let module_asset_context = turbopack::ModuleAssetContext::new(
                 Default::default(),
-                CompileTimeInfo::new(Environment::new(ExecutionEnvironment::NodeJsLambda(
-                    NodeJsEnvironment::default().resolved_cell(),
-                ))),
+                CompileTimeInfo::new(Environment::new(
+                    ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment::default().resolved_cell(),
+                    ),
+                    BrowserEnvironment::default().cell(),
+                )),
                 Default::default(),
                 ResolveOptionsContext {
                     enable_typescript: true,
