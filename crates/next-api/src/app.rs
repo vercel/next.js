@@ -1748,7 +1748,7 @@ impl AppEndpoint {
                     assets,
                     availability_info,
                 } = *chunking_context
-                    .evaluated_chunk_group(
+                    .chunk_group(
                         server_action_manifest_loader.ident(),
                         ChunkGroup::Entry(
                             [ResolvedVc::upcast(server_action_manifest_loader)]
@@ -1785,7 +1785,6 @@ impl AppEndpoint {
                     bail!("rsc_entry must be evaluatable");
                 };
 
-                evaluatable_assets.push(server_action_manifest_loader);
                 evaluatable_assets.push(rsc_entry);
 
                 async {
@@ -1862,6 +1861,25 @@ impl AppEndpoint {
                         }
                         .instrument(span)
                         .await?;
+                    }
+
+                    {
+                        let chunk_group = chunking_context
+                            .chunk_group(
+                                server_action_manifest_loader.ident(),
+                                ChunkGroup::Entry(vec![ResolvedVc::upcast(
+                                    server_action_manifest_loader,
+                                )]),
+                                module_graph,
+                                current_availability_info,
+                            )
+                            .await?;
+
+                        current_chunks = current_chunks
+                            .concatenate(*chunk_group.assets)
+                            .resolve()
+                            .await?;
+                        current_availability_info = chunk_group.availability_info;
                     }
 
                     anyhow::Ok(Vc::cell(vec![

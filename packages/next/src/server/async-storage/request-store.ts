@@ -115,7 +115,7 @@ export function createRequestStoreForRender(
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
-  renderResumeDataCache: RenderResumeDataCache | undefined,
+  renderResumeDataCache: RenderResumeDataCache | null,
   devFallbackParams: OpaqueFallbackRouteParams | null
 ): RequestStore {
   return createRequestStoreImpl(
@@ -151,7 +151,7 @@ export function createRequestStoreForAPI(
     {},
     implicitTags,
     onUpdateCookies,
-    undefined,
+    null,
     previewProps,
     false,
     undefined,
@@ -167,7 +167,7 @@ function createRequestStoreImpl(
   rootParams: Params,
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
-  renderResumeDataCache: RenderResumeDataCache | undefined,
+  renderResumeDataCache: RenderResumeDataCache | null,
   previewProps: WrapperRenderOpts['previewProps'],
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],

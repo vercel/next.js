@@ -11,7 +11,7 @@ export default async function Page() {
           cookies + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion href="/in-page/cookies" prefetch={true} />
+              <DebugLinkAccordion href="/in-page/cookies" />
             </li>
           </ul>
         </li>
@@ -20,16 +20,10 @@ export default async function Page() {
           search params + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/in-page/search-params?searchParam=123"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/in-page/search-params?searchParam=123" />
             </li>
             <li>
-              <DebugLinkAccordion
-                href="/in-page/search-params?searchParam=456"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/in-page/search-params?searchParam=456" />
             </li>
           </ul>
         </li>
@@ -37,16 +31,10 @@ export default async function Page() {
           dynamic params + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/in-page/dynamic-params/123"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/in-page/dynamic-params/123" />
             </li>
             <li>
-              <DebugLinkAccordion
-                href="/in-page/dynamic-params/456"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/in-page/dynamic-params/456" />
             </li>
           </ul>
         </li>
@@ -54,10 +42,7 @@ export default async function Page() {
           only cookies
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/in-page/cookies-only"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/in-page/cookies-only" />
             </li>
           </ul>
         </li>
@@ -71,10 +56,7 @@ export default async function Page() {
           cookies in private cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/in-private-cache/cookies"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/in-private-cache/cookies" />
             </li>
           </ul>
         </li>
@@ -82,16 +64,10 @@ export default async function Page() {
           dynamic params in private cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/in-private-cache/dynamic-params/123"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/in-private-cache/dynamic-params/123" />
             </li>
             <li>
-              <DebugLinkAccordion
-                href="/in-private-cache/dynamic-params/456"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/in-private-cache/dynamic-params/456" />
             </li>
           </ul>
         </li>
@@ -99,16 +75,10 @@ export default async function Page() {
           search params in private cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/in-private-cache/search-params?searchParam=123"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/in-private-cache/search-params?searchParam=123" />
             </li>
             <li>
-              <DebugLinkAccordion
-                href="/in-private-cache/search-params?searchParam=456"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/in-private-cache/search-params?searchParam=456" />
             </li>
           </ul>
         </li>
@@ -116,10 +86,7 @@ export default async function Page() {
           only cookies in private cache
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/in-private-cache/cookies-only"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/in-private-cache/cookies-only" />
             </li>
           </ul>
         </li>
@@ -127,10 +94,7 @@ export default async function Page() {
           Date.now() in private cache
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/in-private-cache/date-now"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/in-private-cache/date-now" />
             </li>
           </ul>
         </li>
@@ -144,10 +108,7 @@ export default async function Page() {
           cookies() promise passed to public cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/passed-to-public-cache/cookies"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/passed-to-public-cache/cookies" />
             </li>
           </ul>
         </li>
@@ -155,16 +116,10 @@ export default async function Page() {
           dynamic params promise passed to public cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/passed-to-public-cache/dynamic-params/123"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/passed-to-public-cache/dynamic-params/123" />
             </li>
             <li>
-              <DebugLinkAccordion
-                href="/passed-to-public-cache/dynamic-params/456"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/passed-to-public-cache/dynamic-params/456" />
             </li>
           </ul>
         </li>
@@ -172,16 +127,10 @@ export default async function Page() {
           search params promise passed to public cache + dynamic content
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/passed-to-public-cache/search-params?searchParam=123"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/passed-to-public-cache/search-params?searchParam=123" />
             </li>
             <li>
-              <DebugLinkAccordion
-                href="/passed-to-public-cache/search-params?searchParam=456"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/passed-to-public-cache/search-params?searchParam=456" />
             </li>
           </ul>
         </li>
@@ -189,10 +138,7 @@ export default async function Page() {
           only cookies passed to public cache (no dynamic content)
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/passed-to-public-cache/cookies-only"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/passed-to-public-cache/cookies-only" />
             </li>
           </ul>
         </li>
@@ -290,7 +236,7 @@ export default async function Page() {
       <h2>misc</h2>
       <ul>
         <li>
-          <DebugLinkAccordion href="/fully-static" prefetch={true} />
+          <DebugLinkAccordion href="/fully-static" />
         </li>
       </ul>
     </main>

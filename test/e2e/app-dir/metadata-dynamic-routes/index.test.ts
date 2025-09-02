@@ -4,7 +4,6 @@ import { check } from 'next-test-utils'
 
 const CACHE_HEADERS = {
   NONE: 'no-cache, no-store',
-  LONG: 'public, immutable, no-transform, max-age=31536000',
   REVALIDATE: 'public, max-age=0, must-revalidate',
 }
 
@@ -209,7 +208,7 @@ describe('app dir - metadata dynamic routes', () => {
 
       expect(res.headers.get('content-type')).toBe('image/png')
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
+        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
     })
 
@@ -219,7 +218,7 @@ describe('app dir - metadata dynamic routes', () => {
 
       expect(res.headers.get('content-type')).toBe('image/png')
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
+        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
 
       if (isNextDev) {
@@ -241,7 +240,7 @@ describe('app dir - metadata dynamic routes', () => {
       res = await next.fetch('/twitter-image2')
       expect(res.headers.get('content-type')).toBe('image/png')
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
+        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
     })
 
@@ -338,7 +337,7 @@ describe('app dir - metadata dynamic routes', () => {
 
       expect(res.headers.get('content-type')).toBe('image/png')
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
+        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
     })
 
@@ -347,7 +346,7 @@ describe('app dir - metadata dynamic routes', () => {
 
       expect(res.headers.get('content-type')).toBe('image/png')
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
+        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
     })
   })

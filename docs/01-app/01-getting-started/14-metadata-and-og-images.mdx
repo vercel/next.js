@@ -54,7 +54,7 @@ export const metadata: Metadata = {
 export default function Page() {}
 ```
 
-```jsx filename="app/blog/layout.tsx" switcher
+```jsx filename="app/blog/layout.js" switcher
 export const metadata = {
   title: 'My Blog',
   description: '...',
@@ -127,7 +127,7 @@ Learn more about [streaming metadata](/docs/app/api-reference/functions/generate
 
 There may be cases where you need to fetch the **same** data for metadata and the page itself. To avoid duplicate requests, you can use React's [`cache` function](https://react.dev/reference/react/cache) to memoize the return value and only fetch the data once. For example, to fetch the blog post information for both the metadata and the page:
 
-```tsx filename="app/lib/data.ts" highlight={5} switcher
+```ts filename="app/lib/data.ts" highlight={5} switcher
 import { cache } from 'react'
 import { db } from '@/app/lib/db'
 
@@ -138,7 +138,7 @@ export const getPost = cache(async (slug: string) => {
 })
 ```
 
-```jsx filename="app/lib/data.js" highlight={5} switcher
+```js filename="app/lib/data.js" highlight={5} switcher
 import { cache } from 'react'
 import { db } from '@/app/lib/db'
 
@@ -242,9 +242,9 @@ The more specific image will take precedence over any OG images above it in the 
 
 The [`ImageResponse` constructor](/docs/app/api-reference/functions/image-response) allows you to generate dynamic images using JSX and CSS. This is useful for OG images that depend on data.
 
-For example, to generate a unique OG image for each blog post, add a `opengraph-image.ts` file inside the `blog` folder, and import the `ImageResponse` constructor from `next/og`:
+For example, to generate a unique OG image for each blog post, add a `opengraph-image.tsx` file inside the `blog` folder, and import the `ImageResponse` constructor from `next/og`:
 
-```tsx filename="app/blog/[slug]/opengraph-image.ts" switcher
+```tsx filename="app/blog/[slug]/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
 import { getPost } from '@/app/lib/data'
 

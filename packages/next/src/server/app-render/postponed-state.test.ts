@@ -21,6 +21,9 @@ export function createMockOpaqueFallbackRouteParams(
   return new Map(Object.entries(params))
 }
 
+const isCacheComponentsEnabled =
+  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+
 describe('getDynamicHTMLPostponedState', () => {
   it('serializes a HTML postponed state with fallback params', async () => {
     const key = '%%drp:slug:e9615126684e5%%'
@@ -36,8 +39,8 @@ describe('getDynamicHTMLPostponedState', () => {
         tags: [],
         stale: 0,
         timestamp: 0,
-        expire: 0,
-        revalidate: 0,
+        expire: 300,
+        revalidate: 1,
       })
     )
 
@@ -45,10 +48,12 @@ describe('getDynamicHTMLPostponedState', () => {
       { [key]: key, nested: { [key]: key } },
       DynamicHTMLPreludeState.Full,
       fallbackRouteParams,
-      prerenderResumeDataCache
+      prerenderResumeDataCache,
+      isCacheComponentsEnabled
     )
 
     const parsed = parsePostponedState(state, '/blog/[slug]', { slug: '123' })
+
     expect(parsed).toMatchInlineSnapshot(`
      {
        "data": [
@@ -84,7 +89,8 @@ describe('getDynamicHTMLPostponedState', () => {
       { key: 'value' },
       DynamicHTMLPreludeState.Full,
       null,
-      createPrerenderResumeDataCache()
+      createPrerenderResumeDataCache(),
+      isCacheComponentsEnabled
     )
     expect(state).toMatchInlineSnapshot(`"19:[1,{"key":"value"}]null"`)
   })
@@ -98,7 +104,8 @@ describe('getDynamicHTMLPostponedState', () => {
       { [key]: key },
       DynamicHTMLPreludeState.Full,
       fallbackRouteParams,
-      createPrerenderResumeDataCache()
+      createPrerenderResumeDataCache(),
+      isCacheComponentsEnabled
     )
 
     const value = 'hello'
@@ -118,7 +125,8 @@ describe('getDynamicHTMLPostponedState', () => {
 describe('getDynamicDataPostponedState', () => {
   it('serializes a data postponed state with fallback params', async () => {
     const state = await getDynamicDataPostponedState(
-      createPrerenderResumeDataCache()
+      createPrerenderResumeDataCache(),
+      isCacheComponentsEnabled
     )
     expect(state).toMatchInlineSnapshot(`"4:nullnull"`)
   })

@@ -3,6 +3,8 @@ import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { connection } from 'next/server'
 import { cookies } from 'next/headers'
 
+export const unstable_prefetch = 'unstable_runtime'
+
 type AnySearchParams = { [key: string]: string | string[] | undefined }
 
 export default async function Page({

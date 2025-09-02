@@ -62,7 +62,8 @@ export async function writeAppTypeDeclarations({
     'types/routes.d.ts'
   )
 
-  directives.push(`/// <reference path="./${routeTypesPath}" />`)
+  // Use ESM import instead of triple-slash reference for better ESLint compatibility
+  directives.push(`import "./${routeTypesPath}";`)
 
   // Push the notice in.
   directives.push(

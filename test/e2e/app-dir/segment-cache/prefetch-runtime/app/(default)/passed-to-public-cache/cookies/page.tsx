@@ -3,6 +3,8 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { connection } from 'next/server'
 
+export const unstable_prefetch = 'unstable_runtime'
+
 export default async function Page() {
   return (
     <main>

@@ -33,6 +33,11 @@ export default function Page() {
         <li>
           <LinkAccordion href="/dynamic">Page with dynamic data</LinkAccordion>
         </li>
+        <li>
+          <LinkAccordion href="/seconds">
+            Page with cached data with <code>cacheLife("seconds")</code>
+          </LinkAccordion>
+        </li>
       </ul>
     </>
   )
