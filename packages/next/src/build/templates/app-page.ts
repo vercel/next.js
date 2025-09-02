@@ -528,7 +528,7 @@ export async function handler(
           serverActionsManifest,
           clientReferenceManifest,
           setIsrStatus: routerServerContext?.setIsrStatus,
-          sendReactDebugChunk: routerServerContext?.sendReactDebugChunk,
+          setReactDebugChannel: routerServerContext?.setReactDebugChannel,
 
           dir:
             process.env.NEXT_RUNTIME === 'nodejs'

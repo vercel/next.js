@@ -94,8 +94,8 @@ export interface RenderOptsPartial {
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
   setIsrStatus?: (key: string, value: boolean) => void
-  sendReactDebugChunk?: (
-    chunk: Uint8Array | null,
+  setReactDebugChannel?: (
+    debugChannel: { readable: ReadableStream<Uint8Array> },
     htmlRequestId: string,
     requestId: string
   ) => void

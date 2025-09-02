@@ -414,10 +414,48 @@ export async function createHotReloaderTurbopack(
   const clientsByRequestId = new Map<string, ws>()
   const clientStates = new WeakMap<ws, ClientState>()
 
-  const initialReactDebugChunksByRequestId = new Map<
+  const reactDebugChannelsByRequestId = new Map<
     string,
-    (Uint8Array | null)[] | null
+    { readable: ReadableStream<Uint8Array> }
   >()
+
+  function connectReactDebugChannel(client: ws, requestId: string) {
+    const debugChannel = reactDebugChannelsByRequestId.get(requestId)
+
+    if (debugChannel) {
+      const reader = debugChannel.readable.getReader()
+
+      const stop = () => {
+        sendToClient(client, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+          requestId,
+          // A null chunk signals to the client that no more chunks will be
+          // sent for this request.
+          base64EncodedChunk: null,
+        })
+
+        reactDebugChannelsByRequestId.delete(requestId)
+      }
+
+      const progress = (entry: ReadableStreamReadResult<Uint8Array>) => {
+        if (entry.done) {
+          stop()
+        } else {
+          sendToClient(client, {
+            // TODO: Send as binary frame, with the action type and request ID
+            // as header bytes.
+            type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+            requestId,
+            base64EncodedChunk: Buffer.from(entry.value).toString('base64'),
+          })
+
+          reader.read().then(progress, stop)
+        }
+      }
+
+      reader.read().then(progress, stop)
+    }
+  }
 
   function sendToClient(client: ws, message: HmrMessageSentToBrowser) {
     client.send(JSON.stringify(message))
@@ -920,23 +958,7 @@ export async function createHotReloaderTurbopack(
           sendToClient(client, syncMessage)
 
           if (requestId) {
-            const initialReactDebugChunks =
-              initialReactDebugChunksByRequestId.get(requestId)
-
-            if (initialReactDebugChunks) {
-              for (const chunk of initialReactDebugChunks) {
-                sendToClient(client, {
-                  // TODO: Send as binary frame, with the action type and request ID
-                  // as header bytes.
-                  type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
-                  requestId,
-                  base64EncodedChunk:
-                    chunk && Buffer.from(chunk).toString('base64'),
-                })
-              }
-
-              initialReactDebugChunksByRequestId.set(requestId, null)
-            }
+            connectReactDebugChannel(client, requestId)
           }
         })()
       })
@@ -950,34 +972,16 @@ export async function createHotReloaderTurbopack(
       }
     },
 
-    sendReactDebugChunk(chunk, htmlRequestId, requestId) {
+    setReactDebugChannel(debugChannel, htmlRequestId, requestId) {
+      // Store the debug channel, regardless of whether the client is connected.
+      reactDebugChannelsByRequestId.set(requestId, debugChannel)
+
+      // If the client is connected, we can connect the debug channel
+      // immediately. Otherwise, we'll do that when the client connects.
       const client = clientsByRequestId.get(htmlRequestId)
 
       if (client) {
-        // TODO: Send as binary frame, with the action type and request ID as
-        // header bytes.
-        sendToClient(client, {
-          type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
-          requestId,
-          base64EncodedChunk: chunk && Buffer.from(chunk).toString('base64'),
-        })
-      } else if (htmlRequestId === requestId) {
-        let initialReactDebugChunks =
-          initialReactDebugChunksByRequestId.get(requestId)
-
-        if (initialReactDebugChunks === null) {
-          // The client has already received all initial chunks. It has probably
-          // disconnected in the meantime.
-          return
-        } else if (initialReactDebugChunks === undefined) {
-          // The client has not connected yet, so we buffer the chunks.
-          initialReactDebugChunksByRequestId.set(
-            requestId,
-            (initialReactDebugChunks = [])
-          )
-        }
-
-        initialReactDebugChunks.push(chunk)
+        connectReactDebugChannel(client, requestId)
       }
     },
 

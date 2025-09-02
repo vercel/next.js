@@ -270,9 +270,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private reloadAfterInvalidation: boolean = false
   private isSrcDir: boolean
 
-  private initialReactDebugChunksByRequestId = new Map<
+  private reactDebugChannelsByRequestId = new Map<
     string,
-    (Uint8Array | null)[] | null
+    { readable: ReadableStream<Uint8Array> }
   >()
 
   public serverStats: webpack.Stats | null
@@ -337,6 +337,44 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
     // of the current `next dev` invocation.
     this.hotReloaderSpan.stop()
+  }
+
+  private connectReactDebugChannel(client: ws, requestId: string) {
+    const debugChannel = this.reactDebugChannelsByRequestId.get(requestId)
+
+    if (debugChannel) {
+      const reader = debugChannel.readable.getReader()
+
+      const stop = () => {
+        this.webpackHotMiddleware?.publishToClient(client, {
+          type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+          requestId,
+          // A null chunk signals to the client that no more chunks will be
+          // sent for this request.
+          base64EncodedChunk: null,
+        })
+
+        this.reactDebugChannelsByRequestId.delete(requestId)
+      }
+
+      const progress = (entry: ReadableStreamReadResult<Uint8Array>) => {
+        if (entry.done) {
+          stop()
+        } else {
+          this.webpackHotMiddleware?.publishToClient(client, {
+            // TODO: Send as binary frame, with the action type and request ID
+            // as header bytes.
+            type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+            requestId,
+            base64EncodedChunk: Buffer.from(entry.value).toString('base64'),
+          })
+
+          reader.read().then(progress, stop)
+        }
+      }
+
+      reader.read().then(progress, stop)
+    }
   }
 
   public async run(
@@ -621,26 +659,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       })
 
       if (requestId) {
-        const initialReactDebugChunks =
-          this.initialReactDebugChunksByRequestId.get(requestId)
-
-        if (initialReactDebugChunks) {
-          for (const chunk of initialReactDebugChunks) {
-            this.webpackHotMiddleware.publish(
-              {
-                // TODO: Send as binary frame, with the action type and request ID
-                // as header bytes.
-                type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
-                requestId,
-                base64EncodedChunk:
-                  chunk && Buffer.from(chunk).toString('base64'),
-              },
-              requestId
-            )
-          }
-
-          this.initialReactDebugChunksByRequestId.set(requestId, null)
-        }
+        this.connectReactDebugChannel(client, requestId)
       }
     })
   }
@@ -1700,39 +1719,20 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.webpackHotMiddleware!.publish(message)
   }
 
-  public sendReactDebugChunk(
-    chunk: Uint8Array | null,
+  public setReactDebugChannel(
+    debugChannel: { readable: ReadableStream<Uint8Array> },
     htmlRequestId: string,
     requestId: string
   ): void {
-    if (this.webpackHotMiddleware?.isClientConnected(htmlRequestId)) {
-      // TODO: Send as binary frame, with the action type and request ID as
-      // header bytes.
-      this.webpackHotMiddleware.publish(
-        {
-          type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
-          requestId,
-          base64EncodedChunk: chunk && Buffer.from(chunk).toString('base64'),
-        },
-        htmlRequestId
-      )
-    } else if (htmlRequestId === requestId) {
-      let initialReactDebugChunks =
-        this.initialReactDebugChunksByRequestId.get(requestId)
+    // Store the debug channel, regardless of whether the client is connected.
+    this.reactDebugChannelsByRequestId.set(requestId, debugChannel)
 
-      if (initialReactDebugChunks === null) {
-        // The client has already received all initial chunks. It has probably
-        // disconnected in the meantime.
-        return
-      } else if (initialReactDebugChunks === undefined) {
-        // The client has not connected yet, so we buffer the chunks.
-        this.initialReactDebugChunksByRequestId.set(
-          requestId,
-          (initialReactDebugChunks = [])
-        )
-      }
+    // If the client is connected, we can connect the debug channel immediately.
+    // Otherwise, we'll do that when the client connects.
+    const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
 
-      initialReactDebugChunks.push(chunk)
+    if (client) {
+      this.connectReactDebugChannel(client, requestId)
     }
   }
 
