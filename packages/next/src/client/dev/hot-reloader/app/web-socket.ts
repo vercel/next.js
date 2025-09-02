@@ -1,7 +1,7 @@
 import { useContext, useEffect } from 'react'
 import { GlobalLayoutRouterContext } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { getSocketUrl } from '../get-socket-url'
-import type { TurbopackMsgToBrowser } from '../../../../server/dev/hot-reloader-types'
+import type { TurbopackMessageSentToBrowser } from '../../../../server/dev/hot-reloader-types'
 import { reportInvalidHmrMessage } from '../shared'
 import {
   performFullReload,
@@ -37,9 +37,9 @@ export function createWebSocket(
 
   webSocket.addEventListener('message', (event) => {
     try {
-      const obj = JSON.parse(event.data)
+      const message = JSON.parse(event.data)
       processMessage(
-        obj,
+        message,
         sendMessage,
         processTurbopackMessage,
         staticIndicatorState
@@ -54,15 +54,15 @@ export function createWebSocket(
 
 export function createProcessTurbopackMessage(
   sendMessage: (data: string) => void
-): (msg: TurbopackMsgToBrowser) => void {
+): (msg: TurbopackMessageSentToBrowser) => void {
   if (!process.env.TURBOPACK) {
     return () => {}
   }
 
-  let queue: TurbopackMsgToBrowser[] = []
-  let callback: ((msg: TurbopackMsgToBrowser) => void) | undefined
+  let queue: TurbopackMessageSentToBrowser[] = []
+  let callback: ((msg: TurbopackMessageSentToBrowser) => void) | undefined
 
-  const processTurbopackMessage = (msg: TurbopackMsgToBrowser) => {
+  const processTurbopackMessage = (msg: TurbopackMessageSentToBrowser) => {
     if (callback) {
       callback(msg)
     } else {
@@ -75,7 +75,7 @@ export function createProcessTurbopackMessage(
     '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts'
   ).then(({ connect }) => {
     connect({
-      addMessageListener(cb: (msg: TurbopackMsgToBrowser) => void) {
+      addMessageListener(cb: (msg: TurbopackMessageSentToBrowser) => void) {
         callback = cb
 
         // Replay all Turbopack messages before we were able to establish the HMR client.
