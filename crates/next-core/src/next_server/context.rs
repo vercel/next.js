@@ -16,13 +16,12 @@ use turbopack::{
 };
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, MangleType, MinifyType, SourceMapsType,
-        module_id_strategies::ModuleIdStrategy,
+        module_id_strategies::ModuleIdStrategy, ChunkingConfig, MangleType, MinifyType, SourceMapsType
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
     environment::{
-        Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions,
+        BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion
     },
     free_var_references,
     module_graph::export_usage::OptionExportUsageInfo,
@@ -373,7 +372,7 @@ pub async fn get_server_compile_time_info(
                 cwd: ResolvedVc::cell(Some(cwd)),
             }
             .resolved_cell(),
-        ))
+        ),BrowserEnvironment::default().cell())
         .to_resolved()
         .await?,
     )
@@ -388,7 +387,7 @@ pub async fn get_tracing_compile_time_info() -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::NodeJsLambda(
             NodeJsEnvironment::default().resolved_cell(),
-        ))
+        ),BrowserEnvironment::default().cell())
         .to_resolved()
         .await?,
     )
@@ -505,7 +504,6 @@ pub async fn get_server_module_options_context(
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
-    let versions = RuntimeVersions(Default::default()).cell();
     let css_versions = environment.css_runtime_versions();
 
     // ModuleOptionsContext related options

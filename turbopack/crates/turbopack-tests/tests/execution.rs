@@ -36,17 +36,16 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
     context::AssetContext,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
     issue::IssueDescriptionExt,
     module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info,
+        chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info, ModuleGraph
     },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
-        ExternalTraced, ExternalType,
-        options::{ImportMap, ImportMapping},
+        options::{ImportMap, ImportMapping}, ExternalTraced, ExternalType
     },
 };
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -354,7 +353,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     let env = Environment::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().resolved_cell(),
-    ))
+    ),BrowserEnvironment::default().cell())
     .to_resolved()
     .await?;
 

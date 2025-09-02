@@ -98,16 +98,18 @@ pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     define_env: Vc<OptionEnvMap>,
 ) -> Result<Vc<CompileTimeInfo>> {
+    let environment = BrowserEnvironment {
+        dom: true,
+        web_worker: false,
+        service_worker: false,
+        browserslist_query: browserslist_query.to_owned(),
+    }
+    .resolved_cell();
+
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::Browser(
-            BrowserEnvironment {
-                dom: true,
-                web_worker: false,
-                service_worker: false,
-                browserslist_query: browserslist_query.to_owned(),
-            }
-            .resolved_cell(),
-        ))
+            environment,
+        ),*environment)
         .to_resolved()
         .await?,
     )
@@ -260,7 +262,6 @@ pub async fn get_client_module_options_context(
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
-    let target_browsers = env.runtime_versions();
     let css_target_browsers = env.css_runtime_versions();
 
     let mut next_client_rules =

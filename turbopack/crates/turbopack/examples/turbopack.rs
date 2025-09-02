@@ -14,13 +14,7 @@ use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storag
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{emit_with_completion, register};
 use turbopack_core::{
-    PROJECT_FILESYSTEM_NAME,
-    compile_time_info::CompileTimeInfo,
-    context::AssetContext,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
-    file_source::FileSource,
-    ident::Layer,
-    rebase::RebasedAsset,
+    compile_time_info::CompileTimeInfo, context::AssetContext, environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment}, file_source::FileSource, ident::Layer, rebase::RebasedAsset, PROJECT_FILESYSTEM_NAME
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
@@ -51,7 +45,7 @@ async fn main() -> Result<()> {
                 Default::default(),
                 CompileTimeInfo::new(Environment::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment::default().resolved_cell(),
-                ))),
+                ),BrowserEnvironment::default().cell()) ),
                 Default::default(),
                 ResolveOptionsContext {
                     enable_typescript: true,

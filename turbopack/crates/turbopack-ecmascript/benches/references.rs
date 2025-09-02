@@ -9,7 +9,7 @@ use turbo_tasks_backend::{
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
 };
@@ -43,7 +43,7 @@ pub fn benchmark(c: &mut Criterion) {
 
             let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
                 NodeJsEnvironment::default().resolved_cell(),
-            ));
+            ),BrowserEnvironment::default().cell());
             let compile_time_info = CompileTimeInfo::new(environment).to_resolved().await?;
             let layer = Layer::new(rcstr!("test"));
             let module_asset_context = NoopAssetContext {

@@ -40,7 +40,7 @@ use turbopack::{
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
     output::OutputAsset,
@@ -348,7 +348,8 @@ async fn node_file_trace_operation(
     let source = FileSource::new(input);
     let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment::default().resolved_cell(),
-    ));
+       
+    ), BrowserEnvironment::default().cell(),);
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
         // TODO These test cases should move into the `node-file-trace` crate and use the same

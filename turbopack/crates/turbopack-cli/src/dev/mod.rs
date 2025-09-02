@@ -271,7 +271,7 @@ async fn source(
 
     let env = load_env(root_path.clone());
     let build_output_root = output_fs.root().await?.join(".turbopack/build")?;
-
+    
     let build_output_root_to_root_path = project_path
         .join(".turbopack/build")?
         .get_relative_path_to(&root_path)

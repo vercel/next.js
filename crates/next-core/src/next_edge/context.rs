@@ -7,11 +7,10 @@ use turbopack::{css::chunk::CssChunkType, resolve_options_context::ResolveOption
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
-        module_id_strategies::ModuleIdStrategy,
+        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
-    environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
+    environment::{BrowserEnvironment, EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     free_var_references,
     module_graph::export_usage::OptionExportUsageInfo,
 };
@@ -64,7 +63,7 @@ pub async fn get_edge_compile_time_info(
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::EdgeWorker(
             EdgeWorkerEnvironment { node_version }.resolved_cell(),
-        ))
+        ),BrowserEnvironment::default().cell())
         .to_resolved()
         .await?,
     )

@@ -199,16 +199,19 @@ pub async fn get_client_compile_time_info(
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<CompileTimeInfo>> {
     let node_env = node_env.await?;
+
+    let environment = BrowserEnvironment {
+        dom: true,
+        web_worker: false,
+        service_worker: false,
+        browserslist_query,
+    }
+    .resolved_cell();
+
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::Browser(
-            BrowserEnvironment {
-                dom: true,
-                web_worker: false,
-                service_worker: false,
-                browserslist_query,
-            }
-            .resolved_cell(),
-        ))
+            environment,
+        ),*environment)
         .to_resolved()
         .await?,
     )
