@@ -376,14 +376,22 @@ pub async fn parse_segment_config_from_source(
                                     continue;
                                 };
 
+                                let key = &ident.id.sym;
+
                                 parse(
-                                    &ident.id.sym,
+                                    key,
                                     Some(
                                         decl.init.as_deref().map(Cow::Borrowed).unwrap_or_else(
                                             || Cow::Owned(*Expr::undefined(DUMMY_SP)),
                                         ),
                                     ),
-                                    decl.span(),
+                                    // The config object can span hundreds of lines. Don't
+                                    // highlight the whole thing
+                                    if key == "config" {
+                                        ident.id.span
+                                    } else {
+                                        decl.span()
+                                    },
                                 )
                                 .await?;
                             }
@@ -607,52 +615,10 @@ async fn parse_config_value(
                             parse_route_matcher_from_js_value(source, span, val).await?;
                     }
                     "regions" => {
-                        config.preferred_region = match val {
-                            // Single value is turned into a single-element Vec.
-                            JsValue::Constant(ConstantValue::Str(str)) => {
-                                Some(vec![str.to_string().into()])
-                            }
-                            // Array of strings is turned into a Vec. If one of the values
-                            // in not a String it will
-                            // error.
-                            JsValue::Array { items, .. } => {
-                                let mut regions: Vec<RcStr> = Vec::new();
-                                for item in items {
-                                    if let Some(str) = item.as_str() {
-                                        regions.push(str.to_string().into());
-                                    } else {
-                                        invalid_config(
-                                            source,
-                                            "config",
-                                            span,
-                                            rcstr!(
-                                                "The values of the `regions` array need to be \
-                                                 static strings."
-                                            ),
-                                            Some(item),
-                                            IssueSeverity::Error,
-                                        )
-                                        .await?;
-                                    }
-                                }
-                                Some(regions)
-                            }
-                            _ => {
-                                invalid_config(
-                                    source,
-                                    "config.regions",
-                                    span,
-                                    rcstr!(
-                                        "`regions` needs to be a static string or array of static \
-                                         strings."
-                                    ),
-                                    Some(&value),
-                                    IssueSeverity::Error,
-                                )
-                                .await?;
-                                None
-                            }
-                        };
+                        config.preferred_region = parse_static_string_or_array_from_js_value(
+                            source, span, "config", "regions", &value,
+                        )
+                        .await?;
                     }
                     _ => {
                         // Ignore,
@@ -861,44 +827,18 @@ async fn parse_config_value(
             if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
                 return Ok(());
             }
-            let preferred_region = match value {
-                // Single value is turned into a single-element Vec.
-                JsValue::Constant(ConstantValue::Str(str)) => vec![str.to_string().into()],
-                // Array of strings is turned into a Vec. If one of the values in not a String it
-                // will error.
-                JsValue::Array { items, .. } => {
-                    let mut regions = Vec::new();
-                    for item in items {
-                        if let Some(str) = item.as_str() {
-                            regions.push(str.to_string().into());
-                        } else {
-                            return invalid_config(
-                                source,
-                                "preferredRegion",
-                                span,
-                                rcstr!("Values of the array need to be static strings."),
-                                Some(&item),
-                                IssueSeverity::Error,
-                            )
-                            .await;
-                        }
-                    }
-                    regions
-                }
-                _ => {
-                    return invalid_config(
-                        source,
-                        "preferredRegion",
-                        span,
-                        rcstr!("It needs to be a static string or array of static strings."),
-                        Some(&value),
-                        IssueSeverity::Error,
-                    )
-                    .await;
-                }
-            };
 
-            config.preferred_region = Some(preferred_region);
+            if let Some(preferred_region) = parse_static_string_or_array_from_js_value(
+                source,
+                span,
+                "preferredRegion",
+                "preferredRegion",
+                &value,
+            )
+            .await?
+            {
+                config.preferred_region = Some(preferred_region);
+            }
         }
         "generateImageMetadata" => {
             config.generate_image_metadata = true;
@@ -944,15 +884,72 @@ async fn parse_config_value(
     Ok(())
 }
 
+async fn parse_static_string_or_array_from_js_value(
+    source: ResolvedVc<Box<dyn Source>>,
+    span: Span,
+    key: &str,
+    sub_key: &str,
+    value: &JsValue,
+) -> Result<Option<Vec<RcStr>>> {
+    Ok(match value {
+        // Single value is turned into a single-element Vec.
+        JsValue::Constant(ConstantValue::Str(str)) => Some(vec![str.to_string().into()]),
+        // Array of strings is turned into a Vec. If one of the values in not a String it
+        // will error.
+        JsValue::Array { items, .. } => {
+            let mut result = Vec::new();
+            let mut invalid = false;
+            for (i, item) in items.iter().enumerate() {
+                if let Some(str) = item.as_str() {
+                    result.push(str.to_string().into());
+                } else {
+                    invalid = true;
+                    invalid_config(
+                        source,
+                        key,
+                        span,
+                        format!(
+                            "Entry `{sub_key}[{i}]` needs to be a static string or array of \
+                             static strings."
+                        )
+                        .into(),
+                        Some(item),
+                        IssueSeverity::Error,
+                    )
+                    .await?;
+                }
+            }
+            if invalid { None } else { Some(result) }
+        }
+        _ => {
+            invalid_config(
+                source,
+                key,
+                span,
+                if sub_key != key {
+                    format!("`{sub_key}` needs to be a static string or array of static strings.")
+                        .into()
+                } else {
+                    rcstr!("It needs to be a static string or array of static strings.")
+                },
+                Some(value),
+                IssueSeverity::Error,
+            )
+            .await?;
+            return Ok(None);
+        }
+    })
+}
+
 async fn parse_route_matcher_from_js_value(
     source: ResolvedVc<Box<dyn Source>>,
     span: Span,
     value: &JsValue,
 ) -> Result<Option<Vec<MiddlewareMatcherKind>>> {
-    let parse_matcher_kind_matcher = |value: &JsValue| {
+    let parse_matcher_kind_matcher = async |value: &JsValue, sub_key: &str, matcher_idx: usize| {
         let mut route_has = vec![];
         if let JsValue::Array { items, .. } = value {
-            for item in items {
+            for (i, item) in items.iter().enumerate() {
                 if let JsValue::Object { parts, .. } = item {
                     let mut route_type = None;
                     let mut route_key = None;
@@ -962,19 +959,87 @@ async fn parse_route_matcher_from_js_value(
                         if let ObjectPart::KeyValue(part_key, part_value) = matcher_part {
                             match part_key.as_str() {
                                 Some("type") => {
-                                    route_type = part_value.as_str().map(|v| v.to_string())
+                                    if let Some(part_value) = part_value.as_str().filter(|v| {
+                                        *v == "header"
+                                            || *v == "cookie"
+                                            || *v == "query"
+                                            || *v == "host"
+                                    }) {
+                                        route_type = Some(part_value);
+                                    } else {
+                                        invalid_config(
+                                            source,
+                                            "config",
+                                            span,
+                                            format!(
+                                                "`matcher[{matcher_idx}].{sub_key}[{i}].type` \
+                                                 must be one of the strings: 'header', 'cookie', \
+                                                 'query', 'host'"
+                                            )
+                                            .into(),
+                                            Some(part_value),
+                                            IssueSeverity::Error,
+                                        )
+                                        .await?;
+                                    }
                                 }
                                 Some("key") => {
-                                    route_key = part_value.as_str().map(|v| v.to_string())
+                                    if let Some(part_value) = part_value.as_str() {
+                                        route_key = Some(part_value);
+                                    } else {
+                                        invalid_config(
+                                            source,
+                                            "config",
+                                            span,
+                                            format!(
+                                                "`matcher[{matcher_idx}].{sub_key}[{i}].key` must \
+                                                 be a string"
+                                            )
+                                            .into(),
+                                            Some(part_value),
+                                            IssueSeverity::Error,
+                                        )
+                                        .await?;
+                                    }
                                 }
                                 Some("value") => {
-                                    route_value = part_value.as_str().map(|v| v.to_string())
+                                    if let Some(part_value) = part_value.as_str() {
+                                        route_value = Some(part_value);
+                                    } else {
+                                        invalid_config(
+                                            source,
+                                            "config",
+                                            span,
+                                            format!(
+                                                "`matcher[{matcher_idx}].{sub_key}[{i}].value` \
+                                                 must be a string"
+                                            )
+                                            .into(),
+                                            Some(part_value),
+                                            IssueSeverity::Error,
+                                        )
+                                        .await?;
+                                    }
                                 }
-                                _ => {}
+                                _ => {
+                                    invalid_config(
+                                        source,
+                                        "config",
+                                        span,
+                                        format!(
+                                            "Unexpected property in \
+                                             `matcher[{matcher_idx}].{sub_key}[{i}]` object"
+                                        )
+                                        .into(),
+                                        Some(part_key),
+                                        IssueSeverity::Error,
+                                    )
+                                    .await?;
+                                }
                             }
                         }
                     }
-                    let r = match route_type.as_deref() {
+                    let r = match route_type {
                         Some("header") => route_key.map(|route_key| RouteHas::Header {
                             key: route_key.into(),
                             value: route_value.map(From::from),
@@ -1000,7 +1065,7 @@ async fn parse_route_matcher_from_js_value(
             }
         }
 
-        route_has
+        anyhow::Ok(route_has)
     };
 
     let mut matchers = vec![];
@@ -1010,33 +1075,101 @@ async fn parse_route_matcher_from_js_value(
             matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
         }
         JsValue::Array { items, .. } => {
-            for item in items {
+            for (i, item) in items.iter().enumerate() {
                 if let Some(matcher) = item.as_str() {
                     matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
                 } else if let JsValue::Object { parts, .. } = item {
                     let mut matcher = MiddlewareMatcher::default();
+                    let mut had_source = false;
                     for matcher_part in parts {
                         if let ObjectPart::KeyValue(key, value) = matcher_part {
                             match key.as_str() {
                                 Some("source") => {
                                     if let Some(value) = value.as_str() {
+                                        // TODO the actual validation would be:
+                                        // - starts with /
+                                        // - at most 4096 chars
+                                        // - can be parsed with `path-to-regexp`
+                                        had_source = true;
                                         matcher.original_source = value.into();
+                                    } else {
+                                        invalid_config(
+                                            source,
+                                            "config",
+                                            span,
+                                            format!(
+                                                "`source` in `matcher[{i}]` object must be a \
+                                                 string"
+                                            )
+                                            .into(),
+                                            Some(value),
+                                            IssueSeverity::Error,
+                                        )
+                                        .await?;
                                     }
                                 }
                                 Some("locale") => {
-                                    matcher.locale = value.as_bool().unwrap_or_default();
+                                    if let Some(value) = value.as_bool()
+                                        && !value
+                                    {
+                                        matcher.locale = false;
+                                    } else if matches!(
+                                        value,
+                                        JsValue::Constant(ConstantValue::Undefined)
+                                    ) {
+                                        // ignore
+                                    } else {
+                                        invalid_config(
+                                            source,
+                                            "config",
+                                            span,
+                                            format!(
+                                                "`locale` in `matcher[{i}]` object must be false \
+                                                 or undefined"
+                                            )
+                                            .into(),
+                                            Some(value),
+                                            IssueSeverity::Error,
+                                        )
+                                        .await?;
+                                    }
                                 }
                                 Some("missing") => {
-                                    matcher.missing = Some(parse_matcher_kind_matcher(value))
+                                    matcher.missing =
+                                        Some(parse_matcher_kind_matcher(value, "missing", i).await?)
                                 }
                                 Some("has") => {
-                                    matcher.has = Some(parse_matcher_kind_matcher(value))
+                                    matcher.has =
+                                        Some(parse_matcher_kind_matcher(value, "has", i).await?)
+                                }
+                                Some("regexp") => {
+                                    // ignored for now
                                 }
                                 _ => {
-                                    //noop
+                                    invalid_config(
+                                        source,
+                                        "config",
+                                        span,
+                                        format!("Unexpected property in `matcher[{i}]` object")
+                                            .into(),
+                                        Some(key),
+                                        IssueSeverity::Error,
+                                    )
+                                    .await?;
                                 }
                             }
                         }
+                    }
+                    if !had_source {
+                        invalid_config(
+                            source,
+                            "config",
+                            span,
+                            format!("Missing `source` in `matcher[{i}]` object").into(),
+                            Some(value),
+                            IssueSeverity::Error,
+                        )
+                        .await?;
                     }
 
                     matchers.push(MiddlewareMatcherKind::Matcher(matcher));
@@ -1045,7 +1178,10 @@ async fn parse_route_matcher_from_js_value(
                         source,
                         "config",
                         span,
-                        rcstr!("Values of the `matcher` array need to be static strings"),
+                        format!(
+                            "Entry `matcher[{i}]` need to be static strings or static objects."
+                        )
+                        .into(),
                         Some(value),
                         IssueSeverity::Error,
                     )
@@ -1058,7 +1194,10 @@ async fn parse_route_matcher_from_js_value(
                 source,
                 "config",
                 span,
-                rcstr!("`matcher` needs to be a static string or array of static strings"),
+                rcstr!(
+                    "`matcher` needs to be a static string or array of static strings or array of \
+                     static objects."
+                ),
                 Some(value),
                 IssueSeverity::Error,
             )
