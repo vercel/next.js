@@ -119,9 +119,9 @@ macro_rules! define_id {
 }
 
 define_id!(TaskId: u32, derive(Serialize, Deserialize), serde(transparent));
-define_id!(FunctionId: u32);
-define_id!(ValueTypeId: u32);
-define_id!(TraitTypeId: u32);
+define_id!(FunctionId: u16);
+define_id!(ValueTypeId: u16);
+define_id!(TraitTypeId: u16);
 define_id!(SessionId: u32, derive(Debug, Serialize, Deserialize), serde(transparent));
 define_id!(
     LocalTaskId: u32,
@@ -166,7 +166,7 @@ macro_rules! make_serializable {
             where
                 S: serde::Serializer,
             {
-                serializer.serialize_u32(self.id.into())
+                serializer.serialize_u16(self.id.into())
             }
         }
 
@@ -175,7 +175,7 @@ macro_rules! make_serializable {
             where
                 D: serde::Deserializer<'de>,
             {
-                deserializer.deserialize_u32($visitor_name)
+                deserializer.deserialize_u16($visitor_name)
             }
         }
 
@@ -188,7 +188,7 @@ macro_rules! make_serializable {
                 formatter.write_str(concat!("an id of a registered ", stringify!($ty)))
             }
 
-            fn visit_u32<E>(self, v: u32) -> Result<Self::Value, E>
+            fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
@@ -200,7 +200,7 @@ macro_rules! make_serializable {
                             Ok(value)
                         }
                     }
-                    None => Err(E::unknown_variant(&format!("{v}"), &["a non zero u32"])),
+                    None => Err(E::unknown_variant(&format!("{v}"), &["a non zero u16"])),
                 }
             }
         }

@@ -1,4 +1,4 @@
-use std::num::NonZeroU32;
+use std::num::NonZeroU16;
 
 use anyhow::Error;
 use once_cell::sync::Lazy;
@@ -25,7 +25,7 @@ static FUNCTIONS: Lazy<Functions> = Lazy::new(|| {
     let mut value_to_id = FxHashMap::with_capacity_and_hasher(functions.len(), Default::default());
     let mut names = FxHashSet::with_capacity_and_hasher(functions.len(), Default::default());
 
-    let mut id = NonZeroU32::MIN;
+    let mut id = NonZeroU16::MIN;
     for &native_function in functions.iter() {
         value_to_id.insert(native_function, id.into());
         let global_name = native_function.global_name;
@@ -84,7 +84,7 @@ static VALUES: Lazy<Values> = Lazy::new(|| {
     // Our sort above is non-sensical if names are not unique
     let mut names = FxHashSet::with_capacity_and_hasher(all_values.len(), Default::default());
 
-    let mut id = NonZeroU32::MIN;
+    let mut id = NonZeroU16::MIN;
     for &value_type in all_values.iter() {
         value_to_id.insert(value_type, id.into());
         let global_name = value_type.global_name;
@@ -140,7 +140,7 @@ static TRAITS: Lazy<Traits> = Lazy::new(|| {
     let mut trait_to_id = FxHashMap::with_capacity_and_hasher(all_traits.len(), Default::default());
     // Our sort above is non-sensical if names are not unique
     let mut names = FxHashSet::with_capacity_and_hasher(all_traits.len(), Default::default());
-    let mut id = NonZeroU32::MIN;
+    let mut id = NonZeroU16::MIN;
     for &trait_type in all_traits.iter() {
         trait_to_id.insert(trait_type, id.into());
 
