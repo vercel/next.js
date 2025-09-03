@@ -63,7 +63,7 @@ const Page = () => {
         src="/test.webp"
         width="100"
         height="100"
-        fetchpreload="low"
+        fetchPriority="low"
       />
       <p id="stubtext">This is the preload page</p>
       <div style={{ height: '1000vh' }} />
