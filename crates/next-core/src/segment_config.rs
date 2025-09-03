@@ -8,7 +8,7 @@ use swc_core::{
     ecma::{
         ast::{
             ClassExpr, Decl, ExportSpecifier, Expr, ExprStmt, FnExpr, Lit, ModuleDecl,
-            ModuleExportName, ModuleItem, Program, Stmt, Str,
+            ModuleExportName, ModuleItem, Program, Stmt, Str, TsSatisfiesExpr,
         },
         utils::IsDirective,
     },
@@ -498,7 +498,15 @@ async fn parse_config_value(
     span: Span,
 ) -> Result<()> {
     let get_value = || {
-        init.map(|init| eval_context.eval(&init)).map(|v| {
+        let init = init.as_deref();
+        // Unwrap `export const config = { .. } satisfies MiddlewareConfig`, usually this is already
+        // transpiled away, but we are looking at the original source here.
+        let init = if let Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) = init {
+            Some(&**expr)
+        } else {
+            init
+        };
+        init.map(|init| eval_context.eval(init)).map(|v| {
             // Special case, as we don't call `link` here: assume that `undefined` is a free
             // variable.
             if let JsValue::FreeVar(name) = &v
