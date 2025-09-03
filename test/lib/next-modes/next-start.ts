@@ -43,18 +43,7 @@ export class NextStartInstance extends NextInstance {
     }
 
     this._cliOutput = ''
-    const spawnOpts: import('child_process').SpawnOptions = {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        ...this.env,
-        NODE_ENV: this.env.NODE_ENV || ('' as any),
-        PORT: this.forcedPort ?? '0',
-        __NEXT_TEST_MODE: 'e2e',
-      },
-    }
+    const spawnOpts = this.getSpawnOpts()
 
     let startArgs = ['pnpm', 'next', 'start']
 
@@ -183,6 +172,24 @@ export class NextStartInstance extends NextInstance {
     return buildArgs
   }
 
+  private getSpawnOpts(
+    env?: Record<string, string>
+  ): import('child_process').SpawnOptions {
+    return {
+      cwd: this.testDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      env: {
+        ...process.env,
+        ...this.env,
+        ...env,
+        NODE_ENV: this.env.NODE_ENV || ('' as any),
+        PORT: this.forcedPort ?? '0',
+        __NEXT_TEST_MODE: 'e2e',
+      },
+    }
+  }
+
   public async build(
     options: { env?: Record<string, string>; args?: string[] } = {}
   ) {
@@ -192,24 +199,12 @@ export class NextStartInstance extends NextInstance {
       )
     }
 
-    const spawnOpts: import('child_process').SpawnOptions = {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        ...this.env,
-        ...options.env,
-        NODE_ENV: this.env.NODE_ENV || ('' as any),
-        PORT: this.forcedPort ?? '0',
-        __NEXT_TEST_MODE: 'e2e',
-      },
-    }
     return new Promise<{
       exitCode: NodeJS.Signals | number | null
       cliOutput: string
     }>((resolve) => {
       const curOutput = this._cliOutput.length
+      const spawnOpts = this.getSpawnOpts(options.env)
       const buildArgs = this.getBuildArgs(options.args)
 
       console.log('running', buildArgs.join(' '))
