@@ -1,7 +1,7 @@
 import { registerOTel } from '@vercel/otel'
 
-export const onRequestError = (err, request, context) => {
-  fetch(`http://localhost:${process.env.PORT}/write-log`, {
+export const onRequestError = async (err, request, context) => {
+  await fetch(`http://localhost:${process.env.PORT}/write-log`, {
     method: 'POST',
     body: JSON.stringify({
       message: err.message,
