@@ -73,7 +73,7 @@ async function verifyTypeScriptSetup(cwd: string, configFileName: string) {
   }
 }
 
-async function getTsConfig(cwd: string): Promise<CompilerOptions> {
+async function getCompilerOptions(cwd: string): Promise<CompilerOptions> {
   const ts: typeof import('typescript') = require(
     require.resolve('typescript', { paths: [cwd] })
   )
@@ -103,7 +103,6 @@ async function getTsConfig(cwd: string): Promise<CompilerOptions> {
   return parsedCommandLine.options
 }
 
-let compilerOptions: CompilerOptions | null = null
 let verifiedTsSetup = false
 
 export async function transpileConfig({
@@ -116,16 +115,17 @@ export async function transpileConfig({
   cwd: string
 }) {
   try {
-    if (compilerOptions === null) {
-      if (process.env.NODE_ENV === 'development' && !verifiedTsSetup) {
-        // Ensure TypeScript is installed to use the API.
-        await verifyTypeScriptSetup(cwd, configFileName)
-        verifiedTsSetup = true
-      }
-      compilerOptions = await getTsConfig(cwd)
+    if (process.env.NODE_ENV === 'development' && !verifiedTsSetup) {
+      // Ensure TypeScript is installed to use the API.
+      await verifyTypeScriptSetup(cwd, configFileName)
+      verifiedTsSetup = true
     }
 
-    return handleCJS({ cwd, nextConfigPath, compilerOptions })
+    return handleCJS({
+      cwd,
+      nextConfigPath,
+      compilerOptions: await getCompilerOptions(cwd),
+    })
   } catch (cause) {
     throw new Error(`Failed to transpile "${configFileName}".`, {
       cause,
@@ -136,13 +136,13 @@ export async function transpileConfig({
 async function handleCJS({
   cwd,
   nextConfigPath,
-  compilerOptions: compilerOptsParam,
+  compilerOptions,
 }: {
   cwd: string
   nextConfigPath: string
   compilerOptions: CompilerOptions
 }) {
-  const swcOptions = resolveSWCOptions(cwd, compilerOptsParam)
+  const swcOptions = resolveSWCOptions(cwd, compilerOptions)
   let hasRequire = false
   try {
     const nextConfigString = await readFile(nextConfigPath, 'utf8')
