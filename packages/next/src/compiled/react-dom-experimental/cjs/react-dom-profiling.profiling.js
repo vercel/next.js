@@ -721,7 +721,8 @@ function clz32Fallback(x) {
   x >>>= 0;
   return 0 === x ? 32 : (31 - ((log(x) / LN2) | 0)) | 0;
 }
-var nextTransitionLane = 256,
+var nextTransitionUpdateLane = 256,
+  nextTransitionDeferredLane = 262144,
   nextRetryLane = 4194304;
 function getHighestPriorityLanes(lanes) {
   var pendingSyncLanes = lanes & 42;
@@ -753,11 +754,12 @@ function getHighestPriorityLanes(lanes) {
     case 32768:
     case 65536:
     case 131072:
+      return lanes & 261888;
     case 262144:
     case 524288:
     case 1048576:
     case 2097152:
-      return lanes & 4194048;
+      return lanes & 3932160;
     case 4194304:
     case 8388608:
     case 16777216:
@@ -866,12 +868,6 @@ function computeExpirationTime(lane, currentTime) {
       return -1;
   }
 }
-function claimNextTransitionLane() {
-  var lane = nextTransitionLane;
-  nextTransitionLane <<= 1;
-  0 === (nextTransitionLane & 4194048) && (nextTransitionLane = 256);
-  return lane;
-}
 function claimNextRetryLane() {
   var lane = nextRetryLane;
   nextRetryLane <<= 1;
@@ -945,7 +941,7 @@ function markSpawnedDeferredLane(root, spawnedLane, entangledLanes) {
   root.entanglements[spawnedLaneIndex] =
     root.entanglements[spawnedLaneIndex] |
     1073741824 |
-    (entangledLanes & 4194090);
+    (entangledLanes & 261930);
 }
 function markRootEntangled(root, entangledLanes) {
   var rootEntangledLanes = (root.entangledLanes |= entangledLanes);
@@ -5988,7 +5984,11 @@ function updateMemo(nextCreate, deps) {
   return prevState;
 }
 function mountDeferredValueImpl(hook, value, initialValue) {
-  if (void 0 === initialValue || 0 !== (renderLanes & 1073741824))
+  if (
+    void 0 === initialValue ||
+    (0 !== (renderLanes & 1073741824) &&
+      0 === (workInProgressRootRenderLanes & 261930))
+  )
     return (hook.memoizedState = value);
   hook.memoizedState = initialValue;
   hook = requestDeferredLane();
@@ -6004,7 +6004,11 @@ function updateDeferredValueImpl(hook, prevValue, value, initialValue) {
       objectIs(hook, prevValue) || (didReceiveUpdate = !0),
       hook
     );
-  if (0 === (renderLanes & 42) || 0 !== (renderLanes & 1073741824))
+  if (
+    0 === (renderLanes & 42) ||
+    (0 !== (renderLanes & 1073741824) &&
+      0 === (workInProgressRootRenderLanes & 261930))
+  )
     return (didReceiveUpdate = !0), (hook.memoizedState = value);
   hook = requestDeferredLane();
   currentlyRenderingFiber.lanes |= hook;
@@ -13716,13 +13720,16 @@ function requestUpdateLane() {
   return resolveUpdatePriority();
 }
 function requestDeferredLane() {
-  0 === workInProgressDeferredLane &&
-    (workInProgressDeferredLane =
-      0 === (workInProgressRootRenderLanes & 536870912) || isHydrating
-        ? claimNextTransitionLane()
-        : 536870912);
-  var suspenseHandler = suspenseHandlerStackCursor.current;
-  null !== suspenseHandler && (suspenseHandler.flags |= 32);
+  if (0 === workInProgressDeferredLane)
+    if (0 === (workInProgressRootRenderLanes & 536870912) || isHydrating) {
+      var lane = nextTransitionDeferredLane;
+      nextTransitionDeferredLane <<= 1;
+      0 === (nextTransitionDeferredLane & 3932160) &&
+        (nextTransitionDeferredLane = 262144);
+      workInProgressDeferredLane = lane;
+    } else workInProgressDeferredLane = 536870912;
+  lane = suspenseHandlerStackCursor.current;
+  null !== lane && (lane.flags |= 32);
   return workInProgressDeferredLane;
 }
 function scheduleViewTransitionEvent(fiber, callback) {
@@ -15301,7 +15308,7 @@ function flushSpawnedWork() {
     0 !== (pendingEffectsLanes & 3) && flushPendingEffects();
     ensureRootIsScheduled(root);
     suspendedCommitReason = root.pendingLanes;
-    0 !== (lanes & 4194090) && 0 !== (suspendedCommitReason & 42)
+    0 !== (lanes & 261930) && 0 !== (suspendedCommitReason & 42)
       ? ((nestedUpdateScheduled = !0),
         root === rootWithNestedUpdates
           ? nestedUpdateCount++
@@ -16047,8 +16054,12 @@ function scheduleImmediateRootScheduleTask() {
 function requestTransitionLane() {
   if (0 === currentEventTransitionLane) {
     var actionScopeLane = currentEntangledLane;
-    currentEventTransitionLane =
-      0 !== actionScopeLane ? actionScopeLane : claimNextTransitionLane();
+    0 === actionScopeLane &&
+      ((actionScopeLane = nextTransitionUpdateLane),
+      (nextTransitionUpdateLane <<= 1),
+      0 === (nextTransitionUpdateLane & 261888) &&
+        (nextTransitionUpdateLane = 256));
+    currentEventTransitionLane = actionScopeLane;
   }
   return currentEventTransitionLane;
 }
@@ -16182,20 +16193,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_2014 = 0;
-  i$jscomp$inline_2014 < simpleEventPluginEvents.length;
-  i$jscomp$inline_2014++
+  var i$jscomp$inline_2019 = 0;
+  i$jscomp$inline_2019 < simpleEventPluginEvents.length;
+  i$jscomp$inline_2019++
 ) {
-  var eventName$jscomp$inline_2015 =
-      simpleEventPluginEvents[i$jscomp$inline_2014],
-    domEventName$jscomp$inline_2016 =
-      eventName$jscomp$inline_2015.toLowerCase(),
-    capitalizedEvent$jscomp$inline_2017 =
-      eventName$jscomp$inline_2015[0].toUpperCase() +
-      eventName$jscomp$inline_2015.slice(1);
+  var eventName$jscomp$inline_2020 =
+      simpleEventPluginEvents[i$jscomp$inline_2019],
+    domEventName$jscomp$inline_2021 =
+      eventName$jscomp$inline_2020.toLowerCase(),
+    capitalizedEvent$jscomp$inline_2022 =
+      eventName$jscomp$inline_2020[0].toUpperCase() +
+      eventName$jscomp$inline_2020.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_2016,
-    "on" + capitalizedEvent$jscomp$inline_2017
+    domEventName$jscomp$inline_2021,
+    "on" + capitalizedEvent$jscomp$inline_2022
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -21087,16 +21098,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2432 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2437 = React.version;
 if (
-  "19.2.0-experimental-2805f0ed-20250903" !==
-  isomorphicReactPackageVersion$jscomp$inline_2432
+  "19.2.0-experimental-3302d1f7-20250903" !==
+  isomorphicReactPackageVersion$jscomp$inline_2437
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2432,
-      "19.2.0-experimental-2805f0ed-20250903"
+      isomorphicReactPackageVersion$jscomp$inline_2437,
+      "19.2.0-experimental-3302d1f7-20250903"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -21116,24 +21127,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_3131 = {
+var internals$jscomp$inline_3136 = {
   bundleType: 0,
-  version: "19.2.0-experimental-2805f0ed-20250903",
+  version: "19.2.0-experimental-3302d1f7-20250903",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-2805f0ed-20250903"
+  reconcilerVersion: "19.2.0-experimental-3302d1f7-20250903"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_3132 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_3137 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_3132.isDisabled &&
-    hook$jscomp$inline_3132.supportsFiber
+    !hook$jscomp$inline_3137.isDisabled &&
+    hook$jscomp$inline_3137.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_3132.inject(
-        internals$jscomp$inline_3131
+      (rendererID = hook$jscomp$inline_3137.inject(
+        internals$jscomp$inline_3136
       )),
-        (injectedHook = hook$jscomp$inline_3132);
+        (injectedHook = hook$jscomp$inline_3137);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -21389,7 +21400,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-experimental-2805f0ed-20250903";
+exports.version = "19.2.0-experimental-3302d1f7-20250903";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
