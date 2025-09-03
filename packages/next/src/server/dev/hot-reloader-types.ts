@@ -11,6 +11,7 @@ import type { DevIndicatorServerState } from './dev-indicator-server-state'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 
 export const enum HMR_MESSAGE_SENT_TO_BROWSER {
+  // JSON messages:
   ADDED_PAGE = 'addedPage',
   REMOVED_PAGE = 'removedPage',
   RELOAD_PAGE = 'reloadPage',
@@ -28,7 +29,9 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   ISR_MANIFEST = 'isrManifest',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
-  REACT_DEBUG_CHUNK = 'reactDebugChunk',
+
+  // Binary messages:
+  REACT_DEBUG_CHUNK = 0,
 }
 
 export interface ServerErrorMessage {
@@ -133,7 +136,7 @@ export interface DevToolsConfigMessage {
 export interface ReactDebugChunkMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK
   requestId: string
-  base64EncodedChunk: string | null
+  chunk: Uint8Array | null
 }
 
 export type HmrMessageSentToBrowser =
@@ -154,6 +157,11 @@ export type HmrMessageSentToBrowser =
   | AppIsrManifestMessage
   | DevToolsConfigMessage
   | ReactDebugChunkMessage
+
+export type BinaryHmrMessageSentToBrowser = Extract<
+  HmrMessageSentToBrowser,
+  { type: number }
+>
 
 export type TurbopackMessageSentToBrowser =
   | {

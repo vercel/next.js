@@ -29,6 +29,7 @@ import type { VersionInfo } from './parse-version-info'
 import type { HmrMessageSentToBrowser } from './hot-reloader-types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { devIndicatorServerState } from './dev-indicator-server-state'
+import { createBinaryHmrMessageData } from './messages'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
@@ -245,7 +246,12 @@ export class WebpackHotMiddleware {
       return
     }
 
-    client.send(JSON.stringify(message))
+    const data =
+      typeof message.type === 'number'
+        ? createBinaryHmrMessageData(message)
+        : JSON.stringify(message)
+
+    client.send(data)
   }
 
   publish = (message: HmrMessageSentToBrowser) => {
