@@ -16,7 +16,7 @@ Middleware executes before routes are rendered. It's particularly useful for imp
 >
 > - Middleware is built as a separate entry.
 >   - Edge runtime: runs in an isolated environment and does not share `globalThis` or module instances with your server code.
->   - Node.js runtime: in `next dev` and `next start`, the process may be shared (same `globalThis`). Middleware is compiled as a separate bundle, so module-level singletons aren't shared. Middleware may still be deployed separately (at the edge) by your hosting provider. Avoid relying on in-memory sharing.
+>   - Node.js runtime: in `next dev` and `next start`, the process may be shared (same `globalThis`). Middleware is compiled as a separate bundle, so module-level singletons aren't shared. Middleware may still be deployed separately by your hosting provider. Avoid relying on in-memory sharing.
 > - To pass information from Middleware to your application, use headers, cookies, rewrites, redirects, or the URL.
 
 Create a `middleware.ts` (or `.js`) file in the project root, or inside `src` if applicable, so that it is located at the same level as `pages` or `app`.
