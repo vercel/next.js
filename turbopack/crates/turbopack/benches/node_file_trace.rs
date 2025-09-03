@@ -9,12 +9,11 @@ use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbopack::{
     ModuleAssetContext, emit_with_completion_operation,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
-    register,
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
     rebase::RebasedAsset,
@@ -24,8 +23,6 @@ use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 // TODO this should move to the `node-file-trace` crate
 pub fn benchmark(c: &mut Criterion) {
-    register();
-
     let bench_filter = Regex::new(r"(empty|simple|dynamic-in-package|react|whatwg-url|axios|azure-cosmos|cowsay|env-var|fast-glob)\.js$").unwrap();
 
     let tests_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests");
@@ -88,9 +85,12 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
 
                 let source = FileSource::new(input);
                 let compile_time_info = CompileTimeInfo::builder(
-                    Environment::new(ExecutionEnvironment::NodeJsLambda(
-                        NodeJsEnvironment::default().resolved_cell(),
-                    ))
+                    Environment::new(
+                        ExecutionEnvironment::NodeJsLambda(
+                            NodeJsEnvironment::default().resolved_cell(),
+                        ),
+                        BrowserEnvironment::default().cell(),
+                    )
                     .to_resolved()
                     .await?,
                 )

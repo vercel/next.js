@@ -28,6 +28,7 @@ allsorts = { workspace = true }
 futures = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+regress = { workspace = true }
 rustc-hash = { workspace = true }
 react_remove_properties = { workspace = true }
 remove_console = { workspace = true }
@@ -78,9 +79,6 @@ turbopack-node = { workspace = true }
 turbopack-nodejs = { workspace = true }
 turbopack-static = { workspace = true }
 turbopack-trace-utils = { workspace = true }
-
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
 
 [features]
 next-font-local = []

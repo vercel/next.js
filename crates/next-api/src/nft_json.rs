@@ -509,8 +509,6 @@ mod tests {
     use super::*;
 
     fn create_test_fs_path(path: &str) -> FileSystemPath {
-        crate::register();
-
         FileSystemPath {
             fs: ResolvedVc::upcast(NullFileSystem {}.resolved_cell()),
             path: path.into(),

@@ -23,9 +23,3 @@ pub mod route;
 mod server_actions;
 mod versioned_content_map;
 mod webpack_stats;
-
-pub fn register() {
-    next_core::register();
-    turbopack_nodejs::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

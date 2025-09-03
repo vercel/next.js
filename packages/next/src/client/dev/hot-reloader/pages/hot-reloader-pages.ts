@@ -37,10 +37,14 @@ import { register } from '../../../../next-devtools/userspace/pages/pages-dev-ov
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from '../../../../shared/lib/format-webpack-messages'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
-  HMR_ACTION_TYPES,
-  TurbopackMsgToBrowser,
+  AddedPageMessage,
+  DevPagesManifestUpdateMessage,
+  HmrMessageSentToBrowser,
+  ReloadPageMessage,
+  RemovedPageMessage,
+  TurbopackMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import {
   REACT_REFRESH_FULL_RELOAD,
@@ -66,29 +70,42 @@ declare global {
   }
 }
 
+type CustomHmrEventHandler = (
+  message:
+    | AddedPageMessage
+    | RemovedPageMessage
+    | ReloadPageMessage
+    | DevPagesManifestUpdateMessage
+) => void
+
 window.__nextDevClientId = Math.round(Math.random() * 100 + Date.now())
 
-let customHmrEventHandler: any
-let turbopackMessageListeners: ((msg: TurbopackMsgToBrowser) => void)[] = []
+let customHmrEventHandler: CustomHmrEventHandler | undefined
+
+let turbopackMessageListeners: ((
+  message: TurbopackMessageSentToBrowser
+) => void)[] = []
 export default function connect() {
   register()
 
-  addMessageListener((payload) => {
+  addMessageListener((message) => {
     try {
-      processMessage(payload)
+      processMessage(message)
     } catch (err: unknown) {
-      reportInvalidHmrMessage(payload, err)
+      reportInvalidHmrMessage(message, err)
     }
   })
 
   return {
-    subscribeToHmrEvent(handler: any) {
+    subscribeToHmrEvent(handler: CustomHmrEventHandler) {
       customHmrEventHandler = handler
     },
     onUnrecoverableError() {
       RuntimeErrorHandler.hadRuntimeError = true
     },
-    addTurbopackMessageListener(cb: (msg: TurbopackMsgToBrowser) => void) {
+    addTurbopackMessageListener(
+      cb: (msg: TurbopackMessageSentToBrowser) => void
+    ) {
       turbopackMessageListeners.push(cb)
     },
     sendTurbopackMessage(msg: string) {
@@ -248,14 +265,14 @@ export function handleStaticIndicator() {
 }
 
 /** Handles messages from the server for the Pages Router. */
-function processMessage(obj: HMR_ACTION_TYPES) {
-  switch (obj.action) {
-    case HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST: {
-      isrManifest = obj.data
+function processMessage(message: HmrMessageSentToBrowser) {
+  switch (message.type) {
+    case HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST: {
+      isrManifest = message.data
       handleStaticIndicator()
       break
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.BUILDING: {
       dispatcher.buildingIndicatorShow()
 
       if (process.env.TURBOPACK) {
@@ -266,19 +283,21 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       }
       break
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
-    case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.BUILT:
+    case HMR_MESSAGE_SENT_TO_BROWSER.SYNC: {
       dispatcher.buildingIndicatorHide()
 
-      if (obj.hash) handleAvailableHash(obj.hash)
+      if (message.hash) handleAvailableHash(message.hash)
 
-      const { errors, warnings } = obj
+      const { errors, warnings } = message
 
       // Is undefined when it's a 'built' event
-      if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
-      if ('devIndicator' in obj) dispatcher.onDevIndicator(obj.devIndicator)
-      if ('devToolsConfig' in obj)
-        dispatcher.onDevToolsConfig(obj.devToolsConfig)
+      if ('versionInfo' in message)
+        dispatcher.onVersionInfo(message.versionInfo)
+      if ('devIndicator' in message)
+        dispatcher.onDevIndicator(message.devIndicator)
+      if ('devToolsConfig' in message)
+        dispatcher.onDevToolsConfig(message.devToolsConfig)
 
       const hasErrors = Boolean(errors && errors.length)
       if (hasErrors) {
@@ -313,39 +332,39 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       )
       return handleSuccess()
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
       turbopackHmr?.onServerComponentChanges()
       if (hasCompileErrors || RuntimeErrorHandler.hadRuntimeError) {
         window.location.reload()
       }
       return
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
-      const { errorJSON } = obj
+    case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR: {
+      const { errorJSON } = message
       if (errorJSON) {
-        const { message, stack } = JSON.parse(errorJSON)
-        const error = new Error(message)
-        error.stack = stack
+        const errorObject = JSON.parse(errorJSON)
+        const error = new Error(errorObject.message)
+        error.stack = errorObject.stack
         handleErrors([error])
       }
       return
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED: {
       for (const listener of turbopackMessageListeners) {
         listener({
-          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
-          data: obj.data,
+          type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+          data: message.data,
         })
       }
       break
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
-      turbopackHmr!.onTurbopackMessage(obj)
+    case HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
+      turbopackHmr!.onTurbopackMessage(message)
       dispatcher.onBeforeRefresh()
       for (const listener of turbopackMessageListeners) {
         listener({
-          type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
-          data: obj.data,
+          type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+          data: message.data,
         })
       }
       if (RuntimeErrorHandler.hadRuntimeError) {
@@ -355,24 +374,24 @@ function processMessage(obj: HMR_ACTION_TYPES) {
       dispatcher.onRefresh()
       break
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
-    case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE:
-    case HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE:
-    case HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE:
+    case HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE:
+    case HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE:
+    case HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE:
+    case HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE:
       if (customHmrEventHandler) {
-        customHmrEventHandler(obj)
+        customHmrEventHandler(message)
       }
       break
-    case HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG:
-      dispatcher.onDevToolsConfig(obj.data)
+    case HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG:
+      dispatcher.onDevToolsConfig(message.data)
       break
-    case HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:
-    case HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES:
-    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:
+    case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:
+    case HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES:
+    case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:
       // These action types are handled in src/client/page-bootstrap.ts
       break
     default:
-      obj satisfies never
+      message satisfies never
   }
 }
 

@@ -5,7 +5,9 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex, hash_xxh3_hash64};
 
@@ -81,6 +83,10 @@ pub struct AssetIdent {
 }
 
 impl AssetIdent {
+    pub fn new(ident: AssetIdent) -> Vc<Self> {
+        AssetIdent::new_inner(ReadRef::new_owned(ident))
+    }
+
     pub fn add_modifier(&mut self, modifier: RcStr) {
         debug_assert!(!modifier.is_empty(), "modifiers cannot be empty.");
         self.modifiers.push(modifier);
@@ -99,71 +105,9 @@ impl AssetIdent {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for AssetIdent {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let mut s = self.path.value_to_string().owned().await?.into_owned();
-
-        // The query string is either empty or non-empty starting with `?` so we can just concat
-        s.push_str(&self.query);
-        // ditto for fragment
-        s.push_str(&self.fragment);
-
-        if !self.assets.is_empty() {
-            s.push_str(" {");
-
-            for (i, (key, asset)) in self.assets.iter().enumerate() {
-                if i > 0 {
-                    s.push(',');
-                }
-
-                let asset_str = asset.to_string().await?;
-                write!(s, " {key} => {asset_str:?}")?;
-            }
-
-            s.push_str(" }");
-        }
-
-        if let Some(layer) = &self.layer {
-            write!(s, " [{}]", layer.name)?;
-        }
-
-        if !self.modifiers.is_empty() {
-            s.push_str(" (");
-
-            for (i, modifier) in self.modifiers.iter().enumerate() {
-                if i > 0 {
-                    s.push_str(", ");
-                }
-
-                s.push_str(modifier);
-            }
-
-            s.push(')');
-        }
-
-        if let Some(content_type) = &self.content_type {
-            write!(s, " <{content_type}>")?;
-        }
-
-        if !self.parts.is_empty() {
-            for part in self.parts.iter() {
-                if !matches!(part, ModulePart::Facade) {
-                    // facade is not included in ident as switching between facade and non-facade
-                    // shouldn't change the ident
-                    write!(s, " <{part}>")?;
-                }
-            }
-        }
-
-        Ok(Vc::cell(s.into()))
-    }
-}
-
-#[turbo_tasks::value_impl]
 impl AssetIdent {
     #[turbo_tasks::function]
-    pub fn new(ident: AssetIdent) -> Vc<Self> {
+    fn new_inner(ident: ReadRef<AssetIdent>) -> Vc<Self> {
         debug_assert!(
             ident.query.is_empty() || ident.query.starts_with("?"),
             "query should be empty or start with a `?`"
@@ -172,7 +116,7 @@ impl AssetIdent {
             ident.fragment.is_empty() || ident.fragment.starts_with("#"),
             "query should be empty or start with a `?`"
         );
-        ident.cell()
+        ReadRef::cell(ident)
     }
 
     /// Creates an [AssetIdent] from a [FileSystemPath]
@@ -424,6 +368,68 @@ impl AssetIdent {
         }
         name += &expected_extension;
         Ok(Vc::cell(name.into()))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for AssetIdent {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        let mut s = self.path.value_to_string().owned().await?.into_owned();
+
+        // The query string is either empty or non-empty starting with `?` so we can just concat
+        s.push_str(&self.query);
+        // ditto for fragment
+        s.push_str(&self.fragment);
+
+        if !self.assets.is_empty() {
+            s.push_str(" {");
+
+            for (i, (key, asset)) in self.assets.iter().enumerate() {
+                if i > 0 {
+                    s.push(',');
+                }
+
+                let asset_str = asset.to_string().await?;
+                write!(s, " {key} => {asset_str:?}")?;
+            }
+
+            s.push_str(" }");
+        }
+
+        if let Some(layer) = &self.layer {
+            write!(s, " [{}]", layer.name)?;
+        }
+
+        if !self.modifiers.is_empty() {
+            s.push_str(" (");
+
+            for (i, modifier) in self.modifiers.iter().enumerate() {
+                if i > 0 {
+                    s.push_str(", ");
+                }
+
+                s.push_str(modifier);
+            }
+
+            s.push(')');
+        }
+
+        if let Some(content_type) = &self.content_type {
+            write!(s, " <{content_type}>")?;
+        }
+
+        if !self.parts.is_empty() {
+            for part in self.parts.iter() {
+                if !matches!(part, ModulePart::Facade) {
+                    // facade is not included in ident as switching between facade and non-facade
+                    // shouldn't change the ident
+                    write!(s, " <{part}>")?;
+                }
+            }
+        }
+
+        Ok(Vc::cell(s.into()))
     }
 }
 

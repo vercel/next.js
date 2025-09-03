@@ -9,7 +9,7 @@ use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt
 use turbo_tasks::{ReadConsistency, TurboTasks};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_malloc::TurboMalloc;
-use turbopack_nft::{nft::node_file_trace, register};
+use turbopack_nft::nft::node_file_trace;
 use turbopack_trace_utils::{
     exit::ExitHandler,
     filter_layer::FilterLayer,
@@ -80,8 +80,6 @@ async fn main_inner(args: Arguments) -> Result<()> {
 
         subscriber.init();
     }
-
-    register();
 
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {

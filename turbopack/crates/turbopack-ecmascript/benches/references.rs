@@ -9,7 +9,7 @@ use turbo_tasks_backend::{
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
 };
@@ -20,9 +20,6 @@ use turbopack_ecmascript::{
 use turbopack_test_utils::noop_asset_context::NoopAssetContext;
 
 pub fn benchmark(c: &mut Criterion) {
-    turbopack_ecmascript::register();
-    turbopack_test_utils::register();
-
     let rt = tokio::runtime::Builder::new_current_thread()
         .build()
         .unwrap();
@@ -41,9 +38,10 @@ pub fn benchmark(c: &mut Criterion) {
             let root_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/benches/");
             let fs = DiskFileSystem::new(rcstr!("project"), root_dir.to_str().unwrap().into());
 
-            let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
-                NodeJsEnvironment::default().resolved_cell(),
-            ));
+            let environment = Environment::new(
+                ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().resolved_cell()),
+                BrowserEnvironment::default().cell(),
+            );
             let compile_time_info = CompileTimeInfo::new(environment).to_resolved().await?;
             let layer = Layer::new(rcstr!("test"));
             let module_asset_context = NoopAssetContext {
