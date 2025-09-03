@@ -898,12 +898,10 @@ async fn parse_static_string_or_array_from_js_value(
         // will error.
         JsValue::Array { items, .. } => {
             let mut result = Vec::new();
-            let mut invalid = false;
             for (i, item) in items.iter().enumerate() {
                 if let Some(str) = item.as_str() {
                     result.push(str.to_string().into());
                 } else {
-                    invalid = true;
                     invalid_config(
                         source,
                         key,
@@ -919,7 +917,7 @@ async fn parse_static_string_or_array_from_js_value(
                     .await?;
                 }
             }
-            if invalid { None } else { Some(result) }
+            Some(result)
         }
         _ => {
             invalid_config(
