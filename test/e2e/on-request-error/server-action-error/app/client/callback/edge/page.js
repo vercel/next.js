@@ -1,8 +1,10 @@
 'use client'
 
+import { connection } from 'next/server'
 import { serverLog } from '../../actions'
 
-export default function Page() {
+export default async function Page() {
+  await connection()
   return (
     <div>
       <button onClick={() => serverLog('callback:edge')}>Log to server</button>
@@ -11,4 +13,3 @@ export default function Page() {
 }
 
 export const runtime = 'edge'
-export const dynamic = 'force-dynamic'
