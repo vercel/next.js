@@ -835,7 +835,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       const [createdRootLayout, rootLayoutPath] = await verifyRootLayout({
         appDir: appDir,
         dir: rootDir!,
-        tsconfigPath: tsconfigPath!,
+        tsconfigPath: tsconfigPath,
         pagePath,
         pageExtensions,
       })
