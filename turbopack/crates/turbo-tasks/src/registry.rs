@@ -1,5 +1,6 @@
 use std::num::NonZeroU32;
 
+use anyhow::Error;
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -52,6 +53,17 @@ pub fn get_function_id(func: &'static NativeFunction) -> FunctionId {
         .expect("function isn't registered")
 }
 
+pub fn validate_function_id(id: FunctionId) -> Option<Error> {
+    let len = FUNCTIONS.id_to_value.len();
+    if *id as usize <= len {
+        None
+    } else {
+        Some(anyhow::anyhow!(
+            "Invalid function type id, {id} expected a value <= {len}"
+        ))
+    }
+}
+
 struct Values {
     id_to_value: Box<[&'static ValueType]>,
     value_to_id: FxHashMap<&'static ValueType, ValueTypeId>,
@@ -100,6 +112,17 @@ pub fn get_value_type(id: ValueTypeId) -> &'static ValueType {
     VALUES.id_to_value[*id as usize - 1]
 }
 
+pub fn validate_value_type_id(id: ValueTypeId) -> Option<Error> {
+    let len = VALUES.id_to_value.len();
+    if *id as usize <= len {
+        None
+    } else {
+        Some(anyhow::anyhow!(
+            "Invalid value type id, {id} expected a value <= {len}"
+        ))
+    }
+}
+
 struct Traits {
     id_to_trait: Box<[&'static TraitType]>,
     trait_to_id: FxHashMap<&'static TraitType, TraitTypeId>,
@@ -143,4 +166,14 @@ pub fn get_trait_type_id(trait_type: &'static TraitType) -> TraitTypeId {
 
 pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
     TRAITS.id_to_trait[*id as usize - 1]
+}
+pub fn validate_trait_type_id(id: TraitTypeId) -> Option<Error> {
+    let len = TRAITS.id_to_trait.len();
+    if *id as usize <= len {
+        None
+    } else {
+        Some(anyhow::anyhow!(
+            "Invalid trait type id, {id} expected a value <= {len}"
+        ))
+    }
 }
