@@ -116,7 +116,7 @@ async function getCompilerOptions(
         { cause: cause1 }
       )
       // Fallback to JSON parsing. This won't resolve options like "extends".
-      return parseJsonFile(resolve(cwd, 'tsconfig.json'))
+      return parseJsonFile(resolve(cwd, 'tsconfig.json')).compilerOptions || {}
     } catch (cause2) {
       warn(
         `Failed to parse "${configFileName}" with JSON parsing. Using empty compiler options.`,
