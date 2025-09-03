@@ -34,7 +34,7 @@ describe('@next/third-parties basic usage', () => {
 
     await browser.waitForElementByCss('script#_next-gtm')
     await browser.elementByCss('script#_next-gtm-init')
-    await browser.elementByCssInstant(
+    await browser.elementByCss(
       'script[src^="https://www.googletagmanager.com/gtm.js?id=GTM-XYZ"]'
     )
 
@@ -52,7 +52,7 @@ describe('@next/third-parties basic usage', () => {
 
     await browser.waitForElementByCss('script#_next-ga')
     await browser.elementByCss('script#_next-ga-init')
-    await browser.elementByCssInstant(
+    await browser.elementByCss(
       'script[src^="https://www.googletagmanager.com/gtag/js?id=GA-XYZ"]'
     )
 
