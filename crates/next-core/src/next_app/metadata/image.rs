@@ -41,6 +41,7 @@ async fn hash_file_content(path: FileSystemPath) -> Result<u64> {
     })
 }
 
+#[turbo_tasks::function]
 async fn dynamic_image_metadata_with_generator_source(
     path: FileSystemPath,
     ty: RcStr,
