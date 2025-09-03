@@ -8,7 +8,6 @@ import stripAnsi from 'strip-ansi'
 export class NextStartInstance extends NextInstance {
   private _buildId: string
   private _cliOutput: string = ''
-  private spawnOpts: import('child_process').SpawnOptions
 
   public get buildId() {
     return this._buildId
@@ -44,7 +43,7 @@ export class NextStartInstance extends NextInstance {
     }
 
     this._cliOutput = ''
-    this.spawnOpts = {
+    const spawnOpts: import('child_process').SpawnOptions = {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
@@ -63,60 +62,30 @@ export class NextStartInstance extends NextInstance {
       },
     }
 
-    let buildArgs = ['pnpm', 'next', 'build']
     let startArgs = ['pnpm', 'next', 'start']
-
-    if (this.buildCommand) {
-      buildArgs = this.buildCommand.split(' ')
-    }
-
-    if (this.buildArgs) {
-      buildArgs.push(...this.buildArgs)
-    }
-
     if (this.startCommand) {
       startArgs = this.startCommand.split(' ')
     }
-
     if (this.startArgs) {
       startArgs.push(...this.startArgs)
     }
-
     if (process.env.NEXT_SKIP_ISOLATE) {
       // without isolation yarn can't be used and pnpm must be used instead
-      if (buildArgs[0] === 'yarn') {
-        buildArgs[0] = 'pnpm'
-      }
       if (startArgs[0] === 'yarn') {
         startArgs[0] = 'pnpm'
       }
     }
 
     if (!options.skipBuild) {
-      console.log('running', buildArgs.join(' '))
-      await new Promise<void>((resolve, reject) => {
-        try {
-          this.childProcess = spawn(
-            buildArgs[0],
-            buildArgs.slice(1),
-            this.spawnOpts
-          )
-          this.handleStdio(this.childProcess)
-          this.childProcess.on('exit', (code, signal) => {
-            this.childProcess = undefined
-            if (code || signal)
-              reject(
-                new Error(
-                  `next build failed with code/signal ${code || signal}`
-                )
-              )
-            else resolve()
-          })
-        } catch (err) {
-          require('console').error(`Failed to run ${buildArgs.join(' ')}`, err)
-          setTimeout(() => process.exit(1), 0)
+      try {
+        const { exitCode } = await this.build()
+        if (exitCode !== 0) {
+          throw new Error(`next build failed with code/signal ${exitCode}`)
         }
-      })
+      } catch (err) {
+        require('console').error(`Failed to run build command`, err)
+        setTimeout(() => process.exit(1), 0)
+      }
 
       this._buildId = (
         await fs
@@ -135,11 +104,7 @@ export class NextStartInstance extends NextInstance {
     console.log('running', startArgs.join(' '))
     await new Promise<void>((resolve, reject) => {
       try {
-        this.childProcess = spawn(
-          startArgs[0],
-          startArgs.slice(1),
-          this.spawnOpts
-        )
+        this.childProcess = spawn(startArgs[0], startArgs.slice(1), spawnOpts)
         this.handleStdio(this.childProcess)
 
         this.childProcess.on('close', (code, signal) => {
@@ -187,7 +152,7 @@ export class NextStartInstance extends NextInstance {
   public async build(
     options: { env?: Record<string, string>; args?: string[] } = {}
   ) {
-    this.spawnOpts = {
+    const spawnOpts: import('child_process').SpawnOptions = {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: false,
@@ -215,23 +180,25 @@ export class NextStartInstance extends NextInstance {
         buildArgs.push(...options.args)
       }
 
+      if (process.env.NEXT_SKIP_ISOLATE) {
+        // without isolation yarn can't be used and pnpm must be used instead
+        if (buildArgs[0] === 'yarn') {
+          buildArgs[0] = 'pnpm'
+        }
+      }
+
       if (this.childProcess) {
         throw new Error(
-          `can not run export while server is running, use next.stop() first`
+          `can not run build while server is running, use next.stop() first`
         )
       }
 
       console.log('running', buildArgs.join(' '))
 
-      this.childProcess = spawn(
-        buildArgs[0],
-        buildArgs.slice(1),
-        this.spawnOpts
-      )
-      this.handleStdio(this.childProcess)
+      const buildProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
+      this.handleStdio(buildProcess)
 
-      this.childProcess.on('exit', (code, signal) => {
-        this.childProcess = undefined
+      buildProcess.on('exit', (code, signal) => {
         resolve({
           exitCode: signal || code,
           cliOutput: this.cliOutput.slice(curOutput),
