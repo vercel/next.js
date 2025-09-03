@@ -14,7 +14,9 @@ use turbo_tasks::ResolvedVc;
 use turbo_tasks_testing::VcStorage;
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
+    environment::{
+        BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion,
+    },
     target::CompileTarget,
 };
 use turbopack_ecmascript::analyzer::{
@@ -25,8 +27,6 @@ use turbopack_ecmascript::analyzer::{
 };
 
 pub fn benchmark(c: &mut Criterion) {
-    turbopack_ecmascript::register();
-
     let tests_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/analyzer/graph");
     let results = fs::read_dir(tests_dir).unwrap();
 
@@ -102,15 +102,20 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
         let var_cache = Default::default();
         for val in input.var_graph.values.values() {
             VcStorage::with(async {
+                let css_environment = BrowserEnvironment::default().cell();
+
                 let compile_time_info = CompileTimeInfo::builder(
-                    Environment::new(ExecutionEnvironment::NodeJsLambda(
-                        NodeJsEnvironment {
-                            compile_target: CompileTarget::unknown().to_resolved().await?,
-                            node_version: NodeJsVersion::default().resolved_cell(),
-                            cwd: ResolvedVc::cell(None),
-                        }
-                        .resolved_cell(),
-                    ))
+                    Environment::new(
+                        ExecutionEnvironment::NodeJsLambda(
+                            NodeJsEnvironment {
+                                compile_target: CompileTarget::unknown().to_resolved().await?,
+                                node_version: NodeJsVersion::default().resolved_cell(),
+                                cwd: ResolvedVc::cell(None),
+                            }
+                            .resolved_cell(),
+                        ),
+                        css_environment,
+                    )
                     .to_resolved()
                     .await?,
                 )

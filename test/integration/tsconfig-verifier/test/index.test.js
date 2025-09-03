@@ -43,7 +43,7 @@ import path from 'path'
             "moduleResolution": "node",
             "resolveJsonModule": true,
             "isolatedModules": true,
-            "jsx": "preserve",
+            "jsx": "react-jsx",
             "plugins": [
               {
                 "name": "next"
@@ -98,7 +98,7 @@ import path from 'path'
             "moduleResolution": "node",
             "resolveJsonModule": true,
             "isolatedModules": true,
-            "jsx": "preserve",
+            "jsx": "react-jsx",
             "plugins": [
               {
                 "name": "next"
@@ -170,7 +170,7 @@ import path from 'path'
             "moduleResolution": "node",
             "resolveJsonModule": true,
             "isolatedModules": true,
-            "jsx": "preserve",
+            "jsx": "react-jsx",
             "plugins": [
               {
                 "name": "next"
@@ -225,7 +225,7 @@ import path from 'path'
             "moduleResolution": "node",
             "resolveJsonModule": true,
             "isolatedModules": true,
-            "jsx": "preserve",
+            "jsx": "react-jsx",
             "plugins": [
               {
                 "name": "next"
@@ -277,7 +277,7 @@ import path from 'path'
             "moduleResolution": "node",
             "resolveJsonModule": true,
             "isolatedModules": true,
-            "jsx": "preserve",
+            "jsx": "react-jsx",
             "plugins": [
               {
                 "name": "next"
@@ -333,7 +333,7 @@ import path from 'path'
             "incremental": true,
             "resolveJsonModule": true,
             "isolatedModules": true,
-            "jsx": "preserve",
+            "jsx": "react-jsx",
             "plugins": [
               {
                 "name": "next"
@@ -389,7 +389,7 @@ import path from 'path'
             "module": "esnext",
             "resolveJsonModule": true,
             "isolatedModules": true,
-            "jsx": "preserve",
+            "jsx": "react-jsx",
             "plugins": [
               {
                 "name": "next"
@@ -442,7 +442,7 @@ import path from 'path'
                   "moduleResolution": "node",
                   "resolveJsonModule": true,
                   "isolatedModules": true,
-                  "jsx": "preserve",
+                  "jsx": "react-jsx",
                   "plugins": [
                     {
                       "name": "next"
@@ -498,7 +498,7 @@ import path from 'path'
             "incremental": true,
             "resolveJsonModule": true,
             "isolatedModules": true,
-            "jsx": "preserve",
+            "jsx": "react-jsx",
             "plugins": [
               {
                 "name": "next"
@@ -554,7 +554,7 @@ import path from 'path'
             "esModuleInterop": true,
             "moduleResolution": "node",
             "resolveJsonModule": true,
-            "jsx": "preserve",
+            "jsx": "react-jsx",
             "plugins": [
               {
                 "name": "next"
@@ -612,7 +612,7 @@ import path from 'path'
             "esModuleInterop": true,
             "moduleResolution": "node",
             "resolveJsonModule": true,
-            "jsx": "preserve",
+            "jsx": "react-jsx",
             "plugins": [
               {
                 "name": "next"
@@ -659,7 +659,7 @@ import path from 'path'
           "moduleResolution": "bundler",
           "resolveJsonModule": true,
           "isolatedModules": true,
-          "jsx": "preserve",
+          "jsx": "react-jsx",
           "plugins": [
             {
               "name": "next"
@@ -726,7 +726,7 @@ import path from 'path'
           "moduleResolution": "bundler",
           "resolveJsonModule": true,
           "isolatedModules": true,
-          "jsx": "preserve",
+          "jsx": "react-jsx",
           "plugins": [
             {
               "name": "next"
@@ -803,7 +803,7 @@ import path from 'path'
                   "noEmit": true,
                   "incremental": true,
                   "isolatedModules": true,
-                  "jsx": "preserve",
+                  "jsx": "react-jsx",
                   "plugins": [
                     {
                       "name": "next"

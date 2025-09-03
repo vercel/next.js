@@ -5,7 +5,7 @@
 
 mod util;
 
-use std::{env, path::PathBuf, sync::Once};
+use std::{env, path::PathBuf};
 
 use anyhow::{Context, Result};
 use dunce::canonicalize;
@@ -36,7 +36,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
     context::AssetContext,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
     issue::IssueDescriptionExt,
@@ -82,18 +82,6 @@ struct JsResult {
 enum IssueSnapshotMode {
     Snapshots,
     NoSnapshots,
-}
-
-fn register() {
-    turbo_tasks::register();
-    turbo_tasks_env::register();
-    turbo_tasks_fs::register();
-    turbopack::register();
-    turbopack_nodejs::register();
-    turbopack_env::register();
-    turbopack_ecmascript_plugins::register();
-    turbopack_resolve::register();
-    include!(concat!(env!("OUT_DIR"), "/register_test_execution.rs"));
 }
 
 // To minimize test path length and consistency with snapshot tests,
@@ -175,9 +163,6 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
 
 #[tokio::main(flavor = "current_thread")]
 async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsResult> {
-    static REGISTER_ONCE: Once = Once::new();
-    REGISTER_ONCE.call_once(register);
-
     // Clean up old output files.
     let output_path = resource.join("output");
     if output_path.exists() {
@@ -352,9 +337,10 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .get_relative_path_to(project_root)
         .context("Project path is in root path")?;
 
-    let env = Environment::new(ExecutionEnvironment::NodeJsBuildTime(
-        NodeJsEnvironment::default().resolved_cell(),
-    ))
+    let env = Environment::new(
+        ExecutionEnvironment::NodeJsBuildTime(NodeJsEnvironment::default().resolved_cell()),
+        BrowserEnvironment::default().cell(),
+    )
     .to_resolved()
     .await?;
 

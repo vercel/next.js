@@ -197,11 +197,12 @@ async fn track_glob_internal(
                             reads.push(fs.read(path.clone()))
                         }
                     }
-                    DirectoryEntry::Symlink(symlink_path) => unreachable!(
+                    DirectoryEntry::Symlink(symlink_path) => bail!(
                         "resolve_symlink_safely() should have resolved all symlinks, but found \
                          unresolved symlink at path: '{}'. Found path: '{}'. Please report this \
                          as a bug.",
-                        entry_path, symlink_path
+                        entry_path,
+                        symlink_path
                     ),
                     DirectoryEntry::Other(path) => {
                         if glob_value.matches(&entry_path) {
@@ -243,7 +244,6 @@ pub mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_glob_basic() {
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
             // Create a simple directory with 2 files, a subdirectory and a dotfile
@@ -313,7 +313,6 @@ pub mod tests {
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_glob_symlinks() {
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
             // root.js
@@ -420,7 +419,6 @@ pub mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn track_glob_invalidations() {
         use std::os::unix::fs::symlink;
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
 
         // Create a simple directory with 2 files, a subdirectory and a dotfile
@@ -506,7 +504,6 @@ pub mod tests {
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn track_glob_symlinks_loop() {
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
             use std::os::unix::fs::symlink;
@@ -564,7 +561,6 @@ pub mod tests {
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_glob_symlinks_loop() {
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
             use std::os::unix::fs::symlink;

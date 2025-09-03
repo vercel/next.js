@@ -26,8 +26,6 @@ pub(crate) mod sass;
 
 /// Built-in conditions provided by the Next.js Turbopack integration for configuring webpack
 /// loaders. These can be used in the `next.config.js` `turbopack.rules` section.
-///
-/// These are different from than the user-configurable "conditions" field.
 //
 // Note: If you add a field here, make sure to also add it in:
 // - The typescript definition in `packages/next/src/server/config-shared.ts`
@@ -210,11 +208,9 @@ pub async fn webpack_loader_options(
         return Ok(Vc::cell(None));
     }
 
-    let conditions = next_config.webpack_conditions().to_resolved().await?;
     Ok(Vc::cell(Some(
         WebpackLoadersOptions {
             rules: ResolvedVc::cell(rules),
-            conditions,
             loader_runner_package: Some(loader_runner_package_mapping().to_resolved().await?),
             builtin_conditions: NextWebpackLoaderBuiltinConditionSet::new(builtin_conditions)
                 .to_resolved()

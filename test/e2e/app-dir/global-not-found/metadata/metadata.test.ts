@@ -24,7 +24,9 @@ describe('global-not-found - metadata', () => {
       'global-not-found description'
     )
     // pick up static icon svg
-    const icon = await browser.elementByCss('link[rel="icon"]')
+    const icon = await browser.elementByCss('link[rel="icon"]', {
+      state: 'attached',
+    })
     expect(await icon.getAttribute('type')).toBe('image/svg+xml')
   })
 })

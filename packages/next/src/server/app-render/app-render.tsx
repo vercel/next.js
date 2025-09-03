@@ -4612,7 +4612,7 @@ const getGlobalErrorStyles = async (
       dir,
       globalErrorModule?.[1]
     )
-    if (ctx.renderOpts.devtoolSegmentExplorer && globalErrorModulePath) {
+    if (globalErrorModulePath) {
       const SegmentViewNode = ctx.componentMod.SegmentViewNode
       globalErrorStyles = (
         // This will be rendered next to GlobalError component under ErrorBoundary,

@@ -13,8 +13,3 @@ criterion_group!(
     targets = stress::fibonacci, scope_stress::scope_stress, overhead::overhead
 );
 criterion_main!(turbo_tasks_backend_stress);
-
-pub fn register() {
-    turbo_tasks::register();
-    include!(concat!(env!("OUT_DIR"), "/register_benches.rs"));
-}

@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::SourceMapsType, compile_time_info::CompileTimeInfo, condition::ContextCondition,
@@ -35,14 +35,6 @@ pub struct LoaderRuleItem {
 #[turbo_tasks::value(transparent)]
 pub struct WebpackRules(Vec<(RcStr, LoaderRuleItem)>);
 
-#[derive(Default)]
-#[turbo_tasks::value(transparent)]
-pub struct WebpackConditions(pub FxIndexMap<RcStr, ConditionItem>);
-
-#[derive(Default)]
-#[turbo_tasks::value(transparent)]
-pub struct OptionWebpackConditions(Option<ResolvedVc<WebpackConditions>>);
-
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum ConditionPath {
     Glob(RcStr),
@@ -66,7 +58,6 @@ pub enum ConditionItem {
 #[derive(Clone, Debug)]
 pub struct WebpackLoadersOptions {
     pub rules: ResolvedVc<WebpackRules>,
-    pub conditions: ResolvedVc<OptionWebpackConditions>,
     pub builtin_conditions: ResolvedVc<Box<dyn WebpackLoaderBuiltinConditionSet>>,
     pub loader_runner_package: Option<ResolvedVc<ImportMapping>>,
 }

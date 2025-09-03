@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { getDualOptoutValue } from './actions'
 
 export default function Page() {
-  const [optoutDisplayValue, setOptoutDisplayValue] = useState('')
+  const [optoutDisplayValue, setOptoutDisplayValue] = useState('initial')
   return (
     <div id="dual-pkg-outout">
       <p>{optoutDisplayValue}</p>

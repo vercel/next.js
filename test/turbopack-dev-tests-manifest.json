@@ -2625,7 +2625,7 @@
   "test/development/app-dir/missing-required-html-tags/index.test.ts": {
     "passed": [
       "app-dir - missing required html tags should display correct error count in dev indicator",
-      "app-dir - missing required html tags should hmr when you fix the error",
+      "app-dir - missing required html tags should reload when you fix the error",
       "app-dir - missing required html tags should show error overlay"
     ],
     "failed": [],

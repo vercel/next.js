@@ -38,7 +38,13 @@
   },
   "overrides": [
     {
-      "files": ["test/**/*.js", "test/**/*.ts", "**/*.test.ts"],
+      "files": [
+        "test/**/*.js",
+        "test/**/*.ts",
+        "test/**/*.tsx",
+        "**/*.test.ts",
+        "**/*.test.tsx"
+      ],
       "excludedFiles": ["test/tmp/**"],
       "extends": ["plugin:jest/recommended"],
       "rules": {

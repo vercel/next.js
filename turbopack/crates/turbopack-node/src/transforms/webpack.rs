@@ -521,18 +521,14 @@ impl EvaluateContext for WebpackLoaderContext {
                             .await
                     })
                     .try_join();
-                let build_paths = build_file_paths
-                    .iter()
-                    .map(|path| async move { self.cwd.join(path) })
-                    .try_join();
-                let (resolved_build_paths, ..) = try_join!(
-                    build_paths,
+                try_join!(
                     env_subscriptions,
                     file_subscriptions,
                     directory_subscriptions
                 )?;
 
-                for build_path in resolved_build_paths {
+                for build_path in build_file_paths {
+                    let build_path = self.cwd.join(&build_path)?;
                     BuildDependencyIssue {
                         source: IssueSource::from_source_only(self.context_source_for_issue),
                         path: build_path,
