@@ -32,7 +32,7 @@ describe('@next/third-parties basic usage', () => {
   it('renders GTM', async () => {
     const browser = await next.browser('/gtm')
 
-    await browser.waitForElementByCss('#_next-gtm')
+    await browser.waitForElementByCss('script#_next-gtm')
     await waitFor(1000)
 
     const gtmInlineScript = await browser.elementsByCss('#_next-gtm-init')
@@ -56,7 +56,7 @@ describe('@next/third-parties basic usage', () => {
   it('renders GA', async () => {
     const browser = await next.browser('/ga')
 
-    await browser.waitForElementByCss('#_next-ga')
+    await browser.waitForElementByCss('script#_next-ga')
     await waitFor(1000)
 
     const gaInlineScript = await browser.elementsByCss('#_next-ga-init')

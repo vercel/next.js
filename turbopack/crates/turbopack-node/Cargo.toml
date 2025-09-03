@@ -47,5 +47,3 @@ turbopack-dev-server = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-resolve = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

@@ -23,8 +23,6 @@ pub async fn main_inner(
     limit: usize,
     files: Option<Vec<String>>,
 ) -> Result<()> {
-    register();
-
     let path = std::env::current_dir()?.join("project_options.json");
     let mut file = std::fs::File::open(&path)
         .with_context(|| format!("loading file at {}", path.display()))?;
@@ -92,11 +90,6 @@ pub async fn main_inner(
     }
 
     Ok(())
-}
-
-pub fn register() {
-    next_api::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
 #[derive(PartialEq, Copy, Clone)]

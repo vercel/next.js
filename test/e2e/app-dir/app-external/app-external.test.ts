@@ -287,7 +287,9 @@ describe('app dir - external dependency', () => {
   describe('server actions', () => {
     it('should prefer to resolve esm over cjs for bundling optout packages', async () => {
       const browser = await next.browser('/optout/action')
-      expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe('')
+      expect(await browser.elementByCss('#dual-pkg-outout p').text()).toBe(
+        'initial'
+      )
 
       browser.elementByCss('#dual-pkg-outout button').click()
       await check(async () => {

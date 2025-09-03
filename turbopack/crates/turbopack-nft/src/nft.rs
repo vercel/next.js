@@ -12,7 +12,7 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
     issue::{IssueReporter, IssueSeverity, handle_issues},
@@ -69,9 +69,10 @@ async fn node_file_trace_operation(
     let input = input_dir.join(&format!("{input}"))?;
 
     let source = FileSource::new(input);
-    let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
-        NodeJsEnvironment::default().resolved_cell(),
-    ));
+    let environment = Environment::new(
+        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().resolved_cell()),
+        BrowserEnvironment::default().cell(),
+    );
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
         // This config should be kept in sync with

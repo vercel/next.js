@@ -1,15 +1,14 @@
-use core::panic;
-use std::{fmt::Debug, hash::Hash, pin::Pin, sync::OnceLock};
+use std::{fmt::Debug, hash::Hash, pin::Pin};
 
 use anyhow::Result;
 use futures::Future;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
     RawVc, TaskExecutionReason, TaskInput, TaskPersistence,
     magic_any::{MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
-    registry::register_function,
     task::{
         IntoTaskFn, TaskFn,
         function::{IntoTaskFnWithThis, NativeTaskFuture},
@@ -161,13 +160,15 @@ pub struct NativeFunction {
     /// handles the task execution.
     pub(crate) implementation: Box<dyn TaskFn + Send + Sync + 'static>,
 
-    global_name: OnceLock<&'static str>,
+    // The globally unique name for this function, used when persisting
+    pub(crate) global_name: &'static str,
 }
 
 impl Debug for NativeFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NativeFunction")
             .field("name", &self.name)
+            .field("global_name", &self.global_name)
             .field("function_meta", &self.function_meta)
             .finish_non_exhaustive()
     }
@@ -176,6 +177,7 @@ impl Debug for NativeFunction {
 impl NativeFunction {
     pub fn new_function<Mode, Inputs>(
         name: &'static str,
+        global_name: &'static str,
         function_meta: FunctionMeta,
         implementation: impl IntoTaskFn<Mode, Inputs>,
     ) -> Self
@@ -184,15 +186,16 @@ impl NativeFunction {
     {
         Self {
             name,
+            global_name,
             function_meta,
             arg_meta: ArgMeta::new::<Inputs>(),
             implementation: Box::new(implementation.into_task_fn()),
-            global_name: Default::default(),
         }
     }
 
     pub fn new_method_without_this<Mode, Inputs, I>(
         name: &'static str,
+        global_name: &'static str,
         function_meta: FunctionMeta,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
@@ -203,6 +206,7 @@ impl NativeFunction {
     {
         Self {
             name,
+            global_name,
             function_meta,
             arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
                 ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
@@ -210,12 +214,12 @@ impl NativeFunction {
                 ArgMeta::new::<Inputs>()
             },
             implementation: Box::new(implementation.into_task_fn()),
-            global_name: Default::default(),
         }
     }
 
     pub fn new_method<Mode, This, Inputs, I>(
         name: &'static str,
+        global_name: &'static str,
         function_meta: FunctionMeta,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
@@ -227,6 +231,7 @@ impl NativeFunction {
     {
         Self {
             name,
+            global_name,
             function_meta,
             arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
                 ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
@@ -234,7 +239,6 @@ impl NativeFunction {
                 ArgMeta::new::<Inputs>()
             },
             implementation: Box::new(implementation.into_task_fn_with_this()),
-            global_name: Default::default(),
         }
     }
 
@@ -268,23 +272,6 @@ impl NativeFunction {
         };
         tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, flags = flags)
     }
-
-    /// Returns the global name for this object
-    pub fn global_name(&self) -> &'static str {
-        self.global_name
-            .get()
-            .expect("cannot call `global_name` unless `register` has already been called")
-    }
-
-    pub fn register(&'static self, global_name: &'static str) {
-        match self.global_name.set(global_name) {
-            Ok(_) => {}
-            Err(prev) => {
-                panic!("function {global_name} registered twice, previously with {prev}");
-            }
-        }
-        register_function(global_name, self);
-    }
 }
 
 impl PartialEq for &'static NativeFunction {
@@ -315,3 +302,7 @@ impl Ord for &'static NativeFunction {
         )
     }
 }
+
+pub struct CollectableFunction(pub &'static Lazy<NativeFunction>);
+
+inventory::collect! {CollectableFunction}

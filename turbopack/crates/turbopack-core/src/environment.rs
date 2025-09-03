@@ -42,13 +42,20 @@ pub enum ChunkLoading {
 pub struct Environment {
     // members must be private to avoid leaking non-custom types
     execution: ExecutionEnvironment,
+    css_environment: ResolvedVc<BrowserEnvironment>,
 }
 
 #[turbo_tasks::value_impl]
 impl Environment {
     #[turbo_tasks::function]
-    pub fn new(execution: ExecutionEnvironment) -> Vc<Self> {
-        Self::cell(Environment { execution })
+    pub async fn new(
+        execution: ExecutionEnvironment,
+        css_environment: ResolvedVc<BrowserEnvironment>,
+    ) -> Vc<Self> {
+        Self::cell(Environment {
+            execution,
+            css_environment,
+        })
     }
 }
 
@@ -98,6 +105,17 @@ impl Environment {
             ExecutionEnvironment::EdgeWorker(edge_env) => edge_env.runtime_versions(),
             ExecutionEnvironment::Custom(_) => todo!(),
         })
+    }
+
+    #[turbo_tasks::function]
+    pub fn css_environment(&self) -> Vc<BrowserEnvironment> {
+        *self.css_environment
+    }
+
+    #[turbo_tasks::function]
+    pub async fn css_runtime_versions(&self) -> Result<Vc<RuntimeVersions>> {
+        let distribs = resolve_browserslist(self.css_environment).await?;
+        Ok(Vc::cell(Versions::parse_versions(distribs)?))
     }
 
     #[turbo_tasks::function]
@@ -317,6 +335,7 @@ impl Default for NodeJsVersion {
 }
 
 #[turbo_tasks::value(shared)]
+#[derive(Default)]
 pub struct BrowserEnvironment {
     pub dom: bool,
     pub web_worker: bool,
