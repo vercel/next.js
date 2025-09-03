@@ -111,10 +111,10 @@ async function nextMetadataImageLoader(
 
       if (generateImageMetadata) {
         const imageMetadataArray = await generateImageMetadata({ params: resolvedParams })
-        return Promise.all(imageMetadataArray.map((imageMetadata, index) => {
+        return imageMetadataArray.map((imageMetadata, index) => {
           const idParam = (imageMetadata.id || index) + ''
           return getImageMetadata(imageMetadata, idParam, resolvedParams)
-        }))
+        })
       } else {
         return [getImageMetadata(imageModule, '', resolvedParams)]
       }
