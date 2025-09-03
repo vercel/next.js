@@ -1389,16 +1389,7 @@ impl FileSystemPath {
         let result = &(*self.realpath_with_links().await?);
         match &result.path_or_error {
             Ok(path) => Ok(path.clone()),
-            Err(error) => match error {
-                RealPathResultError::TooManySymlinks => Err(anyhow::anyhow!(
-                    "Symlink {self} leads to too many other symlinks ({} links)",
-                    result.symlinks.len()
-                )),
-                RealPathResultError::CycleDetected => Err(anyhow::anyhow!(
-                    "Symlink {self} is in a symlink loop: {:?}",
-                    result.symlinks
-                )),
-            },
+            Err(error) => Err(anyhow::anyhow!(error.as_error_message(self, result))),
         }
     }
 
@@ -1462,10 +1453,34 @@ pub struct RealPathResult {
     pub symlinks: Vec<FileSystemPath>,
 }
 
+/// Errors that can occur when resolving a path with symlinks.
+/// Many of these can be transient conditions that might happen when package managers are running.
 #[derive(Debug, Clone, Hash, Eq, PartialEq, Serialize, Deserialize, NonLocalValue, TraceRawVcs)]
 pub enum RealPathResultError {
     TooManySymlinks,
     CycleDetected,
+    Invalid,
+    NotFound,
+}
+impl RealPathResultError {
+    /// Formats the error message
+    pub fn as_error_message(&self, orig: &FileSystemPath, result: &RealPathResult) -> String {
+        match self {
+            RealPathResultError::TooManySymlinks => format!(
+                "Symlink {orig} leads to too many other symlinks ({len} links)",
+                len = result.symlinks.len()
+            ),
+            RealPathResultError::CycleDetected => {
+                format!("Symlink {orig} is in a symlink loop: {:?}", result.symlinks)
+            }
+            RealPathResultError::Invalid => {
+                format!("Symlink {orig} is invalid, it points out of the filesystem root")
+            }
+            RealPathResultError::NotFound => {
+                format!("Symlink {orig} is invalid, it points at a file that doesn't exist")
+            }
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, DeterministicHash, PartialOrd, Ord)]
@@ -1631,7 +1646,9 @@ pub enum LinkContent {
     // link because there is only **dist** path in `fn write_link`, and we need the raw path if
     // we want to restore the link value in `fn write_link`
     Link { target: RcStr, link_type: LinkType },
+    // Invalid means the link is invalid it points out of the filesystem root
     Invalid,
+    // The target was not found
     NotFound,
 }
 
@@ -2103,23 +2120,13 @@ impl DirectoryEntry {
     /// `DirectoryEntry::Directory`.
     pub async fn resolve_symlink(self) -> Result<Self> {
         if let DirectoryEntry::Symlink(symlink) = &self {
-            let RealPathResult {
-                path_or_error,
-                symlinks,
-            } = &*symlink.realpath_with_links().await?;
-            let real_path = match path_or_error {
+            let result = &*symlink.realpath_with_links().await?;
+            let real_path = match &result.path_or_error {
                 Ok(path) => path,
                 Err(error) => {
-                    return Ok(DirectoryEntry::Error(match error {
-                        RealPathResultError::TooManySymlinks => format!(
-                            "Symlink {symlink} leads to too many other symlinks ({} links)",
-                            symlinks.len()
-                        )
-                        .into(),
-                        RealPathResultError::CycleDetected => {
-                            format!("Symlink {symlink} is in a symlink loop").into()
-                        }
-                    }));
+                    return Ok(DirectoryEntry::Error(
+                        error.as_error_message(symlink, result).into(),
+                    ));
                 }
             };
             Ok(match *real_path.get_type().await? {
@@ -2359,7 +2366,7 @@ async fn get_type(path: FileSystemPath) -> Result<Vc<FileSystemEntryType>> {
 
 #[turbo_tasks::function]
 async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>> {
-    let mut current_path = path.clone();
+    let mut current_path = path;
     let mut symlinks: IndexSet<FileSystemPath> = IndexSet::new();
     let mut visited: AutoSet<RcStr> = AutoSet::new();
     let mut error = RealPathResultError::TooManySymlinks;
@@ -2414,22 +2421,24 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             .cell());
         }
 
-        if let LinkContent::Link { target, link_type } = &*current_path.read_link().await? {
-            symlinks.insert(current_path.clone());
-            current_path = if link_type.contains(LinkType::ABSOLUTE) {
-                current_path.root().owned().await?
-            } else {
-                parent_path
+        match &*current_path.read_link().await? {
+            LinkContent::Link { target, link_type } => {
+                symlinks.insert(current_path.clone());
+                current_path = if link_type.contains(LinkType::ABSOLUTE) {
+                    current_path.root().owned().await?
+                } else {
+                    parent_path
+                }
+                .join(target)?;
             }
-            .join(target)?;
-        } else {
-            // get_type() and read_link() might disagree temporarily due to turbo-tasks
-            // eventual consistency or if the file gets invalidated before the directory does
-            return Ok(RealPathResult {
-                path_or_error: Ok(current_path),
-                symlinks: symlinks.into_iter().collect(), // convert set to vec
+            LinkContent::NotFound => {
+                error = RealPathResultError::NotFound;
+                break;
             }
-            .cell());
+            LinkContent::Invalid => {
+                error = RealPathResultError::Invalid;
+                break;
+            }
         }
     }
 

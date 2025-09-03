@@ -564,7 +564,6 @@ pub mod tests {
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn dead_symlinks() {
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
             use std::os::unix::fs::symlink;
@@ -619,6 +618,39 @@ pub mod tests {
             );
 
             anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    // Reproduces an issue where a dead symlink would cause a panic when tracking/reading a glob
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn symlink_escapes_fs_root() {
+        let scratch = tempfile::tempdir().unwrap();
+        {
+            use std::os::unix::fs::symlink;
+
+            // Create a simple directory with 1 file and a symlink pointing at a non-existent file
+            let path = scratch.path();
+            let sub = &path.join("sub");
+            create_dir(sub).unwrap();
+            let foo = scratch.path().join("foo.js");
+            File::create_new(&foo).unwrap().write_all(b"foo").unwrap();
+            // put a link in sub that points to a parent file
+            symlink(foo, sub.join("escape.js")).unwrap();
+        }
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let root: RcStr = scratch.path().join("sub").to_str().unwrap().into();
+        tt.run_once(async {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), root));
+            fs.root()
+                .await?
+                .track_glob(Glob::new(rcstr!("*.js"), GlobOptions::default()), false)
+                .await
         })
         .await
         .unwrap();
