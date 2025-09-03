@@ -115,6 +115,7 @@ export async function transpileConfig({
   cwd: string
 }) {
   try {
+    // Verify only in dev as we expect the deps are already installed in prod.
     if (process.env.NODE_ENV === 'development' && !verifiedTsSetup) {
       // Ensure TypeScript is installed to use the API.
       await verifyTypeScriptSetup(cwd, configFileName)
