@@ -1,7 +1,4 @@
-import { connection } from 'next/server'
-
-export default async function Layout({ children }) {
-  await connection()
+export default function Layout({ children }) {
   return (
     <html>
       <body>{children}</body>
