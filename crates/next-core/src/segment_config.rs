@@ -325,6 +325,7 @@ pub async fn parse_segment_config_from_source(
         ..
     } = result
     else {
+        // The `parse` call has already emitted parse issues in case of `ParseResult::Unparsable`
         return Ok(Default::default());
     };
 
