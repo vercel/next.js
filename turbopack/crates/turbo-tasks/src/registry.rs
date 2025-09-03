@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashMap;
 
@@ -17,7 +19,7 @@ pub fn get_function_by_global_name(global_name: &str) -> &'static NativeFunction
                 let native_function = &**collected.0;
                 let global_name = native_function.global_name;
                 let prev = map.insert(global_name, native_function);
-                debug_assert!(
+                assert!(
                     prev.is_none(),
                     "multiple functions registered with the name {global_name}!"
                 );
@@ -47,23 +49,22 @@ static VALUES: Lazy<Values> = Lazy::new(|| {
         .into_iter()
         .map(|t| &**t.0)
         .collect::<Vec<_>>();
-    all_values.sort_by_key(|t| t.global_name);
+    all_values.sort_unstable_by_key(|t| t.global_name);
 
-    let mut value_to_id = FxHashMap::default();
-    value_to_id.reserve(all_values.len());
-    let mut global_name_to_value = FxHashMap::default();
-    global_name_to_value.reserve(all_values.len());
+    let mut value_to_id = FxHashMap::with_capacity_and_hasher(all_values.len(), Default::default());
+    let mut global_name_to_value =
+        FxHashMap::with_capacity_and_hasher(all_values.len(), Default::default());
 
-    for (index, &value_type) in all_values.iter().enumerate() {
-        // SAFETY: as a usize, usize+1 is definitely non-zero.
-        let id = unsafe { ValueTypeId::new_unchecked((index + 1).try_into().unwrap()) };
-        value_to_id.insert(value_type, id);
-        let prev = global_name_to_value.insert(value_type.global_name, (id, value_type));
-        debug_assert!(
+    let mut id = NonZeroU32::MIN;
+    for &value_type in all_values.iter() {
+        value_to_id.insert(value_type, id.into());
+        let prev = global_name_to_value.insert(value_type.global_name, (id.into(), value_type));
+        assert!(
             prev.is_none(),
-            "two traits registered with the same name: {}",
+            "two value types registered with the same name: {}",
             value_type.global_name
         );
+        id = id.checked_add(1).expect("overflowing value type ids");
     }
 
     value_to_id.shrink_to_fit();
@@ -110,24 +111,23 @@ static TRAITS: Lazy<Traits> = Lazy::new(|| {
         .into_iter()
         .map(|t| &**t.0)
         .collect::<Vec<_>>();
-    all_traits.sort_by_key(|t| t.global_name);
+    all_traits.sort_unstable_by_key(|t| t.global_name);
 
-    let mut trait_to_id = FxHashMap::default();
-    trait_to_id.reserve(all_traits.len());
-    let mut global_name_to_trait = FxHashMap::default();
-    global_name_to_trait.reserve(all_traits.len());
+    let mut trait_to_id = FxHashMap::with_capacity_and_hasher(all_traits.len(), Default::default());
+    let mut global_name_to_trait =
+        FxHashMap::with_capacity_and_hasher(all_traits.len(), Default::default());
 
-    for (index, &trait_type) in all_traits.iter().enumerate() {
-        // SAFETY: index+1 is >0
-        let id = unsafe { TraitTypeId::new_unchecked((index + 1).try_into().unwrap()) };
-        trait_to_id.insert(trait_type, id);
+    let mut id = NonZeroU32::MIN;
+    for &trait_type in all_traits.iter() {
+        trait_to_id.insert(trait_type, id.into());
 
-        let prev = global_name_to_trait.insert(trait_type.global_name, (id, trait_type));
-        debug_assert!(
+        let prev = global_name_to_trait.insert(trait_type.global_name, (id.into(), trait_type));
+        assert!(
             prev.is_none(),
             "two traits registered with the same name: {}",
             trait_type.global_name
         );
+        id = id.checked_add(1).expect("overflowing trait type ids");
     }
     trait_to_id.shrink_to_fit();
     global_name_to_trait.shrink_to_fit();
