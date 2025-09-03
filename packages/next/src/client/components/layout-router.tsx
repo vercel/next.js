@@ -608,10 +608,7 @@ export default function OuterLayoutRouter({
 
     let segmentBoundaryTriggerNode: React.ReactNode = null
     let segmentViewStateNode: React.ReactNode = null
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER
-    ) {
+    if (process.env.NODE_ENV !== 'production') {
       const { SegmentBoundaryTriggerNode, SegmentViewStateNode } =
         require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
 

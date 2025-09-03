@@ -6,8 +6,6 @@ use tokio::spawn;
 use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
-use super::register;
-
 #[global_allocator]
 static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 
@@ -28,8 +26,6 @@ fn busy_turbo(key: u64, duration: Duration) {
 }
 
 pub fn overhead(c: &mut Criterion) {
-    register();
-
     let mut group = c.benchmark_group("task_overhead");
     group.sample_size(100);
 

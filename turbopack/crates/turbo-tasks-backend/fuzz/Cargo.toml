@@ -19,9 +19,6 @@ turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
-
 [[bin]]
 name = "fuzz_graph"
 path = "fuzz_targets/graph.rs"

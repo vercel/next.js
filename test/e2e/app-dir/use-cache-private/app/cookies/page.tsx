@@ -25,7 +25,7 @@ async function Private() {
 
   return (
     <pre>
-      test-cookie: <span id="test-cookie">{cookieHeader}</span>
+      test-cookie: <span id="test-cookie">{cookieHeader || '<empty>'}</span>
     </pre>
   )
 }

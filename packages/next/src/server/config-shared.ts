@@ -925,11 +925,6 @@ export interface ExperimentalConfig {
   globalNotFound?: boolean
 
   /**
-   * Enable segment viewer for the app directory in Next.js DevTools.
-   */
-  devtoolSegmentExplorer?: boolean
-
-  /**
    * Enable debug information to be forwarded from browser to dev server stdout/stderr
    */
   browserDebugInfoInTerminal?:
@@ -1647,7 +1642,6 @@ export const defaultConfig = Object.freeze({
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    devtoolSegmentExplorer: true,
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
   },

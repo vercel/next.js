@@ -73,7 +73,7 @@ impl Serialize for TaskStatistics {
     {
         let mut map = serializer.serialize_map(Some(self.inner.len()))?;
         for entry in &self.inner {
-            map.serialize_entry(entry.key().global_name(), entry.value())?;
+            map.serialize_entry(entry.key().global_name, entry.value())?;
         }
         map.end()
     }

@@ -14,10 +14,10 @@ import { AppDevOverlayErrorBoundary } from '../../../../next-devtools/userspace/
 import { useErrorHandler } from '../../../../next-devtools/userspace/app/errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../runtime-error-handler'
 import { useWebSocketPing } from './web-socket'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
-  HMR_ACTION_TYPES,
-  TurbopackMsgToBrowser,
+  HmrMessageSentToBrowser,
+  TurbopackMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import reportHmrLatency from '../../report-hmr-latency'
@@ -197,9 +197,9 @@ function tryApplyUpdatesWebpack(sendMessage: (message: string) => void) {
 
 /** Handles messages from the server for the App Router. */
 export function processMessage(
-  obj: HMR_ACTION_TYPES,
+  message: HmrMessageSentToBrowser,
   sendMessage: (message: string) => void,
-  processTurbopackMessage: (msg: TurbopackMsgToBrowser) => void,
+  processTurbopackMessage: (msg: TurbopackMessageSentToBrowser) => void,
   staticIndicatorState: StaticIndicatorState
 ) {
   function handleErrors(errors: ReadonlyArray<unknown>) {
@@ -246,10 +246,10 @@ export function processMessage(
     }
   }
 
-  switch (obj.action) {
-    case HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST: {
+  switch (message.type) {
+    case HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST: {
       if (process.env.__NEXT_DEV_INDICATOR) {
-        staticIndicatorState.appIsrManifest = obj.data
+        staticIndicatorState.appIsrManifest = message.data
 
         // handle initial status on receiving manifest
         // navigation is handled in useEffect for pathname changes
@@ -257,7 +257,7 @@ export function processMessage(
         // triggers for new value
         if (
           staticIndicatorState.pathname &&
-          staticIndicatorState.pathname in obj.data
+          staticIndicatorState.pathname in message.data
         ) {
           dispatcher.onStaticIndicator(true)
         } else {
@@ -266,7 +266,7 @@ export function processMessage(
       }
       break
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.BUILDING: {
       dispatcher.buildingIndicatorShow()
 
       if (process.env.TURBOPACK) {
@@ -278,22 +278,25 @@ export function processMessage(
       }
       break
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
-    case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.BUILT:
+    case HMR_MESSAGE_SENT_TO_BROWSER.SYNC: {
       dispatcher.buildingIndicatorHide()
 
-      if (obj.hash) {
-        handleAvailableHash(obj.hash)
+      if (message.hash) {
+        handleAvailableHash(message.hash)
       }
 
-      const { errors, warnings } = obj
+      const { errors, warnings } = message
 
       // Is undefined when it's a 'built' event
-      if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
-      if ('debug' in obj && obj.debug) dispatcher.onDebugInfo(obj.debug)
-      if ('devIndicator' in obj) dispatcher.onDevIndicator(obj.devIndicator)
-      if ('devToolsConfig' in obj)
-        dispatcher.onDevToolsConfig(obj.devToolsConfig)
+      if ('versionInfo' in message)
+        dispatcher.onVersionInfo(message.versionInfo)
+      if ('debug' in message && message.debug)
+        dispatcher.onDebugInfo(message.debug)
+      if ('devIndicator' in message)
+        dispatcher.onDevIndicator(message.devIndicator)
+      if ('devToolsConfig' in message)
+        dispatcher.onDevToolsConfig(message.devToolsConfig)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -347,26 +350,26 @@ export function processMessage(
         })
       )
 
-      if (obj.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT) {
+      if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.BUILT) {
         handleHotUpdate()
       }
       return
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED: {
       processTurbopackMessage({
-        type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+        type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
         data: {
-          sessionId: obj.data.sessionId,
+          sessionId: message.data.sessionId,
         },
       })
       break
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
-      turbopackHmr!.onTurbopackMessage(obj)
+    case HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
+      turbopackHmr!.onTurbopackMessage(message)
       dispatcher.onBeforeRefresh()
       processTurbopackMessage({
-        type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
-        data: obj.data,
+        type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+        data: message.data,
       })
       if (RuntimeErrorHandler.hadRuntimeError) {
         console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
@@ -376,19 +379,19 @@ export function processMessage(
       break
     }
     // TODO-APP: make server component change more granular
-    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
       turbopackHmr?.onServerComponentChanges()
       sendMessage(
         JSON.stringify({
           event: 'server-component-reload-page',
           clientId: __nextDevClientId,
-          hash: obj.hash,
+          hash: message.hash,
         })
       )
 
       // Store the latest hash in a session cookie so that it's sent back to the
       // server with any subsequent requests.
-      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${obj.hash};path=/`
+      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${message.hash};path=/`
 
       if (
         RuntimeErrorHandler.hadRuntimeError ||
@@ -413,7 +416,7 @@ export function processMessage(
 
       return
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE: {
       turbopackHmr?.onReloadPage()
       sendMessage(
         JSON.stringify({
@@ -425,36 +428,36 @@ export function processMessage(
       reloading = true
       return window.location.reload()
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
-    case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE:
+    case HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE: {
       turbopackHmr?.onPageAddRemove()
       // TODO-APP: potentially only refresh if the currently viewed page was added/removed.
       return publicAppRouterInstance.hmrRefresh()
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
-      const { errorJSON } = obj
+    case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR: {
+      const { errorJSON } = message
       if (errorJSON) {
-        const { message, stack } = JSON.parse(errorJSON)
-        const error = new Error(message)
-        error.stack = stack
+        const errorObject = JSON.parse(errorJSON)
+        const error = new Error(errorObject.message)
+        error.stack = errorObject.stack
         handleErrors([error])
       }
       return
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
       return
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG: {
-      dispatcher.onDevToolsConfig(obj.data)
+    case HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG: {
+      dispatcher.onDevToolsConfig(message.data)
       return
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:
-    case HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES:
-    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:
+    case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:
+    case HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES:
+    case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:
       // These action types are handled in src/client/page-bootstrap.ts
       break
     default: {
-      obj satisfies never
+      message satisfies never
     }
   }
 }

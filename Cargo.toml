@@ -25,6 +25,7 @@ too_many_arguments = "allow"
 unexpected_cfgs = { level = "warn", check-cfg = [
   'cfg(rust_analyzer)',
   'cfg(fuzzing)',
+  'cfg(codspeed)',
 ] }
 
 # This crate is particularly sensitive to compiler optimizations
@@ -269,7 +270,6 @@ turbo-unix-path = { path = "turbopack/crates/turbo-unix-path" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
 turbo-tasks = { path = "turbopack/crates/turbo-tasks" }
 turbo-tasks-backend = { path = "turbopack/crates/turbo-tasks-backend" }
-turbo-tasks-build = { path = "turbopack/crates/turbo-tasks-build" }
 turbo-tasks-bytes = { path = "turbopack/crates/turbo-tasks-bytes" }
 turbo-tasks-env = { path = "turbopack/crates/turbo-tasks-env" }
 turbo-tasks-fetch = { path = "turbopack/crates/turbo-tasks-fetch" }
@@ -444,6 +444,7 @@ urlencoding = "2.1.2"
 vergen = { version = "9.0.6", features = ["cargo"] }
 vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "0.8.7"
+inventory = "0.3.21"
 
 [patch.crates-io]
 hyper = { git = "https://github.com/bgw/hyper-rs.git", branch = "v1.6.0-with-macos-intel-miscompilation-workaround" }

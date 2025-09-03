@@ -1020,19 +1020,3 @@ pub async fn replace_external(
         module,
     ))))
 }
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_css::register();
-    turbopack_ecmascript::register();
-    turbopack_node::register();
-    turbopack_env::register();
-    turbopack_mdx::register();
-    turbopack_json::register();
-    turbopack_resolve::register();
-    turbopack_static::register();
-    turbopack_wasm::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

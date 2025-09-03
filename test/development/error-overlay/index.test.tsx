@@ -4,30 +4,71 @@ import { assertHasRedbox } from 'next-test-utils'
 describe('DevErrorOverlay', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    env: {
+      NEXT_TELEMETRY_DISABLED: '',
+    },
   })
 
   it('can get error code from RSC error thrown by framework', async () => {
-    await next.render('/known-rsc-error')
     const browser = await next.browser('/known-rsc-error')
-    const errorCode = await browser.waitForElementByCss(
-      '[data-nextjs-error-code]'
-    )
+
+    const errorCode = await browser.elementByCss('[data-nextjs-error-code]')
     const code = await errorCode.getAttribute('data-nextjs-error-code')
     expect(code).toBe('E127')
   })
 
-  it('can get error code from client side error thrown by framework', async () => {
-    await next.render('/known-client-error')
+  it('sends feedback when clicking helpful button', async () => {
+    const feedbackRequests: string[] = []
+    const browser = await next.browser('/known-client-error', {
+      beforePageLoad(page) {
+        page.route(/__nextjs_error_feedback/, (route) => {
+          const url = new URL(route.request().url())
+          feedbackRequests.push(url.pathname + url.search)
 
-    const browser = await next.browser('/known-client-error')
+          route.fulfill({ status: 204, body: 'No Content' })
+        })
+      },
+    })
 
     await browser.elementByCss('button').click() // clicked "break on client"
+    await browser.getByRole('button', { name: 'Mark as helpful' }).click()
 
-    const errorCode = await browser.waitForElementByCss(
-      '[data-nextjs-error-code]'
-    )
-    const code = await errorCode.getAttribute('data-nextjs-error-code')
-    expect(code).toBe('E794')
+    expect(
+      await browser
+        .getByRole('region', { name: 'Error feedback' })
+        .getByRole('status')
+        .textContent()
+    ).toEqual('Thanks for your feedback!')
+    expect(feedbackRequests).toEqual([
+      '/__nextjs_error_feedback?errorCode=E794&wasHelpful=true',
+    ])
+  })
+
+  it('sends feedback when clicking not helpful button', async () => {
+    const feedbackRequests: string[] = []
+    const browser = await next.browser('/known-client-error', {
+      beforePageLoad(page) {
+        page.route(/__nextjs_error_feedback/, (route) => {
+          const url = new URL(route.request().url())
+          feedbackRequests.push(url.pathname + url.search)
+
+          route.fulfill({ status: 204, body: 'No Content' })
+        })
+      },
+    })
+
+    await browser.elementByCss('button').click() // clicked "break on client"
+    await browser.getByRole('button', { name: 'Mark as not helpful' }).click()
+
+    expect(
+      await browser
+        .getByRole('region', { name: 'Error feedback' })
+        .getByRole('status')
+        .textContent()
+    ).toEqual('Thanks for your feedback!')
+    expect(feedbackRequests).toEqual([
+      '/__nextjs_error_feedback?errorCode=E794&wasHelpful=false',
+    ])
   })
 
   it('loads fonts successfully', async () => {
