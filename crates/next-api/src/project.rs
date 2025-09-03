@@ -22,6 +22,7 @@ use next_core::{
     },
     next_telemetry::NextFeatureTelemetry,
     parse_segment_config_from_source,
+    segment_config::ParseSegmentMode,
     util::{NextRuntime, OptionEnvMap},
 };
 use serde::{Deserialize, Serialize};
@@ -1412,7 +1413,7 @@ impl Project {
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
 
-        let runtime = parse_segment_config_from_source(source, false)
+        let runtime = parse_segment_config_from_source(source, ParseSegmentMode::Base)
             .await?
             .runtime
             .unwrap_or(NextRuntime::Edge);

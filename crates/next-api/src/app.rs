@@ -33,7 +33,7 @@ use next_core::{
     },
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
-    segment_config::NextSegmentConfig,
+    segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
 use serde::{Deserialize, Serialize};
@@ -1106,7 +1106,7 @@ impl AppEndpoint {
 
             for layout in root_layouts.iter().rev() {
                 let source = Vc::upcast(FileSource::new(layout.clone()));
-                let layout_config = parse_segment_config_from_source(source, true);
+                let layout_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
                 config.apply_parent_config(&*layout_config.await?);
             }
 

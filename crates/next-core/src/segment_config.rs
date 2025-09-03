@@ -15,7 +15,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
+    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
     util::WrapFuture,
 };
 use turbo_tasks_fs::FileSystemPath;
@@ -281,10 +281,29 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 }
 
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TaskInput,
+    NonLocalValue,
+    TraceRawVcs,
+)]
+pub enum ParseSegmentMode {
+    Base,
+    // Disallows "use client + generateStatic" and ignores/warns about `export const config`
+    App,
+}
+
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_source(
     source: ResolvedVc<Box<dyn Source>>,
-    is_app_router: bool,
+    mode: ParseSegmentMode,
 ) -> Result<Vc<NextSegmentConfig>> {
     let path = source.ident().path().await?;
 
@@ -334,16 +353,7 @@ pub async fn parse_segment_config_from_source(
             let mut config = NextSegmentConfig::default();
 
             let mut parse = async |ident, init, span| {
-                parse_config_value(
-                    source,
-                    is_app_router,
-                    &mut config,
-                    eval_context,
-                    ident,
-                    init,
-                    span,
-                )
-                .await
+                parse_config_value(source, mode, &mut config, eval_context, ident, init, span).await
             };
 
             for item in &module_ast.body {
@@ -425,7 +435,7 @@ pub async fn parse_segment_config_from_source(
     )
     .await?;
 
-    if is_app_router
+    if mode == ParseSegmentMode::App
         && let Some(span) = config.generate_static_params
         && module_ast
             .body
@@ -491,7 +501,7 @@ async fn invalid_config(
 
 async fn parse_config_value(
     source: ResolvedVc<Box<dyn Source>>,
-    is_app_router: bool,
+    mode: ParseSegmentMode,
     config: &mut NextSegmentConfig,
     eval_context: &EvalContext,
     key: &str,
@@ -534,7 +544,7 @@ async fn parse_config_value(
                 .await;
             };
 
-            if is_app_router {
+            if mode == ParseSegmentMode::App {
                 return invalid_config(
                     source,
                     "config",
@@ -1258,7 +1268,9 @@ async fn parse_segment_config_from_loader_tree_internal(
     .flatten()
     {
         let source = Vc::upcast(FileSource::new(path.clone()));
-        config.apply_parent_config(&*parse_segment_config_from_source(source, true).await?);
+        config.apply_parent_config(
+            &*parse_segment_config_from_source(source, ParseSegmentMode::App).await?,
+        );
     }
 
     Ok(config)

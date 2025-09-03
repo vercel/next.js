@@ -8,6 +8,7 @@ use next_core::{
     next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, Regions},
     next_server::{ServerContextType, get_server_runtime_entries},
     parse_segment_config_from_source,
+    segment_config::ParseSegmentMode,
     util::{MiddlewareMatcherKind, NextRuntime},
 };
 use tracing::Instrument;
@@ -87,7 +88,7 @@ impl MiddlewareEndpoint {
             userland_module,
         );
 
-        let runtime = parse_segment_config_from_source(*self.source, false)
+        let runtime = parse_segment_config_from_source(*self.source, ParseSegmentMode::Base)
             .await?
             .runtime
             .unwrap_or(NextRuntime::Edge);
@@ -178,7 +179,8 @@ impl MiddlewareEndpoint {
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
 
-        let config = parse_segment_config_from_source(*self.await?.source, false).await?;
+        let config =
+            parse_segment_config_from_source(*self.await?.source, ParseSegmentMode::Base).await?;
         let runtime = config.runtime.unwrap_or(NextRuntime::Edge);
 
         let next_config = this.project.next_config().await?;

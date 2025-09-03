@@ -24,6 +24,7 @@ use next_core::{
         PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
     parse_segment_config_from_source,
+    segment_config::ParseSegmentMode,
     util::{NextRuntime, get_asset_prefix_from_pathname, pages_function_name},
 };
 use serde::{Deserialize, Serialize};
@@ -928,7 +929,8 @@ impl PageEndpoint {
             .process(self.source(), reference_type.clone())
             .module();
 
-        let config = parse_segment_config_from_source(self.source(), false).await?;
+        let config =
+            parse_segment_config_from_source(self.source(), ParseSegmentMode::Base).await?;
 
         let runtime = config.runtime.unwrap_or(NextRuntime::NodeJs);
 
