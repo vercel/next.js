@@ -39,7 +39,7 @@ use std::{
     collections::hash_map::Entry,
     fmt::{Debug, Display, Formatter},
     mem::take,
-    sync::Arc,
+    sync::{Arc, Mutex},
 };
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -1101,7 +1101,7 @@ impl EcmascriptModuleContent {
                 .try_join()
                 .await?;
 
-            let (merged_ast, comments, source_maps, original_source_maps) =
+            let (merged_ast, comments, source_maps, original_source_maps, lookup_table) =
                 merge_modules(contents, &entry_points, &globals_merged).await?;
 
             // Use the options from an arbitrary module, since they should all be the same with
@@ -1113,10 +1113,12 @@ impl EcmascriptModuleContent {
                 program: merged_ast,
                 source_map: CodeGenResultSourceMap::ScopeHoisting {
                     modules_header_width,
+                    lookup_table: lookup_table.clone(),
                     source_maps,
                 },
                 comments: CodeGenResultComments::ScopeHoisting {
                     modules_header_width,
+                    lookup_table,
                     comments,
                 },
                 is_esm: true,
@@ -1177,11 +1179,13 @@ async fn merge_modules(
     Vec<CodeGenResultComments>,
     Vec<CodeGenResultSourceMap>,
     SmallVec<[ResolvedVc<Box<dyn GenerateSourceMap>>; 1]>,
+    Arc<Mutex<Vec<ModulePosition>>>,
 )> {
     struct SetSyntaxContextVisitor<'a> {
         modules_header_width: u32,
         current_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         current_module_idx: u32,
+        lookup_table: &'a mut Vec<ModulePosition>,
         /// The export syntax contexts in the current AST, which will be mapped to merged_ctxts
         reverse_module_contexts:
             FxHashMap<SyntaxContext, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
@@ -1272,19 +1276,21 @@ async fn merge_modules(
         fn visit_mut_span(&mut self, span: &mut Span) {
             // Encode the module index into the span, to be able to retrieve the module later for
             // finding the correct Comments and SourceMap.
-            span.lo = CodeGenResultComments::encode_bytepos(
+            span.lo = CodeGenResultComments::encode_bytepos_with_vec(
                 self.modules_header_width,
                 self.current_module_idx,
                 span.lo,
+                self.lookup_table,
             )
             .unwrap_or_else(|err| {
                 self.error = Err(err);
                 span.lo
             });
-            span.hi = CodeGenResultComments::encode_bytepos(
+            span.hi = CodeGenResultComments::encode_bytepos_with_vec(
                 self.modules_header_width,
                 self.current_module_idx,
                 span.hi,
+                self.lookup_table,
             )
             .unwrap_or_else(|err| {
                 self.error = Err(err);
@@ -1314,6 +1320,7 @@ async fn merge_modules(
         })
         .collect::<Result<FxHashMap<_, _>>>()?;
 
+    let mut lookup_table = Vec::new();
     let result = GLOBALS.set(globals_merged, || {
         let _ = tracing::trace_span!("merge inner").entered();
         // As an optimization, assume an average number of 5 contexts per module.
@@ -1324,7 +1331,8 @@ async fn merge_modules(
             |module_count: usize,
              current_module_idx: usize,
              (module, content): &(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, CodeGenResult),
-             program: &mut Program| {
+             program: &mut Program,
+             lookup_table: &mut Vec<ModulePosition>| {
                 let _ = tracing::trace_span!("prepare module").entered();
                 if let CodeGenResult {
                     scope_hoisting_syntax_contexts: Some((module_contexts, _)),
@@ -1337,6 +1345,7 @@ async fn merge_modules(
                             modules_header_width,
                             current_module: *module,
                             current_module_idx: current_module_idx as u32,
+                            lookup_table,
                             reverse_module_contexts: module_contexts
                                 .iter()
                                 .map(|e| (*e.value(), *e.key()))
@@ -1374,8 +1383,14 @@ async fn merge_modules(
         let mut queue = entry_points
             .iter()
             .map(|&(_, i)| {
-                prepare_module(contents.len(), i, &contents[i], &mut programs[i])
-                    .map_err(|err| (i, err))
+                prepare_module(
+                    contents.len(),
+                    i,
+                    &contents[i],
+                    &mut programs[i],
+                    &mut lookup_table,
+                )
+                .map_err(|err| (i, err))
             })
             .flatten_ok()
             .rev()
@@ -1403,6 +1418,7 @@ async fn merge_modules(
                                         index,
                                         &contents[index],
                                         &mut programs[index],
+                                        &mut lookup_table,
                                     )
                                     .map_err(|err| (index, err))?
                                     .into_iter()
@@ -1506,7 +1522,13 @@ async fn merge_modules(
         })
         .collect();
 
-    Ok((merged_ast, comments, source_maps, original_source_maps))
+    Ok((
+        merged_ast,
+        comments,
+        source_maps,
+        original_source_maps,
+        Arc::new(Mutex::new(lookup_table)),
+    ))
 }
 
 /// Provides information about the other modules in the current scope hoisting group.
@@ -2170,6 +2192,7 @@ enum CodeGenResultSourceMap {
         /// The bitwidth of the modules header in the spans, see
         /// [CodeGenResultComments::encode_bytepos]
         modules_header_width: u32,
+        lookup_table: Arc<Mutex<Vec<ModulePosition>>>,
         source_maps: Vec<CodeGenResultSourceMap>,
     },
 }
@@ -2198,6 +2221,7 @@ impl Debug for CodeGenResultSourceMap {
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
                 source_maps,
+                ..
             } => write!(
                 f,
                 "CodeGenResultSourceMap::ScopeHoisting {{ modules_header_width: \
@@ -2217,10 +2241,11 @@ impl Files for CodeGenResultSourceMap {
             CodeGenResultSourceMap::Single { source_map } => source_map.try_lookup_source_file(pos),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 source_maps,
             } => {
                 let (module, pos) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos);
+                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table);
                 source_maps[module].try_lookup_source_file(pos)
             }
         }
@@ -2247,8 +2272,9 @@ impl Files for CodeGenResultSourceMap {
             CodeGenResultSourceMap::Single { .. } => pos,
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 ..
-            } => CodeGenResultComments::decode_bytepos(*modules_header_width, pos).1,
+            } => CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table).1,
         }
     }
 }
@@ -2262,10 +2288,11 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::Single { source_map } => source_map.lookup_char_pos(pos),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 source_maps,
             } => {
                 let (module, pos) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos);
+                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table);
                 source_maps[module].lookup_char_pos(pos)
             }
         }
@@ -2278,13 +2305,22 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::Single { source_map } => source_map.span_to_lines(sp),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 source_maps,
             } => {
-                let (module, lo) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, sp.lo);
+                let (module, lo) = CodeGenResultComments::decode_bytepos(
+                    *modules_header_width,
+                    sp.lo,
+                    lookup_table,
+                );
                 source_maps[module].span_to_lines(Span {
                     lo,
-                    hi: CodeGenResultComments::decode_bytepos(*modules_header_width, sp.hi).1,
+                    hi: CodeGenResultComments::decode_bytepos(
+                        *modules_header_width,
+                        sp.hi,
+                        lookup_table,
+                    )
+                    .1,
                 })
             }
         }
@@ -2297,13 +2333,22 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::Single { source_map } => source_map.span_to_string(sp),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 source_maps,
             } => {
-                let (module, lo) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, sp.lo);
+                let (module, lo) = CodeGenResultComments::decode_bytepos(
+                    *modules_header_width,
+                    sp.lo,
+                    lookup_table,
+                );
                 source_maps[module].span_to_string(Span {
                     lo,
-                    hi: CodeGenResultComments::decode_bytepos(*modules_header_width, sp.hi).1,
+                    hi: CodeGenResultComments::decode_bytepos(
+                        *modules_header_width,
+                        sp.hi,
+                        lookup_table,
+                    )
+                    .1,
                 })
             }
         }
@@ -2316,13 +2361,22 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::Single { source_map } => source_map.span_to_filename(sp),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 source_maps,
             } => {
-                let (module, lo) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, sp.lo);
+                let (module, lo) = CodeGenResultComments::decode_bytepos(
+                    *modules_header_width,
+                    sp.lo,
+                    lookup_table,
+                );
                 source_maps[module].span_to_filename(Span {
                     lo,
-                    hi: CodeGenResultComments::decode_bytepos(*modules_header_width, sp.hi).1,
+                    hi: CodeGenResultComments::decode_bytepos(
+                        *modules_header_width,
+                        sp.hi,
+                        lookup_table,
+                    )
+                    .1,
                 })
             }
         }
@@ -2335,25 +2389,40 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::Single { source_map } => source_map.merge_spans(sp_lhs, sp_rhs),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 source_maps,
             } => {
-                let (module_lhs, lo_lhs) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, sp_lhs.lo);
-                let (module_rhs, lo_rhs) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, sp_rhs.lo);
+                let (module_lhs, lo_lhs) = CodeGenResultComments::decode_bytepos(
+                    *modules_header_width,
+                    sp_lhs.lo,
+                    lookup_table,
+                );
+                let (module_rhs, lo_rhs) = CodeGenResultComments::decode_bytepos(
+                    *modules_header_width,
+                    sp_rhs.lo,
+                    lookup_table,
+                );
                 if module_lhs != module_rhs {
                     return None;
                 }
                 source_maps[module_lhs].merge_spans(
                     Span {
                         lo: lo_lhs,
-                        hi: CodeGenResultComments::decode_bytepos(*modules_header_width, sp_lhs.hi)
-                            .1,
+                        hi: CodeGenResultComments::decode_bytepos(
+                            *modules_header_width,
+                            sp_lhs.hi,
+                            lookup_table,
+                        )
+                        .1,
                     },
                     Span {
                         lo: lo_rhs,
-                        hi: CodeGenResultComments::decode_bytepos(*modules_header_width, sp_rhs.hi)
-                            .1,
+                        hi: CodeGenResultComments::decode_bytepos(
+                            *modules_header_width,
+                            sp_rhs.hi,
+                            lookup_table,
+                        )
+                        .1,
                     },
                 )
             }
@@ -2367,13 +2436,22 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::Single { source_map } => source_map.call_span_if_macro(sp),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 source_maps,
             } => {
-                let (module, lo) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, sp.lo);
+                let (module, lo) = CodeGenResultComments::decode_bytepos(
+                    *modules_header_width,
+                    sp.lo,
+                    lookup_table,
+                );
                 source_maps[module].call_span_if_macro(Span {
                     lo,
-                    hi: CodeGenResultComments::decode_bytepos(*modules_header_width, sp.hi).1,
+                    hi: CodeGenResultComments::decode_bytepos(
+                        *modules_header_width,
+                        sp.hi,
+                        lookup_table,
+                    )
+                    .1,
                 })
             }
         }
@@ -2389,13 +2467,22 @@ impl SourceMapper for CodeGenResultSourceMap {
             CodeGenResultSourceMap::Single { source_map } => source_map.span_to_snippet(sp),
             CodeGenResultSourceMap::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 source_maps,
             } => {
-                let (module, lo) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, sp.lo);
+                let (module, lo) = CodeGenResultComments::decode_bytepos(
+                    *modules_header_width,
+                    sp.lo,
+                    lookup_table,
+                );
                 source_maps[module].span_to_snippet(Span {
                     lo,
-                    hi: CodeGenResultComments::decode_bytepos(*modules_header_width, sp.hi).1,
+                    hi: CodeGenResultComments::decode_bytepos(
+                        *modules_header_width,
+                        sp.hi,
+                        lookup_table,
+                    )
+                    .1,
                 })
             }
         }
@@ -2424,6 +2511,9 @@ impl CodeGenResultOriginalSourceMap {
     }
 }
 
+/// Stores a module index in position 0 and the full byte position of the source map in position 1
+struct ModulePosition(u32, u32);
+
 enum CodeGenResultComments {
     Single {
         comments: Either<ImmutableComments, Arc<ImmutableComments>>,
@@ -2433,12 +2523,93 @@ enum CodeGenResultComments {
         /// The bitwidth of the modules header in the spans, see
         /// [CodeGenResultComments::encode_bytepos]
         modules_header_width: u32,
+        lookup_table: Arc<Mutex<Vec<ModulePosition>>>,
         comments: Vec<CodeGenResultComments>,
     },
     Empty,
 }
 
+unsafe impl Send for CodeGenResultComments {}
+unsafe impl Sync for CodeGenResultComments {}
+
 impl CodeGenResultComments {
+    const CONTINUATION_BIT: u32 = 1 << 31;
+    const SIGN_EXTENSION_BIT: u32 = 1 << 30;
+
+    #[inline]
+    fn encode_bytepos_impl(
+        modules_header_width: u32,
+        module: u32,
+        pos: BytePos,
+        push_into_lookup: &mut impl FnMut(u32, u32) -> Result<u32>,
+    ) -> Result<BytePos> {
+        if pos.is_dummy() {
+            // nothing to encode
+            return Ok(pos);
+        }
+
+        // Bit layout for encoded BytePos (32 bits):
+        // [31] Continuation bit. If set (1), the remaining 31 bits [0..30] encode an index into
+        //      the lookup vector where (module, original_bytepos) is stored.
+        //      In this case, decoding ignores other fields and fetches from the table.
+        // If not set (0):
+        // [30] Sign-extend bit. Indicates whether the stolen high bits of the original bytepos
+        //      were all 1s (1) or all 0s (0), so that decoding can restore the original high bits.
+        // [30 - modules_header_width + 1 .. 30) Module id: modules_header_width bits immediately
+        //      below the sign-extend bit.
+        // [0 .. (32 - (2 + modules_header_width)) ) Remaining low bits store the truncated bytepos.
+        //
+        // Notes:
+        // - We reserve 2 header bits always (continuation + sign-extend), so header_width =
+        //   modules_header_width + 2, and pos_width = 32 - header_width.
+        // - When the original value does not fit in the available pos_width with a uniform high bit
+        //   pattern, we spill (set continuation) and store (module, pos) in the lookup table and
+        //   encode the index with the continuation bit set.
+        //
+        // Example (diagrammatic only):
+        // modules_header_width = 4
+        // Key:
+        // (c = continuation, s = sign-extend, m = module, p = pos bits, i = lookup table index)
+        //
+        // The continuation bit is set, and the remaining 31 bits are reinterpreted as the index
+        // into the lookup table.
+        // Bytes: 1iii iiii iiii iiii iiii iiii iiii iiii
+        //
+        // The continuation bit is not set,
+        // Bytes: 0smm mmpp pppp pppp pppp pppp pppp pppp
+
+        let header_width = modules_header_width + 2;
+        let pos_width = 32 - header_width;
+
+        let pos = pos.0;
+
+        let old_high_bits = pos >> pos_width;
+        let high_bits_set = if (2u32.pow(header_width) - 1) == old_high_bits {
+            true
+        } else if old_high_bits == 0 {
+            false
+        } else {
+            // The integer is too large for our desired header width and we need to store the result
+            // in our vector and set the flag to reinterpret this data as the index of
+            // the vector where the element is being stored.
+            let ix = push_into_lookup(module, pos)?;
+            // Make sure that the index fits within the allotted bits
+            assert_eq!(ix & CodeGenResultComments::CONTINUATION_BIT, 0);
+
+            return Ok(BytePos(ix | CodeGenResultComments::CONTINUATION_BIT));
+        };
+
+        let pos = pos & !((2u32.pow(header_width) - 1) << pos_width);
+        let encoded_high_bits = if high_bits_set {
+            CodeGenResultComments::SIGN_EXTENSION_BIT
+        } else {
+            0
+        };
+        let encoded_module = module << pos_width;
+
+        Ok(BytePos(encoded_module | encoded_high_bits | pos))
+    }
+
     fn take(&mut self) -> Self {
         std::mem::replace(self, CodeGenResultComments::Empty)
     }
@@ -2457,70 +2628,81 @@ impl CodeGenResultComments {
             },
             CodeGenResultComments::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 comments,
             } => CodeGenResultCommentsConsumable::ScopeHoisting {
                 modules_header_width: *modules_header_width,
+                lookup_table: lookup_table.clone(),
                 comments: comments.iter().map(|c| c.consumable()).collect(),
             },
             CodeGenResultComments::Empty => CodeGenResultCommentsConsumable::Empty,
         }
     }
 
-    fn encode_bytepos(modules_header_width: u32, module: u32, pos: BytePos) -> Result<BytePos> {
-        if pos.is_dummy() {
-            // nothing to encode
-            return Ok(pos);
-        }
-
-        // 00010000000000100100011010100101
-        // ^^^^ module id
-        //     ^ whether the bits stolen for the module were once 1 (i.e. "sign extend" again later)
-        //      ^^^^^^^^^^^^^^^^^^^^^^^^^^^ the original bytepos
-        //
-        // # Example:
-        // pos=11111111111111110000000000000101 with module=0001
-        // would become
-        // pos=00011111111111110000000000000101
-        // # Example:
-        // pos=00000111111111110000000000000101 with module=0001
-        // would become
-        // pos=00010111111111110000000000000101
-
-        let header_width = modules_header_width + 1;
-        let pos_width = 32 - header_width;
-
-        let pos = pos.0;
-
-        let old_high_bits = pos >> pos_width;
-        let high_bits_set = if (2u32.pow(header_width) - 1) == old_high_bits {
-            true
-        } else if old_high_bits == 0 {
-            false
-        } else {
-            return Err(anyhow!(
-                "The high bits of the position {pos} are not all 0s or 1s. \
-                 modules_header_width={modules_header_width}, module={module}",
-            ));
+    fn encode_bytepos(
+        modules_header_width: u32,
+        module: u32,
+        pos: BytePos,
+        lookup_table: Arc<Mutex<Vec<ModulePosition>>>,
+    ) -> Result<BytePos> {
+        let mut push = |module: u32, pos_u32: u32| -> Result<u32> {
+            let mut lookup_table = lookup_table
+                .lock()
+                .map_err(|_| anyhow!("Failed to grab lock on the index map for byte positions"))?;
+            let ix = lookup_table.len() as u32;
+            if ix >= 1 << 30 {
+                return Err(anyhow!("Too many byte positions being stored"));
+            }
+            lookup_table.push(ModulePosition(module, pos_u32));
+            Ok(ix)
         };
-
-        let pos = pos & !((2u32.pow(header_width) - 1) << pos_width);
-        let encoded_high_bits = if high_bits_set { 1 } else { 0 } << pos_width;
-        let encoded_module = module << (pos_width + 1);
-
-        Ok(BytePos(encoded_module | encoded_high_bits | pos))
+        Self::encode_bytepos_impl(modules_header_width, module, pos, &mut push)
     }
 
-    fn decode_bytepos(modules_header_width: u32, pos: BytePos) -> (usize, BytePos) {
+    fn encode_bytepos_with_vec(
+        modules_header_width: u32,
+        module: u32,
+        pos: BytePos,
+        lookup_table: &mut Vec<ModulePosition>,
+    ) -> Result<BytePos> {
+        let mut push = |module: u32, pos_u32: u32| -> Result<u32> {
+            let ix = lookup_table.len() as u32;
+            if ix >= 1 << 30 {
+                return Err(anyhow!("Too many byte positions being stored"));
+            }
+            lookup_table.push(ModulePosition(module, pos_u32));
+            Ok(ix)
+        };
+        Self::encode_bytepos_impl(modules_header_width, module, pos, &mut push)
+    }
+
+    fn decode_bytepos(
+        modules_header_width: u32,
+        pos: BytePos,
+        lookup_table: &Mutex<Vec<ModulePosition>>,
+    ) -> (usize, BytePos) {
         if pos.is_dummy() {
             // nothing to decode
             panic!("Cannot decode dummy BytePos");
         }
 
-        let header_width = modules_header_width + 1;
+        let header_width = modules_header_width + 2;
         let pos_width = 32 - header_width;
 
-        let high_bits_set = ((pos.0 >> (pos_width)) & 1) == 1;
-        let module = pos.0 >> (pos_width + 1);
+        if (CodeGenResultComments::CONTINUATION_BIT & pos.0)
+            == CodeGenResultComments::CONTINUATION_BIT
+        {
+            let lookup_table = lookup_table
+                .lock()
+                .expect("Failed to grab lock on the index map for byte position");
+            let ix = pos.0 & !CodeGenResultComments::CONTINUATION_BIT;
+            let ModulePosition(module, pos) = lookup_table[ix as usize];
+
+            return (module as usize, BytePos(pos));
+        }
+
+        let high_bits_set = pos.0 >> 30 & 1 == 1;
+        let module = (pos.0 << 2) >> (pos_width + 2);
         let pos = pos.0 & !((2u32.pow(header_width) - 1) << pos_width);
         let pos = if high_bits_set {
             pos | ((2u32.pow(header_width) - 1) << pos_width)
@@ -2538,14 +2720,11 @@ enum CodeGenResultCommentsConsumable<'a> {
     },
     ScopeHoisting {
         modules_header_width: u32,
+        lookup_table: Arc<Mutex<Vec<ModulePosition>>>,
         comments: Vec<CodeGenResultCommentsConsumable<'a>>,
     },
     Empty,
 }
-
-unsafe impl Send for CodeGenResultComments {}
-unsafe impl Sync for CodeGenResultComments {}
-
 /// All BytePos in Spans in the AST are encoded correctly in [`merge_modules`], but the Comments
 /// also contain spans. These also need to be encoded so that all pos in `mappings` are consistently
 /// encoded.
@@ -2553,13 +2732,22 @@ fn encode_module_into_comment_span(
     modules_header_width: u32,
     module: usize,
     mut comment: Comment,
+    lookup_table: Arc<Mutex<Vec<ModulePosition>>>,
 ) -> Comment {
-    comment.span.lo =
-        CodeGenResultComments::encode_bytepos(modules_header_width, module as u32, comment.span.lo)
-            .unwrap();
-    comment.span.hi =
-        CodeGenResultComments::encode_bytepos(modules_header_width, module as u32, comment.span.hi)
-            .unwrap();
+    comment.span.lo = CodeGenResultComments::encode_bytepos(
+        modules_header_width,
+        module as u32,
+        comment.span.lo,
+        lookup_table.clone(),
+    )
+    .unwrap();
+    comment.span.hi = CodeGenResultComments::encode_bytepos(
+        modules_header_width,
+        module as u32,
+        comment.span.hi,
+        lookup_table,
+    )
+    .unwrap();
     comment
 }
 
@@ -2583,10 +2771,11 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
             } => comments.has_leading(pos) || extra_comments.has_leading(pos),
             Self::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 comments,
             } => {
                 let (module, pos) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos);
+                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table);
                 comments[module].has_leading(pos)
             }
             Self::Empty => false,
@@ -2608,14 +2797,22 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
             } => merge_option_vec(comments.take_leading(pos), extra_comments.take_leading(pos)),
             Self::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 comments,
             } => {
                 let (module, pos) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos);
+                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table);
                 comments[module].take_leading(pos).map(|comments| {
                     comments
                         .into_iter()
-                        .map(|c| encode_module_into_comment_span(*modules_header_width, module, c))
+                        .map(|c| {
+                            encode_module_into_comment_span(
+                                *modules_header_width,
+                                module,
+                                c,
+                                lookup_table.clone(),
+                            )
+                        })
                         .collect()
                 })
             }
@@ -2634,14 +2831,22 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
             } => merge_option_vec(comments.get_leading(pos), extra_comments.get_leading(pos)),
             Self::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 comments,
             } => {
                 let (module, pos) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos);
+                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table);
                 comments[module].get_leading(pos).map(|comments| {
                     comments
                         .into_iter()
-                        .map(|c| encode_module_into_comment_span(*modules_header_width, module, c))
+                        .map(|c| {
+                            encode_module_into_comment_span(
+                                *modules_header_width,
+                                module,
+                                c,
+                                lookup_table.clone(),
+                            )
+                        })
                         .collect()
                 })
             }
@@ -2668,10 +2873,11 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
             } => comments.has_trailing(pos) || extra_comments.has_trailing(pos),
             Self::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 comments,
             } => {
                 let (module, pos) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos);
+                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table);
                 comments[module].has_trailing(pos)
             }
             Self::Empty => false,
@@ -2696,14 +2902,22 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
             ),
             Self::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 comments,
             } => {
                 let (module, pos) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos);
+                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table);
                 comments[module].take_trailing(pos).map(|comments| {
                     comments
                         .into_iter()
-                        .map(|c| encode_module_into_comment_span(*modules_header_width, module, c))
+                        .map(|c| {
+                            encode_module_into_comment_span(
+                                *modules_header_width,
+                                module,
+                                c,
+                                lookup_table.clone(),
+                            )
+                        })
                         .collect()
                 })
             }
@@ -2722,14 +2936,22 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
             } => merge_option_vec(comments.get_leading(pos), extra_comments.get_leading(pos)),
             Self::ScopeHoisting {
                 modules_header_width,
+                lookup_table,
                 comments,
             } => {
                 let (module, pos) =
-                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos);
+                    CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table);
                 comments[module].get_leading(pos).map(|comments| {
                     comments
                         .into_iter()
-                        .map(|c| encode_module_into_comment_span(*modules_header_width, module, c))
+                        .map(|c| {
+                            encode_module_into_comment_span(
+                                *modules_header_width,
+                                module,
+                                c,
+                                lookup_table.clone(),
+                            )
+                        })
                         .collect()
                 })
             }
@@ -2756,6 +2978,7 @@ mod tests {
     use super::*;
     fn bytepos_ensure_identical(modules_header_width: u32, pos: BytePos) {
         let module_count = 2u32.pow(modules_header_width);
+        let lookup_table = Arc::new(Mutex::new(Vec::new()));
 
         for module in [
             0,
@@ -2768,10 +2991,15 @@ mod tests {
         .into_iter()
         .filter(|&m| m < module_count)
         {
-            let encoded =
-                CodeGenResultComments::encode_bytepos(modules_header_width, module, pos).unwrap();
+            let encoded = CodeGenResultComments::encode_bytepos(
+                modules_header_width,
+                module,
+                pos,
+                lookup_table.clone(),
+            )
+            .unwrap();
             let (decoded_module, decoded_pos) =
-                CodeGenResultComments::decode_bytepos(modules_header_width, encoded);
+                CodeGenResultComments::decode_bytepos(modules_header_width, encoded, &lookup_table);
             assert_eq!(
                 decoded_module as u32, module,
                 "Testing width {modules_header_width} and pos {pos:?}"
@@ -2785,38 +3013,82 @@ mod tests {
 
     #[test]
     fn test_encode_decode_bytepos_format() {
+        let table = Arc::new(Mutex::new(Vec::new()));
+
         for (pos, module, modules_header_width, result) in [
             (
                 0b00000000000000000000000000000101,
                 0b1,
                 1,
-                0b10000000000000000000000000000101,
+                0b00100000000000000000000000000101,
             ),
             (
                 0b00000000000000000000000000000101,
                 0b01,
                 2,
-                0b01000000000000000000000000000101,
+                0b00010000000000000000000000000101,
             ),
             (
                 0b11111111111111110000000000000101,
-                0b0001,
+                0b0110,
                 4,
-                0b00011111111111110000000000000101,
+                0b01011011111111110000000000000101,
             ),
+            (
+                BytePos::PLACEHOLDER.0,
+                0b01111,
+                5,
+                0b01011111111111111111111111111101,
+            ),
+            (
+                BytePos::PURE.0,
+                0b01111,
+                5,
+                0b01011111111111111111111111111110,
+            ),
+            (
+                BytePos::SYNTHESIZED.0,
+                0b01111,
+                5,
+                0b01011111111111111111111111111111,
+            ),
+            // This is an index that should trigger the overflow to store the position into the
+            // lookup table
             (
                 0b00000111111111110000000000000101,
                 0b0001,
                 4,
-                0b00010111111111110000000000000101,
+                0b10000000000000000000000000000000,
+            ),
+            // Another one should increase the index by 1
+            (
+                0b00000111111111110000000000111110,
+                0b0001,
+                4,
+                0b10000000000000000000000000000001,
             ),
             // Special case, DUMMY stays a DUMMY
             (BytePos::DUMMY.0, 0b0001, 4, BytePos::DUMMY.0),
         ] {
-            let encoded =
-                CodeGenResultComments::encode_bytepos(modules_header_width, module, BytePos(pos))
-                    .unwrap();
+            let encoded = CodeGenResultComments::encode_bytepos(
+                modules_header_width,
+                module,
+                BytePos(pos),
+                table.clone(),
+            )
+            .unwrap();
             assert_eq!(encoded.0, result);
+
+            // Ensure that the correct original module and bytepos are stored when overflow occurs
+            if encoded.0 & CodeGenResultComments::CONTINUATION_BIT
+                == CodeGenResultComments::CONTINUATION_BIT
+            {
+                let index = encoded.0 & !CodeGenResultComments::CONTINUATION_BIT;
+                let ModulePosition(encoded_module, encoded_pos) =
+                    table.lock().unwrap()[index as usize];
+                assert_eq!(encoded_module, module);
+                assert_eq!(encoded_pos, pos);
+            }
         }
     }
 
@@ -2825,14 +3097,15 @@ mod tests {
         // This is copied from swc (it's not exported), comments the range above this value.
         const DUMMY_RESERVE: u32 = u32::MAX - 2_u32.pow(16);
 
-        for modules_header_width in 1..=6 {
+        for modules_header_width in 1..=10 {
             for pos in [
                 // BytePos::DUMMY, // This must never get decoded in the first place
                 BytePos(1),
                 BytePos(2),
                 BytePos(100),
                 BytePos(4_000_000),
-                BytePos(60_000_000),
+                BytePos(600_000_000),
+                BytePos(u32::MAX - 3), // The maximum allowed value that isn't reserved by SWC
                 BytePos::PLACEHOLDER,
                 BytePos::SYNTHESIZED,
                 BytePos::PURE,
@@ -2840,10 +3113,6 @@ mod tests {
                 BytePos(DUMMY_RESERVE + 10),
                 BytePos(DUMMY_RESERVE + 10000),
             ] {
-                if modules_header_width == 6 && pos.0 == 60_000_000 {
-                    // this is unfortunately too large indeed, will trigger the panic.
-                    continue;
-                }
                 bytepos_ensure_identical(modules_header_width, pos);
             }
         }
