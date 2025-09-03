@@ -149,7 +149,6 @@ const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection>
 
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   rules: z.record(z.string(), zTurbopackRuleConfigCollection).optional(),
-  conditions: z.record(z.string(), zTurbopackCondition).optional(),
   resolveAlias: z
     .record(
       z.string(),
