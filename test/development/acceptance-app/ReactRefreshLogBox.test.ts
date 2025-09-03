@@ -524,7 +524,7 @@ describe('ReactRefreshLogBox app', () => {
          "stack": [],
        }
       `)
-    } else {
+    } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
          "description": "  × Module build failed:",
@@ -543,6 +543,19 @@ describe('ReactRefreshLogBox app', () => {
        ./index.module.css
        ./index.js
        ./app/page.js",
+         "stack": [],
+       }
+      `)
+    } else {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "Syntax error: Selector "button" is not pure (pure selectors must contain at least one local class or id)",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.module.css (1:1)
+       Syntax error: Selector "button" is not pure (pure selectors must contain at least one local class or id)
+       > 1 | button {}
+           | ^",
          "stack": [],
        }
       `)
