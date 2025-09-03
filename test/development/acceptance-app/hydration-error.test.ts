@@ -11,6 +11,7 @@ describe('Error overlay for hydration errors in App router', () => {
     skipStart: true,
   })
 
+  // page-mismatch
   it('includes a React docs link when hydration error does occur', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -48,6 +49,7 @@ describe('Error overlay for hydration errors in App router', () => {
     )
   })
 
+  // page-mismatch
   it('should show correct hydration error when client and server render different text', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -128,6 +130,7 @@ describe('Error overlay for hydration errors in App router', () => {
     expect(await browser.elementByCss('.child').text()).toBe('Value')
   })
 
+  // extra-element-client
   it('should show correct hydration error when client renders an extra element', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -185,6 +188,7 @@ describe('Error overlay for hydration errors in App router', () => {
     `)
   })
 
+  // extra-attributes
   it('should show correct hydration error when extra attributes set on server', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -283,6 +287,7 @@ describe('Error overlay for hydration errors in App router', () => {
     }
   })
 
+  // extra-text-node-client
   it('should show correct hydration error when client renders an extra text node', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -345,6 +350,7 @@ describe('Error overlay for hydration errors in App router', () => {
     `)
   })
 
+  // extra-element-server
   it('should show correct hydration error when server renders an extra element', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -403,6 +409,7 @@ describe('Error overlay for hydration errors in App router', () => {
     `)
   })
 
+  // extra-text-node-server
   it('should show correct hydration error when server renders an extra text node', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -457,6 +464,7 @@ describe('Error overlay for hydration errors in App router', () => {
     `)
   })
 
+  // extra-text-node-invalid-place
   it('should show correct hydration error when server renders an extra text node in an invalid place', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -555,6 +563,7 @@ describe('Error overlay for hydration errors in App router', () => {
     `)
   })
 
+  // extra-whitespace-invalid-place
   it('should show correct hydration error when server renders an extra whitespace in an invalid place', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -615,6 +624,7 @@ describe('Error overlay for hydration errors in App router', () => {
     `)
   })
 
+  // extra-node-suspense
   it('should show correct hydration error when client renders an extra node inside Suspense content', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -678,6 +688,7 @@ describe('Error overlay for hydration errors in App router', () => {
     `)
   })
 
+  // use-id
   it('should not show a hydration error when using `useId` in a client component', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -708,6 +719,7 @@ describe('Error overlay for hydration errors in App router', () => {
     expect(errors).toEqual([])
   })
 
+  // p-under-p
   it('should only show one hydration error when bad nesting happened - p under p', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -786,6 +798,7 @@ describe('Error overlay for hydration errors in App router', () => {
     `)
   })
 
+  // div-under-p
   it('should only show one hydration error when bad nesting happened - div under p', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -868,6 +881,7 @@ describe('Error overlay for hydration errors in App router', () => {
     `)
   })
 
+  // tr-under-div
   it('should only show one hydration error when bad nesting happened - div > tr', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -941,6 +955,7 @@ describe('Error overlay for hydration errors in App router', () => {
     `)
   })
 
+  // bad-nesting
   it('should show the highlighted bad nesting html snippet when bad nesting happened', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -1034,6 +1049,7 @@ describe('Error overlay for hydration errors in App router', () => {
     `)
   })
 
+  // script-under-html
   it('should show error if script is directly placed under html instead of body', async () => {
     await using sandbox = await createSandbox(
       next,
@@ -1103,13 +1119,12 @@ describe('Error overlay for hydration errors in App router', () => {
                          <__next_root_layout_boundary__>
                            <SegmentViewNode type="layout" pagePath="layout.js">
                              <SegmentTrieNode>
-                             <Layout>
-                               <script>
-                               <script>
-       >                       <html>
-                                 <body>
-                                 <Script src="https://ex..." strategy="beforeInte...">
-       >                           <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
+                             <script>
+                             <script>
+       >                     <html>
+                               <body>
+                               <Script src="https://ex..." strategy="beforeInte...">
+       >                         <script nonce={undefined} dangerouslySetInnerHTML={{__html:"(self.__ne..."}}>
                          ...",
            "description": "In HTML, <script> cannot be a child of <html>.
        This will cause a hydration error.",
