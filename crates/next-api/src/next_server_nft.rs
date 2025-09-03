@@ -38,7 +38,7 @@ enum ServerNftType {
 
 #[turbo_tasks::function]
 pub async fn next_server_nft_assets(project: Vc<Project>) -> Result<Vc<OutputAssets>> {
-    let has_next_support = *project.next_config().ci_has_next_support().await?;
+    let has_next_support = *project.ci_has_next_support().await?;
 
     let minimal = ResolvedVc::upcast(
         ServerNftJsonAsset::new(project, ServerNftType::Minimal)
@@ -256,7 +256,7 @@ impl ServerNftJsonAsset {
     #[turbo_tasks::function]
     async fn ignores(&self) -> Result<Vc<Glob>> {
         let is_standalone = *self.project.next_config().is_standalone().await?;
-        let has_next_support = *self.project.next_config().ci_has_next_support().await?;
+        let has_next_support = *self.project.ci_has_next_support().await?;
         let project_path = self.project.project_path().owned().await?;
 
         let output_file_tracing_excludes = self

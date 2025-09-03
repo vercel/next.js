@@ -765,6 +765,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub async fn ci_has_next_support(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.env.read(rcstr!("NOW_BUILDER")).await?.is_some(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn current_node_js_version(&self) -> Vc<NodeJsVersion> {
         NodeJsVersion::Static(ResolvedVc::cell(self.current_node_js_version.clone())).cell()
     }
