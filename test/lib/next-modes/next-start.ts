@@ -211,6 +211,13 @@ export class NextStartInstance extends NextInstance {
         buildArgs.push(...options.args)
       }
 
+      if (process.env.NEXT_SKIP_ISOLATE) {
+        // without isolation yarn can't be used and pnpm must be used instead
+        if (buildArgs[0] === 'yarn') {
+          buildArgs[0] = 'pnpm'
+        }
+      }
+
       if (this.childProcess) {
         throw new Error(
           `can not run export while server is running, use next.stop() first`
