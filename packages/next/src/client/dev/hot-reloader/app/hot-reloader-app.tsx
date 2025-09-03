@@ -453,13 +453,11 @@ export function processMessage(
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
-      const { requestId, base64EncodedChunk } = message
+      const { requestId, chunk } = message
       const { writer } = getOrCreateDebugChannelReadableWriterPair(requestId)
 
-      if (base64EncodedChunk) {
-        writer.ready
-          .then(() => writer.write(Buffer.from(base64EncodedChunk, 'base64')))
-          .catch(console.error)
+      if (chunk) {
+        writer.ready.then(() => writer.write(chunk)).catch(console.error)
       } else {
         // A null chunk signals that no more chunks will be sent, which allows
         // us to close the writer.

@@ -1,7 +1,11 @@
 import { useContext, useEffect } from 'react'
 import { GlobalLayoutRouterContext } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { getSocketUrl } from '../get-socket-url'
-import type { TurbopackMessageSentToBrowser } from '../../../../server/dev/hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type HmrMessageSentToBrowser,
+  type TurbopackMessageSentToBrowser,
+} from '../../../../server/dev/hot-reloader-types'
 import { reportInvalidHmrMessage } from '../shared'
 import {
   performFullReload,
@@ -28,6 +32,8 @@ export function createWebSocket(
     `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${self.__next_r}`
   )
 
+  webSocket.binaryType = 'arraybuffer'
+
   if (isTerminalLoggingEnabled) {
     webSocket.addEventListener('open', () => {
       logQueue.onSocketReady(webSocket)
@@ -44,7 +50,11 @@ export function createWebSocket(
 
   webSocket.addEventListener('message', (event) => {
     try {
-      const message = JSON.parse(event.data)
+      const message: HmrMessageSentToBrowser =
+        event.data instanceof ArrayBuffer
+          ? parseBinaryMessage(event.data)
+          : JSON.parse(event.data)
+
       processMessage(
         message,
         sendMessage,
@@ -127,4 +137,35 @@ export function useWebSocketPing(webSocket: WebSocket | undefined) {
     }, 2500)
     return () => clearInterval(interval)
   }, [tree, webSocket])
+}
+
+const textDecoder = new TextDecoder()
+
+function parseBinaryMessage(data: ArrayBuffer): HmrMessageSentToBrowser {
+  const view = new DataView(data)
+  const messageType = view.getUint8(0)
+
+  switch (messageType) {
+    case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
+      const requestIdLength = view.getUint8(1)
+
+      const requestId = textDecoder.decode(
+        new Uint8Array(data, 2, requestIdLength)
+      )
+
+      const chunk =
+        data.byteLength > 2 + requestIdLength
+          ? new Uint8Array(data, 2 + requestIdLength)
+          : null
+
+      return {
+        type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+        requestId,
+        chunk,
+      }
+    }
+    default: {
+      throw new Error(`Invalid binary HMR message of type ${messageType}`)
+    }
+  }
 }

@@ -73,7 +73,10 @@ import {
   getEntryKey,
   splitEntryKey,
 } from '../../shared/lib/turbopack/entry-key'
-import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
+import {
+  createBinaryHmrMessageData,
+  FAST_REFRESH_RUNTIME_RELOAD,
+} from './messages'
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-server'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
@@ -433,7 +436,7 @@ export async function createHotReloaderTurbopack(
           requestId,
           // A null chunk signals to the client that no more chunks will be
           // sent for this request.
-          base64EncodedChunk: null,
+          chunk: null,
         })
 
         reactDebugChannelsByRequestId.delete(requestId)
@@ -444,11 +447,9 @@ export async function createHotReloaderTurbopack(
           stop()
         } else {
           sendToClient(client, {
-            // TODO: Send as binary frame, with the action type and request ID
-            // as header bytes.
             type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
             requestId,
-            base64EncodedChunk: Buffer.from(entry.value).toString('base64'),
+            chunk: entry.value,
           })
 
           reader.read().then(progress, stop)
@@ -460,7 +461,12 @@ export async function createHotReloaderTurbopack(
   }
 
   function sendToClient(client: ws, message: HmrMessageSentToBrowser) {
-    client.send(JSON.stringify(message))
+    const data =
+      typeof message.type === 'number'
+        ? createBinaryHmrMessageData(message)
+        : JSON.stringify(message)
+
+    client.send(data)
   }
 
   function sendEnqueuedMessages() {

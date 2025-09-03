@@ -351,7 +351,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           requestId,
           // A null chunk signals to the client that no more chunks will be
           // sent for this request.
-          base64EncodedChunk: null,
+          chunk: null,
         })
 
         this.reactDebugChannelsByRequestId.delete(requestId)
@@ -362,11 +362,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           stop()
         } else {
           this.webpackHotMiddleware?.publishToClient(client, {
-            // TODO: Send as binary frame, with the action type and request ID
-            // as header bytes.
             type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
             requestId,
-            base64EncodedChunk: Buffer.from(entry.value).toString('base64'),
+            chunk: entry.value,
           })
 
           reader.read().then(progress, stop)
