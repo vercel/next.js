@@ -62,8 +62,6 @@ export class NextStartInstance extends NextInstance {
       },
     }
 
-    const buildArgs = this.getBuildArgs()
-
     let startArgs = ['pnpm', 'next', 'start']
 
     if (this.startCommand) {
@@ -82,6 +80,7 @@ export class NextStartInstance extends NextInstance {
     }
 
     if (!options.skipBuild) {
+      const buildArgs = this.getBuildArgs()
       console.log('running', buildArgs.join(' '))
       await new Promise<void>((resolve, reject) => {
         try {
