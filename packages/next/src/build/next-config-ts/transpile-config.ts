@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
 import { warn } from '../output/log'
 import { installDependencies } from '../../lib/install-dependencies'
+import { parseJsonFile } from '../load-jsconfig'
 
 function resolveSWCOptions(
   cwd: string,
@@ -73,34 +74,57 @@ async function verifyTypeScriptSetup(cwd: string, configFileName: string) {
   }
 }
 
-async function getTsConfig(cwd: string): Promise<CompilerOptions> {
-  const ts: typeof import('typescript') = require(
-    require.resolve('typescript', { paths: [cwd] })
-  )
+async function getCompilerOptions(
+  cwd: string,
+  configFileName: string
+): Promise<CompilerOptions> {
+  try {
+    // Ensure TypeScript is installed to use the TypeScript API.
+    await verifyTypeScriptSetup(cwd, configFileName)
 
-  // NOTE: This doesn't fully cover the edge case for setting
-  // "typescript.tsconfigPath" in next config which is currently
-  // a restriction.
-  const tsConfigPath = ts.findConfigFile(
-    cwd,
-    ts.sys.fileExists,
-    'tsconfig.json'
-  )
+    const ts: typeof import('typescript') = require(
+      require.resolve('typescript', { paths: [cwd] })
+    )
 
-  if (!tsConfigPath) {
-    // It is ok to not return ts.getDefaultCompilerOptions() because
-    // we are only looking for paths and baseUrl from tsConfig.
-    return {}
+    // NOTE: This doesn't fully cover the edge case for setting
+    // "typescript.tsconfigPath" in next config which is currently
+    // a restriction.
+    const tsConfigPath = ts.findConfigFile(
+      cwd,
+      ts.sys.fileExists,
+      'tsconfig.json'
+    )
+
+    if (!tsConfigPath) {
+      // It is ok to not return ts.getDefaultCompilerOptions() because
+      // we are only looking for paths and baseUrl from tsConfig.
+      return {}
+    }
+
+    const configFile = ts.readConfigFile(tsConfigPath, ts.sys.readFile)
+    const parsedCommandLine = ts.parseJsonConfigFileContent(
+      configFile.config,
+      ts.sys,
+      cwd
+    )
+
+    return parsedCommandLine.options
+  } catch (cause1) {
+    try {
+      warn(
+        `Failed to parse "${configFileName}" with TypeScript API. Falling back to JSON parsing.`,
+        { cause: cause1 }
+      )
+      // Fallback to JSON parsing. This won't resolve options like "extends".
+      return parseJsonFile(resolve(cwd, 'tsconfig.json'))
+    } catch (cause2) {
+      warn(
+        `Failed to parse "${configFileName}" with JSON parsing. Using empty compiler options.`,
+        { cause: cause2 }
+      )
+      return {}
+    }
   }
-
-  const configFile = ts.readConfigFile(tsConfigPath, ts.sys.readFile)
-  const parsedCommandLine = ts.parseJsonConfigFileContent(
-    configFile.config,
-    ts.sys,
-    cwd
-  )
-
-  return parsedCommandLine.options
 }
 
 export async function transpileConfig({
@@ -113,9 +137,7 @@ export async function transpileConfig({
   cwd: string
 }) {
   try {
-    // Ensure TypeScript is installed to use the API.
-    await verifyTypeScriptSetup(cwd, configFileName)
-    const compilerOptions = await getTsConfig(cwd)
+    const compilerOptions = await getCompilerOptions(cwd, configFileName)
 
     return handleCJS({ cwd, nextConfigPath, compilerOptions })
   } catch (cause) {
