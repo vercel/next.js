@@ -420,9 +420,12 @@ impl EvalContext {
 
             Expr::Unary(UnaryExpr {
                 op: op!("void"),
-                arg: box Expr::Lit(Lit::Num(num)),
+                // Only treat literals as constant undefined, allowing arbitrary values inside here
+                // would mean that they can have sideeffects, and `JsValue::Constant` can't model
+                // that.
+                arg: box Expr::Lit(_),
                 ..
-            }) if num.value == 0.0 => JsValue::Constant(ConstantValue::Undefined),
+            }) => JsValue::Constant(ConstantValue::Undefined),
 
             Expr::Unary(UnaryExpr {
                 op: op!("!"), arg, ..
