@@ -142,12 +142,15 @@ export function useWebSocketPing(webSocket: WebSocket | undefined) {
 const textDecoder = new TextDecoder()
 
 function parseBinaryMessage(data: ArrayBuffer): HmrMessageSentToBrowser {
+  assertByteLength(data, 1)
   const view = new DataView(data)
   const messageType = view.getUint8(0)
 
   switch (messageType) {
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
+      assertByteLength(data, 2)
       const requestIdLength = view.getUint8(1)
+      assertByteLength(data, 2 + requestIdLength)
 
       const requestId = textDecoder.decode(
         new Uint8Array(data, 2, requestIdLength)
@@ -165,7 +168,17 @@ function parseBinaryMessage(data: ArrayBuffer): HmrMessageSentToBrowser {
       }
     }
     default: {
-      throw new Error(`Invalid binary HMR message of type ${messageType}`)
+      throw new InvariantError(
+        `Invalid binary HMR message of type ${messageType}`
+      )
     }
+  }
+}
+
+function assertByteLength(data: ArrayBuffer, expectedLength: number) {
+  if (data.byteLength < expectedLength) {
+    throw new InvariantError(
+      `Invalid binary HMR message: insufficient data (expected ${expectedLength} bytes, got ${data.byteLength})`
+    )
   }
 }
