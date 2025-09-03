@@ -58,8 +58,6 @@ pub async fn get_typescript_transform_options(
 
     let use_define_for_class_fields = if let Some(tsconfig) = tsconfig {
         read_from_tsconfigs(&tsconfig, |json, _| {
-            println!("json: {:?}", json);
-
             json["compilerOptions"]["useDefineForClassFields"].as_bool()
         })
         .await?

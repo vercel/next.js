@@ -33,7 +33,7 @@ import type { FallbackRouteParam } from '../build/static-paths/types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
-  typescript: Required<TypeScriptConfig>
+  typescript: TypeScriptConfig
   configOrigin?: string
   configFile?: string
   configFileName: string
@@ -1456,7 +1456,7 @@ export const defaultConfig = Object.freeze({
   },
   typescript: {
     ignoreBuildErrors: false,
-    tsconfigPath: 'tsconfig.json',
+    tsconfigPath: undefined,
   },
   typedRoutes: false,
   distDir: '.next',
