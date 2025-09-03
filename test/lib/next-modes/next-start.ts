@@ -200,7 +200,7 @@ export class NextStartInstance extends NextInstance {
         ...process.env,
         ...this.env,
         ...options.env,
-        NODE_ENV: '' as any,
+        NODE_ENV: this.env.NODE_ENV || ('' as any),
         PORT: this.forcedPort ?? '0',
         __NEXT_TEST_MODE: 'e2e',
       },
