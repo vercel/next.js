@@ -573,6 +573,13 @@ export class Playwright<TCurrent = undefined> {
     })
   }
 
+  getByRole(
+    role: Parameters<(typeof page)['getByRole']>[0],
+    options?: Parameters<(typeof page)['getByRole']>[1]
+  ) {
+    return page.getByRole(role, options)
+  }
+
   locateRedbox(): Locator {
     return page.locator(
       'nextjs-portal [aria-labelledby="nextjs__container_errors_label"]'
