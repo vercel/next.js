@@ -553,7 +553,7 @@ async fn parse_config_value(
             };
 
             for part in parts {
-                let ObjectPart::KeyValue(key, val) = part else {
+                let ObjectPart::KeyValue(key, value) = part else {
                     return invalid_config(
                         source,
                         "config",
@@ -571,24 +571,24 @@ async fn parse_config_value(
                         "config",
                         span,
                         rcstr!("It must only contain string keys."),
-                        Some(&value),
+                        Some(value),
                         IssueSeverity::Error,
                     )
                     .await;
                 };
 
-                if matches!(val, JsValue::Constant(ConstantValue::Undefined)) {
+                if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
                     continue;
                 }
                 match key {
                     "runtime" => {
-                        let Some(val) = val.as_str() else {
+                        let Some(val) = value.as_str() else {
                             return invalid_config(
                                 source,
                                 "config",
                                 span,
                                 rcstr!("`runtime` needs to be a static string."),
-                                Some(&value),
+                                Some(value),
                                 IssueSeverity::Error,
                             )
                             .await;
@@ -603,7 +603,7 @@ async fn parse_config_value(
                                         "config",
                                         span,
                                         format!("`runtime` has an invalid value: {err}.").into(),
-                                        Some(&value),
+                                        Some(value),
                                         IssueSeverity::Error,
                                     )
                                     .await;
@@ -612,11 +612,11 @@ async fn parse_config_value(
                     }
                     "matcher" => {
                         config.middleware_matcher =
-                            parse_route_matcher_from_js_value(source, span, val).await?;
+                            parse_route_matcher_from_js_value(source, span, value).await?;
                     }
                     "regions" => {
                         config.preferred_region = parse_static_string_or_array_from_js_value(
-                            source, span, "config", "regions", &value,
+                            source, span, "config", "regions", value,
                         )
                         .await?;
                     }
