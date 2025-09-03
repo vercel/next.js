@@ -2396,11 +2396,6 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
     .cell())
 }
 
-pub fn register() {
-    turbo_tasks::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}
-
 #[cfg(test)]
 mod tests {
     use turbo_rcstr::rcstr;
@@ -2425,8 +2420,6 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn with_extension() {
-        crate::register();
-
         turbo_tasks_testing::VcStorage::with(async {
             let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
                 .to_resolved()
@@ -2462,8 +2455,6 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn file_stem() {
-        crate::register();
-
         turbo_tasks_testing::VcStorage::with(async {
             let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
                 .to_resolved()

@@ -187,7 +187,7 @@ export function runErrorRecoveryHmrTest(nextConfig: {
                │  7 | }
                │    : ^
                │    \`----
-               │   x Unexpected eof
+               │   x Expected '</', got '<eof>'
                │    ,-[7:3]
                │  5 |     div
                │  6 |   )

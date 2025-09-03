@@ -26,9 +26,12 @@ describe.skip('Invalid CSS Module Usage in node_modules', () => {
         expect(stderr).toMatch(
           /CSS Modules.*cannot.*be imported from within.*node_modules/
         )
-        expect(stderr).toMatch(
-          /Location:.*node_modules[\\/]example[\\/]index\.mjs/
-        )
+        // Skip: Rspack loaders cannot access module issuer info for location details
+        if (!process.env.NEXT_RSPACK) {
+          expect(stderr).toMatch(
+            /Location:.*node_modules[\\/]example[\\/]index\.mjs/
+          )
+        }
       })
     }
   )

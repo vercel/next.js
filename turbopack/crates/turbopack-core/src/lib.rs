@@ -58,9 +58,3 @@ pub const SOURCE_URL_PROTOCOL: &str = "turbopack:";
 pub mod __private {
     pub use turbo_tasks::FxIndexMap;
 }
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

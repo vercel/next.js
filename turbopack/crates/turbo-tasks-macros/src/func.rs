@@ -1086,6 +1086,7 @@ pub struct FilterTraitCallArgsTokens {
 
 #[derive(Debug)]
 pub struct NativeFn {
+    pub function_global_name: TokenStream,
     pub function_path_string: String,
     pub function_path: ExprPath,
     pub is_method: bool,
@@ -1102,6 +1103,7 @@ impl NativeFn {
 
     pub fn definition(&self) -> TokenStream {
         let Self {
+            function_global_name,
             function_path_string,
             function_path,
             is_method,
@@ -1132,6 +1134,7 @@ impl NativeFn {
                         #[allow(deprecated)]
                         turbo_tasks::macro_helpers::NativeFunction::new_method(
                             #function_path_string,
+                            #function_global_name,
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
                             },
@@ -1146,6 +1149,7 @@ impl NativeFn {
                         #[allow(deprecated)]
                         turbo_tasks::macro_helpers::NativeFunction::new_method_without_this(
                             #function_path_string,
+                            #function_global_name,
                             turbo_tasks::macro_helpers::FunctionMeta {
                                 local: #local,
                             },
@@ -1161,6 +1165,7 @@ impl NativeFn {
                     #[allow(deprecated)]
                     turbo_tasks::macro_helpers::NativeFunction::new_function(
                         #function_path_string,
+                        #function_global_name,
                         turbo_tasks::macro_helpers::FunctionMeta {
                             local: #local,
                         },

@@ -3,7 +3,7 @@ use quote::quote;
 use syn::parse_macro_input;
 use turbo_tasks_macros_shared::{PrimitiveInput, get_type_ident};
 
-use crate::value_macro::value_type_and_register;
+use crate::{global_name::global_name, value_macro::value_type_and_register};
 
 pub fn primitive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as PrimitiveInput);
@@ -32,7 +32,7 @@ pub fn primitive(input: TokenStream) -> TokenStream {
             }
         }
     };
-
+    let name = global_name(quote! {stringify!(#ty) });
     let value_type_and_register = value_type_and_register(
         &ident,
         quote! { #ty },
@@ -44,7 +44,7 @@ pub fn primitive(input: TokenStream) -> TokenStream {
             turbo_tasks::VcCellSharedMode<#ty>
         },
         quote! {
-            turbo_tasks::ValueType::new_with_any_serialization::<#ty>()
+            turbo_tasks::ValueType::new_with_any_serialization::<#ty>(#name)
         },
     );
 

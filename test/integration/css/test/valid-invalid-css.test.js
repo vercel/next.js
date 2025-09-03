@@ -36,7 +36,10 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
           expect(stderr).toMatch(
             /CSS.*cannot.*be imported within.*pages[\\/]_document\.js/
           )
-          expect(stderr).toMatch(/Location:.*pages[\\/]_document\.js/)
+          // Skip: Rspack loaders cannot access module issuer info for location details
+          if (!process.env.NEXT_RSPACK) {
+            expect(stderr).toMatch(/Location:.*pages[\\/]_document\.js/)
+          }
         })
       }
     )
@@ -65,7 +68,10 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
           expect(stderr).toMatch(
             /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
           )
-          expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
+          // Skip: Rspack loaders cannot access module issuer info for location details
+          if (!process.env.NEXT_RSPACK) {
+            expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
+          }
         })
       }
     )
@@ -142,7 +148,10 @@ describe('Valid Global CSS from npm', () => {
           expect(stderr).toMatch(
             /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
           )
-          expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
+          // Skip: Rspack loaders cannot access module issuer info for location details
+          if (!process.env.NEXT_RSPACK) {
+            expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
+          }
         })
       }
     )
@@ -173,7 +182,10 @@ describe('Valid Global CSS from npm', () => {
           expect(stderr).toContain(
             'Please move all first-party global CSS imports'
           )
-          expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
+          // Skip: Rspack loaders cannot access module issuer info for location details
+          if (!process.env.NEXT_RSPACK) {
+            expect(stderr).toMatch(/Location:.*pages[\\/]index\.js/)
+          }
         })
       }
     )

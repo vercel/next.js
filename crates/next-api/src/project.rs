@@ -997,6 +997,7 @@ impl Project {
             format!("/ROOT/{}", self.project_path().await?.path).into(),
             this.define_env.nodejs(),
             self.current_node_js_version(),
+            this.browserslist_query.clone(),
         ))
     }
 
@@ -1007,6 +1008,7 @@ impl Project {
             self.project_path().owned().await?,
             this.define_env.edge(),
             self.current_node_js_version(),
+            this.browserslist_query.clone(),
         ))
     }
 

@@ -7,7 +7,7 @@ use std::{
 
 use concurrent_queue::ConcurrentQueue;
 
-/// A helper for constructing id types like [`FunctionId`][crate::FunctionId].
+/// A helper for constructing id types like [`ValueTypeId`][crate::ValueTypeId].
 ///
 /// For ids that may be re-used, see [`IdFactoryWithReuse`].
 pub struct IdFactory<T> {
