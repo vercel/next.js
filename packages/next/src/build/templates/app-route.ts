@@ -466,7 +466,6 @@ export async function handler(
       )
     }
   } catch (err) {
-    // if we aren't wrapped by base-server handle here
     if (!(err instanceof NoFallbackError)) {
       await routeModule.onRequestError(req, err, {
         routerKind: 'App Router',
