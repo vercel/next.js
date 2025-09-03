@@ -183,6 +183,12 @@ export class NextStartInstance extends NextInstance {
   public async build(
     options: { env?: Record<string, string>; args?: string[] } = {}
   ) {
+    if (this.childProcess) {
+      throw new Error(
+        `can not run export while server is running, use next.stop() first`
+      )
+    }
+
     const spawnOpts: import('child_process').SpawnOptions = {
       cwd: this.testDir,
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -216,12 +222,6 @@ export class NextStartInstance extends NextInstance {
         if (buildArgs[0] === 'yarn') {
           buildArgs[0] = 'pnpm'
         }
-      }
-
-      if (this.childProcess) {
-        throw new Error(
-          `can not run export while server is running, use next.stop() first`
-        )
       }
 
       console.log('running', buildArgs.join(' '))
