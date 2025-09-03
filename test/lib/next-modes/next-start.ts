@@ -62,22 +62,7 @@ export class NextStartInstance extends NextInstance {
       },
     }
 
-    let buildArgs = ['pnpm', 'next', 'build']
-
-    if (this.buildCommand) {
-      buildArgs = this.buildCommand.split(' ')
-    }
-
-    if (this.buildArgs) {
-      buildArgs.push(...this.buildArgs)
-    }
-
-    if (process.env.NEXT_SKIP_ISOLATE) {
-      // without isolation yarn can't be used and pnpm must be used instead
-      if (buildArgs[0] === 'yarn') {
-        buildArgs[0] = 'pnpm'
-      }
-    }
+    const buildArgs = this.getBuildArgs()
 
     let startArgs = ['pnpm', 'next', 'start']
 
@@ -180,6 +165,31 @@ export class NextStartInstance extends NextInstance {
     })
   }
 
+  private getBuildArgs(args?: string[]) {
+    let buildArgs = ['pnpm', 'next', 'build']
+
+    if (this.buildCommand) {
+      buildArgs = this.buildCommand.split(' ')
+    }
+
+    if (this.buildArgs) {
+      buildArgs.push(...this.buildArgs)
+    }
+
+    if (args) {
+      buildArgs.push(...args)
+    }
+
+    if (process.env.NEXT_SKIP_ISOLATE) {
+      // without isolation yarn can't be used and pnpm must be used instead
+      if (buildArgs[0] === 'yarn') {
+        buildArgs[0] = 'pnpm'
+      }
+    }
+
+    return buildArgs
+  }
+
   public async build(
     options: { env?: Record<string, string>; args?: string[] } = {}
   ) {
@@ -207,22 +217,7 @@ export class NextStartInstance extends NextInstance {
       cliOutput: string
     }>((resolve) => {
       const curOutput = this._cliOutput.length
-      const buildArgs = ['pnpm', 'next', 'build']
-
-      if (this.buildArgs) {
-        buildArgs.push(...this.buildArgs)
-      }
-
-      if (options.args) {
-        buildArgs.push(...options.args)
-      }
-
-      if (process.env.NEXT_SKIP_ISOLATE) {
-        // without isolation yarn can't be used and pnpm must be used instead
-        if (buildArgs[0] === 'yarn') {
-          buildArgs[0] = 'pnpm'
-        }
-      }
+      const buildArgs = this.getBuildArgs(options.args)
 
       console.log('running', buildArgs.join(' '))
 
