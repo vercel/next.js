@@ -157,6 +157,22 @@ async function getDynamicImageRouteCode(
   resourcePath: string,
   loaderContext: webpack.LoaderContext<any>
 ) {
+  let staticGenerationCode = ''
+
+  if (process.env.NODE_ENV === 'production') {
+    staticGenerationCode = `\
+export async function generateStaticParams({ params }) {
+  const imageMetadata = await generateImageMetadata({ params })
+  const staticParams = []
+
+  for (const item of imageMetadata) {
+    staticParams.push({ __metadata_id__: item.id.toString() })
+  }
+  return staticParams
+}
+`
+  }
+
   return `\
 /* dynamic image route with generateImageMetadata */
 import { NextResponse } from 'next/server'
@@ -186,6 +202,8 @@ export async function GET(_, ctx) {
 
   return handler({ params: restParams, id })
 }
+
+${staticGenerationCode}
 `
 }
 

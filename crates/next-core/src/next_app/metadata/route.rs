@@ -48,7 +48,7 @@ pub async fn get_app_metadata_route_source(
             } else if stem == "sitemap" {
                 dynamic_site_map_route_source(mode, path, is_multi_dynamic)
             } else {
-                dynamic_image_route_source(path, is_multi_dynamic)
+                dynamic_image_route_source(mode, path, is_multi_dynamic)
             }
         }
     })
@@ -371,11 +371,30 @@ async fn dynamic_site_map_route_source(
 }
 
 async fn dynamic_image_route_with_metadata_source(
+    mode: NextMode,
     path: FileSystemPath,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
+
+    let mut static_generation_code = "";
+
+    if mode.is_production() {
+        static_generation_code = indoc! {
+            r#"
+                export async function generateStaticParams({ params }) {
+                    const imageMetadata = await generateImageMetadata({ params })
+                    const staticParams = []
+
+                    for (const item of imageMetadata) {
+                        staticParams.push({ __metadata_id__: item.id.toString() })
+                    }
+                    return staticParams
+                }
+            "#,
+        };
+    }
 
     let code = formatdoc! {
         r#"
@@ -417,8 +436,11 @@ async fn dynamic_image_route_with_metadata_source(
             }}
 
             export * from {resource_path}
+
+            {static_generation_code}
         "#,
         resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        static_generation_code = static_generation_code,
     };
 
     let file = File::from(code);
@@ -466,11 +488,12 @@ async fn dynamic_image_route_without_metadata_source(
 
 #[turbo_tasks::function]
 async fn dynamic_image_route_source(
+    mode: NextMode,
     path: FileSystemPath,
     is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     if is_multi_dynamic {
-        dynamic_image_route_with_metadata_source(path).await
+        dynamic_image_route_with_metadata_source(mode, path).await
     } else {
         dynamic_image_route_without_metadata_source(path).await
     }
