@@ -187,7 +187,7 @@ pub async fn resolve_node_pre_gyp_files(
                             format!("deps/lib/{key}").into(),
                             Vc::upcast(FileSource::new(match &realpath_with_links.path_or_error {
                                 Ok(path) => path.clone(),
-                                Err(e) => bail!(e.as_error_message(&dylib, &*realpath_with_links)),
+                                Err(e) => bail!(e.as_error_message(dylib, &realpath_with_links)),
                             })),
                         );
                     }
