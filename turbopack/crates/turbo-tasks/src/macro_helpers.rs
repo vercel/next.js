@@ -12,6 +12,7 @@ use crate::{
     ValueTypeId, Vc, debug::ValueDebugFormatString, task::TaskOutput,
 };
 pub use crate::{
+    inventory_submit,
     magic_any::MagicAny,
     manager::{find_cell_by_type, notify_scheduled_tasks, spawn_detached_for_testing},
     native_function::{
@@ -189,10 +190,12 @@ pub fn register_trait_methods(value: &mut ValueType) {
 /// attribute to the item. This is to avoid warnings about unused items when using Rust Analyzer.
 #[macro_export]
 macro_rules! inventory_submit {
-    ($($item:tt),*) => {
+    ($($item:tt)*) => {
         #[cfg(not(rust_analyzer))]
-        {
-            ::inventory::submit! { $($item),* }
-        }
+        $crate::macro_helpers::inventory_submit_inner! { $($item)* }
     }
 }
+
+/// Exported so the above macro can reference it.
+#[doc(hidden)]
+pub use inventory::submit as inventory_submit_inner;
