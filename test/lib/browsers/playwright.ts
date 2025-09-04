@@ -1,4 +1,5 @@
 import fs from 'fs-extra'
+import { debugPrint } from 'next-test-utils'
 import {
   chromium,
   webkit,
@@ -269,7 +270,7 @@ export class Playwright<TCurrent = undefined> {
     websocketFrames = []
 
     page.on('console', (msg) => {
-      console.log('browser log:', msg)
+      debugPrint('Browser Log:', msg)
 
       pageLogs.push(
         Promise.all(
