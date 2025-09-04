@@ -18,17 +18,6 @@ let lruSize: number = 0
 // customizable via the Next.js config, too.
 const maxLruSize = 50 * 1024 * 1024 // 50 MB
 
-export function dropEntireLru() {
-  // Reset the entire state of the LRU.
-  // TODO: This is only called by revalidateEntireCache, when all the cache map
-  // entries are dropped, too. In the future, rather than eagerly drop all the
-  // memory at once, revalidation will lazily evict entries, similar to how
-  // staleTime expiration already works. Then we can remove this function.
-  head = null
-  lruSize = 0
-  didScheduleCleanup = false
-}
-
 export function lruPut(node: LRUNode) {
   if (head === node) {
     // Already at the head

@@ -58,15 +58,16 @@ import {
 import {
   createCacheMap,
   getFromCacheMap,
+  getRevalidatingValueFromCacheMap,
   setInCacheMap,
   setSizeInCacheMap,
   deleteFromCacheMap,
+  isValueExpired,
   Fallback,
   type CacheMap,
   type MapEntry,
   type FallbackType,
 } from './cache-map'
-import { dropEntireLru } from './lru'
 import {
   appendSegmentCacheKeyPart,
   appendSegmentRequestKeyPart,
@@ -144,7 +145,6 @@ export type RouteTree = {
 }
 
 type RouteCacheEntryShared = {
-  staleAt: number
   // This is false only if we're certain the route cannot be intercepted. It's
   // true in all other cases, including on initialization when we haven't yet
   // received a response from the server.
@@ -157,6 +157,9 @@ type RouteCacheEntryShared = {
   // Map-related fields.
   ref: null | MapEntry<RouteCacheKeypath, RouteCacheEntry>
   size: number
+  staleAt: number
+  version: number
+  revalidating: RouteCacheEntry | null
 }
 
 /**
@@ -210,13 +213,14 @@ export type RouteCacheEntry =
   | RejectedRouteCacheEntry
 
 type SegmentCacheEntryShared = {
-  staleAt: number
   fetchStrategy: FetchStrategy
-  revalidating: SegmentCacheEntry | null
 
   // Map-related fields.
   ref: null | MapEntry<SegmentCacheKeypath, SegmentCacheEntry>
   size: number
+  staleAt: number
+  version: number
+  revalidating: SegmentCacheEntry | null
 }
 
 export type EmptySegmentCacheEntry = SegmentCacheEntryShared & {
@@ -316,19 +320,16 @@ export function revalidateEntireCache(
   nextUrl: string | null,
   tree: FlightRouterState
 ) {
+  // Increment the current cache version. This does not eagerly evict anything
+  // from the cache, but because all the entries are versioned, and we check
+  // the version when reading from the cache, this effectively causes all
+  // entries to be evicted lazily. We do it lazily because in the future,
+  // actions like revalidateTag or refresh will not evict the entire cache,
+  // but rather some subset of the entries.
   currentCacheVersion++
 
   // Start a cooldown before re-prefetching to allow CDN cache propagation.
   startRevalidationCooldown()
-
-  // Clearing the cache also effectively rejects any pending requests, because
-  // when the response is received, it gets written into a cache entry that is
-  // no longer reachable.
-  // TODO: There's an exception to this case that we don't currently handle
-  // correctly: background revalidations. See note in `upsertSegmentEntry`.
-  routeCacheMap = createCacheMap()
-  segmentCacheMap = createCacheMap()
-  dropEntireLru()
 
   // Prefetch all the currently visible links again, to re-fill the cache.
   pingVisibleLinks(nextUrl, tree)
@@ -398,18 +399,7 @@ export function readRouteCacheEntry(
   key: RouteCacheKey
 ): RouteCacheEntry | null {
   const keypath: RouteCacheKeypath = [key.href, key.nextUrl]
-  const existingEntry = getFromCacheMap(routeCacheMap, keypath)
-  if (existingEntry !== null) {
-    // Check if the entry is stale
-    if (existingEntry.staleAt > now) {
-      // Reuse the existing entry.
-      return existingEntry
-    } else {
-      // Evict the stale entry from the cache.
-      deleteRouteFromCache(existingEntry)
-    }
-  }
-  return null
+  return getFromCacheMap(now, getCurrentCacheVersion(), routeCacheMap, keypath)
 }
 
 export function getCanonicalSegmentKeypath(
@@ -462,51 +452,19 @@ export function readSegmentCacheEntry(
   now: number,
   keypath: SegmentCacheKeypath
 ): SegmentCacheEntry | null {
-  const existingEntry = getFromCacheMap(segmentCacheMap, keypath)
-  if (existingEntry !== null) {
-    // Check if the entry is stale
-    if (existingEntry.staleAt > now) {
-      // Reuse the existing entry.
-      return existingEntry
-    } else {
-      // This is a stale entry.
-      const revalidatingEntry = existingEntry.revalidating
-      if (revalidatingEntry !== null) {
-        // There's a revalidation in progress. Upsert it.
-        const upsertedEntry = upsertSegmentEntry(
-          now,
-          keypath,
-          revalidatingEntry
-        )
-        if (upsertedEntry !== null && upsertedEntry.staleAt > now) {
-          // We can use the upserted revalidation entry.
-          return upsertedEntry
-        }
-      } else {
-        // Evict the stale entry from the cache.
-        deleteSegmentFromCache(existingEntry)
-      }
-    }
-  }
-  return null
+  return getFromCacheMap(
+    now,
+    getCurrentCacheVersion(),
+    segmentCacheMap,
+    keypath
+  )
 }
 
 function readRevalidatingSegmentCacheEntry(
   now: number,
   owner: SegmentCacheEntry
 ): SegmentCacheEntry | null {
-  const existingRevalidation = owner.revalidating
-  if (existingRevalidation !== null) {
-    if (existingRevalidation.staleAt > now) {
-      // There's already a revalidation in progress. Or a previous revalidation
-      // failed and it has not yet expired.
-      return existingRevalidation
-    } else {
-      // Clear the stale revalidation from its owner.
-      clearRevalidatingSegmentFromOwner(owner)
-    }
-  }
-  return null
+  return getRevalidatingValueFromCacheMap(now, getCurrentCacheVersion(), owner)
 }
 
 export function waitForSegmentCacheEntry(
@@ -547,9 +505,6 @@ export function readOrCreateRouteCacheEntry(
     tree: null,
     head: null,
     isHeadPartial: true,
-    // Since this is an empty entry, there's no reason to ever evict it. It will
-    // be updated when the data is populated.
-    staleAt: Infinity,
     // This is initialized to true because we don't know yet whether the route
     // could be intercepted. It's only set to false once we receive a response
     // from the server.
@@ -564,6 +519,11 @@ export function readOrCreateRouteCacheEntry(
     // Map-related fields
     ref: null,
     size: 0,
+    // Since this is an empty entry, there's no reason to ever evict it. It will
+    // be updated when the data is populated.
+    staleAt: Infinity,
+    version: getCurrentCacheVersion(),
+    revalidating: null,
   }
   const keypath: RouteCacheKeypath = [key.href, key.nextUrl]
   setInCacheMap(routeCacheMap, keypath, pendingEntry)
@@ -696,7 +656,6 @@ export function requestOptimisticRouteCacheEntry(
     tree: routeWithNoSearchParams.tree,
     head,
     isHeadPartial,
-    staleAt: routeWithNoSearchParams.staleAt,
     couldBeIntercepted: routeWithNoSearchParams.couldBeIntercepted,
     isPPREnabled: routeWithNoSearchParams.isPPREnabled,
 
@@ -709,6 +668,9 @@ export function requestOptimisticRouteCacheEntry(
     // Map-related fields
     ref: null,
     size: 0,
+    staleAt: routeWithNoSearchParams.staleAt,
+    version: routeWithNoSearchParams.version,
+    revalidating: null,
   }
 
   // Do not insert this entry into the cache. It only exists so we can
@@ -785,6 +747,12 @@ export function upsertSegmentEntry(
   // TODO: We should not upsert an entry if its key was invalidated in the time
   // since the request was made. We can do that by passing the "owner" entry to
   // this function and confirming it's the same as `existingEntry`.
+
+  if (isValueExpired(now, getCurrentCacheVersion(), candidateEntry)) {
+    // The entry is expired. We cannot upsert it.
+    return null
+  }
+
   const existingEntry = readSegmentCacheEntry(now, keypath)
   if (existingEntry !== null) {
     // Don't replace a more specific segment with a less-specific one. A case where this
@@ -815,7 +783,7 @@ export function upsertSegmentEntry(
     }
 
     // Evict the existing entry from the cache.
-    deleteSegmentFromCache(existingEntry)
+    deleteFromCacheMap(existingEntry)
   }
   setInCacheMap(segmentCacheMap, keypath, candidateEntry)
   return candidateEntry
@@ -829,16 +797,17 @@ export function createDetachedSegmentCacheEntry(
     // Default to assuming the fetch strategy will be PPR. This will be updated
     // when a fetch is actually initiated.
     fetchStrategy: FetchStrategy.PPR,
-    revalidating: null,
     rsc: null,
     loading: null,
-    staleAt,
     isPartial: true,
     promise: null,
 
     // Map-related fields
     ref: null,
     size: 0,
+    staleAt,
+    version: 0,
+    revalidating: null,
   }
   return emptyEntry
 }
@@ -850,18 +819,13 @@ export function upgradeToPendingSegment(
   const pendingEntry: PendingSegmentCacheEntry = emptyEntry as any
   pendingEntry.status = EntryStatus.Pending
   pendingEntry.fetchStrategy = fetchStrategy
+  // Set the version here, since this is right before the request is initiated.
+  // The next time the global cache version is incremented, the entry will
+  // effectively be evicted. This happens before initiating the request, rather
+  // than when receiving the response, because it's guaranteed to happen
+  // before the data is read on the server.
+  pendingEntry.version = getCurrentCacheVersion()
   return pendingEntry
-}
-
-function deleteRouteFromCache(entry: RouteCacheEntry): void {
-  pingBlockedTasks(entry)
-  deleteFromCacheMap(entry)
-}
-
-function deleteSegmentFromCache(entry: SegmentCacheEntry): void {
-  cancelEntryListeners(entry)
-  deleteFromCacheMap(entry)
-  clearRevalidatingSegmentFromOwner(entry)
 }
 
 function clearRevalidatingSegmentFromOwner(owner: SegmentCacheEntry): void {

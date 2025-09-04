@@ -44,6 +44,18 @@ import { lruPut, updateLruSize, deleteFromLru } from './lru'
  * optimize successive lookups by caching the internal map entry on the value
  * itself, using the `ref` field. This is especially useful because it lets us
  * skip the O(n ^ 2) lookup that occurs when Fallback entries are present.
+ *
+
+ * How to decide if stuff belongs in here, or in cache.ts?
+ * -------------------------------------------------------
+ * 
+ * Anything to do with retrival, lifetimes, or eviction needs to go in this
+ * module because it affects the fallback algorithm. For example, when
+ * performing a lookup, if an entry is stale, it needs to be treated as
+ * semantically equivalent to if the entry was not present at all.
+ * 
+ * If there's logic that's not related to the fallback algorithm, though, we
+ * should prefer to put it in cache.ts.
  */
 
 type MapEntryShared<K extends readonly unknown[], V extends MapValue> = {
@@ -90,6 +102,9 @@ export type CacheMap<
 export interface MapValue {
   ref: MapEntry<any, any> | null
   size: number
+  staleAt: number
+  version: number
+  revalidating: MapValue | null
 }
 
 type KeyWithFallback<K extends readonly unknown[]> = {
@@ -166,8 +181,19 @@ function getOrInitialize<K extends readonly unknown[], V extends MapValue>(
 export function getFromCacheMap<
   K extends readonly unknown[],
   V extends MapValue,
->(rootEntry: CacheMap<K, V>, keys: KeyWithFallback<K>): V | null {
-  const entry = getEntryWithFallbackImpl(rootEntry, keys, 0)
+>(
+  now: number,
+  currentCacheVersion: number,
+  rootEntry: CacheMap<K, V>,
+  keys: KeyWithFallback<K>
+): V | null {
+  const entry = getEntryWithFallbackImpl(
+    now,
+    currentCacheVersion,
+    rootEntry,
+    keys,
+    0
+  )
   if (entry === null || !entry.hasValue) {
     return null
   }
@@ -176,10 +202,66 @@ export function getFromCacheMap<
   return entry.value
 }
 
+export function getRevalidatingValueFromCacheMap<V extends MapValue>(
+  now: number,
+  currentCacheVersion: number,
+  value: V
+): V | null {
+  // TODO: Move the rest of the "revalidating" logic into this module.
+  const revalidating = value.revalidating
+  if (
+    revalidating !== null &&
+    !isValueExpired(now, currentCacheVersion, revalidating)
+  ) {
+    return revalidating as V
+  }
+  return null
+}
+
+export function isValueExpired<V extends MapValue>(
+  now: number,
+  currentCacheVersion: number,
+  value: V
+): boolean {
+  return value.staleAt <= now || value.version < currentCacheVersion
+}
+
+function lazilyEvictIfNeeded<K extends readonly unknown[], V extends MapValue>(
+  now: number,
+  currentCacheVersion: number,
+  entry: MapEntry<K, V>
+) {
+  // We have a matching entry, but before we can return it, we need to check if
+  // it's still fresh. Otherwise it should be treated the same as a cache miss.
+
+  if (!entry.hasValue) {
+    // This entry has no value, so there's nothing to evict.
+    return entry
+  }
+
+  const value = entry.value
+  if (isValueExpired(now, currentCacheVersion, value)) {
+    // The value expired. Lazily evict it from the cache, and return null. This
+    // is conceptually the same as a cache miss.
+    // TODO: If there's a revalidating entry, upsert it here.
+    deleteMapEntry(entry)
+    return null
+  }
+
+  // The matched entry has not expired. Return it.
+  return entry
+}
+
 function getEntryWithFallbackImpl<
   K extends readonly unknown[],
   V extends MapValue,
->(entry: MapEntry<K, V>, keys: K, index: number): MapEntry<K, V> | null {
+>(
+  now: number,
+  currentCacheVersion: number,
+  entry: MapEntry<K, V>,
+  keys: K,
+  index: number
+): MapEntry<K, V> | null {
   // This is similar to getExactEntry, but if an exact match is not found for
   // a key, it will return the fallback entry instead. This is recursive at
   // every level, e.g. an entry with keypath [a, Fallback, c, Fallback] is
@@ -187,7 +269,15 @@ function getEntryWithFallbackImpl<
   //
   // It will return the most specific match available.
   if (index >= keys.length) {
-    return entry
+    // There are no more keys. This is the terminal entry.
+
+    // TODO: When performing a lookup during a navigation, as opposed to a
+    // prefetch, we may want to skip entries that are Pending if there's also
+    // a Fulfilled fallback entry. Tricky to say, though, since if it's
+    // already pending, it's likely to stream in soon. Maybe we could do this
+    // just on slow connections and offline mode.
+
+    return lazilyEvictIfNeeded(now, currentCacheVersion, entry)
   }
   const key = keys[index]
   const map = entry.map
@@ -196,6 +286,8 @@ function getEntryWithFallbackImpl<
     if (existingEntry !== undefined) {
       // Found an exact match for this key. Keep searching.
       const result = getEntryWithFallbackImpl<K, V>(
+        now,
+        currentCacheVersion,
         existingEntry,
         keys,
         index + 1
@@ -208,7 +300,13 @@ function getEntryWithFallbackImpl<
     const fallbackEntry = map.get(Fallback)
     if (fallbackEntry !== undefined) {
       // Found a fallback for this key. Keep searching.
-      return getEntryWithFallbackImpl(fallbackEntry, keys, index + 1)
+      return getEntryWithFallbackImpl(
+        now,
+        currentCacheVersion,
+        fallbackEntry,
+        keys,
+        index + 1
+      )
     }
   }
   return null
@@ -223,11 +321,17 @@ export function setInCacheMap<K extends readonly unknown[], V extends MapValue>(
   // part of the map, it's removed from its previous keypath. (NOTE: This is
   // unlike a regular JS map, but the behavior is intentional.)
   const entry = getOrInitialize(cacheMap, keys)
+  setMapEntryValue(entry, value)
 
   // This is an LRU access. Move the entry to the front of the list.
   lruPut(entry)
   updateLruSize(entry, value.size)
+}
 
+function setMapEntryValue<K extends readonly unknown[], V extends MapValue>(
+  entry: MapEntry<K, V>,
+  value: V
+): void {
   if (entry.hasValue) {
     // There's already a value at the given keypath. Disconnect the old value
     // from the map. We're not calling `deleteMapEntry` here because the
