@@ -392,7 +392,7 @@ napi = { version = "2", default-features = false, features = [
 ] }
 notify = "8.1.0"
 once_cell = "1.17.1"
-owo-colors = "3.5.0"
+owo-colors = "4.2.2"
 parcel_selectors = "0.28.2"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
