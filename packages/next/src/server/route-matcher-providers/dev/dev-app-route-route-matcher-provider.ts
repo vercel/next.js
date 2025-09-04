@@ -8,6 +8,7 @@ import { DevAppNormalizers } from '../../normalizers/built/app'
 import {
   isMetadataRouteFile,
   isStaticMetadataRoute,
+  isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import path from '../../../shared/lib/isomorphic/path'
@@ -47,6 +48,10 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
       // Validate that this is not an ignored page.
       if (page.includes('/_')) continue
 
+      const pathname = this.normalizers.pathname.normalize(filename)
+      // Skip static metadata files as they are served from filesystem.
+      if (isStaticMetadataFile(pathname)) continue
+
       // Turbopack uses the correct page name with the underscore normalized.
       // TODO: Move implementation to packages/next/src/server/normalizers/built/app/app-page-normalizer.ts.
       // The `includes('/_')` check above needs to be moved for that to work as otherwise `%5Fsegmentname`
@@ -55,7 +60,6 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
         page = page.replace(/%5F/g, '_')
       }
 
-      const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
       const ext = path.extname(filename).slice(1)
       const isEntryMetadataRouteFile = isMetadataRouteFile(
@@ -114,7 +118,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
           matchers.push(matcher)
         }
       } else {
-        // Normal app routes and static metadata routes.
+        // Normal app routes.
         matchers.push(
           new AppRouteRouteMatcher({
             kind: RouteKind.APP_ROUTE,
