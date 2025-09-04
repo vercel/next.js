@@ -141,9 +141,7 @@ pub fn validate_function_id(id: FunctionId) -> Option<Error> {
 
 static VALUES: Lazy<Registry<ValueType>> = Lazy::new(|| {
     // Inventory does not guarantee an order. So we sort by the global name to get a stable order
-    // This ensures that assigned ids are also stable.
-    // We don't currently take advantage of this but we could in the future.  The remaining issue is
-    // ensuring the set of values is the same across runs.
+    // This ensures that assigned ids are also stable which is important since they are serialized.
     let all_values = inventory::iter::<CollectableValueType>
         .into_iter()
         .map(|t| &**t.0)
