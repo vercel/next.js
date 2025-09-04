@@ -17,6 +17,14 @@
   sudo apt install lld clang
   ```
 
+## Windows Setup
+
+If you are developing on Windows, you will need to enable long paths in Git to prevent `Filename too long` errors when cloning the repository:
+
+```bash
+git config --global core.longpaths true
+```
+
 ## Local Development
 
 1. Clone the Next.js repository (download only recent commits for faster clone):
