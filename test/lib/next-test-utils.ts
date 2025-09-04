@@ -6,7 +6,7 @@ import {
   writeFileSync,
   createReadStream,
 } from 'fs'
-import { promisify } from 'util'
+import { inspect, promisify } from 'util'
 import http from 'http'
 import path from 'path'
 
@@ -40,6 +40,21 @@ export { shouldUseTurbopack }
 
 export const nextServer = server
 export const pkg = _pkg
+
+// This goes straight to Node’s stdout, avoiding Jest's verbose output:
+export const debugPrint = (...args: unknown[]) => {
+  const prettyArgs = args
+    .map((arg) =>
+      typeof arg === 'string'
+        ? arg
+        : inspect(arg, { colors: process.stdout.isTTY })
+    )
+    .join(' ')
+
+  const timestamp = new Date().toISOString().split('T')[1]
+
+  return process.stdout.write(`[${timestamp}] ${prettyArgs}\n`)
+}
 
 export function initNextServerScript(
   scriptPath: string,
@@ -249,7 +264,7 @@ export function runNextCommand(
   }
 
   return new Promise((resolve, reject) => {
-    console.log(`Running command "next ${argv.join(' ')}"`)
+    debugPrint(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
       [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
@@ -274,7 +289,7 @@ export function runNextCommand(
         stderrOutput += chunk
 
         if (options.stderr === 'log') {
-          console.log(chunk.toString())
+          debugPrint(chunk.toString())
         }
         if (typeof options.onStderr === 'function') {
           options.onStderr(chunk.toString())
@@ -293,7 +308,7 @@ export function runNextCommand(
         stdoutOutput += chunk
 
         if (options.stdout === 'log') {
-          console.log(chunk.toString())
+          debugPrint(chunk.toString())
         }
         if (typeof options.onStdout === 'function') {
           options.onStdout(chunk.toString())
@@ -820,7 +835,7 @@ export async function retry<T>(
         )
         throw err
       }
-      console.log(
+      debugPrint(
         `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
       )
       await waitFor(interval)
