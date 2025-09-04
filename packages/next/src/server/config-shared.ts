@@ -517,8 +517,13 @@ export interface ExperimentalConfig {
   turbopackUseSystemTlsCerts?: boolean
 
   /**
-   * Set this to `false` to disable the automatic configuration of the babel loader when a babel
-   * configuration file is present. The babel loader configuration is enabled by default.
+   * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
+   * configuration file is present. This option is enabled by default.
+   *
+   * If this is set to `false`, but `experimental.reactCompiler` is `true`, the built-in Babel will
+   * still be configured, but any Babel configuration files on disk will be ignored. If you wish to
+   * use React Compiler with a different manually-configured `babel-loader`, you should disable both
+   * this and `experimental.reactCompiler`.
    */
   turbopackUseBuiltinBabel?: boolean
 

@@ -9,16 +9,13 @@ use turbopack::module_options::{
     WebpackLoaderBuiltinConditionSet, WebpackLoaderBuiltinConditionSetMatch, WebpackLoadersOptions,
 };
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     resolve::{ExternalTraced, ExternalType, options::ImportMapping},
 };
 
 use crate::{
     next_config::NextConfig,
-    next_shared::webpack_rules::{
-        babel::{detect_likely_babel_loader, get_babel_loader_rules},
-        sass::{detect_likely_sass_loader, get_sass_loader_rules},
-    },
+    next_shared::webpack_rules::{babel::get_babel_loader_rules, sass::get_sass_loader_rules},
 };
 
 pub(crate) mod babel;
@@ -147,63 +144,14 @@ pub async fn webpack_loader_options(
     next_config: Vc<NextConfig>,
     builtin_conditions: BTreeSet<WebpackLoaderBuiltinCondition>,
 ) -> Result<Vc<OptionWebpackLoadersOptions>> {
-    let mut rules = next_config
-        .webpack_rules(project_path.clone())
-        .owned()
-        .await?;
+    let user_rules = next_config.webpack_rules(project_path.clone()).await?;
+    let mut rules = (*user_rules).clone();
 
-    let config_file_path = async || project_path.join(&next_config.await?.config_file_name);
-
-    let use_builtin_sass = next_config
-        .experimental_turbopack_use_builtin_sass()
-        .await?;
-    if use_builtin_sass.unwrap_or(true) {
-        if use_builtin_sass.is_none()
-            && let Some(glob) = detect_likely_sass_loader(&rules).await?
-        {
-            ManuallyConfiguredBuiltinLoaderIssue {
-                glob,
-                loader: rcstr!("sass-loader"),
-                config_key: rcstr!("experimental.turbopackUseBuiltinSass"),
-                config_file_path: config_file_path().await?,
-            }
-            .resolved_cell()
-            .emit()
-        }
-        rules.append(&mut get_sass_loader_rules(next_config.sass_config()).await?);
-    }
-
-    // TODO: Enable this warning after babel configuration is fixed
-    // (https://github.com/vercel/next.js/pull/82676) and the react-compiler logic is moved into
-    // here. React-compiler is currently configured in JS before it gets to us, which could trigger
-    // false-positives.
-    let use_builtin_babel = next_config
-        .experimental_turbopack_use_builtin_babel()
-        .await?;
-    if !builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Foreign)
-        && use_builtin_babel.unwrap_or(true)
-    {
-        if use_builtin_babel.is_none()
-            && let Some(glob) = detect_likely_babel_loader(&rules).await?
-        {
-            let _ = glob;
-            // TODO: Enable this warning after babel configuration is fixed
-            // (https://github.com/vercel/next.js/pull/82676) and the react-compiler logic is moved into
-            // here. React-compiler is currently configured in JS before it gets to us, which could
-            // trigger false-positives.
-            /*
-            ManuallyConfiguredBuiltinLoaderIssue {
-                glob,
-                loader: rcstr!("babel-loader"),
-                disable_builtin_config_key: rcstr!("experimental.turbopackUseBuiltinBabel"),
-                config_file_path: config_file_path().await?,
-            }
-            .resolved_cell()
-            .emit()
-            */
-        }
-        rules.append(&mut get_babel_loader_rules(project_path.clone()).await?);
-    }
+    rules.append(&mut get_sass_loader_rules(&project_path, next_config, &user_rules).await?);
+    rules.append(
+        &mut get_babel_loader_rules(&project_path, next_config, &builtin_conditions, &user_rules)
+            .await?,
+    );
 
     if rules.is_empty() {
         return Ok(Vc::cell(None));
@@ -235,7 +183,7 @@ fn loader_runner_package_mapping() -> Result<Vc<ImportMapping>> {
 }
 
 #[turbo_tasks::value]
-struct ManuallyConfiguredBuiltinLoaderIssue {
+pub struct ManuallyConfiguredBuiltinLoaderIssue {
     glob: RcStr,
     loader: RcStr,
     config_key: RcStr,

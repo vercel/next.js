@@ -1314,9 +1314,7 @@ impl AppEndpoint {
 
         // polyfill-nomodule.js is a pre-compiled asset distributed as part of next,
         // load it as a RawModule.
-        let next_package = get_next_package(project.project_path().owned().await?)
-            .owned()
-            .await?;
+        let next_package = get_next_package(project.project_path().owned().await?).await?;
         let polyfill_source =
             FileSource::new(next_package.join("dist/build/polyfills/polyfill-nomodule.js")?);
         let polyfill_output_path = client_chunking_context

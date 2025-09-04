@@ -795,67 +795,12 @@ function bindingToApi(
     }
   }
 
-  /**
-   * Returns a new copy of next.js config object to avoid mutating the original.
-   *
-   * Also it does some augmentation to the configuration as well, for example set the
-   * turbopack's rules if `experimental.reactCompilerOptions` is set.
-   */
-  function augmentNextConfig(
-    originalNextConfig: NextConfigComplete,
-    projectPath: string
-  ): Record<string, any> {
-    let nextConfig = { ...originalNextConfig }
-
-    // TODO: Merge this with `crates/next-core/src/next_shared/webpack_rules/babel.rs` so that we're
-    // not configuring babel in two different places (potentially causing it to run twice)
-    const reactCompilerOptions = nextConfig.experimental?.reactCompiler
-    const reactCompilerLoader = getReactCompilerLoader(
-      nextConfig.experimental?.reactCompiler,
-      projectPath,
-      /* isServer */ false,
-      /* reactCompilerExclude */ undefined
-    )
-    if (reactCompilerLoader != null) {
-      const options: ReactCompilerOptions =
-        typeof reactCompilerOptions === 'object' ? reactCompilerOptions : {}
-      nextConfig.turbopack = {
-        ...originalNextConfig.turbopack,
-        rules: {
-          ...originalNextConfig.turbopack.rules,
-          // assumption: there is no collision with this glob key
-          '{*.{js,jsx,ts,tsx,cjs,mjs,mts,cts},react-compiler-builtin-rule}': {
-            loaders: [reactCompilerLoader],
-            condition: {
-              all: [
-                'browser',
-                { not: 'foreign' },
-                {
-                  content:
-                    options.compilationMode === 'annotation'
-                      ? /['"]use memo['"]/
-                      : !options.compilationMode ||
-                          options.compilationMode === 'infer'
-                        ? // Matches declaration or useXXX or </ (closing jsx) or /> (self closing jsx)
-                          /['"]use memo['"]|\Wuse[A-Z]|<\/|\/>/
-                        : undefined,
-                },
-              ],
-            },
-          },
-        },
-      }
-    }
-
-    return nextConfig
-  }
-
   async function serializeNextConfig(
     nextConfig: NextConfigComplete,
     projectPath: string
   ): Promise<string> {
-    // Avoid mutating the existing `nextConfig` object. NOTE: This does a shallow clone.
-    let nextConfigSerializable = augmentNextConfig(nextConfig, projectPath)
+    // Avoid mutating the existing `nextConfig` object. NOTE: This is only a shallow clone.
+    let nextConfigSerializable: Record<string, any> = { ...nextConfig }
 
     nextConfigSerializable.generateBuildId =
       await nextConfigSerializable.generateBuildId?.()

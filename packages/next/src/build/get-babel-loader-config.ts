@@ -1,8 +1,5 @@
 import path from 'path'
-import type {
-  ReactCompilerOptions,
-  TurbopackLoaderOptions,
-} from '../server/config-shared'
+import type { ReactCompilerOptions } from '../server/config-shared'
 import type { NextBabelLoaderOptions } from './babel/loader/types'
 
 function getReactCompiler() {
@@ -103,7 +100,7 @@ const getReactCompilerLoader = (
     return undefined
   }
 
-  const babelLoaderOptions: NextBabelLoaderOptions & TurbopackLoaderOptions = {
+  const babelLoaderOptions: NextBabelLoaderOptions = {
     transformMode: 'standalone',
     cwd,
     reactCompilerPlugins,
