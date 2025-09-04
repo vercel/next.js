@@ -183,4 +183,16 @@ pub fn register_trait_methods(value: &mut ValueType) {
     }
 }
 
-pub use inventory::submit as inventory_submit;
+/// Submit an item to the inventory.
+///
+/// This macro is a wrapper around `inventory::submit` that adds a `#[not(cfg(rust_analyzer))]`
+/// attribute to the item. This is to avoid warnings about unused items when using Rust Analyzer.
+#[macro_export]
+macro_rules! inventory_submit {
+    ($($item:tt),*) => {
+        #[cfg(not(rust_analyzer))]
+        {
+            ::inventory::submit! { $($item),* }
+        }
+    }
+}
