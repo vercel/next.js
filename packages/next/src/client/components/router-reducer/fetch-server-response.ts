@@ -37,6 +37,16 @@ import { urlToUrlWithoutFlightMarker } from '../../route-params'
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
+let createDebugChannel:
+  | typeof import('../../dev/debug-channel').createDebugChannel
+  | undefined
+
+if (process.env.NODE_ENV !== 'production') {
+  createDebugChannel = (
+    require('../../dev/debug-channel') as typeof import('../../dev/debug-channel')
+  ).createDebugChannel
+}
+
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
@@ -393,21 +403,10 @@ export function createFromNextReadableStream(
   flightStream: ReadableStream<Uint8Array>,
   responseHeaders: Headers
 ): Promise<unknown> {
-  let debugChannel:
-    | { readable?: ReadableStream; writable?: WritableStream }
-    | undefined
-
-  if (process.env.NODE_ENV !== 'production') {
-    const { createDebugChannel } =
-      require('../../dev/debug-channel') as typeof import('../../dev/debug-channel')
-
-    debugChannel = createDebugChannel(responseHeaders)
-  }
-
   return createFromReadableStream(flightStream, {
     callServer,
     findSourceMapURL,
-    debugChannel,
+    debugChannel: createDebugChannel && createDebugChannel(responseHeaders),
   })
 }
 

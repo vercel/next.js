@@ -61,6 +61,16 @@ import { revalidateEntireCache } from '../../segment-cache'
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
 
+let createDebugChannel:
+  | typeof import('../../../dev/debug-channel').createDebugChannel
+  | undefined
+
+if (process.env.NODE_ENV !== 'production') {
+  createDebugChannel = (
+    require('../../../dev/debug-channel') as typeof import('../../../dev/debug-channel')
+  ).createDebugChannel
+}
+
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
   redirectType: RedirectType | undefined
@@ -177,21 +187,16 @@ async function fetchServerAction(
 
   let actionResult: FetchServerActionResult['actionResult']
   let actionFlightData: FetchServerActionResult['actionFlightData']
+
   if (isRscResponse) {
-    let debugChannel:
-      | { readable?: ReadableStream; writable?: WritableStream }
-      | undefined
-
-    if (process.env.NODE_ENV !== 'production') {
-      const { createDebugChannel } =
-        require('../../../dev/debug-channel') as typeof import('../../../dev/debug-channel')
-
-      debugChannel = createDebugChannel(res.headers)
-    }
-
     const response: ActionFlightResponse = await createFromFetch(
       Promise.resolve(res),
-      { callServer, findSourceMapURL, temporaryReferences, debugChannel }
+      {
+        callServer,
+        findSourceMapURL,
+        temporaryReferences,
+        debugChannel: createDebugChannel && createDebugChannel(res.headers),
+      }
     )
 
     // An internal redirect can send an RSC response, but does not have a useful `actionResult`.
