@@ -25,6 +25,7 @@ describe('Image rendering', () => {
       width: '100',
       height: '100',
       decoding: 'async',
+      fetchpriority: 'low',
       'data-nimg': '1',
       style: 'color:transparent',
       srcset:
@@ -96,5 +97,37 @@ describe('Image rendering', () => {
     expect($1('noscript').length).toBe(0)
     expect($2('noscript').length).toBe(0)
     expect($3('noscript').length).toBe(0)
+  })
+
+  it('should preload images when priority=true', async () => {
+    const element1 = React.createElement(Image, {
+      alt: 'test',
+      src: '/test.png',
+      width: 100,
+      height: 100,
+      priority: true,
+    })
+    const element2 = React.createElement(Image, {
+      alt: 'test',
+      src: '/test.png',
+      width: 100,
+      height: 100,
+      priority: false,
+      loading: 'eager',
+    })
+    const element3 = React.createElement(Image, {
+      alt: 'test',
+      src: '/test.png',
+      width: 100,
+      height: 100,
+      priority: false,
+      loading: 'lazy',
+    })
+    const $1 = cheerio.load(ReactDOMServer.renderToString(element1))
+    const $2 = cheerio.load(ReactDOMServer.renderToString(element2))
+    const $3 = cheerio.load(ReactDOMServer.renderToString(element3))
+    expect($1('link[rel=preload]').length).toBe(1)
+    expect($2('link[rel=preload]').length).toBe(0)
+    expect($3('link[rel=preload]').length).toBe(0)
   })
 })
