@@ -16,7 +16,7 @@ Middleware executes before routes are rendered. It's particularly useful for imp
 >
 > Middleware is meant to be invoked separately of your render code and in optimized cases deployed to your CDN for fast redirect/rewrite handling, you should not attempt relying on shared modules or globals.
 >
-> - To pass information from Middleware to your application, use [headers](#setting-headers), [cookies](#using-cookies), [rewrites](/docs/app/api-reference/functions/next-response#rewrite), [redirects](/docs/app/api-reference/functions/next-response#redirect), or the URL.
+> To pass information from Middleware to your application, use [headers](#setting-headers), [cookies](#using-cookies), [rewrites](/docs/app/api-reference/functions/next-response#rewrite), [redirects](/docs/app/api-reference/functions/next-response#redirect), or the URL.
 
 Create a `middleware.ts` (or `.js`) file in the project root, or inside `src` if applicable, so that it is located at the same level as `pages` or `app`.
 
