@@ -370,10 +370,11 @@ async function startWatcher(
       let conflictingPageChange = 0
       let hasRootAppNotFound = false
 
-      const { appFiles, pageFiles } = opts.fsChecker
+      const { appFiles, pageFiles, staticMetadataFiles } = opts.fsChecker
 
       appFiles.clear()
       pageFiles.clear()
+      staticMetadataFiles.clear()
       devPageFiles.clear()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
@@ -601,7 +602,9 @@ async function startWatcher(
 
           if (useFileSystemPublicRoutes) {
             // Static metadata files will be served from filesystem.
-            if (appDir && !isStaticMetadataFile(fileName.replace(appDir, ''))) {
+            if (appDir && isStaticMetadataFile(fileName.replace(appDir, ''))) {
+              staticMetadataFiles.set(pageName, fileName)
+            } else {
               appFiles.add(pageName)
             }
           }

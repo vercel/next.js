@@ -131,6 +131,15 @@ export async function setupFsCheck(opts: {
 
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
+  // Map normalized path to the file path. This is essential
+  // for parallel and group routes as their original path
+  // cannot be restored from the request path.
+  // Example:
+  // [normalized-path] -> [file-path]
+  // /icon-<hash>.png -> .../app/@parallel/icon.png
+  // /icon-<hash>.png -> .../app/(group)/icon.png
+  // /icon.png -> .../app/icon.png
+  const staticMetadataFiles = new Map<string, string>()
   let dynamicRoutes: FilesystemDynamicRoute[] = []
 
   let middlewareMatcher:
@@ -431,6 +440,7 @@ export async function setupFsCheck(opts: {
 
     appFiles,
     pageFiles,
+    staticMetadataFiles,
     dynamicRoutes,
     nextDataRoutes,
 
@@ -498,13 +508,12 @@ export async function setupFsCheck(opts: {
       }
 
       if (opts.dev && isStaticMetadataFile(itemPath)) {
-        const filePath = path.join(opts.dir, 'app', itemPath)
-        if (await fileExists(filePath, FileType.File)) {
+        const fsPath = staticMetadataFiles.get(itemPath)
+        if (fsPath) {
           return {
             type: 'publicFolder',
-            fsPath: filePath,
-            itemsRoot: path.join(opts.dir, 'app'),
-            itemPath,
+            fsPath,
+            itemPath: fsPath,
           }
         }
       }
