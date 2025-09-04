@@ -184,17 +184,19 @@ pub async fn get_client_resolve_options_context(
         ..Default::default()
     };
 
+    let tsconfig_path = next_config
+        .typescript_tsconfig_path()
+        .await?
+        .as_ref()
+        .map(|p| project_path.join(p))
+        .transpose()?;
+
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
-        tsconfig_path: next_config
-            .typescript_tsconfig_path()
-            .await?
-            .as_ref()
-            .map(|p| project_path.join(p))
-            .transpose()?,
+        tsconfig_path,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().resolved_cell(),
@@ -223,10 +225,18 @@ pub async fn get_client_module_options_context(
         *execution_context,
     );
 
-    let tsconfig = get_typescript_transform_options(project_path.clone())
+    let tsconfig_path = next_config
+        .typescript_tsconfig_path()
+        .await?
+        .as_ref()
+        .map(|p| project_path.join(p))
+        .transpose()?;
+
+    let tsconfig = get_typescript_transform_options(project_path.clone(), tsconfig_path.clone())
         .to_resolved()
         .await?;
-    let decorators_options = get_decorators_transform_options(project_path.clone());
+    let decorators_options =
+        get_decorators_transform_options(project_path.clone(), tsconfig_path.clone());
     let enable_mdx_rs = *next_config.mdx_rs().await?;
     let jsx_runtime_options = get_jsx_transform_options(
         project_path.clone(),
@@ -234,6 +244,7 @@ pub async fn get_client_module_options_context(
         Some(resolve_options_context),
         false,
         next_config,
+        tsconfig_path,
     )
     .to_resolved()
     .await?;

@@ -7,7 +7,9 @@ use next_core::{
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, Regions},
     next_server::{ServerContextType, get_server_runtime_entries},
-    util::{MiddlewareMatcherKind, NextRuntime, parse_config_from_source},
+    parse_segment_config_from_source,
+    segment_config::ParseSegmentMode,
+    util::{MiddlewareMatcherKind, NextRuntime},
 };
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
@@ -86,10 +88,12 @@ impl MiddlewareEndpoint {
             userland_module,
         );
 
-        let config =
-            parse_config_from_source(*self.source, userland_module, NextRuntime::Edge).await?;
+        let runtime = parse_segment_config_from_source(*self.source, ParseSegmentMode::Base)
+            .await?
+            .runtime
+            .unwrap_or(NextRuntime::Edge);
 
-        if matches!(config.runtime, NextRuntime::NodeJs) {
+        if matches!(runtime, NextRuntime::NodeJs) {
             return Ok(module);
         }
         Ok(wrap_edge_entry(
@@ -175,11 +179,9 @@ impl MiddlewareEndpoint {
     async fn output_assets(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
 
-        let userland_module = self.userland_module();
-
         let config =
-            parse_config_from_source(*self.await?.source, userland_module, NextRuntime::Edge)
-                .await?;
+            parse_segment_config_from_source(*self.await?.source, ParseSegmentMode::Base).await?;
+        let runtime = config.runtime.unwrap_or(NextRuntime::Edge);
 
         let next_config = this.project.next_config().await?;
         let has_i18n = next_config.i18n.is_some();
@@ -190,7 +192,7 @@ impl MiddlewareEndpoint {
             .unwrap_or(false);
         let base_path = next_config.base_path.as_ref();
 
-        let matchers = if let Some(matchers) = config.matcher.as_ref() {
+        let matchers = if let Some(matchers) = config.middleware_matcher.as_ref() {
             matchers
                 .iter()
                 .map(|matcher| {
@@ -247,7 +249,7 @@ impl MiddlewareEndpoint {
             }]
         };
 
-        if matches!(config.runtime, NextRuntime::NodeJs) {
+        if matches!(runtime, NextRuntime::NodeJs) {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
             if this.project.next_mode().await?.is_production() {
@@ -296,7 +298,7 @@ impl MiddlewareEndpoint {
             let all_assets =
                 get_asset_paths_from_root(&node_root_value, &all_output_assets).await?;
 
-            let regions = if let Some(regions) = config.regions.as_ref() {
+            let regions = if let Some(regions) = config.preferred_region.as_ref() {
                 if regions.len() == 1 {
                     regions
                         .first()

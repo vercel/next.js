@@ -1083,6 +1083,7 @@ export default async function build(
         appUrl: null,
         envInfo,
         experimentalFeatures,
+        logBundler: true,
       })
 
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)

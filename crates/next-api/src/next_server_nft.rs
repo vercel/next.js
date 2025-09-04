@@ -38,18 +38,28 @@ enum ServerNftType {
 
 #[turbo_tasks::function]
 pub async fn next_server_nft_assets(project: Vc<Project>) -> Result<Vc<OutputAssets>> {
-    Ok(Vc::cell(vec![
-        ResolvedVc::upcast(
-            ServerNftJsonAsset::new(project, ServerNftType::Full)
-                .to_resolved()
-                .await?,
-        ),
-        ResolvedVc::upcast(
-            ServerNftJsonAsset::new(project, ServerNftType::Minimal)
-                .to_resolved()
-                .await?,
-        ),
-    ]))
+    let has_next_support = *project.ci_has_next_support().await?;
+    let is_standalone = *project.next_config().is_standalone().await?;
+
+    let minimal = ResolvedVc::upcast(
+        ServerNftJsonAsset::new(project, ServerNftType::Minimal)
+            .to_resolved()
+            .await?,
+    );
+
+    if has_next_support && !is_standalone {
+        // When deploying to Vercel, we only need next-minimal-server.js.nft.json
+        Ok(Vc::cell(vec![minimal]))
+    } else {
+        Ok(Vc::cell(vec![
+            minimal,
+            ResolvedVc::upcast(
+                ServerNftJsonAsset::new(project, ServerNftType::Full)
+                    .to_resolved()
+                    .await?,
+            ),
+        ]))
+    }
 }
 
 #[turbo_tasks::value]
@@ -248,7 +258,7 @@ impl ServerNftJsonAsset {
     #[turbo_tasks::function]
     async fn ignores(&self) -> Result<Vc<Glob>> {
         let is_standalone = *self.project.next_config().is_standalone().await?;
-        let has_next_support = *self.project.next_config().ci_has_next_support().await?;
+        let has_next_support = *self.project.ci_has_next_support().await?;
         let project_path = self.project.project_path().owned().await?;
 
         let output_file_tracing_excludes = self

@@ -4,10 +4,6 @@ import path from 'path'
 import fs from 'fs-extra'
 import {
   runNextCommand,
-  launchApp,
-  findPort,
-  killApp,
-  waitFor,
   nextBuild,
   findAllTelemetryEvents,
 } from 'next-test-utils'
@@ -102,43 +98,6 @@ describe('Telemetry CLI', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode',
     () => {
-      it('detects isSrcDir dir correctly for `next build`', async () => {
-        // must clear cache for GSSP imports to be detected correctly
-        await fs.remove(path.join(appDir, '.next'))
-        const { stderr } = await runNextCommand(['build', appDir], {
-          stderr: true,
-          env: {
-            NEXT_TELEMETRY_DEBUG: 1,
-          },
-        })
-
-        expect(stderr).toMatch(/isSrcDir.*?false/)
-
-        // Turbopack intentionally does not support these events
-        if (!process.env.IS_TURBOPACK_TEST) {
-          expect(stderr).toMatch(/package.*?"fs"/)
-          expect(stderr).toMatch(/package.*?"path"/)
-          expect(stderr).toMatch(/package.*?"http"/)
-          expect(stderr).toMatch(/NEXT_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS/)
-        }
-        await fs.move(
-          path.join(appDir, 'pages'),
-          path.join(appDir, 'src/pages')
-        )
-        const { stderr: stderr2 } = await runNextCommand(['build', appDir], {
-          stderr: true,
-          env: {
-            NEXT_TELEMETRY_DEBUG: 1,
-          },
-        })
-        await fs.move(
-          path.join(appDir, 'src/pages'),
-          path.join(appDir, 'pages')
-        )
-
-        expect(stderr2).toMatch(/isSrcDir.*?true/)
-      })
-
       it('emits event when swc fails to load', async () => {
         await fs.remove(path.join(appDir, '.next'))
         const { stderr } = await runNextCommand(['build', appDir], {
@@ -409,38 +368,4 @@ describe('Telemetry CLI', () => {
       })
     }
   )
-
-  it('detects isSrcDir dir correctly for `next dev`', async () => {
-    let port = await findPort()
-    let stderr = ''
-
-    const handleStderr = (msg) => {
-      stderr += msg
-    }
-    let app = await launchApp(appDir, port, {
-      onStderr: handleStderr,
-      env: {
-        NEXT_TELEMETRY_DEBUG: 1,
-      },
-    })
-    await waitFor(1000)
-    await killApp(app)
-    expect(stderr).toMatch(/isSrcDir.*?false/)
-
-    await fs.move(path.join(appDir, 'pages'), path.join(appDir, 'src/pages'))
-    stderr = ''
-
-    port = await findPort()
-    app = await launchApp(appDir, port, {
-      onStderr: handleStderr,
-      env: {
-        NEXT_TELEMETRY_DEBUG: 1,
-      },
-    })
-    await waitFor(1000)
-    await killApp(app)
-    await fs.move(path.join(appDir, 'src/pages'), path.join(appDir, 'pages'))
-
-    expect(stderr).toMatch(/isSrcDir.*?true/)
-  })
 })

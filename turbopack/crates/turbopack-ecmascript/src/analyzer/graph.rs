@@ -419,6 +419,15 @@ impl EvalContext {
             Expr::Ident(i) => self.eval_ident(i),
 
             Expr::Unary(UnaryExpr {
+                op: op!("void"),
+                // Only treat literals as constant undefined, allowing arbitrary values inside here
+                // would mean that they can have sideeffects, and `JsValue::Constant` can't model
+                // that.
+                arg: box Expr::Lit(_),
+                ..
+            }) => JsValue::Constant(ConstantValue::Undefined),
+
+            Expr::Unary(UnaryExpr {
                 op: op!("!"), arg, ..
             }) => {
                 let arg = self.eval(arg);

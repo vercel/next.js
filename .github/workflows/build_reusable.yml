@@ -260,6 +260,11 @@ jobs:
         shell: bash -le {0}
         timeout-minutes: ${{ inputs.timeout_minutes }}
 
+      # This file messes up the tests because it influences the build root autodetection.
+      - name: Clean up stray files
+        if: ${{ always() }}
+        run: rm -f /tmp/package-lock.json
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

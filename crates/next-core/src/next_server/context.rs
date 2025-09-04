@@ -329,17 +329,19 @@ pub async fn get_server_resolve_options_context(
         ..Default::default()
     };
 
+    let tsconfig_path = next_config
+        .typescript_tsconfig_path()
+        .await?
+        .as_ref()
+        .map(|p| project_path.join(p))
+        .transpose()?;
+
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
-        tsconfig_path: next_config
-            .typescript_tsconfig_path()
-            .await?
-            .as_ref()
-            .map(|p| project_path.join(p))
-            .transpose()?,
+        tsconfig_path,
         rules: vec![(
             foreign_code_context_condition,
             resolve_options_context.clone().resolved_cell(),
@@ -520,11 +522,19 @@ pub async fn get_server_module_options_context(
         .await?;
     let css_versions = environment.css_runtime_versions();
 
+    let tsconfig_path = next_config
+        .typescript_tsconfig_path()
+        .await?
+        .as_ref()
+        .map(|p| project_path.join(p))
+        .transpose()?;
+
     // ModuleOptionsContext related options
-    let tsconfig = get_typescript_transform_options(project_path.clone())
+    let tsconfig = get_typescript_transform_options(project_path.clone(), tsconfig_path.clone())
         .to_resolved()
         .await?;
-    let decorators_options = get_decorators_transform_options(project_path.clone());
+    let decorators_options =
+        get_decorators_transform_options(project_path.clone(), tsconfig_path.clone());
     let enable_mdx_rs = *next_config.mdx_rs().await?;
 
     // Get the jsx transform options for the `client` side.
@@ -534,14 +544,26 @@ pub async fn get_server_module_options_context(
     //
     // This enables correct emotion transform and other hydration between server and
     // client bundles. ref: https://github.com/vercel/next.js/blob/4bbf9b6c70d2aa4237defe2bebfa790cdb7e334e/packages/next/src/build/webpack-config.ts#L1421-L1426
-    let jsx_runtime_options =
-        get_jsx_transform_options(project_path.clone(), mode, None, false, next_config)
-            .to_resolved()
-            .await?;
-    let rsc_jsx_runtime_options =
-        get_jsx_transform_options(project_path.clone(), mode, None, true, next_config)
-            .to_resolved()
-            .await?;
+    let jsx_runtime_options = get_jsx_transform_options(
+        project_path.clone(),
+        mode,
+        None,
+        false,
+        next_config,
+        tsconfig_path.clone(),
+    )
+    .to_resolved()
+    .await?;
+    let rsc_jsx_runtime_options = get_jsx_transform_options(
+        project_path.clone(),
+        mode,
+        None,
+        true,
+        next_config,
+        tsconfig_path,
+    )
+    .to_resolved()
+    .await?;
 
     // A set of custom ecma transform rules being applied to server context.
     let source_transform_rules: Vec<ModuleRule> = vec![
