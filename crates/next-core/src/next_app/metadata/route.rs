@@ -265,59 +265,60 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
     Ok(Vc::upcast(source))
 }
 
-#[turbo_tasks::function]
-async fn dynamic_site_map_route_source(
+fn get_sitemap_generate_static_params_code() -> &'static str {
+    indoc! {
+        r#"
+            export async function generateStaticParams() {
+                const sitemaps = await generateSitemaps()
+                const params = []
+
+                for (const item of sitemaps) {
+                    params.push({ __metadata_id__: item.id.toString() + '.xml' })
+                }
+                return params
+            }
+        "#,
+    }
+}
+
+async fn dynamic_sitemap_route_with_generate_source(
     mode: NextMode,
     path: FileSystemPath,
-    is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
     let content_type = get_content_type(path.clone()).await?;
-    let mut static_generation_code = "";
-    let mut validation_code = "";
 
-    if is_multi_dynamic {
-        if mode.is_production() {
-            static_generation_code = indoc! {
-                r#"
-                    export async function generateStaticParams() {
-                        const sitemaps = await generateSitemaps()
-                        const params = []
+    let static_generation_code = if mode.is_production() {
+        get_sitemap_generate_static_params_code()
+    } else {
+        ""
+    };
 
-                        for (const item of sitemaps) {{
-                            params.push({ __metadata_id__: item.id.toString() + '.xml' })
-                        }}
-                        return params
-                    }
-                "#,
-            };
-        } else {
-            validation_code = indoc! {
-                r#"
-                    if (process.env.NODE_ENV !== 'production' && sitemapModule.generateSitemaps) {
-                        const sitemaps = await sitemapModule.generateSitemaps()
-                        for (const item of sitemaps) {
-                            if (item?.id == null) {
-                                throw new Error('id property is required for every item returned from generateSitemaps')
-                            }
+    let validation_code = if !mode.is_production() {
+        indoc! {
+            r#"
+                if (process.env.NODE_ENV !== 'production') {
+                    const sitemaps = await generateSitemaps()
+                    for (const item of sitemaps) {
+                        if (item?.id == null) {
+                            throw new Error('id property is required for every item returned from generateSitemaps')
                         }
                     }
-                "#,
-            };
+                }
+            "#,
         }
-    }
+    } else {
+        ""
+    };
 
     let code = formatdoc! {
         r#"
             import {{ NextResponse }} from 'next/server'
-            import * as _sitemapModule from {resource_path}
+            import {{ default as handler, generateSitemaps }} from {resource_path}
             import {{ resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
 
-            const sitemapModule = {{ ..._sitemapModule }}
-            const handler = sitemapModule.default
-            const generateSitemaps = sitemapModule.generateSitemaps
             const contentType = {content_type}
             const cacheControl = {cache_control}
             const fileType = {file_type}
@@ -368,6 +369,70 @@ async fn dynamic_site_map_route_source(
     );
 
     Ok(Vc::upcast(source))
+}
+
+async fn dynamic_sitemap_route_without_generate_source(
+    path: FileSystemPath,
+) -> Result<Vc<Box<dyn Source>>> {
+    let stem = path.file_stem();
+    let stem = stem.unwrap_or_default();
+    let ext = path.extension();
+    let content_type = get_content_type(path.clone()).await?;
+
+    let code = formatdoc! {
+        r#"
+            import {{ NextResponse }} from 'next/server'
+            import {{ default as handler }} from {resource_path}
+            import {{ resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+
+            const contentType = {content_type}
+            const cacheControl = {cache_control}
+            const fileType = {file_type}
+
+            if (typeof handler !== 'function') {{
+                throw new Error('Default export is missing in {resource_path}')
+            }}
+
+            export async function GET() {{
+                const data = await handler()
+                const content = resolveRouteData(data, fileType)
+
+                return new NextResponse(content, {{
+                    headers: {{
+                        'Content-Type': contentType,
+                        'Cache-Control': cacheControl,
+                    }},
+                }})
+            }}
+
+            export * from {resource_path}
+        "#,
+        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        content_type = StringifyJs(&content_type),
+        file_type = StringifyJs(&stem),
+        cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
+    };
+
+    let file = File::from(code);
+    let source = VirtualSource::new(
+        path.parent().join(&format!("{stem}--route-entry.js"))?,
+        AssetContent::file(file.into()),
+    );
+
+    Ok(Vc::upcast(source))
+}
+
+#[turbo_tasks::function]
+async fn dynamic_site_map_route_source(
+    mode: NextMode,
+    path: FileSystemPath,
+    is_multi_dynamic: bool,
+) -> Result<Vc<Box<dyn Source>>> {
+    if is_multi_dynamic {
+        dynamic_sitemap_route_with_generate_source(mode, path).await
+    } else {
+        dynamic_sitemap_route_without_generate_source(path).await
+    }
 }
 
 async fn dynamic_image_route_with_metadata_source(
