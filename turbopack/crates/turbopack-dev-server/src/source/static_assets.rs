@@ -142,7 +142,7 @@ impl Introspectable for StaticAssetsContentSource {
                             .to_resolved()
                             .await?,
                         ),
-                        DirectoryEntry::Other(_) | DirectoryEntry::Error => {
+                        DirectoryEntry::Other(_) | DirectoryEntry::Error(_) => {
                             todo!("unsupported DirectoryContent variant: {entry:?}")
                         }
                     };

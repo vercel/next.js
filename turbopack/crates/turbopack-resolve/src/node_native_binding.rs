@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
@@ -185,7 +185,10 @@ pub async fn resolve_node_pre_gyp_files(
                         }
                         sources.insert(
                             format!("deps/lib/{key}").into(),
-                            Vc::upcast(FileSource::new(realpath_with_links.path.clone())),
+                            Vc::upcast(FileSource::new(match &realpath_with_links.path_or_error {
+                                Ok(path) => path.clone(),
+                                Err(e) => bail!(e.as_error_message(dylib, &realpath_with_links)),
+                            })),
                         );
                     }
                     _ => {}
