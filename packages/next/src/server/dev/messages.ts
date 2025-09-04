@@ -1,3 +1,4 @@
+import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type BinaryHmrMessageSentToBrowser,
@@ -18,7 +19,9 @@ export function createBinaryHmrMessageData(
       const requestIdLength = requestIdBytes.length
 
       if (requestIdLength > 255) {
-        throw new Error('Request ID is too long for the binary message format.')
+        throw new InvariantError(
+          'Request ID is too long for the binary HMR message.'
+        )
       }
 
       const chunkLength = chunk ? chunk.length : 0
@@ -37,7 +40,9 @@ export function createBinaryHmrMessageData(
       return data
     }
     default: {
-      throw new Error(`Invalid binary HMR message of type ${message.type}`)
+      throw new InvariantError(
+        `Invalid binary HMR message of type ${message.type}`
+      )
     }
   }
 }
