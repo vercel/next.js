@@ -8508,11 +8508,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-canary-3302d1f7-20250903" !== isomorphicReactPackageVersion)
+      if ("19.2.0-canary-b9a04536-20250904" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-canary-3302d1f7-20250903\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-canary-b9a04536-20250904\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -10202,5 +10202,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-canary-3302d1f7-20250903";
+    exports.version = "19.2.0-canary-b9a04536-20250904";
   })();
