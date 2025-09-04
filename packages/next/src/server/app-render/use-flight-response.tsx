@@ -175,8 +175,7 @@ function writeInitialInstructions(
 
   if (process.env.NODE_ENV !== 'production') {
     // The request ID is only needed in development mode.
-    scriptContents =
-      `self.__next_r=${JSON.stringify(requestId)};` + scriptContents
+    scriptContents = `self.__next_r=${JSON.stringify(requestId)};${scriptContents}`
   }
 
   if (formState != null) {
