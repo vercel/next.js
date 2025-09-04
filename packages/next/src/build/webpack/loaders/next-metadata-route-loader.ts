@@ -25,7 +25,10 @@ async function createReExportsCode(
   )
   // Re-export configs but avoid conflicted exports
   const reExportNames = exportNames.filter(
-    (name) => name !== 'default' && name !== 'generateSitemaps'
+    (name) =>
+      name !== 'default' &&
+      name !== 'generateSitemaps' &&
+      name !== 'dynamicParams'
   )
 
   return reExportNames.length > 0
@@ -157,10 +160,7 @@ async function getDynamicImageRouteCode(
   resourcePath: string,
   loaderContext: webpack.LoaderContext<any>
 ) {
-  let staticGenerationCode = ''
-
-  if (process.env.NODE_ENV === 'production') {
-    staticGenerationCode = `\
+  const staticGenerationCode = `\
 export async function generateStaticParams({ params }) {
   const imageMetadata = await generateImageMetadata({ params })
   const staticParams = []
@@ -171,7 +171,6 @@ export async function generateStaticParams({ params }) {
   return staticParams
 }
 `
-  }
 
   return `\
 /* dynamic image route with generateImageMetadata */
@@ -185,22 +184,26 @@ export async function GET(_, ctx) {
   const params = await ctx.params
   const { __metadata_id__, ...rest } = params || {}
   const restParams = params ? rest : undefined
-  const imageMetadata = await generateImageMetadata({ params: restParams })
-  const id = imageMetadata.find((item) => {
-    if (process.env.NODE_ENV !== 'production') {
+  
+  ${/* we need a dev assertion for id since dynamicParams=false won't work well in dev */ ''}
+  if (process.env.NODE_ENV !== 'production') {
+    const imageMetadata = await generateImageMetadata({ params: restParams })
+    const id = imageMetadata.find((item) => {
       if (item?.id == null) {
         throw new Error('id property is required for every item returned from generateImageMetadata')
       }
+
+      return item.id.toString() === __metadata_id__
+    })?.id
+
+    if (id == null) {
+      return new NextResponse('Not Found', {
+        status: 404,
+      })
     }
-    return item.id.toString() === __metadata_id__
-  })?.id
-  if (id == null) {
-    return new NextResponse('Not Found', {
-      status: 404,
-    })
   }
 
-  return handler({ params: restParams, id })
+  return handler({ params: restParams, id: __metadata_id__ })
 }
 
 ${staticGenerationCode}
@@ -244,23 +247,6 @@ async function getImageRouteCode(
   }
 }
 
-function getSitemapGenerateStaticParamsCode() {
-  if (process.env.NODE_ENV === 'production') {
-    return `\
-export async function generateStaticParams() {
-  const sitemaps = await generateSitemaps()
-  const params = []
-
-  for (const item of sitemaps) {
-    params.push({ __metadata_id__: item.id.toString() + '.xml' })
-  }
-  return params
-}
-`
-  }
-  return ''
-}
-
 async function getSingleSitemapRouteCode(
   resourcePath: string,
   loaderContext: webpack.LoaderContext<any>
@@ -295,7 +281,17 @@ async function getDynamicSitemapRouteCode(
   resourcePath: string,
   loaderContext: webpack.LoaderContext<any>
 ) {
-  const staticGenerationCode = getSitemapGenerateStaticParamsCode()
+  const staticGenerationCode = `\
+export async function generateStaticParams() {
+  const sitemaps = await generateSitemaps()
+  const params = []
+
+  for (const item of sitemaps) {
+    params.push({ __metadata_id__: item.id.toString() + '.xml' })
+  }
+  return params
+}
+`
 
   const code = `\
 /* dynamic sitemap route with generateSitemaps */
@@ -305,6 +301,8 @@ import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resol
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
+
+export const dynamicParams = false
 
 ${errorOnBadHandler(resourcePath)}
 ${await createReExportsCode(resourcePath, loaderContext)}
@@ -317,13 +315,23 @@ export async function GET(_, ctx) {
       status: 404,
     })
   }
-
+  
   if (process.env.NODE_ENV !== 'production') {
     const sitemaps = await generateSitemaps()
+    let foundId
     for (const item of sitemaps) {
       if (item?.id == null) {
         throw new Error('id property is required for every item returned from generateSitemaps')
       }
+      const baseId = id && hasXmlExtension ? id.slice(0, -4) : undefined
+      if (item.id.toString() === baseId) {
+        foundId = item.id
+      }
+    }
+    if (!foundId) {
+      return new NextResponse('Not Found', {
+        status: 404,
+      })
     }
   }
 

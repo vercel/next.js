@@ -290,21 +290,27 @@ async fn dynamic_sitemap_route_with_generate_source(
     let ext = path.extension();
     let content_type = get_content_type(path.clone()).await?;
 
-    let static_generation_code = if mode.is_production() {
-        get_sitemap_generate_static_params_code()
-    } else {
-        ""
-    };
+    let static_generation_code = get_sitemap_generate_static_params_code();
 
     let validation_code = if !mode.is_production() {
         indoc! {
             r#"
                 if (process.env.NODE_ENV !== 'production') {
                     const sitemaps = await generateSitemaps()
+                    let foundId
                     for (const item of sitemaps) {
                         if (item?.id == null) {
                             throw new Error('id property is required for every item returned from generateSitemaps')
                         }
+                        const baseId = id && hasXmlExtension ? id.slice(0, -4) : undefined
+                        if (item.id.toString() === baseId) {
+                            foundId = item.id
+                        }
+                    }
+                    if (!foundId) {
+                        return new NextResponse('Not Found', {
+                            status: 404,
+                        })
                     }
                 }
             "#,
@@ -320,8 +326,10 @@ async fn dynamic_sitemap_route_with_generate_source(
             import {{ resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
 
             const contentType = {content_type}
-            const cacheControl = {cache_control}
+            const cache_control = {cache_control}
             const fileType = {file_type}
+
+            export const dynamicParams = false
 
             if (typeof handler !== 'function') {{
                 throw new Error('Default export is missing in {resource_path}')
@@ -345,7 +353,7 @@ async fn dynamic_sitemap_route_with_generate_source(
                 return new NextResponse(content, {{
                     headers: {{
                         'Content-Type': contentType,
-                        'Cache-Control': cacheControl,
+                        'Cache-Control': cache_control,
                     }},
                 }})
             }}
@@ -359,7 +367,6 @@ async fn dynamic_sitemap_route_with_generate_source(
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
         validation_code = validation_code,
-        static_generation_code = static_generation_code,
     };
 
     let file = File::from(code);
@@ -443,33 +450,49 @@ async fn dynamic_image_route_with_metadata_source(
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
 
-    let mut static_generation_code = "";
+    let static_generation_code = indoc! {
+        r#"
+            export async function generateStaticParams({ params }) {
+                const imageMetadata = await generateImageMetadata({ params })
+                const staticParams = []
 
-    if mode.is_production() {
-        static_generation_code = indoc! {
+                for (const item of imageMetadata) {
+                    staticParams.push({ __metadata_id__: item.id.toString() })
+                }
+                return staticParams
+            }
+        "#,
+    };
+
+    let validation_code = if !mode.is_production() {
+        indoc! {
             r#"
-                export async function generateStaticParams({ params }) {
-                    const imageMetadata = await generateImageMetadata({ params })
-                    const staticParams = []
+                if (process.env.NODE_ENV !== 'production') {
+                    const imageMetadata = await generateImageMetadata({ params: restParams })
+                    const id = imageMetadata.find((item) => {
+                        if (item?.id == null) {
+                            throw new Error('id property is required for every item returned from generateImageMetadata')
+                        }
 
-                    for (const item of imageMetadata) {
-                        staticParams.push({ __metadata_id__: item.id.toString() })
+                        return item.id.toString() === __metadata_id__
+                    })?.id
+
+                    if (id == null) {
+                        return new NextResponse('Not Found', {
+                            status: 404,
+                        })
                     }
-                    return staticParams
                 }
             "#,
-        };
-    }
+        }
+    } else {
+        ""
+    };
 
     let code = formatdoc! {
         r#"
             import {{ NextResponse }} from 'next/server'
-            import * as _imageModule from {resource_path}
-
-            const imageModule = {{ ..._imageModule }}
-
-            const handler = imageModule.default
-            const generateImageMetadata = imageModule.generateImageMetadata
+            import {{ default as handler, generateImageMetadata }} from {resource_path}
 
             if (typeof handler !== 'function') {{
                 throw new Error('Default export is missing in {resource_path}')
@@ -479,25 +502,10 @@ async fn dynamic_image_route_with_metadata_source(
                 const params = await ctx.params
                 const {{ __metadata_id__, ...rest }} = params || {{}}
                 const restParams = params ? rest : undefined
-                const targetId = __metadata_id__
+                
+                {validation_code}
 
-                const imageMetadata = await generateImageMetadata({{ params: restParams }})
-                const id = imageMetadata.find((item) => {{
-                    if (process.env.NODE_ENV !== 'production') {{
-                        if (item?.id == null) {{
-                            throw new Error('id property is required for every item returned from generateImageMetadata')
-                        }}
-                    }}
-                    return item.id.toString() === targetId
-                }})?.id
-
-                if (id == null) {{
-                    return new NextResponse('Not Found', {{
-                        status: 404,
-                    }})
-                }}
-
-                return handler({{ params: restParams, id }})
+                return handler({{ params: restParams, id: __metadata_id__ }})
             }}
 
             export * from {resource_path}
@@ -505,6 +513,7 @@ async fn dynamic_image_route_with_metadata_source(
             {static_generation_code}
         "#,
         resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        validation_code = validation_code,
         static_generation_code = static_generation_code,
     };
 
