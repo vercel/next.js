@@ -5,7 +5,6 @@
 use std::{iter::once, thread::available_parallelism};
 
 use anyhow::{Result, bail};
-pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -25,16 +24,14 @@ use turbopack_core::{
     virtual_output::VirtualOutputAsset,
 };
 
-use self::{pool::NodeJsPool, source_map::StructuredError};
+use self::pool::NodeJsPool;
 
 pub mod debug;
 pub mod embed_js;
 pub mod evaluate;
 pub mod execution_context;
 mod heap_queue;
-mod node_entry;
 mod pool;
-pub mod render;
 pub mod route_matcher;
 pub mod source_map;
 pub mod transforms;
