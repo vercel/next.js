@@ -16,7 +16,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-clap = { workspace = true, features = ["derive"] }
 crossterm = "0.26.0"
 owo-colors = { workspace = true }
 rustc-hash = { workspace = true }

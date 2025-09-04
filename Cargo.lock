@@ -9590,7 +9590,6 @@ name = "turbopack-cli-utils"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap",
  "crossterm 0.26.1",
  "owo-colors 3.5.0",
  "rustc-hash 2.1.1",
