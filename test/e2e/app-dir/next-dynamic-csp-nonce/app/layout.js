@@ -1,4 +1,5 @@
 import { headers } from 'next/headers'
+import { Suspense } from 'react'
 
 export default async function CSPLayout({ children }) {
   const resolvedHeaders = await headers()
@@ -13,7 +14,9 @@ export default async function CSPLayout({ children }) {
         />
       </head>
       <body>
-        <div id="csp-nonce-test">{children}</div>
+        <div id="csp-nonce-test">
+          <Suspense>{children}</Suspense>
+        </div>
       </body>
     </html>
   )
