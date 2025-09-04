@@ -40,4 +40,4 @@ turbopack-create-test-app = { workspace = true }
 url = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
-nix = "0.26.1"
+nix = "0.30.1"
