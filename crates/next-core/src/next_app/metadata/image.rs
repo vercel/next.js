@@ -93,7 +93,7 @@ async fn dynamic_image_metadata_with_generator_source(
 
                 const imageMetadataArray = await generateImageMetadata({{ params }})
                 return imageMetadataArray.map((imageMetadata, index) => {{
-                    const idParam = (imageMetadata.id || index) + ''
+                    const idParam = imageMetadata.id + ''
                     return getImageMetadata(imageMetadata, idParam)
                 }})
             }}

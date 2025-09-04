@@ -90,9 +90,9 @@ async function nextMetadataImageLoader(
       const data = {
         alt: imageMetadata.alt,
         type: imageMetadata.contentType || 'image/png',
-        url: imageUrl + (idParam ? ('/' + idParam) : '') + ${JSON.stringify(
-          hashQuery
-        )},
+      url: imageUrl + (idParam ? ('/' + idParam) : '') + ${JSON.stringify(
+        hashQuery
+      )},
       }
       const { size } = imageMetadata
       if (size) {
@@ -112,7 +112,7 @@ async function nextMetadataImageLoader(
       if (generateImageMetadata) {
         const imageMetadataArray = await generateImageMetadata({ params: resolvedParams })
         return imageMetadataArray.map((imageMetadata, index) => {
-          const idParam = (imageMetadata.id || index) + ''
+          const idParam = imageMetadata.id + ''
           return getImageMetadata(imageMetadata, idParam, resolvedParams)
         })
       } else {
