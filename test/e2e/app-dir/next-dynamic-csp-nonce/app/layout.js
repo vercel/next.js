@@ -1,7 +1,8 @@
 import { headers } from 'next/headers'
 
-export default function CSPLayout({ children }) {
-  const nonce = headers().get('x-nonce') || 'test-nonce'
+export default async function CSPLayout({ children }) {
+  const resolvedHeaders = await headers()
+  const nonce = resolvedHeaders.get('x-nonce') || 'test-nonce'
 
   return (
     <html>
