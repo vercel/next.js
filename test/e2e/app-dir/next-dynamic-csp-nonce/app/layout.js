@@ -16,14 +16,14 @@ async function CSPMetatag({ children }) {
 export default async function RootLayout({ children }) {
   return (
     <html>
-      <head>
-        <Suspense>
+      <Suspense>
+        <head>
           <CSPMetatag />
-        </Suspense>
-      </head>
-      <body>
-        <div id="csp-nonce-test">{children}</div>
-      </body>
+        </head>
+        <body>
+          <div id="csp-nonce-test">{children}</div>
+        </body>
+      </Suspense>
     </html>
   )
 }
