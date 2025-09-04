@@ -798,5 +798,6 @@
   "797": "Failed to transpile \"%s\".",
   "798": "expected a result to be returned",
   "799": "expected a page response, got %s",
-  "800": "`experimental.rdcForNavigations` is enabled, but `experimental.ppr` is not."
+  "800": "`experimental.rdcForNavigations` is enabled, but `experimental.ppr` is not.",
+  "801": "> `pages` and `app` directories should be under the same folder"
 }
