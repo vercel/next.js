@@ -866,7 +866,7 @@ The `getImageProps` function can be used to get the props that would be passed t
 ```jsx
 import { getImageProps } from 'next/image'
 
-const props = getImageProps({
+const { props } = getImageProps({
   src: 'https://example.com/image.jpg',
   alt: 'A scenic mountain view',
   width: 1200,
