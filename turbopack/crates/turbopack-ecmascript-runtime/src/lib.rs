@@ -15,11 +15,3 @@ pub use dummy_runtime::get_dummy_runtime_code;
 pub use embed_js::{embed_file, embed_file_path, embed_fs};
 pub use nodejs_runtime::get_nodejs_runtime_code;
 pub use runtime_type::RuntimeType;
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

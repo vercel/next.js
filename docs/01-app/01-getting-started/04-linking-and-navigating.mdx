@@ -225,7 +225,7 @@ export default async function Page({ params }) {
 
 On slow or unstable networks, prefetching may not finish before the user clicks a link. This can affect both static and dynamic routes. In these cases, the `loading.js` fallback may not appear immediately because it hasn't been prefetched yet.
 
-To improve perceived performance, you can use the [`useLinkStatus` hook](/docs/app/api-reference/functions/use-link-status) to show inline visual feedback to the user (like spinners or text glimmers on the link) while a transition is in progress.
+To improve perceived performance, you can use the [`useLinkStatus` hook](/docs/app/api-reference/functions/use-link-status) to show immediate feedback while the transition is in progress.
 
 ```tsx filename="app/ui/loading-indicator.tsx" switcher
 'use client'
@@ -234,9 +234,9 @@ import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? (
-    <div role="status" aria-label="Loading" className="spinner" />
-  ) : null
+  return (
+    <span aria-hidden className={`link-hint ${pending ? 'is-pending' : ''}`} />
+  )
 }
 ```
 
@@ -247,38 +247,13 @@ import { useLinkStatus } from 'next/link'
 
 export default function LoadingIndicator() {
   const { pending } = useLinkStatus()
-  return pending ? (
-    <div role="status" aria-label="Loading" className="spinner" />
-  ) : null
+  return (
+    <span aria-hidden className={`link-hint ${pending ? 'is-pending' : ''}`} />
+  )
 }
 ```
 
-You can "debounce" the loading indicator by adding an initial animation delay (e.g. 100ms) and starting the animation as invisible (e.g. `opacity: 0`). This means the loading indicator will only be shown if the navigation takes longer than the specified delay.
-
-```css
-.spinner {
-  /* ... */
-  opacity: 0;
-  animation:
-    fadeIn 500ms 100ms forwards,
-    rotate 1s linear infinite;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes rotate {
-  to {
-    transform: rotate(360deg);
-  }
-}
-```
+You can "debounce" the hint by adding an initial animation delay (e.g. 100ms) and starting as invisible (e.g. `opacity: 0`). This means the loading indicator will only be shown if the navigation takes longer than the specified delay. See the [`useLinkStatus` reference](/docs/app/api-reference/functions/use-link-status#gracefully-handling-fast-navigation) for a CSS example.
 
 > **Good to know**: You can use other visual feedback patterns like a progress bar. View an example [here](https://github.com/vercel/react-transition-progress).
 

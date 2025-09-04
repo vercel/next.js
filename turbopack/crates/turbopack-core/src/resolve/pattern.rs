@@ -2661,7 +2661,6 @@ mod tests {
             noop_backing_storage(),
         ));
         tt.run_once(async {
-            crate::register();
             let root = DiskFileSystem::new(
                 rcstr!("test"),
                 Path::new(env!("CARGO_MANIFEST_DIR"))

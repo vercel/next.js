@@ -312,8 +312,6 @@ export function getDefineEnv({
           ),
         }
       : {}),
-    'process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER':
-      !!config.experimental.devtoolSegmentExplorer,
 
     'process.env.__NEXT_BROWSER_DEBUG_INFO_IN_TERMINAL': JSON.stringify(
       config.experimental.browserDebugInfoInTerminal || false

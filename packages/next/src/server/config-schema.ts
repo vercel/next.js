@@ -149,7 +149,6 @@ const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection>
 
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   rules: z.record(z.string(), zTurbopackRuleConfigCollection).optional(),
-  conditions: z.record(z.string(), zTurbopackCondition).optional(),
   resolveAlias: z
     .record(
       z.string(),
@@ -513,7 +512,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           })
           .optional(),
         globalNotFound: z.boolean().optional(),
-        devtoolSegmentExplorer: z.boolean().optional(),
         browserDebugInfoInTerminal: z
           .union([
             z.boolean(),

@@ -28,5 +28,3 @@ turbo-tasks-backend = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

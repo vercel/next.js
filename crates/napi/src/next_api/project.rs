@@ -73,7 +73,6 @@ use crate::{
             get_issues, subscribe,
         },
     },
-    register,
     util::DhatProfilerGuard,
 };
 
@@ -352,7 +351,6 @@ pub fn project_new(
 ) -> napi::Result<JsObject> {
     let napi_callbacks = NapiNextTurbopackCallbacks::from_js(napi_callbacks)?;
     env.spawn_future(async move {
-        register();
         let (exit, exit_receiver) = ExitHandler::new_receiver();
 
         if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {

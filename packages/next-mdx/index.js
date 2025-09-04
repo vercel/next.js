@@ -26,7 +26,8 @@ module.exports =
     /**
      * @type {import('next').NextConfig}
      */
-    let nextConfig = Object.assign({}, inputConfig, {
+    const nextConfig = {
+      ...inputConfig,
       webpack(config, options) {
         config.resolve.alias['next-mdx-import-source-file'] = [
           'private-next-root-dir/src/mdx-components',
@@ -45,26 +46,41 @@ module.exports =
 
         return config
       },
-    })
+    }
 
     if (process.env.TURBOPACK) {
-      nextConfig.turbopack = Object.assign({}, nextConfig?.turbopack, {
-        rules: Object.assign({}, nextConfig?.turbopack?.rules, {
-          '#next-mdx': {
-            loaders: [loader],
-            as: '*.tsx',
-          },
-        }),
-        conditions: {
-          '#next-mdx': {
-            path: extension,
-          },
+      const mdxRule = {
+        loaders: [loader],
+        as: '*.tsx',
+        condition: {
+          path: extension,
         },
-        resolveAlias: Object.assign({}, nextConfig?.turbopack?.resolveAlias, {
+      }
+
+      // Use a unique glob string for two reasons:
+      // - This makes it clear where the rule was defined if someone needs to debug.
+      // - Reduces the chance of a collision (can still happen if `next-mdx` is applied twice with
+      //   different options). Rule evaluation is ordering-sensitive, and a unique glob means we're
+      //   less likely to break the ordering of existing rules.
+      let wildcardGlob = '{*,next-mdx-rule}'
+      let wildcardRule = inputConfig.turbopack?.rules?.[wildcardGlob] ?? []
+      wildcardRule = [
+        ...(Array.isArray(wildcardRule) ? wildcardRule : [wildcardRule]),
+        mdxRule,
+      ]
+
+      nextConfig.turbopack = {
+        ...inputConfig?.turbopack,
+        rules: {
+          ...inputConfig?.turbopack?.rules,
+          [wildcardGlob]: wildcardRule,
+        },
+        resolveAlias: {
+          ...inputConfig?.turbopack?.resolveAlias,
           'next-mdx-import-source-file':
             '@vercel/turbopack-next/mdx-import-source',
-        }),
-      })
+        },
+      }
     }
 
     return nextConfig

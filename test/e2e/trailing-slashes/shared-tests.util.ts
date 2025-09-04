@@ -45,7 +45,9 @@ export function testShouldResolve(
       try {
         browser = await next.browser(route)
 
-        await browser.waitForElementByCss('#hydration-marker')
+        await browser.waitForElementByCss('#hydration-marker', {
+          state: 'attached',
+        })
         const text = await browser.elementByCss('#page-marker').text()
         expect(text).toBe(expectedPage)
         const routerPathname = await browser
@@ -92,7 +94,9 @@ export function testLinkShouldRewriteTo(
         browser = await next.browser(linkPage)
         await browser.elementByCss('#link').click()
 
-        await browser.waitForElementByCss('#hydration-marker')
+        await browser.waitForElementByCss('#hydration-marker', {
+          state: 'attached',
+        })
         const url = new URL(await browser.eval('window.location.href'))
         const pathname = url.href.slice(url.origin.length)
         expect(pathname).toBe(expectedHref)
@@ -110,7 +114,9 @@ export function testLinkShouldRewriteTo(
         browser = await next.browser(linkPage)
         await browser.elementByCss('#route-pusher').click()
 
-        await browser.waitForElementByCss('#hydration-marker')
+        await browser.waitForElementByCss('#hydration-marker', {
+          state: 'attached',
+        })
         const url = new URL(await browser.eval('window.location.href'))
         const pathname = url.href.slice(url.origin.length)
         expect(pathname).toBe(expectedHref)

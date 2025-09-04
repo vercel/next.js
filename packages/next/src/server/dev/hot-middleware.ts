@@ -26,8 +26,8 @@ import type ws from 'next/dist/compiled/ws'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 import { isMiddlewareFilename } from '../../build/utils'
 import type { VersionInfo } from './parse-version-info'
-import type { HMR_ACTION_TYPES } from './hot-reloader-types'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
+import type { HmrMessageSentToBrowser } from './hot-reloader-types'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { devIndicatorServerState } from './dev-indicator-server-state'
 
 function isMiddlewareStats(stats: webpack.Stats) {
@@ -89,9 +89,9 @@ class EventStream {
     })
   }
 
-  publish(payload: any) {
+  publish(message: any) {
     for (const wsClient of this.clients) {
-      wsClient.send(JSON.stringify(payload))
+      wsClient.send(JSON.stringify(message))
     }
   }
 }
@@ -141,7 +141,7 @@ export class WebpackHotMiddleware {
   onClientInvalid = () => {
     if (this.closed || this.serverLatestStats?.stats.hasErrors()) return
     this.publish({
-      action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING,
     })
   }
 
@@ -216,7 +216,7 @@ export class WebpackHotMiddleware {
       }
 
       this.publish({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+        type: HMR_MESSAGE_SENT_TO_BROWSER.SYNC,
         hash: stats.hash!,
         errors: [...(stats.errors || []), ...(middlewareStats.errors || [])],
         warnings: [
@@ -243,16 +243,16 @@ export class WebpackHotMiddleware {
     })
 
     this.publish({
-      action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.BUILT,
       hash: stats.hash!,
       warnings: stats.warnings || [],
       errors: stats.errors || [],
     })
   }
 
-  publish = (payload: HMR_ACTION_TYPES) => {
+  publish = (message: HmrMessageSentToBrowser) => {
     if (this.closed) return
-    this.eventStream.publish(payload)
+    this.eventStream.publish(message)
   }
   close = () => {
     if (this.closed) return

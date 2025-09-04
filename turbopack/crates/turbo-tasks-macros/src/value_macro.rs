@@ -11,9 +11,9 @@ use syn::{
     parse_macro_input, parse_quote,
     spanned::Spanned,
 };
-use turbo_tasks_macros_shared::{
-    get_register_value_type_ident, get_value_type_ident, get_value_type_init_ident,
-};
+use turbo_tasks_macros_shared::get_value_type_ident;
+
+use crate::global_name::global_name;
 
 enum IntoMode {
     None,
@@ -207,7 +207,7 @@ impl Parse for ValueArguments {
 }
 
 pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
-    let mut item = parse_macro_input!(input as Item);
+    let item = parse_macro_input!(input as Item);
     let ValueArguments {
         serialization_mode,
         into_mode,
@@ -217,13 +217,21 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         operation,
     } = parse_macro_input!(args as ValueArguments);
 
+    let mut struct_attributes = vec![quote! {
+        #[derive(
+            turbo_tasks::ShrinkToFit,
+            turbo_tasks::trace::TraceRawVcs,
+            turbo_tasks::NonLocalValue,
+        )]
+        #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
+    }];
+
     let mut inner_type = None;
     if transparent {
         if let Item::Struct(ItemStruct {
-            attrs,
             fields: Fields::Unnamed(FieldsUnnamed { unnamed, .. }),
             ..
-        }) = &mut item
+        }) = &item
             && unnamed.len() == 1
         {
             let field = unnamed.iter().next().unwrap();
@@ -251,7 +259,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                  [`{inner_type_string}`].",
             );
 
-            attrs.push(parse_quote! {
+            struct_attributes.push(parse_quote! {
                 #[doc = #doc_str]
             });
         }
@@ -343,22 +351,21 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let mut struct_attributes = vec![quote! {
-        #[derive(
-            turbo_tasks::ShrinkToFit,
-            turbo_tasks::trace::TraceRawVcs,
-            turbo_tasks::NonLocalValue,
-        )]
-        #[shrink_to_fit(crate = "turbo_tasks::macro_helpers::shrink_to_fit")]
-    }];
     match serialization_mode {
-        SerializationMode::Auto => struct_attributes.push(quote! {
-            #[derive(
-                turbo_tasks::macro_helpers::serde::Serialize,
-                turbo_tasks::macro_helpers::serde::Deserialize,
-            )]
-            #[serde(crate = "turbo_tasks::macro_helpers::serde")]
-        }),
+        SerializationMode::Auto => {
+            struct_attributes.push(quote! {
+                #[derive(
+                    turbo_tasks::macro_helpers::serde::Serialize,
+                    turbo_tasks::macro_helpers::serde::Deserialize,
+                )]
+                #[serde(crate = "turbo_tasks::macro_helpers::serde")]
+            });
+            if transparent {
+                struct_attributes.push(quote! {
+                    #[serde(transparent)]
+                });
+            }
+        }
         SerializationMode::None | SerializationMode::Custom => {}
     };
     if inner_type.is_some() {
@@ -386,13 +393,14 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         });
     }
 
+    let name = global_name(quote! {stringify!(#ident) });
     let new_value_type = match serialization_mode {
         SerializationMode::None => quote! {
-            turbo_tasks::ValueType::new::<#ident>()
+            turbo_tasks::ValueType::new::<#ident>(#name)
         },
         SerializationMode::Auto | SerializationMode::Custom => {
             quote! {
-                turbo_tasks::ValueType::new_with_any_serialization::<#ident>()
+                turbo_tasks::ValueType::new_with_any_serialization::<#ident>(#name)
             }
         }
     };
@@ -455,9 +463,7 @@ pub fn value_type_and_register(
     cell_mode: proc_macro2::TokenStream,
     new_value_type: proc_macro2::TokenStream,
 ) -> proc_macro2::TokenStream {
-    let value_type_init_ident = get_value_type_init_ident(ident);
     let value_type_ident = get_value_type_ident(ident);
-    let register_value_type_ident = get_register_value_type_ident(ident);
 
     let (impl_generics, where_clause) = if let Some(generics) = generics {
         let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -467,37 +473,15 @@ pub fn value_type_and_register(
     };
 
     quote! {
-        #[doc(hidden)]
-        static #value_type_init_ident: turbo_tasks::macro_helpers::OnceCell<
-            turbo_tasks::ValueType,
-        > = turbo_tasks::macro_helpers::OnceCell::new();
-        #[doc(hidden)]
-        pub(crate) static #value_type_ident: turbo_tasks::macro_helpers::Lazy<&turbo_tasks::ValueType> =
+
+        static #value_type_ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueType> =
             turbo_tasks::macro_helpers::Lazy::new(|| {
-                #value_type_init_ident.get_or_init(|| {
-                    panic!(
-                        concat!(
-                            stringify!(#value_type_ident),
-                            " has not been initialized (this should happen via the generated register function)"
-                        )
-                    )
-                })
-            });
-
-
-        #[doc(hidden)]
-        #[allow(non_snake_case)]
-        pub(crate) fn #register_value_type_ident(
-            global_name: &'static str,
-            init: impl FnOnce(&mut turbo_tasks::ValueType),
-            register_traits: impl FnOnce(turbo_tasks::ValueTypeId),
-        ) {
-            #value_type_init_ident.get_or_init(|| {
                 let mut value = #new_value_type;
-                init(&mut value);
+                turbo_tasks::macro_helpers::register_trait_methods(&mut value);
                 value
-            }).register(global_name, register_traits);
-        }
+             });
+
+        turbo_tasks::macro_helpers::inventory_submit!{turbo_tasks::macro_helpers::CollectableValueType(&#value_type_ident)}
 
         unsafe impl #impl_generics turbo_tasks::VcValueType for #ty #where_clause {
             type Read = #read;
@@ -505,9 +489,9 @@ pub fn value_type_and_register(
 
             fn get_value_type_id() -> turbo_tasks::ValueTypeId {
                 static ident: turbo_tasks::macro_helpers::Lazy<turbo_tasks::ValueTypeId> =
-                turbo_tasks::macro_helpers::Lazy::new(|| {
-                    turbo_tasks::registry::get_value_type_id(*#value_type_ident)
-                });
+                    turbo_tasks::macro_helpers::Lazy::new(|| {
+                        turbo_tasks::registry::get_value_type_id(&#value_type_ident)
+                    });
 
                 *ident
             }
