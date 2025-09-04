@@ -34,7 +34,7 @@ rustflags = [
   "target-feature=+crt-static"
 ]
 
-[target.'cfg(all(target_os = "linux", target_env = "gnu"))']
+[target.aarch64-unknown-linux-gnu]
 rustflags = [
   "--cfg",
   "tokio_unstable",
@@ -42,7 +42,18 @@ rustflags = [
   "-Zthreads=8",
   "-Zunstable-options",
   "-Csymbol-mangling-version=v0",
-  "-Clinker-flavor=gnu-lld-cc",
+  "-Clinker-features=+lld",
+  "-Clink-self-contained=+linker",
+]
+
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+  "--cfg",
+  "tokio_unstable",
+  "-Zshare-generics=y",
+  "-Zthreads=8",
+  "-Zunstable-options",
+  "-Csymbol-mangling-version=v0",
   "-Clink-self-contained=+linker",
 ]
 
