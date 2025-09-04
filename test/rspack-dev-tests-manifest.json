@@ -10,13 +10,13 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshLogBox-builtins.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "ReactRefreshLogBox-builtins app Module not found",
       "ReactRefreshLogBox-builtins app Module not found empty import trace",
       "ReactRefreshLogBox-builtins app Module not found missing global CSS",
       "ReactRefreshLogBox-builtins app Node.js builtins"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -35,6 +35,8 @@
     "passed": [
       "ReactRefreshLogBox app Call stack for client error",
       "ReactRefreshLogBox app Call stack for server error",
+      "ReactRefreshLogBox app Can't resolve @import in CSS file",
+      "ReactRefreshLogBox app Import trace when module not found in layout",
       "ReactRefreshLogBox app Server component errors should open up in fullscreen",
       "ReactRefreshLogBox app Should not show __webpack_exports__ when exporting anonymous arrow function",
       "ReactRefreshLogBox app Should show error location for server actions in client component",
@@ -42,20 +44,16 @@
       "ReactRefreshLogBox app Unhandled errors and rejections opens up in the minimized state",
       "ReactRefreshLogBox app boundaries",
       "ReactRefreshLogBox app conversion to class component (1)",
-      "ReactRefreshLogBox app logbox: anchors links in error messages",
-      "ReactRefreshLogBox app should hide unrelated frames in stack trace with nodejs internal calls",
-      "ReactRefreshLogBox app should hide unrelated frames in stack trace with unknown anonymous calls",
-      "ReactRefreshLogBox app should strip whitespace correctly with newline"
-    ],
-    "failed": [
-      "ReactRefreshLogBox app Can't resolve @import in CSS file",
-      "ReactRefreshLogBox app Import trace when module not found in layout",
       "ReactRefreshLogBox app css syntax errors",
-      "ReactRefreshLogBox app module init error not shown",
+      "ReactRefreshLogBox app logbox: anchors links in error messages",
       "ReactRefreshLogBox app server component can recover from error thrown in the module",
       "ReactRefreshLogBox app should collapse bundler internal stack frames",
+      "ReactRefreshLogBox app should hide unrelated frames in stack trace with nodejs internal calls",
+      "ReactRefreshLogBox app should hide unrelated frames in stack trace with unknown anonymous calls",
+      "ReactRefreshLogBox app should strip whitespace correctly with newline",
       "ReactRefreshLogBox app unterminated JSX"
     ],
+    "failed": ["ReactRefreshLogBox app module init error not shown"],
     "pending": [
       "ReactRefreshLogBox app internal package errors",
       "ReactRefreshLogBox app non-Error errors are handled properly"
@@ -64,8 +62,8 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/ReactRefreshLogBoxMisc.test.ts": {
-    "passed": [],
-    "failed": ["ReactRefreshLogBox app server-side only compilation errors"],
+    "passed": ["ReactRefreshLogBox app server-side only compilation errors"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -165,16 +163,16 @@
     "passed": [
       "Error recovery app can recover from a event handler error",
       "Error recovery app client component can recover from a component error",
-      "Error recovery app server component can recover from a component error",
-      "Error recovery app stuck error"
-    ],
-    "failed": [
-      "Error recovery app can recover from a syntax error without losing state",
       "Error recovery app client component can recover from syntax error",
       "Error recovery app displays build error on initial page load",
       "Error recovery app render error not shown right after syntax error",
+      "Error recovery app server component can recover from a component error",
       "Error recovery app server component can recover from syntax error",
+      "Error recovery app stuck error",
       "Error recovery app syntax > runtime error"
+    ],
+    "failed": [
+      "Error recovery app can recover from a syntax error without losing state"
     ],
     "pending": [],
     "flakey": [],
@@ -205,12 +203,12 @@
     "runtimeError": false
   },
   "test/development/acceptance-app/invalid-imports.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Error Overlay invalid imports should show error when external package imports client-only in server component",
       "Error Overlay invalid imports should show error when external package imports server-only in client component",
       "Error Overlay invalid imports should show error when using styled-jsx in server component"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -340,13 +338,12 @@
   },
   "test/development/acceptance/ReactRefreshLogBox-app-doc.test.ts": {
     "passed": [
+      "ReactRefreshLogBox _app _document _app syntax error shows logbox",
       "ReactRefreshLogBox _app _document _document syntax error shows logbox",
       "ReactRefreshLogBox _app _document empty _app shows logbox",
       "ReactRefreshLogBox _app _document empty _document shows logbox"
     ],
-    "failed": [
-      "ReactRefreshLogBox _app _document _app syntax error shows logbox"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -487,13 +484,12 @@
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_expirePath is not allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_expireTag is not allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_noStore is allowed",
-      "Error Overlay for server components compiler errors in pages importing 'next/root-params' in pages"
-    ],
-    "failed": [
       "Error Overlay for server components compiler errors in pages importing 'next/headers' in pages",
+      "Error Overlay for server components compiler errors in pages importing 'next/root-params' in pages",
       "Error Overlay for server components compiler errors in pages importing 'server-only' in pages",
       "Error Overlay for server components compiler errors in pages importing after from 'next/server' in pages"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1237,6 +1233,7 @@
   },
   "test/development/basic/hmr/error-recovery-no-base-path-no-asset-prefix.test.ts": {
     "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
@@ -1252,7 +1249,6 @@
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"\"} should not continously poll a custom error page"
     ],
     "pending": [],
@@ -1261,6 +1257,7 @@
   },
   "test/development/basic/hmr/error-recovery-no-base-path-yes-asset-prefix.test.ts": {
     "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
@@ -1276,7 +1273,6 @@
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page"
     ],
     "pending": [],
@@ -1285,6 +1281,7 @@
   },
   "test/development/basic/hmr/error-recovery-yes-base-path-no-asset-prefix.test.ts": {
     "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should recover after an error reported via SSR",
@@ -1300,7 +1297,6 @@
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"\"} should not continously poll a custom error page"
     ],
     "pending": [],
@@ -1309,6 +1305,7 @@
   },
   "test/development/basic/hmr/error-recovery-yes-base-path-yes-asset-prefix.test.ts": {
     "passed": [
+      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should have client HMR events in trace file",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after a bad return from the render function",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should recover after an error reported via SSR",
@@ -1324,7 +1321,6 @@
     ],
     "failed": [
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect runtime errors on the module scope",
-      "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should detect syntax errors and recover",
       "HMR - Error Recovery, nextConfig: {\"basePath\":\"/docs\",\"assetPrefix\":\"/asset-prefix\"} should not continously poll a custom error page"
     ],
     "pending": [],
@@ -1782,8 +1778,9 @@
   "test/development/error-overlay/index.test.tsx": {
     "passed": [
       "DevErrorOverlay can get error code from RSC error thrown by framework",
-      "DevErrorOverlay can get error code from client side error thrown by framework",
-      "DevErrorOverlay loads fonts successfully"
+      "DevErrorOverlay loads fonts successfully",
+      "DevErrorOverlay sends feedback when clicking helpful button",
+      "DevErrorOverlay sends feedback when clicking not helpful button"
     ],
     "failed": [],
     "pending": [],
@@ -1868,20 +1865,20 @@
       "middleware - development errors when middleware contains an unhandled rejection logs the error correctly",
       "middleware - development errors when middleware throws synchronously logs the error correctly",
       "middleware - development errors when middleware throws synchronously renders the error correctly and recovers",
+      "middleware - development errors when running invalid dynamic code with eval renders the error correctly and recovers",
       "middleware - development errors when there is a compilation error after boot logs the error correctly",
+      "middleware - development errors when there is a compilation error after boot renders the error correctly and recovers",
       "middleware - development errors when there is a compilation error from boot logs the error correctly",
+      "middleware - development errors when there is a compilation error from boot renders the error correctly and recovers",
       "middleware - development errors when there is an unhandled rejection while loading a dependency does not render the error",
       "middleware - development errors when there is an unhandled rejection while loading a dependency logs the error correctly",
       "middleware - development errors when there is an unhandled rejection while loading the module does not render the error",
-      "middleware - development errors when there is an unhandled rejection while loading the module logs the error correctly"
+      "middleware - development errors when there is an unhandled rejection while loading the module logs the error correctly",
+      "middleware - development errors when throwing while loading the module renders the error correctly and recovers"
     ],
     "failed": [
       "middleware - development errors when running invalid dynamic code with eval logs the error correctly",
-      "middleware - development errors when running invalid dynamic code with eval renders the error correctly and recovers",
-      "middleware - development errors when there is a compilation error after boot renders the error correctly and recovers",
-      "middleware - development errors when there is a compilation error from boot renders the error correctly and recovers",
-      "middleware - development errors when throwing while loading the module logs the error correctly",
-      "middleware - development errors when throwing while loading the module renders the error correctly and recovers"
+      "middleware - development errors when throwing while loading the module logs the error correctly"
     ],
     "pending": [],
     "flakey": [],
@@ -2130,6 +2127,7 @@
       "Client Navigation rendering Rendering via HTTP asPath",
       "Client Navigation rendering Rendering via HTTP default Content-Type",
       "Client Navigation rendering Rendering via HTTP default export is not a React Component",
+      "Client Navigation rendering Rendering via HTTP error-in-the-global-scope",
       "Client Navigation rendering Rendering via HTTP error-inside-page",
       "Client Navigation rendering Rendering via HTTP getInitialProps circular structure",
       "Client Navigation rendering Rendering via HTTP getInitialProps resolves to null",
@@ -2155,9 +2153,7 @@
       "Client Navigation rendering Rendering via HTTP with the HOC based router should include asPath",
       "Client Navigation rendering Rendering via HTTP with the HOC based router should navigate as expected"
     ],
-    "failed": [
-      "Client Navigation rendering Rendering via HTTP error-in-the-global-scope"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -4803,11 +4799,10 @@
     "passed": [
       "app-dir - error-on-next-codemod-comment should disappear the error when you replace with bypass comment",
       "app-dir - error-on-next-codemod-comment should disappear the error when you rre the codemod comment",
-      "app-dir - error-on-next-codemod-comment should error with inline comment as well"
-    ],
-    "failed": [
+      "app-dir - error-on-next-codemod-comment should error with inline comment as well",
       "app-dir - error-on-next-codemod-comment should error with swc if you have codemod comments left"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6369,13 +6364,12 @@
       "non-root-project-monorepo import.meta.url should work on client-side",
       "non-root-project-monorepo monorepo-package should work during RSC",
       "non-root-project-monorepo monorepo-package should work during SSR",
-      "non-root-project-monorepo monorepo-package should work on client-side"
-    ],
-    "failed": [
+      "non-root-project-monorepo monorepo-package should work on client-side",
       "non-root-project-monorepo source-maps should work on RSC",
       "non-root-project-monorepo source-maps should work on SSR",
       "non-root-project-monorepo source-maps should work on client-side"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7622,15 +7616,15 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global-with-app/invalid-global-with-app.test.ts": {
-    "passed": [],
-    "failed": ["Invalid Global CSS with Custom App should fail to build"],
+    "passed": ["Invalid Global CSS with Custom App should fail to build"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/invalid-global/invalid-global.test.ts": {
-    "passed": [],
-    "failed": ["Invalid Global CSS should fail to build"],
+    "passed": ["Invalid Global CSS should fail to build"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7854,10 +7848,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/scss/valid-and-invalid-global/valid-and-invalid-global.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Valid and Invalid Global CSS with Custom App should fail to build"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8221,6 +8215,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/sub-shell-generation-middleware/sub-shell-generation-middleware.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["middleware-static-rewrite skipping dev test"],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/sub-shell-generation/sub-shell-generation.test.ts": {
     "passed": [],
     "failed": [],
@@ -8479,6 +8480,7 @@
   },
   "test/e2e/app-dir/use-cache-route-handler-only/use-cache-route-handler-only.test.ts": {
     "passed": [
+      "use-cache-route-handler-only should be able to revalidate prerendered route handlers",
       "use-cache-route-handler-only should cache results in node route handlers"
     ],
     "failed": [],
@@ -8500,10 +8502,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10756,6 +10758,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/on-request-error/otel/otel.test.ts": {
+    "passed": [
+      "on-request-error - otel app router should catch app routes error in node runtime",
+      "on-request-error - otel app router should catch server component page error in node runtime"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/on-request-error/server-action-error/server-action-error.test.ts": {
     "passed": [
       "on-request-error - server-action-error should catch server action error in listener callback in edge runtime",
@@ -12567,7 +12579,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config-mjs/test/index.test.js": {
+  "test/integration/config-mjs/test/index.test.ts": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
       "Configuration renders public config on the server only",
@@ -14148,7 +14160,7 @@
       "Edge route usage of dynamic code evaluation development mode does not show warning when no code uses eval",
       "Middleware usage of dynamic code evaluation development mode does not show a warning when running WebAssembly.instantiate with a module parameter",
       "Middleware usage of dynamic code evaluation development mode does not show warning when no code uses eval",
-      "Page using eval in development mode does issue dynamic code evaluation warnings"
+      "Page using eval in development mode does not issue dynamic code evaluation warnings"
     ],
     "failed": [
       "Edge route usage of dynamic code evaluation development mode shows a warning when running WebAssembly.compile",
@@ -16345,7 +16357,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/hydrate-then-render/test/index.test.js": {
+  "test/integration/hydrate-then-render/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -16884,6 +16896,7 @@
       "with contentDispositionType inline dev support with next.config.js should fail when q is missing",
       "with contentDispositionType inline dev support with next.config.js should fail when q is not a number",
       "with contentDispositionType inline dev support with next.config.js should fail when q is not an integer",
+      "with contentDispositionType inline dev support with next.config.js should fail when q is not in config",
       "with contentDispositionType inline dev support with next.config.js should fail when url fails to load an image",
       "with contentDispositionType inline dev support with next.config.js should fail when url has file protocol",
       "with contentDispositionType inline dev support with next.config.js should fail when url has ftp protocol",
@@ -16962,6 +16975,7 @@
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is missing",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is not a number",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is not an integer",
+      "with contentDispositionType inline Production Mode Server support with next.config.js should fail when q is not in config",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url fails to load an image",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url has file protocol",
       "with contentDispositionType inline Production Mode Server support with next.config.js should fail when url has ftp protocol",
@@ -17043,6 +17057,7 @@
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when q is missing",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when q is not a number",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when q is not an integer",
+      "with dangerouslyAllowSVG config dev support with next.config.js should fail when q is not in config",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url fails to load an image",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url has file protocol",
       "with dangerouslyAllowSVG config dev support with next.config.js should fail when url has ftp protocol",
@@ -17118,6 +17133,7 @@
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when q is missing",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when q is not a number",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when q is not an integer",
+      "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when q is not in config",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url fails to load an image",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url has file protocol",
       "with dangerouslyAllowSVG config Production Mode Server support with next.config.js should fail when url has ftp protocol",
@@ -17259,6 +17275,7 @@
       "with isrFlushToDisk false config dev support with next.config.js should fail when q is missing",
       "with isrFlushToDisk false config dev support with next.config.js should fail when q is not a number",
       "with isrFlushToDisk false config dev support with next.config.js should fail when q is not an integer",
+      "with isrFlushToDisk false config dev support with next.config.js should fail when q is not in config",
       "with isrFlushToDisk false config dev support with next.config.js should fail when url fails to load an image",
       "with isrFlushToDisk false config dev support with next.config.js should fail when url has file protocol",
       "with isrFlushToDisk false config dev support with next.config.js should fail when url has ftp protocol",
@@ -17400,6 +17417,7 @@
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when q is missing",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when q is not a number",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when q is not an integer",
+      "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when q is not in config",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when url fails to load an image",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when url has file protocol",
       "with isrFlushToDisk false config Production Mode Server support with next.config.js should fail when url has ftp protocol",
@@ -17523,6 +17541,7 @@
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when q is missing",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when q is not a number",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when q is not an integer",
+      "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when q is not in config",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url fails to load an image",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url has file protocol",
       "with minimumCacheTTL of 5 sec dev support with next.config.js should fail when url has ftp protocol",
@@ -17601,6 +17620,7 @@
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when q is missing",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when q is not a number",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when q is not an integer",
+      "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when q is not in config",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url fails to load an image",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url has file protocol",
       "with minimumCacheTTL of 5 sec Production Mode Server support with next.config.js should fail when url has ftp protocol",
@@ -17745,6 +17765,7 @@
       "with latest sharp dev support with next.config.js should fail when q is missing",
       "with latest sharp dev support with next.config.js should fail when q is not a number",
       "with latest sharp dev support with next.config.js should fail when q is not an integer",
+      "with latest sharp dev support with next.config.js should fail when q is not in config",
       "with latest sharp dev support with next.config.js should fail when url fails to load an image",
       "with latest sharp dev support with next.config.js should fail when url has file protocol",
       "with latest sharp dev support with next.config.js should fail when url has ftp protocol",
@@ -17886,6 +17907,7 @@
       "with latest sharp Production Mode Server support with next.config.js should fail when q is missing",
       "with latest sharp Production Mode Server support with next.config.js should fail when q is not a number",
       "with latest sharp Production Mode Server support with next.config.js should fail when q is not an integer",
+      "with latest sharp Production Mode Server support with next.config.js should fail when q is not in config",
       "with latest sharp Production Mode Server support with next.config.js should fail when url fails to load an image",
       "with latest sharp Production Mode Server support with next.config.js should fail when url has file protocol",
       "with latest sharp Production Mode Server support with next.config.js should fail when url has ftp protocol",
@@ -17962,7 +17984,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/index-index/test/index.test.js": {
+  "test/integration/index-index/test/index.test.ts": {
     "passed": [
       "nested index.js development mode should 404 on /index/index/index",
       "nested index.js development mode should client render page /",
@@ -18837,7 +18859,7 @@
   },
   "test/integration/next-image-new/app-dir-qualities/test/index.test.ts": {
     "passed": [
-      "Image localPatterns config development mode should fail to load img when quality is 100",
+      "Image localPatterns config development mode should coerce quality 100 to closest matching of 88",
       "Image localPatterns config development mode should load img when quality 42",
       "Image localPatterns config development mode should load img when quality 69",
       "Image localPatterns config development mode should load img when quality 88",
@@ -18846,7 +18868,7 @@
     "failed": [],
     "pending": [
       "Image localPatterns config production mode should build correct images-manifest.json",
-      "Image localPatterns config production mode should fail to load img when quality is 100",
+      "Image localPatterns config production mode should coerce quality 100 to closest matching of 88",
       "Image localPatterns config production mode should load img when quality 42",
       "Image localPatterns config production mode should load img when quality 69",
       "Image localPatterns config production mode should load img when quality 88",
@@ -19248,8 +19270,8 @@
     "runtimeError": false
   },
   "test/integration/next-image-new/invalid-image-import/test/index.test.ts": {
-    "passed": [],
-    "failed": ["Missing Import Image Tests development mode should show error"],
+    "passed": ["Missing Import Image Tests development mode should show error"],
+    "failed": [],
     "pending": ["Missing Import Image Tests production mode should show error"],
     "flakey": [],
     "runtimeError": false
@@ -19860,7 +19882,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/react-current-version/test/index.test.js": {
+  "test/integration/react-current-version/test/index.test.ts": {
     "passed": [
       "Basics default setting dev hydrates correctly for normal page",
       "Basics default setting dev no warnings for image related link props",
@@ -20335,7 +20357,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/script-loader/test/index.test.js": {
+  "test/integration/script-loader/test/index.test.ts": {
     "passed": [
       "Next.js Script - Primary Strategies - Strict Mode Does not duplicate inline scripts",
       "Next.js Script - Primary Strategies - Strict Mode onReady fires after load event and then on every subsequent re-mount",
