@@ -45,7 +45,7 @@ The following props are available:
 | [`loader`](#loader)                       | `loader={imageLoader}`                   | Function        | -          |
 | [`sizes`](#sizes)                         | `sizes="(max-width: 768px) 100vw, 33vw"` | String          | -          |
 | [`quality`](#quality)                     | `quality={80}`                           | Integer (1-100) | -          |
-| [`priority`](#priority)                   | `priority={true}`                        | Boolean         | -          |
+| [`preload`](#preload)                     | `preload={true}`                         | Boolean         | -          |
 | [`placeholder`](#placeholder)             | `placeholder="blur"`                     | String          | -          |
 | [`style`](#style)                         | `style={{objectFit: "contain"}}`         | Object          | -          |
 | [`onLoadingComplete`](#onloadingcomplete) | `onLoadingComplete={img => done())}`     | Function        | Deprecated |
@@ -259,27 +259,35 @@ export default function ProfileImage() {
 
 > **Good to know**: If you’re using the `style` prop to set a custom width, be sure to also set `height: 'auto'` to preserve the image’s aspect ratio.
 
-#### `priority`
+#### `preload`
 
 A boolean that indicates if the image should be preloaded.
 
 ```jsx
-// Default priority is false
-<Image priority={false} />
+// Default preload is false
+<Image preload={false} />
 ```
 
-- `true`: [Preloads](https://web.dev/preload-responsive-images/) the image. Disables lazy loading.
-- `false`: Lazy loads the image.
+- `true`: [Preloads](https://web.dev/preload-responsive-images/) the image by inserting a `<link>` in the `<head>`.
+- `false`: Does not preload the image.
 
 **When to use it:**
 
-- The image is above the fold.
 - The image is the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element.
-- You want to improve the initial loading performance of your page.
+- The image is above the fold, typically the hero image.
+- You want to begin loading the image in the `<head>`, before its discovered later in the `<body>`.
 
 **When not to use it:**
 
-- When the `loading` prop is used (will trigger warnings).
+- When you have multiple images that could be considered the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element depending on the viewport.
+- When the `loading` property is used.
+- When the `fetchPriority` property is used.
+
+In most cases, you should use `loading="eager"` or `fetchPriority="high"` instead of `preload`.
+
+#### `priority`
+
+Starting with Next.js 16, the `priority` property has been deprecated in favor of the [`preload`](#preload) property in order to make the behavior clear.
 
 #### `loading`
 
@@ -908,7 +916,7 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 - [Safari 15 - 16.3](https://bugs.webkit.org/show_bug.cgi?id=243601) display a gray border while loading. Safari 16.4 [fixed this issue](https://webkit.org/blog/13966/webkit-features-in-safari-16-4/#:~:text=Now%20in%20Safari%2016.4%2C%20a%20gray%20line%20no%20longer%20appears%20to%20mark%20the%20space%20where%20a%20lazy%2Dloaded%20image%20will%20appear%20once%20it%E2%80%99s%20been%20loaded.). Possible solutions:
   - Use CSS `@supports (font: -apple-system-body) and (-webkit-appearance: none) { img[loading="lazy"] { clip-path: inset(0.6px) } }`
-  - Use [`priority`](#priority) if the image is above the fold
+  - Use [`loading="eager"`](#loading) if the image is above the fold
 - [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading. Possible solutions:
   - Enable [AVIF `formats`](#formats)
   - Use [`placeholder`](#placeholder)
@@ -1155,7 +1163,7 @@ If you want to display a different image for light and dark mode, you can create
 import styles from './theme-image.module.css'
 import Image, { ImageProps } from 'next/image'
 
-type Props = Omit<ImageProps, 'src' | 'priority' | 'loading'> & {
+type Props = Omit<ImageProps, 'src' | 'preload' | 'loading'> & {
   srcLight: string
   srcDark: string
 }
@@ -1188,7 +1196,7 @@ const ThemeImage = (props) => {
 }
 ```
 
-> **Good to know**: The default behavior of `loading="lazy"` ensures that only the correct image is loaded. You cannot use `priority` or `loading="eager"` because that would cause both images to load. Instead, you can use [`fetchPriority="high"`](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority).
+> **Good to know**: The default behavior of `loading="lazy"` ensures that only the correct image is loaded. You cannot use `preload` or `loading="eager"` because that would cause both images to load. Instead, you can use [`fetchPriority="high"`](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority).
 
 Try it out:
 
@@ -1269,7 +1277,7 @@ export default function Home() {
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `v16.0.0`  | `qualities` default configuration changed to `[75]`.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `v16.0.0`  | `qualities` default configuration changed to `[75]`, `preload` prop added, `priority` prop deprecated.                                                                                                                                                                                                                                                                                                                                                                                     |
 | `v15.3.0`  | `remotePatterns` added support for array of `URL` objects.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `v15.0.0`  | `contentDispositionType` configuration default changed to `attachment`.                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `v14.2.23` | `qualities` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
