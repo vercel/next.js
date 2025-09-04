@@ -32,7 +32,7 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z
+             "▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
@@ -56,7 +56,7 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z
+             "▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
@@ -78,7 +78,7 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z
+             "▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ enablePrerenderSourceMaps (enabled by \`experimental.cacheComponents\`)
@@ -150,7 +150,7 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-                ▲ Next.js x.y.z
+                ▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
@@ -182,7 +182,7 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-                ▲ Next.js x.y.z
+                ▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
@@ -212,7 +212,7 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-                ▲ Next.js x.y.z
+                ▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
@@ -281,7 +281,7 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z
+             "▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
@@ -303,7 +303,7 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z
+             "▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
@@ -318,7 +318,7 @@ describe('build-output-prerender', () => {
             )
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
-              `"▲ Next.js x.y.z"`
+              `"▲ Next.js x.y.z (webpack)"`
             )
           }
         }
@@ -354,7 +354,7 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-                ▲ Next.js x.y.z
+                ▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ cacheComponents (enabled by \`__NEXT_EXPERIMENTAL_CACHE_COMPONENTS\`)
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
@@ -385,7 +385,7 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-                ▲ Next.js x.y.z
+                ▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ clientParamParsing (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
                   ✓ clientSegmentCache (enabled by \`__NEXT_EXPERIMENTAL_PPR\`)
@@ -411,7 +411,7 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode. Note: This may affect performance and should not be used for production.
-                ▲ Next.js x.y.z
+                ▲ Next.js x.y.z (webpack)
                 - Experiments (use with caution):
                   ✓ enablePrerenderSourceMaps (enabled by \`--debug-prerender\`)
                   ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
