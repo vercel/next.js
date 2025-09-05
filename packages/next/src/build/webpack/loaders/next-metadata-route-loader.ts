@@ -295,6 +295,7 @@ ${await createReExportsCode(resourcePath, loaderContext)}
 
 export async function GET(_, ctx) {
   const { __metadata_id__: id, ...params } = await ctx.params || {}
+  const hasXmlExtension = id ? id.endsWith('.xml') : false
 
   if (process.env.NODE_ENV !== 'production') {
     const sitemaps = await generateSitemaps()
@@ -303,7 +304,7 @@ export async function GET(_, ctx) {
       if (item?.id == null) {
         throw new Error('id property is required for every item returned from generateSitemaps')
       }
-      const hasXmlExtension = id ? id.endsWith('.xml') : false
+      
       const baseId = id && hasXmlExtension ? id.slice(0, -4) : undefined
       if (item.id.toString() === baseId) {
         foundId = item.id
@@ -316,7 +317,8 @@ export async function GET(_, ctx) {
     }
   }
 
-  const data = await handler({ id })
+  const targetId = id && hasXmlExtension ? id.slice(0, -4) : undefined
+  const data = await handler({ id: targetId })
   const content = resolveRouteData(data, fileType)
 
   return new NextResponse(content, {
@@ -338,7 +340,6 @@ export async function generateStaticParams() {
     }
     params.push({ __metadata_id__: item.id.toString() + '.xml' })
   }
-  console.log('generateStaticParams:params', params)
   return params
 }
 `
