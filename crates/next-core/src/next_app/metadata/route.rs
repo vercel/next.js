@@ -268,6 +268,7 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
 fn get_sitemap_generate_static_params_code() -> &'static str {
     indoc! {
         r#"
+            export const dynamicParams = false
             export async function generateStaticParams() {
                 const sitemaps = await generateSitemaps()
                 const params = []
@@ -328,8 +329,6 @@ async fn dynamic_sitemap_route_with_generate_source(
             const contentType = {content_type}
             const cache_control = {cache_control}
             const fileType = {file_type}
-
-            export const dynamicParams = false
 
             if (typeof handler !== 'function') {{
                 throw new Error('Default export is missing in {resource_path}')
@@ -452,6 +451,7 @@ async fn dynamic_image_route_with_metadata_source(
 
     let static_generation_code = indoc! {
         r#"
+            export const dynamicParams = false
             export async function generateStaticParams({ params }) {
                 const imageMetadata = await generateImageMetadata({ params })
                 const staticParams = []

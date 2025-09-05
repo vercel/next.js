@@ -161,6 +161,7 @@ async function getDynamicImageRouteCode(
   loaderContext: webpack.LoaderContext<any>
 ) {
   const staticGenerationCode = `\
+export const dynamicParams = false
 export async function generateStaticParams({ params }) {
   const imageMetadata = await generateImageMetadata({ params })
   const staticParams = []
@@ -282,6 +283,7 @@ async function getDynamicSitemapRouteCode(
   loaderContext: webpack.LoaderContext<any>
 ) {
   const staticGenerationCode = `\
+export const dynamicParams = false
 export async function generateStaticParams() {
   const sitemaps = await generateSitemaps()
   const params = []
@@ -301,8 +303,6 @@ import { resolveRouteData } from 'next/dist/build/webpack/loaders/metadata/resol
 
 const contentType = ${JSON.stringify(getContentType(resourcePath))}
 const fileType = ${JSON.stringify(getFilenameAndExtension(resourcePath).name)}
-
-export const dynamicParams = false
 
 ${errorOnBadHandler(resourcePath)}
 ${await createReExportsCode(resourcePath, loaderContext)}
