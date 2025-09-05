@@ -536,6 +536,8 @@ impl EvaluateContext for WebpackLoaderContext {
                             source: IssueSource::from_source_only(self.context_source_for_issue),
                             path: build_path,
                         }
+                        .resolved_cell()
+                        .emit();
                     }
                 }
             }
