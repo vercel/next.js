@@ -680,7 +680,9 @@ describe('app dir - metadata', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('content-type')).toBe('image/x-icon')
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev ? 'no-cache, no-store' : 'public, max-age=0, must-revalidate'
+        isNextDev
+          ? 'no-store, must-revalidate'
+          : 'public, max-age=0, must-revalidate'
       )
     })
 
@@ -693,12 +695,16 @@ describe('app dir - metadata', () => {
       expect(resAppleIcon.status).toBe(200)
       expect(resAppleIcon.headers.get('content-type')).toBe('image/png')
       expect(resAppleIcon.headers.get('cache-control')).toBe(
-        isNextDev ? 'no-cache, no-store' : 'public, max-age=0, must-revalidate'
+        isNextDev
+          ? 'no-store, must-revalidate'
+          : 'public, max-age=0, must-revalidate'
       )
       expect(resIcon.status).toBe(200)
       expect(resIcon.headers.get('content-type')).toBe('image/png')
       expect(resIcon.headers.get('cache-control')).toBe(
-        isNextDev ? 'no-cache, no-store' : 'public, max-age=0, must-revalidate'
+        isNextDev
+          ? 'no-store, must-revalidate'
+          : 'public, max-age=0, must-revalidate'
       )
     })
 
