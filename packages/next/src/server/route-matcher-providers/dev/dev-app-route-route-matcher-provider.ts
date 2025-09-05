@@ -40,6 +40,9 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
   ): Promise<ReadonlyArray<AppRouteRouteMatcher>> {
     const matchers: Array<AppRouteRouteMatcher> = []
     for (const filename of files) {
+      // Skip static metadata files as they are served from filesystem.
+      if (isStaticMetadataFile(filename)) continue
+
       let page = this.normalizers.page.normalize(filename)
 
       // If the file isn't a match for this matcher, then skip it.
@@ -47,10 +50,6 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
 
       // Validate that this is not an ignored page.
       if (page.includes('/_')) continue
-
-      const pathname = this.normalizers.pathname.normalize(filename)
-      // Skip static metadata files as they are served from filesystem.
-      if (isStaticMetadataFile(pathname)) continue
 
       // Turbopack uses the correct page name with the underscore normalized.
       // TODO: Move implementation to packages/next/src/server/normalizers/built/app/app-page-normalizer.ts.
@@ -60,6 +59,7 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
         page = page.replace(/%5F/g, '_')
       }
 
+      const pathname = this.normalizers.pathname.normalize(filename)
       const bundlePath = this.normalizers.bundlePath.normalize(filename)
       const ext = path.extname(filename).slice(1)
       const isEntryMetadataRouteFile = isMetadataRouteFile(
