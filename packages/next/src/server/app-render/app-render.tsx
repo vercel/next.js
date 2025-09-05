@@ -1671,7 +1671,9 @@ async function renderToHTMLOrFlightImpl(
     ).nanoid()
   }
 
-  res.setHeader(NEXT_REQUEST_ID_HEADER, requestId)
+  if (process.env.NODE_ENV !== 'production') {
+    res.setHeader(NEXT_REQUEST_ID_HEADER, requestId)
+  }
 
   const {
     flightRouterState,
