@@ -106,6 +106,7 @@ import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
+import { connectReactDebugChannel, setReactDebugChannel } from './debug-channel'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -416,47 +417,6 @@ export async function createHotReloaderTurbopack(
   const clients = new Set<ws>()
   const clientsByRequestId = new Map<string, ws>()
   const clientStates = new WeakMap<ws, ClientState>()
-
-  const reactDebugChannelsByRequestId = new Map<
-    string,
-    { readable: ReadableStream<Uint8Array> }
-  >()
-
-  function connectReactDebugChannel(client: ws, requestId: string) {
-    const debugChannel = reactDebugChannelsByRequestId.get(requestId)
-
-    if (debugChannel) {
-      const reader = debugChannel.readable.getReader()
-
-      const stop = () => {
-        sendToClient(client, {
-          type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
-          requestId,
-          // A null chunk signals to the client that no more chunks will be
-          // sent for this request.
-          chunk: null,
-        })
-
-        reactDebugChannelsByRequestId.delete(requestId)
-      }
-
-      const progress = (entry: ReadableStreamReadResult<Uint8Array>) => {
-        if (entry.done) {
-          stop()
-        } else {
-          sendToClient(client, {
-            type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
-            requestId,
-            chunk: entry.value,
-          })
-
-          reader.read().then(progress, stop)
-        }
-      }
-
-      reader.read().then(progress, stop)
-    }
-  }
 
   function sendToClient(client: ws, message: HmrMessageSentToBrowser) {
     const data =
@@ -964,7 +924,7 @@ export async function createHotReloaderTurbopack(
           sendToClient(client, syncMessage)
 
           if (requestId) {
-            connectReactDebugChannel(client, requestId)
+            connectReactDebugChannel(requestId, sendToClient.bind(null, client))
           }
         })()
       })
@@ -980,14 +940,14 @@ export async function createHotReloaderTurbopack(
 
     setReactDebugChannel(debugChannel, htmlRequestId, requestId) {
       // Store the debug channel, regardless of whether the client is connected.
-      reactDebugChannelsByRequestId.set(requestId, debugChannel)
+      setReactDebugChannel(requestId, debugChannel)
 
       // If the client is connected, we can connect the debug channel
       // immediately. Otherwise, we'll do that when the client connects.
       const client = clientsByRequestId.get(htmlRequestId)
 
       if (client) {
-        connectReactDebugChannel(client, requestId)
+        connectReactDebugChannel(requestId, sendToClient.bind(null, client))
       }
     },
 

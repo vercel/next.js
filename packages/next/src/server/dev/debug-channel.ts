@@ -1,0 +1,62 @@
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type HmrMessageSentToBrowser,
+} from './hot-reloader-types'
+
+export interface ReactDebugChannelForBrowser {
+  readonly readable: ReadableStream<Uint8Array>
+  // Might also get a writable stream as return channel in the future.
+}
+
+const reactDebugChannelsByRequestId = new Map<
+  string,
+  ReactDebugChannelForBrowser
+>()
+
+export function connectReactDebugChannel(
+  requestId: string,
+  sendToClient: (message: HmrMessageSentToBrowser) => void
+) {
+  const debugChannel = reactDebugChannelsByRequestId.get(requestId)
+
+  if (!debugChannel) {
+    return
+  }
+
+  const reader = debugChannel.readable.getReader()
+
+  const stop = () => {
+    sendToClient({
+      type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+      requestId,
+      // A null chunk signals to the client that no more chunks will be sent for
+      // this request.
+      chunk: null,
+    })
+
+    reactDebugChannelsByRequestId.delete(requestId)
+  }
+
+  const progress = (entry: ReadableStreamReadResult<Uint8Array>) => {
+    if (entry.done) {
+      stop()
+    } else {
+      sendToClient({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+        requestId,
+        chunk: entry.value,
+      })
+
+      reader.read().then(progress, stop)
+    }
+  }
+
+  reader.read().then(progress, stop)
+}
+
+export function setReactDebugChannel(
+  requestId: string,
+  debugChannel: ReactDebugChannelForBrowser
+) {
+  reactDebugChannelsByRequestId.set(requestId, debugChannel)
+}

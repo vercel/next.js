@@ -9,6 +9,7 @@ import type { VersionInfo } from './parse-version-info'
 import type { DebugInfo } from '../../next-devtools/shared/types'
 import type { DevIndicatorServerState } from './dev-indicator-server-state'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
+import type { ReactDebugChannelForBrowser } from './debug-channel'
 
 export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   // JSON messages:
@@ -136,6 +137,9 @@ export interface DevToolsConfigMessage {
 export interface ReactDebugChunkMessage {
   type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK
   requestId: string
+  /**
+   * A null chunk signals to the browser that no more chunks will be sent.
+   */
   chunk: Uint8Array | null
 }
 
@@ -189,10 +193,7 @@ export interface NextJsHotReloaderInterface {
   start(): Promise<void>
   send(action: HmrMessageSentToBrowser): void
   setReactDebugChannel(
-    debugChannel: {
-      readable: ReadableStream<Uint8Array>
-      // Might get a writable stream as return channel in the future.
-    },
+    debugChannel: ReactDebugChannelForBrowser,
     htmlRequestId: string,
     requestId: string
   ): void

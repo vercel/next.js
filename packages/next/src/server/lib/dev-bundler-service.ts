@@ -5,6 +5,7 @@ import type { WorkerRequestHandler } from './types'
 import { LRUCache } from './lru-cache'
 import { createRequestResponseMocks } from './mock-request'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
+import type { ReactDebugChannelForBrowser } from '../dev/debug-channel'
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
@@ -107,7 +108,7 @@ export class DevBundlerService {
   }
 
   public setReactDebugChannel(
-    debugChannel: { readable: ReadableStream<Uint8Array> },
+    debugChannel: ReactDebugChannelForBrowser,
     htmlRequestId: string,
     requestId: string
   ): void {
