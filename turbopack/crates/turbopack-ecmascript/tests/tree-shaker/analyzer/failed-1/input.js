@@ -1,5 +1,5 @@
 let source;
-const eventCallbacks = [];
+const messageCallbacks = [];
 function getSocketProtocol(assetPrefix) {
     let protocol = location.protocol;
     try {
@@ -8,7 +8,7 @@ function getSocketProtocol(assetPrefix) {
     return protocol === "http:" ? "ws" : "wss";
 }
 export function addMessageListener(cb) {
-    eventCallbacks.push(cb);
+    messageCallbacks.push(cb);
 }
 export function sendMessage(data) {
     if (!source || source.readyState !== source.OPEN) return;
@@ -23,7 +23,7 @@ export function connectHMR(options) {
             const connected = {
                 type: "turbopack-connected"
             };
-            eventCallbacks.forEach((cb)=>{
+            messageCallbacks.forEach((cb)=>{
                 cb(connected);
             });
             if (options.log) console.log("[HMR] connected");
@@ -33,7 +33,7 @@ export function connectHMR(options) {
                 type: "turbopack-message",
                 data: JSON.parse(event.data)
             };
-            eventCallbacks.forEach((cb)=>{
+            messageCallbacks.forEach((cb)=>{
                 cb(message);
             });
         }

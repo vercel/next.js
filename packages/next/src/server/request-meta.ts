@@ -6,7 +6,13 @@ import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
-import type { ServerComponentsHmrCache } from './response-cache'
+import type {
+  ResponseCacheEntry,
+  ServerComponentsHmrCache,
+} from './response-cache'
+import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
+import type { OpaqueFallbackRouteParams } from './request/fallback-params'
+import type { IncrementalCache } from './lib/incremental-cache'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -67,7 +73,7 @@ export interface RequestMeta {
   /**
    * The incremental cache to use for the request.
    */
-  incrementalCache?: any
+  incrementalCache?: IncrementalCache
 
   /**
    * The server components HMR cache, only for dev.
@@ -90,6 +96,17 @@ export interface RequestMeta {
   isRSCRequest?: true
 
   /**
+   * A search param set by the Next.js client when performing RSC requests.
+   * Because some CDNs do not vary their cache entries on our custom headers,
+   * this search param represents a hash of the header values. For any cached
+   * RSC request, we should verify that the hash matches before responding.
+   * Otherwise this can lead to cache poisoning.
+   * TODO: Consider not using custom request headers at all, and instead encode
+   * everything into the search param.
+   */
+  cacheBustingSearchParam?: string
+
+  /**
    * True when the request is for the `/_next/data` route using the pages
    * router.
    */
@@ -106,10 +123,25 @@ export interface RequestMeta {
   /**
    * If provided, this will be called when a response cache entry was generated
    * or looked up in the cache.
+   *
+   * @deprecated Use `onCacheEntryV2` instead.
    */
   onCacheEntry?: (
-    cacheEntry: any,
-    requestMeta: any
+    cacheEntry: ResponseCacheEntry,
+    requestMeta: {
+      url: string | undefined
+    }
+  ) => Promise<boolean | void> | boolean | void
+
+  /**
+   * If provided, this will be called when a response cache entry was generated
+   * or looked up in the cache.
+   */
+  onCacheEntryV2?: (
+    cacheEntry: ResponseCacheEntry,
+    requestMeta: {
+      url: string | undefined
+    }
   ) => Promise<boolean | void> | boolean | void
 
   /**
@@ -153,9 +185,9 @@ export interface RequestMeta {
   middlewareInvoke?: boolean
 
   /**
-   * Whether the default route matches were set on the request during routing.
+   * Whether the request should render the fallback shell or not.
    */
-  didSetDefaultRouteMatches?: boolean
+  renderFallbackShell?: boolean
 
   /**
    * Whether the request is for the custom error page.
@@ -185,14 +217,14 @@ export interface RequestMeta {
   defaultLocale?: string
 
   /**
-   * The project dir the server is running in
+   * The relative project dir the server is running in from project root
    */
-  projectDir?: string
+  relativeProjectDir?: string
 
   /**
-   * Whether we are generating the fallback version of the page in dev mode
+   * The dist directory the server is currently using
    */
-  isIsrFallback?: boolean
+  distDir?: string
 
   /**
    * The query after resolving routes
@@ -208,6 +240,22 @@ export interface RequestMeta {
    * The AMP validator to use in development
    */
   ampValidator?: (html: string, pathname: string) => Promise<void>
+
+  /**
+   * ErrorOverlay component to use in development for pages router
+   */
+  PagesErrorDebug?: PagesDevOverlayBridgeType
+
+  /**
+   * Whether server is in minimal mode (this will be replaced with more
+   * specific flags in future)
+   */
+  minimalMode?: boolean
+
+  /**
+   * DEV only: The fallback params that should be used when validating prerenders during dev
+   */
+  devValidatingFallbackParams?: OpaqueFallbackRouteParams
 }
 
 /**

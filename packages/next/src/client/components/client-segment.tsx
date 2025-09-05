@@ -10,7 +10,7 @@ import type { Params } from '../../server/request/params'
  *
  * additionally we may send a promise representing params. We don't ever use this passed
  * value but it can be necessary for the sender to send a Promise that doesn't resolve in certain situations
- * such as when dynamicIO is enabled. It is up to the caller to decide if the promises are needed.
+ * such as when cacheComponents is enabled. It is up to the caller to decide if the promises are needed.
  */
 export function ClientSegmentRoot({
   Component,

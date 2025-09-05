@@ -283,7 +283,13 @@ function isInMiddlewareLayer(parser: webpack.javascript.JavascriptParser) {
 }
 
 function isNodeJsModule(moduleName: string) {
-  return require('module').builtinModules.includes(moduleName)
+  return (require('module') as typeof import('module')).builtinModules.includes(
+    moduleName
+  )
+}
+
+function isBunModule(moduleName: string) {
+  return moduleName === 'bun' || moduleName.startsWith('bun:')
 }
 
 function isDynamicCodeEvaluationAllowed(
@@ -519,12 +525,13 @@ function getCodeAnalyzer(params: {
 
         if (
           !dev &&
-          isNodeJsModule(importedModule) &&
+          (isNodeJsModule(importedModule) || isBunModule(importedModule)) &&
           !SUPPORTED_NATIVE_MODULES.includes(importedModule)
         ) {
+          const isBun = isBunModule(importedModule)
           compilation.warnings.push(
             buildWebpackError({
-              message: `A Node.js module is loaded ('${importedModule}' at line ${node.loc.start.line}) which is not supported in the Edge Runtime.
+              message: `A ${isBun ? 'Bun' : 'Node.js'} module is loaded ('${importedModule}' at line ${node.loc.start.line}) which is not supported in the Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
               compilation,
               parser,
@@ -561,6 +568,52 @@ Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
     if (!dev) {
       // do not issue compilation warning on dev: invoking code will provide details
       registerUnsupportedApiHooks(parser, compilation)
+    }
+  }
+}
+
+async function codeAnalyzerBySwc(
+  compilation: webpack.Compilation,
+  modules: Iterable<webpack.Module>,
+  dev: boolean
+) {
+  const binding = require('../../swc') as typeof import('../../swc')
+  for (const module of modules) {
+    if (
+      module.layer !== WEBPACK_LAYERS.middleware &&
+      module.layer !== WEBPACK_LAYERS.apiEdge
+    ) {
+      continue
+    }
+    if (module.constructor.name !== 'NormalModule') {
+      continue
+    }
+    const normalModule = module as webpack.NormalModule
+    if (!normalModule.type.startsWith('javascript')) {
+      // Only analyze JavaScript modules
+      continue
+    }
+    const originalSource = normalModule.originalSource()
+    if (!originalSource) {
+      continue
+    }
+    const source = originalSource.source()
+    if (typeof source !== 'string') {
+      continue
+    }
+    const diagnostics = await binding.warnForEdgeRuntime(source, !dev)
+    for (const diagnostic of diagnostics) {
+      const webpackError = buildWebpackError({
+        message: diagnostic.message,
+        loc: diagnostic.loc,
+        compilation,
+        entryModule: module,
+      })
+      if (diagnostic.severity === 'Warning') {
+        compilation.warnings.push(webpackError)
+      } else {
+        compilation.errors.push(webpackError)
+      }
     }
   }
 }
@@ -781,19 +834,23 @@ export default class MiddlewarePlugin {
   }
 
   public apply(compiler: webpack.Compiler) {
-    compiler.hooks.thisCompilation.tap(NAME, (compilation, params) => {
-      const { hooks } = params.normalModuleFactory
-      /**
-       * This is the static code analysis phase.
-       */
-      const codeAnalyzer = getCodeAnalyzer({
-        dev: this.dev,
-        compiler,
-        compilation,
-      })
-
+    compiler.hooks.compilation.tap(NAME, (compilation, params) => {
       // parser hooks aren't available in rspack
-      if (!process.env.NEXT_RSPACK) {
+      if (process.env.NEXT_RSPACK) {
+        compilation.hooks.finishModules.tapPromise(NAME, async (modules) => {
+          await codeAnalyzerBySwc(compilation, modules, this.dev)
+        })
+      } else {
+        const { hooks } = params.normalModuleFactory
+        /**
+         * This is the static code analysis phase.
+         */
+        const codeAnalyzer = getCodeAnalyzer({
+          dev: this.dev,
+          compiler,
+          compilation,
+        })
+
         hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
         hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
         hooks.parser.for('javascript/esm').tap(NAME, codeAnalyzer)
@@ -869,7 +926,7 @@ export async function handleWebpackExternalForEdgeRuntime({
   if (
     (contextInfo.issuerLayer === WEBPACK_LAYERS.middleware ||
       contextInfo.issuerLayer === WEBPACK_LAYERS.apiEdge) &&
-    isNodeJsModule(request) &&
+    (isNodeJsModule(request) || isBunModule(request)) &&
     !supportedEdgePolyfills.has(request)
   ) {
     // allows user to provide and use their polyfills, as we do with buffer.

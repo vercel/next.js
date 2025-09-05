@@ -1,1 +1,1 @@
-require("@azure/cosmos");
+require('@azure/cosmos')

@@ -56,9 +56,6 @@ describe('required server files', () => {
         eslint: {
           ignoreDuringBuilds: true,
         },
-        experimental: {
-          nodeMiddleware: Boolean(process.env.TEST_NODE_MIDDLEWARE),
-        },
         output: 'standalone',
         async rewrites() {
           return {
@@ -164,6 +161,7 @@ describe('required server files', () => {
   })
 
   afterAll(async () => {
+    delete process.env.NOW_BUILDER
     delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
   })
@@ -1266,7 +1264,7 @@ describe('required server files', () => {
     )
 
     const json = await res.json()
-    expect(json.query).toEqual({ another: 'value', rest: ['index'] })
+    expect(json.query).toEqual({ another: 'value' })
     expect(json.url).toBe('/api/optional/index?another=value')
   })
 

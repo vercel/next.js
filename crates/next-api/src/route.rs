@@ -49,14 +49,19 @@ pub enum Route {
 
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
+    #[turbo_tasks::function]
     fn output(self: Vc<Self>) -> Vc<EndpointOutput>;
     // fn write_to_disk(self: Vc<Self>) -> Vc<EndpointOutputPaths>;
+    #[turbo_tasks::function]
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
+    #[turbo_tasks::function]
     fn client_changed(self: Vc<Self>) -> Vc<Completion>;
     /// The entry modules for the modules graph.
+    #[turbo_tasks::function]
     fn entries(self: Vc<Self>) -> Vc<GraphEntries>;
     /// Additional entry modules for the module graph.
     /// This may read the module graph and return additional modules.
+    #[turbo_tasks::function]
     fn additional_entries(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<GraphEntries> {
         GraphEntries::empty()
     }
@@ -76,9 +81,9 @@ pub async fn endpoint_write_to_disk(
         ..
     } = *output_op.connect().await?;
 
-    let _ = project
+    project
         .emit_all_output_assets(endpoint_output_assets_operation(output_op))
-        .resolve()
+        .as_side_effect()
         .await?;
 
     Ok(*output_paths)
@@ -142,7 +147,7 @@ pub struct EndpointOutput {
 pub enum EndpointOutputPaths {
     NodeJs {
         /// Relative to the root_path
-        server_entry_path: String,
+        server_entry_path: RcStr,
         server_paths: Vec<ServerPath>,
         client_paths: Vec<RcStr>,
     },

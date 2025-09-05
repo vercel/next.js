@@ -63,8 +63,9 @@ pub fn get_next_modularize_imports_rule(
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![transformer]),
+            preprocess: ResolvedVc::cell(vec![]),
+            main: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![transformer]),
         }],
     )
 }
@@ -99,6 +100,7 @@ impl ModularizeImportsTransformer {
                                 skip_default_conversion: v.skip_default_conversion,
                                 handle_default_import: false,
                                 handle_namespace_import: false,
+                                style: None,
                             }),
                         )
                     })

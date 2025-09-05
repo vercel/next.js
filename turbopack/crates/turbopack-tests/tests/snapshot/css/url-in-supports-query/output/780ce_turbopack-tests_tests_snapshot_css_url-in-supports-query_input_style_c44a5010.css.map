@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/url-in-supports-query/input/style.css"],"sourcesContent":["@supports ((-webkit-mask: url('')) or (mask: url(''))) {\n  .supports-url-in-query {\n    color: red;\n  }\n}\n"],"names":[],"mappings":"AAAA;EACE"}}]
+}

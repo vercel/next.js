@@ -7,7 +7,6 @@ related:
     - pages/building-your-application/rendering/server-side-rendering
     - pages/building-your-application/rendering/static-site-generation
     - pages/guides/incremental-static-regeneration
-    - app/building-your-application/routing/loading-ui-and-streaming
 ---
 
 In Client-Side Rendering (CSR) with React, the browser downloads a minimal HTML page and the JavaScript needed for the page. The JavaScript is then used to update the DOM and render the page. When the application is first loaded, the user may notice a slight delay before they can see the full page, this is because the page isn't fully rendered until all the JavaScript is downloaded, parsed, and executed.
@@ -69,4 +68,4 @@ export function Page() {
 
 > **Good to know**:
 >
-> Keep in mind that CSR can impact SEO. Some search engine crawlers might not execute JavaScript and therefore only see the initial empty or loading state of your application. It can also lead to performance issues for users with slower internet connections or devices, as they need to wait for all the JavaScript to load and run before they can see the full page. Next.js promotes a hybrid approach that allows you to use a combination of [server-side rendering](/docs/pages/building-your-application/rendering/server-side-rendering), [static site generation](/docs/pages/building-your-application/rendering/static-site-generation), and client-side rendering, **depending on the needs of each page** in your application. In the App Router, you can also use [Loading UI with Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming) to show a loading indicator while the page is being rendered.
+> Keep in mind that CSR can impact SEO. Some search engine crawlers might not execute JavaScript and therefore only see the initial empty or loading state of your application. It can also lead to performance issues for users with slower internet connections or devices, as they need to wait for all the JavaScript to load and run before they can see the full page. Next.js promotes a hybrid approach that allows you to use a combination of [server-side rendering](/docs/pages/building-your-application/rendering/server-side-rendering), [static site generation](/docs/pages/building-your-application/rendering/static-site-generation), and client-side rendering, **depending on the needs of each page** in your application. In the App Router, you can also use [Loading UI with Suspense](/docs/app/api-reference/file-conventions/loading) to show a loading indicator while the page is being rendered.

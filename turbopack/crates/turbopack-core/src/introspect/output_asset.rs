@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 
 use super::{
@@ -14,9 +14,7 @@ pub struct IntrospectableOutputAsset(ResolvedVc<Box<dyn OutputAsset>>);
 #[turbo_tasks::value_impl]
 impl IntrospectableOutputAsset {
     #[turbo_tasks::function]
-    pub async fn new(
-        asset: ResolvedVc<Box<dyn OutputAsset>>,
-    ) -> Result<Vc<Box<dyn Introspectable>>> {
+    pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<Vc<Box<dyn Introspectable>>> {
         Ok(
             *ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(asset).unwrap_or_else(|| {
                 ResolvedVc::upcast(IntrospectableOutputAsset(asset).resolved_cell())
@@ -25,16 +23,11 @@ impl IntrospectableOutputAsset {
     }
 }
 
-#[turbo_tasks::function]
-fn ty() -> Vc<RcStr> {
-    Vc::cell("output asset".into())
-}
-
 #[turbo_tasks::value_impl]
 impl Introspectable for IntrospectableOutputAsset {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        ty()
+        Vc::cell(rcstr!("output asset"))
     }
 
     #[turbo_tasks::function]

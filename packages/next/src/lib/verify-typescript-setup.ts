@@ -47,18 +47,19 @@ export async function verifyTypeScriptSetup({
   dir: string
   distDir: string
   cacheDir?: string
-  tsconfigPath: string
+  tsconfigPath: string | undefined
   intentDirs: string[]
   typeCheckPreflight: boolean
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
-  const resolvedTsConfigPath = path.join(dir, tsconfigPath)
+  const tsConfigFileName = tsconfigPath || 'tsconfig.json'
+  const resolvedTsConfigPath = path.join(dir, tsConfigFileName)
 
   try {
     // Check if the project uses TypeScript:
-    const intent = await getTypeScriptIntent(dir, intentDirs, tsconfigPath)
+    const intent = await getTypeScriptIntent(dir, intentDirs, tsConfigFileName)
     if (!intent) {
       return { version: null }
     }
@@ -129,6 +130,7 @@ export async function verifyTypeScriptSetup({
     // Next.js' types:
     await writeAppTypeDeclarations({
       baseDir: dir,
+      distDir,
       imageImportsEnabled: !disableStaticImages,
       hasPagesDir,
       hasAppDir,
@@ -136,7 +138,8 @@ export async function verifyTypeScriptSetup({
 
     let result
     if (typeCheckPreflight) {
-      const { runTypeCheck } = require('./typescript/runTypeCheck')
+      const { runTypeCheck } =
+        require('./typescript/runTypeCheck') as typeof import('./typescript/runTypeCheck')
 
       // Verify the project passes type-checking before we go to webpack phase:
       result = await runTypeCheck(

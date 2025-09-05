@@ -4,8 +4,8 @@ use anyhow::{Result, bail};
 use either::Either;
 use indoc::writedoc;
 use serde::Serialize;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -68,17 +68,23 @@ impl EcmascriptBrowserEvaluateChunk {
     }
 
     #[turbo_tasks::function]
-    fn chunks_data(&self) -> Vc<ChunksData> {
-        ChunkData::from_assets(self.chunking_context.output_root(), *self.other_chunks)
+    async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
+        Ok(ChunkData::from_assets(
+            self.chunking_context.output_root().owned().await?,
+            *self.other_chunks,
+        ))
     }
 
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
-        let chunking_context = this.chunking_context.await?;
         let environment = this.chunking_context.environment();
 
-        let output_root_to_root_path = this.chunking_context.output_root_to_root_path();
+        let output_root_to_root_path = this
+            .chunking_context
+            .output_root_to_root_path()
+            .owned()
+            .await?;
         let source_maps = *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
@@ -151,34 +157,25 @@ impl EcmascriptBrowserEvaluateChunk {
         // This is the case in integration tests.
         writedoc!(
             code,
+            // `||=` would be better but we need to be es2020 compatible
+            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
             r#"
-                (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([
+                (globalThis.TURBOPACK || (globalThis.TURBOPACK = [])).push([
                     {script_or_path},
-                    {{}},
                     {}
                 ]);
             "#,
             StringifyJs(&params),
         )?;
 
-        match chunking_context.runtime_type() {
-            RuntimeType::Development => {
+        let runtime_type = *this.chunking_context.runtime_type().await?;
+        match runtime_type {
+            RuntimeType::Production | RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
                     environment,
-                    chunking_context.chunk_base_path(),
-                    chunking_context.chunk_suffix_path(),
-                    Value::new(chunking_context.runtime_type()),
-                    output_root_to_root_path,
-                    source_maps,
-                );
-                code.push_code(&*runtime_code.await?);
-            }
-            RuntimeType::Production => {
-                let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
-                    environment,
-                    chunking_context.chunk_base_path(),
-                    chunking_context.chunk_suffix_path(),
-                    Value::new(chunking_context.runtime_type()),
+                    this.chunking_context.chunk_base_path(),
+                    this.chunking_context.chunk_suffix_path(),
+                    runtime_type,
                     output_root_to_root_path,
                     source_maps,
                 );
@@ -193,8 +190,8 @@ impl EcmascriptBrowserEvaluateChunk {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
-            code = minify(&code, source_maps, mangle)?;
+        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
+            code = minify(code, source_maps, mangle)?;
         }
 
         Ok(code.cell())
@@ -204,13 +201,13 @@ impl EcmascriptBrowserEvaluateChunk {
     async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.ident.owned().await?;
 
-        ident.add_modifier(modifier().to_resolved().await?);
+        ident.add_modifier(rcstr!("ecmascript browser evaluate chunk"));
 
         let evaluatable_assets = self.evaluatable_assets.await?;
         ident.modifiers.extend(
             evaluatable_assets
                 .iter()
-                .map(|entry| entry.ident().to_string().to_resolved())
+                .map(|entry| entry.ident().to_string().owned())
                 .try_join()
                 .await?,
         );
@@ -219,12 +216,12 @@ impl EcmascriptBrowserEvaluateChunk {
             self.other_chunks
                 .await?
                 .iter()
-                .map(|chunk| chunk.path().to_string().to_resolved())
+                .map(|chunk| chunk.path().to_string().owned())
                 .try_join()
                 .await?,
         );
 
-        Ok(AssetIdent::new(Value::new(ident)))
+        Ok(AssetIdent::new(ident))
     }
 
     #[turbo_tasks::function]
@@ -242,13 +239,8 @@ impl EcmascriptBrowserEvaluateChunk {
 impl ValueToString for EcmascriptBrowserEvaluateChunk {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("Ecmascript Browser Evaluate Chunk".into())
+        Vc::cell(rcstr!("Ecmascript Browser Evaluate Chunk"))
     }
-}
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript browser evaluate chunk".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -257,9 +249,12 @@ impl OutputAsset for EcmascriptBrowserEvaluateChunk {
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let ident = self.ident_for_path();
-        Ok(this
-            .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, ".js".into()))
+        Ok(this.chunking_context.chunk_path(
+            Some(Vc::upcast(self)),
+            ident,
+            Some(rcstr!("turbopack")),
+            rcstr!(".js"),
+        ))
     }
 
     #[turbo_tasks::function]

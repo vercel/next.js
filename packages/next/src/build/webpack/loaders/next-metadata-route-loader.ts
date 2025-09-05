@@ -35,10 +35,9 @@ async function createReExportsCode(
     : ''
 }
 
-const cacheHeader = {
-  none: 'no-cache, no-store',
-  longCache: 'public, immutable, no-transform, max-age=31536000',
-  revalidate: 'public, max-age=0, must-revalidate',
+const CACHE_HEADERS = {
+  NO_CACHE: 'no-cache, no-store',
+  REVALIDATE: 'public, max-age=0, must-revalidate',
 }
 
 export type MetadataRouteLoaderOptions = {
@@ -77,11 +76,9 @@ async function getStaticAssetRouteCode(
   fileBaseName: string
 ) {
   const cache =
-    fileBaseName === 'favicon'
-      ? 'public, max-age=0, must-revalidate'
-      : process.env.NODE_ENV !== 'production'
-        ? cacheHeader.none
-        : cacheHeader.longCache
+    process.env.NODE_ENV !== 'production'
+      ? CACHE_HEADERS.NO_CACHE
+      : CACHE_HEADERS.REVALIDATE
 
   const isTwitter = fileBaseName === 'twitter-image'
   const isOpenGraph = fileBaseName === 'opengraph-image'
@@ -149,27 +146,37 @@ export async function GET() {
   return new NextResponse(content, {
     headers: {
       'Content-Type': contentType,
-      'Cache-Control': ${JSON.stringify(cacheHeader.revalidate)},
+      'Cache-Control': ${JSON.stringify(CACHE_HEADERS.REVALIDATE)},
     },
   })
 }
 `
 }
 
-// <metadata-image>/[id]/route.js
 async function getDynamicImageRouteCode(
   resourcePath: string,
   loaderContext: webpack.LoaderContext<any>
 ) {
+  let staticGenerationCode = ''
+
+  if (process.env.NODE_ENV === 'production') {
+    staticGenerationCode = `\
+export async function generateStaticParams({ params }) {
+  const imageMetadata = await generateImageMetadata({ params })
+  const staticParams = []
+
+  for (const item of imageMetadata) {
+    staticParams.push({ __metadata_id__: item.id.toString() })
+  }
+  return staticParams
+}
+`
+  }
+
   return `\
-/* dynamic image route */
+/* dynamic image route with generateImageMetadata */
 import { NextResponse } from 'next/server'
-import * as userland from ${JSON.stringify(resourcePath)}
-
-const imageModule = { ...userland }
-
-const handler = imageModule.default
-const generateImageMetadata = imageModule.generateImageMetadata
+import { default as handler, generateImageMetadata } from ${JSON.stringify(resourcePath)}
 
 ${errorOnBadHandler(resourcePath)}
 ${await createReExportsCode(resourcePath, loaderContext)}
@@ -178,29 +185,63 @@ export async function GET(_, ctx) {
   const params = await ctx.params
   const { __metadata_id__, ...rest } = params || {}
   const restParams = params ? rest : undefined
-  const targetId = __metadata_id__
-  let id = undefined
-  
-  if (generateImageMetadata) {
-    const imageMetadata = await generateImageMetadata({ params: restParams })
-    id = imageMetadata.find((item) => {
-      if (process.env.NODE_ENV !== 'production') {
-        if (item?.id == null) {
-          throw new Error('id property is required for every item returned from generateImageMetadata')
-        }
+  const imageMetadata = await generateImageMetadata({ params: restParams })
+  const id = imageMetadata.find((item) => {
+    if (process.env.NODE_ENV !== 'production') {
+      if (item?.id == null) {
+        throw new Error('id property is required for every item returned from generateImageMetadata')
       }
-      return item.id.toString() === targetId
-    })?.id
-    if (id == null) {
-      return new NextResponse('Not Found', {
-        status: 404,
-      })
     }
+    return item.id.toString() === __metadata_id__
+  })?.id
+  if (id == null) {
+    return new NextResponse('Not Found', {
+      status: 404,
+    })
   }
 
   return handler({ params: restParams, id })
 }
+
+${staticGenerationCode}
 `
+}
+
+async function getSingleImageRouteCode(
+  resourcePath: string,
+  loaderContext: webpack.LoaderContext<any>
+) {
+  return `\
+/* dynamic image route without generateImageMetadata */
+import { NextResponse } from 'next/server'
+import { default as handler } from ${JSON.stringify(resourcePath)}
+
+${errorOnBadHandler(resourcePath)}
+${await createReExportsCode(resourcePath, loaderContext)}
+
+export async function GET(_, ctx) {
+  return handler({ params: await ctx.params })
+}
+`
+}
+
+// <metadata-image>/[id]/route.js
+async function getImageRouteCode(
+  resourcePath: string,
+  loaderContext: webpack.LoaderContext<any>
+) {
+  const exportNames = await getLoaderModuleNamedExports(
+    resourcePath,
+    loaderContext
+  )
+
+  const hasGenerateParamsExport = exportNames.includes('generateImageMetadata')
+
+  if (hasGenerateParamsExport) {
+    return getDynamicImageRouteCode(resourcePath, loaderContext)
+  } else {
+    return getSingleImageRouteCode(resourcePath, loaderContext)
+  }
 }
 
 async function getDynamicSitemapRouteCode(
@@ -247,7 +288,6 @@ ${await createReExportsCode(resourcePath, loaderContext)}
 export async function GET(_, ctx) {
   const { __metadata_id__: id, ...params } = await ctx.params || {}
   const hasXmlExtension = id ? id.endsWith('.xml') : false
-
   if (id && !hasXmlExtension) {
     return new NextResponse('Not Found', {
       status: 404,
@@ -264,14 +304,13 @@ export async function GET(_, ctx) {
   }
 
   const targetId = id && hasXmlExtension ? id.slice(0, -4) : undefined
-
   const data = await handler({ id: targetId })
   const content = resolveRouteData(data, fileType)
 
   return new NextResponse(content, {
     headers: {
       'Content-Type': contentType,
-      'Cache-Control': ${JSON.stringify(cacheHeader.revalidate)},
+      'Cache-Control': ${JSON.stringify(CACHE_HEADERS.REVALIDATE)},
     },
   })
 }
@@ -296,7 +335,7 @@ const nextMetadataRouterLoader: webpack.LoaderDefinitionFunction<MetadataRouteLo
       } else if (fileBaseName === 'sitemap') {
         code = await getDynamicSitemapRouteCode(filePath, this)
       } else {
-        code = await getDynamicImageRouteCode(filePath, this)
+        code = await getImageRouteCode(filePath, this)
       }
     } else {
       code = await getStaticAssetRouteCode(filePath, fileBaseName)

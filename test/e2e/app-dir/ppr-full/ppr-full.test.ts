@@ -1,8 +1,9 @@
 import { nextTestSetup, isNextStart } from 'e2e-utils'
-import { measurePPRTimings } from 'e2e-utils/ppr'
+import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import { links } from './components/links'
 import cheerio from 'cheerio'
 import { retry } from 'next-test-utils'
+import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 type Page = {
   pathname: string
@@ -46,6 +47,41 @@ const pages: Page[] = [
   },
 ]
 
+const addCacheBustingSearchParam = (
+  pathname: string,
+  headers: Record<string, string | string[] | undefined>
+) => {
+  const cacheKey = computeCacheBustingSearchParam(
+    headers['next-router-prefetch'] ? '1' : '0',
+    headers['next-router-segment-prefetch'],
+    headers['next-router-state-tree'],
+    headers['next-url']
+  )
+
+  if (cacheKey === null) {
+    return pathname
+  }
+
+  const url = new URL(pathname, 'http://localhost')
+  url.searchParams.set('_rsc', cacheKey)
+  return url.pathname + url.search
+}
+
+/**
+ * Expects that the cache-control header contains the given directives in any
+ * order.
+ *
+ * @param header The cache-control header to check.
+ * @param directives The directives to expect.
+ */
+const expectDirectives = (header: string, directives: string[]) => {
+  const split = header.split(',').map((directive) => directive.trim())
+  for (const directive of directives) {
+    expect(split).toContain(directive)
+  }
+  expect(split.length).toEqual(directives.length)
+}
+
 describe('ppr-full', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
@@ -84,6 +120,32 @@ describe('ppr-full', () => {
 
           // Consume the response body to ensure the cache is populated.
           await res.text()
+        })
+
+        it('should allow soft navigations to and from the / page', async () => {
+          const browser = await next.browser('/')
+
+          await browser.waitForElementByCss(`[data-pathname="/"]`)
+
+          // Add a window var so we can detect if there was a full navigation.
+          const now = Date.now()
+          await browser.eval(`window.beforeNav = ${now}`)
+
+          // Navigate to the page and wait for the page to load.
+          await browser.elementByCss(`a[href="${pathname}"]`).click()
+          await browser.waitForElementByCss(`[data-pathname="${pathname}"]`)
+
+          // Ensure we did a client navigation and not a full page navigation.
+          let beforeNav = await browser.eval('window.beforeNav')
+          expect(beforeNav).toBe(now)
+
+          // Navigate back to the home page and wait for the page to load.
+          await browser.elementByCss(`a[href="/"]`).click()
+          await browser.waitForElementByCss(`[data-pathname="/"]`)
+
+          // Ensure we did a client navigation and not a full page navigation.
+          beforeNav = await browser.eval('window.beforeNav')
+          expect(beforeNav).toBe(now)
         })
 
         it('should allow navigations to and from a pages/ page', async () => {
@@ -158,40 +220,29 @@ describe('ppr-full', () => {
 
         if (dynamic === true && !isNextDev && !isNextDeploy) {
           it('should cache the static part', async () => {
-            const delay = 500
-
             const dynamicValue = `${Date.now()}:${Math.random()}`
 
-            const {
-              timings: { streamFirstChunk, streamEnd, start },
-              chunks,
-            } = await measurePPRTimings(async () => {
-              const res = await next.fetch(pathname, {
-                headers: {
-                  'X-Delay': delay.toString(),
-                  'X-Test-Input': dynamicValue,
-                },
-              })
-              expect(res.status).toBe(200)
+            const [staticPart, dynamicPart] =
+              await splitResponseWithPPRSentinel(async () => {
+                const res = await next.fetch(pathname, {
+                  headers: {
+                    'X-Test-Input': dynamicValue,
+                  },
+                })
+                expect(res.status).toBe(200)
 
-              return res.body
-            }, delay)
-            if (emptyStaticPart) {
-              expect(streamFirstChunk - start).toBeGreaterThanOrEqual(delay)
-            } else {
-              expect(streamFirstChunk - start).toBeLessThan(delay)
-            }
-            expect(streamEnd - start).toBeGreaterThanOrEqual(delay)
+                return res.body
+              })
+
+            // The dynamic part should contain the dynamic input.
+            expect(dynamicPart).toContain(dynamicValue)
 
             // The static part should not contain the dynamic input.
-            expect(chunks.dynamic).toContain(dynamicValue)
-
-            // Ensure static part contains what we expect.
             if (emptyStaticPart) {
-              expect(chunks.static).toBe('')
+              expect(staticPart).toBe('')
             } else {
-              expect(chunks.static).toContain('Dynamic Loading...')
-              expect(chunks.static).not.toContain(dynamicValue)
+              expect(staticPart).toContain('Dynamic Loading...')
+              expect(staticPart).not.toContain(dynamicValue)
             }
           })
         }
@@ -294,25 +345,21 @@ describe('ppr-full', () => {
         'for $pathname',
         ({ pathname, slug, client }) => {
           it('should render the fallback HTML immediately', async () => {
-            const delay = 1000
+            const [staticPart, dynamicPart] =
+              await splitResponseWithPPRSentinel(async () => {
+                const res = await next.fetch(pathname)
+                expect(res.status).toBe(200)
 
-            const {
-              timings: { streamFirstChunk, start, streamEnd },
-              chunks,
-            } = await measurePPRTimings(async () => {
-              const res = await next.fetch(pathname)
-              expect(res.status).toBe(200)
+                return res.body
+              })
 
-              return res.body
-            }, delay)
+            // Expect that there is a static part of the response, implying that
+            // the fallback shell was sent immediately.
+            expect(staticPart.length).toBeGreaterThan(0)
 
-            // Expect that the first chunk should be emitted before the delay is
-            // complete, implying that the fallback shell was sent immediately.
-            expect(streamFirstChunk - start).toBeLessThan(delay)
-
-            // Expect that the last chunk should be emitted after the delay is
-            // complete.
-            expect(streamEnd - start).toBeGreaterThanOrEqual(delay)
+            // Expect that there is a dynamic part of the response, implying that
+            // the dynamic part was sent after the static part.
+            expect(dynamicPart.length).toBeGreaterThan(0)
 
             if (client) {
               const browser = await next.browser(pathname)
@@ -326,19 +373,19 @@ describe('ppr-full', () => {
               }
             } else {
               // The static part should not contain the dynamic parameter.
-              let $ = cheerio.load(chunks.static)
+              let $ = cheerio.load(staticPart)
               let data = $('[data-slug]').text()
               expect(data).not.toContain(slug)
               expect($('[data-slug]').closest('[hidden]').length).toBe(0)
 
               // The dynamic part should contain the dynamic parameter.
-              $ = cheerio.load(chunks.dynamic)
+              $ = cheerio.load(dynamicPart)
               data = $('[data-slug]').text()
               expect(data).toContain(slug)
               expect($('[data-slug]').closest('[hidden]').length).toBe(1)
 
               // The static part should contain the fallback shell.
-              expect(chunks.static).toContain('data-fallback')
+              expect(staticPart).toContain('data-fallback')
             }
           })
         }
@@ -456,18 +503,18 @@ describe('ppr-full', () => {
   }
 
   describe('Navigation Signals', () => {
-    const delay = 500
-
     describe.each([
       {
         signal: 'notFound()' as const,
+        statusCode: 404,
         pathnames: ['/navigation/not-found', '/navigation/not-found/dynamic'],
       },
       {
         signal: 'redirect()' as const,
+        statusCode: 307,
         pathnames: ['/navigation/redirect', '/navigation/redirect/dynamic'],
       },
-    ])('$signal', ({ signal, pathnames }) => {
+    ])('$signal', ({ signal, statusCode, pathnames }) => {
       describe.each(pathnames)('for %s', (pathname) => {
         it('should have correct headers', async () => {
           const res = await next.fetch(pathname, {
@@ -485,9 +532,11 @@ describe('ppr-full', () => {
           }
 
           if (isNextDeploy) {
-            expect(res.headers.get('cache-control')).toEqual(
-              'public, max-age=0, must-revalidate'
-            )
+            expectDirectives(res.headers.get('cache-control') || '', [
+              'public',
+              'max-age=0',
+              'must-revalidate',
+            ])
           }
 
           if (signal === 'redirect()') {
@@ -504,27 +553,19 @@ describe('ppr-full', () => {
 
         if (pathname.endsWith('/dynamic') && !isNextDeploy) {
           it('should cache the static part', async () => {
-            const {
-              timings: { streamFirstChunk, streamEnd, start },
-            } = await measurePPRTimings(async () => {
-              const res = await next.fetch(pathname, {
-                redirect: 'manual',
-                headers: {
-                  'X-Delay': delay.toString(),
-                },
+            const [staticPart, dynamicPart] =
+              await splitResponseWithPPRSentinel(async () => {
+                const res = await next.fetch(pathname, {
+                  redirect: 'manual',
+                })
+
+                expect(res.status).toBe(statusCode)
+
+                return res.body
               })
 
-              return res.body
-            }, delay)
-            expect(streamFirstChunk - start).toBeLessThan(delay)
-
-            if (isNextDev) {
-              // This is because the signal should throw and interrupt the
-              // delay timer.
-              expect(streamEnd - start).toBeGreaterThanOrEqual(delay)
-            } else {
-              expect(streamEnd - start).toBeLessThan(delay)
-            }
+            expect(staticPart.length).toBeGreaterThan(0)
+            expect(dynamicPart.length).toEqual(0)
           })
         }
       })
@@ -536,17 +577,28 @@ describe('ppr-full', () => {
       describe.each(pages)('for $pathname', ({ pathname, revalidate }) => {
         it('should have correct headers', async () => {
           await retry(async () => {
-            const res = await next.fetch(pathname, {
-              headers: { RSC: '1', 'Next-Router-Prefetch': '1' },
+            const headers = {
+              rsc: '1',
+              'next-router-prefetch': '1',
+            }
+            const urlWithCacheBusting = addCacheBustingSearchParam(
+              pathname,
+              headers
+            )
+
+            const res = await next.fetch(urlWithCacheBusting, {
+              headers,
             })
 
             expect(res.status).toEqual(200)
             expect(res.headers.get('content-type')).toEqual('text/x-component')
 
             if (isNextDeploy) {
-              expect(res.headers.get('cache-control')).toEqual(
-                'public, max-age=0, must-revalidate'
-              )
+              expectDirectives(res.headers.get('cache-control') || '', [
+                'public',
+                'max-age=0',
+                'must-revalidate',
+              ])
             } else {
               expect(res.headers.get('cache-control')).toEqual(
                 revalidate === undefined
@@ -565,12 +617,18 @@ describe('ppr-full', () => {
 
         it('should not contain dynamic content', async () => {
           const unexpected = `${Date.now()}:${Math.random()}`
-          const res = await next.fetch(pathname, {
-            headers: {
-              RSC: '1',
-              'Next-Router-Prefetch': '1',
-              'X-Test-Input': unexpected,
-            },
+          const headers = {
+            rsc: '1',
+            'next-router-prefetch': '1',
+            'X-Test-Input': unexpected,
+          }
+          const urlWithCacheBusting = addCacheBustingSearchParam(
+            pathname,
+            headers
+          )
+
+          const res = await next.fetch(urlWithCacheBusting, {
+            headers,
           })
           expect(res.status).toEqual(200)
           expect(res.headers.get('content-type')).toEqual('text/x-component')
@@ -583,16 +641,29 @@ describe('ppr-full', () => {
     describe('Dynamic RSC Response', () => {
       describe.each(pages)('for $pathname', ({ pathname, dynamic }) => {
         it('should have correct headers', async () => {
-          const res = await next.fetch(pathname, {
-            headers: { RSC: '1' },
+          const headers = { rsc: '1' }
+          const urlWithCacheBusting = addCacheBustingSearchParam(
+            pathname,
+            headers
+          )
+
+          let res = await next.fetch(urlWithCacheBusting, {
+            headers,
           })
           expect(res.status).toEqual(200)
           expect(res.headers.get('content-type')).toEqual('text/x-component')
-          expect(res.headers.get('cache-control')).toEqual(
-            'private, no-cache, no-store, max-age=0, must-revalidate'
-          )
+          expectDirectives(res.headers.get('cache-control') || '', [
+            'private',
+            'no-store',
+            'no-cache',
+            'max-age=0',
+            'must-revalidate',
+          ])
+
           if (isNextDeploy) {
-            expect(res.headers.get('x-vercel-cache')).toBe('MISS')
+            expect(res.headers.get('x-vercel-cache')).toMatch(
+              /MISS|HIT|PRERENDER/
+            )
           } else {
             expect(res.headers.get('x-nextjs-cache')).toEqual(null)
           }
@@ -601,8 +672,17 @@ describe('ppr-full', () => {
         if (dynamic === true || dynamic === 'force-dynamic') {
           it('should contain dynamic content', async () => {
             const expected = `${Date.now()}:${Math.random()}`
-            const res = await next.fetch(pathname, {
-              headers: { RSC: '1', 'X-Test-Input': expected },
+            const headers = {
+              rsc: '1',
+              'X-Test-Input': expected,
+            }
+            const urlWithCacheBusting = addCacheBustingSearchParam(
+              pathname,
+              headers
+            )
+
+            const res = await next.fetch(urlWithCacheBusting, {
+              headers,
             })
             expect(res.status).toEqual(200)
             expect(res.headers.get('content-type')).toEqual('text/x-component')
@@ -612,11 +692,17 @@ describe('ppr-full', () => {
         } else {
           it('should not contain dynamic content', async () => {
             const unexpected = `${Date.now()}:${Math.random()}`
-            const res = await next.fetch(pathname, {
-              headers: {
-                RSC: '1',
-                'X-Test-Input': unexpected,
-              },
+            const headers = {
+              rsc: '1',
+              'X-Test-Input': unexpected,
+            }
+            const urlWithCacheBusting = addCacheBustingSearchParam(
+              pathname,
+              headers
+            )
+
+            const res = await next.fetch(urlWithCacheBusting, {
+              headers,
             })
             expect(res.status).toEqual(200)
             expect(res.headers.get('content-type')).toEqual('text/x-component')

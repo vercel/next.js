@@ -1,23 +1,21 @@
+import type { ReactDOMServerReadableStream } from 'react-dom/server'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { scheduleImmediate, atLeastOneTask } from '../../lib/scheduler'
-import { ENCODED_TAGS } from './encodedTags'
+import { ENCODED_TAGS } from './encoded-tags'
 import {
   indexOfUint8Array,
   isEquivalentUint8Arrays,
   removeFromUint8Array,
 } from './uint8array-helpers'
 import { MISSING_ROOT_TAGS_ERROR } from '../../shared/lib/errors/constants'
+import { insertBuildIdComment } from '../../shared/lib/segment-cache/output-export-prefetch-encoding'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
   // pipe implementation to forward errors but we don't want the pipeTo promise to reject
   // and be unhandled
-}
-
-export type ReactReadableStream = ReadableStream<Uint8Array> & {
-  allReady?: Promise<void> | undefined
 }
 
 // We can share the same encoder instance everywhere
@@ -28,10 +26,14 @@ const encoder = new TextEncoder()
 export function chainStreams<T>(
   ...streams: ReadableStream<T>[]
 ): ReadableStream<T> {
-  // We could encode this invariant in the arguments but current uses of this function pass
-  // use spread so it would be missed by
+  // If we have no streams, return an empty stream. This behavior is
+  // intentional as we're now providing the `RenderResult.EMPTY` value.
   if (streams.length === 0) {
-    throw new Error('Invariant: chainStreams requires at least one stream')
+    return new ReadableStream<T>({
+      start(controller) {
+        controller.close()
+      },
+    })
   }
 
   // If we only have 1 stream we fast path it by returning just this stream
@@ -179,18 +181,148 @@ export function createBufferedTransformStream(): TransformStream<
   })
 }
 
+function createPrefetchCommentStream(
+  isBuildTimePrerendering: boolean,
+  buildId: string
+): TransformStream<Uint8Array, Uint8Array> {
+  // Insert an extra comment at the beginning of the HTML document. This must
+  // come after the DOCTYPE, which is inserted by React.
+  //
+  // The first chunk sent by React will contain the doctype. After that, we can
+  // pass through the rest of the chunks as-is.
+  let didTransformFirstChunk = false
+  return new TransformStream({
+    transform(chunk, controller) {
+      if (isBuildTimePrerendering && !didTransformFirstChunk) {
+        didTransformFirstChunk = true
+        const decoder = new TextDecoder('utf-8', { fatal: true })
+        const chunkStr = decoder.decode(chunk, {
+          stream: true,
+        })
+        const updatedChunkStr = insertBuildIdComment(chunkStr, buildId)
+        controller.enqueue(encoder.encode(updatedChunkStr))
+        return
+      }
+      controller.enqueue(chunk)
+    },
+  })
+}
+
 export function renderToInitialFizzStream({
   ReactDOMServer,
   element,
   streamOptions,
 }: {
-  ReactDOMServer: typeof import('react-dom/server.edge')
+  ReactDOMServer: {
+    renderToReadableStream: typeof import('react-dom/server').renderToReadableStream
+  }
   element: React.ReactElement
   streamOptions?: Parameters<typeof ReactDOMServer.renderToReadableStream>[1]
-}): Promise<ReactReadableStream> {
+}): Promise<ReactDOMServerReadableStream> {
   return getTracer().trace(AppRenderSpan.renderToReadableStream, async () =>
     ReactDOMServer.renderToReadableStream(element, streamOptions)
   )
+}
+
+function createMetadataTransformStream(
+  insert: () => Promise<string> | string
+): TransformStream<Uint8Array, Uint8Array> {
+  let chunkIndex = -1
+  let isMarkRemoved = false
+
+  return new TransformStream({
+    async transform(chunk, controller) {
+      let iconMarkIndex = -1
+      let closedHeadIndex = -1
+      chunkIndex++
+
+      if (isMarkRemoved) {
+        controller.enqueue(chunk)
+        return
+      }
+      let iconMarkLength = 0
+      // Only search for the closed head tag once
+      if (iconMarkIndex === -1) {
+        iconMarkIndex = indexOfUint8Array(chunk, ENCODED_TAGS.META.ICON_MARK)
+        if (iconMarkIndex === -1) {
+          controller.enqueue(chunk)
+          return
+        } else {
+          // When we found the `<meta name="«nxt-icon»"` tag prefix, we will remove it from the chunk.
+          // Its close tag could either be `/>` or `>`, checking the next char to ensure we cover both cases.
+          iconMarkLength = ENCODED_TAGS.META.ICON_MARK.length
+          // Check if next char is /, this is for xml mode.
+          if (chunk[iconMarkIndex + iconMarkLength] === 47) {
+            iconMarkLength += 2
+          } else {
+            // The last char is `>`
+            iconMarkLength++
+          }
+        }
+      }
+
+      // Check if icon mark is inside <head> tag in the first chunk.
+      if (chunkIndex === 0) {
+        closedHeadIndex = indexOfUint8Array(chunk, ENCODED_TAGS.CLOSED.HEAD)
+        if (iconMarkIndex !== -1) {
+          // The mark icon is located in the 1st chunk before the head tag.
+          // We do not need to insert the script tag in this case because it's in the head.
+          // Just remove the icon mark from the chunk.
+          if (iconMarkIndex < closedHeadIndex) {
+            const replaced = new Uint8Array(chunk.length - iconMarkLength)
+
+            // Remove the icon mark from the chunk.
+            replaced.set(chunk.subarray(0, iconMarkIndex))
+            replaced.set(
+              chunk.subarray(iconMarkIndex + iconMarkLength),
+              iconMarkIndex
+            )
+            chunk = replaced
+          } else {
+            // The icon mark is after the head tag, replace and insert the script tag at that position.
+            const insertion = await insert()
+            const encodedInsertion = encoder.encode(insertion)
+            const insertionLength = encodedInsertion.length
+            const replaced = new Uint8Array(
+              chunk.length - iconMarkLength + insertionLength
+            )
+            replaced.set(chunk.subarray(0, iconMarkIndex))
+            replaced.set(encodedInsertion, iconMarkIndex)
+            replaced.set(
+              chunk.subarray(iconMarkIndex + iconMarkLength),
+              iconMarkIndex + insertionLength
+            )
+            chunk = replaced
+          }
+          isMarkRemoved = true
+        }
+        // If there's no icon mark located, it will be handled later when if present in the following chunks.
+      } else {
+        // When it's appeared in the following chunks, we'll need to
+        // remove the mark and then insert the script tag at that position.
+        const insertion = await insert()
+        const encodedInsertion = encoder.encode(insertion)
+        const insertionLength = encodedInsertion.length
+        // Replace the icon mark with the hoist script or empty string.
+        const replaced = new Uint8Array(
+          chunk.length - iconMarkLength + insertionLength
+        )
+        // Set the first part of the chunk, before the icon mark.
+        replaced.set(chunk.subarray(0, iconMarkIndex))
+        // Set the insertion after the icon mark.
+        replaced.set(encodedInsertion, iconMarkIndex)
+
+        // Set the rest of the chunk after the icon mark.
+        replaced.set(
+          chunk.subarray(iconMarkIndex + iconMarkLength),
+          iconMarkIndex + insertionLength
+        )
+        chunk = replaced
+        isMarkRemoved = true
+      }
+      controller.enqueue(chunk)
+    },
+  })
 }
 
 function createHeadInsertionTransformStream(
@@ -317,32 +449,40 @@ function createDeferredSuffixStream(
   })
 }
 
-// Merge two streams into one. Ensure the final transform stream is closed
-// when both are finished.
-function createMergedTransformStream(
-  stream: ReadableStream<Uint8Array>
+function createFlightDataInjectionTransformStream(
+  stream: ReadableStream<Uint8Array>,
+  delayDataUntilFirstHtmlChunk: boolean
 ): TransformStream<Uint8Array, Uint8Array> {
+  let htmlStreamFinished = false
+
   let pull: Promise<void> | null = null
   let donePulling = false
 
-  async function startPulling(controller: TransformStreamDefaultController) {
-    if (pull) {
-      return
+  function startOrContinuePulling(
+    controller: TransformStreamDefaultController
+  ) {
+    if (!pull) {
+      pull = startPulling(controller)
     }
+    return pull
+  }
 
+  async function startPulling(controller: TransformStreamDefaultController) {
     const reader = stream.getReader()
 
-    // NOTE: streaming flush
-    // We are buffering here for the inlined data stream because the
-    // "shell" stream might be chunkenized again by the underlying stream
-    // implementation, e.g. with a specific high-water mark. To ensure it's
-    // the safe timing to pipe the data stream, this extra tick is
-    // necessary.
+    if (delayDataUntilFirstHtmlChunk) {
+      // NOTE: streaming flush
+      // We are buffering here for the inlined data stream because the
+      // "shell" stream might be chunkenized again by the underlying stream
+      // implementation, e.g. with a specific high-water mark. To ensure it's
+      // the safe timing to pipe the data stream, this extra tick is
+      // necessary.
 
-    // We don't start reading until we've left the current Task to ensure
-    // that it's inserted after flushing the shell. Note that this implementation
-    // might get stale if impl details of Fizz change in the future.
-    await atLeastOneTask()
+      // We don't start reading until we've left the current Task to ensure
+      // that it's inserted after flushing the shell. Note that this implementation
+      // might get stale if impl details of Fizz change in the future.
+      await atLeastOneTask()
+    }
 
     try {
       while (true) {
@@ -352,6 +492,12 @@ function createMergedTransformStream(
           return
         }
 
+        // We want to prioritize HTML over RSC data.
+        // The SSR render is based on the same RSC stream, so when we get a new RSC chunk,
+        // we're likely to produce an HTML chunk as well, so give it a chance to flush first.
+        if (!delayDataUntilFirstHtmlChunk && !htmlStreamFinished) {
+          await atLeastOneTask()
+        }
         controller.enqueue(value)
       }
     } catch (err) {
@@ -360,19 +506,25 @@ function createMergedTransformStream(
   }
 
   return new TransformStream({
+    start(controller) {
+      if (!delayDataUntilFirstHtmlChunk) {
+        startOrContinuePulling(controller)
+      }
+    },
     transform(chunk, controller) {
       controller.enqueue(chunk)
 
       // Start the streaming if it hasn't already been started yet.
-      if (!pull) {
-        pull = startPulling(controller)
+      if (delayDataUntilFirstHtmlChunk) {
+        startOrContinuePulling(controller)
       }
     },
     flush(controller) {
+      htmlStreamFinished = true
       if (donePulling) {
         return
       }
-      return pull || startPulling(controller)
+      return startOrContinuePulling(controller)
     },
   })
 }
@@ -504,7 +656,7 @@ export function createRootLayoutValidatorStream(): TransformStream<
                 .map((c) => `<${c}>`)
                 .join(
                   missingTags.length > 1 ? ' and ' : ''
-                )} tags in the root layout.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags""
+                )} tags in the root layout.\nRead more at https://nextjs.org/docs/messages/missing-root-layout-tags"
               data-next-error-digest="${MISSING_ROOT_TAGS_ERROR}"
               data-next-error-stack=""
             ></template>
@@ -531,6 +683,8 @@ function chainTransformers<T>(
 export type ContinueStreamOptions = {
   inlinedDataStream: ReadableStream<Uint8Array> | undefined
   isStaticGeneration: boolean
+  isBuildTimePrerendering: boolean
+  buildId: string
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
   validateRootLayout?: boolean
@@ -541,11 +695,13 @@ export type ContinueStreamOptions = {
 }
 
 export async function continueFizzStream(
-  renderStream: ReactReadableStream,
+  renderStream: ReactDOMServerReadableStream,
   {
     suffix,
     inlinedDataStream,
     isStaticGeneration,
+    isBuildTimePrerendering,
+    buildId,
     getServerInsertedHTML,
     getServerInsertedMetadata,
     validateRootLayout,
@@ -554,9 +710,8 @@ export async function continueFizzStream(
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-  // If we're generating static HTML and there's an `allReady` promise on the
-  // stream, we need to wait for it to resolve before continuing.
-  if (isStaticGeneration && 'allReady' in renderStream) {
+  // If we're generating static HTML we need to wait for it to resolve before continuing.
+  if (isStaticGeneration) {
     await renderStream.allReady
   }
 
@@ -564,8 +719,11 @@ export async function continueFizzStream(
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
 
-    // Insert generated metadata
-    createHeadInsertionTransformStream(getServerInsertedMetadata),
+    // Add build id comment to start of the HTML document (in export mode)
+    createPrefetchCommentStream(isBuildTimePrerendering, buildId),
+
+    // Transform metadata
+    createMetadataTransformStream(getServerInsertedMetadata),
 
     // Insert suffix content
     suffixUnclosed != null && suffixUnclosed.length > 0
@@ -573,7 +731,9 @@ export async function continueFizzStream(
       : null,
 
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-    inlinedDataStream ? createMergedTransformStream(inlinedDataStream) : null,
+    inlinedDataStream
+      ? createFlightDataInjectionTransformStream(inlinedDataStream, true)
+      : null,
 
     // Validate the root layout for missing html or body tags
     validateRootLayout ? createRootLayoutValidatorStream() : null,
@@ -607,10 +767,8 @@ export async function continueDynamicPrerender(
       .pipeThrough(createStripDocumentClosingTagsTransform())
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Insert generated metadata
-      .pipeThrough(
-        createHeadInsertionTransformStream(getServerInsertedMetadata)
-      )
+      // Transform metadata
+      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
   )
 }
 
@@ -618,6 +776,8 @@ type ContinueStaticPrerenderOptions = {
   inlinedDataStream: ReadableStream<Uint8Array>
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
+  isBuildTimePrerendering: boolean
+  buildId: string
 }
 
 export async function continueStaticPrerender(
@@ -626,20 +786,26 @@ export async function continueStaticPrerender(
     inlinedDataStream,
     getServerInsertedHTML,
     getServerInsertedMetadata,
+    isBuildTimePrerendering,
+    buildId,
   }: ContinueStaticPrerenderOptions
 ) {
   return (
     prerenderStream
       // Buffer everything to avoid flushing too frequently
       .pipeThrough(createBufferedTransformStream())
+      // Add build id comment to start of the HTML document (in export mode)
+      .pipeThrough(
+        createPrefetchCommentStream(isBuildTimePrerendering, buildId)
+      )
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Insert generated metadata to head
-      .pipeThrough(
-        createHeadInsertionTransformStream(getServerInsertedMetadata)
-      )
+      // Transform metadata
+      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-      .pipeThrough(createMergedTransformStream(inlinedDataStream))
+      .pipeThrough(
+        createFlightDataInjectionTransformStream(inlinedDataStream, true)
+      )
       // Close tags should always be deferred to the end
       .pipeThrough(createMoveSuffixStream())
   )
@@ -649,11 +815,13 @@ type ContinueResumeOptions = {
   inlinedDataStream: ReadableStream<Uint8Array>
   getServerInsertedHTML: () => Promise<string>
   getServerInsertedMetadata: () => Promise<string>
+  delayDataUntilFirstHtmlChunk: boolean
 }
 
 export async function continueDynamicHTMLResume(
   renderStream: ReadableStream<Uint8Array>,
   {
+    delayDataUntilFirstHtmlChunk,
     inlinedDataStream,
     getServerInsertedHTML,
     getServerInsertedMetadata,
@@ -665,12 +833,15 @@ export async function continueDynamicHTMLResume(
       .pipeThrough(createBufferedTransformStream())
       // Insert generated tags to head
       .pipeThrough(createHeadInsertionTransformStream(getServerInsertedHTML))
-      // Insert generated metadata to body
-      .pipeThrough(
-        createHeadInsertionTransformStream(getServerInsertedMetadata)
-      )
+      // Transform metadata
+      .pipeThrough(createMetadataTransformStream(getServerInsertedMetadata))
       // Insert the inlined data (Flight data, form state, etc.) stream into the HTML
-      .pipeThrough(createMergedTransformStream(inlinedDataStream))
+      .pipeThrough(
+        createFlightDataInjectionTransformStream(
+          inlinedDataStream,
+          delayDataUntilFirstHtmlChunk
+        )
+      )
       // Close tags should always be deferred to the end
       .pipeThrough(createMoveSuffixStream())
   )

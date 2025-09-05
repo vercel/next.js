@@ -1,7 +1,8 @@
-use std::{collections::BTreeMap, fmt::Display, ops::Deref, path::PathBuf};
+use std::{collections::BTreeMap, fmt::Display, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use turbo_rcstr::RcStr;
 use turbopack_cli_utils::issue::{LogOptions, format_issue};
 use turbopack_core::{
     issue::{IssueSeverity, IssueStage, PlainIssue, StyledString},
@@ -10,8 +11,8 @@ use turbopack_core::{
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct ResourceIdentifier {
-    pub path: String,
-    pub headers: Option<BTreeMap<String, String>>,
+    pub path: RcStr,
+    pub headers: Option<BTreeMap<RcStr, RcStr>>,
 }
 
 impl Display for ResourceIdentifier {
@@ -145,7 +146,6 @@ pub struct Issue<'a> {
     pub documentation_link: &'a str,
 
     pub source: Option<IssueSource<'a>>,
-    pub sub_issues: Vec<Issue<'a>>,
 
     pub formatted: String,
 }
@@ -170,7 +170,6 @@ impl<'a> From<&'a PlainIssue> for Issue<'a> {
             documentation_link: &plain.documentation_link,
             detail: plain.detail.as_ref(),
             source,
-            sub_issues: plain.sub_issues.iter().map(|p| p.deref().into()).collect(),
             // TODO(WEB-691) formatting the issue should be handled by the error overlay.
             // The browser could handle error formatting in a better way than the text only
             // formatting here

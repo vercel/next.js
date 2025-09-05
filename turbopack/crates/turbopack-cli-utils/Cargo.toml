@@ -16,15 +16,13 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-clap = { workspace = true, features = ["derive"] }
 crossterm = "0.26.0"
 owo-colors = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-resolve = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

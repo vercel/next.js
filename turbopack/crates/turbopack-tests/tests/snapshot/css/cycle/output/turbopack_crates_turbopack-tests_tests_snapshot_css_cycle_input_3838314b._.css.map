@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/k.css"],"sourcesContent":["@import 'i.css';\n\n.k {\n  content: '1';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/j.css"],"sourcesContent":["@import 'k.css';\n\n.j {\n  content: '2';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/cycle/input/i.css"],"sourcesContent":["@import 'j.css';\n\n.i {\n  content: '3';\n}\n"],"names":[],"mappings":"AAEA"}}]
+}

@@ -15,9 +15,8 @@ use crate::{
         get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
-        next_page_config::get_next_page_config_rule,
-        next_page_static_info::get_next_page_static_info_assert_rule,
-        next_pure::get_next_pure_rule, server_actions::ActionsTransform,
+        next_page_config::get_next_page_config_rule, next_pure::get_next_pure_rule,
+        server_actions::ActionsTransform,
     },
 };
 
@@ -45,7 +44,8 @@ pub async fn get_next_client_transforms_rules(
 
     rules.push(get_next_font_transform_rule(enable_mdx_rs));
 
-    if mode.await?.is_development() {
+    let is_development = mode.await?.is_development();
+    if is_development {
         rules.push(get_debug_fn_name_rule(enable_mdx_rs));
     }
 
@@ -53,12 +53,12 @@ pub async fn get_next_client_transforms_rules(
     let cache_kinds = next_config.cache_kinds().to_resolved().await?;
     let mut is_app_dir = false;
 
-    match context_ty {
+    match &context_ty {
         ClientContextType::Pages { pages_dir } => {
             if !foreign_code {
                 rules.push(
                     get_next_pages_transforms_rule(
-                        *pages_dir,
+                        pages_dir.clone(),
                         ExportFilter::StripDataExports,
                         enable_mdx_rs,
                     )
@@ -66,9 +66,13 @@ pub async fn get_next_client_transforms_rules(
                 );
                 rules.push(get_next_disallow_export_all_in_page_rule(
                     enable_mdx_rs,
-                    pages_dir.await?,
+                    pages_dir.clone(),
                 ));
-                rules.push(get_next_page_config_rule(enable_mdx_rs, pages_dir.await?));
+                rules.push(get_next_page_config_rule(
+                    is_development,
+                    enable_mdx_rs,
+                    pages_dir.clone(),
+                ));
             }
         }
         ClientContextType::App { .. } => {
@@ -98,11 +102,6 @@ pub async fn get_next_client_transforms_rules(
         );
 
         rules.push(get_next_image_rule().await?);
-        rules.push(get_next_page_static_info_assert_rule(
-            enable_mdx_rs,
-            None,
-            Some(context_ty),
-        ));
     }
 
     Ok(rules)

@@ -1,13 +1,14 @@
 use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
+use bytes_str::BytesStr;
 use once_cell::sync::Lazy;
 use ref_cast::RefCast;
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use swc_sourcemap::{DecodedMap, SourceMap as RegularMap, SourceMapBuilder, SourceMapIndex};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem,
     rope::{Rope, RopeBuilder},
@@ -42,9 +43,11 @@ impl OptionStringifiedSourceMap {
 #[turbo_tasks::value_trait]
 pub trait GenerateSourceMap {
     /// Generates a usable source map, capable of both tracing and stringifying.
+    #[turbo_tasks::function]
     fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap>;
 
     /// Returns an individual section of the larger source map, if found.
+    #[turbo_tasks::function]
     fn by_section(self: Vc<Self>, _section: RcStr) -> Vc<OptionStringifiedSourceMap> {
         Vc::cell(None)
     }
@@ -116,7 +119,7 @@ pub struct TokenWithSource {
 pub struct SyntheticToken {
     pub generated_line: u32,
     pub generated_column: u32,
-    pub guessed_original_file: Option<String>,
+    pub guessed_original_file: Option<RcStr>,
 }
 
 /// An OriginalToken represents a region of the generated file that exists in
@@ -126,7 +129,7 @@ pub struct SyntheticToken {
 pub struct OriginalToken {
     pub generated_line: u32,
     pub generated_column: u32,
-    pub original_file: String,
+    pub original_file: RcStr,
     pub original_line: u32,
     pub original_column: u32,
     pub name: Option<RcStr>,
@@ -148,19 +151,20 @@ impl Token {
     }
 }
 
-impl From<sourcemap::Token<'_>> for Token {
-    fn from(t: sourcemap::Token) -> Self {
+impl From<swc_sourcemap::Token<'_>> for Token {
+    fn from(t: swc_sourcemap::Token) -> Self {
         if t.has_source() {
             Token::Original(OriginalToken {
                 generated_line: t.get_dst_line(),
                 generated_column: t.get_dst_col(),
-                original_file: t
-                    .get_source()
-                    .expect("already checked token has source")
-                    .to_string(),
+                original_file: RcStr::from(
+                    t.get_source()
+                        .expect("already checked token has source")
+                        .clone(),
+                ),
                 original_line: t.get_src_line(),
                 original_column: t.get_src_col(),
-                name: t.get_name().map(RcStr::from),
+                name: t.get_name().cloned().map(RcStr::from),
             })
         } else {
             Token::Synthetic(SyntheticToken {
@@ -172,12 +176,12 @@ impl From<sourcemap::Token<'_>> for Token {
     }
 }
 
-impl TryInto<sourcemap::RawToken> for Token {
+impl TryInto<swc_sourcemap::RawToken> for Token {
     type Error = std::num::ParseIntError;
 
-    fn try_into(self) -> Result<sourcemap::RawToken, Self::Error> {
+    fn try_into(self) -> Result<swc_sourcemap::RawToken, Self::Error> {
         Ok(match self {
-            Self::Original(t) => sourcemap::RawToken {
+            Self::Original(t) => swc_sourcemap::RawToken {
                 dst_col: t.generated_column,
                 dst_line: t.generated_line,
                 name_id: match t.name {
@@ -189,7 +193,7 @@ impl TryInto<sourcemap::RawToken> for Token {
                 src_id: t.original_file.parse()?,
                 is_range: false,
             },
-            Self::Synthetic(t) => sourcemap::RawToken {
+            Self::Synthetic(t) => swc_sourcemap::RawToken {
                 dst_col: t.generated_column,
                 dst_line: t.generated_line,
                 name_id: SOURCEMAP_CRATE_NONE_U32,
@@ -232,7 +236,7 @@ impl SourceMap {
         Ok(Some(SourceMap::Decoded(InnerSourceMap::new(map))))
     }
 
-    pub async fn new_from_file(file: Vc<FileSystemPath>) -> Result<Option<Self>> {
+    pub async fn new_from_file(file: FileSystemPath) -> Result<Option<Self>> {
         let read = file.read();
         Self::new_from_file_content(read).await
     }
@@ -274,13 +278,13 @@ impl SourceMap {
                     .sections
                     .iter()
                     .map(|s| {
-                        sourcemap::SourceMapSection::new(
+                        swc_sourcemap::SourceMapSection::new(
                             (s.offset.line, s.offset.column),
                             None,
                             Some(s.map.0.clone()),
                         )
                     })
-                    .collect::<Vec<sourcemap::SourceMapSection>>();
+                    .collect::<Vec<swc_sourcemap::SourceMapSection>>();
                 Arc::new(CrateMapWrapper(DecodedMap::Index(SourceMapIndex::new(
                     None, sections,
                 ))))
@@ -315,11 +319,12 @@ impl SourceMap {
         let mut sections = sections.into_iter().peekable();
 
         let mut first = sections.next();
-        if let Some((offset, map)) = &mut first {
-            if sections.peek().is_none() && *offset == (0, 0) {
-                // There is just a single sourcemap that starts at the beginning of the file.
-                return Ok(std::mem::take(map));
-            }
+        if let Some((offset, map)) = &mut first
+            && sections.peek().is_none()
+            && *offset == (0, 0)
+        {
+            // There is just a single sourcemap that starts at the beginning of the file.
+            return Ok(std::mem::take(map));
         }
 
         // My kingdom for a decent dedent macro with interpolation!
@@ -404,15 +409,15 @@ impl SourceMap {
         })
     }
 
-    pub async fn with_resolved_sources(&self, origin: Vc<FileSystemPath>) -> Result<Self> {
+    pub async fn with_resolved_sources(&self, origin: FileSystemPath) -> Result<Self> {
         async fn resolve_source(
-            source_request: Arc<str>,
-            source_content: Option<Arc<str>>,
-            origin: Vc<FileSystemPath>,
-        ) -> Result<(Arc<str>, Arc<str>)> {
+            source_request: BytesStr,
+            source_content: Option<BytesStr>,
+            origin: FileSystemPath,
+        ) -> Result<(BytesStr, BytesStr)> {
             Ok(
-                if let Some(path) = *origin.parent().try_join((&*source_request).into()).await? {
-                    let path_str = path.to_string().await?;
+                if let Some(path) = origin.parent().try_join(&source_request)? {
+                    let path_str = path.value_to_string().await?;
                     let source = format!("{SOURCE_URL_PROTOCOL}///{path_str}");
                     let source_content = if let Some(source_content) = source_content {
                         source_content
@@ -424,7 +429,7 @@ impl SourceMap {
                     };
                     (source.into(), source_content)
                 } else {
-                    let origin_str = origin.to_string().await?;
+                    let origin_str = origin.value_to_string().await?;
                     static INVALID_REGEX: Lazy<Regex> =
                         Lazy::new(|| Regex::new(r#"(?:^|/)(?:\.\.?(?:/|$))+"#).unwrap());
                     let source = INVALID_REGEX
@@ -445,22 +450,22 @@ impl SourceMap {
         }
         async fn regular_map_with_resolved_sources(
             map: &RegularMapWrapper,
-            origin: Vc<FileSystemPath>,
+            origin: FileSystemPath,
         ) -> Result<RegularMap> {
             let map = &map.0;
-            let file = map.get_file().map(Arc::<str>::from);
+            let file = map.get_file().cloned();
             let tokens = map.tokens().map(|t| t.get_raw_token()).collect();
-            let names = map.names().map(Arc::<str>::from).collect();
+            let names = map.names().cloned().collect();
             let count = map.get_source_count() as usize;
-            let sources = map.sources().map(Arc::<str>::from).collect::<Vec<_>>();
+            let sources = map.sources().cloned().collect::<Vec<_>>();
             let source_contents = map
                 .source_contents()
-                .map(|s| s.map(Arc::<str>::from))
+                .map(|s| s.cloned())
                 .collect::<Vec<_>>();
             let mut new_sources = Vec::with_capacity(count);
             let mut new_source_contents = Vec::with_capacity(count);
             for (source, source_content) in sources.into_iter().zip(source_contents.into_iter()) {
-                let (source, name) = resolve_source(source, source_content, origin).await?;
+                let (source, name) = resolve_source(source, source_content, origin.clone()).await?;
                 new_sources.push(source);
                 new_source_contents.push(Some(name));
             }
@@ -473,7 +478,7 @@ impl SourceMap {
         }
         async fn decoded_map_with_resolved_sources(
             map: &CrateMapWrapper,
-            origin: Vc<FileSystemPath>,
+            origin: FileSystemPath,
         ) -> Result<CrateMapWrapper> {
             Ok(CrateMapWrapper(match &map.0 {
                 DecodedMap::Regular(map) => {
@@ -482,7 +487,7 @@ impl SourceMap {
                 }
                 DecodedMap::Index(map) => {
                     let count = map.get_section_count() as usize;
-                    let file = map.get_file().map(ToString::to_string);
+                    let file = map.get_file().cloned();
                     let sections = map
                         .sections()
                         .filter_map(|section| {
@@ -493,17 +498,24 @@ impl SourceMap {
                         .collect::<Vec<_>>();
                     let sections = sections
                         .into_iter()
-                        .map(|(offset, map)| async move {
-                            Ok((
-                                offset,
-                                Box::pin(decoded_map_with_resolved_sources(map, origin)).await?,
-                            ))
+                        .map(|(offset, map)| {
+                            let origin = origin.clone();
+                            async move {
+                                Ok((
+                                    offset,
+                                    Box::pin(decoded_map_with_resolved_sources(
+                                        map,
+                                        origin.clone(),
+                                    ))
+                                    .await?,
+                                ))
+                            }
                         })
                         .try_join()
                         .await?;
                     let mut new_sections = Vec::with_capacity(count);
                     for (offset, map) in sections {
-                        new_sections.push(sourcemap::SourceMapSection::new(
+                        new_sections.push(swc_sourcemap::SourceMapSection::new(
                             offset,
                             // Urls are deprecated and we don't accept them
                             None,
@@ -525,7 +537,7 @@ impl SourceMap {
             Self::Sectioned(m) => {
                 let mut sections = Vec::with_capacity(m.sections.len());
                 for section in &m.sections {
-                    let map = Box::pin(section.map.with_resolved_sources(origin)).await?;
+                    let map = Box::pin(section.map.with_resolved_sources(origin.clone())).await?;
                     sections.push(SourceMapSection::new(section.offset, map));
                 }
                 SourceMap::new_sectioned(sections)
@@ -536,14 +548,14 @@ impl SourceMap {
 
 #[turbo_tasks::function]
 fn sourcemap_content_fs_root() -> Vc<FileSystemPath> {
-    VirtualFileSystem::new_with_name("sourcemap-content".into()).root()
+    VirtualFileSystem::new_with_name(rcstr!("sourcemap-content")).root()
 }
 
 #[turbo_tasks::function]
-fn sourcemap_content_source(path: RcStr, content: RcStr) -> Vc<Box<dyn Source>> {
-    let path = sourcemap_content_fs_root().join(path);
+async fn sourcemap_content_source(path: RcStr, content: RcStr) -> Result<Vc<Box<dyn Source>>> {
+    let path = sourcemap_content_fs_root().await?.join(&path)?;
     let content = AssetContent::file(FileContent::new(File::from(content)).cell());
-    Vc::upcast(VirtualSource::new(path, content))
+    Ok(Vc::upcast(VirtualSource::new(path, content)))
 }
 
 impl SourceMap {
@@ -570,27 +582,29 @@ impl SourceMap {
                     guessed_original_file,
                     ..
                 }) = &mut token
+                    && let DecodedMap::Regular(map) = &map.map.0
+                    && map.get_source_count() == 1
                 {
-                    if let DecodedMap::Regular(map) = &map.map.0 {
-                        if map.get_source_count() == 1 {
-                            let source = map.sources().next().unwrap();
-                            *guessed_original_file = Some(source.to_string());
-                        }
-                    }
+                    let source = map.sources().next().unwrap().clone();
+                    *guessed_original_file = Some(RcStr::from(source));
                 }
 
-                if need_source_content && content.is_none() {
-                    if let Some(map) = map.map.as_regular_source_map() {
-                        content = tok.and_then(|tok| {
-                            let src_id = tok.get_src_id();
+                if need_source_content
+                    && content.is_none()
+                    && let Some(map) = map.map.as_regular_source_map()
+                {
+                    content = tok.and_then(|tok| {
+                        let src_id = tok.get_src_id();
 
-                            let name = map.get_source(src_id);
-                            let content = map.get_source_contents(src_id);
+                        let name = map.get_source(src_id);
+                        let content = map.get_source_contents(src_id);
 
-                            let (name, content) = name.zip(content)?;
-                            Some(sourcemap_content_source(name.into(), content.into()))
-                        });
-                    }
+                        let (name, content) = name.zip(content)?;
+                        Some(sourcemap_content_source(
+                            name.clone().into(),
+                            content.clone().into(),
+                        ))
+                    });
                 }
 
                 token

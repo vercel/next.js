@@ -1,8 +1,6 @@
 [
     FreeVar {
-        var: FreeVar(
-            "URL",
-        ),
+        var: "URL",
         ast_path: [
             Program(
                 Module,

@@ -3,7 +3,8 @@ import { encryptActionBoundArgs, decryptActionBoundArgs } from "private-next-rsc
 export const $$RSC_SERVER_ACTION_0 = async function foo() {
     'use strict';
 };
-const foo = registerServerReference($$RSC_SERVER_ACTION_0, "006a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
+registerServerReference($$RSC_SERVER_ACTION_0, "006a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null);
+const foo = $$RSC_SERVER_ACTION_0;
 const bar = async ()=>{
     const x = 1;
     // prettier-ignore

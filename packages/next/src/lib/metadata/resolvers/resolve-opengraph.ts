@@ -247,8 +247,11 @@ export const resolveTwitter: FieldResolverExtraArgs<
         resolved.app = resolved.app || {}
         break
       }
-      default:
+      case 'summary':
+      case 'summary_large_image':
         break
+      default:
+        resolved satisfies never
     }
   }
 

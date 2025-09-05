@@ -14,8 +14,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-indexmap = { workspace = true, features = ["serde"] }
-lazy_static = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -25,5 +23,3 @@ turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

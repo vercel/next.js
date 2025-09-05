@@ -3,15 +3,15 @@ use std::{collections::BTreeMap, fmt::Display};
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
-    common::{BytePos, Span, Spanned, comments::Comments, source_map::SmallPos},
+    common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments, source_map::SmallPos},
     ecma::{
         ast::*,
         atoms::{Atom, atom},
-        utils::find_pat_ids,
+        utils::{IsDirective, find_pat_ids},
         visit::{Visit, VisitWith},
     },
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
 use turbopack_core::{issue::IssueSource, source::Source};
 
@@ -19,10 +19,11 @@ use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
     SpecifiedModuleType,
     analyzer::{ConstantValue, ObjectPart},
+    magic_identifier,
     tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[turbo_tasks::value]
 #[derive(Default, Debug, Clone, Hash)]
 pub struct ImportAnnotations {
     // TODO store this in more structured way
@@ -39,7 +40,7 @@ static ANNOTATION_CHUNKING_TYPE: Lazy<Atom> =
     Lazy::new(|| crate::annotations::ANNOTATION_CHUNKING_TYPE.into());
 
 /// Changes the type of the resolved module (only "json" is supported currently)
-static ATTRIBUTE_MODULE_TYPE: Lazy<Atom> = Lazy::new(|| "type".into());
+static ATTRIBUTE_MODULE_TYPE: Lazy<Atom> = Lazy::new(|| atom!("type"));
 
 impl ImportAnnotations {
     pub fn parse(with: Option<&ObjectLit>) -> ImportAnnotations {
@@ -167,6 +168,9 @@ pub(crate) struct ImportMap {
 
     /// True if the module is an ESM module due to top-level await.
     has_top_level_await: bool,
+
+    /// True if the module has "use strict"
+    pub(crate) strict: bool,
 
     /// Locations of [webpack-style "magic comments"][magic] that override import behaviors.
     ///
@@ -362,11 +366,11 @@ struct StarImportAnalyzer<'a> {
 
 impl Visit for StarImportAnalyzer<'_> {
     fn visit_expr(&mut self, node: &Expr) {
-        if let Expr::Ident(i) = node {
-            if let Some(module_path) = self.candidates.get(&i.to_id()) {
-                self.full_star_imports.insert(module_path.clone());
-                return;
-            }
+        if let Expr::Ident(i) = node
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
         }
 
         node.visit_children_with(self);
@@ -391,22 +395,22 @@ impl Visit for StarImportAnalyzer<'_> {
     }
 
     fn visit_pat(&mut self, pat: &Pat) {
-        if let Pat::Ident(i) = pat {
-            if let Some(module_path) = self.candidates.get(&i.to_id()) {
-                self.full_star_imports.insert(module_path.clone());
-                return;
-            }
+        if let Pat::Ident(i) = pat
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
         }
 
         pat.visit_children_with(self);
     }
 
     fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
-        if let SimpleAssignTarget::Ident(i) = node {
-            if let Some(module_path) = self.candidates.get(&i.to_id()) {
-                self.full_star_imports.insert(module_path.clone());
-                return;
-            }
+        if let SimpleAssignTarget::Ident(i) = node
+            && let Some(module_path) = self.candidates.get(&i.to_id())
+        {
+            self.full_star_imports.insert(module_path.clone());
+            return;
         }
 
         node.visit_children_with(self);
@@ -447,10 +451,10 @@ impl Analyzer<'_> {
     }
 }
 
-fn to_word(name: &ModuleExportName) -> Atom {
+fn export_as_atom(name: &ModuleExportName) -> &Atom {
     match name {
-        ModuleExportName::Ident(ident) => ident.sym.clone(),
-        ModuleExportName::Str(str) => str.value.clone(),
+        ModuleExportName::Ident(ident) => &ident.sym,
+        ModuleExportName::Str(s) => &s.value,
     }
 }
 
@@ -493,7 +497,7 @@ impl Visit for Analyzer<'_> {
                     Some(imported) => (local.to_id(), orig_name(imported)),
                     _ => (local.to_id(), local.sym.clone()),
                 },
-                ImportSpecifier::Default(s) => (s.local.to_id(), "default".into()),
+                ImportSpecifier::Default(s) => (s.local.to_id(), atom!("default")),
                 ImportSpecifier::Namespace(s) => {
                     self.data.namespace_imports.insert(s.local.to_id(), i);
                     continue;
@@ -502,15 +506,15 @@ impl Visit for Analyzer<'_> {
 
             self.data.imports.insert(local, (i, orig_sym));
         }
-        if import.specifiers.is_empty() {
-            if let Some(internal_symbol) = internal_symbol {
-                self.ensure_reference(
-                    import.span,
-                    import.src.value.clone(),
-                    internal_symbol,
-                    annotations,
-                );
-            }
+        if import.specifiers.is_empty()
+            && let Some(internal_symbol) = internal_symbol
+        {
+            self.ensure_reference(
+                import.span,
+                import.src.value.clone(),
+                internal_symbol,
+                annotations,
+            );
         }
     }
 
@@ -542,6 +546,7 @@ impl Visit for Analyzer<'_> {
         self.data.has_exports = true;
 
         let Some(ref src) = export.src else {
+            export.visit_children_with(self);
             return;
         };
 
@@ -575,7 +580,7 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Namespace {
-                            exported: to_word(&n.name),
+                            exported: export_as_atom(&n.name).clone(),
                         },
                     ));
                 }
@@ -592,8 +597,9 @@ impl Visit for Analyzer<'_> {
                     self.data.reexports.push((
                         i,
                         Reexport::Named {
-                            imported: to_word(&n.orig),
-                            exported: to_word(n.exported.as_ref().unwrap_or(&n.orig)),
+                            imported: export_as_atom(&n.orig).clone(),
+                            exported: export_as_atom(n.exported.as_ref().unwrap_or(&n.orig))
+                                .clone(),
                         },
                     ));
                 }
@@ -637,7 +643,33 @@ impl Visit for Analyzer<'_> {
             // only visit children if we potentially need to mark import / requires
             n.visit_children_with(self);
         }
+
+        self.data.exports.insert(
+            rcstr!("default"),
+            // Mirror what `EsmModuleItem::code_generation` does, these are live bindings if the
+            // class/function has an identifier.
+            match &n.decl {
+                DefaultDecl::Class(ClassExpr { ident, .. })
+                | DefaultDecl::Fn(FnExpr { ident, .. }) => ident.as_ref().map_or_else(
+                    || {
+                        (
+                            magic_identifier::mangle("default export").into(),
+                            SyntaxContext::empty(),
+                        )
+                    },
+                    |ident| (ident.to_id()),
+                ),
+                DefaultDecl::TsInterfaceDecl(_) => {
+                    // not matching, might happen due to eventual consistency
+                    (
+                        magic_identifier::mangle("default export").into(),
+                        SyntaxContext::empty(),
+                    )
+                }
+            },
+        );
     }
+
     fn visit_export_default_expr(&mut self, n: &ExportDefaultExpr) {
         self.data.has_exports = true;
 
@@ -645,32 +677,49 @@ impl Visit for Analyzer<'_> {
             // only visit children if we potentially need to mark import / requires
             n.visit_children_with(self);
         }
+
+        self.data.exports.insert(
+            rcstr!("default"),
+            (
+                // `EsmModuleItem::code_generation` inserts this variable.
+                magic_identifier::mangle("default export").into(),
+                SyntaxContext::empty(),
+            ),
+        );
     }
 
     fn visit_export_named_specifier(&mut self, n: &ExportNamedSpecifier) {
-        if let ModuleExportName::Ident(ident) = &n.exported.as_ref().unwrap_or(&n.orig) {
-            self.data
-                .exports
-                .insert(ident.sym.as_str().into(), ident.to_id());
-        }
+        let ModuleExportName::Ident(local) = &n.orig else {
+            // This is only possible for re-exports, but they are already handled earlier in
+            // visit_named_export.
+            unreachable!("string reexports should have been already handled in visit_named_export");
+        };
+        let exported = n.exported.as_ref().unwrap_or(&n.orig);
+        self.data
+            .exports
+            .insert(export_as_atom(exported).as_str().into(), local.to_id());
     }
 
     fn visit_export_default_specifier(&mut self, n: &ExportDefaultSpecifier) {
         self.data
             .exports
-            .insert("default".into(), n.exported.to_id());
-    }
-
-    fn visit_export_namespace_specifier(&mut self, n: &ExportNamespaceSpecifier) {
-        if let ModuleExportName::Ident(ident) = &n.name {
-            self.data
-                .exports
-                .insert(ident.sym.as_str().into(), ident.to_id());
-        }
+            .insert(rcstr!("default"), n.exported.to_id());
     }
 
     fn visit_program(&mut self, m: &Program) {
         self.data.has_top_level_await = has_top_level_await(m).is_some();
+        self.data.strict = match m {
+            Program::Module(module) => module
+                .body
+                .iter()
+                .take_while(|s| s.directive_continue())
+                .any(IsDirective::is_use_strict),
+            Program::Script(script) => script
+                .body
+                .iter()
+                .take_while(|s| s.directive_continue())
+                .any(IsDirective::is_use_strict),
+        };
 
         m.visit_children_with(self);
     }

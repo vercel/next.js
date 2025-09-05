@@ -1,2 +1,2 @@
-import { subInfix } from "fixtures/@sub@";
-console.log(subInfix);
+import { subInfix } from 'fixtures/@sub@'
+console.log(subInfix)

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use turbo_tasks::TaskId;
+use turbo_tasks::{TaskExecutionReason, TaskId};
 
 use crate::{
     backend::{
@@ -25,17 +25,18 @@ pub enum ConnectChildOperation {
 impl ConnectChildOperation {
     pub fn run(parent_task_id: TaskId, child_task_id: TaskId, mut ctx: impl ExecuteContext) {
         if !ctx.should_track_children() {
-            let mut task = ctx.task(child_task_id, TaskDataCategory::All);
-            if !task.has_key(&CachedDataItemKey::Output {}) {
-                let description = ctx.get_task_desc_fn(child_task_id);
-                let should_schedule = task.add(CachedDataItem::new_scheduled(description));
-                drop(task);
-                if should_schedule {
-                    ctx.schedule(child_task_id);
-                }
+            let mut child_task = ctx.task(child_task_id, TaskDataCategory::All);
+            if !child_task.has_key(&CachedDataItemKey::Output {})
+                && child_task.add(CachedDataItem::new_scheduled(
+                    TaskExecutionReason::Connect,
+                    || ctx.get_task_desc_fn(child_task_id),
+                ))
+            {
+                ctx.schedule_task(child_task);
             }
             return;
         }
+
         let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
         let Some(InProgressState::InProgress(box InProgressStateInner { new_children, .. })) =
             get_mut!(parent_task, InProgress)
@@ -47,6 +48,7 @@ impl ConnectChildOperation {
         if !new_children.insert(child_task_id) {
             return;
         }
+
         if parent_task.has_key(&CachedDataItemKey::Child {
             task: child_task_id,
         }) {
@@ -66,19 +68,21 @@ impl ConnectChildOperation {
             });
         }
 
+        // Immutable tasks cannot be invalidated, meaning that we never reschedule them.
         if ctx.should_track_activeness() {
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
             });
         } else {
-            let mut task = ctx.task(child_task_id, TaskDataCategory::All);
-            if !task.has_key(&CachedDataItemKey::Output {}) {
-                let description = ctx.get_task_desc_fn(child_task_id);
-                let should_schedule = task.add(CachedDataItem::new_scheduled(description));
-                drop(task);
-                if should_schedule {
-                    ctx.schedule(child_task_id);
-                }
+            let mut child_task = ctx.task(child_task_id, TaskDataCategory::All);
+
+            if !child_task.has_key(&CachedDataItemKey::Output {})
+                && child_task.add(CachedDataItem::new_scheduled(
+                    TaskExecutionReason::Connect,
+                    || ctx.get_task_desc_fn(child_task_id),
+                ))
+            {
+                ctx.schedule_task(child_task);
             }
         }
 

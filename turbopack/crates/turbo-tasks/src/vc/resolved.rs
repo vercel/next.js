@@ -295,9 +295,7 @@ where
     T: ?Sized,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ResolvedVc")
-            .field("node", &self.node.node)
-            .finish()
+        f.debug_tuple("ResolvedVc").field(&self.node.node).finish()
     }
 }
 
@@ -314,7 +312,7 @@ impl<T> ValueDebugFormat for ResolvedVc<T>
 where
     T: Upcast<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
 {
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString {
+    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
         self.node.value_debug_format(depth)
     }
 }

@@ -2,11 +2,6 @@
 
 import type { HydrationOptions } from 'react-dom/client'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
-import {
-  setOwnerStackIfAvailable,
-  setComponentStack,
-  coerceError,
-} from '../components/errors/stitched-error'
 import isError from '../../lib/is-error'
 import { reportGlobalError } from './report-global-error'
 
@@ -17,21 +12,20 @@ export function isRecoverableError(error: Error): boolean {
 }
 
 export const onRecoverableError: HydrationOptions['onRecoverableError'] = (
-  error,
-  errorInfo
+  error
 ) => {
   // x-ref: https://github.com/facebook/react/pull/28736
-  const cause = isError(error) && 'cause' in error ? error.cause : error
+  let cause = isError(error) && 'cause' in error ? error.cause : error
   // Skip certain custom errors which are not expected to be reported on client
   if (isBailoutToCSRError(cause)) return
 
-  const causeError = coerceError(cause)
-  recoverableErrors.add(causeError)
-  setOwnerStackIfAvailable(causeError)
-
-  if (process.env.NODE_ENV === 'development' && errorInfo.componentStack) {
-    setComponentStack(causeError, errorInfo.componentStack)
+  if (process.env.NODE_ENV !== 'production') {
+    const { decorateDevError } =
+      require('../../next-devtools/userspace/app/errors/stitched-error') as typeof import('../../next-devtools/userspace/app/errors/stitched-error')
+    const causeError = decorateDevError(cause)
+    recoverableErrors.add(causeError)
+    cause = causeError
   }
 
-  reportGlobalError(causeError)
+  reportGlobalError(cause)
 }

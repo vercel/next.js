@@ -5,7 +5,7 @@ import type {
   DynamicParamTypesShort,
   FlightRouterState,
   FlightSegmentPath,
-} from '../app-render/types'
+} from '../../shared/lib/app-router-types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type HotReloaderWebpack from './hot-reloader-webpack'
@@ -38,7 +38,7 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
@@ -473,7 +473,7 @@ export async function findPagePathData(
       // If they're not presented, then fallback to global-not-found
       return {
         filename: require.resolve(
-          'next/dist/client/components/global-not-found'
+          'next/dist/client/components/builtin/global-not-found'
         ),
         bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
         page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
@@ -829,10 +829,6 @@ export function onDemandEntryHandler({
 
       let pageRuntime = staticInfo.runtime
 
-      if (isMiddlewareFile(page) && !nextConfig.experimental.nodeMiddleware) {
-        pageRuntime = 'edge'
-      }
-
       runDependingOnPageType({
         page: route.page,
         pageRuntime,
@@ -988,7 +984,7 @@ export function onDemandEntryHandler({
           // New error occurred: buffered error is flushed and new error occurred
           if (!bufferedHmrServerError && error) {
             hotReloader.send({
-              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
+              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR,
               errorJSON: stringifyError(error),
             })
             bufferedHmrServerError = null

@@ -1,5 +1,4 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::Xxh3Hash64Hasher;
@@ -22,7 +21,7 @@ pub struct ChunkData {
 pub struct ChunkDataOption(Option<ResolvedVc<ChunkData>>);
 
 // NOTE(alexkirsz) Our convention for naming vector types is to add an "s" to
-// the end of the type name, but in this case it would be both gramatically
+// the end of the type name, but in this case it would be both grammatically
 // incorrect and clash with the variable names everywhere.
 // TODO(WEB-101) Should fix this.
 #[turbo_tasks::value(transparent)]
@@ -38,11 +37,6 @@ impl ChunksData {
         }
         Ok(Vc::cell(hasher.finish()))
     }
-}
-
-#[turbo_tasks::function]
-fn module_chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("module chunk".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -69,10 +63,9 @@ impl ChunkData {
 
     #[turbo_tasks::function]
     pub async fn from_asset(
-        output_root: Vc<FileSystemPath>,
+        output_root: FileSystemPath,
         chunk: Vc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<ChunkDataOption>> {
-        let output_root = output_root.await?;
         let path = chunk.path().await?;
         // The "path" in this case is the chunk's path, not the chunk item's path.
         // The difference is a chunk is a file served by the dev server, and an
@@ -153,14 +146,14 @@ impl ChunkData {
 
     #[turbo_tasks::function]
     pub async fn from_assets(
-        output_root: Vc<FileSystemPath>,
+        output_root: FileSystemPath,
         chunks: Vc<OutputAssets>,
     ) -> Result<Vc<ChunksData>> {
         Ok(Vc::cell(
             chunks
                 .await?
                 .iter()
-                .map(|&chunk| ChunkData::from_asset(output_root, *chunk))
+                .map(|&chunk| ChunkData::from_asset(output_root.clone(), *chunk))
                 .try_join()
                 .await?
                 .into_iter()

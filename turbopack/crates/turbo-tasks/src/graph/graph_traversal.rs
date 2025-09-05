@@ -6,7 +6,7 @@ use rustc_hash::FxHashSet;
 
 use super::{
     SkipDuplicates, Visit, VisitControlFlow,
-    graph_store::{GraphNode, GraphStore},
+    graph_store::{GraphNode, GraphStore, SkipDuplicatesWithKey},
     with_future::With,
 };
 
@@ -35,6 +35,14 @@ pub trait GraphTraversal: GraphStore + Sized {
         self,
         visited: VisitedNodes<Self::Node>,
     ) -> SkipDuplicates<Self>;
+
+    fn skip_duplicates_with_key<
+        Key: Send + Eq + std::hash::Hash + Clone,
+        KeyExtractor: Send + Fn(&Self::Node) -> &Key,
+    >(
+        self,
+        key_extractor: KeyExtractor,
+    ) -> SkipDuplicatesWithKey<Self, Key, KeyExtractor>;
 }
 
 impl<Store> GraphTraversal for Store
@@ -129,6 +137,16 @@ where
         visited: VisitedNodes<Store::Node>,
     ) -> SkipDuplicates<Self> {
         SkipDuplicates::new_with_visited_nodes(self, visited.0)
+    }
+
+    fn skip_duplicates_with_key<
+        Key: Send + Eq + std::hash::Hash + Clone,
+        KeyExtractor: Send + Fn(&Self::Node) -> &Key,
+    >(
+        self,
+        key_extractor: KeyExtractor,
+    ) -> SkipDuplicatesWithKey<Self, Key, KeyExtractor> {
+        SkipDuplicatesWithKey::new(self, key_extractor)
     }
 }
 

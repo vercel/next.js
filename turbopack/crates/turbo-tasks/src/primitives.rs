@@ -1,7 +1,6 @@
 use std::{ops::Deref, time::Duration};
 
 use turbo_rcstr::RcStr;
-// This specific macro identifier is detected by turbo-tasks-build.
 use turbo_tasks_macros::primitive as __turbo_tasks_internal_primitive;
 
 use crate::{
@@ -17,6 +16,7 @@ __turbo_tasks_internal_primitive!(Vec<RcStr>, manual_shrink_to_fit);
 __turbo_tasks_internal_primitive!(Option<u16>);
 __turbo_tasks_internal_primitive!(Option<u64>);
 __turbo_tasks_internal_primitive!(bool);
+__turbo_tasks_internal_primitive!(Option<bool>);
 __turbo_tasks_internal_primitive!(u8);
 __turbo_tasks_internal_primitive!(u16);
 __turbo_tasks_internal_primitive!(u32);

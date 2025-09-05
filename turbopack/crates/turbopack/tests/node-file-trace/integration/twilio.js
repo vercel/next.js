@@ -1,8 +1,8 @@
-const twilio = require("twilio");
+const twilio = require('twilio')
 try {
-  twilio();
+  twilio()
 } catch (err) {
   if (!/username is required/.test(err.message)) {
-    throw err;
+    throw err
   }
 }

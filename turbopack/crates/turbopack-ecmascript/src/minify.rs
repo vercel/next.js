@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result, bail};
+use bytes_str::BytesStr;
 use swc_core::{
+    atoms::atom,
     base::try_with_handler,
     common::{
         BytePos, FileName, FilePathMapping, GLOBALS, LineCol, Mark, SourceMap as SwcSourceMap,
@@ -31,23 +33,25 @@ use turbopack_core::{
 use crate::parse::generate_js_source_map;
 
 #[instrument(level = Level::INFO, skip_all)]
-pub fn minify(code: &Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
+pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
     let source_maps = source_maps
         .then(|| code.generate_source_map_ref())
         .transpose()?;
 
+    let source_code = BytesStr::from_utf8(code.into_source_code().into_bytes())?;
+
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
     let (src, mut src_map_buf) = {
-        let fm = cm.new_source_file(
-            FileName::Anon.into(),
-            code.source_code().to_str()?.into_owned(),
-        );
+        let fm = cm.new_source_file(FileName::Anon.into(), source_code);
+
+        // Collect all comments and pass to the minifier so that `PURE` comments are respected.
+        let comments = SingleThreadedComments::default();
 
         let lexer = Lexer::new(
             Syntax::default(),
             EsVersion::latest(),
             StringInput::from(&*fm),
-            None,
+            Some(&comments),
         );
         let mut parser = Parser::new_from(lexer);
 
@@ -57,13 +61,9 @@ pub fn minify(code: &Code, source_maps: bool, mangle: Option<MangleType>) -> Res
                     Ok(program) => program,
                     Err(err) => {
                         err.into_diagnostic(handler).emit();
-                        bail!(
-                            "failed to parse source code\n{}",
-                            code.source_code().to_str()?
-                        )
+                        bail!("failed to parse source code\n{}", fm.src)
                     }
                 };
-                let comments = SingleThreadedComments::default();
                 let unresolved_mark = Mark::new();
                 let top_level_mark = Mark::new();
 
@@ -90,7 +90,7 @@ pub fn minify(code: &Code, source_maps: bool, mangle: Option<MangleType>) -> Res
                             ..Default::default()
                         }),
                         mangle: mangle.map(|mangle| {
-                            let reserved = vec!["AbortSignal".into()];
+                            let reserved = vec![atom!("AbortSignal")];
                             match mangle {
                                 MangleType::OptimalSize => MangleOptions {
                                     reserved,
@@ -135,9 +135,10 @@ pub fn minify(code: &Code, source_maps: bool, mangle: Option<MangleType>) -> Res
         builder.push_source(
             &src.into(),
             Some(generate_js_source_map(
-                cm,
+                &*cm,
                 src_map_buf,
                 Some(original_map),
+                true,
                 // We do not inline source contents.
                 // We provide a synthesized value to `cm.new_source_file` above, so it cannot be
                 // the value user expect anyway.

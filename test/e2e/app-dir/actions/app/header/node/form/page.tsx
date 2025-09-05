@@ -17,7 +17,7 @@ export default function Page() {
   return (
     <>
       <form action={getReferrerAction}>
-        <p id="referer">{referer}</p>
+        <p id="referer">{referer ?? '<null>'}</p>
         <button id="get-referer">Get Referer</button>
       </form>
       <form action={getTestCookieAction}>

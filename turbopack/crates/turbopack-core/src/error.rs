@@ -16,7 +16,7 @@ impl Display for PrettyPrintError<'_> {
             .collect::<Vec<_>>();
 
         for description in &descriptions {
-            // see turbo-tasks-memory/src/task.rs for the error message
+            // see turbo-tasks-backend/src/backend/operation/update_output.rs for the error message
             let hidden = description.starts_with("Execution of ");
             if !hidden {
                 let header =

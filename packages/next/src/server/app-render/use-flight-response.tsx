@@ -3,6 +3,8 @@ import type { BinaryStreamOf } from './app-render'
 
 import { htmlEscapeJsonString } from '../htmlescape'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -13,6 +15,12 @@ const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 
 const flightResponses = new WeakMap<BinaryStreamOf<any>, Promise<any>>()
 const encoder = new TextEncoder()
+
+const findSourceMapURL =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .findSourceMapURLDEV
+    : undefined
 
 /**
  * Render Flight stream.
@@ -32,9 +40,10 @@ export function useFlightStream<T>(
   // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
   const { createFromReadableStream } =
     // eslint-disable-next-line import/no-extraneous-dependencies
-    require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge')
+    require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client')
 
   const newResponse = createFromReadableStream<T>(flightStream, {
+    findSourceMapURL,
     serverConsumerManifest: {
       moduleLoading: clientReferenceManifest.moduleLoading,
       moduleMap: isEdgeRuntime
@@ -44,6 +53,36 @@ export function useFlightStream<T>(
     },
     nonce,
   })
+
+  // Edge pages are never prerendered so they necessarily cannot have a workUnitStore type
+  // that requires the nextTick behavior. This is why it is safe to access a node only API here
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (!workUnitStore) {
+      throw new InvariantError('Expected workUnitAsyncStorage to have a store.')
+    }
+
+    switch (workUnitStore.type) {
+      case 'prerender-client':
+        const responseOnNextTick = new Promise<T>((resolve) => {
+          process.nextTick(() => resolve(newResponse))
+        })
+        flightResponses.set(flightStream, responseOnNextTick)
+        return responseOnNextTick
+      case 'prerender':
+      case 'prerender-runtime':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'request':
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
+  }
 
   flightResponses.set(flightStream, newResponse)
 

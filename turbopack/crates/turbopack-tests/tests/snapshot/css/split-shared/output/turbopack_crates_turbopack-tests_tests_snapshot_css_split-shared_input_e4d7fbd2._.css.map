@@ -1,0 +1,14 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/shared1.css"],"sourcesContent":[".shared {\n  content: '7';\n}\n"],"names":[],"mappings":"AAAA"}},
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/shared.css"],"sourcesContent":["@import 'shared1.css';\n\n.shared {\n  content: '8';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b4a.css"],"sourcesContent":["@import 'shared.css';\n\n.b4a {\n  content: '12';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 16, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b4b.css"],"sourcesContent":["@import 'shared.css';\n\n.b4b {\n  content: '13';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 21, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b4.css"],"sourcesContent":["@import 'b4a.css';\n@import 'b4b.css';\n\n.b4 {\n  content: '14';\n}\n"],"names":[],"mappings":"AAGA"}},
+    {"offset": {"line": 26, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b3a.css"],"sourcesContent":["@import 'shared.css';\n\n.b3a {\n  content: '9';\n}\n"],"names":[],"mappings":"AAEA"}},
+    {"offset": {"line": 31, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b3b.css"],"sourcesContent":[".b3a {\n  content: '10';\n}\n"],"names":[],"mappings":"AAAA"}},
+    {"offset": {"line": 36, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b3.css"],"sourcesContent":["@import 'b3a.css';\n@import 'b3b.css';\n\n.b3 {\n  content: '11';\n}\n"],"names":[],"mappings":"AAGA"}},
+    {"offset": {"line": 41, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry2.css"],"sourcesContent":["@import 'b4.css';\n@import 'b3.css';\n"],"names":[],"mappings":""}}]
+}

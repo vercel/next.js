@@ -11,6 +11,7 @@ use crate::{
 
 #[turbo_tasks::value_trait]
 pub trait ModuleIdStrategy {
+    #[turbo_tasks::function]
     fn get_module_id(self: Vc<Self>, ident: Vc<AssetIdent>) -> Vc<ModuleId>;
 }
 
@@ -56,6 +57,7 @@ impl ModuleIdStrategy for GlobalModuleIdStrategy {
         if !ident_string.ends_with("[app-client] (ecmascript, next/dynamic entry)") {
             // TODO: This shouldn't happen, but is a temporary workaround to ignore next/dynamic
             // imports of a server component from another server component.
+            // TODO(PACK-4879): should this be a debug_assert! a panic!? a bail!?
 
             ModuleIssue {
                 ident,
@@ -67,6 +69,7 @@ impl ModuleIdStrategy for GlobalModuleIdStrategy {
                     format!("ModuleId not found for ident: {ident_string:?}").into(),
                 )
                 .resolved_cell(),
+                source: None,
             }
             .resolved_cell()
             .emit();

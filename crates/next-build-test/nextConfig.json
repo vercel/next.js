@@ -37,7 +37,7 @@
     "unoptimized": false
   },
   "devIndicators": {
-    "buildActivityPosition": "bottom-right"
+    "position": "bottom-right"
   },
   "onDemandEntries": {
     "maxInactiveAge": 60000,
