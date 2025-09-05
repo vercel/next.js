@@ -69,3 +69,7 @@ export function setReactDebugChannel(
 ) {
   reactDebugChannelsByRequestId.set(requestId, debugChannel)
 }
+
+export function deleteReactDebugChannel(requestId: string) {
+  reactDebugChannelsByRequestId.delete(requestId)
+}

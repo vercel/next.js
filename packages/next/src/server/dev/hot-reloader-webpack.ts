@@ -98,6 +98,7 @@ import {
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   connectReactDebugChannel,
+  deleteReactDebugChannel,
   setReactDebugChannel,
   type ReactDebugChannelForBrowser,
 } from './debug-channel'
@@ -626,6 +627,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           this.sendToClient.bind(this, client)
         )
       }
+
+      client.on('close', () => {
+        this.webpackHotMiddleware?.deleteClient(client, requestId)
+
+        if (requestId) {
+          deleteReactDebugChannel(requestId)
+        }
+      })
     })
   }
 

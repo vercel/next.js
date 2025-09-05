@@ -281,4 +281,12 @@ export class WebpackHotMiddleware {
     this.clients.clear()
     this.clientsByRequestId.clear()
   }
+
+  deleteClient = (client: ws, requestId: string | null) => {
+    this.clients.delete(client)
+
+    if (requestId) {
+      this.clientsByRequestId.delete(requestId)
+    }
+  }
 }

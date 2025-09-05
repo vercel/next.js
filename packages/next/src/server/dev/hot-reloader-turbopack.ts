@@ -106,7 +106,11 @@ import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
-import { connectReactDebugChannel, setReactDebugChannel } from './debug-channel'
+import {
+  connectReactDebugChannel,
+  deleteReactDebugChannel,
+  setReactDebugChannel,
+} from './debug-channel'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -783,6 +787,7 @@ export async function createHotReloaderTurbopack(
 
           if (requestId) {
             clientsByRequestId.delete(requestId)
+            deleteReactDebugChannel(requestId)
           }
         })
 
