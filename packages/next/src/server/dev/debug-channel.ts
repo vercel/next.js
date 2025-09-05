@@ -41,6 +41,11 @@ export function connectReactDebugChannel(
     reactDebugChannelsByRequestId.delete(requestId)
   }
 
+  const onError = (err: unknown) => {
+    console.error(new Error('React debug channel stream error', { cause: err }))
+    stop()
+  }
+
   const progress = (entry: ReadableStreamReadResult<Uint8Array>) => {
     if (entry.done) {
       stop()
@@ -51,11 +56,11 @@ export function connectReactDebugChannel(
         chunk: entry.value,
       })
 
-      reader.read().then(progress, stop)
+      reader.read().then(progress, onError)
     }
   }
 
-  reader.read().then(progress, stop)
+  reader.read().then(progress, onError)
 }
 
 export function setReactDebugChannel(
