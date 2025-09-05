@@ -175,8 +175,27 @@ pub enum TreeShakingMode {
 #[turbo_tasks::value(transparent)]
 pub struct OptionTreeShaking(pub Option<TreeShakingMode>);
 
+/// The constant to replace `typeof window` with.
+#[derive(
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    TaskInput,
+)]
+pub enum TypeofWindow {
+    Object,
+    Undefined,
+}
+
 #[turbo_tasks::value(shared)]
-#[derive(Hash, Debug, Default, Copy, Clone)]
+#[derive(Debug, Default, Copy, Clone)]
 pub struct EcmascriptOptions {
     /// variant of tree shaking to use
     pub tree_shaking_mode: Option<TreeShakingMode>,
@@ -203,6 +222,11 @@ pub struct EcmascriptOptions {
     /// Whether the modules in this context are never chunked/codegen-ed, but only used for
     /// tracing.
     pub is_tracing: bool,
+    // TODO this should just be handled via CompileTimeInfo FreeVarReferences, but then it
+    // (currently) wouldn't be possible to have different replacement values in user code vs
+    // node_modules.
+    /// Whether to replace `typeof window` with some constant value.
+    pub enable_typeof_window_inlining: Option<TypeofWindow>,
 }
 
 #[turbo_tasks::value]

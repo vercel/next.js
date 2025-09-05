@@ -8,7 +8,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     css::chunk::CssChunkType,
     module_options::{
-        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule, TypeofWindow,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
         TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
     },
     resolve_options_context::ResolveOptionsContext,
@@ -28,7 +28,7 @@ use turbopack_core::{
     module_graph::export_usage::OptionExportUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkType;
+use turbopack_ecmascript::{TypeofWindow, chunk::EcmascriptChunkType};
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},

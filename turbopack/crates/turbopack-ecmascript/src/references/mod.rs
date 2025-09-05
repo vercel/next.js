@@ -67,8 +67,8 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
-        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment, FreeVarReference,
-        FreeVarReferences, FreeVarReferencesIndividual, InputRelativeConstant,
+        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefinableNameSegment,
+        FreeVarReference, FreeVarReferences, FreeVarReferencesIndividual, InputRelativeConstant,
     },
     environment::Rendering,
     error::PrettyPrintError,
@@ -130,7 +130,7 @@ use super::{
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
     EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable, SpecifiedModuleType,
-    TreeShakingMode,
+    TreeShakingMode, TypeofWindow,
     analyzer::{
         ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
         builtin::early_replace_builtin,
@@ -617,10 +617,13 @@ pub async fn analyse_ecmascript_module_internal(
     analysis.set_has_side_effect_free_directive(has_side_effect_free_directive);
 
     let is_esm = eval_context.is_esm(specified_type);
-    let compile_time_info =
-        compile_time_info_for_module_type(*raw_module.compile_time_info, is_esm)
-            .to_resolved()
-            .await?;
+    let compile_time_info = compile_time_info_for_module_options(
+        *raw_module.compile_time_info,
+        is_esm,
+        options.enable_typeof_window_inlining,
+    )
+    .to_resolved()
+    .await?;
 
     let pos = program.span().lo;
     if analyze_types {
@@ -1471,9 +1474,10 @@ pub async fn analyse_ecmascript_module_internal(
 }
 
 #[turbo_tasks::function]
-async fn compile_time_info_for_module_type(
+async fn compile_time_info_for_module_options(
     compile_time_info: Vc<CompileTimeInfo>,
     is_esm: bool,
+    enable_typeof_window_inlining: Option<TypeofWindow>,
 ) -> Result<Vc<CompileTimeInfo>> {
     let compile_time_info = compile_time_info.await?;
     let free_var_references = compile_time_info.free_var_references;
@@ -1584,9 +1588,33 @@ async fn compile_time_info_for_module_type(
         } else {
             rcstr!("object").into()
         });
+
+    let mut defines = compile_time_info.defines;
+    if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
+        let value = match enable_typeof_window_inlining {
+            TypeofWindow::Object => rcstr!("object"),
+            TypeofWindow::Undefined => rcstr!("undefined"),
+        };
+        let window = rcstr!("window");
+        let mut defines_value = defines.owned().await?;
+        defines_value
+            .entry(vec![
+                DefinableNameSegment::Name(window.clone()),
+                DefinableNameSegment::TypeOf,
+            ])
+            .or_insert(value.clone().into());
+        free_var_references
+            .entry(vec![
+                DefinableNameSegment::Name(window),
+                DefinableNameSegment::TypeOf,
+            ])
+            .or_insert(value.into());
+        defines = CompileTimeDefines(defines_value).resolved_cell()
+    }
+
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
-        defines: compile_time_info.defines,
+        defines,
         free_var_references: FreeVarReferences(free_var_references).resolved_cell(),
     }
     .cell())

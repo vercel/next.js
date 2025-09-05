@@ -9,7 +9,7 @@ use turbopack::{
     css::chunk::CssChunkType,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ExternalsTracingOptions, JsxTransformOptions,
-        ModuleOptionsContext, ModuleRule, TypeofWindow, TypescriptTransformOptions,
+        ModuleOptionsContext, ModuleRule, TypescriptTransformOptions,
     },
     resolve_options_context::ResolveOptionsContext,
     transition::Transition,
@@ -28,7 +28,9 @@ use turbopack_core::{
     module_graph::export_usage::OptionExportUsageInfo,
     target::CompileTarget,
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior};
+use turbopack_ecmascript::{
+    TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
+};
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
 };
