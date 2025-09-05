@@ -1,4 +1,4 @@
-import { createBatchingTransformStream } from './batching-transform-stream'
+import { createBufferedTransformStream } from '../stream-utils/node-web-streams-helper'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
@@ -25,8 +25,10 @@ export function connectReactDebugChannel(
   }
 
   const reader = debugChannel.readable
-    // We're sending the chunks in batches to reduce overhead in the browser.
-    .pipeThrough(createBatchingTransformStream())
+    .pipeThrough(
+      // We're sending the chunks in batches to reduce overhead in the browser.
+      createBufferedTransformStream({ maxBufferByteLength: 128 * 1024 })
+    )
     .getReader()
 
   const stop = () => {
