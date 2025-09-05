@@ -167,6 +167,9 @@ export async function generateStaticParams({ params }) {
   const staticParams = []
 
   for (const item of imageMetadata) {
+    if (item?.id == null) {
+      throw new Error('id property is required for every item returned from generateImageMetadata')
+    }
     staticParams.push({ __metadata_id__: item.id.toString() })
   }
   return staticParams
@@ -289,6 +292,9 @@ export async function generateStaticParams() {
   const params = []
 
   for (const item of sitemaps) {
+    if (item?.id == null) {
+      throw new Error('id property is required for every item returned from generateSitemaps')
+    }
     params.push({ __metadata_id__: item.id.toString() + '.xml' })
   }
   return params

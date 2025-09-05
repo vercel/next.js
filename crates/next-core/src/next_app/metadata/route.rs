@@ -274,6 +274,9 @@ fn get_sitemap_generate_static_params_code() -> &'static str {
                 const params = []
 
                 for (const item of sitemaps) {
+                    if (item?.id == null) {
+                        throw new Error('id property is required for every item returned from generateSitemaps')
+                    }
                     params.push({ __metadata_id__: item.id.toString() + '.xml' })
                 }
                 return params
@@ -457,6 +460,9 @@ async fn dynamic_image_route_with_metadata_source(
                 const staticParams = []
 
                 for (const item of imageMetadata) {
+                    if (item?.id == null) {
+                        throw new Error('id property is required for every item returned from generateImageMetadata')
+                    }
                     staticParams.push({ __metadata_id__: item.id.toString() })
                 }
                 return staticParams
