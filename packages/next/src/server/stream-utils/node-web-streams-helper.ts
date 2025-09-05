@@ -140,23 +140,29 @@ export function createBufferedTransformStream(
   let pending: DetachedPromise<void> | undefined
 
   const flush = (controller: TransformStreamDefaultController) => {
-    if (bufferedChunks.length === 0) {
-      return
-    }
+    try {
+      if (bufferedChunks.length === 0) {
+        return
+      }
 
-    const chunk = new Uint8Array(bufferByteLength)
-    let copiedBytes = 0
+      const chunk = new Uint8Array(bufferByteLength)
+      let copiedBytes = 0
 
-    for (let i = 0; i < bufferedChunks.length; i++) {
-      const bufferedChunk = bufferedChunks[i]
-      chunk.set(bufferedChunk, copiedBytes)
-      copiedBytes += bufferedChunk.byteLength
+      for (let i = 0; i < bufferedChunks.length; i++) {
+        const bufferedChunk = bufferedChunks[i]
+        chunk.set(bufferedChunk, copiedBytes)
+        copiedBytes += bufferedChunk.byteLength
+      }
+      // We just wrote all the buffered chunks so we need to reset the bufferedChunks array
+      // and our bufferByteLength to prepare for the next round of buffered chunks
+      bufferedChunks.length = 0
+      bufferByteLength = 0
+      controller.enqueue(chunk)
+    } catch {
+      // If an error occurs while enqueuing, it can't be due to this
+      // transformer. It's most likely caused by the controller having been
+      // errored (for example, if the stream was cancelled).
     }
-    // We just wrote all the buffered chunks so we need to reset the bufferedChunks array
-    // and our bufferByteLength to prepare for the next round of buffered chunks
-    bufferedChunks.length = 0
-    bufferByteLength = 0
-    controller.enqueue(chunk)
   }
 
   const scheduleFlush = (controller: TransformStreamDefaultController) => {
@@ -170,10 +176,6 @@ export function createBufferedTransformStream(
     scheduleImmediate(() => {
       try {
         flush(controller)
-      } catch {
-        // If an error occurs while enqueuing, it can't be due to this
-        // transformer. It's most likely caused by the controller having been
-        // errored (for example, if the stream was cancelled).
       } finally {
         pending = undefined
         detached.resolve()
