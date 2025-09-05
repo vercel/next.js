@@ -132,7 +132,7 @@ export interface RevalidateStore {
   tags: null | string[]
 }
 
-interface PrerenderStoreModernCommon
+export interface PrerenderStoreModernCommon
   extends CommonWorkUnitStore,
     RevalidateStore {
   /**
@@ -198,7 +198,7 @@ interface PrerenderStoreModernCommon
   readonly captureOwnerStack: undefined | (() => string | null)
 }
 
-interface StaticPrerenderStoreCommon {
+export interface StaticPrerenderStoreCommon {
   /**
    * The set of unknown route parameters. Accessing these will be tracked as
    * a dynamic access.
