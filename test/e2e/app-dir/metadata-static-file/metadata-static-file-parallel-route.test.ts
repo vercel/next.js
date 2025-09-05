@@ -96,14 +96,13 @@ describe('metadata-files-static-output-parallel-route', () => {
       iconRes,
       opengraphImageRes,
       twitterImageRes,
-      // sitemapRes,
+      sitemapRes,
     ] = await Promise.all([
       next.fetch(`/parallel/apple-icon-${suffix}.png`),
       next.fetch(`/parallel/icon-${suffix}.png`),
       next.fetch(`/parallel/opengraph-image-${suffix}.png`),
       next.fetch(`/parallel/twitter-image-${suffix}.png`),
-      // TODO(jiwon): It is bug returning 404 when sitemap on group/parallel route
-      // next.fetch(`/parallel/sitemap.xml`),
+      next.fetch(`/parallel/sitemap.xml`),
     ])
 
     // Compare response content with actual files
@@ -112,14 +111,13 @@ describe('metadata-files-static-output-parallel-route', () => {
       actualIcon,
       actualOpengraphImage,
       actualTwitterImage,
-      // TODO(jiwon): It is bug returning 404 when sitemap on group/parallel route
-      // actualSitemap,
+      actualSitemap,
     ] = await Promise.all([
       next.readFileBuffer('app/parallel/@parallel/apple-icon.png'),
       next.readFileBuffer('app/parallel/@parallel/icon.png'),
       next.readFileBuffer('app/parallel/@parallel/opengraph-image.png'),
       next.readFileBuffer('app/parallel/@parallel/twitter-image.png'),
-      // next.readFile('app/parallel/@parallel/sitemap.xml'),
+      next.readFile('app/parallel/@parallel/sitemap.xml'),
     ])
 
     expect({
@@ -139,17 +137,14 @@ describe('metadata-files-static-output-parallel-route', () => {
         Buffer.from(await twitterImageRes.arrayBuffer()),
         actualTwitterImage
       ),
-      // TODO(jiwon): It is bug returning 404 when sitemap on group/parallel route
-      // sitemap: await sitemapRes.text(),
+      sitemap: await sitemapRes.text(),
     }).toEqual({
-      // TODO(jiwon): It is bug returning 404 when sitemap on group/parallel route
       // Buffer comparison returns 0 for equal
       appleIcon: 0,
       icon: 0,
       opengraphImage: 0,
       twitterImage: 0,
-      // TODO(jiwon): It is bug returning 404 when sitemap on group/parallel route
-      // sitemap: actualSitemap,
+      sitemap: actualSitemap,
     })
   })
 })
