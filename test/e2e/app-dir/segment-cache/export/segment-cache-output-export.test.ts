@@ -164,41 +164,53 @@ describe('segment cache (output: "export")', () => {
   it('fallback to HTML navigation when RSC payload fetch fails in output: "export" mode', async () => {
     // This test verifies that when RSC payload fetching fails (e.g., .txt files are blocked),
     // the navigation falls back to regular HTML navigation without .txt extension
-    const browser = await webdriver(port, '/')
-    // Use browser dev tools to block .txt requests
-    await browser.eval(`
-      // Override fetch to simulate .txt request failures
-      const originalFetch = window.fetch;
-      window.fetch = function(...args) {
-        const url = args[0];
-        if (url && url.toString().includes('.txt')) {
-          // Simulate network failure for .txt files
-          return Promise.reject(new Error('Simulated .txt fetch failure'));
-        }
-        return originalFetch.apply(this, args);
-      };
-    `)
+    let act
+    const browser = await webdriver(port, '/', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+        // Block .txt requests at the network level to simulate RSC payload fetch failures
+        p.route('**/*.txt', (route) => route.abort())
+      },
+    })
+
     // Initiate a prefetch
-    const checkbox = await browser.elementByCss(
-      '[data-link-accordion="/target-page"]'
+    await act(
+      async () => {
+        const checkbox = await browser.elementByCss(
+          '[data-link-accordion="/target-page"]'
+        )
+        await checkbox.click()
+      },
+      {
+        includes: 'Target page',
+      }
     )
-    await checkbox.click()
+
     // Navigate to the prefetched target page.
-    const link = await browser.elementByCss('a[href="/target-page"]')
-    await link.click()
+    await act(
+      async () => {
+        const link = await browser.elementByCss('a[href="/target-page"]')
+        await link.click()
 
-    // Wait for navigation to complete
-    await browser.waitForCondition(
-      'document.location.pathname.includes("target-page") && document.body.textContent.includes("Target page")',
-      5000
+        // Wait for navigation to complete
+        await browser.waitForCondition(
+          'document.location.pathname.includes("target-page") && document.body.textContent.includes("Target page")',
+          5000
+        )
+
+        // Verify that we navigated to the correct HTML page, not .txt
+        const currentUrl = await browser.url()
+        expect(currentUrl).not.toContain('.txt')
+        expect(new URL(currentUrl).pathname).toBe('/target-page')
+
+        // Verify page content is displayed
+        const bodyText = await browser.eval('document.body.textContent')
+        expect(bodyText).toContain('Target page')
+      },
+      {
+        // Should have prefetched the home page
+        includes: 'Demonstrates that per-segment prefetching works',
+      }
     )
-    // Verify that we navigated to the correct HTML page, not .txt
-    const currentUrl = await browser.url()
-    expect(currentUrl).not.toContain('.txt')
-    expect(new URL(currentUrl).pathname).toBe('/target-page')
-
-    // Verify page content is displayed
-    const bodyText = await browser.eval('document.body.textContent')
-    expect(bodyText).toContain('Target page')
   })
 })
