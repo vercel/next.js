@@ -612,7 +612,7 @@ export async function initialize(opts: {
       // full HTML 404 pages to save bandwidth.
       if (realRequestPathname.startsWith('/_next/static/')) {
         res.statusCode = 404
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+        res.setHeader('Content-Type', 'text/plain')
         res.end('Not Found')
         return null
       }

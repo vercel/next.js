@@ -78,9 +78,7 @@ export function runTests(ctx) {
 
         if (!defaultLocales.includes(locale)) {
           expect(res.status).toBe(404)
-          expect(res.headers.get('content-type')).toBe(
-            'text/plain; charset=utf-8'
-          )
+          expect(res.headers.get('content-type')).toBe('text/plain')
           expect(await res.text()).toBe('Not Found')
         } else {
           // We only 404 for non-default locale
