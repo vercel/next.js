@@ -511,7 +511,8 @@ export async function setupFsCheck(opts: {
         const fsPath = staticMetadataFiles.get(itemPath)
         if (fsPath) {
           return {
-            type: 'publicFolder',
+            // "nextStaticFolder" sets Cache-Control "no-store" on dev.
+            type: 'nextStaticFolder',
             fsPath,
             itemPath: fsPath,
           }
