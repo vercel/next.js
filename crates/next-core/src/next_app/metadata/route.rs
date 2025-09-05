@@ -265,26 +265,6 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
     Ok(Vc::upcast(source))
 }
 
-fn get_sitemap_generate_static_params_code() -> &'static str {
-    indoc! {
-        r#"
-            export const dynamicParams = false
-            export async function generateStaticParams() {
-                const sitemaps = await generateSitemaps()
-                const params = []
-
-                for (const item of sitemaps) {
-                    if (item?.id == null) {
-                        throw new Error('id property is required for every item returned from generateSitemaps')
-                    }
-                    params.push({ __metadata_id__: item.id.toString() + '.xml' })
-                }
-                return params
-            }
-        "#,
-    }
-}
-
 async fn dynamic_sitemap_route_with_generate_source(
     mode: NextMode,
     path: FileSystemPath,
@@ -293,8 +273,6 @@ async fn dynamic_sitemap_route_with_generate_source(
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
     let content_type = get_content_type(path.clone()).await?;
-
-    let static_generation_code = get_sitemap_generate_static_params_code();
 
     let validation_code = if !mode.is_production() {
         indoc! {
@@ -306,6 +284,7 @@ async fn dynamic_sitemap_route_with_generate_source(
                         if (item?.id == null) {
                             throw new Error('id property is required for every item returned from generateSitemaps')
                         }
+                        const hasXmlExtension = id ? id.endsWith('.xml') : false
                         const baseId = id && hasXmlExtension ? id.slice(0, -4) : undefined
                         if (item.id.toString() === baseId) {
                             foundId = item.id
@@ -362,7 +341,19 @@ async fn dynamic_sitemap_route_with_generate_source(
 
             export * from {resource_path}
 
-            {static_generation_code}
+            export const dynamicParams = false
+            export async function generateStaticParams() {{
+                const sitemaps = await generateSitemaps()
+                const params = []
+
+                for (const item of sitemaps) {{
+                    if (item?.id == null) {{
+                        throw new Error('id property is required for every item returned from generateSitemaps')
+                    }}
+                    params.push({{ __metadata_id__: item.id.toString() + '.xml' }})
+                }}
+                return params
+            }}
         "#,
         resource_path = StringifyJs(&format!("./{stem}.{ext}")),
         content_type = StringifyJs(&content_type),
@@ -452,24 +443,6 @@ async fn dynamic_image_route_with_metadata_source(
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
 
-    let static_generation_code = indoc! {
-        r#"
-            export const dynamicParams = false
-            export async function generateStaticParams({ params }) {
-                const imageMetadata = await generateImageMetadata({ params })
-                const staticParams = []
-
-                for (const item of imageMetadata) {
-                    if (item?.id == null) {
-                        throw new Error('id property is required for every item returned from generateImageMetadata')
-                    }
-                    staticParams.push({ __metadata_id__: item.id.toString() })
-                }
-                return staticParams
-            }
-        "#,
-    };
-
     let validation_code = if !mode.is_production() {
         indoc! {
             r#"
@@ -516,11 +489,22 @@ async fn dynamic_image_route_with_metadata_source(
 
             export * from {resource_path}
 
-            {static_generation_code}
+            export const dynamicParams = false
+            export async function generateStaticParams({{ params }}) {{
+                const imageMetadata = await generateImageMetadata({{ params }})
+                const staticParams = []
+
+                for (const item of imageMetadata) {{
+                    if (item?.id == null) {{
+                        throw new Error('id property is required for every item returned from generateImageMetadata')
+                    }}
+                    staticParams.push({{ __metadata_id__: item.id.toString() }})
+                }}
+                return staticParams
+            }}
         "#,
         resource_path = StringifyJs(&format!("./{stem}.{ext}")),
         validation_code = validation_code,
-        static_generation_code = static_generation_code,
     };
 
     let file = File::from(code);

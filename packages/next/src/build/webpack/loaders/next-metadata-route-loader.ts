@@ -160,22 +160,6 @@ async function getDynamicImageRouteCode(
   resourcePath: string,
   loaderContext: webpack.LoaderContext<any>
 ) {
-  const staticGenerationCode = `\
-export const dynamicParams = false
-export async function generateStaticParams({ params }) {
-  const imageMetadata = await generateImageMetadata({ params })
-  const staticParams = []
-
-  for (const item of imageMetadata) {
-    if (item?.id == null) {
-      throw new Error('id property is required for every item returned from generateImageMetadata')
-    }
-    staticParams.push({ __metadata_id__: item.id.toString() })
-  }
-  return staticParams
-}
-`
-
   return `\
 /* dynamic image route with generateImageMetadata */
 import { NextResponse } from 'next/server'
@@ -210,7 +194,19 @@ export async function GET(_, ctx) {
   return handler({ params: restParams, id: __metadata_id__ })
 }
 
-${staticGenerationCode}
+export const dynamicParams = false
+export async function generateStaticParams({ params }) {
+  const imageMetadata = await generateImageMetadata({ params })
+  const staticParams = []
+
+  for (const item of imageMetadata) {
+    if (item?.id == null) {
+      throw new Error('id property is required for every item returned from generateImageMetadata')
+    }
+    staticParams.push({ __metadata_id__: item.id.toString() })
+  }
+  return staticParams
+}
 `
 }
 
@@ -285,22 +281,6 @@ async function getDynamicSitemapRouteCode(
   resourcePath: string,
   loaderContext: webpack.LoaderContext<any>
 ) {
-  const staticGenerationCode = `\
-export const dynamicParams = false
-export async function generateStaticParams() {
-  const sitemaps = await generateSitemaps()
-  const params = []
-
-  for (const item of sitemaps) {
-    if (item?.id == null) {
-      throw new Error('id property is required for every item returned from generateSitemaps')
-    }
-    params.push({ __metadata_id__: item.id.toString() + '.xml' })
-  }
-  return params
-}
-`
-
   const code = `\
 /* dynamic sitemap route with generateSitemaps */
 import { NextResponse } from 'next/server'
@@ -315,13 +295,7 @@ ${await createReExportsCode(resourcePath, loaderContext)}
 
 export async function GET(_, ctx) {
   const { __metadata_id__: id, ...params } = await ctx.params || {}
-  const hasXmlExtension = id ? id.endsWith('.xml') : false
-  if (id && !hasXmlExtension) {
-    return new NextResponse('Not Found', {
-      status: 404,
-    })
-  }
-  
+
   if (process.env.NODE_ENV !== 'production') {
     const sitemaps = await generateSitemaps()
     let foundId
@@ -329,20 +303,20 @@ export async function GET(_, ctx) {
       if (item?.id == null) {
         throw new Error('id property is required for every item returned from generateSitemaps')
       }
+      const hasXmlExtension = id ? id.endsWith('.xml') : false
       const baseId = id && hasXmlExtension ? id.slice(0, -4) : undefined
       if (item.id.toString() === baseId) {
         foundId = item.id
       }
     }
-    if (!foundId) {
+    if (foundId == null) {
       return new NextResponse('Not Found', {
         status: 404,
       })
     }
   }
 
-  const targetId = id && hasXmlExtension ? id.slice(0, -4) : undefined
-  const data = await handler({ id: targetId })
+  const data = await handler({ id })
   const content = resolveRouteData(data, fileType)
 
   return new NextResponse(content, {
@@ -353,7 +327,20 @@ export async function GET(_, ctx) {
   })
 }
 
-${staticGenerationCode}
+export const dynamicParams = false
+export async function generateStaticParams() {
+  const sitemaps = await generateSitemaps()
+  const params = []
+
+  for (const item of sitemaps) {
+    if (item?.id == null) {
+      throw new Error('id property is required for every item returned from generateSitemaps')
+    }
+    params.push({ __metadata_id__: item.id.toString() + '.xml' })
+  }
+  console.log('generateStaticParams:params', params)
+  return params
+}
 `
   return code
 }
