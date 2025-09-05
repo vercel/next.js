@@ -206,7 +206,7 @@ pub use inventory::submit as inventory_submit_inner;
 macro_rules! global_name {
     ($($item:tt)*) => {
 
-        ::std::concat!(::std::env!("CARGO_PKG_NAME"), "@", ::std::module_path!(), "::", ::std::stringify!($($item)*))
+        ::std::concat!(::std::env!("CARGO_PKG_NAME"), "@", ::std::module_path!(), "::", $($item)*)
     }
 }
 /// Define a global name for a turbo-tasks value.
@@ -215,6 +215,6 @@ macro_rules! global_name {
 #[macro_export]
 macro_rules! global_name {
     ($($item:tt)*) => {
-        ::std::stringify!($($item)*)
+        $($item)*
     }
 }
