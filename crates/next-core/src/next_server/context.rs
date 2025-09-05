@@ -22,7 +22,7 @@ use turbopack_core::{
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
     environment::{
-        BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion,
+        Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions,
     },
     free_var_references,
     module_graph::export_usage::OptionExportUsageInfo,
@@ -371,28 +371,16 @@ pub async fn get_server_compile_time_info(
     cwd: RcStr,
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
-    css_browserslist_query: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
-    let css_environment = BrowserEnvironment {
-        dom: false,
-        web_worker: false,
-        service_worker: false,
-        browserslist_query: css_browserslist_query,
-    }
-    .resolved_cell();
-
     CompileTimeInfo::builder(
-        Environment::new(
-            ExecutionEnvironment::NodeJsLambda(
-                NodeJsEnvironment {
-                    compile_target: CompileTarget::current().to_resolved().await?,
-                    node_version,
-                    cwd: ResolvedVc::cell(Some(cwd)),
-                }
-                .resolved_cell(),
-            ),
-            *css_environment,
-        )
+        Environment::new(ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironment {
+                compile_target: CompileTarget::current().to_resolved().await?,
+                node_version,
+                cwd: ResolvedVc::cell(Some(cwd)),
+            }
+            .resolved_cell(),
+        ))
         .to_resolved()
         .await?,
     )
@@ -405,10 +393,9 @@ pub async fn get_server_compile_time_info(
 #[turbo_tasks::function]
 pub async fn get_tracing_compile_time_info() -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
-        Environment::new(
-            ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().resolved_cell()),
-            BrowserEnvironment::default().cell(),
-        )
+        Environment::new(ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironment::default().resolved_cell(),
+        ))
         .to_resolved()
         .await?,
     )
@@ -525,7 +512,7 @@ pub async fn get_server_module_options_context(
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
-    let css_versions = environment.css_runtime_versions();
+    let versions = RuntimeVersions(Default::default()).cell();
 
     let tsconfig_path = next_config
         .typescript_tsconfig_path()
@@ -586,8 +573,7 @@ pub async fn get_server_module_options_context(
     // context type.
     let styled_components_transform_rule =
         get_styled_components_transform_rule(next_config).await?;
-    let styled_jsx_transform_rule =
-        get_styled_jsx_transform_rule(next_config, css_versions).await?;
+    let styled_jsx_transform_rule = get_styled_jsx_transform_rule(next_config, versions).await?;
 
     let source_maps = if *next_config.server_source_maps().await? {
         SourceMapsType::Full
