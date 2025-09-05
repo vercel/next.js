@@ -21,9 +21,7 @@ use turbopack_core::{
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
-    environment::{
-        Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions,
-    },
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
     free_var_references,
     module_graph::export_usage::OptionExportUsageInfo,
     target::CompileTarget,
@@ -443,6 +441,7 @@ pub async fn get_server_module_options_context(
     next_runtime: NextRuntime,
     encryption_key: ResolvedVc<RcStr>,
     environment: ResolvedVc<Environment>,
+    client_environment: ResolvedVc<Environment>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let mut next_server_rules = get_next_server_transforms_rules(
@@ -512,7 +511,6 @@ pub async fn get_server_module_options_context(
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
-    let versions = RuntimeVersions(Default::default()).cell();
 
     let tsconfig_path = next_config
         .typescript_tsconfig_path()
@@ -573,7 +571,10 @@ pub async fn get_server_module_options_context(
     // context type.
     let styled_components_transform_rule =
         get_styled_components_transform_rule(next_config).await?;
-    let styled_jsx_transform_rule = get_styled_jsx_transform_rule(next_config, versions).await?;
+    // It's important the client's browserlist config is used for styled-jsx, otherwise we transpile
+    // the CSS to be compatible with Node.js 20.
+    let styled_jsx_transform_rule =
+        get_styled_jsx_transform_rule(next_config, client_environment.runtime_versions()).await?;
 
     let source_maps = if *next_config.server_source_maps().await? {
         SourceMapsType::Full

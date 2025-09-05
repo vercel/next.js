@@ -1294,6 +1294,7 @@ impl Project {
                 NextRuntime::Edge,
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1356,6 +1357,7 @@ impl Project {
                 NextRuntime::NodeJs,
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1470,6 +1472,7 @@ impl Project {
                 NextRuntime::NodeJs,
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1532,6 +1535,7 @@ impl Project {
                 NextRuntime::Edge,
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
