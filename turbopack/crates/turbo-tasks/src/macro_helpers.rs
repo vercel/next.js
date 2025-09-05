@@ -201,19 +201,20 @@ macro_rules! inventory_submit {
 pub use inventory::submit as inventory_submit_inner;
 
 /// Define a global name for a turbo-tasks value.
-#[cfg(not(rust_analyzer))]
+#[cfg(not(rust_analyzer))] // ignore-rust-analyzer due to https://github.com/rust-lang/rust-analyzer/issues/19993
 #[macro_export]
 macro_rules! global_name {
     ($($item:tt)*) => {
 
-        concat!(env!("CARGO_PKG_NAME"), "@", module_path!(), "::", stringify!($($item)*))
+        ::std::concat!(::std::env!("CARGO_PKG_NAME"), "@", ::std::module_path!(), "::", ::std::stringify!($($item)*))
     }
 }
 /// Define a global name for a turbo-tasks value.
+/// This has a dummy implementation for Rust Analyzer to avoid https://github.com/rust-lang/rust-analyzer/issues/19993
 #[cfg(rust_analyzer)]
 #[macro_export]
 macro_rules! global_name {
     ($($item:tt)*) => {
-        stringify!($($item)*)
+        ::std::stringify!($($item)*)
     }
 }
