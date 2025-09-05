@@ -1991,7 +1991,6 @@ export default async function getBaseWebpackConfig(
             new (getRspackReactRefresh() as any)({
               injectLoader: false,
               injectEntry: false,
-              overlay: false,
             })
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
