@@ -230,11 +230,11 @@ module.exports = {
                 )
               if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
                 expect(inlineCssContent).toMatchInlineSnapshot(
-                  `".media-query-test.jsx-HASH{color:#00f}@media (width<=400px){.media-query-test.jsx-HASH{color:orange}}"`
+                  `".media-query-test.jsx-HASH{color:#00f}@media (max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
                 )
               } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
                 expect(inlineCssContent).toMatchInlineSnapshot(
-                  `".media-query-test.jsx-HASH{color:#00f}@media (width<=400px){.media-query-test.jsx-HASH{color:orange}}"`
+                  `".media-query-test.jsx-HASH{color:#00f}@media (max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
                 )
               } else if (useLightningcss) {
                 expect(inlineCssContent).toMatchInlineSnapshot(
