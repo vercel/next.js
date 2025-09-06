@@ -134,9 +134,6 @@ def format_time(nanoseconds: float) -> str:
 
 def print_analysis(results: List[Tuple[TaskStats, float, str]]):
     """Print the analysis results."""
-    print("Cache Effectiveness Analysis")
-    print("=" * 120)
-    print()
     print("Tasks ranked by estimated time savings from removing caching layer")
     print()
 
