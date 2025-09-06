@@ -850,6 +850,14 @@ export interface ExperimentalConfig {
   reactCompiler?: boolean | ReactCompilerOptions
 
   /**
+   * When enabled, in dev mode, Next.js will send React's debug info through the
+   * WebSocket connection, instead of including it in the main RSC payload.
+   *
+   * @default true
+   */
+  reactDebugChannel?: boolean
+
+  /**
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
@@ -1626,6 +1634,7 @@ export const defaultConfig = Object.freeze({
     },
     allowDevelopmentBuild: undefined,
     reactCompiler: undefined,
+    reactDebugChannel: true,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,

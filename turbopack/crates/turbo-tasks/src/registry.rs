@@ -1,161 +1,184 @@
-use std::num::NonZeroU32;
+use std::num::NonZeroU16;
 
+use anyhow::Error;
 use once_cell::sync::Lazy;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     TraitType, ValueType,
-    id::{TraitTypeId, ValueTypeId},
+    id::{FunctionId, TraitTypeId, ValueTypeId},
     macro_helpers::CollectableFunction,
     native_function::NativeFunction,
     value_type::{CollectableTrait, CollectableValueType},
 };
 
-pub fn get_function_by_global_name(global_name: &str) -> &'static NativeFunction {
-    static NAME_TO_FUNCTION: Lazy<FxHashMap<&'static str, &'static NativeFunction>> =
-        Lazy::new(|| {
-            let mut map = FxHashMap::default();
-            for collected in inventory::iter::<CollectableFunction> {
-                let native_function = &**collected.0;
-                let global_name = native_function.global_name;
-                let prev = map.insert(global_name, native_function);
-                assert!(
-                    prev.is_none(),
-                    "multiple functions registered with the name {global_name}!"
-                );
-            }
-            map.shrink_to_fit();
-            map
-        });
+/// A trait for types that can be registered in a registry.
+///
+/// This allows the generic registry to work with different types
+/// while maintaining their specific requirements.
+trait RegistryItem: 'static + Eq + std::hash::Hash {
+    /// The ID type used for this registry item
+    type Id: Copy + From<NonZeroU16> + std::ops::Deref<Target = u16> + std::fmt::Display;
+    const TYPE_NAME: &'static str;
 
-    match NAME_TO_FUNCTION.get(global_name) {
-        Some(f) => f,
-        None => panic!("unable to find function: {global_name}"),
+    /// Get the global name used for sorting and uniqueness validation
+    fn global_name(&self) -> &'static str;
+}
+
+impl RegistryItem for NativeFunction {
+    type Id = FunctionId;
+    const TYPE_NAME: &'static str = "Function";
+
+    fn global_name(&self) -> &'static str {
+        self.global_name
     }
 }
 
-struct Values {
-    id_to_value: Box<[&'static ValueType]>,
-    value_to_id: FxHashMap<&'static ValueType, ValueTypeId>,
-    global_name_to_value: FxHashMap<&'static str, (ValueTypeId, &'static ValueType)>,
+impl RegistryItem for ValueType {
+    type Id = ValueTypeId;
+    const TYPE_NAME: &'static str = "Value";
+
+    fn global_name(&self) -> &'static str {
+        self.global_name
+    }
 }
 
-static VALUES: Lazy<Values> = Lazy::new(|| {
+impl RegistryItem for TraitType {
+    type Id = TraitTypeId;
+    const TYPE_NAME: &'static str = "Trait";
+    fn global_name(&self) -> &'static str {
+        self.global_name
+    }
+}
+
+/// A generic registry that maps between IDs and static references to items.
+///
+/// This eliminates the code duplication between Functions, Values, and Traits registries.
+struct Registry<T: RegistryItem> {
+    id_to_item: Box<[&'static T]>,
+    item_to_id: FxHashMap<&'static T, T::Id>,
+}
+
+impl<T: RegistryItem> Registry<T> {
+    /// Create a new registry from a collection of items.
+    ///
+    /// Items are sorted by global_name to ensure stable ID assignment.
+    fn new_from_items(mut items: Vec<&'static T>) -> Self {
+        // Sort by global name to get stable order
+        items.sort_unstable_by_key(|item| item.global_name());
+
+        let mut item_to_id = FxHashMap::with_capacity_and_hasher(items.len(), Default::default());
+        let mut names = FxHashSet::with_capacity_and_hasher(items.len(), Default::default());
+
+        let mut id = NonZeroU16::MIN;
+        for &item in items.iter() {
+            item_to_id.insert(item, id.into());
+            let global_name = item.global_name();
+            assert!(
+                names.insert(global_name),
+                "multiple {ty} items registered with name: {global_name}!",
+                ty = T::TYPE_NAME
+            );
+            id = id.checked_add(1).expect("overflowing item ids");
+        }
+
+        Self {
+            id_to_item: items.into_boxed_slice(),
+            item_to_id,
+        }
+    }
+
+    /// Get an item by its ID
+    fn get_item(&self, id: T::Id) -> &'static T {
+        self.id_to_item[*id as usize - 1]
+    }
+
+    /// Get the ID for an item
+    fn get_id(&self, item: &'static T) -> T::Id {
+        match self.item_to_id.get(&item) {
+            Some(id) => *id,
+            None => panic!(
+                "{ty} isn't registered: {item}",
+                ty = T::TYPE_NAME,
+                item = item.global_name()
+            ),
+        }
+    }
+
+    /// Validate that an ID is within the valid range
+    fn validate_id(&self, id: T::Id) -> Option<Error> {
+        let len = self.id_to_item.len();
+        if *id as usize <= len {
+            None
+        } else {
+            Some(anyhow::anyhow!(
+                "Invalid {ty} id, {id} expected a value <= {len}",
+                ty = T::TYPE_NAME
+            ))
+        }
+    }
+}
+
+static FUNCTIONS: Lazy<Registry<NativeFunction>> = Lazy::new(|| {
+    let functions = inventory::iter::<CollectableFunction>
+        .into_iter()
+        .map(|c| &**c.0)
+        .collect::<Vec<_>>();
+    Registry::new_from_items(functions)
+});
+
+pub fn get_native_function(id: FunctionId) -> &'static NativeFunction {
+    FUNCTIONS.get_item(id)
+}
+
+pub fn get_function_id(func: &'static NativeFunction) -> FunctionId {
+    FUNCTIONS.get_id(func)
+}
+
+pub fn validate_function_id(id: FunctionId) -> Option<Error> {
+    FUNCTIONS.validate_id(id)
+}
+
+static VALUES: Lazy<Registry<ValueType>> = Lazy::new(|| {
     // Inventory does not guarantee an order. So we sort by the global name to get a stable order
-    // This ensures that assigned ids are also stable.
-    // We don't currently take advantage of this but we could in the future.  The remaining issue is
-    // ensuring the set of values is the same across runs.
-    let mut all_values = inventory::iter::<CollectableValueType>
+    // This ensures that assigned ids are also stable which is important since they are serialized.
+    let all_values = inventory::iter::<CollectableValueType>
         .into_iter()
         .map(|t| &**t.0)
         .collect::<Vec<_>>();
-    all_values.sort_unstable_by_key(|t| t.global_name);
-
-    let mut value_to_id = FxHashMap::with_capacity_and_hasher(all_values.len(), Default::default());
-    let mut global_name_to_value =
-        FxHashMap::with_capacity_and_hasher(all_values.len(), Default::default());
-
-    let mut id = NonZeroU32::MIN;
-    for &value_type in all_values.iter() {
-        value_to_id.insert(value_type, id.into());
-        let prev = global_name_to_value.insert(value_type.global_name, (id.into(), value_type));
-        assert!(
-            prev.is_none(),
-            "two value types registered with the same name: {}",
-            value_type.global_name
-        );
-        id = id.checked_add(1).expect("overflowing value type ids");
-    }
-
-    value_to_id.shrink_to_fit();
-    global_name_to_value.shrink_to_fit();
-    Values {
-        value_to_id,
-        id_to_value: all_values.into_boxed_slice(),
-        global_name_to_value,
-    }
+    Registry::new_from_items(all_values)
 });
 
 pub fn get_value_type_id(value: &'static ValueType) -> ValueTypeId {
-    match VALUES.value_to_id.get(value) {
-        Some(id) => *id,
-        None => panic!("Use of unregistered trait {value:?}"),
-    }
-}
-
-pub fn get_value_type_id_by_global_name(global_name: &str) -> Option<ValueTypeId> {
-    VALUES
-        .global_name_to_value
-        .get(global_name)
-        .map(|(id, _)| *id)
+    VALUES.get_id(value)
 }
 
 pub fn get_value_type(id: ValueTypeId) -> &'static ValueType {
-    VALUES.id_to_value[*id as usize - 1]
+    VALUES.get_item(id)
 }
 
-pub fn get_value_type_global_name(id: ValueTypeId) -> &'static str {
-    get_value_type(id).global_name
+pub fn validate_value_type_id(id: ValueTypeId) -> Option<Error> {
+    VALUES.validate_id(id)
 }
 
-struct Traits {
-    id_to_trait: Box<[&'static TraitType]>,
-    trait_to_id: FxHashMap<&'static TraitType, TraitTypeId>,
-    global_name_to_trait: FxHashMap<&'static str, (TraitTypeId, &'static TraitType)>,
-}
-
-static TRAITS: Lazy<Traits> = Lazy::new(|| {
+static TRAITS: Lazy<Registry<TraitType>> = Lazy::new(|| {
     // Inventory does not guarantee an order. So we sort by the global name to get a stable order
     // This ensures that assigned ids are also stable.
-    let mut all_traits = inventory::iter::<CollectableTrait>
+    let all_traits = inventory::iter::<CollectableTrait>
         .into_iter()
         .map(|t| &**t.0)
         .collect::<Vec<_>>();
-    all_traits.sort_unstable_by_key(|t| t.global_name);
-
-    let mut trait_to_id = FxHashMap::with_capacity_and_hasher(all_traits.len(), Default::default());
-    let mut global_name_to_trait =
-        FxHashMap::with_capacity_and_hasher(all_traits.len(), Default::default());
-
-    let mut id = NonZeroU32::MIN;
-    for &trait_type in all_traits.iter() {
-        trait_to_id.insert(trait_type, id.into());
-
-        let prev = global_name_to_trait.insert(trait_type.global_name, (id.into(), trait_type));
-        assert!(
-            prev.is_none(),
-            "two traits registered with the same name: {}",
-            trait_type.global_name
-        );
-        id = id.checked_add(1).expect("overflowing trait type ids");
-    }
-    trait_to_id.shrink_to_fit();
-    global_name_to_trait.shrink_to_fit();
-    Traits {
-        trait_to_id,
-        id_to_trait: all_traits.into_boxed_slice(),
-        global_name_to_trait,
-    }
+    Registry::new_from_items(all_traits)
 });
 
 pub fn get_trait_type_id(trait_type: &'static TraitType) -> TraitTypeId {
-    match TRAITS.trait_to_id.get(trait_type) {
-        Some(id) => *id,
-        None => panic!("Use of unregistered trait {trait_type:?}"),
-    }
-}
-
-pub fn get_trait_type_id_by_global_name(global_name: &str) -> Option<TraitTypeId> {
-    TRAITS
-        .global_name_to_trait
-        .get(global_name)
-        .map(|(id, _)| *id)
+    TRAITS.get_id(trait_type)
 }
 
 pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
-    TRAITS.id_to_trait[*id as usize - 1]
+    TRAITS.get_item(id)
 }
 
-pub fn get_trait_type_global_name(id: TraitTypeId) -> &'static str {
-    get_trait(id).global_name
+pub fn validate_trait_type_id(id: TraitTypeId) -> Option<Error> {
+    TRAITS.validate_id(id)
 }
