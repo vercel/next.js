@@ -392,7 +392,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn track_task_duration(&self, task_id: TaskId, duration: std::time::Duration) {
         self.task_statistics.map(|stats| {
             if let Some(task_type) = self.task_cache.lookup_reverse(&task_id) {
-                stats.increment_duration(task_type.native_fn, duration);
+                stats.increment_execution_duration(task_type.native_fn, duration);
             }
         });
     }
@@ -1722,7 +1722,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let span = tracing::trace_span!("task execution completed", immutable = Empty).entered();
         let mut ctx = self.execute_context(turbo_tasks);
 
-        self.track_task_duration(task_type, duration);
+        self.track_task_duration(task_id, duration);
 
         //// STEP 1 ////
 

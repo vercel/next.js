@@ -31,6 +31,8 @@ async fn test_simple_task() -> Result<()> {
                 "double": {
                     "cache_miss": 10,
                     "cache_hit": 15,
+                    "executions": 10,
+                    "duration": 1234,
                 },
             })
         );
@@ -53,6 +55,8 @@ async fn test_await_same_vc_multiple_times() -> Result<()> {
                 "double": {
                     "cache_miss": 1,
                     "cache_hit": 0,
+                    "executions": 1,
+                    "duration": 1234,
                 },
             })
         );
@@ -81,10 +85,14 @@ async fn test_vc_receiving_task() -> Result<()> {
                 "double": {
                     "cache_miss": 10,
                     "cache_hit": 5,
+                    "executions": 10,
+                    "duration": 1234,
                 },
                 "double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 15,
+                    "executions": 10,
+                    "duration": 1234,
                 },
             })
         );
@@ -114,14 +122,20 @@ async fn test_trait_methods() -> Result<()> {
                 "wrap": {
                     "cache_miss": 10,
                     "cache_hit": 5,
+                    "executions": 10,
+                    "duration": 1234,
                 },
                 "WrappedU64::Doublable::double": {
                     "cache_miss": 10,
                     "cache_hit": 15,
+                    "executions": 10,
+                    "duration": 1234,
                 },
                 "WrappedU64::Doublable::double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 15,
+                    "executions": 10,
+                    "duration": 1234,
                 },
             })
         );
@@ -157,14 +171,20 @@ async fn test_dyn_trait_methods() -> Result<()> {
                 "wrap": {
                     "cache_miss": 10,
                     "cache_hit": 7,
+                    "executions": 10,
+                    "duration": 1234,
                 },
                 "WrappedU64::Doublable::double": {
                     "cache_miss": 10,
                     "cache_hit": 17,
+                    "executions": 10,
+                    "duration": 1234,
                 },
                 "WrappedU64::Doublable::double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 17,
+                    "executions": 10,
+                    "duration": 1234,
                 },
             })
         );
@@ -186,6 +206,8 @@ async fn test_no_execution() -> Result<()> {
                 "double": {
                     "cache_miss": 1,
                     "cache_hit": 0,
+                    "executions": 0,
+                    "duration": 1234,
                 },
             })
         );
@@ -264,6 +286,11 @@ fn remove_crate(mut json: serde_json::Value) -> serde_json::Value {
         serde_json::Value::Object(map) => {
             let old_map = std::mem::take(map);
             for (k, v) in old_map {
+                // Replace `duration` with a fixed value to simplify test assertions
+                let mut v = v.clone();
+                v.as_object_mut()
+                    .unwrap()
+                    .insert("duration".into(), serde_json::Value::Number(1234.into()));
                 map.insert(HASH_RE.replace(&k, "").into_owned(), v);
             }
         }
