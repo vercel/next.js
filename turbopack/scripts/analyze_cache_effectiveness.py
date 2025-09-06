@@ -73,13 +73,12 @@ def load_task_stats(file_path: str) -> List[TaskStats]:
     return tasks
 
 
-def calculate_cache_effectiveness(task: TaskStats) -> Tuple[float, str]:
+def calculate_cache_effectiveness(task: TaskStats) -> float:
     """
     Calculate the effectiveness of caching for a task.
 
     Returns:
-        - Time savings from removing caching (negative means caching is beneficial)
-        - Explanation string
+        Time savings from removing caching (negative means caching is beneficial)
     """
     # Constants based on benchmarking
     # These are optimistic estimates
@@ -105,14 +104,12 @@ def calculate_cache_effectiveness(task: TaskStats) -> Tuple[float, str]:
     return time_savings
 
 
-def analyze_tasks(tasks: List[TaskStats]) -> List[Tuple[TaskStats, float, str]]:
+def analyze_tasks(tasks: List[TaskStats]) -> List[Tuple[TaskStats, float]]:
     """Analyze all tasks and return sorted by potential time savings."""
     results = []
 
     for task in tasks:
-        time_savings = calculate_cache_effectiveness(task)
-        if time_savings > 0:
-            results.append((task, time_savings))
+        results.append((task, calculate_cache_effectiveness(task)))
 
     # Sort by time savings (descending - highest savings first)
     results.sort(key=lambda x: x[1], reverse=True)
@@ -122,17 +119,19 @@ def analyze_tasks(tasks: List[TaskStats]) -> List[Tuple[TaskStats, float, str]]:
 
 def format_time(nanoseconds: float) -> str:
     """Format time in appropriate units (ns, μs, ms, s)."""
+    sign = "-" if nanoseconds < 0 else ""
+    nanoseconds = abs(nanoseconds)
     if nanoseconds >= 1_000_000_000:  # >= 1 second
-        return f"{nanoseconds / 1_000_000_000:.2f}s"
+        return f"{sign}{nanoseconds / 1_000_000_000:.2f}s"
     elif nanoseconds >= 1_000_000:  # >= 1 millisecond
-        return f"{nanoseconds / 1_000_000:.2f}ms"
+        return f"{sign}{nanoseconds / 1_000_000:.2f}ms"
     elif nanoseconds >= 1_000:  # >= 1 microsecond
-        return f"{nanoseconds / 1_000:.1f}μs"
+        return f"{sign}{nanoseconds / 1_000:.1f}μs"
     else:  # nanoseconds
         return f"{nanoseconds:.0f}ns"
 
 
-def print_analysis(results: List[Tuple[TaskStats, float, str]]):
+def print_analysis(results: List[Tuple[TaskStats, float]]):
     """Print the analysis results."""
     print("Tasks ranked by estimated time savings from removing caching layer")
     print()
@@ -157,9 +156,9 @@ def print_analysis(results: List[Tuple[TaskStats, float, str]]):
               f"{operations_str:<10} {task.name}")
 
     # Print summary
-    total_savings = sum(time_savings for _, time_savings in results)
+    total_savings = sum(time_savings if time_savings > 0 else 0 for _, time_savings in results)
     print()
-    print(f"Summary: {len(results)} tasks would benefit from removing caching")
+    print(f"Summary: {sum(1 if time_savings > 0 else 0 for _, time_savings in results)} tasks would benefit from removing caching")
     print(f"Total potential savings: {format_time(total_savings)}")
     print()
     print("Legend:")
