@@ -64,17 +64,21 @@ impl TaskStatistics {
     ) {
         func(self.inner.entry(native_fn).or_default().value_mut())
     }
+
+    pub fn get(&self, f: &'static NativeFunction) -> TaskFunctionStatistics {
+        self.inner.get(f).unwrap().value().clone()
+    }
 }
 
 /// Statistics for an individual function.
-#[derive(Default, Serialize)]
-struct TaskFunctionStatistics {
-    cache_hit: u32,
-    cache_miss: u32,
+#[derive(Default, Serialize, Clone)]
+pub struct TaskFunctionStatistics {
+    pub cache_hit: u32,
+    pub cache_miss: u32,
     // Generally executions == cache_miss, however they can diverge when there are invalidations.
     // The caller gets one cache miss but we might execute multiple times.
-    executions: u32,
-    duration: std::time::Duration,
+    pub executions: u32,
+    pub duration: std::time::Duration,
 }
 
 impl Serialize for TaskStatistics {

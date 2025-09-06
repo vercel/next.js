@@ -13,6 +13,7 @@ Then run this script with the path to the stats.json file to get a report on opt
 Based on benchmarking data from the `turbopack/crates/turbo-tasks-backend/benches/overhead.rs` benchmark we have the following estimates:
 - Cache hit cost: 200-500ns
 - Execution overhead: 4-6us
+- Measurement overhead: 260ns-750ns
 
 This script assumes the best case scenario and reports on the potential time savings from removing the caching layer.
 """
@@ -43,9 +44,10 @@ class TaskStats:
 
     @property
     def avg_execution_time_ns(self) -> int:
+        MEASUREMENT_OVERHEAD =   750 # OVerhead implicit in the reported duration
         if self.executions == 0:
             return 0
-        return self.duration_ns // self.executions
+        return (self.duration_ns  - MEASUREMENT_OVERHEAD * self.executions) // self.executions
 
 
 def parse_duration(duration_dict: Dict) -> int:
@@ -82,11 +84,12 @@ def calculate_cache_effectiveness(task: TaskStats) -> float:
     """
     # Constants based on benchmarking
     # These are optimistic estimates
-    CACHE_HIT_COST_NS = 200  # Average of 200-500ns
-    EXECUTION_OVERHEAD_NS = 4000  # Average of 4-6us (caching layer overhead)
+    CACHE_HIT_COST_NS = 500  # Average of 200-500ns
+    EXECUTION_OVERHEAD_NS = 6000  # Average of 4-6us (caching layer overhead)
+    MEASUREMENT_OVERHEAD =   750 # OVerhead implicit in the reported duration
 
     if task.total_operations == 0:
-        return 0.0, "No operations recorded"
+        return 0.0
 
     # Current cost with caching
     # Cache hits: just the cache lookup cost
