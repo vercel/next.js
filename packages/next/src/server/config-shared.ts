@@ -103,7 +103,7 @@ export type TurbopackLoaderItem =
   | string
   | {
       loader: string
-      options?: Record<string, JSONValue>
+      options?: TurbopackLoaderOptions
     }
 
 export type TurbopackLoaderBuiltinCondition =
