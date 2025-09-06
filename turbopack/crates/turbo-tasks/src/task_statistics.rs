@@ -19,17 +19,13 @@ impl TaskStatisticsApi {
         })
     }
 
-    pub fn is_enabled(&self) -> bool {
-        self.inner.get().is_some()
-    }
-
     // Calls `func` if statistics have been enabled (via
     // [`TaskStatisticsApi::enable`]).
     pub fn map<T>(&self, func: impl FnOnce(&Arc<TaskStatistics>) -> T) -> Option<T> {
         self.get().map(func)
     }
 
-    // Calls `func` if statistics have been enabled (via
+    // Returns the statistics if they have been enabled (via
     // [`TaskStatisticsApi::enable`]).
     pub fn get(&self) -> Option<&Arc<TaskStatistics>> {
         self.inner.get()
@@ -50,6 +46,14 @@ impl TaskStatistics {
         self.with_task_type_statistics(native_fn, |stats| stats.cache_miss += 1)
     }
 
+    pub fn increment_duration(
+        &self,
+        native_fn: &'static NativeFunction,
+        duration: std::time::Duration,
+    ) {
+        self.with_task_type_statistics(native_fn, |stats| stats.duration += duration)
+    }
+
     fn with_task_type_statistics(
         &self,
         native_fn: &'static NativeFunction,
@@ -64,6 +68,7 @@ impl TaskStatistics {
 struct TaskFunctionStatistics {
     cache_hit: u32,
     cache_miss: u32,
+    duration: std::time::Duration,
 }
 
 impl Serialize for TaskStatistics {
