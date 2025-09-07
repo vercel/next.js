@@ -28,7 +28,7 @@ To implement this pattern, use:
 
 - [Route Handlers](/docs/app/api-reference/file-conventions/route)
 - [`middleware`](/docs/app/api-reference/file-conventions/middleware)
-- In Pages Router, [API Routes](/pages/building-your-application/routing/api-routes)
+- In Pages Router, [API Routes](/docs/pages/building-your-application/routing/api-routes)
 
 ## Public Endpoints
 
@@ -646,6 +646,15 @@ export function middleware(request) {
 ```
 
 ## Security
+
+### Working with headers
+
+Be deliberate about where headers go, and avoid directly passing incoming request headers to the outgoing response.
+
+- **Upstream request headers**: In Middleware, `NextResponse.next({ request: { headers } })` modifies the headers your server receives and does not expose them to the client.
+- **Response headers**: `new Response(..., { headers })`, `NextResponse.json(..., { headers })`, `NextResponse.next({ headers })`, or `response.headers.set(...)` send headers back to the client. If sensitive values were appended to these headers, they will be visible to clients.
+
+Learn more in [NextResponse headers in Middleware](/docs/app/api-reference/functions/next-response#next).
 
 ### Rate limiting
 

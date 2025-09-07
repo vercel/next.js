@@ -20,6 +20,7 @@ export type WorkStoreContext = {
   page: string
 
   isPrefetchRequest?: boolean
+  nonce?: string
   renderOpts: {
     cacheLifeProfiles?: { [profile: string]: CacheLife }
     incrementalCache?: IncrementalCache
@@ -79,6 +80,7 @@ export function createWorkStore({
   isPrefetchRequest,
   buildId,
   previouslyRevalidatedTags,
+  nonce,
 }: WorkStoreContext): WorkStore {
   /**
    * Rules of Static & Dynamic HTML:
@@ -135,6 +137,7 @@ export function createWorkStore({
     buildId,
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
+    nonce,
 
     afterContext: createAfterContext(renderOpts),
     cacheComponentsEnabled: renderOpts.experimental.cacheComponents,

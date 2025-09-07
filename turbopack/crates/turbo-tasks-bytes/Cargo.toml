@@ -21,6 +21,3 @@ turbo-tasks = { workspace = true }
 
 [dev-dependencies]
 serde_test = "1.0.157"
-
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

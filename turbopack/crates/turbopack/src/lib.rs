@@ -672,7 +672,7 @@ async fn process_default_internal(
 }
 
 #[turbo_tasks::function]
-async fn externals_tracing_module_context(
+pub async fn externals_tracing_module_context(
     ty: ExternalType,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ModuleAssetContext>> {
@@ -709,6 +709,7 @@ async fn externals_tracing_module_context(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
+            is_tracing: true,
             ..Default::default()
         }
         .cell(),
@@ -1018,20 +1019,4 @@ pub async fn replace_external(
     Ok(Some(ModuleResolveResultItem::Module(ResolvedVc::upcast(
         module,
     ))))
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_css::register();
-    turbopack_ecmascript::register();
-    turbopack_node::register();
-    turbopack_env::register();
-    turbopack_mdx::register();
-    turbopack_json::register();
-    turbopack_resolve::register();
-    turbopack_static::register();
-    turbopack_wasm::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

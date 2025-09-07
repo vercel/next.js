@@ -200,6 +200,9 @@ pub struct EcmascriptOptions {
     /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
     /// are temporarily introduced.
     pub keep_last_successful_parse: bool,
+    /// Whether the modules in this context are never chunked/codegen-ed, but only used for
+    /// tracing.
+    pub is_tracing: bool,
 }
 
 #[turbo_tasks::value]
@@ -1826,7 +1829,7 @@ async fn process_parse_result(
                 }
                 ParseResult::NotFound => {
                     let path = ident.path().to_string().await?;
-                    let msg = format!("Could not parse module '{path}'");
+                    let msg = format!("Could not parse module '{path}', file not found");
                     let body = vec![
                         quote!(
                             "const e = new Error($msg);" as Stmt,
@@ -2722,14 +2725,6 @@ fn merge_option_vec<T>(a: Option<Vec<T>>, b: Option<Vec<T>>) -> Option<Vec<T>> {
         (None, Some(b)) => Some(b),
         (None, None) => None,
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbo_esregex::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
 #[cfg(test)]

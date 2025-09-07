@@ -6,7 +6,7 @@ import { nextBuild } from 'next-test-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
-const BUILD_FAILURE_RE = /Build failed because of (webpack|rspack) errors/
+const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
 
 // Test checks webpack loaders and plugins.
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(

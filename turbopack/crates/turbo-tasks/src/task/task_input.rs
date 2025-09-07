@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 
 use crate::{
-    MagicAny, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
+    MagicAny, ReadRef, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
     trace::TraceRawVcs,
 };
 
@@ -109,6 +109,25 @@ where
 
     async fn resolve_input(&self) -> Result<Self> {
         Ok(Arc::new(Box::pin(self.as_ref().resolve_input()).await?))
+    }
+}
+
+impl<T> TaskInput for ReadRef<T>
+where
+    T: TaskInput,
+{
+    fn is_resolved(&self) -> bool {
+        Self::as_raw_ref(self).is_resolved()
+    }
+
+    fn is_transient(&self) -> bool {
+        Self::as_raw_ref(self).is_transient()
+    }
+
+    async fn resolve_input(&self) -> Result<Self> {
+        Ok(ReadRef::new_owned(
+            Box::pin(Self::as_raw_ref(self).resolve_input()).await?,
+        ))
     }
 }
 

@@ -85,6 +85,7 @@ describe('minimal-mode-response-cache', () => {
     appPort = `http://127.0.0.1:${port}`
   })
   afterAll(async () => {
+    delete process.env.NOW_BUILDER
     delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)

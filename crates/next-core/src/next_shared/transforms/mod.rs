@@ -11,7 +11,6 @@ pub(crate) mod next_lint;
 pub(crate) mod next_middleware_dynamic_assert;
 pub(crate) mod next_optimize_server_react;
 pub(crate) mod next_page_config;
-pub(crate) mod next_page_static_info;
 pub(crate) mod next_pure;
 pub(crate) mod next_react_server_components;
 pub(crate) mod next_shake_exports;

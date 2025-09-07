@@ -11,7 +11,6 @@ use std::{
 use anyhow::{Context, Result};
 use next_api::{
     project::{DefineEnv, DraftModeOptions, ProjectContainer, ProjectOptions, WatchOptions},
-    register,
     route::endpoint_write_to_disk,
 };
 use serde_json::json;
@@ -193,7 +192,6 @@ impl HmrBenchmark {
                 root_path: RcStr::from(root_path),
                 project_path: RcStr::from(project_path.clone()),
                 next_config: load_next_config(),
-                js_config: rcstr!("{}"),
                 env: vec![],
                 define_env: DefineEnv {
                     client: vec![],
@@ -379,7 +377,6 @@ impl HmrBenchmark {
 }
 
 async fn setup_benchmark(module_count: usize) -> HmrBenchmark {
-    register();
     HmrBenchmark::new(module_count).await.unwrap()
 }
 

@@ -19,7 +19,6 @@ const nextFontLocalFontLoader: FontLoader = async ({
   data,
   emitFontFile,
   resolve,
-  deploymentId,
   loaderContext,
 }) => {
   const {
@@ -46,10 +45,6 @@ const nextFontLocalFontLoader: FontLoader = async ({
         preload,
         typeof adjustFontFallback === 'undefined' || !!adjustFontFallback
       )
-      // Should match behavior in get-asset-query-string.ts
-      const qs = deploymentId
-        ? `${fontUrl.includes('?') ? '&' : '?'}dpl=${deploymentId}`
-        : ''
 
       // Try to load font metadata from the font file using fontkit.
       // The data is used to calculate the fallback font override values.
@@ -71,7 +66,7 @@ const nextFontLocalFontLoader: FontLoader = async ({
           ? declarations.map(({ prop, value }) => [prop, value])
           : []),
         ...(hasCustomFontFamily ? [] : [['font-family', variableName]]),
-        ['src', `url(${fontUrl + qs}) format('${format}')`],
+        ['src', `url(${fontUrl}) format('${format}')`],
         ['font-display', display],
         ...((weight ?? defaultWeight)
           ? [['font-weight', weight ?? defaultWeight]]

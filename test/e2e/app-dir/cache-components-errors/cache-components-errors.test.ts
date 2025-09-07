@@ -5,14 +5,13 @@ import {
   getPrerenderOutput,
 } from './utils'
 
-const isRspack = process.env.NEXT_RSPACK !== undefined
-
 describe('Cache Components Errors', () => {
   const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
     skipStart: !isNextDev,
     skipDeployment: true,
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) {
     return
@@ -2697,8 +2696,6 @@ describe('Cache Components Errors', () => {
                     |                                      ^",
                  "stack": [
                    "{module evaluation} app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
-                   "{module evaluation} .next-internal/server/app/use-cache-private-in-unstable-cache/page/actions.js (server actions loader) (1:1)",
-                   "<FIXME-file-protocol>",
                    "<FIXME-next-dist-dir>",
                  ],
                }
@@ -2754,7 +2751,6 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
                      at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at __TURBOPACK__module__evaluation__ (bundler:///.next-internal/server/app/use-cache-private-in-unstable-cache/page/actions.js (server actions loader):1:1)
                      at a (<next-dist-dir>)
                    19 | }
                    20 |
@@ -2773,7 +2769,25 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within \`unstable_cache()\`.
                      at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at __TURBOPACK__module__evaluation__ (bundler:///.next-internal/server/app/use-cache-private-in-unstable-cache/page/actions.js%20(server%20actions%20loader):1:1)
+                   19 | }
+                   20 |
+                 > 21 | const getCachedData = unstable_cache(async () => {
+                      |                                      ^
+                   22 |   'use cache: private'
+                   23 |
+                   24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
+                `)
+              }
+            } else if (isRspack) {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                     at 0 (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
                      at a (<next-dist-dir>)
                    19 | }
                    20 |
@@ -2782,6 +2796,17 @@ describe('Cache Components Errors', () => {
                    22 |   'use cache: private'
                    23 |
                    24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2842,8 +2867,6 @@ describe('Cache Components Errors', () => {
                     | ^",
                  "stack": [
                    "{module evaluation} app/use-cache-private-in-use-cache/page.tsx (15:1)",
-                   "{module evaluation} .next-internal/server/app/use-cache-private-in-use-cache/page/actions.js (server actions loader) (1:1)",
-                   "<FIXME-file-protocol>",
                    "<FIXME-next-dist-dir>",
                  ],
                }
@@ -2900,7 +2923,6 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at __TURBOPACK__module__evaluation__ (bundler:///.next-internal/server/app/use-cache-private-in-use-cache/page/actions.js (server actions loader):1:1)
                      at a (<next-dist-dir>)
                    13 | }
                    14 |
@@ -2911,7 +2933,6 @@ describe('Cache Components Errors', () => {
                    18 |   return <p>Private</p>
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at __TURBOPACK__module__evaluation__ (bundler:///.next-internal/server/app/use-cache-private-in-use-cache/page/actions.js (server actions loader):1:1)
                      at b (<next-dist-dir>)
                    13 | }
                    14 |
@@ -2930,8 +2951,6 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at __TURBOPACK__module__evaluation__ (bundler:///.next-internal/server/app/use-cache-private-in-use-cache/page/actions.js%20(server%20actions%20loader):1:1)
-                     at a (<next-dist-dir>)
                    13 | }
                    14 |
                  > 15 | async function Private() {
@@ -2941,7 +2960,35 @@ describe('Cache Components Errors', () => {
                    18 |   return <p>Private</p>
                  Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
                      at __TURBOPACK__module__evaluation__ (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
-                     at __TURBOPACK__module__evaluation__ (bundler:///.next-internal/server/app/use-cache-private-in-use-cache/page/actions.js%20(server%20actions%20loader):1:1)
+                   13 | }
+                   14 |
+                 > 15 | async function Private() {
+                      | ^
+                   16 |   'use cache: private'
+                   17 |
+                   18 |   return <p>Private</p>
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache, exiting the build."
+                `)
+              }
+            } else if (isRspack) {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at 0 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at a (<next-dist-dir>)
+                   13 | }
+                   14 |
+                 > 15 | async function Private() {
+                      | ^
+                   16 |   'use cache: private'
+                   17 |
+                   18 |   return <p>Private</p>
+                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at 1 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
                      at b (<next-dist-dir>)
                    13 | }
                    14 |
@@ -2950,6 +2997,20 @@ describe('Cache Components Errors', () => {
                    16 |   'use cache: private'
                    17 |
                    18 |   return <p>Private</p>
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
+                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at c (<next-dist-dir>)
+                     at d (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.

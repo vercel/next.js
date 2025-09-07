@@ -8,6 +8,7 @@ mod derive;
 mod func;
 mod function_macro;
 mod generic_type_macro;
+mod global_name;
 mod primitive_macro;
 mod value_impl_macro;
 mod value_macro;

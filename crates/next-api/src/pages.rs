@@ -23,9 +23,9 @@ use next_core::{
     pages_structure::{
         PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
-    util::{
-        NextRuntime, get_asset_prefix_from_pathname, pages_function_name, parse_config_from_source,
-    },
+    parse_segment_config_from_source,
+    segment_config::ParseSegmentMode,
+    util::{NextRuntime, get_asset_prefix_from_pathname, pages_function_name},
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -930,7 +930,9 @@ impl PageEndpoint {
             .module();
 
         let config =
-            parse_config_from_source(self.source(), ssr_module, NextRuntime::default()).await?;
+            parse_segment_config_from_source(self.source(), ParseSegmentMode::Base).await?;
+
+        let runtime = config.runtime.unwrap_or(NextRuntime::NodeJs);
 
         Ok(
             // `/_app` and `/_document` never get rendered directly so they don't need to be
@@ -944,9 +946,9 @@ impl PageEndpoint {
                     // /_app and /_document are always rendered for Node.js for this case. For edge
                     // they're included in the page bundle.
                     runtime: NextRuntime::NodeJs,
-                    regions: config.regions.clone(),
+                    regions: config.preferred_region.clone(),
                 }
-            } else if config.runtime == NextRuntime::Edge {
+            } else if runtime == NextRuntime::Edge {
                 let modules = create_page_ssr_entry_module(
                     this.pathname.clone(),
                     reference_type,
@@ -955,7 +957,7 @@ impl PageEndpoint {
                     self.source(),
                     this.original_name.clone(),
                     *this.pages_structure,
-                    config.runtime,
+                    runtime,
                     this.pages_project.project().next_config(),
                 )
                 .await?;
@@ -964,8 +966,8 @@ impl PageEndpoint {
                     ssr_module: modules.ssr_module,
                     app_module: modules.app_module,
                     document_module: modules.document_module,
-                    runtime: config.runtime,
-                    regions: config.regions.clone(),
+                    runtime,
+                    regions: config.preferred_region.clone(),
                 }
             } else {
                 let modules = create_page_ssr_entry_module(
@@ -976,7 +978,7 @@ impl PageEndpoint {
                     self.source(),
                     this.original_name.clone(),
                     *this.pages_structure,
-                    config.runtime,
+                    runtime,
                     this.pages_project.project().next_config(),
                 )
                 .await?;
@@ -984,8 +986,8 @@ impl PageEndpoint {
                     ssr_module: modules.ssr_module,
                     app_module: modules.app_module,
                     document_module: modules.document_module,
-                    runtime: config.runtime,
-                    regions: config.regions.clone(),
+                    runtime,
+                    regions: config.preferred_region.clone(),
                 }
             }
             .cell(),

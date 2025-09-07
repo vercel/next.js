@@ -74,6 +74,11 @@ on:
         required: false
         type: string
         default: 'x86_64-unknown-linux-gnu'
+      overrideProxyAddress:
+        description: Override the proxy address to use for the test
+        required: false
+        type: string
+        default: ''
 
 env:
   NAPI_CLI_VERSION: 2.18.4
@@ -101,6 +106,7 @@ env:
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   NEXT_TEST_PREFER_OFFLINE: 1
   NEXT_CI_RUNNER: ${{ inputs.runs_on_labels }}
+  NEXT_TEST_PROXY_ADDRESS: ${{ inputs.overrideProxyAddress || '' }}
 
 jobs:
   build:
@@ -253,6 +259,11 @@ jobs:
         # We must use a login shell: fnm installation may modify the `.profile`
         shell: bash -le {0}
         timeout-minutes: ${{ inputs.timeout_minutes }}
+
+      # This file messes up the tests because it influences the build root autodetection.
+      - name: Clean up stray files
+        if: ${{ always() }}
+        run: rm -f /tmp/package-lock.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -4,7 +4,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
-use crate::environment::Environment;
+use crate::environment::{BrowserEnvironment, Environment};
 
 #[macro_export]
 macro_rules! definable_name_map_pattern_internal {
@@ -348,6 +348,11 @@ impl CompileTimeInfo {
     #[turbo_tasks::function]
     pub fn environment(&self) -> Vc<Environment> {
         *self.environment
+    }
+
+    #[turbo_tasks::function]
+    pub async fn css_environment(&self) -> Result<Vc<BrowserEnvironment>> {
+        Ok(self.environment.css_environment())
     }
 }
 

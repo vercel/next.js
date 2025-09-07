@@ -43,9 +43,6 @@ turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
-turbopack-dev-server = { workspace = true }
 turbopack-ecmascript = { workspace = true }
 turbopack-resolve = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

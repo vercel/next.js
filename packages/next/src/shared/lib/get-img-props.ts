@@ -35,6 +35,11 @@ export type ImageProps = Omit<
   fill?: boolean
   loader?: ImageLoader
   quality?: number | `${number}`
+  preload?: boolean
+  /**
+   * @deprecated Use `preload` prop instead.
+   * See https://nextjs.org/docs/app/api-reference/components/image#preload
+   */
   priority?: boolean
   loading?: LoadingValue
   placeholder?: PlaceholderValue
@@ -139,7 +144,7 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 const allImgs = new Map<
   string,
-  { src: string; priority: boolean; placeholder: PlaceholderValue }
+  { src: string; loading: LoadingValue; placeholder: PlaceholderValue }
 >()
 let perfObserver: PerformanceObserver | undefined
 
@@ -261,6 +266,7 @@ export function getImgProps(
     sizes,
     unoptimized = false,
     priority = false,
+    preload = false,
     loading,
     className,
     quality,
@@ -292,7 +298,7 @@ export function getImgProps(
   props: ImgProps
   meta: {
     unoptimized: boolean
-    priority: boolean
+    preload: boolean
     placeholder: NonNullable<ImageProps['placeholder']>
     fill: boolean
   }
@@ -408,7 +414,9 @@ export function getImgProps(
   src = typeof src === 'string' ? src : staticSrc
 
   let isLazy =
-    !priority && (loading === 'lazy' || typeof loading === 'undefined')
+    !priority &&
+    !preload &&
+    (loading === 'lazy' || typeof loading === 'undefined')
   if (!src || src.startsWith('data:') || src.startsWith('blob:')) {
     // https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
@@ -516,6 +524,16 @@ export function getImgProps(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
+    if (preload && loading === 'lazy') {
+      throw new Error(
+        `Image with src "${src}" has both "preload" and "loading='lazy'" properties. Only one should be used.`
+      )
+    }
+    if (preload && priority) {
+      throw new Error(
+        `Image with src "${src}" has both "preload" and "priority" properties. Only "preload" should be used.`
+      )
+    }
     if (
       placeholder !== 'empty' &&
       placeholder !== 'blur' &&
@@ -532,9 +550,13 @@ export function getImgProps(
         )
       }
     }
-    if (qualityInt && qualityInt !== 75 && !config.qualities) {
+    if (
+      qualityInt &&
+      config.qualities &&
+      !config.qualities.includes(qualityInt)
+    ) {
       warnOnce(
-        `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities. This config will be required starting in Next.js 16.` +
+        `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(', ')}].` +
           `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
       )
     }
@@ -622,15 +644,15 @@ export function getImgProps(
           const lcpImage = allImgs.get(imgSrc)
           if (
             lcpImage &&
-            !lcpImage.priority &&
+            lcpImage.loading === 'lazy' &&
             lcpImage.placeholder === 'empty' &&
             !lcpImage.src.startsWith('data:') &&
             !lcpImage.src.startsWith('blob:')
           ) {
             // https://web.dev/lcp/#measure-lcp-in-javascript
             warnOnce(
-              `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.` +
-                `\nRead more: https://nextjs.org/docs/api-reference/next/image#priority`
+              `Image with src "${lcpImage.src}" was detected as the Largest Contentful Paint (LCP). Please add the \`loading="eager"\` property if this image is above the fold.` +
+                `\nRead more: https://nextjs.org/docs/app/api-reference/components/image#loading`
             )
           }
         }
@@ -718,6 +740,8 @@ export function getImgProps(
     loader,
   })
 
+  const loadingFinal = isLazy ? 'lazy' : loading
+
   if (process.env.NODE_ENV !== 'production') {
     if (typeof window !== 'undefined') {
       let fullUrl: URL
@@ -726,13 +750,13 @@ export function getImgProps(
       } catch (e) {
         fullUrl = new URL(imgAttributes.src, window.location.href)
       }
-      allImgs.set(fullUrl.href, { src, priority, placeholder })
+      allImgs.set(fullUrl.href, { src, loading: loadingFinal, placeholder })
     }
   }
 
   const props: ImgProps = {
     ...rest,
-    loading: isLazy ? 'lazy' : loading,
+    loading: loadingFinal,
     fetchPriority,
     width: widthInt,
     height: heightInt,
@@ -743,6 +767,6 @@ export function getImgProps(
     srcSet: imgAttributes.srcSet,
     src: overrideSrc || imgAttributes.src,
   }
-  const meta = { unoptimized, priority, placeholder, fill }
+  const meta = { unoptimized, preload: preload || priority, placeholder, fill }
   return { props, meta }
 }

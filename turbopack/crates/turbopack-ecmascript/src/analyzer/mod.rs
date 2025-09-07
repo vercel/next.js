@@ -1810,7 +1810,19 @@ impl JsValue {
             }
             JsValue::WellKnownFunction(func) => {
                 let (name, explainer) = match func {
-                   WellKnownFunctionKind::ObjectAssign => (
+                    WellKnownFunctionKind::ArrayFilter => (
+                      "Array.prototype.filter".to_string(),
+                      "The standard Array.prototype.filter method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/filter"
+                    ),
+                    WellKnownFunctionKind::ArrayForEach => (
+                      "Array.prototype.forEach".to_string(),
+                      "The standard Array.prototype.forEach method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/forEach"
+                    ),
+                    WellKnownFunctionKind::ArrayMap => (
+                      "Array.prototype.map".to_string(),
+                      "The standard Array.prototype.map method: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/map"
+                    ),
+                    WellKnownFunctionKind::ObjectAssign => (
                         "Object.assign".to_string(),
                         "Object.assign method: https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/Object/assign",
                     ),
@@ -3433,7 +3445,7 @@ pub enum WellKnownObjectKind {
 impl WellKnownObjectKind {
     pub fn as_define_name(&self) -> Option<&[&str]> {
         match self {
-            Self::GlobalObject => Some(&["global"]),
+            Self::GlobalObject => Some(&["Object"]),
             Self::PathModule => Some(&["path"]),
             Self::FsModule => Some(&["fs"]),
             Self::UrlModule => Some(&["url"]),
@@ -3533,6 +3545,9 @@ impl Hash for RequireContextValue {
 /// A list of well-known functions that have special meaning in the analysis.
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum WellKnownFunctionKind {
+    ArrayFilter,
+    ArrayForEach,
+    ArrayMap,
     ObjectAssign,
     PathJoin,
     PathDirname,
@@ -3762,7 +3777,9 @@ mod tests {
     use turbo_tasks::{ResolvedVc, util::FormatDuration};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
-        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
+        environment::{
+            BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion,
+        },
         target::{Arch, CompileTarget, Endianness, Libc, Platform},
     };
 
@@ -3775,7 +3792,6 @@ mod tests {
 
     #[fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {
-        crate::register();
         let graph_snapshot_path = input.with_file_name("graph.snapshot");
         let graph_explained_snapshot_path = input.with_file_name("graph-explained.snapshot");
         let graph_effects_snapshot_path = input.with_file_name("graph-effects.snapshot");
@@ -3813,7 +3829,7 @@ mod tests {
                     None,
                 );
 
-                let mut var_graph = create_graph(&m, &eval_context);
+                let mut var_graph = create_graph(&m, &eval_context, false);
                 let var_cache = Default::default();
 
                 let mut named_values = var_graph
@@ -4058,7 +4074,10 @@ mod tests {
                                 steps
                             }
                             Effect::FreeVar { var, .. } => {
-                                resolved.push((format!("{parent} -> {i} free var"), *var));
+                                resolved.push((
+                                    format!("{parent} -> {i} free var"),
+                                    JsValue::FreeVar(var),
+                                ));
                                 0
                             }
                             Effect::TypeOf { arg, .. } => {
@@ -4159,21 +4178,26 @@ mod tests {
         var_cache: &Mutex<FxHashMap<Id, JsValue>>,
     ) -> (JsValue, u32) {
         turbo_tasks_testing::VcStorage::with(async {
+            let css_environment = BrowserEnvironment::default().resolved_cell();
+
             let compile_time_info = CompileTimeInfo::builder(
-                Environment::new(ExecutionEnvironment::NodeJsLambda(
-                    NodeJsEnvironment {
-                        compile_target: CompileTarget {
-                            arch: Arch::X64,
-                            platform: Platform::Linux,
-                            endianness: Endianness::Little,
-                            libc: Libc::Glibc,
+                Environment::new(
+                    ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment {
+                            compile_target: CompileTarget {
+                                arch: Arch::X64,
+                                platform: Platform::Linux,
+                                endianness: Endianness::Little,
+                                libc: Libc::Glibc,
+                            }
+                            .resolved_cell(),
+                            node_version: NodeJsVersion::default().resolved_cell(),
+                            cwd: ResolvedVc::cell(None),
                         }
                         .resolved_cell(),
-                        node_version: NodeJsVersion::default().resolved_cell(),
-                        cwd: ResolvedVc::cell(None),
-                    }
-                    .resolved_cell(),
-                ))
+                    ),
+                    *css_environment,
+                )
                 .to_resolved()
                 .await?,
             )

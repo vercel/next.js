@@ -11,8 +11,7 @@ import type {
   DeprecatedExperimentalTurboOptions,
   TurbopackOptions,
   TurbopackRuleConfigItem,
-  TurbopackRuleConfigItemOptions,
-  TurbopackRuleConfigItemOrShortcut,
+  TurbopackRuleConfigCollection,
   TurbopackRuleCondition,
   TurbopackLoaderBuiltinCondition,
 } from './config-shared'
@@ -106,18 +105,12 @@ const zHeader: zod.ZodType<Header> = z.object({
 
 const zTurbopackLoaderItem: zod.ZodType<TurbopackLoaderItem> = z.union([
   z.string(),
-  z.object({
+  z.strictObject({
     loader: z.string(),
     // Any JSON value can be used as turbo loader options, so use z.any() here
-    options: z.record(z.string(), z.any()),
+    options: z.record(z.string(), z.any()).optional(),
   }),
 ])
-
-const zTurbopackRuleConfigItemOptions: zod.ZodType<TurbopackRuleConfigItemOptions> =
-  z.object({
-    loaders: z.array(zTurbopackLoaderItem),
-    as: z.string().optional(),
-  })
 
 const zTurbopackLoaderBuiltinCondition: zod.ZodType<TurbopackLoaderBuiltinCondition> =
   z.union([
@@ -130,25 +123,32 @@ const zTurbopackLoaderBuiltinCondition: zod.ZodType<TurbopackLoaderBuiltinCondit
     z.literal('edge-light'),
   ])
 
-const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> = z.union([
-  z.literal(false),
-  z.record(
-    zTurbopackLoaderBuiltinCondition,
-    z.lazy(() => zTurbopackRuleConfigItem)
-  ),
-  zTurbopackRuleConfigItemOptions,
+const zTurbopackCondition: zod.ZodType<TurbopackRuleCondition> = z.union([
+  z.strictObject({ all: z.lazy(() => z.array(zTurbopackCondition)) }),
+  z.strictObject({ any: z.lazy(() => z.array(zTurbopackCondition)) }),
+  z.strictObject({ not: z.lazy(() => zTurbopackCondition) }),
+  zTurbopackLoaderBuiltinCondition,
+  z.strictObject({
+    path: z.union([z.string(), z.instanceof(RegExp)]).optional(),
+    content: z.instanceof(RegExp).optional(),
+  }),
 ])
-const zTurbopackRuleConfigItemOrShortcut: zod.ZodType<TurbopackRuleConfigItemOrShortcut> =
-  z.union([z.array(zTurbopackLoaderItem), zTurbopackRuleConfigItem])
 
-const zTurbopackCondition: zod.ZodType<TurbopackRuleCondition> = z.object({
-  path: z.union([z.string(), z.instanceof(RegExp)]).optional(),
-  content: z.instanceof(RegExp).optional(),
-})
+const zTurbopackRuleConfigItem: zod.ZodType<TurbopackRuleConfigItem> =
+  z.strictObject({
+    loaders: z.array(zTurbopackLoaderItem),
+    as: z.string().optional(),
+    condition: zTurbopackCondition.optional(),
+  })
+
+const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection> =
+  z.union([
+    zTurbopackRuleConfigItem,
+    z.array(z.union([zTurbopackLoaderItem, zTurbopackRuleConfigItem])),
+  ])
 
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
-  rules: z.record(z.string(), zTurbopackRuleConfigItemOrShortcut).optional(),
-  conditions: z.record(z.string(), zTurbopackCondition).optional(),
+  rules: z.record(z.string(), zTurbopackRuleConfigCollection).optional(),
   resolveAlias: z
     .record(
       z.string(),
@@ -169,7 +169,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 const zDeprecatedExperimentalTurboConfig: zod.ZodType<DeprecatedExperimentalTurboOptions> =
   z.strictObject({
     loaders: z.record(z.string(), z.array(zTurbopackLoaderItem)).optional(),
-    rules: z.record(z.string(), zTurbopackRuleConfigItemOrShortcut).optional(),
+    rules: z.record(z.string(), zTurbopackRuleConfigCollection).optional(),
     resolveAlias: z
       .record(
         z.string(),
@@ -300,14 +300,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     devIndicators: z
       .union([
         z.object({
-          buildActivityPosition: z
-            .union([
-              z.literal('bottom-left'),
-              z.literal('bottom-right'),
-              z.literal('top-left'),
-              z.literal('top-right'),
-            ])
-            .optional(),
           position: z
             .union([
               z.literal('bottom-left'),
@@ -371,6 +363,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         clientSegmentCache: z
           .union([z.boolean(), z.literal('client-only')])
           .optional(),
+        rdcForNavigations: z.boolean().optional(),
         clientParamParsing: z.boolean().optional(),
         clientParamParsingOrigins: z.array(z.string()).optional(),
         dynamicOnHover: z.boolean().optional(),
@@ -479,30 +472,9 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         turbopackTreeShaking: z.boolean().optional(),
         turbopackRemoveUnusedExports: z.boolean().optional(),
         turbopackScopeHoisting: z.boolean().optional(),
-        /**
-         * Use the system-provided CA roots instead of bundled CA roots for external HTTPS requests
-         * made by Turbopack. Currently this is only used for fetching data from Google Fonts.
-         *
-         * This may be useful in cases where you or an employer are MITMing traffic.
-         *
-         * This option is experimental because:
-         * - This may cause small performance problems, as it uses [`rustls-native-certs`](
-         *   https://github.com/rustls/rustls-native-certs).
-         * - In the future, this may become the default, and this option may be eliminated, once
-         *   <https://github.com/seanmonstar/reqwest/issues/2159> is resolved.
-         *
-         * Users who need to configure this behavior system-wide can override the project
-         * configuration using the `NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS=1` environment
-         * variable.
-         *
-         * This option is ignored on Windows on ARM, where the native TLS implementation is always
-         * used.
-         *
-         * If you need to set a proxy, Turbopack [respects the common `HTTP_PROXY` and `HTTPS_PROXY`
-         * environment variable convention](https://docs.rs/reqwest/latest/reqwest/#proxies). HTTP
-         * proxies are supported, SOCKS proxies are not currently supported.
-         */
         turbopackUseSystemTlsCerts: z.boolean().optional(),
+        turbopackUseBuiltinBabel: z.boolean().optional(),
+        turbopackUseBuiltinSass: z.boolean().optional(),
         optimizePackageImports: z.array(z.string()).optional(),
         optimizeServerReact: z.boolean().optional(),
         clientTraceMetadata: z.array(z.string()).optional(),
@@ -527,6 +499,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             })
             .optional(),
         ]),
+        reactDebugChannel: z.boolean().optional(),
         staticGenerationRetryCount: z.number().int().optional(),
         staticGenerationMaxConcurrency: z.number().int().optional(),
         staticGenerationMinPagesPerWorker: z.number().int().optional(),
@@ -540,7 +513,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           })
           .optional(),
         globalNotFound: z.boolean().optional(),
-        devtoolSegmentExplorer: z.boolean().optional(),
         browserDebugInfoInTerminal: z
           .union([
             z.boolean(),

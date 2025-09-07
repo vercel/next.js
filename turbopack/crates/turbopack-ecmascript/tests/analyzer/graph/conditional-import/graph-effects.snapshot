@@ -350,9 +350,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "process",
-        ),
+        var: "process",
         ast_path: [
             Program(
                 Module,

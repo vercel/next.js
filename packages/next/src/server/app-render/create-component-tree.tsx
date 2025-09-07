@@ -36,6 +36,7 @@ import {
   getConventionPathByType,
   isNextjsBuiltinFilePath,
 } from './segment-explorer-path'
+import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -223,6 +224,12 @@ async function createComponentTreeInternal(
         injectedJS: injectedJSWithCurrentLayout,
       })
     : []
+
+  const prefetchConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
+    : undefined
+  /** Whether this segment should use a runtime prefetch instead of a static prefetch. */
+  const hasRuntimePrefetch = prefetchConfig === 'unstable_runtime'
 
   const [Forbidden, forbiddenStyles] =
     authInterrupts && forbidden
@@ -415,9 +422,7 @@ async function createComponentTreeInternal(
 
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
-  const isSegmentViewEnabled =
-    process.env.NODE_ENV === 'development' &&
-    ctx.renderOpts.devtoolSegmentExplorer
+  const isSegmentViewEnabled = !!ctx.renderOpts.dev
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR
@@ -697,6 +702,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
+      hasRuntimePrefetch,
     ]
   }
 
@@ -729,6 +735,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       true,
+      hasRuntimePrefetch,
     ]
   }
 
@@ -834,6 +841,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
+      hasRuntimePrefetch,
     ]
   } else {
     const SegmentComponent = Component
@@ -1011,6 +1019,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
+      hasRuntimePrefetch,
     ]
   }
 }
@@ -1134,9 +1143,7 @@ async function createBoundaryConventionElement({
   styles: React.ReactNode | undefined
   tree: LoaderTree
 }) {
-  const isSegmentViewEnabled =
-    process.env.NODE_ENV === 'development' &&
-    ctx.renderOpts.devtoolSegmentExplorer
+  const isSegmentViewEnabled = !!ctx.renderOpts.dev
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR

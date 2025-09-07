@@ -1,23 +1,9 @@
 use quote::ToTokens;
 use syn::{GenericArgument, Ident, Path, PathArguments, Type, TypeParamBound, spanned::Spanned};
 
-pub fn get_register_value_type_ident(struct_ident: &Ident) -> Ident {
+pub fn get_cast_to_fat_pointer_ident(trait_ident: &Ident, struct_ident: &Ident) -> Ident {
     Ident::new(
-        &format!("__register_{struct_ident}_value_type"),
-        struct_ident.span(),
-    )
-}
-
-pub fn get_register_trait_methods_ident(trait_ident: &Ident, struct_ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("__register_{struct_ident}_{trait_ident}_trait_methods"),
-        trait_ident.span(),
-    )
-}
-
-pub fn get_register_trait_impls_ident(trait_ident: &Ident, struct_ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("__register_{struct_ident}_{trait_ident}_trait_impls"),
+        &format!("_cast_to_fat_pointer_{struct_ident}_{trait_ident}"),
         trait_ident.span(),
     )
 }
@@ -98,13 +84,6 @@ pub fn get_trait_impl_function_id_ident(
             ident.to_string().to_uppercase()
         ),
         ident.span(),
-    )
-}
-
-pub fn get_internal_trait_impl_function_ident(trait_ident: &Ident, ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("__trait_call_{trait_ident}_{ident}"),
-        trait_ident.span(),
     )
 }
 
@@ -200,13 +179,6 @@ pub fn get_trait_default_impl_function_ident(trait_ident: &Ident, ident: &Ident)
 pub fn get_value_type_ident(ident: &Ident) -> Ident {
     Ident::new(
         &format!("{}_VALUE_TYPE", ident.to_string().to_uppercase()),
-        ident.span(),
-    )
-}
-
-pub fn get_value_type_init_ident(ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("{}_VALUE_TYPE_INIT", ident.to_string().to_uppercase()),
         ident.span(),
     )
 }

@@ -30,7 +30,7 @@ use crate::{
     },
     capture_future::CaptureFuture,
     event::{Event, EventListener},
-    id::{BackendJobId, ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TraitTypeId},
+    id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TraitTypeId},
     id_factory::IdFactoryWithReuse,
     macro_helpers::NativeFunction,
     magic_any::MagicAny,
@@ -249,14 +249,17 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
     /// The caller must ensure that the task id is not used anymore.
     unsafe fn reuse_transient_task_id(&self, id: Unused<TaskId>);
 
+    /// Schedule a task for execution.
     fn schedule(&self, task: TaskId);
-    fn schedule_backend_background_job(&self, id: BackendJobId, data: Option<Box<dyn Any + Send>>);
-    fn schedule_backend_foreground_job(&self, id: BackendJobId, data: Option<Box<dyn Any + Send>>);
 
-    fn try_foreground_done(&self) -> Result<(), EventListener>;
-    fn wait_foreground_done_excluding_own<'a>(
-        &'a self,
-    ) -> Option<Pin<Box<dyn Future<Output = ()> + Send + 'a>>>;
+    /// Schedule a foreground backend job for execution.
+    fn schedule_backend_foreground_job(&self, job: B::BackendJob);
+
+    /// Schedule a background backend job for execution.
+    ///
+    /// Background jobs are not counted towards activeness of the system. The system is considered
+    /// idle even with active background jobs.
+    fn schedule_backend_background_job(&self, job: B::BackendJob);
 
     /// Enqueues tasks for notification of changed dependencies. This will
     /// eventually call `invalidate_tasks()` on all tasks.
@@ -369,16 +372,18 @@ pub struct TurboTasks<B: Backend + 'static> {
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
     execution_id_factory: IdFactory<ExecutionId>,
     stopped: AtomicBool,
-    currently_scheduled_tasks: AtomicUsize,
     currently_scheduled_foreground_jobs: AtomicUsize,
     currently_scheduled_background_jobs: AtomicUsize,
     scheduled_tasks: AtomicUsize,
     start: Mutex<Option<Instant>>,
     aggregated_update: Mutex<(Option<(Duration, usize)>, InvalidationReasonSet)>,
-    event: Event,
-    event_start: Event,
-    event_foreground: Event,
-    event_background: Event,
+    /// Event that is triggered when currently_scheduled_foreground_jobs becomes non-zero
+    event_foreground_start: Event,
+    /// Event that is triggered when all foreground jobs are done
+    /// (currently_scheduled_foreground_jobs becomes zero)
+    event_foreground_done: Event,
+    /// Event that is triggered when all background jobs are done
+    event_background_done: Event,
     program_start: Instant,
     compilation_events: CompilationEventQueue,
 }
@@ -499,16 +504,20 @@ impl<B: Backend + 'static> TurboTasks<B> {
             transient_task_id_factory,
             execution_id_factory,
             stopped: AtomicBool::new(false),
-            currently_scheduled_tasks: AtomicUsize::new(0),
-            currently_scheduled_background_jobs: AtomicUsize::new(0),
             currently_scheduled_foreground_jobs: AtomicUsize::new(0),
+            currently_scheduled_background_jobs: AtomicUsize::new(0),
             scheduled_tasks: AtomicUsize::new(0),
             start: Default::default(),
             aggregated_update: Default::default(),
-            event: Event::new(|| || "TurboTasks::event".to_string()),
-            event_start: Event::new(|| || "TurboTasks::event_start".to_string()),
-            event_foreground: Event::new(|| || "TurboTasks::event_foreground".to_string()),
-            event_background: Event::new(|| || "TurboTasks::event_background".to_string()),
+            event_foreground_done: Event::new(|| {
+                || "TurboTasks::event_foreground_done".to_string()
+            }),
+            event_foreground_start: Event::new(|| {
+                || "TurboTasks::event_foreground_start".to_string()
+            }),
+            event_background_done: Event::new(|| {
+                || "TurboTasks::event_background_done".to_string()
+            }),
             program_start: Instant::now(),
             compilation_events: CompilationEventQueue::default(),
         });
@@ -688,7 +697,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     #[track_caller]
     pub(crate) fn schedule(&self, task_id: TaskId) {
-        self.begin_primary_job();
+        self.begin_foreground_job();
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
 
         let this = self.pin();
@@ -757,7 +766,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     .scope(current_task_state, single_execution_future)
                     .await;
             }
-            this.finish_primary_job();
+            this.finish_foreground_job();
             anyhow::Ok(())
         };
 
@@ -866,27 +875,21 @@ impl<B: Backend + 'static> TurboTasks<B> {
         RawVc::LocalOutput(execution_id, local_task_id, persistence)
     }
 
-    fn begin_primary_job(&self) {
+    fn begin_foreground_job(&self) {
         if self
-            .currently_scheduled_tasks
+            .currently_scheduled_foreground_jobs
             .fetch_add(1, Ordering::AcqRel)
             == 0
         {
             *self.start.lock().unwrap() = Some(Instant::now());
-            self.event_start.notify(usize::MAX);
+            self.event_foreground_start.notify(usize::MAX);
             self.backend.idle_end(self);
         }
     }
 
-    fn begin_foreground_job(&self) {
-        self.begin_primary_job();
-        self.currently_scheduled_foreground_jobs
-            .fetch_add(1, Ordering::AcqRel);
-    }
-
-    fn finish_primary_job(&self) {
+    fn finish_foreground_job(&self) {
         if self
-            .currently_scheduled_tasks
+            .currently_scheduled_foreground_jobs
             .fetch_sub(1, Ordering::AcqRel)
             == 1
         {
@@ -904,44 +907,28 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     *update = Some((start.elapsed(), total));
                 }
             }
-            self.event.notify(usize::MAX);
+            self.event_foreground_done.notify(usize::MAX);
         }
     }
 
-    fn finish_foreground_job(&self) {
+    fn begin_background_job(&self) {
+        self.currently_scheduled_background_jobs
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    fn finish_background_job(&self) {
         if self
-            .currently_scheduled_foreground_jobs
-            .fetch_sub(1, Ordering::AcqRel)
+            .currently_scheduled_background_jobs
+            .fetch_sub(1, Ordering::Relaxed)
             == 1
         {
-            self.event_foreground.notify(usize::MAX);
+            self.event_background_done.notify(usize::MAX);
         }
-        self.finish_primary_job();
-    }
-
-    pub async fn wait_foreground_done(&self) {
-        if self
-            .currently_scheduled_foreground_jobs
-            .load(Ordering::Acquire)
-            == 0
-        {
-            return;
-        }
-        let listener = self.event_foreground.listen();
-        if self
-            .currently_scheduled_foreground_jobs
-            .load(Ordering::Acquire)
-            == 0
-        {
-            return;
-        }
-        listener
-            .instrument(trace_span!("wait_foreground_done"))
-            .await;
     }
 
     pub fn get_in_progress_count(&self) -> usize {
-        self.currently_scheduled_tasks.load(Ordering::Acquire)
+        self.currently_scheduled_foreground_jobs
+            .load(Ordering::Acquire)
     }
 
     /// Waits for the given task to finish executing. This works by performing an untracked read,
@@ -982,7 +969,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         timeout: Duration,
     ) -> Option<UpdateInfo> {
         let listener = self
-            .event
+            .event_foreground_done
             .listen_with_note(|| || "wait for update info".to_string());
         let wait_for_finish = {
             let (update, reason_set) = &mut *self.aggregated_update.lock().unwrap();
@@ -1008,9 +995,13 @@ impl<B: Backend + 'static> TurboTasks<B> {
             } else {
                 // wait for start, then wait for finish or timeout
                 let start_listener = self
-                    .event_start
+                    .event_foreground_start
                     .listen_with_note(|| || "wait for update info".to_string());
-                if self.currently_scheduled_tasks.load(Ordering::Acquire) == 0 {
+                if self
+                    .currently_scheduled_foreground_jobs
+                    .load(Ordering::Acquire)
+                    == 0
+                {
                     start_listener.await;
                 } else {
                     drop(start_listener);
@@ -1027,7 +1018,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     () = tokio::time::sleep(aggregation) => {
                         break;
                     }
-                    () = self.event.listen_with_note(|| || "wait for update info".to_string()) => {
+                    () = self.event_foreground_done.listen_with_note(|| || "wait for update info".to_string()) => {
                         // Resets the sleep
                     }
                 }
@@ -1047,7 +1038,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     pub async fn wait_background_done(&self) {
-        let listener = self.event_background.listen();
+        let listener = self.event_background_done.listen();
         if self
             .currently_scheduled_background_jobs
             .load(Ordering::Acquire)
@@ -1063,14 +1054,18 @@ impl<B: Backend + 'static> TurboTasks<B> {
             self.stopped.store(true, Ordering::Release);
             {
                 let listener = self
-                    .event
+                    .event_foreground_done
                     .listen_with_note(|| || "wait for stop".to_string());
-                if self.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
+                if self
+                    .currently_scheduled_foreground_jobs
+                    .load(Ordering::Acquire)
+                    != 0
+                {
                     listener.await;
                 }
             }
             {
-                let listener = self.event_background.listen();
+                let listener = self.event_background_done.listen();
                 if self
                     .currently_scheduled_background_jobs
                     .load(Ordering::Acquire)
@@ -1085,60 +1080,40 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     #[track_caller]
-    pub(crate) fn schedule_background_job<
-        T: FnOnce(Arc<TurboTasks<B>>) -> F + Send + 'static,
-        F: Future<Output = ()> + Send + 'static,
-    >(
-        &self,
-        func: T,
-    ) {
-        let this = self.pin();
-        self.currently_scheduled_background_jobs
-            .fetch_add(1, Ordering::AcqRel);
+    pub(crate) fn schedule_foreground_job<T>(&self, func: T)
+    where
+        T: AsyncFnOnce(Arc<TurboTasks<B>>) -> Arc<TurboTasks<B>> + Send + 'static,
+        T::CallOnceFuture: Send,
+    {
+        let mut this = self.pin();
+        this.begin_foreground_job();
         tokio::spawn(
             TURBO_TASKS
                 .scope(this.clone(), async move {
-                    while this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
-                        let listener = this.event.listen_with_note(|| {
-                            || "background job waiting for execution".to_string()
-                        });
-                        if this.currently_scheduled_tasks.load(Ordering::Acquire) != 0 {
-                            listener.await;
-                        }
-                    }
-                    let this2 = this.clone();
                     if !this.stopped.load(Ordering::Acquire) {
-                        func(this).await;
+                        this = func(this.clone()).await;
                     }
-                    if this2
-                        .currently_scheduled_background_jobs
-                        .fetch_sub(1, Ordering::AcqRel)
-                        == 1
-                    {
-                        this2.event_background.notify(usize::MAX);
-                    }
+                    this.finish_foreground_job();
                 })
                 .in_current_span(),
         );
     }
 
     #[track_caller]
-    pub(crate) fn schedule_foreground_job<
-        T: FnOnce(Arc<TurboTasks<B>>) -> F + Send + 'static,
-        F: Future<Output = ()> + Send + 'static,
-    >(
-        &self,
-        func: T,
-    ) {
-        let this = self.pin();
-        this.begin_foreground_job();
+    pub(crate) fn schedule_background_job<T>(&self, func: T)
+    where
+        T: AsyncFnOnce(Arc<TurboTasks<B>>) -> Arc<TurboTasks<B>> + Send + 'static,
+        T::CallOnceFuture: Send,
+    {
+        let mut this = self.pin();
+        self.begin_background_job();
         tokio::spawn(
             TURBO_TASKS
                 .scope(this.clone(), async move {
                     if !this.stopped.load(Ordering::Acquire) {
-                        func(this.clone()).await;
+                        this = func(this).await;
                     }
-                    this.finish_foreground_job();
+                    this.finish_background_job();
                 })
                 .in_current_span(),
         );
@@ -1240,9 +1215,9 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
     ) -> TaskId {
         let this = self.pin();
         self.spawn_once_task(async move {
-            this.finish_primary_job();
+            this.finish_foreground_job();
             future.await?;
-            this.begin_primary_job();
+            this.begin_foreground_job();
             Ok(Completion::new())
         })
     }
@@ -1478,53 +1453,19 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
     }
 
     #[track_caller]
-    fn schedule_backend_background_job(&self, id: BackendJobId, data: Option<Box<dyn Any + Send>>) {
-        self.schedule_background_job(move |this| async move {
-            this.backend.run_backend_job(id, data, &*this).await;
+    fn schedule_backend_background_job(&self, job: B::BackendJob) {
+        self.schedule_background_job(async move |this| {
+            this.backend.run_backend_job(job, &*this).await;
+            this
         })
     }
 
     #[track_caller]
-    fn schedule_backend_foreground_job(&self, id: BackendJobId, data: Option<Box<dyn Any + Send>>) {
-        self.schedule_foreground_job(move |this| async move {
-            this.backend.run_backend_job(id, data, &*this).await;
+    fn schedule_backend_foreground_job(&self, job: B::BackendJob) {
+        self.schedule_foreground_job(async move |this| {
+            this.backend.run_backend_job(job, &*this).await;
+            this
         })
-    }
-
-    fn try_foreground_done(&self) -> Result<(), EventListener> {
-        if self
-            .currently_scheduled_foreground_jobs
-            .load(Ordering::Acquire)
-            == 0
-        {
-            return Ok(());
-        }
-        let listener = self.event_foreground.listen();
-        if self
-            .currently_scheduled_foreground_jobs
-            .load(Ordering::Acquire)
-            == 0
-        {
-            return Ok(());
-        }
-        Err(listener)
-    }
-
-    fn wait_foreground_done_excluding_own<'a>(
-        &'a self,
-    ) -> Option<Pin<Box<dyn Future<Output = ()> + Send + 'a>>> {
-        if self
-            .currently_scheduled_foreground_jobs
-            .load(Ordering::Acquire)
-            == 0
-        {
-            return None;
-        }
-        Some(Box::pin(async {
-            self.finish_foreground_job();
-            self.wait_foreground_done().await;
-            self.begin_foreground_job();
-        }))
     }
 
     /// Enqueues tasks for notification of changed dependencies. This will
@@ -1595,7 +1536,9 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
     }
 
     fn is_idle(&self) -> bool {
-        self.currently_scheduled_tasks.load(Ordering::Acquire) == 0
+        self.currently_scheduled_foreground_jobs
+            .load(Ordering::Acquire)
+            == 0
     }
 }
 

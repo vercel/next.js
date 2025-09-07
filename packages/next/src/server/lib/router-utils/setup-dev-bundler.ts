@@ -67,7 +67,7 @@ import {
 } from '../../../build/utils'
 import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/shared'
 import type { LazyRenderServerInstance } from '../router-server'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
@@ -576,10 +576,7 @@ async function startWatcher(
                   ''
                 )
               ),
-              filePath: path.relative(
-                path.dirname(validatorFilePath),
-                fileName
-              ),
+              filePath: fileName,
             })
           }
 
@@ -606,18 +603,12 @@ async function startWatcher(
           if (validFileMatcher.isAppRouterRoute(fileName)) {
             appRouteHandlers.push({
               route: normalizePathSep(pageName),
-              filePath: path.relative(
-                path.dirname(validatorFilePath),
-                fileName
-              ),
+              filePath: fileName,
             })
           } else {
             appRoutes.push({
               route: normalizePathSep(pageName),
-              filePath: path.relative(
-                path.dirname(validatorFilePath),
-                fileName
-              ),
+              filePath: fileName,
             })
           }
 
@@ -635,18 +626,12 @@ async function startWatcher(
           if (pageName.startsWith('/api/')) {
             pageApiRoutes.push({
               route: normalizePathSep(pageName),
-              filePath: path.relative(
-                path.dirname(validatorFilePath),
-                fileName
-              ),
+              filePath: fileName,
             })
           } else {
             pageRoutes.push({
               route: normalizePathSep(pageName),
-              filePath: path.relative(
-                path.dirname(validatorFilePath),
-                fileName
-              ),
+              filePath: fileName,
             })
           }
         }
@@ -1029,7 +1014,7 @@ async function startWatcher(
 
           // emit the change so clients fetch the update
           hotReloader.send({
-            action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
+            type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
             data: [
               {
                 devPagesManifest: true,
@@ -1039,14 +1024,14 @@ async function startWatcher(
 
           addedRoutes.forEach((route) => {
             hotReloader.send({
-              action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE,
+              type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
               data: [route],
             })
           })
 
           removedRoutes.forEach((route) => {
             hotReloader.send({
-              action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE,
+              type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
               data: [route],
             })
           })
@@ -1062,6 +1047,9 @@ async function startWatcher(
             slots,
             redirects: opts.nextConfig.redirects,
             rewrites: opts.nextConfig.rewrites,
+            // Ensure relative paths in validator.ts are computed from validatorFilePath,
+            // matching behavior of build and CLI typegen.
+            validatorFilePath,
             appRouteHandlers,
             pageApiRoutes,
           })
