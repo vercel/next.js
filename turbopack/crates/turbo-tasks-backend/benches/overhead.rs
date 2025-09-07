@@ -55,30 +55,30 @@ pub fn overhead(c: &mut Criterion) {
             b.iter(|| busy_task(black_box(d)))
         });
 
-        // group.bench_with_input(BenchmarkId::new("tokio", micros), &duration, |b, &d| {
-        //     b.to_async(&rt).iter_custom(move |iters| {
-        //         spawn(async move {
-        //             let start = Instant::now();
-        //             for _ in 0..iters {
-        //                 spawn(async move {
-        //                     busy_task(black_box(d));
-        //                 })
-        //                 .await
-        //                 .unwrap();
-        //             }
-        //             start.elapsed()
-        //         })
-        //         .then(|r| async { r.unwrap() })
-        //     });
-        // });
+        group.bench_with_input(BenchmarkId::new("tokio", micros), &duration, |b, &d| {
+            b.to_async(&rt).iter_custom(move |iters| {
+                spawn(async move {
+                    let start = Instant::now();
+                    for _ in 0..iters {
+                        spawn(async move {
+                            busy_task(black_box(d));
+                        })
+                        .await
+                        .unwrap();
+                    }
+                    start.elapsed()
+                })
+                .then(|r| async { r.unwrap() })
+            });
+        });
 
-        // group.bench_with_input(
-        //     BenchmarkId::new("turbo-uncached", micros),
-        //     &duration,
-        //     |b, &d| {
-        //         run_turbo::<Uncached>(&rt, b, d, false);
-        //     },
-        // );
+        group.bench_with_input(
+            BenchmarkId::new("turbo-uncached", micros),
+            &duration,
+            |b, &d| {
+                run_turbo::<Uncached>(&rt, b, d, false);
+            },
+        );
         // Same as turbo-uncached but reports the time as measured by turbotasks itself
         // This allows us to understand the cost of the indirection within turbotasks
         group.bench_with_input(
@@ -89,51 +89,51 @@ pub fn overhead(c: &mut Criterion) {
             },
         );
 
-        // group.bench_with_input(
-        //     BenchmarkId::new("turbo-cached-same-keys", micros),
-        //     &duration,
-        //     |b, &d| {
-        //         run_turbo::<CachedSame>(&rt, b, d, false);
-        //     },
-        // );
+        group.bench_with_input(
+            BenchmarkId::new("turbo-cached-same-keys", micros),
+            &duration,
+            |b, &d| {
+                run_turbo::<CachedSame>(&rt, b, d, false);
+            },
+        );
 
-        // group.bench_with_input(
-        //     BenchmarkId::new("turbo-cached-different-keys", micros),
-        //     &duration,
-        //     |b, &d| {
-        //         run_turbo::<CachedDifferent>(&rt, b, d, false);
-        //     },
-        // );
+        group.bench_with_input(
+            BenchmarkId::new("turbo-cached-different-keys", micros),
+            &duration,
+            |b, &d| {
+                run_turbo::<CachedDifferent>(&rt, b, d, false);
+            },
+        );
 
-        // group.bench_with_input(
-        //     BenchmarkId::new("tokio-parallel", micros),
-        //     &duration,
-        //     |b, &d| {
-        //         b.to_async(&rt_parallel).iter_custom(move |iters| {
-        //             spawn(async move {
-        //                 let start = Instant::now();
-        //                 let mut futures = (0..iters)
-        //                     .map(|_| {
-        //                         spawn(async move {
-        //                             busy_task(black_box(d));
-        //                         })
-        //                     })
-        //                     .collect::<FuturesUnordered<_>>();
-        //                 while futures.next().await.is_some() {}
-        //                 start.elapsed()
-        //             })
-        //             .then(|r| async { r.unwrap() })
-        //         });
-        //     },
-        // );
+        group.bench_with_input(
+            BenchmarkId::new("tokio-parallel", micros),
+            &duration,
+            |b, &d| {
+                b.to_async(&rt_parallel).iter_custom(move |iters| {
+                    spawn(async move {
+                        let start = Instant::now();
+                        let mut futures = (0..iters)
+                            .map(|_| {
+                                spawn(async move {
+                                    busy_task(black_box(d));
+                                })
+                            })
+                            .collect::<FuturesUnordered<_>>();
+                        while futures.next().await.is_some() {}
+                        start.elapsed()
+                    })
+                    .then(|r| async { r.unwrap() })
+                });
+            },
+        );
 
-        // group.bench_with_input(
-        //     BenchmarkId::new("turbo-uncached-parallel", micros),
-        //     &duration,
-        //     |b, &d| {
-        //         run_turbo::<Uncached>(&rt_parallel, b, d, true);
-        //     },
-        // );
+        group.bench_with_input(
+            BenchmarkId::new("turbo-uncached-parallel", micros),
+            &duration,
+            |b, &d| {
+                run_turbo::<Uncached>(&rt_parallel, b, d, true);
+            },
+        );
     }
     group.finish();
 }
