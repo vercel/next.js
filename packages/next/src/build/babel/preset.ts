@@ -58,8 +58,8 @@ type NextBabelPresetOptions = {
     disallowAmbiguousJSXLike?: boolean
     dts?: boolean
     isTSX?: boolean
-    allExtensions: boolean
-    ignoreExtensions: boolean
+    allExtensions?: boolean
+    ignoreExtensions?: boolean
   }
 }
 
