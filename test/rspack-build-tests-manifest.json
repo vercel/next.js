@@ -3311,6 +3311,7 @@
       "app dir - metadata dynamic routes should pick configured metadataBase instead of deployment url for canonical url",
       "app dir - metadata dynamic routes should support edge runtime of image routes",
       "app dir - metadata dynamic routes should use localhost for local prod and fallback to deployment url when metadataBase is falsy",
+      "app dir - metadata dynamic routes sitemap should 404 for non-existing id from generateImageMetadata",
       "app dir - metadata dynamic routes sitemap should generate static paths of dynamic sitemap in production",
       "app dir - metadata dynamic routes sitemap should handle sitemap.[ext] dynamic routes",
       "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
@@ -6479,7 +6480,8 @@
   },
   "test/e2e/app-dir/sitemap-group/sitemap-group.test.ts": {
     "passed": [
-      "sitemap-group should not add suffix to sitemap under group routes"
+      "sitemap-group should not add suffix to sitemap under group routes",
+      "sitemap-group should not add suffix to static sitemap.xml under group routes"
     ],
     "failed": [],
     "pending": [],
@@ -19926,6 +19928,13 @@
       "symbolic-file-links should work using browser",
       "symbolic-file-links should work with html"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/tsconfig-no-relative-resolve/tsconfig-no-relative-resolve.test.ts": {
+    "passed": ["tsconfig-no-relative-resolve should fail to build"],
     "failed": [],
     "pending": [],
     "flakey": [],
