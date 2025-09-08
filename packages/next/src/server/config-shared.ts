@@ -852,8 +852,6 @@ export interface ExperimentalConfig {
   /**
    * When enabled, in dev mode, Next.js will send React's debug info through the
    * WebSocket connection, instead of including it in the main RSC payload.
-   *
-   * @default true
    */
   reactDebugChannel?: boolean
 
@@ -1634,7 +1632,7 @@ export const defaultConfig = Object.freeze({
     },
     allowDevelopmentBuild: undefined,
     reactCompiler: undefined,
-    reactDebugChannel: true,
+    reactDebugChannel: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
