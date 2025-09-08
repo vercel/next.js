@@ -88,7 +88,9 @@ export function tryGetPreviewData(
     ) as typeof encryptedPreviewData
   } catch {
     // TODO: warn
-    clearPreviewData(res as NextApiResponse)
+    if (!multiZoneDraftMode) {
+      clearPreviewData(res as NextApiResponse)
+    }
     return false
   }
 
