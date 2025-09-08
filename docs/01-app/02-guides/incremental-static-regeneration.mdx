@@ -97,7 +97,7 @@ Here's how this example works:
 3. After 60 seconds has passed, the next request will still return the cached (now stale) page
 4. The cache is invalidated and a new version of the page begins generating in the background
 5. Once generated successfully, the next request will return the updated page and cache it for subsequent requests
-6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [dynamicParams](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) value. However, if the post does not exist, then 404 is returned.
+6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [dynamicParams](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams) value. However, if the post does not exist, then 404 is returned.
 
 </AppOnly>
 
@@ -196,7 +196,7 @@ Here's how this example works:
 3. After 60 seconds has passed, the next request will still return the cached (now stale) page
 4. The cache is invalidated and a new version of the page begins generating in the background
 5. Once generated successfully, the next request will return the updated page and cache it for subsequent requests
-6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [fallback](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-false) value. However, if the post does not exist, then 404 is returned.
+6. If `/blog/26` is requested, and it exists, the page will be generated on-demand. This behavior can be changed by using a different [fallback](/docs/pages/api-reference/functions/get-static-paths#fallback-false) value. However, if the post does not exist, then 404 is returned.
 
 </PagesOnly>
 

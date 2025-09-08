@@ -7,17 +7,20 @@ const appDir = join(__dirname, '..')
 
 const warnMessage = /Using tsconfig file:/
 
-describe('Custom TypeScript Config', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      it('should warn when using custom typescript path', async () => {
-        const { stdout } = await nextBuild(appDir, [], {
-          stdout: true,
-        })
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+  'Custom TypeScript Config',
+  () => {
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        it('should warn when using custom typescript path', async () => {
+          const { stdout } = await nextBuild(appDir, [], {
+            stdout: true,
+          })
 
-        expect(stdout).toMatch(warnMessage)
-      })
-    }
-  )
-})
+          expect(stdout).toMatch(warnMessage)
+        })
+      }
+    )
+  }
+)

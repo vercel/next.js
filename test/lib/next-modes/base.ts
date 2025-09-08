@@ -332,6 +332,19 @@ export class NextInstance {
           )
         }
 
+        const tsConfigTestFile = testDirFiles.find(
+          (file) => file === 'tsconfig.test.json'
+        )
+        if (tsConfigTestFile) {
+          require('console').log(
+            'tsconfig.test.json found, using it for this test'
+          )
+          await fs.copyFile(
+            path.join(this.testDir, 'tsconfig.test.json'),
+            path.join(this.testDir, 'tsconfig.json')
+          )
+        }
+
         if (isNextDeploy) {
           const fileName = path.join(
             this.testDir,

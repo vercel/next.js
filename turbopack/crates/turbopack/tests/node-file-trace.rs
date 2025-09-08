@@ -35,12 +35,11 @@ use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext, emit_with_completion_operation,
     module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
-    register,
 };
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
     output::OutputAsset,
@@ -346,9 +345,10 @@ async fn node_file_trace_operation(
     let output_dir = output_fs.root().owned().await?;
 
     let source = FileSource::new(input);
-    let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
-        NodeJsEnvironment::default().resolved_cell(),
-    ));
+    let environment = Environment::new(
+        ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().resolved_cell()),
+        BrowserEnvironment::default().cell(),
+    );
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
         // TODO These test cases should move into the `node-file-trace` crate and use the same
@@ -368,6 +368,7 @@ async fn node_file_trace_operation(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
+            is_tracing: true,
             ..Default::default()
         }
         .cell(),
@@ -416,11 +417,6 @@ fn node_file_trace<B: Backend + 'static>(
         builder.build().unwrap()
     };
     r.block_on(async move {
-        register();
-        include!(concat!(
-            env!("OUT_DIR"),
-            "/register_test_node-file-trace.rs"
-        ));
         let bench_suites = BENCH_SUITES.clone();
         let package_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         let mut tests_output_root = temp_dir();

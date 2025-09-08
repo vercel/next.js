@@ -18,6 +18,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+either = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 smallvec = { workspace = true }
@@ -52,8 +53,6 @@ tokio = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
 turbo-tasks-backend = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
 
 [[bench]]
 name = "mod"

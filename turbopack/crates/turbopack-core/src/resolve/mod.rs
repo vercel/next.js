@@ -15,7 +15,7 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap, TaskInput,
     TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, RealPathResult};
+use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbo_unix_path::normalize_request;
 
 use self::{
@@ -1172,20 +1172,23 @@ async fn realpath(
     fs_path: &FileSystemPath,
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<FileSystemPath> {
-    let result = fs_path.realpath_with_links().owned().await?;
+    let result = fs_path.realpath_with_links().await?;
     refs.extend(
         result
             .symlinks
-            .into_iter()
+            .iter()
             .map(|path| async move {
                 Ok(ResolvedVc::upcast(
-                    FileSource::new(path).to_resolved().await?,
+                    FileSource::new(path.clone()).to_resolved().await?,
                 ))
             })
             .try_join()
             .await?,
     );
-    Ok(result.path)
+    match &result.path_or_error {
+        Ok(path) => Ok(path.clone()),
+        Err(e) => bail!(e.as_error_message(fs_path, &result)),
+    }
 }
 
 #[turbo_tasks::value(shared)]
@@ -1516,11 +1519,16 @@ pub async fn resolve_raw(
     force_in_lookup_dir: bool,
 ) -> Result<Vc<ResolveResult>> {
     async fn to_result(request: RcStr, path: FileSystemPath) -> Result<Vc<ResolveResult>> {
-        let RealPathResult { path, symlinks } = &*path.realpath_with_links().await?;
+        let result = &*path.realpath_with_links().await?;
+        let path = match &result.path_or_error {
+            Ok(path) => path,
+            Err(e) => bail!(e.as_error_message(&path, result)),
+        };
         Ok(*ResolveResult::source_with_affecting_sources(
             RequestKey::new(request),
             ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
-            symlinks
+            result
+                .symlinks
                 .iter()
                 .map(|symlink| async move {
                     anyhow::Ok(ResolvedVc::upcast(
@@ -2864,7 +2872,11 @@ async fn resolved(
     query: RcStr,
     fragment: RcStr,
 ) -> Result<Vc<ResolveResult>> {
-    let RealPathResult { path, symlinks } = &*fs_path.realpath_with_links().await?;
+    let result = &*fs_path.realpath_with_links().await?;
+    let path = match &result.path_or_error {
+        Ok(path) => path,
+        Err(e) => bail!(e.as_error_message(&fs_path, result)),
+    };
 
     let path_ref = path.clone();
     // Check alias field for path aliases first
@@ -2908,7 +2920,8 @@ async fn resolved(
                 .to_resolved()
                 .await?,
         ),
-        symlinks
+        result
+            .symlinks
             .iter()
             .map(|symlink| async move {
                 anyhow::Ok(ResolvedVc::upcast(

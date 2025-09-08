@@ -161,6 +161,7 @@ describe('required server files', () => {
   })
 
   afterAll(async () => {
+    delete process.env.NOW_BUILDER
     delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
   })

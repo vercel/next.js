@@ -33,7 +33,7 @@ import type { FallbackRouteParam } from '../build/static-paths/types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
-  typescript: Required<TypeScriptConfig>
+  typescript: TypeScriptConfig
   configOrigin?: string
   configFile?: string
   configFileName: string
@@ -251,15 +251,12 @@ type JSONValue =
   | JSONValue[]
   | { [k: string]: JSONValue }
 
-/**
- * @deprecated Use `TurbopackRuleConfigItem` instead.
- */
 export type TurbopackLoaderItem =
   | string
   | {
       loader: string
       // At the moment, Turbopack options must be JSON-serializable, so restrict values.
-      options: Record<string, JSONValue>
+      options?: Record<string, JSONValue>
     }
 
 export type TurbopackLoaderBuiltinCondition =
@@ -271,30 +268,40 @@ export type TurbopackLoaderBuiltinCondition =
   | 'node'
   | 'edge-light'
 
-export type TurbopackRuleCondition = {
-  path?: string | RegExp
-  content?: RegExp
-}
+export type TurbopackRuleCondition =
+  | { all: TurbopackRuleCondition[] }
+  | { any: TurbopackRuleCondition[] }
+  | { not: TurbopackRuleCondition }
+  | TurbopackLoaderBuiltinCondition
+  | {
+      path?: string | RegExp
+      content?: RegExp
+    }
 
-export type TurbopackRuleConfigItemOrShortcut =
-  | TurbopackLoaderItem[]
-  | TurbopackRuleConfigItem
-
-export type TurbopackRuleConfigItemOptions = {
+export type TurbopackRuleConfigItem = {
   loaders: TurbopackLoaderItem[]
   as?: string
+  condition?: TurbopackRuleCondition
 }
 
-export type TurbopackRuleConfigItem =
-  | TurbopackRuleConfigItemOptions
-  | { [condition in TurbopackLoaderBuiltinCondition]?: TurbopackRuleConfigItem }
-  | false
+/**
+ * This can be an object representing a single configuration, or a list of
+ * loaders and/or rule configuration objects.
+ *
+ * - A list of loader path strings or objects is the "shorthand" syntax.
+ * - A list of rule configuration objects can be useful when each configuration
+ *   object has different `condition` fields, but still match the same top-level
+ *   path glob.
+ */
+export type TurbopackRuleConfigCollection =
+  | TurbopackRuleConfigItem
+  | (TurbopackLoaderItem | TurbopackRuleConfigItem)[]
 
 export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A mapping of aliased imports to modules to load in their place.
    *
-   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-alias)
+   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#resolving-aliases)
    */
   resolveAlias?: Record<
     string,
@@ -304,23 +311,16 @@ export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A list of extensions to resolve when importing files.
    *
-   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
+   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#resolving-custom-extensions)
    */
   resolveExtensions?: string[]
 
   /**
    * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)
    */
-  rules?: Record<string, TurbopackRuleConfigItemOrShortcut>
-
-  /**
-   * (`next --turbopack` only) A list of conditions to apply when running webpack loaders with Turbopack.
-   *
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
-   */
-  conditions?: Record<string, TurbopackRuleCondition>
+  rules?: Record<string, TurbopackRuleConfigCollection>
 
   /**
    * The module ID strategy to use for Turbopack.
@@ -341,7 +341,7 @@ export interface DeprecatedExperimentalTurboOptions extends TurbopackOptions {
    * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @deprecated Use `rules` instead.
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)
    */
   loaders?: Record<string, TurbopackLoaderItem[]>
 
@@ -454,6 +454,13 @@ export interface ExperimentalConfig {
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   clientSegmentCache?: boolean | 'client-only'
+
+  /**
+   * Enables RDC for Dynamic Navigations. This is only supported for App Router
+   * when Partial Prerendering is also enabled. This is enabled by default when
+   * Partial Prerendering is enabled.
+   */
+  rdcForNavigations?: boolean
   clientParamParsing?: boolean
 
   /**
@@ -608,6 +615,43 @@ export interface ExperimentalConfig {
    * Enable removing unused exports for turbopack dev server and build.
    */
   turbopackRemoveUnusedExports?: boolean
+
+  /**
+   * Use the system-provided CA roots instead of bundled CA roots for external HTTPS requests
+   * made by Turbopack. Currently this is only used for fetching data from Google Fonts.
+   *
+   * This may be useful in cases where you or an employer are MITMing traffic.
+   *
+   * This option is experimental because:
+   * - This may cause small performance problems, as it uses [`rustls-native-certs`](
+   *   https://github.com/rustls/rustls-native-certs).
+   * - In the future, this may become the default, and this option may be eliminated, once
+   *   <https://github.com/seanmonstar/reqwest/issues/2159> is resolved.
+   *
+   * Users who need to configure this behavior system-wide can override the project
+   * configuration using the `NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS=1` environment
+   * variable.
+   *
+   * This option is ignored on Windows on ARM, where the native TLS implementation is always
+   * used.
+   *
+   * If you need to set a proxy, Turbopack [respects the common `HTTP_PROXY` and `HTTPS_PROXY`
+   * environment variable convention](https://docs.rs/reqwest/latest/reqwest/#proxies). HTTP
+   * proxies are supported, SOCKS proxies are not currently supported.
+   */
+  turbopackUseSystemTlsCerts?: boolean
+
+  /**
+   * Set this to `false` to disable the automatic configuration of the babel loader when a babel
+   * configuration file is present. The babel loader configuration is enabled by default.
+   */
+  turbopackUseBuiltinBabel?: boolean
+
+  /**
+   * Set this to `false` to disable the automatic configuration of the sass loader. The sass loader
+   * configuration is enabled by default.
+   */
+  turbopackUseBuiltinSass?: boolean
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
@@ -806,6 +850,14 @@ export interface ExperimentalConfig {
   reactCompiler?: boolean | ReactCompilerOptions
 
   /**
+   * When enabled, in dev mode, Next.js will send React's debug info through the
+   * WebSocket connection, instead of including it in the main RSC payload.
+   *
+   * @default true
+   */
+  reactDebugChannel?: boolean
+
+  /**
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
@@ -872,11 +924,6 @@ export interface ExperimentalConfig {
    *
    */
   globalNotFound?: boolean
-
-  /**
-   * Enable segment viewer for the app directory in Next.js DevTools.
-   */
-  devtoolSegmentExplorer?: boolean
 
   /**
    * Enable debug information to be forwarded from browser to dev server stdout/stderr
@@ -1417,7 +1464,7 @@ export const defaultConfig = Object.freeze({
   },
   typescript: {
     ignoreBuildErrors: false,
-    tsconfigPath: 'tsconfig.json',
+    tsconfigPath: undefined,
   },
   typedRoutes: false,
   distDir: '.next',
@@ -1524,6 +1571,7 @@ export const defaultConfig = Object.freeze({
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientSegmentCache: false,
+    rdcForNavigations: false,
     clientParamParsing: false,
     clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
@@ -1586,6 +1634,7 @@ export const defaultConfig = Object.freeze({
     },
     allowDevelopmentBuild: undefined,
     reactCompiler: undefined,
+    reactDebugChannel: true,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
@@ -1595,7 +1644,6 @@ export const defaultConfig = Object.freeze({
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    devtoolSegmentExplorer: true,
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
   },

@@ -2164,8 +2164,6 @@ pub mod tests {
         + Send
         + 'static,
     ) {
-        crate::register();
-
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
             noop_backing_storage(),

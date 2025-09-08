@@ -45,6 +45,7 @@ import type { TLSSocket } from 'tls'
 import type { PathnameNormalizer } from './normalizers/request/pathname-normalizer'
 import type { InstrumentationModule } from './instrumentation/types'
 
+import * as path from 'path'
 import { format as formatUrl, parse as parseUrl } from 'url'
 import { formatHostname } from './lib/format-hostname'
 import {
@@ -444,7 +445,7 @@ export default abstract class Server<
     this.experimentalTestProxy = experimentalTestProxy
     this.serverOptions = options
 
-    this.dir = (require('path') as typeof import('path')).resolve(dir)
+    this.dir = path.resolve(/* turbopackIgnore: true */ dir)
 
     this.quiet = quiet
     this.loadEnvConfig({ dev })
@@ -458,8 +459,8 @@ export default abstract class Server<
       this.fetchHostname = formatHostname(this.hostname)
     }
     this.port = port
-    this.distDir = (require('path') as typeof import('path')).join(
-      this.dir,
+    this.distDir = path.join(
+      /* turbopackIgnore: true */ this.dir,
       this.nextConfig.distDir
     )
     this.publicDir = this.getPublicDir()
@@ -580,8 +581,6 @@ export default abstract class Server<
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
-      devtoolSegmentExplorer:
-        this.nextConfig.experimental.devtoolSegmentExplorer,
     }
 
     // Initialize next/config with the environment configuration
@@ -2416,19 +2415,19 @@ export default abstract class Server<
     return null
   }
 
-  private stripNextDataPath(path: string, stripLocale = true) {
-    if (path.includes(this.buildId)) {
-      const splitPath = path.substring(
-        path.indexOf(this.buildId) + this.buildId.length
+  private stripNextDataPath(filePath: string, stripLocale = true) {
+    if (filePath.includes(this.buildId)) {
+      const splitPath = filePath.substring(
+        filePath.indexOf(this.buildId) + this.buildId.length
       )
 
-      path = denormalizePagePath(splitPath.replace(/\.json$/, ''))
+      filePath = denormalizePagePath(splitPath.replace(/\.json$/, ''))
     }
 
     if (this.localeNormalizer && stripLocale) {
-      return this.localeNormalizer.normalize(path)
+      return this.localeNormalizer.normalize(filePath)
     }
-    return path
+    return filePath
   }
 
   // map the route to the actual bundle name

@@ -214,6 +214,8 @@ impl AnalyzeEcmascriptModuleResult {
 /// A temporary analysis result builder to pass around, to be turned into an
 /// `Vc<AnalyzeEcmascriptModuleResult>` eventually.
 pub struct AnalyzeEcmascriptModuleResultBuilder {
+    is_tracing: bool,
+
     references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
 
     esm_references: FxHashSet<usize>,
@@ -234,8 +236,9 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
 }
 
 impl AnalyzeEcmascriptModuleResultBuilder {
-    pub fn new() -> Self {
+    pub fn new(is_tracing: bool) -> Self {
         Self {
+            is_tracing,
             references: Default::default(),
             esm_references: Default::default(),
             esm_local_references: Default::default(),
@@ -289,7 +292,9 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     where
         C: Into<CodeGen>,
     {
-        self.code_gens.push(code_gen.into())
+        if !self.is_tracing {
+            self.code_gens.push(code_gen.into())
+        }
     }
 
     /// Sets the analysis result ES export.
@@ -418,12 +423,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 }
 
-impl Default for AnalyzeEcmascriptModuleResultBuilder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 struct AnalysisState<'a> {
     handler: &'a Handler,
     source: ResolvedVc<Box<dyn Source>>,
@@ -511,10 +510,11 @@ pub async fn analyse_ecmascript_module_internal(
     let options = raw_module.options;
     let options = options.await?;
     let import_externals = options.import_externals;
+    let is_tracing = options.is_tracing;
 
     let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
 
-    let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new();
+    let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new(is_tracing);
     let path = origin.origin_path().owned().await?;
 
     // Is this a typescript file that requires analyzing type references?
@@ -717,8 +717,10 @@ pub async fn analyse_ecmascript_module_internal(
     let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
     let mut var_graph = {
-        let _span = tracing::info_span!("analyze variable values");
-        set_handler_and_globals(&handler, globals, || create_graph(program, eval_context))
+        let _span = tracing::info_span!("analyze variable values").entered();
+        set_handler_and_globals(&handler, globals, || {
+            create_graph(program, eval_context, is_tracing)
+        })
     };
 
     let span = tracing::info_span!("esm import references");
@@ -784,8 +786,12 @@ pub async fn analyse_ecmascript_module_internal(
         let (webpack_runtime, webpack_entry, webpack_chunks, mut esm_exports) =
             set_handler_and_globals(&handler, globals, || {
                 // TODO migrate to effects
-                let mut visitor =
-                    ModuleReferencesVisitor::new(eval_context, &import_references, &mut analysis);
+                let mut visitor = ModuleReferencesVisitor::new(
+                    eval_context,
+                    &import_references,
+                    &mut analysis,
+                    is_tracing,
+                );
                 // ModuleReferencesVisitor has already called analysis.add_esm_reexport_reference
                 // for any references in esm_exports
                 program.visit_with_ast_path(&mut visitor, &mut Default::default());
@@ -1034,6 +1040,11 @@ pub async fn analyse_ecmascript_module_internal(
 
             match effect {
                 Effect::Unreachable { start_ast_path } => {
+                    debug_assert!(
+                        !is_tracing,
+                        "unexpected Effect::Unreachable in tracing mode"
+                    );
+
                     analysis
                         .add_code_gen(Unreachable::new(AstPathRange::StartAfter(start_ast_path)));
                 }
@@ -1054,12 +1065,14 @@ pub async fn analyse_ecmascript_module_internal(
 
                     macro_rules! inactive {
                         ($block:ident) => {
-                            analysis.add_code_gen(Unreachable::new($block.range.clone()));
+                            if !is_tracing {
+                                analysis.add_code_gen(Unreachable::new($block.range.clone()));
+                            }
                         };
                     }
                     macro_rules! condition {
                         ($expr:expr) => {
-                            if !condition_has_side_effects {
+                            if !is_tracing && !condition_has_side_effects {
                                 analysis.add_code_gen(ConstantConditionCodeGen::new(
                                     $expr,
                                     condition_ast_path.to_vec().into(),
@@ -1308,6 +1321,8 @@ pub async fn analyse_ecmascript_module_internal(
                     span,
                     in_try: _,
                 } => {
+                    debug_assert!(!is_tracing, "unexpected Effect::FreeVar in tracing mode");
+
                     // FreeVar("require") might be turbopackIgnore-d
                     if !analysis_state
                         .link_value(
@@ -1335,6 +1350,8 @@ pub async fn analyse_ecmascript_module_internal(
                     span,
                     in_try: _,
                 } => {
+                    debug_assert!(!is_tracing, "unexpected Effect::Member in tracing mode");
+
                     // Intentionally not awaited because `handle_member` reads this only when needed
                     let obj = analysis_state.link_value(*obj, ImportAttributes::empty_ref());
 
@@ -1407,6 +1424,7 @@ pub async fn analyse_ecmascript_module_internal(
                     ast_path,
                     span,
                 } => {
+                    debug_assert!(!is_tracing, "unexpected Effect::TypeOf in tracing mode");
                     let arg = analysis_state
                         .link_value(*arg, ImportAttributes::empty_ref())
                         .await?;
@@ -1417,6 +1435,7 @@ pub async fn analyse_ecmascript_module_internal(
                     span: _,
                     in_try: _,
                 } => {
+                    debug_assert!(!is_tracing, "unexpected Effect::ImportMeta in tracing mode");
                     if analysis_state.first_import_meta {
                         analysis_state.first_import_meta = false;
                         analysis.add_code_gen(ImportMetaBinding::new(
@@ -3195,6 +3214,7 @@ impl StaticAnalyser {
 /// A visitor that walks the AST and collects information about the various
 /// references a module makes to other parts of the code.
 struct ModuleReferencesVisitor<'a> {
+    is_tracing: bool,
     eval_context: &'a EvalContext,
     old_analyser: StaticAnalyser,
     import_references: &'a [ResolvedVc<EsmAssetReference>],
@@ -3210,8 +3230,10 @@ impl<'a> ModuleReferencesVisitor<'a> {
         eval_context: &'a EvalContext,
         import_references: &'a [ResolvedVc<EsmAssetReference>],
         analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
+        is_tracing: bool,
     ) -> Self {
         Self {
+            is_tracing,
             eval_context,
             old_analyser: StaticAnalyser::default(),
             import_references,
@@ -3269,8 +3291,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         export: &'ast ExportAll,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        self.analysis
-            .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+        if !self.is_tracing {
+            self.analysis
+                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+        }
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3344,8 +3368,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         }
 
-        self.analysis
-            .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+        if !self.is_tracing {
+            self.analysis
+                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+        }
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3393,8 +3419,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 }
             }
         };
-        self.analysis
-            .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+        if !self.is_tracing {
+            self.analysis
+                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+        }
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3411,8 +3439,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 Liveness::Constant,
             ),
         );
-        self.analysis
-            .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+        if !self.is_tracing {
+            self.analysis
+                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+        }
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3443,8 +3473,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 // ignore
             }
         }
-        self.analysis
-            .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+        if !self.is_tracing {
+            self.analysis
+                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+        }
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3489,7 +3521,9 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 }
             }
         }
-        self.analysis.add_code_gen(EsmModuleItem::new(path));
+        if !self.is_tracing {
+            self.analysis.add_code_gen(EsmModuleItem::new(path));
+        }
     }
 
     fn visit_var_declarator<'ast: 'r, 'r>(

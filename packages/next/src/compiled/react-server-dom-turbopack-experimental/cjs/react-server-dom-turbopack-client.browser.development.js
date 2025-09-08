@@ -1748,7 +1748,10 @@
         });
         weakResponse = response._debugChannel;
         void 0 !== weakResponse &&
-          (closeDebugChannel(weakResponse), (response._debugChannel = void 0));
+          (closeDebugChannel(weakResponse),
+          (response._debugChannel = void 0),
+          null !== debugChannelRegistry &&
+            debugChannelRegistry.unregister(response));
       }
     }
     function nullRefGetter() {
@@ -1770,7 +1773,7 @@
         return "<...>";
       }
     }
-    function initializeElement(response, element) {
+    function initializeElement(response, element, lazyType) {
       var stack = element._debugStack,
         owner = element._owner;
       null === owner && (element._owner = response._debugRootOwner);
@@ -1807,9 +1810,14 @@
           : (normalizedStackTrace = env.run(stack)));
       element._debugTask = normalizedStackTrace;
       null !== owner && initializeFakeStack(response, owner);
+      lazyType &&
+        lazyType._store &&
+        lazyType._store.validated &&
+        !element._store.validated &&
+        (element._store.validated = lazyType._store.validated);
       Object.freeze(element.props);
     }
-    function createLazyChunkWrapper(chunk) {
+    function createLazyChunkWrapper(chunk, validated) {
       var lazyType = {
         $$typeof: REACT_LAZY_TYPE,
         _payload: chunk,
@@ -1817,6 +1825,7 @@
       };
       chunk = chunk._debugInfo || (chunk._debugInfo = []);
       lazyType._debugInfo = chunk;
+      lazyType._store = { validated: validated };
       return lazyType;
     }
     function getChunk(response, id) {
@@ -2335,7 +2344,7 @@
               null !== initializingChunk &&
                 isArrayImpl(initializingChunk._children) &&
                 initializingChunk._children.push(response),
-              createLazyChunkWrapper(response)
+              createLazyChunkWrapper(response, 0)
             );
           case "@":
             return (
@@ -2545,7 +2554,7 @@
       debugChannel &&
         (null === debugChannelRegistry
           ? (closeDebugChannel(debugChannel), (this._debugChannel = void 0))
-          : debugChannelRegistry.register(this, debugChannel));
+          : debugChannelRegistry.register(this, debugChannel, this));
       replayConsole && markAllTracksInOrder();
       this._fromJSON = createFromJSONCallback(this);
     }
@@ -4066,9 +4075,9 @@
         if ("object" === typeof value && null !== value) {
           if (value[0] === REACT_ELEMENT_TYPE)
             b: {
-              var owner = value[4];
-              key = value[5];
-              var validated = value[6];
+              var owner = value[4],
+                stack = value[5];
+              key = value[6];
               value = {
                 $$typeof: REACT_ELEMENT_TYPE,
                 type: value[1],
@@ -4085,7 +4094,7 @@
                 configurable: !1,
                 enumerable: !1,
                 writable: !0,
-                value: validated
+                value: key
               });
               Object.defineProperty(value, "_debugInfo", {
                 configurable: !1,
@@ -4097,7 +4106,7 @@
                 configurable: !1,
                 enumerable: !1,
                 writable: !0,
-                value: void 0 === key ? null : key
+                value: void 0 === stack ? null : stack
               });
               Object.defineProperty(value, "_debugTask", {
                 configurable: !1,
@@ -4106,35 +4115,36 @@
                 value: null
               });
               if (null !== initializingHandler) {
-                validated = initializingHandler;
-                initializingHandler = validated.parent;
-                if (validated.errored) {
-                  key = createErrorChunk(response, validated.reason);
-                  initializeElement(response, value);
-                  validated = {
+                owner = initializingHandler;
+                initializingHandler = owner.parent;
+                if (owner.errored) {
+                  stack = createErrorChunk(response, owner.reason);
+                  initializeElement(response, value, null);
+                  owner = {
                     name: getComponentNameFromType(value.type) || "",
                     owner: value._owner
                   };
-                  validated.debugStack = value._debugStack;
-                  supportsCreateTask &&
-                    (validated.debugTask = value._debugTask);
-                  key._debugInfo = [validated];
-                  value = createLazyChunkWrapper(key);
+                  owner.debugStack = value._debugStack;
+                  supportsCreateTask && (owner.debugTask = value._debugTask);
+                  stack._debugInfo = [owner];
+                  key = createLazyChunkWrapper(stack, key);
                   break b;
                 }
-                if (0 < validated.deps) {
-                  key = new ReactPromise("blocked", null, null);
-                  validated.value = value;
-                  validated.chunk = key;
-                  value = initializeElement.bind(null, response, value);
-                  key.then(value, value);
-                  value = createLazyChunkWrapper(key);
+                if (0 < owner.deps) {
+                  stack = new ReactPromise("blocked", null, null);
+                  owner.value = value;
+                  owner.chunk = stack;
+                  key = createLazyChunkWrapper(stack, key);
+                  value = initializeElement.bind(null, response, value, key);
+                  stack.then(value, value);
                   break b;
                 }
               }
-              initializeElement(response, value);
+              initializeElement(response, value, null);
+              key = value;
             }
-          return value;
+          else key = value;
+          return key;
         }
         return value;
       };
@@ -4525,10 +4535,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-experimental-33a1095d-20250827",
+      version: "19.2.0-experimental-b9a04536-20250904",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-experimental-33a1095d-20250827",
+      reconcilerVersion: "19.2.0-experimental-b9a04536-20250904",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

@@ -76,10 +76,10 @@ import {
 } from '../../lib/is-internal-component'
 import { RouteKind } from '../route-kind'
 import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
+  HMR_MESSAGE_SENT_TO_BROWSER,
   type NextJsHotReloaderInterface,
 } from './hot-reloader-types'
-import type { HMR_ACTION_TYPES } from './hot-reloader-types'
+import type { HmrMessageSentToBrowser } from './hot-reloader-types'
 import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
@@ -95,6 +95,13 @@ import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
 } from '../../next-devtools/server/devtools-config-middleware'
+import { InvariantError } from '../../shared/lib/invariant-error'
+import {
+  connectReactDebugChannel,
+  deleteReactDebugChannel,
+  setReactDebugChannel,
+  type ReactDebugChannelForBrowser,
+} from './debug-channel'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -416,7 +423,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     if (this.hmrServerError) {
       this.setHmrServerError(null)
       this.send({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+        type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
         data: 'clear hmr server error',
       })
     }
@@ -424,7 +431,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
   protected async refreshServerComponents(hash: string): Promise<void> {
     this.send({
-      action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
       hash,
       // TODO: granular reloading of changes
       // entrypoints: serverComponentChanges,
@@ -438,7 +445,15 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     callback: (client: ws.WebSocket) => void
   ) {
     wsServer.handleUpgrade(req, req.socket, head, (client) => {
-      this.webpackHotMiddleware?.onHMR(client)
+      const requestId = req.url
+        ? new URL(req.url, 'http://n').searchParams.get('id')
+        : null
+
+      if (!this.webpackHotMiddleware) {
+        throw new InvariantError('Did not start HotReloaderWebpack.')
+      }
+
+      this.webpackHotMiddleware.onHMR(client, requestId)
       this.onDemandEntries?.onHMR(client, () => this.hmrServerError)
       callback(client)
 
@@ -603,6 +618,21 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           }
         } catch (_) {
           // invalid WebSocket message
+        }
+      })
+
+      if (requestId) {
+        connectReactDebugChannel(
+          requestId,
+          this.sendToClient.bind(this, client)
+        )
+      }
+
+      client.on('close', () => {
+        this.webpackHotMiddleware?.deleteClient(client, requestId)
+
+        if (requestId) {
+          deleteReactDebugChannel(requestId)
         }
       })
     })
@@ -1435,7 +1465,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
         this.send({
-          action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+          type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
           data: '_document has changed',
         })
       }
@@ -1466,13 +1496,13 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
       if (middlewareChanges.length > 0) {
         this.send({
-          event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
+          type: HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES,
         })
       }
 
       if (pageChanges.length > 0) {
         this.send({
-          event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
+          type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES,
           pages: serverOnlyChanges.map((pg) =>
             denormalizePagePath(pg.slice('pages'.length))
           ),
@@ -1525,7 +1555,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             for (const addedPage of addedPages) {
               const page = getRouteFromEntrypoint(addedPage)
               this.send({
-                action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE,
+                type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
                 data: [page],
               })
             }
@@ -1535,7 +1565,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             for (const removedPage of removedPages) {
               const page = getRouteFromEntrypoint(removedPage)
               this.send({
-                action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE,
+                type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
                 data: [page],
               })
             }
@@ -1613,7 +1643,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           this.webpackHotMiddleware?.updateDevToolsConfig(data)
 
           this.send({
-            action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG,
+            type: HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG,
             data,
           })
         },
@@ -1659,8 +1689,29 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
   }
 
-  public send(action: HMR_ACTION_TYPES): void {
-    this.webpackHotMiddleware!.publish(action)
+  public send(message: HmrMessageSentToBrowser): void {
+    this.webpackHotMiddleware!.publish(message)
+  }
+
+  public sendToClient(client: ws, message: HmrMessageSentToBrowser): void {
+    this.webpackHotMiddleware!.publishToClient(client, message)
+  }
+
+  public setReactDebugChannel(
+    debugChannel: ReactDebugChannelForBrowser,
+    htmlRequestId: string,
+    requestId: string
+  ): void {
+    // Store the debug channel, regardless of whether the client is connected.
+    setReactDebugChannel(requestId, debugChannel)
+
+    // If the client is connected, we can connect the debug channel immediately.
+    // Otherwise, we'll do that when the client connects.
+    const client = this.webpackHotMiddleware?.getClient(htmlRequestId)
+
+    if (client) {
+      connectReactDebugChannel(requestId, this.sendToClient.bind(this, client))
+    }
   }
 
   public async ensurePage({

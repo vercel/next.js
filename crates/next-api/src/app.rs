@@ -1,7 +1,6 @@
 use anyhow::{Context, Result, bail};
 use next_core::{
     all_assets_from_entries,
-    app_segment_config::NextSegmentConfig,
     app_structure::{
         AppPageLoaderTree, CollectedRootParams, Entrypoint as AppEntrypoint,
         Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem, collect_root_params,
@@ -34,6 +33,7 @@ use next_core::{
     },
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
+    segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
 use serde::{Deserialize, Serialize};
@@ -1106,7 +1106,7 @@ impl AppEndpoint {
 
             for layout in root_layouts.iter().rev() {
                 let source = Vc::upcast(FileSource::new(layout.clone()));
-                let layout_config = parse_segment_config_from_source(source);
+                let layout_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
                 config.apply_parent_config(&*layout_config.await?);
             }
 
@@ -1748,7 +1748,7 @@ impl AppEndpoint {
                     assets,
                     availability_info,
                 } = *chunking_context
-                    .evaluated_chunk_group(
+                    .chunk_group(
                         server_action_manifest_loader.ident(),
                         ChunkGroup::Entry(
                             [ResolvedVc::upcast(server_action_manifest_loader)]
@@ -1785,7 +1785,6 @@ impl AppEndpoint {
                     bail!("rsc_entry must be evaluatable");
                 };
 
-                evaluatable_assets.push(server_action_manifest_loader);
                 evaluatable_assets.push(rsc_entry);
 
                 async {
@@ -1862,6 +1861,25 @@ impl AppEndpoint {
                         }
                         .instrument(span)
                         .await?;
+                    }
+
+                    {
+                        let chunk_group = chunking_context
+                            .chunk_group(
+                                server_action_manifest_loader.ident(),
+                                ChunkGroup::Entry(vec![ResolvedVc::upcast(
+                                    server_action_manifest_loader,
+                                )]),
+                                module_graph,
+                                current_availability_info,
+                            )
+                            .await?;
+
+                        current_chunks = current_chunks
+                            .concatenate(*chunk_group.assets)
+                            .resolve()
+                            .await?;
+                        current_availability_info = chunk_group.availability_info;
                     }
 
                     anyhow::Ok(Vc::cell(vec![
