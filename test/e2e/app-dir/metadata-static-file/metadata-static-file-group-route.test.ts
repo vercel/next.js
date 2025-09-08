@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getCommonMetadataHeadTags } from './utils'
-import { getMetadataRouteSuffix } from 'next/dist/lib/metadata/get-metadata-route'
 
 describe('metadata-files-static-output-group-route', () => {
   if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
@@ -25,8 +24,6 @@ describe('metadata-files-static-output-group-route', () => {
   if (skipped) {
     return
   }
-
-  const suffix = getMetadataRouteSuffix('/(group)/group/n')
 
   it('should have correct link tags for group page', async () => {
     const browser = await next.browser('/group')
@@ -98,10 +95,10 @@ describe('metadata-files-static-output-group-route', () => {
       twitterImageRes,
       sitemapRes,
     ] = await Promise.all([
-      next.fetch(`/group/apple-icon-${suffix}.png`),
-      next.fetch(`/group/icon-${suffix}.png`),
-      next.fetch(`/group/opengraph-image-${suffix}.png`),
-      next.fetch(`/group/twitter-image-${suffix}.png`),
+      next.fetch(`/group/apple-icon-131tc6.png`),
+      next.fetch(`/group/icon-131tc6.png`),
+      next.fetch(`/group/opengraph-image-131tc6.png`),
+      next.fetch(`/group/twitter-image-131tc6.png`),
       next.fetch('/group/sitemap.xml'),
     ])
 

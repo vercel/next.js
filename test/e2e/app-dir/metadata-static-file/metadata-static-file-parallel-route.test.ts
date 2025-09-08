@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getCommonMetadataHeadTags } from './utils'
-import { getMetadataRouteSuffix } from 'next/dist/lib/metadata/get-metadata-route'
 
 describe('metadata-files-static-output-parallel-route', () => {
   if (process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS) {
@@ -89,8 +88,6 @@ describe('metadata-files-static-output-parallel-route', () => {
   })
 
   it('should serve static files when requested to its route for parallel slot page', async () => {
-    const suffix = getMetadataRouteSuffix('/parallel/@parallel/n')
-
     const [
       appleIconRes,
       iconRes,
@@ -98,10 +95,10 @@ describe('metadata-files-static-output-parallel-route', () => {
       twitterImageRes,
       sitemapRes,
     ] = await Promise.all([
-      next.fetch(`/parallel/apple-icon-${suffix}.png`),
-      next.fetch(`/parallel/icon-${suffix}.png`),
-      next.fetch(`/parallel/opengraph-image-${suffix}.png`),
-      next.fetch(`/parallel/twitter-image-${suffix}.png`),
+      next.fetch(`/parallel/apple-icon-kzjltp.png`),
+      next.fetch(`/parallel/icon-kzjltp.png`),
+      next.fetch(`/parallel/opengraph-image-kzjltp.png`),
+      next.fetch(`/parallel/twitter-image-kzjltp.png`),
       next.fetch(`/parallel/sitemap.xml`),
     ])
 
