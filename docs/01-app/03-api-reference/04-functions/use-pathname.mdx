@@ -98,8 +98,6 @@ When a page is pre-rendered, the HTML is generated for the source pathname. If t
 
 To avoid hydration mismatches, design the UI so that only a small, isolated part depends on the client pathname. Render a stable fallback on the server and update that part after mount.
 
-This avoids hydration mismatches without needing `suppressHydrationWarning`.
-
 ```tsx filename="app/example-client-component.tsx" switcher
 'use client'
 
@@ -139,38 +137,6 @@ export default function PathnameBadge() {
   return (
     <p>
       Current pathname: <span>{clientPathname}</span>
-    </p>
-  )
-}
-```
-
-Alternatively, when you can't defer updating via state/effect, you can suppress the mismatch on just the node that renders the pathname. This does not change behavior; it only silences the hydration warning. Prefer isolating updates via state/effect when possible.
-
-```tsx filename="app/example-client-component.tsx" switcher
-'use client'
-
-import { usePathname } from 'next/navigation'
-
-export default function PathnameInline() {
-  const pathname = usePathname()
-  return (
-    <p>
-      Current pathname: <span suppressHydrationWarning>{pathname}</span>
-    </p>
-  )
-}
-```
-
-```jsx filename="app/example-client-component.js" switcher
-'use client'
-
-import { usePathname } from 'next/navigation'
-
-export default function PathnameInline() {
-  const pathname = usePathname()
-  return (
-    <p>
-      Current pathname: <span suppressHydrationWarning>{pathname}</span>
     </p>
   )
 }
