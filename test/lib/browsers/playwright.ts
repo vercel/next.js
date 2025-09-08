@@ -607,7 +607,7 @@ export class Playwright<TCurrent = undefined> {
   }
 
   locateDevToolsIndicator(): Locator {
-    return page.locator('nextjs-portal [data-nextjs-toast]')
+    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]')
   }
 
   locator(selector: string, options?: Parameters<(typeof page)['locator']>[1]) {
