@@ -84,7 +84,6 @@ export default function Page() {
 }
 ```
 
-> Good to know: When Next.js Image Optimization is used, request headers are not forwarded to the image source, even when that source is your own Next.js server (API Routes or assets from public folder). If retrieving the image requires authentication, consider using the [unoptimized](#unoptimized) property to disable Image Optimization.
 #### `alt`
 
 The `alt` property is used to describe the image for screen readers and search engines. It is also the fallback text if images have been disabled or an error occurs while loading the image.
