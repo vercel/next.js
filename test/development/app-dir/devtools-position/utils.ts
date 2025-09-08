@@ -1,8 +1,15 @@
 import type { Playwright } from '../../../lib/next-webdriver'
-import { assertHasDevToolsIndicator } from '../../../lib/next-test-utils'
 
 export async function getDevIndicatorPosition(browser: Playwright) {
-  const indicator = await assertHasDevToolsIndicator(browser)
-  const style = await indicator.getAttribute('style')
+  const style = await browser.eval(() => {
+    return (
+      [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
+        // portal
+        ?.shadowRoot?.querySelector('[data-nextjs-toast]')
+        ?.getAttribute('style') || ''
+    )
+  })
   return style || ''
 }
