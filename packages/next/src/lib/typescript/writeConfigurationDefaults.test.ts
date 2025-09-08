@@ -48,6 +48,10 @@ describe('writeConfigurationDefaults()', () => {
 
       const tsConfig = await readFile(tsConfigPath, { encoding: 'utf8' })
 
+      console.log({
+        processFeaturesTypeScript: (process.features as any).typescript,
+      })
+
       expect(JSON.parse(tsConfig)).toMatchInlineSnapshot(`
       {
         "compilerOptions": {
