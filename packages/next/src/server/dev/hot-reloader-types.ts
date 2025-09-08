@@ -9,8 +9,10 @@ import type { VersionInfo } from './parse-version-info'
 import type { DebugInfo } from '../../next-devtools/shared/types'
 import type { DevIndicatorServerState } from './dev-indicator-server-state'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
+import type { ReactDebugChannelForBrowser } from './debug-channel'
 
 export const enum HMR_MESSAGE_SENT_TO_BROWSER {
+  // JSON messages:
   ADDED_PAGE = 'addedPage',
   REMOVED_PAGE = 'removedPage',
   RELOAD_PAGE = 'reloadPage',
@@ -28,6 +30,9 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   ISR_MANIFEST = 'isrManifest',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
+
+  // Binary messages:
+  REACT_DEBUG_CHUNK = 0,
 }
 
 export interface ServerErrorMessage {
@@ -129,6 +134,15 @@ export interface DevToolsConfigMessage {
   data: DevToolsConfig
 }
 
+export interface ReactDebugChunkMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK
+  requestId: string
+  /**
+   * A null chunk signals to the browser that no more chunks will be sent.
+   */
+  chunk: Uint8Array | null
+}
+
 export type HmrMessageSentToBrowser =
   | TurbopackMessage
   | TurbopackConnectedMessage
@@ -146,6 +160,12 @@ export type HmrMessageSentToBrowser =
   | ServerErrorMessage
   | AppIsrManifestMessage
   | DevToolsConfigMessage
+  | ReactDebugChunkMessage
+
+export type BinaryHmrMessageSentToBrowser = Extract<
+  HmrMessageSentToBrowser,
+  { type: number }
+>
 
 export type TurbopackMessageSentToBrowser =
   | {
@@ -171,7 +191,12 @@ export interface NextJsHotReloaderInterface {
   setHmrServerError(error: Error | null): void
   clearHmrServerError(): void
   start(): Promise<void>
-  send(message: HmrMessageSentToBrowser): void
+  send(action: HmrMessageSentToBrowser): void
+  setReactDebugChannel(
+    debugChannel: ReactDebugChannelForBrowser,
+    htmlRequestId: string,
+    requestId: string
+  ): void
   getCompilationErrors(page: string): Promise<any[]>
   onHMR(
     req: IncomingMessage,

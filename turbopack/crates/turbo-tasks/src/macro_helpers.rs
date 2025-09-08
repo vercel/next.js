@@ -12,7 +12,7 @@ use crate::{
     ValueTypeId, Vc, debug::ValueDebugFormatString, task::TaskOutput,
 };
 pub use crate::{
-    inventory_submit,
+    global_name, inventory_submit,
     magic_any::MagicAny,
     manager::{find_cell_by_type, notify_scheduled_tasks, spawn_detached_for_testing},
     native_function::{
@@ -199,3 +199,22 @@ macro_rules! inventory_submit {
 /// Exported so the above macro can reference it.
 #[doc(hidden)]
 pub use inventory::submit as inventory_submit_inner;
+
+/// Define a global name for a turbo-tasks value.
+#[cfg(not(rust_analyzer))] // ignore-rust-analyzer due to https://github.com/rust-lang/rust-analyzer/issues/19993
+#[macro_export]
+macro_rules! global_name {
+    ($($item:tt)*) => {
+
+        ::std::concat!(::std::env!("CARGO_PKG_NAME"), "@", ::std::module_path!(), "::", $($item)*)
+    }
+}
+/// Define a global name for a turbo-tasks value.
+/// This has a dummy implementation for Rust Analyzer to avoid https://github.com/rust-lang/rust-analyzer/issues/19993
+#[cfg(rust_analyzer)]
+#[macro_export]
+macro_rules! global_name {
+    ($($item:tt)*) => {
+        $($item)*
+    }
+}
