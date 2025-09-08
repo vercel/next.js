@@ -1380,7 +1380,14 @@ export default async function loadConfig(
     return config
   }
 
-  const path = await findUp(CONFIG_FILES, { cwd: dir })
+  const path = await findUp(
+    CONFIG_FILES.concat(
+      // 'next.config.mts' is only available when Node.js native TypeScript resolution is enabled.
+      // TODO: Remove `as any` once we bump @types/node to v22.10.0+
+      (process.features as any)?.typescript ? ['next.config.mts'] : []
+    ),
+    { cwd: dir }
+  )
 
   // If config file was found
   if (path?.length) {
@@ -1592,7 +1599,6 @@ export default async function loadConfig(
       [
         `${configBaseName}.cjs`,
         `${configBaseName}.cts`,
-        `${configBaseName}.mts`,
         `${configBaseName}.json`,
         `${configBaseName}.jsx`,
         `${configBaseName}.tsx`,
