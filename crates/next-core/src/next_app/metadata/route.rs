@@ -4,7 +4,7 @@
 
 use anyhow::{Ok, Result, bail};
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
-use indoc::{formatdoc, indoc};
+use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
@@ -46,9 +46,9 @@ pub async fn get_app_metadata_route_source(
             if stem == "robots" || stem == "manifest" {
                 dynamic_text_route_source(path)
             } else if stem == "sitemap" {
-                dynamic_site_map_route_source(mode, path, is_multi_dynamic)
+                dynamic_site_map_route_source(path, is_multi_dynamic)
             } else {
-                dynamic_image_route_source(mode, path, is_multi_dynamic)
+                dynamic_image_route_source(path, is_multi_dynamic)
             }
         }
     })
@@ -265,61 +265,22 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
     Ok(Vc::upcast(source))
 }
 
-#[turbo_tasks::function]
-async fn dynamic_site_map_route_source(
-    mode: NextMode,
+async fn dynamic_sitemap_route_with_generate_source(
     path: FileSystemPath,
-    is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
     let content_type = get_content_type(path.clone()).await?;
-    let mut static_generation_code = "";
-    let mut validation_code = "";
-
-    if is_multi_dynamic {
-        if mode.is_production() {
-            static_generation_code = indoc! {
-                r#"
-                    export async function generateStaticParams() {
-                        const sitemaps = await generateSitemaps()
-                        const params = []
-
-                        for (const item of sitemaps) {{
-                            params.push({ __metadata_id__: item.id.toString() + '.xml' })
-                        }}
-                        return params
-                    }
-                "#,
-            };
-        } else {
-            validation_code = indoc! {
-                r#"
-                    if (process.env.NODE_ENV !== 'production' && sitemapModule.generateSitemaps) {
-                        const sitemaps = await sitemapModule.generateSitemaps()
-                        for (const item of sitemaps) {
-                            if (item?.id == null) {
-                                throw new Error('id property is required for every item returned from generateSitemaps')
-                            }
-                        }
-                    }
-                "#,
-            };
-        }
-    }
 
     let code = formatdoc! {
         r#"
             import {{ NextResponse }} from 'next/server'
-            import * as _sitemapModule from {resource_path}
+            import {{ default as handler, generateSitemaps }} from {resource_path}
             import {{ resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
 
-            const sitemapModule = {{ ..._sitemapModule }}
-            const handler = sitemapModule.default
-            const generateSitemaps = sitemapModule.generateSitemaps
             const contentType = {content_type}
-            const cacheControl = {cache_control}
+            const cache_control = {cache_control}
             const fileType = {file_type}
 
             if (typeof handler !== 'function') {{
@@ -335,7 +296,24 @@ async fn dynamic_site_map_route_source(
                     }})
                 }}
 
-                {validation_code}
+                if (process.env.NODE_ENV !== 'production') {{
+                    const sitemaps = await generateSitemaps()
+                    let foundId
+                    for (const item of sitemaps) {{
+                        if (item?.id == null) {{
+                            throw new Error('id property is required for every item returned from generateSitemaps')
+                        }}
+                        const baseId = id && hasXmlExtension ? id.slice(0, -4) : id
+                        if (item.id.toString() === baseId) {{
+                            foundId = item.id
+                        }}
+                    }}
+                    if (foundId == null) {{
+                        return new NextResponse('Not Found', {{
+                            status: 404,
+                        }})
+                    }}
+                }}
                 
                 const targetId = id && hasXmlExtension ? id.slice(0, -4) : undefined
                 const data = await handler({{ id: targetId }})
@@ -344,21 +322,31 @@ async fn dynamic_site_map_route_source(
                 return new NextResponse(content, {{
                     headers: {{
                         'Content-Type': contentType,
-                        'Cache-Control': cacheControl,
+                        'Cache-Control': cache_control,
                     }},
                 }})
             }}
 
             export * from {resource_path}
 
-            {static_generation_code}
+            export const dynamicParams = false
+            export async function generateStaticParams() {{
+                const sitemaps = await generateSitemaps()
+                const params = []
+
+                for (const item of sitemaps) {{
+                    if (item?.id == null) {{
+                        throw new Error('id property is required for every item returned from generateSitemaps')
+                    }}
+                    params.push({{ __metadata_id__: item.id.toString() + '.xml' }})
+                }}
+                return params
+            }}
         "#,
         resource_path = StringifyJs(&format!("./{stem}.{ext}")),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
-        validation_code = validation_code,
-        static_generation_code = static_generation_code,
     };
 
     let file = File::from(code);
@@ -370,41 +358,80 @@ async fn dynamic_site_map_route_source(
     Ok(Vc::upcast(source))
 }
 
+async fn dynamic_sitemap_route_without_generate_source(
+    path: FileSystemPath,
+) -> Result<Vc<Box<dyn Source>>> {
+    let stem = path.file_stem();
+    let stem = stem.unwrap_or_default();
+    let ext = path.extension();
+    let content_type = get_content_type(path.clone()).await?;
+
+    let code = formatdoc! {
+        r#"
+            import {{ NextResponse }} from 'next/server'
+            import {{ default as handler }} from {resource_path}
+            import {{ resolveRouteData }} from 'next/dist/build/webpack/loaders/metadata/resolve-route-data'
+
+            const contentType = {content_type}
+            const cacheControl = {cache_control}
+            const fileType = {file_type}
+
+            if (typeof handler !== 'function') {{
+                throw new Error('Default export is missing in {resource_path}')
+            }}
+
+            export async function GET() {{
+                const data = await handler()
+                const content = resolveRouteData(data, fileType)
+
+                return new NextResponse(content, {{
+                    headers: {{
+                        'Content-Type': contentType,
+                        'Cache-Control': cacheControl,
+                    }},
+                }})
+            }}
+
+            export * from {resource_path}
+        "#,
+        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        content_type = StringifyJs(&content_type),
+        file_type = StringifyJs(&stem),
+        cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
+    };
+
+    let file = File::from(code);
+    let source = VirtualSource::new(
+        path.parent().join(&format!("{stem}--route-entry.js"))?,
+        AssetContent::file(file.into()),
+    );
+
+    Ok(Vc::upcast(source))
+}
+
+#[turbo_tasks::function]
+async fn dynamic_site_map_route_source(
+    path: FileSystemPath,
+    is_multi_dynamic: bool,
+) -> Result<Vc<Box<dyn Source>>> {
+    if is_multi_dynamic {
+        dynamic_sitemap_route_with_generate_source(path).await
+    } else {
+        dynamic_sitemap_route_without_generate_source(path).await
+    }
+}
+
 async fn dynamic_image_route_with_metadata_source(
-    mode: NextMode,
     path: FileSystemPath,
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
     let ext = path.extension();
 
-    let mut static_generation_code = "";
-
-    if mode.is_production() {
-        static_generation_code = indoc! {
-            r#"
-                export async function generateStaticParams({ params }) {
-                    const imageMetadata = await generateImageMetadata({ params })
-                    const staticParams = []
-
-                    for (const item of imageMetadata) {
-                        staticParams.push({ __metadata_id__: item.id.toString() })
-                    }
-                    return staticParams
-                }
-            "#,
-        };
-    }
-
     let code = formatdoc! {
         r#"
             import {{ NextResponse }} from 'next/server'
-            import * as _imageModule from {resource_path}
-
-            const imageModule = {{ ..._imageModule }}
-
-            const handler = imageModule.default
-            const generateImageMetadata = imageModule.generateImageMetadata
+            import {{ default as handler, generateImageMetadata }} from {resource_path}
 
             if (typeof handler !== 'function') {{
                 throw new Error('Default export is missing in {resource_path}')
@@ -414,33 +441,44 @@ async fn dynamic_image_route_with_metadata_source(
                 const params = await ctx.params
                 const {{ __metadata_id__, ...rest }} = params || {{}}
                 const restParams = params ? rest : undefined
-                const targetId = __metadata_id__
-
-                const imageMetadata = await generateImageMetadata({{ params: restParams }})
-                const id = imageMetadata.find((item) => {{
-                    if (process.env.NODE_ENV !== 'production') {{
+                
+                if (process.env.NODE_ENV !== 'production') {{
+                    const imageMetadata = await generateImageMetadata({{ params: restParams }})
+                    const id = imageMetadata.find((item) => {{
                         if (item?.id == null) {{
                             throw new Error('id property is required for every item returned from generateImageMetadata')
                         }}
-                    }}
-                    return item.id.toString() === targetId
-                }})?.id
 
-                if (id == null) {{
-                    return new NextResponse('Not Found', {{
-                        status: 404,
-                    }})
+                        return item.id.toString() === __metadata_id__
+                    }})?.id
+
+                    if (id == null) {{
+                        return new NextResponse('Not Found', {{
+                            status: 404,
+                        }})
+                    }}
                 }}
 
-                return handler({{ params: restParams, id }})
+                return handler({{ params: restParams, id: __metadata_id__ }})
             }}
 
             export * from {resource_path}
 
-            {static_generation_code}
+            export const dynamicParams = false
+            export async function generateStaticParams({{ params }}) {{
+                const imageMetadata = await generateImageMetadata({{ params }})
+                const staticParams = []
+
+                for (const item of imageMetadata) {{
+                    if (item?.id == null) {{
+                        throw new Error('id property is required for every item returned from generateImageMetadata')
+                    }}
+                    staticParams.push({{ __metadata_id__: item.id.toString() }})
+                }}
+                return staticParams
+            }}
         "#,
         resource_path = StringifyJs(&format!("./{stem}.{ext}")),
-        static_generation_code = static_generation_code,
     };
 
     let file = File::from(code);
@@ -488,12 +526,11 @@ async fn dynamic_image_route_without_metadata_source(
 
 #[turbo_tasks::function]
 async fn dynamic_image_route_source(
-    mode: NextMode,
     path: FileSystemPath,
     is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     if is_multi_dynamic {
-        dynamic_image_route_with_metadata_source(mode, path).await
+        dynamic_image_route_with_metadata_source(path).await
     } else {
         dynamic_image_route_without_metadata_source(path).await
     }

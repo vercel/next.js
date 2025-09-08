@@ -385,6 +385,9 @@ function processMessage(message: HmrMessageSentToBrowser) {
     case HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG:
       dispatcher.onDevToolsConfig(message.data)
       break
+    case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK:
+      // Only relevant for app router.
+      break
     case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:
     case HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES:
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:

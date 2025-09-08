@@ -40,6 +40,11 @@ export type RouterServerContext = Record<
     logErrorWithOriginalStack?: (err: unknown, type: string) => void
     // allow setting ISR status in dev
     setIsrStatus?: (key: string, value: boolean) => void
+    setReactDebugChannel?: (
+      debugChannel: { readable: ReadableStream<Uint8Array> },
+      htmlRequestId: string,
+      requestId: string
+    ) => void
   }
 >
 
