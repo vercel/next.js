@@ -94,7 +94,7 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
-import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
+import { getRspackCore } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 import type { NextBuildContext } from './build-context'
@@ -178,7 +178,7 @@ const reactRefreshLoaderName =
 
 function getReactRefreshLoader() {
   return process.env.NEXT_RSPACK
-    ? getRspackReactRefresh().loader
+    ? 'builtin:react-refresh-loader'
     : require.resolve(reactRefreshLoaderName)
 }
 
@@ -697,8 +697,10 @@ export default async function getBaseWebpackConfig(
     '...',
   ]
 
-  const reactRefreshEntry = isRspack
-    ? getRspackReactRefresh().entry
+  const reactRefreshEntry = process.env.NEXT_RSPACK
+    ? require.resolve(
+        `next/dist/compiled/@next/react-refresh-utils/dist/rspack-runtime`
+      )
     : require.resolve(
         `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
       )
@@ -1988,10 +1990,7 @@ export default async function getBaseWebpackConfig(
         isClient &&
         (isRspack
           ? // eslint-disable-next-line
-            new (getRspackReactRefresh() as any)({
-              injectLoader: false,
-              injectEntry: false,
-            })
+            new (require('next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshRspackPlugin').default)()
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
