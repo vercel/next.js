@@ -21,9 +21,9 @@ import {
   getEdgeServerEntry,
   getAppEntry,
   runDependingOnPageType,
-  getStaticInfoIncludingLayouts,
   getInstrumentationEntry,
 } from '../../build/entries'
+import { getStaticInfoIncludingLayouts } from '../../build/get-static-info-including-layouts'
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
 import getBaseWebpackConfig, {

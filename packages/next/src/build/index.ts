@@ -112,7 +112,6 @@ import { Telemetry } from '../telemetry/storage'
 import {
   createPagesMapping,
   collectAppFiles,
-  getStaticInfoIncludingLayouts,
   sortByPageExts,
   processPageRoutes,
   processAppRoutes,
@@ -124,6 +123,7 @@ import {
   type SlotInfo,
   collectPagesFiles,
 } from './entries'
+import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'

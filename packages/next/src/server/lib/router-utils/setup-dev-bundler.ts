@@ -31,10 +31,7 @@ import {
   eventCliSession,
 } from '../../../telemetry/events'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import {
-  getStaticInfoIncludingLayouts,
-  sortByPageExts,
-} from '../../../build/entries'
+import { sortByPageExts } from '../../../build/entries'
 import { verifyTypeScriptSetup } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
@@ -438,6 +435,9 @@ async function startWatcher(
         })
 
         if (isMiddlewareFile(rootFile)) {
+          const getStaticInfoIncludingLayouts = (
+            require('../../../build/get-static-info-including-layouts') as typeof import('../../../build/get-static-info-including-layouts')
+          ).getStaticInfoIncludingLayouts
           const staticInfo = await getStaticInfoIncludingLayouts({
             pageFilePath: fileName,
             config: nextConfig,
