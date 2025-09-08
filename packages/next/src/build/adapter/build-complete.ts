@@ -163,6 +163,11 @@ export interface AdapterOutput {
        * considered stale and should be revalidated
        */
       initialRevalidate?: Revalidate
+
+      /**
+       * postponedState is the PPR state when it postponed and is used for resuming
+       */
+      postponedState?: string
     }
     /**
      * config related to the route
@@ -200,11 +205,6 @@ export interface AdapterOutput {
        * should be bypassed
        */
       bypassToken?: string
-
-      /**
-       * postponed is the PPR state when it postponed and is used for resuming
-       */
-      postponed?: string
     }
   }
 
@@ -419,7 +419,12 @@ export async function handleBuildComplete({
         const isAppPrefix = page.page.startsWith('app/')
         const isAppPage = isAppPrefix && page.page.endsWith('/page')
         const isAppRoute = isAppPrefix && page.page.endsWith('/route')
-        let currentOutputs: any[] = outputs.pages
+        let currentOutputs: Array<
+          | AdapterOutput['PAGES']
+          | AdapterOutput['PAGES_API']
+          | AdapterOutput['APP_PAGE']
+          | AdapterOutput['APP_ROUTE']
+        > = outputs.pages
 
         if (isMiddleware) {
           type = AdapterOutputType.MIDDLEWARE
@@ -664,8 +669,8 @@ export async function handleBuildComplete({
           segmentPaths?: string[]
         }
       ) => {
-        if (meta.postponed && initialOutput.config) {
-          initialOutput.config.postponed = meta.postponed
+        if (meta.postponed && initialOutput.fallback) {
+          initialOutput.fallback.postponedState = meta.postponed
         }
 
         if (meta?.segmentPaths) {
