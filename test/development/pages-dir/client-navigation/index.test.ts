@@ -16,6 +16,7 @@ describe('Client Navigation', () => {
       TEST_STRICT_NEXT_HEAD: String(true),
     },
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   describe('with empty getInitialProps()', () => {
     it('should render a redbox', async () => {
@@ -361,6 +362,23 @@ describe('Client Navigation', () => {
              ],
            }
           `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "An Expected error occurred",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/error-in-the-browser-global-scope.js (2:9) @ eval
+         > 2 |   throw new Error('An Expected error occurred')
+             |         ^",
+           "stack": [
+             "eval pages/error-in-the-browser-global-scope.js (2:9)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
            {

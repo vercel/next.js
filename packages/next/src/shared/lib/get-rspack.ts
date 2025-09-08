@@ -20,7 +20,8 @@ export function getRspackCore() {
 export function getRspackReactRefresh() {
   warnRspack()
   try {
-    const RspackReactRefreshPlugin = require('next-rspack/react-refresh-plugin');
+    // eslint-disable-next-line @next/internal/typechecked-require
+    const RspackReactRefreshPlugin = require('next-rspack/react-refresh-plugin')
     return RspackReactRefreshPlugin
   } catch (e) {
     if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
