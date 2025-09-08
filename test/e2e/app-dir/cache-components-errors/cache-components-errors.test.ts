@@ -5074,5 +5074,90 @@ describe('Cache Components Errors', () => {
         })
       }
     })
+
+    describe('Unhandled Rejection Suppression', () => {
+      const pathname = '/unhandled-rejection'
+
+      if (isNextDev) {
+        it('should suppress unhandled rejections during prerender validation in dev', async () => {
+          const browser = await next.browser(pathname)
+
+          await expect(browser).toDisplayCollapsedRedbox(`
+           [
+             {
+               "description": "BOOM",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": " ⨯ "unhandledRejection:" "BOOM"",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": " ⨯ "unhandledRejection: " "BOOM"",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": "BAM",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": " ⨯ "unhandledRejection:" "BAM"",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": " ⨯ "unhandledRejection: " "BAM"",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+           ]
+          `)
+        })
+      } else {
+        it('should suppress unhandled rejections after prerender abort', async () => {
+          try {
+            await prerender(pathname)
+          } catch {}
+
+          const output = getPrerenderOutput(
+            next.cliOutput.slice(cliOutputLength),
+            { isMinified: !isDebugPrerender }
+          )
+
+          expect(output).toMatchInlineSnapshot(`
+             "BOOM
+             BOOM"
+            `)
+        })
+      }
+    })
   })
 })
