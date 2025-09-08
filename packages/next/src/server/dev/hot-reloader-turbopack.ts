@@ -910,6 +910,7 @@ export async function createHotReloaderTurbopack(
         }
 
         ;(async function () {
+          await new Promise((resolve) => setTimeout(resolve, 1000))
           const versionInfo = await versionInfoPromise
           const devToolsConfig = await getDevToolsConfig(distDir)
 
