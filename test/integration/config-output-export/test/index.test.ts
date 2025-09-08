@@ -217,17 +217,18 @@ describe('config-output-export', () => {
         output: 'export',
       })
       browser = await webdriver(result.port, '/blog')
+
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toContain(
+        'ISR cannot be used with "output: export".'
+      )
+      expect(result?.stderr).toContain(
+        'ISR cannot be used with "output: export".'
+      )
     } finally {
       await killApp(app).catch(() => {})
       fs.rmSync(blog)
     }
-    await assertHasRedbox(browser)
-    expect(await getRedboxHeader(browser)).toContain(
-      'ISR cannot be used with "output: export".'
-    )
-    expect(result?.stderr).toContain(
-      'ISR cannot be used with "output: export".'
-    )
   })
 
   it('should work with getStaticProps and revalidate false', async () => {
