@@ -463,7 +463,7 @@ export default class NextNodeServer extends BaseServer<
         kind,
         interopDefault(
           await dynamicImportEsmDefault(
-            formatDynamicImportPath(this.distDir, handler)
+            formatDynamicImportPath(this.dir, handler)
           )
         )
       )
@@ -482,7 +482,7 @@ export default class NextNodeServer extends BaseServer<
     if (cacheHandler) {
       CacheHandler = interopDefault(
         await dynamicImportEsmDefault(
-          formatDynamicImportPath(this.distDir, cacheHandler)
+          formatDynamicImportPath(this.dir, cacheHandler)
         )
       )
     }
