@@ -1,10 +1,10 @@
 if (!$ReactRefreshRuntime$.refresh) {
-    $ReactRefreshRuntime$.refresh = function () {}
+  $ReactRefreshRuntime$.refresh = function () {}
 }
 
 module.exports = {
-    handleRuntimeError(error) {
-        throw error 
-    },
-    clearRuntimeErrors() {}
+  handleRuntimeError(error) {
+    throw error
+  },
+  clearRuntimeErrors() {},
 }
