@@ -292,6 +292,11 @@ impl ClientReferenceManifest {
                         ManifestNodeEntry {
                             name: rcstr!("*"),
                             id: (&*rsc_chunk_item_id).into(),
+                            // When a use-cache function runs, it's in the same Node.js context as
+                            // the parent RSC page renderer, so all needed chunks are loaded already
+                            // anyway. So if the use-cache function returns client references in the
+                            // RSC payload that the page context needs, then these modules are
+                            // already loaded.
                             chunks: vec![],
                             r#async: rsc_is_async,
                         },

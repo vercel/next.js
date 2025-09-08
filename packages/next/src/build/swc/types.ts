@@ -333,22 +333,27 @@ export type WrittenEndpoint =
       entryPath: string
       /** All client paths that have been written for the endpoint. */
       clientPaths: string[]
-      /** All server paths that have been written for the endpoint. */
-      serverPaths: ServerPath[]
+      /** All SSR server paths that have been written for the endpoint. */
+      ssrPaths: ServerPath[]
+      /** All RSC server paths that have been written for the endpoint. */
+      rscPaths: ServerPath[]
       config: EndpointConfig
     }
   | {
       type: 'edge'
       /** All client paths that have been written for the endpoint. */
       clientPaths: string[]
-      /** All server paths that have been written for the endpoint. */
-      serverPaths: ServerPath[]
+      /** All SSR server paths that have been written for the endpoint. */
+      ssrPaths: ServerPath[]
+      /** All RSC server paths that have been written for the endpoint. */
+      rscPaths: ServerPath[]
       config: EndpointConfig
     }
   | {
       type: 'none'
       clientPaths: []
-      serverPaths: []
+      ssrPaths: []
+      rscPaths: []
       config: EndpointConfig
     }
 

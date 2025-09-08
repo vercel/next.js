@@ -7,6 +7,8 @@ const LazyClientComponent = React.lazy(() => import('./client'))
 async function CachedComponent() {
   'use cache'
 
+  console.log('cached component executed')
+
   return (
     <>
       <LazyClientComponent />
@@ -16,5 +18,9 @@ async function CachedComponent() {
 }
 
 export default function Page() {
-  return <CachedComponent />
+  return (
+    <>
+      pagessss <CachedComponent />
+    </>
+  )
 }

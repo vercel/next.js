@@ -148,11 +148,13 @@ pub enum EndpointOutputPaths {
     NodeJs {
         /// Relative to the root_path
         server_entry_path: RcStr,
-        server_paths: Vec<ServerPath>,
+        ssr_paths: Vec<ServerPath>,
+        rsc_paths: Vec<ServerPath>,
         client_paths: Vec<RcStr>,
     },
     Edge {
-        server_paths: Vec<ServerPath>,
+        ssr_paths: Vec<ServerPath>,
+        rsc_paths: Vec<ServerPath>,
         client_paths: Vec<RcStr>,
     },
     NotFound,

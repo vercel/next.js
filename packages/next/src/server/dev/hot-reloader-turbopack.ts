@@ -23,6 +23,7 @@ import type {
   TurbopackResult,
   Project,
   Entrypoints,
+  ServerPath,
 } from '../../build/swc/types'
 import { createDefineEnv } from '../../build/swc'
 import * as Log from '../../build/output/log'
@@ -312,64 +313,77 @@ export async function createHotReloaderTurbopack(
       force?: boolean
     } = {}
   ): boolean {
-    if (force) {
-      for (const { path, contentHash } of writtenEndpoint.serverPaths) {
-        // We ignore source maps
-        if (path.endsWith('.map')) continue
-        const localKey = `${key}:${path}`
-        serverPathState.set(localKey, contentHash)
-        serverPathState.set(path, contentHash)
-      }
-    } else {
-      // Figure out if the server files have changed
-      let hasChange = false
-      for (const { path, contentHash } of writtenEndpoint.serverPaths) {
-        // We ignore source maps
-        if (path.endsWith('.map')) continue
-        const localKey = `${key}:${path}`
-        const localHash = serverPathState.get(localKey)
-        const globalHash = serverPathState.get(path)
-        if (
-          (localHash && localHash !== contentHash) ||
-          (globalHash && globalHash !== contentHash)
-        ) {
-          hasChange = true
+    function shouldClear(paths: ServerPath[]): boolean {
+      if (force) {
+        for (const { path, contentHash } of paths) {
+          // We ignore source maps
+          if (path.endsWith('.map')) continue
+          const localKey = `${key}:${path}`
           serverPathState.set(localKey, contentHash)
           serverPathState.set(path, contentHash)
-        } else {
-          if (!localHash) {
+        }
+        return true
+      } else {
+        // Figure out if the server files have changed
+        let hasChange = false
+        for (const { path, contentHash } of paths) {
+          // We ignore source maps
+          if (path.endsWith('.map')) continue
+          const localKey = `${key}:${path}`
+          const localHash = serverPathState.get(localKey)
+          const globalHash = serverPathState.get(path)
+          if (
+            (localHash && localHash !== contentHash) ||
+            (globalHash && globalHash !== contentHash)
+          ) {
+            hasChange = true
             serverPathState.set(localKey, contentHash)
-          }
-          if (!globalHash) {
             serverPathState.set(path, contentHash)
+          } else {
+            if (!localHash) {
+              serverPathState.set(localKey, contentHash)
+            }
+            if (!globalHash) {
+              serverPathState.set(path, contentHash)
+            }
           }
         }
-      }
 
-      if (!hasChange) {
-        return false
+        return hasChange
       }
     }
 
-    resetFetch()
+    let hasCleared = false
+    for (const paths of [writtenEndpoint.ssrPaths, writtenEndpoint.rscPaths]) {
+      let x = shouldClear(paths)
+      console.log(
+        key,
+        x,
+        paths === writtenEndpoint.ssrPaths ? 'ssr' : 'rsc',
+        writtenEndpoint
+      )
+      if (x) {
+        hasCleared = true
 
-    // Not available in:
-    // - Pages Router (no server-side HMR)
-    // - Edge Runtime (uses browser runtime which already disposes chunks individually)
-    if (typeof __next__clear_chunk_cache__ === 'function') {
-      __next__clear_chunk_cache__()
+        resetFetch()
+
+        // Not available in:
+        // - Pages Router (no server-side HMR)
+        // - Edge Runtime (uses browser runtime which already disposes chunks individually)
+        if (typeof __next__clear_chunk_cache__ === 'function') {
+          __next__clear_chunk_cache__()
+        }
+
+        const serverPaths = paths.map(({ path: p }) => join(distDir, p))
+
+        for (const file of serverPaths) {
+          clearModuleContext(file)
+          deleteCache(file)
+        }
+      }
     }
 
-    const serverPaths = writtenEndpoint.serverPaths.map(({ path: p }) =>
-      join(distDir, p)
-    )
-
-    for (const file of serverPaths) {
-      clearModuleContext(file)
-      deleteCache(file)
-    }
-
-    return true
+    return hasCleared
   }
 
   const buildingIds = new Set()

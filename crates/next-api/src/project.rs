@@ -1035,6 +1035,7 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn server_chunking_context(
         self: Vc<Self>,
+        chunk_dir_name: RcStr,
         client_assets: bool,
     ) -> Result<Vc<NodeJsChunkingContext>> {
         let options = ServerChunkingContextOptions {
@@ -1042,6 +1043,7 @@ impl Project {
             root_path: self.project_root_path().owned().await?,
             node_root: self.node_root().owned().await?,
             node_root_to_root_path: self.node_root_to_root_path().owned().await?,
+            chunk_dir_name,
             environment: self.server_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
             export_usage: self.export_usage(),
@@ -1064,12 +1066,14 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn edge_chunking_context(
         self: Vc<Self>,
+        chunk_dir_name: RcStr,
         client_assets: bool,
     ) -> Result<Vc<Box<dyn ChunkingContext>>> {
         let options = EdgeChunkingContextOptions {
             mode: self.next_mode(),
             root_path: self.project_root_path().owned().await?,
             node_root: self.node_root().owned().await?,
+            chunk_dir_name,
             output_root_to_root_path: self.node_root_to_root_path(),
             environment: self.edge_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
@@ -1093,12 +1097,15 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn runtime_chunking_context(
         self: Vc<Self>,
+        chunk_dir_name: RcStr,
         client_assets: bool,
         runtime: NextRuntime,
     ) -> Vc<Box<dyn ChunkingContext>> {
         match runtime {
-            NextRuntime::Edge => self.edge_chunking_context(client_assets),
-            NextRuntime::NodeJs => Vc::upcast(self.server_chunking_context(client_assets)),
+            NextRuntime::Edge => self.edge_chunking_context(chunk_dir_name, client_assets),
+            NextRuntime::NodeJs => {
+                Vc::upcast(self.server_chunking_context(chunk_dir_name, client_assets))
+            }
         }
     }
 

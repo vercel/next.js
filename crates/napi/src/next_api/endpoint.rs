@@ -46,7 +46,8 @@ pub struct NapiWrittenEndpoint {
     pub r#type: String,
     pub entry_path: Option<String>,
     pub client_paths: Vec<String>,
-    pub server_paths: Vec<NapiServerPath>,
+    pub rsc_paths: Vec<NapiServerPath>,
+    pub ssr_paths: Vec<NapiServerPath>,
     pub config: NapiEndpointConfig,
 }
 
@@ -55,22 +56,26 @@ impl From<Option<EndpointOutputPaths>> for NapiWrittenEndpoint {
         match written_endpoint {
             Some(EndpointOutputPaths::NodeJs {
                 server_entry_path,
-                server_paths,
+                rsc_paths,
+                ssr_paths,
                 client_paths,
             }) => Self {
                 r#type: "nodejs".to_string(),
                 entry_path: Some(server_entry_path.into_owned()),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
-                server_paths: server_paths.into_iter().map(From::from).collect(),
+                rsc_paths: rsc_paths.into_iter().map(From::from).collect(),
+                ssr_paths: ssr_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
             Some(EndpointOutputPaths::Edge {
-                server_paths,
+                rsc_paths,
+                ssr_paths,
                 client_paths,
             }) => Self {
                 r#type: "edge".to_string(),
                 client_paths: client_paths.into_iter().map(From::from).collect(),
-                server_paths: server_paths.into_iter().map(From::from).collect(),
+                rsc_paths: rsc_paths.into_iter().map(From::from).collect(),
+                ssr_paths: ssr_paths.into_iter().map(From::from).collect(),
                 ..Default::default()
             },
             Some(EndpointOutputPaths::NotFound) | None => Self {

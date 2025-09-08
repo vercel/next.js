@@ -120,7 +120,7 @@ impl InstrumentationEndpoint {
         .chain(std::iter::once(module))
         .collect();
 
-        let edge_chunking_context = this.project.edge_chunking_context(false);
+        let edge_chunking_context = this.project.edge_chunking_context(rcstr!("rsc"), false);
         let edge_files: Vc<OutputAssets> = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
             ChunkGroup::Entry(evaluatable_assets),
@@ -135,7 +135,7 @@ impl InstrumentationEndpoint {
     async fn node_chunk(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
         let this = self.await?;
 
-        let chunking_context = this.project.server_chunking_context(false);
+        let chunking_context = this.project.server_chunking_context(rcstr!("rsc"), false);
 
         let userland_module = self.core_modules().await?.userland_module;
         let module_graph = this.project.module_graph(*userland_module);
@@ -252,7 +252,8 @@ impl Endpoint for InstrumentationEndpoint {
             Ok(EndpointOutput {
                 output_assets: output_assets.to_resolved().await?,
                 output_paths: EndpointOutputPaths::Edge {
-                    server_paths,
+                    rsc_paths: server_paths,
+                    ssr_paths: vec![],
                     client_paths: vec![],
                 }
                 .resolved_cell(),

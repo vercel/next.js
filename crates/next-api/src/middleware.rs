@@ -127,7 +127,7 @@ impl MiddlewareEndpoint {
         .chain(std::iter::once(module))
         .collect();
 
-        let edge_chunking_context = this.project.edge_chunking_context(false);
+        let edge_chunking_context = this.project.edge_chunking_context(rcstr!("rsc"), false);
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
             ChunkGroup::Entry(evaluatable_assets),
@@ -141,7 +141,7 @@ impl MiddlewareEndpoint {
     async fn node_chunk(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
         let this = self.await?;
 
-        let chunking_context = this.project.server_chunking_context(false);
+        let chunking_context = this.project.server_chunking_context(rcstr!("rsc"), false);
 
         let userland_module = self.entry_module().to_resolved().await?;
         let module_graph = this.project.module_graph(*userland_module);
@@ -381,7 +381,8 @@ impl Endpoint for MiddlewareEndpoint {
 
             Ok(EndpointOutput {
                 output_paths: EndpointOutputPaths::Edge {
-                    server_paths,
+                    rsc_paths: server_paths,
+                    ssr_paths: vec![],
                     client_paths,
                 }
                 .resolved_cell(),

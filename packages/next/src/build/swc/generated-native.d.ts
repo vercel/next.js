@@ -61,7 +61,8 @@ export interface NapiWrittenEndpoint {
   type: string
   entryPath?: string
   clientPaths: Array<string>
-  serverPaths: Array<NapiServerPath>
+  rscPaths: Array<NapiServerPath>
+  ssrPaths: Array<NapiServerPath>
   config: NapiEndpointConfig
 }
 export declare function endpointWriteToDisk(endpoint: {

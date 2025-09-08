@@ -1,5 +1,7 @@
 'use client'
 
 export default function UnrelatedComponent() {
-  return <section>Unrelated Component</section>
+  let x = '12345'
+  console.log('Unrelated Component ' + x)
+  return <section>Unrelated Component {x}</section>
 }

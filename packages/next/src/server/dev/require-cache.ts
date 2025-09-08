@@ -21,6 +21,7 @@ function deleteFromRequireCache(filePath: string) {
     for (const child of mod.children) {
       child.parent = null
     }
+    console.log('delete', filePath)
     delete require.cache[filePath]
     return true
   }

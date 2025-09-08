@@ -1216,8 +1216,8 @@ impl PageEndpoint {
                 .node_root()
                 .await?
                 .join("server")?,
-            project.server_chunking_context(true),
-            project.edge_chunking_context(true),
+            project.server_chunking_context(rcstr!("ssr"), true),
+            project.edge_chunking_context(rcstr!("ssr"), true),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
@@ -1234,8 +1234,12 @@ impl PageEndpoint {
                 .node_root()
                 .await?
                 .join("server/data")?,
-            this.pages_project.project().server_chunking_context(true),
-            this.pages_project.project().edge_chunking_context(true),
+            this.pages_project
+                .project()
+                .server_chunking_context(rcstr!("ssr"), true),
+            this.pages_project
+                .project()
+                .edge_chunking_context(rcstr!("ssr"), true),
             this.pages_project.ssr_data_runtime_entries(),
             this.pages_project.edge_ssr_data_runtime_entries(),
         ))
@@ -1252,8 +1256,12 @@ impl PageEndpoint {
                 .node_root()
                 .await?
                 .join("server")?,
-            this.pages_project.project().server_chunking_context(false),
-            this.pages_project.project().edge_chunking_context(false),
+            this.pages_project
+                .project()
+                .server_chunking_context(rcstr!("ssr"), false),
+            this.pages_project
+                .project()
+                .edge_chunking_context(rcstr!("ssr"), false),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
@@ -1676,14 +1684,14 @@ impl Endpoint for PageEndpoint {
 
             let node_root = this.pages_project.project().node_root().owned().await?;
 
-            let (server_paths, client_paths) = if this
+            let (ssr_paths, client_paths) = if this
                 .pages_project
                 .project()
                 .next_mode()
                 .await?
                 .is_development()
             {
-                let server_paths = all_server_paths(output_assets, node_root.clone())
+                let ssr_paths = all_server_paths(output_assets, node_root.clone())
                     .owned()
                     .await?;
 
@@ -1697,7 +1705,7 @@ impl Endpoint for PageEndpoint {
                     .owned()
                     .instrument(tracing::info_span!("client_paths"))
                     .await?;
-                (server_paths, client_paths)
+                (ssr_paths, client_paths)
             } else {
                 (vec![], vec![])
             };
@@ -1718,12 +1726,14 @@ impl Endpoint for PageEndpoint {
 
                     EndpointOutputPaths::NodeJs {
                         server_entry_path,
-                        server_paths,
+                        rsc_paths: vec![],
+                        ssr_paths,
                         client_paths,
                     }
                 }
                 PageEndpointOutput::Edge { .. } => EndpointOutputPaths::Edge {
-                    server_paths,
+                    rsc_paths: vec![],
+                    ssr_paths,
                     client_paths,
                 },
             };
