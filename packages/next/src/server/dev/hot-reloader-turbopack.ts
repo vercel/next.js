@@ -690,7 +690,17 @@ export async function createHotReloaderTurbopack(
     }),
   ]
 
-  const versionInfoPromise = getVersionInfo()
+  let versionInfoCached: ReturnType<typeof getVersionInfo> | undefined
+  // This fetch, even though not awaited, is not kicked off eagerly because the first `fetch()` in
+  // Node.js adds roughly 20ms main-thread blocking to load the SSL certificate cache
+  // We don't want that blocking time to be in the hot path for the `ready in` logging.
+  // Instead, the fetch is kicked off lazily when the first `getVersionInfoCached()` is called.
+  const getVersionInfoCached = (): ReturnType<typeof getVersionInfo> => {
+    if (!versionInfoCached) {
+      versionInfoCached = getVersionInfo()
+    }
+    return versionInfoCached
+  }
 
   let devtoolsFrontendUrl: string | undefined
   const nodeDebugType = getNodeDebugType()
@@ -910,7 +920,7 @@ export async function createHotReloaderTurbopack(
         }
 
         ;(async function () {
-          const versionInfo = await versionInfoPromise
+          const versionInfo = await getVersionInfoCached()
           const devToolsConfig = await getDevToolsConfig(distDir)
 
           const syncMessage: SyncMessage = {
