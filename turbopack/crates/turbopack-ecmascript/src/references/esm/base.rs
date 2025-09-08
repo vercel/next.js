@@ -171,8 +171,7 @@ impl ReferencedAsset {
     ) -> Result<Option<ReferencedAssetIdent>> {
         Ok(match self {
             ReferencedAsset::Some(asset) => {
-                if let Some(ctxt) =
-                    scope_hoisting_context.get_module_syntax_context(ResolvedVc::upcast(*asset))
+                if let Some(ctxt) = scope_hoisting_context.get_module_syntax_context(*asset)
                     && let Some(export) = &export
                     && let EcmascriptExports::EsmExports(exports) = *asset.get_exports().await?
                 {
@@ -271,7 +270,7 @@ impl ReferencedAsset {
         asset: &Vc<Box<dyn EcmascriptChunkPlaceable>>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
-        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
+        let id = asset.chunk_item_id(chunking_context).await?;
         Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
 }
@@ -604,9 +603,7 @@ impl EsmAssetReference {
                                         unreachable!();
                                     }
                                     ReferencedAsset::Some(asset) => {
-                                        let id = asset
-                                            .chunk_item_id(Vc::upcast(chunking_context))
-                                            .await?;
+                                        let id = asset.chunk_item_id(chunking_context).await?;
                                         let (sym, ctxt) =
                                             ident.into_module_namespace_ident().unwrap();
                                         let name = Ident::new(

@@ -123,7 +123,8 @@ export async function transpileConfig({
         // Value is 'strip' or 'transform' based on how the feature is enabled.
         // https://nodejs.org/api/process.html#processfeaturestypescript
         if ((process.features as any).typescript) {
-          return import(pathToFileURL(nextConfigPath).href)
+          // Run import() here to catch errors and fallback to legacy resolution.
+          return (await import(pathToFileURL(nextConfigPath).href)).default
         }
 
         if (

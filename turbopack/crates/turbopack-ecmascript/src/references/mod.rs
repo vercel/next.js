@@ -61,8 +61,8 @@ use swc_core::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
-    ValueToString, Vc, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
+    UpcastStrict, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -255,7 +255,10 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an asset reference to the analysis result.
-    pub fn add_reference(&mut self, reference: ResolvedVc<impl Upcast<Box<dyn ModuleReference>>>) {
+    pub fn add_reference(
+        &mut self,
+        reference: ResolvedVc<impl UpcastStrict<Box<dyn ModuleReference>>>,
+    ) {
         let r = ResolvedVc::upcast(reference);
         self.references.insert(r);
     }
@@ -263,7 +266,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     /// Adds an asset reference with codegen to the analysis result.
     pub fn add_reference_code_gen<R: IntoCodeGenReference>(&mut self, reference: R, path: AstPath) {
         let (reference, code_gen) = reference.into_code_gen_reference(path);
-        self.add_reference(reference);
+        self.references.insert(reference);
         self.add_code_gen(code_gen);
     }
 

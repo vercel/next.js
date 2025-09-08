@@ -119,7 +119,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let module = module_asset_context
                     .process(Vc::upcast(source), ReferenceType::Undefined)
                     .module();
-                let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, output_dir.clone())
+                let rebased = RebasedAsset::new(module, input_dir, output_dir.clone())
                     .to_resolved()
                     .await?;
 

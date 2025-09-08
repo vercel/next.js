@@ -540,7 +540,7 @@ where
 {
     /// Returns the module id of this chunk item.
     fn id(self: Vc<Self>) -> Vc<ModuleId> {
-        let chunk_item = Vc::upcast(self);
+        let chunk_item = Vc::upcast_non_strict(self);
         chunk_item.chunking_context().chunk_item_id(chunk_item)
     }
 }
@@ -560,7 +560,7 @@ where
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Vc<ModuleId> {
-        chunking_context.chunk_item_id_from_module(Vc::upcast(self))
+        chunking_context.chunk_item_id_from_module(Vc::upcast_non_strict(self))
     }
 }
 
