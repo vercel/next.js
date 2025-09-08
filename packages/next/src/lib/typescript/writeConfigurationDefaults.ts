@@ -212,7 +212,7 @@ export async function writeConfigurationDefaults(
   const nextConfigMts = (process.features as any).typescript
     ? ['next.config.mts']
     : []
-  const nextConfigMtsString = nextConfigMts[0] ? `'${nextConfigMts[0]}',` : ''
+  const nextConfigMtsString = nextConfigMts[0] ? ` '${nextConfigMts[0]}',` : ''
 
   if (!('include' in rawConfig)) {
     userTsConfig.include = hasAppDir
@@ -223,8 +223,8 @@ export async function writeConfigurationDefaults(
         ' was set to ' +
         bold(
           hasAppDir
-            ? `['next-env.d.ts', '${nextAppTypes}', ${nextConfigMtsString} '**/*.ts', '**/*.tsx']`
-            : `['next-env.d.ts', ${nextConfigMtsString} '**/*.ts', '**/*.tsx']`
+            ? `['next-env.d.ts', '${nextAppTypes}',${nextConfigMtsString} '**/*.ts', '**/*.tsx']`
+            : `['next-env.d.ts',${nextConfigMtsString} '**/*.ts', '**/*.tsx']`
         )
     )
   } else if (hasAppDir && !rawConfig.include.includes(nextAppTypes)) {
