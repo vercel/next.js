@@ -45,18 +45,12 @@ export const getExtensionRegexString = (
 }
 
 /**
- * Matches the route path of static metadata files, e.g. /robots.txt, /sitemap.xml, /favicon.ico, etc.
- * This includes paths with metadata suffixes like /icon8.png, /icon-<hash>.png, etc.
+ * Matches the static metadata files, e.g. /robots.txt, /sitemap.xml, /favicon.ico, etc.
  * @param appDirRelativePath the relative file path to app/
  * @returns if the path is a static metadata file route
  */
 export function isStaticMetadataFile(appDirRelativePath: string) {
-  // Strip metadata suffix (-\w{6}) from the path before checking
-  return isMetadataRouteFile(
-    appDirRelativePath.replace(/-\w{6}(?=\.[^/]*$)/, ''),
-    [],
-    true
-  )
+  return isMetadataRouteFile(appDirRelativePath, [], true)
 }
 
 /**
