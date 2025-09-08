@@ -8,8 +8,6 @@ describe('next-config-ts-nested-imports-esm', () => {
     },
   })
 
-  console.log('noop')
-
   it('should handle nested imports (ESM)', async () => {
     const $ = await next.render$('/')
     expect($('p').text()).toBe('foobarbaz')
