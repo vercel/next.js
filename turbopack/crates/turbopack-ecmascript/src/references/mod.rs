@@ -429,6 +429,7 @@ struct AnalysisState<'a> {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
     var_graph: &'a VarGraph,
+    define_process_cwd: bool,
     /// This is the current state of known values of function
     /// arguments.
     fun_args_values: Mutex<FxHashMap<u32, Vec<JsValue>>>,
@@ -458,6 +459,7 @@ impl AnalysisState<'_> {
                     &self.free_var_references,
                     self.var_graph,
                     attributes,
+                    self.define_process_cwd,
                 )
             },
             &self.fun_args_values,
@@ -988,6 +990,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             origin,
             compile_time_info,
             var_graph: &var_graph,
+            define_process_cwd: !source.ident().path().await?.path.contains("/node_modules/"),
             fun_args_values: Default::default(),
             var_cache: Default::default(),
             first_import_meta: true,
@@ -2868,6 +2871,7 @@ async fn value_visitor(
     >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
+    define_process_cwd: bool,
 ) -> Result<(JsValue, bool)> {
     let (mut v, modified) = value_visitor_inner(
         origin,
@@ -2876,6 +2880,7 @@ async fn value_visitor(
         free_var_references,
         var_graph,
         attributes,
+        define_process_cwd,
     )
     .await?;
     v.normalize_shallow();
@@ -2892,6 +2897,7 @@ async fn value_visitor_inner(
     >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
+    define_process_cwd: bool,
 ) -> Result<(JsValue, bool)> {
     let ImportAttributes { ignore, .. } = *attributes;
     // This check is just an optimization
@@ -3021,7 +3027,8 @@ async fn value_visitor_inner(
             v.into_unknown(true, "cross function analyzing is not yet supported")
         }
         _ => {
-            let (mut v, mut modified) = replace_well_known(v, compile_time_info).await?;
+            let (mut v, mut modified) =
+                replace_well_known(v, compile_time_info, define_process_cwd).await?;
             modified = replace_builtin(&mut v) || modified;
             modified = modified || v.make_nested_operations_unknown();
             return Ok((v, modified));
