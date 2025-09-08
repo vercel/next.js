@@ -1,6 +1,10 @@
 import type { Playwright } from '../../../lib/next-webdriver'
+import { assertHasDevToolsIndicator } from 'next-test-utils'
 
 export async function getDevIndicatorPosition(browser: Playwright) {
+  // assert before eval() to prevent race condition
+  await assertHasDevToolsIndicator(browser)
+
   const style = await browser.eval(() => {
     return (
       [].slice
