@@ -290,11 +290,6 @@ async fn dynamic_sitemap_route_with_generate_source(
             export async function GET(_, ctx) {{
                 const {{ __metadata_id__: id, ...params }} = await ctx.params || {{}}
                 const hasXmlExtension = id ? id.endsWith('.xml') : false
-                if (id && !hasXmlExtension) {{
-                    return new NextResponse('Not Found', {{
-                        status: 404,
-                    }})
-                }}
 
                 if (process.env.NODE_ENV !== 'production') {{
                     const sitemaps = await generateSitemaps()
@@ -303,7 +298,7 @@ async fn dynamic_sitemap_route_with_generate_source(
                         if (item?.id == null) {{
                             throw new Error('id property is required for every item returned from generateSitemaps')
                         }}
-                        const baseId = id && hasXmlExtension ? id.slice(0, -4) : id
+                        const baseId = id && hasXmlExtension ? id.slice(0, -4) : undefined
                         if (item.id.toString() === baseId) {{
                             foundId = item.id
                         }}
