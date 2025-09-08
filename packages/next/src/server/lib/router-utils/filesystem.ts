@@ -507,7 +507,11 @@ export async function setupFsCheck(opts: {
         }
       }
 
-      if (opts.dev && isStaticMetadataFile(itemPath)) {
+      if (
+        opts.dev &&
+        // Strip metadata suffix (-\w{6}) to match the static metadata file convention.
+        isStaticMetadataFile(itemPath.replace(/-\w{6}(?=\.[^/]*$)/, ''))
+      ) {
         const fsPath = staticMetadataFiles.get(itemPath)
         if (fsPath) {
           return {
