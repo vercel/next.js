@@ -106,11 +106,11 @@ pub async fn find_pages_structure(
     page_extensions: Vc<Vec<RcStr>>,
     next_mode: Vc<crate::mode::NextMode>,
 ) -> Result<Vc<PagesStructure>> {
-    let pages_root = project_root.join("pages")?.realpath().owned().await?;
+    let pages_root = project_root.join("pages")?.realpath().await?;
     let pages_root = if *pages_root.get_type().await? == FileSystemEntryType::Directory {
         Some(pages_root)
     } else {
-        let src_pages_root = project_root.join("src/pages")?.realpath().owned().await?;
+        let src_pages_root = project_root.join("src/pages")?.realpath().await?;
         if *src_pages_root.get_type().await? == FileSystemEntryType::Directory {
             Some(src_pages_root)
         } else {

@@ -47,18 +47,19 @@ export async function verifyTypeScriptSetup({
   dir: string
   distDir: string
   cacheDir?: string
-  tsconfigPath: string
+  tsconfigPath: string | undefined
   intentDirs: string[]
   typeCheckPreflight: boolean
   disableStaticImages: boolean
   hasAppDir: boolean
   hasPagesDir: boolean
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
-  const resolvedTsConfigPath = path.join(dir, tsconfigPath)
+  const tsConfigFileName = tsconfigPath || 'tsconfig.json'
+  const resolvedTsConfigPath = path.join(dir, tsConfigFileName)
 
   try {
     // Check if the project uses TypeScript:
-    const intent = await getTypeScriptIntent(dir, intentDirs, tsconfigPath)
+    const intent = await getTypeScriptIntent(dir, intentDirs, tsConfigFileName)
     if (!intent) {
       return { version: null }
     }

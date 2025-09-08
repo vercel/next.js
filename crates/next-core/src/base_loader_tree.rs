@@ -99,7 +99,7 @@ impl BaseLoaderTreeBuilder {
         self.imports.push(
             formatdoc!(
                 r#"
-                import * as {} from "MODULE_{}";
+                const {} = () => require("MODULE_{}");
                 "#,
                 identifier,
                 i
@@ -118,7 +118,7 @@ impl BaseLoaderTreeBuilder {
         let module_path = module.ident().path().to_string().await?;
 
         Ok(format!(
-            "[() => {identifier}, {path}]",
+            "[{identifier}, {path}]",
             path = StringifyJs(&module_path),
         ))
     }

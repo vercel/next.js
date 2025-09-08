@@ -44,7 +44,7 @@ describe('app-dir action handling', () => {
 
           expect(itemInfo.filename).toBeString()
           // can be outside app dir but this test suite has them all in app
-          expect(itemInfo.filename.startsWith('app/')).toBe(true)
+          expect(itemInfo.filename).toStartWith('app/')
           expect(itemInfo.exportedName).toBeString()
         } catch (err) {
           require('console').error(`Invalid action entry ${item}`, err)
@@ -198,7 +198,7 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#cookie').click()
     await retry(async () => {
-      const res = (await browser.elementByCss('h1').text()) || ''
+      const res = await browser.elementByCss('h1', { state: 'attached' }).text()
       const id = res.split(':', 2)
       expect(id[0]).toBeDefined()
       expect(id[0]).toBe(id[1])
@@ -206,14 +206,14 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#header').click()
     await retry(async () => {
-      const res = (await browser.elementByCss('h1').text()) || ''
+      const res = await browser.elementByCss('h1').text()
       expect(res).toContain('Mozilla')
     })
 
     // Set cookies
     await browser.elementByCss('#setCookie').click()
     await retry(async () => {
-      const res = (await browser.elementByCss('h1').text()) || ''
+      const res = await browser.elementByCss('h1').text()
       const id = res.split(':', 3)
 
       expect(id[0]).toBeDefined()
@@ -231,7 +231,7 @@ describe('app-dir action handling', () => {
       const browser = await next.browser('/mutate-cookie-with-redirect', {
         disableJavaScript,
       })
-      expect(await browser.elementByCss('#value').text()).toBe('')
+      expect(await browser.elementByCss('#value').text()).toBe('<null>')
 
       await browser.elementByCss('#update-cookie').click()
       await browser.elementByCss('#redirect-target')
@@ -864,7 +864,9 @@ describe('app-dir action handling', () => {
       const browser = await next.browser(`/delayed-action/${runtime}`)
 
       // confirm there's no data yet
-      expect(await browser.elementById('delayed-action-result').text()).toBe('')
+      expect(await browser.elementById('delayed-action-result').text()).toBe(
+        '<null>'
+      )
 
       // Trigger the delayed action. This will sleep for a few seconds before dispatching the server action handler
       await browser.elementById('run-action').click()
@@ -1395,7 +1397,9 @@ describe('app-dir action handling', () => {
 
     it('should revalidate when cookies.set is called', async () => {
       const browser = await next.browser('/revalidate')
-      const randomNumber = await browser.elementByCss('#random-cookie').text()
+      const randomNumber = await browser
+        .elementByCss('#random-cookie', { state: 'attached' })
+        .text()
 
       await browser.elementByCss('#set-cookie').click()
 
@@ -1446,11 +1450,8 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         randomCookie = JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
-        expect(randomCookie).toBeDefined()
+        ).cookie.value
       })
-
-      console.log(123, await browser.elementByCss('body').text())
 
       await browser.elementByCss('#another').click()
       await retry(async () => {
@@ -1461,7 +1462,7 @@ describe('app-dir action handling', () => {
 
       const newRandomCookie = JSON.parse(
         await browser.elementByCss('#random-cookie').text()
-      ).value
+      ).cookie.value
 
       console.log(456, await browser.elementByCss('body').text())
 
@@ -1478,7 +1479,7 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         revalidatedRandomCookie = JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
+        ).cookie.value
         expect(revalidatedRandomCookie).not.toBe(randomCookie)
       })
 
@@ -1488,7 +1489,7 @@ describe('app-dir action handling', () => {
       await retry(async () => {
         const newRandomCookie = await JSON.parse(
           await browser.elementByCss('#random-cookie').text()
-        ).value
+        ).cookie.value
         expect(revalidatedRandomCookie).toBe(newRandomCookie)
       })
     })

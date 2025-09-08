@@ -16,14 +16,10 @@ use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storag
 use turbo_tasks_fs::{
     DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath, ReadGlobResult,
     glob::{Glob, GlobOptions},
-    register,
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    register();
-    include!(concat!(env!("OUT_DIR"), "/register_example_hash_glob.rs"));
-
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions::default(),
         noop_backing_storage(),

@@ -15,6 +15,10 @@ on:
         description: Version of Vercel CLI to use
         default: 'vercel@latest'
         type: string
+      overrideProxyAddress:
+        description: Override the proxy address to use for the test
+        default: ''
+        type: string
 
 env:
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
@@ -80,6 +84,7 @@ jobs:
       stepName: 'test-deploy-${{ matrix.group }}'
       timeout_minutes: 180
       runs_on_labels: '["ubuntu-latest"]'
+      overrideProxyAddress: ${{ inputs.overrideProxyAddress || '' }}
 
   report-test-results-to-datadog:
     needs: test-deploy

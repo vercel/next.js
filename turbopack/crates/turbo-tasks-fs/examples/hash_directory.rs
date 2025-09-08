@@ -15,17 +15,10 @@ use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Vc, util::FormatDurat
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
-    register,
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    register();
-    include!(concat!(
-        env!("OUT_DIR"),
-        "/register_example_hash_directory.rs"
-    ));
-
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions::default(),
         noop_backing_storage(),

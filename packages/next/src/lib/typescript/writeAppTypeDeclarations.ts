@@ -62,13 +62,8 @@ export async function writeAppTypeDeclarations({
     'types/routes.d.ts'
   )
 
-  // Ensure the path is POSIX-compliant for imports.
-  const routeTypesPathPosix = routeTypesPath
-    .split(path.sep)
-    .join(path.posix.sep)
-
   // Use ESM import instead of triple-slash reference for better ESLint compatibility
-  directives.push(`import "./${routeTypesPathPosix}";`)
+  directives.push(`import "./${routeTypesPath}";`)
 
   // Push the notice in.
   directives.push(

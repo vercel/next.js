@@ -377,7 +377,7 @@ export async function startServer(
         appUrl,
         envInfo,
         experimentalFeatures,
-        maxExperimentalFeatures: 3,
+        logBundler: isDev,
       })
 
       Log.event(`Starting...`)

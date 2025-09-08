@@ -1,7 +1,9 @@
 use anyhow::Result;
+use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
+    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     reference::ModuleReference,
     resolve::{ModuleResolveResult, pattern::Pattern, resolve_raw},
     source::Source,
@@ -28,7 +30,26 @@ impl ModuleReference for FileSourceReference {
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let context_dir = self.source.ident().path().await?.parent();
 
-        Ok(resolve_raw(context_dir, *self.path, false).as_raw_module_result())
+        let span = tracing::info_span!(
+            "trace file",
+            pattern = display(self.path.to_string().await?)
+        );
+        async {
+            resolve_raw(context_dir, *self.path, false)
+                .as_raw_module_result()
+                .resolve()
+                .await
+        }
+        .instrument(span)
+        .await
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for FileSourceReference {
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Traced))
     }
 }
 

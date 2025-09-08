@@ -4,7 +4,6 @@ import { check } from 'next-test-utils'
 
 const CACHE_HEADERS = {
   NONE: 'no-cache, no-store',
-  LONG: 'public, immutable, no-transform, max-age=31536000',
   REVALIDATE: 'public, max-age=0, must-revalidate',
 }
 
@@ -51,21 +50,21 @@ describe('app dir - metadata dynamic routes', () => {
       expect(res.headers.get('cache-control')).toBe(CACHE_HEADERS.REVALIDATE)
 
       expect(text).toMatchInlineSnapshot(`
-      "<?xml version="1.0" encoding="UTF-8"?>
-      <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-      <url>
-      <loc>https://example.com</loc>
-      <lastmod>2021-01-01</lastmod>
-      <changefreq>weekly</changefreq>
-      <priority>0.5</priority>
-      </url>
-      <url>
-      <loc>https://example.com/about</loc>
-      <lastmod>2021-01-01</lastmod>
-      </url>
-      </urlset>
-      "
-    `)
+             "<?xml version="1.0" encoding="UTF-8"?>
+             <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+             <url>
+             <loc>https://example.com</loc>
+             <lastmod>2021-01-01</lastmod>
+             <changefreq>weekly</changefreq>
+             <priority>0.5</priority>
+             </url>
+             <url>
+             <loc>https://example.com/about</loc>
+             <lastmod>2021-01-01</lastmod>
+             </url>
+             </urlset>
+             "
+          `)
     })
 
     it('should support generate multi sitemaps with generateSitemaps', async () => {
@@ -85,6 +84,11 @@ describe('app dir - metadata dynamic routes', () => {
         const { status } = await fetchSitemap(id, false)
         expect(status).toBe(404)
       }
+    })
+
+    it('should 404 for non-existing id from generateImageMetadata', async () => {
+      const res = await next.fetch('/gsp/icon/non-existing-id')
+      expect(res.status).toBe(404)
     })
 
     it('should not throw if client components are imported but not used in sitemap', async () => {
@@ -209,7 +213,7 @@ describe('app dir - metadata dynamic routes', () => {
 
       expect(res.headers.get('content-type')).toBe('image/png')
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
+        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
     })
 
@@ -219,7 +223,7 @@ describe('app dir - metadata dynamic routes', () => {
 
       expect(res.headers.get('content-type')).toBe('image/png')
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
+        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
 
       if (isNextDev) {
@@ -241,7 +245,7 @@ describe('app dir - metadata dynamic routes', () => {
       res = await next.fetch('/twitter-image2')
       expect(res.headers.get('content-type')).toBe('image/png')
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
+        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
     })
 
@@ -338,7 +342,7 @@ describe('app dir - metadata dynamic routes', () => {
 
       expect(res.headers.get('content-type')).toBe('image/png')
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
+        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
     })
 
@@ -347,7 +351,7 @@ describe('app dir - metadata dynamic routes', () => {
 
       expect(res.headers.get('content-type')).toBe('image/png')
       expect(res.headers.get('cache-control')).toBe(
-        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.LONG
+        isNextDev ? CACHE_HEADERS.NONE : CACHE_HEADERS.REVALIDATE
       )
     })
   })
@@ -503,14 +507,50 @@ describe('app dir - metadata dynamic routes', () => {
       expect(isTraced).toBe(true)
     })
 
-    it('should statically optimized single image route', async () => {
+    it('should contain generated routes in prerender manifest', async () => {
       const prerenderManifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
       )
-      const dynamicRoutes = Object.keys(prerenderManifest.routes)
-      expect(dynamicRoutes).toContain('/opengraph-image')
-      expect(dynamicRoutes).toContain('/opengraph-image-1ow20b')
-      expect(dynamicRoutes).toContain('/apple-icon')
+      const routes = Object.keys(prerenderManifest.routes).sort()
+
+      // contains the dynamic metadata routes
+      // - /gsp/sitemap/child0.xml
+      // - /gsp/sitemap/child1.xml
+      // - /gsp/sitemap/child2.xml
+      // - /gsp/sitemap/child3.xml
+      expect(routes).toMatchInlineSnapshot(`
+       [
+         "/",
+         "/_global-error",
+         "/_not-found",
+         "/apple-icon",
+         "/blog",
+         "/client-ref-dependency/sitemap.xml",
+         "/gsp",
+         "/gsp/icon/medium",
+         "/gsp/icon/small",
+         "/gsp/sitemap/child0.xml",
+         "/gsp/sitemap/child1.xml",
+         "/gsp/sitemap/child2.xml",
+         "/gsp/sitemap/child3.xml",
+         "/icon",
+         "/lang/sitemap.xml",
+         "/manifest.webmanifest",
+         "/metadata-base/unset",
+         "/metadata-base/unset/opengraph-image2/100",
+         "/metadata-base/unset/opengraph-image2/101",
+         "/metadata-base/unset/twitter-image.png",
+         "/opengraph-image",
+         "/opengraph-image-1ow20b",
+         "/robots.txt",
+         "/sitemap-image/sitemap.xml",
+         "/sitemap-video/sitemap.xml",
+         "/sitemap.xml",
+         "/static",
+         "/static/opengraph-image-hwkw89.png",
+         "/twitter-image",
+       ]
+      `)
     })
   }
 })

@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_tasks_malloc::TurboMalloc;
-use turbopack_cli::{arguments::Arguments, register};
+use turbopack_cli::arguments::Arguments;
 use turbopack_trace_utils::{
     exit::ExitHandler,
     filter_layer::FilterLayer,
@@ -94,8 +94,6 @@ async fn main_inner(args: Arguments) -> Result<()> {
 
         subscriber.init();
     }
-
-    register();
 
     match args {
         Arguments::Build(args) => turbopack_cli::build::build(&args).await,

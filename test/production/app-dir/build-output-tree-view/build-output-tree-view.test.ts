@@ -74,15 +74,15 @@ describe('build-output-tree-view', () => {
 })
 
 function getTreeView(cliOutput: string): string {
-  let foundBuildTracesLine = false
+  let foundStart = false
   const lines: string[] = []
 
   for (const line of cliOutput.split('\n')) {
-    if (foundBuildTracesLine) {
+    foundStart ||= line.startsWith('Route ')
+
+    if (foundStart) {
       lines.push(line)
     }
-
-    foundBuildTracesLine ||= line.includes('Collecting build traces')
   }
 
   return lines.join('\n').trim()

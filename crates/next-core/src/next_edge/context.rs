@@ -11,7 +11,9 @@ use turbopack_core::{
         module_id_strategies::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
-    environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
+    environment::{
+        BrowserEnvironment, EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion,
+    },
     free_var_references,
     module_graph::export_usage::OptionExportUsageInfo,
 };
@@ -60,11 +62,23 @@ pub async fn get_edge_compile_time_info(
     project_path: FileSystemPath,
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
+    css_browserslist_query: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
+    let css_environment = BrowserEnvironment {
+        dom: false,
+        web_worker: false,
+        service_worker: false,
+        browserslist_query: css_browserslist_query,
+    }
+    .resolved_cell();
+
     CompileTimeInfo::builder(
-        Environment::new(ExecutionEnvironment::EdgeWorker(
-            EdgeWorkerEnvironment { node_version }.resolved_cell(),
-        ))
+        Environment::new(
+            ExecutionEnvironment::EdgeWorker(
+                EdgeWorkerEnvironment { node_version }.resolved_cell(),
+            ),
+            *css_environment,
+        )
         .to_resolved()
         .await?,
     )
@@ -178,6 +192,9 @@ pub async fn get_edge_resolve_options_context(
             .typescript_tsconfig_path()
             .await?
             .as_ref()
+            // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
+            // resolve tsconfig.json relative to the file being compiled.
+            .or(Some(&RcStr::from("tsconfig.json")))
             .map(|p| project_path.join(p))
             .transpose()?,
         rules: vec![(
