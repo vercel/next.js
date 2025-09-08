@@ -9778,7 +9778,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "indexmap 2.9.0",
- "modularize_imports",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
