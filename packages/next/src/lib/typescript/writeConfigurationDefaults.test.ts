@@ -46,11 +46,87 @@ describe('writeConfigurationDefaults()', () => {
         hasPagesDir
       )
 
-      const tsConfig = await readFile(tsConfigPath, { encoding: 'utf8' })
+      const tsConfig = JSON.parse(
+        await readFile(tsConfigPath, { encoding: 'utf8' })
+      )
 
-      expect((process.features as any).typescript).toBe(false)
+      // Native TS resolution was enabled by default in v22.18.0 but
+      // unit tests run on Node.js above that.
+      // TODO: Remove `as any` once we bump @types/node to v22.10.0+
+      if ((process.features as any).typescript) {
+        expect(tsConfig).toMatchInlineSnapshot(`
+      {
+        "compilerOptions": {
+          "allowJs": true,
+          "esModuleInterop": true,
+          "incremental": true,
+          "isolatedModules": true,
+          "jsx": "react-jsx",
+          "lib": [
+            "dom",
+            "dom.iterable",
+            "esnext",
+          ],
+          "module": "esnext",
+          "moduleResolution": "node",
+          "noEmit": true,
+          "plugins": [
+            {
+              "name": "next",
+            },
+          ],
+          "resolveJsonModule": true,
+          "skipLibCheck": true,
+          "strict": false,
+          "target": "ES2017",
+        },
+        "exclude": [
+          "node_modules",
+        ],
+        "include": [
+          "next-env.d.ts",
+          ".next/types/**/*.ts",
+          "next.config.mts",
+          "**/*.ts",
+          "**/*.tsx",
+        ],
+      }
+    `)
 
-      expect(JSON.parse(tsConfig)).toMatchInlineSnapshot(`
+        expect(
+          consoleLogSpy.mock.calls
+            .flat()
+            .join('\n')
+            // eslint-disable-next-line no-control-regex
+            .replace(/\x1B\[\d+m/g, '') // remove color control characters
+        ).toMatchInlineSnapshot(`
+        "
+           We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.
+           The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+           	- target was set to ES2017 (For top-level \`await\`. Note: Next.js only polyfills for the esmodules target.)
+           	- lib was set to dom,dom.iterable,esnext
+           	- allowJs was set to true
+           	- skipLibCheck was set to true
+           	- strict was set to false
+           	- noEmit was set to true
+           	- incremental was set to true
+           	- include was set to ['next-env.d.ts', '.next/types/**/*.ts', 'next.config.mts', '**/*.ts', '**/*.tsx']
+           	- plugins was updated to add { name: 'next' }
+           	- exclude was set to ['node_modules']
+
+           The following mandatory changes were made to your tsconfig.json:
+
+           	- module was set to esnext (for dynamic import() support)
+           	- esModuleInterop was set to true (requirement for SWC / babel)
+           	- moduleResolution was set to node (to match webpack resolution)
+           	- resolveJsonModule was set to true (to match webpack resolution)
+           	- isolatedModules was set to true (requirement for SWC / Babel)
+           	- jsx was set to react-jsx (next.js uses the React automatic runtime)
+        "
+      `)
+      } else {
+        expect(tsConfig).toMatchInlineSnapshot(`
       {
         "compilerOptions": {
           "allowJs": true,
@@ -88,13 +164,13 @@ describe('writeConfigurationDefaults()', () => {
       }
     `)
 
-      expect(
-        consoleLogSpy.mock.calls
-          .flat()
-          .join('\n')
-          // eslint-disable-next-line no-control-regex
-          .replace(/\x1B\[\d+m/g, '') // remove color control characters
-      ).toMatchInlineSnapshot(`
+        expect(
+          consoleLogSpy.mock.calls
+            .flat()
+            .join('\n')
+            // eslint-disable-next-line no-control-regex
+            .replace(/\x1B\[\d+m/g, '') // remove color control characters
+        ).toMatchInlineSnapshot(`
         "
            We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.
            The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
@@ -120,6 +196,7 @@ describe('writeConfigurationDefaults()', () => {
            	- jsx was set to react-jsx (next.js uses the React automatic runtime)
         "
       `)
+      }
     })
 
     it('does not warn about disabled strict mode if strict mode was already enabled', async () => {
