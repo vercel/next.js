@@ -209,6 +209,10 @@ impl RawVc {
     }
 
     async fn resolve_inner(self, mut consistency: ReadConsistency) -> Result<RawVc> {
+        // Handle this first to avoid taking a reference to turbo_tasks
+        if matches!(self, RawVc::TaskCell(_, _)) {
+            return Ok(self);
+        }
         let tt = turbo_tasks();
         let mut current = self;
         let mut notified = false;
@@ -237,8 +241,12 @@ impl RawVc {
     /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
     /// resolution, because the returned `RawVc` can be a `TaskOutput`.
     pub(crate) async fn to_non_local(self) -> Result<RawVc> {
-        let tt = turbo_tasks();
+        // Handle this first to avoid taking a reference to turbo_tasks
+        if !matches!(self, RawVc::LocalOutput(_, _, _)) {
+            return Ok(self);
+        }
         let mut current = self;
+        let tt = turbo_tasks();
         loop {
             match current {
                 RawVc::LocalOutput(execution_id, local_task_id, ..) => {
