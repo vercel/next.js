@@ -450,7 +450,7 @@ where
         Vc::upcast(IssueFilePathContentSource::new_file_path(
             file_path,
             description,
-            Vc::upcast(self),
+            Vc::upcast_non_strict(self),
         ))
     }
 }

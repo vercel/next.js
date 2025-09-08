@@ -322,7 +322,7 @@ impl PagesProject {
                 (
                     rcstr!("next-dynamic-client"),
                     ResolvedVc::upcast(
-                        NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
+                        NextDynamicTransition::new_client(self.client_transition())
                             .to_resolved()
                             .await?,
                     ),
@@ -1073,7 +1073,7 @@ impl PageEndpoint {
             {
                 collect_next_dynamic_chunks(
                     self.client_module_graph(),
-                    Vc::upcast(project.client_chunking_context()),
+                    project.client_chunking_context(),
                     next_dynamic_imports,
                     NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
                 )
@@ -1084,7 +1084,7 @@ impl PageEndpoint {
 
             let chunking_context: Vc<Box<dyn ChunkingContext>> = match runtime {
                 NextRuntime::NodeJs => Vc::upcast(node_chunking_context),
-                NextRuntime::Edge => Vc::upcast(edge_chunking_context),
+                NextRuntime::Edge => edge_chunking_context,
             };
 
             let mut current_chunks = OutputAssets::empty();
@@ -1342,16 +1342,14 @@ impl PageEndpoint {
             ..Default::default()
         };
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
-        Ok(Vc::upcast(
-            build_manifest
-                .build_output(
-                    node_root.join(&format!(
-                        "server/pages{manifest_path_prefix}/build-manifest.json",
-                    ))?,
-                    client_relative_path,
-                )
-                .await?,
-        ))
+        build_manifest
+            .build_output(
+                node_root.join(&format!(
+                    "server/pages{manifest_path_prefix}/build-manifest.json",
+                ))?,
+                client_relative_path,
+            )
+            .await
     }
 
     #[turbo_tasks::function]

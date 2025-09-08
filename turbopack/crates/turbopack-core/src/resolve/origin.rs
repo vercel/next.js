@@ -66,7 +66,12 @@ where
         options: Vc<ResolveOptions>,
         reference_type: ReferenceType,
     ) -> impl Future<Output = Result<Vc<ModuleResolveResult>>> + Send {
-        resolve_asset(Vc::upcast(self), request, options, reference_type)
+        resolve_asset(
+            Vc::upcast_non_strict(self),
+            request,
+            options,
+            reference_type,
+        )
     }
 
     async fn resolve_options(
@@ -81,7 +86,7 @@ where
     fn with_transition(self: ResolvedVc<Self>, transition: RcStr) -> Vc<Box<dyn ResolveOrigin>> {
         Vc::upcast(
             ResolveOriginWithTransition {
-                previous: ResolvedVc::upcast(self),
+                previous: ResolvedVc::upcast_non_strict(self),
                 transition,
             }
             .cell(),

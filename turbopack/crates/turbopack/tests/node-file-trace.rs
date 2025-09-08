@@ -385,7 +385,7 @@ async fn node_file_trace_operation(
         .process(Vc::upcast(source), ReferenceType::Undefined)
         .module();
 
-    let rebased = RebasedAsset::new(Vc::upcast(module), input_dir.clone(), output_dir.clone())
+    let rebased = RebasedAsset::new(module, input_dir.clone(), output_dir.clone())
         .to_resolved()
         .await?;
 
