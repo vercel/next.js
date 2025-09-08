@@ -3,9 +3,11 @@ import type { CompilerOptions } from 'typescript'
 
 import { resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
+import { pathToFileURL } from 'node:url'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
-import { warn } from '../output/log'
+import { warn, warnOnce } from '../output/log'
 import { installDependencies } from '../../lib/install-dependencies'
+import { getNodeOptionsArgs } from '../../server/lib/utils'
 
 function resolveSWCOptions(
   cwd: string,
@@ -103,6 +105,8 @@ async function getTsConfig(cwd: string): Promise<CompilerOptions> {
   return parsedCommandLine.options
 }
 
+let useNodeNativeTSLoader = true
+
 export async function transpileConfig({
   nextConfigPath,
   configFileName,
@@ -113,6 +117,40 @@ export async function transpileConfig({
   cwd: string
 }) {
   try {
+    if (useNodeNativeTSLoader) {
+      try {
+        // Node.js v22.10.0+
+        // Value is 'strip' or 'transform' based on how the feature is enabled.
+        // https://nodejs.org/api/process.html#processfeaturestypescript
+        if ((process.features as any).typescript) {
+          // Run import() here to catch errors and fallback to legacy resolution.
+          return (await import(pathToFileURL(nextConfigPath).href)).default
+        }
+
+        if (
+          getNodeOptionsArgs().includes('--no-experimental-strip-types') ||
+          process.execArgv.includes('--no-experimental-strip-types')
+        ) {
+          // TODO: Add Next.js docs link.
+          warnOnce(
+            `Skipped resolving "${configFileName}" using Node.js native TypeScript resolution because it was disabled by the "--no-experimental-strip-types" flag.` +
+              ' Falling back to legacy resolution.'
+          )
+        }
+
+        // Feature is not enabled, fallback to legacy resolution for current session.
+        useNodeNativeTSLoader = false
+      } catch (cause) {
+        warnOnce(
+          `Failed to import "${configFileName}" using Node.js native TypeScript resolution.` +
+            ' Falling back to legacy resolution.',
+          { cause }
+        )
+        // Once failed, fallback to legacy resolution for current session.
+        useNodeNativeTSLoader = false
+      }
+    }
+
     // Ensure TypeScript is installed to use the API.
     await verifyTypeScriptSetup(cwd, configFileName)
     const compilerOptions = await getTsConfig(cwd)

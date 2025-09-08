@@ -22,4 +22,21 @@ describe('sitemap-group', () => {
       "
     `)
   })
+
+  it('should not add suffix to static sitemap.xml under group routes', async () => {
+    const res = await next.fetch('/bar/sitemap.xml')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('application/xml')
+    const text = await res.text()
+    expect(text).toMatchInlineSnapshot(`
+      "<?xml version="1.0" encoding="UTF-8"?>
+      <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+        <url>
+          <loc>https://vercel.com/</loc>
+          <lastmod>2023-03-06T18:04:14.008Z</lastmod>
+        </url>
+      </urlset>
+      "
+    `)
+  })
 })

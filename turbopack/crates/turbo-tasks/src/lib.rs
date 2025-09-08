@@ -132,8 +132,8 @@ pub use value::{TransientInstance, TransientValue};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
     Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-    Upcast, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead,
-    VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
+    Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead,
+    VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
 };
 
 pub type SliceMap<K, V> = Box<[(K, V)]>;

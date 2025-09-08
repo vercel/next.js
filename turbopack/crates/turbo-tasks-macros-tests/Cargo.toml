@@ -14,3 +14,5 @@ turbo-tasks = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 
+[lints]
+workspace = true

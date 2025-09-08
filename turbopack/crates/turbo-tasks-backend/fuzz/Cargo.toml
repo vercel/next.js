@@ -32,3 +32,7 @@ path = "afl_targets/graph.rs"
 test = false
 doc = false
 bench = false
+
+
+[lints]
+workspace = true

@@ -333,6 +333,9 @@ pub async fn get_server_resolve_options_context(
         .typescript_tsconfig_path()
         .await?
         .as_ref()
+        // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
+        // resolve tsconfig.json relative to the file being compiled.
+        .or(Some(&RcStr::from("tsconfig.json")))
         .map(|p| project_path.join(p))
         .transpose()?;
 

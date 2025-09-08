@@ -166,7 +166,7 @@ impl CjsRequireAssetReferenceCodeGen {
         let pm = PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
-            Vc::upcast(chunking_context),
+            chunking_context,
             self.reference.resolve_reference(),
             ResolveType::ChunkItem,
         )
@@ -290,7 +290,7 @@ impl CjsRequireResolveAssetReferenceCodeGen {
         let pm = PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
-            Vc::upcast(chunking_context),
+            chunking_context,
             self.reference.resolve_reference(),
             ResolveType::ChunkItem,
         )

@@ -404,7 +404,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     {
         let evaluatable_assets = runtime_entries
             .unwrap_or_else(EvaluatableAssets::empty)
-            .with_entry(Vc::upcast(ecmascript));
+            .with_entry(ecmascript);
         (
             evaluatable_assets,
             evaluatable_assets

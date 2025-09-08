@@ -50,11 +50,11 @@ impl ChunkListUpdate<'_> {
 #[turbo_tasks::function]
 pub(super) async fn update_chunk_list(
     content: Vc<EcmascriptDevChunkListContent>,
-    from_version: Vc<Box<dyn Version>>,
+    from_version: ResolvedVc<Box<dyn Version>>,
 ) -> Result<Vc<Update>> {
     let to_version = content.version();
     let from_version = if let Some(from) =
-        Vc::try_resolve_downcast_type::<EcmascriptDevChunkListVersion>(from_version).await?
+        ResolvedVc::try_downcast_type::<EcmascriptDevChunkListVersion>(from_version)
     {
         from
     } else {
