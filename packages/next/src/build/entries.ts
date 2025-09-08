@@ -12,7 +12,7 @@ import type {
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import { posix, join, extname, normalize } from 'path'
+import { posix, join, normalize } from 'path'
 import { stringify } from 'querystring'
 import {
   PAGES_DIR_ALIAS,
@@ -393,28 +393,6 @@ export function processLayoutRoutes(
   }
 
   return layoutRoutes
-}
-
-export function sortByPageExts(pageExtensions: PageExtensions) {
-  return (a: string, b: string) => {
-    // prioritize entries according to pageExtensions order
-    // for consistency as fs order can differ across systems
-    // NOTE: this is reversed so preferred comes last and
-    // overrides prior
-    const aExt = extname(a)
-    const bExt = extname(b)
-
-    const aNoExt = a.substring(0, a.length - aExt.length)
-    const bNoExt = a.substring(0, b.length - bExt.length)
-
-    if (aNoExt !== bNoExt) return 0
-
-    // find extension index (skip '.' as pageExtensions doesn't have it)
-    const aExtIndex = pageExtensions.indexOf(aExt.substring(1))
-    const bExtIndex = pageExtensions.indexOf(bExt.substring(1))
-
-    return bExtIndex - aExtIndex
-  }
 }
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never

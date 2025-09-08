@@ -112,7 +112,6 @@ import { Telemetry } from '../telemetry/storage'
 import {
   createPagesMapping,
   collectAppFiles,
-  sortByPageExts,
   processPageRoutes,
   processAppRoutes,
   processLayoutRoutes,
@@ -123,6 +122,7 @@ import {
   type SlotInfo,
   collectPagesFiles,
 } from './entries'
+import { sortByPageExts } from './sort-by-page-exts'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
