@@ -47,7 +47,7 @@ class TaskStats:
         MEASUREMENT_OVERHEAD =   750 # OVerhead implicit in the reported duration
         if self.executions == 0:
             return 0
-        return (self.duration_ns  - MEASUREMENT_OVERHEAD * self.executions) // self.executions
+        return max(0, (self.duration_ns  - MEASUREMENT_OVERHEAD * self.executions) // self.executions)
 
 
 def parse_duration(duration_dict: Dict) -> int:
