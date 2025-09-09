@@ -46,7 +46,6 @@ use crate::{
     app_structure::CollectedRootParams,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
-    next_client::RuntimeEntries,
     next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
@@ -1007,15 +1006,6 @@ pub async fn get_server_module_options_context(
     .cell();
 
     Ok(module_options_context)
-}
-
-#[turbo_tasks::function]
-pub fn get_server_runtime_entries(
-    _ty: ServerContextType,
-    _mode: Vc<NextMode>,
-) -> Vc<RuntimeEntries> {
-    let runtime_entries = vec![];
-    Vc::cell(runtime_entries)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]

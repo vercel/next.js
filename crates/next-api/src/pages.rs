@@ -6,8 +6,8 @@ use next_core::{
     hmr_entry::HmrEntryModule,
     mode::NextMode,
     next_client::{
-        ClientContextType, RuntimeEntries, get_client_module_options_context,
-        get_client_resolve_options_context, get_client_runtime_entries,
+        ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
+        get_client_runtime_entries,
     },
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
@@ -18,7 +18,6 @@ use next_core::{
     next_pages::create_page_ssr_entry_module,
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
-        get_server_runtime_entries,
     },
     pages_structure::{
         PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
@@ -600,50 +599,6 @@ impl PagesProject {
     }
 
     #[turbo_tasks::function]
-    async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        Ok(get_server_runtime_entries(
-            ServerContextType::Pages {
-                pages_dir: self.pages_dir().owned().await?,
-            },
-            self.project().next_mode(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn data_runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        Ok(get_server_runtime_entries(
-            ServerContextType::PagesData {
-                pages_dir: self.pages_dir().owned().await?,
-            },
-            self.project().next_mode(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn ssr_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
-        let ssr_runtime_entries = self.runtime_entries();
-        ssr_runtime_entries.resolve_entries(Vc::upcast(self.ssr_module_context()))
-    }
-
-    #[turbo_tasks::function]
-    fn ssr_data_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
-        let ssr_data_runtime_entries = self.data_runtime_entries();
-        ssr_data_runtime_entries.resolve_entries(Vc::upcast(self.ssr_module_context()))
-    }
-
-    #[turbo_tasks::function]
-    fn edge_ssr_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
-        let ssr_runtime_entries = self.runtime_entries();
-        ssr_runtime_entries.resolve_entries(Vc::upcast(self.edge_ssr_module_context()))
-    }
-
-    #[turbo_tasks::function]
-    fn edge_ssr_data_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
-        let ssr_data_runtime_entries = self.data_runtime_entries();
-        ssr_data_runtime_entries.resolve_entries(Vc::upcast(self.edge_ssr_module_context()))
-    }
-
-    #[turbo_tasks::function]
     pub async fn client_main_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let client_module_context = Vc::upcast(self.client_module_context());
 
@@ -1008,8 +963,6 @@ impl PageEndpoint {
         node_path: FileSystemPath,
         node_chunking_context: Vc<NodeJsChunkingContext>,
         edge_chunking_context: Vc<Box<dyn ChunkingContext>>,
-        runtime_entries: Vc<EvaluatableAssets>,
-        edge_runtime_entries: Vc<EvaluatableAssets>,
     ) -> Result<Vc<SsrChunk>> {
         async move {
             let this = self.await?;
@@ -1126,15 +1079,9 @@ impl PageEndpoint {
                 .context("could not process page loader entry module")?;
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
-                let edge_runtime_entries = edge_runtime_entries.await?;
-                let evaluatable_assets = edge_runtime_entries
-                    .iter()
-                    .map(|m| ResolvedVc::upcast(*m))
-                    .chain(std::iter::once(ResolvedVc::upcast(ssr_module_evaluatable)));
-
                 let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
                     ssr_module.ident(),
-                    ChunkGroup::Entry(evaluatable_assets.collect()),
+                    ChunkGroup::Entry(vec![ResolvedVc::upcast(ssr_module_evaluatable)]),
                     ssr_module_graph,
                     current_availability_info,
                 );
@@ -1155,7 +1102,7 @@ impl PageEndpoint {
                 let ssr_entry_chunk = node_chunking_context
                     .entry_chunk_group_asset(
                         ssr_entry_chunk_path,
-                        runtime_entries.with_entry(*ssr_module_evaluatable),
+                        EvaluatableAssets::empty().with_entry(*ssr_module_evaluatable),
                         ssr_module_graph,
                         current_chunks,
                         current_availability_info,
@@ -1224,8 +1171,6 @@ impl PageEndpoint {
                 .join("server")?,
             project.server_chunking_context(true),
             project.edge_chunking_context(true),
-            this.pages_project.ssr_runtime_entries(),
-            this.pages_project.edge_ssr_runtime_entries(),
         ))
     }
 
@@ -1242,8 +1187,6 @@ impl PageEndpoint {
                 .join("server/data")?,
             this.pages_project.project().server_chunking_context(true),
             this.pages_project.project().edge_chunking_context(true),
-            this.pages_project.ssr_data_runtime_entries(),
-            this.pages_project.edge_ssr_data_runtime_entries(),
         ))
     }
 
@@ -1260,8 +1203,6 @@ impl PageEndpoint {
                 .join("server")?,
             this.pages_project.project().server_chunking_context(false),
             this.pages_project.project().edge_chunking_context(false),
-            this.pages_project.ssr_runtime_entries(),
-            this.pages_project.edge_ssr_runtime_entries(),
         ))
     }
 
