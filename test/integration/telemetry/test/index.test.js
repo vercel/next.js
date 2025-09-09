@@ -236,7 +236,7 @@ describe('Telemetry CLI', () => {
         expect(event).toMatch(/"hasNextConfig": false/)
         expect(event).toMatch(/"buildTarget": "default"/)
         expect(event).toMatch(/"hasWebpackConfig": false/)
-        expect(event).toMatch(/"hasBabelConfig": true/)
+        expect(event).toMatch(/"hasBabelConfig": false/)
       })
 
       it('cli session: package.json custom babel config (plugin)', async () => {
@@ -262,7 +262,7 @@ describe('Telemetry CLI', () => {
         expect(event).toMatch(/"hasNextConfig": false/)
         expect(event).toMatch(/"buildTarget": "default"/)
         expect(event).toMatch(/"hasWebpackConfig": false/)
-        expect(event).toMatch(/"hasBabelConfig": true/)
+        expect(event).toMatch(/"hasBabelConfig": false/)
       })
 
       it('cli session: custom babel config (preset)', async () => {
@@ -288,7 +288,7 @@ describe('Telemetry CLI', () => {
         expect(event).toMatch(/"hasNextConfig": false/)
         expect(event).toMatch(/"buildTarget": "default"/)
         expect(event).toMatch(/"hasWebpackConfig": false/)
-        expect(event).toMatch(/"hasBabelConfig": true/)
+        expect(event).toMatch(/"hasBabelConfig": false/)
       })
 
       it('cli session: next config with webpack', async () => {
