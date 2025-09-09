@@ -19,7 +19,6 @@ import * as Log from '../../../build/output/log'
 import { setGlobal } from '../../../trace/shared'
 import type { Telemetry } from '../../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
-import loadJsConfig from '../../../build/load-jsconfig'
 import { createValidFileMatcher } from '../find-page-file'
 import {
   EVENT_BUILD_FEATURE_USAGE,
@@ -763,14 +762,21 @@ async function startWatcher(
           ])
         }
         let tsconfigResult:
-          | UnwrapPromise<ReturnType<typeof loadJsConfig>>
+          | UnwrapPromise<
+              ReturnType<typeof import('../../../build/load-jsconfig').default>
+            >
           | undefined
 
-        if (tsconfigChange) {
-          try {
-            tsconfigResult = await loadJsConfig(dir, nextConfig)
-          } catch (_) {
-            /* do we want to log if there are syntax errors in tsconfig while editing? */
+        if (!hotReloader.turbopackProject) {
+          if (tsconfigChange) {
+            try {
+              const loadJsConfig = (
+                require('../../../build/load-jsconfig') as typeof import('../../../build/load-jsconfig')
+              ).default
+              tsconfigResult = await loadJsConfig(dir, nextConfig)
+            } catch (_) {
+              /* do we want to log if there are syntax errors in tsconfig while editing? */
+            }
           }
         }
 
