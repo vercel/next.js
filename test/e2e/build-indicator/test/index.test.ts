@@ -18,30 +18,29 @@ const installCheckVisible = (browser) => {
 }
 
 describe('Build Activity Indicator', () => {
-  if (isNextStart) {
-    describe('Invalid position config', () => {
-      const { next } = nextTestSetup({
-        files: join(__dirname, '..'),
-        skipStart: true,
-        startServerTimeout: 1000,
-        nextConfig: {
-          devIndicators: {
-            // Intentionally invalid position to test error
-            position: 'ttop-leff' as any,
-          },
+  // Use describe.skip so that this suite does not fail with "no tests" during deploy tests.
+  ;(isNextStart ? describe : describe.skip)('Invalid position config', () => {
+    const { next } = nextTestSetup({
+      files: join(__dirname, '..'),
+      skipStart: true,
+      startServerTimeout: 1000,
+      nextConfig: {
+        devIndicators: {
+          // Intentionally invalid position to test error
+          position: 'ttop-leff' as any,
         },
-      })
-
-      it('should validate position config', async () => {
-        const result = await next.build()
-
-        expect(result.exitCode).toBe(1)
-        expect(result.cliOutput).toContain(
-          `Invalid "devIndicator.position" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
-        )
-      })
+      },
     })
-  }
+
+    it('should validate position config', async () => {
+      const result = await next.build()
+
+      expect(result.exitCode).toBe(1)
+      expect(result.cliOutput).toContain(
+        `Invalid "devIndicator.position" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
+      )
+    })
+  })
 
   if (isNextDev) {
     describe.each(['pages', 'app'])('Enabled - (%s)', (pagesOrApp) => {
