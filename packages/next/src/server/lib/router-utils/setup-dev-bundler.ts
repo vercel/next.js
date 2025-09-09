@@ -13,11 +13,9 @@ import url from 'url'
 import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'next/dist/compiled/watchpack'
-import { loadEnvConfig } from '@next/env'
 import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
-import HotReloaderWebpack from '../../dev/hot-reloader-webpack'
 import { setGlobal } from '../../../trace/shared'
 import type { Telemetry } from '../../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
@@ -63,7 +61,6 @@ import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/s
 import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
-import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
 import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
@@ -186,23 +183,38 @@ async function startWatcher(
   })
 
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
-    ? await createHotReloaderTurbopack(opts, serverFields, distDir, resetFetch)
-    : new HotReloaderWebpack(opts.dir, {
-        isSrcDir: opts.isSrcDir,
-        appDir,
-        pagesDir,
-        distDir,
-        config: opts.nextConfig,
-        buildId: 'development',
-        encryptionKey: await generateEncryptionKeyBase64({
-          isBuild: false,
+    ? await (async () => {
+        const createHotReloaderTurbopack = (
+          require('../../dev/hot-reloader-turbopack') as typeof import('../../dev/hot-reloader-turbopack')
+        ).createHotReloaderTurbopack
+        return await createHotReloaderTurbopack(
+          opts,
+          serverFields,
           distDir,
-        }),
-        telemetry: opts.telemetry,
-        rewrites: opts.fsChecker.rewrites,
-        previewProps: opts.fsChecker.prerenderManifest.preview,
-        resetFetch,
-      })
+          resetFetch
+        )
+      })()
+    : await (async () => {
+        const HotReloaderWebpack = (
+          require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
+        ).default
+        return new HotReloaderWebpack(opts.dir, {
+          isSrcDir: opts.isSrcDir,
+          appDir,
+          pagesDir,
+          distDir,
+          config: opts.nextConfig,
+          buildId: 'development',
+          encryptionKey: await generateEncryptionKeyBase64({
+            isBuild: false,
+            distDir,
+          }),
+          telemetry: opts.telemetry,
+          rewrites: opts.fsChecker.rewrites,
+          previewProps: opts.fsChecker.prerenderManifest.preview,
+          resetFetch,
+        })
+      })()
 
   await hotReloader.start()
 
@@ -718,6 +730,9 @@ async function startWatcher(
 
       if (envChange || tsconfigChange) {
         if (envChange) {
+          const loadEnvConfig = (
+            require('@next/env') as typeof import('@next/env')
+          ).loadEnvConfig
           const { loadedEnvFiles } = loadEnvConfig(
             dir,
             process.env.NODE_ENV === 'development',
