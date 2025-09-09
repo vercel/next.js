@@ -41,7 +41,9 @@ export class DevAppRouteRouteMatcherProvider extends FileCacheRouteMatcherProvid
     const matchers: Array<AppRouteRouteMatcher> = []
     for (const filename of files) {
       // Skip static metadata files as they are served from filesystem.
-      if (isStaticMetadataFile(filename)) continue
+      if (isStaticMetadataFile(filename.replace(this.appDir, ''))) {
+        continue
+      }
 
       let page = this.normalizers.page.normalize(filename)
 
