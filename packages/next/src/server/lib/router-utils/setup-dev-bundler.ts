@@ -1193,20 +1193,16 @@ export async function setupDevBundler(opts: SetupOpts) {
   })
 
   opts.telemetry.record(
-    eventCliSession(
-      path.join(opts.dir, opts.nextConfig.distDir),
-      opts.nextConfig,
-      {
-        webpackVersion: 5,
-        isSrcDir,
-        turboFlag: !!opts.turbo,
-        cliCommand: 'dev',
-        appDir: !!opts.appDir,
-        pagesDir: !!opts.pagesDir,
-        isCustomServer: !!opts.isCustomServer,
-        hasNowJson: !!(await findUp('now.json', { cwd: opts.dir })),
-      }
-    )
+    eventCliSession(opts.nextConfig, {
+      webpackVersion: 5,
+      isSrcDir,
+      turboFlag: !!opts.turbo,
+      cliCommand: 'dev',
+      appDir: !!opts.appDir,
+      pagesDir: !!opts.pagesDir,
+      isCustomServer: !!opts.isCustomServer,
+      hasNowJson: !!(await findUp('now.json', { cwd: opts.dir })),
+    })
   )
 
   // Track build features for dev server here:

@@ -1051,7 +1051,7 @@ export default async function build(
       const hasPublicDir = existsSync(publicDir)
 
       telemetry.record(
-        eventCliSession(dir, config, {
+        eventCliSession(config, {
           webpackVersion: 5,
           cliCommand: 'build',
           isSrcDir,
