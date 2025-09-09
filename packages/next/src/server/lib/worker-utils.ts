@@ -3,6 +3,10 @@ import http from 'http'
 export const getFreePort = async (): Promise<number> => {
   return new Promise((resolve, reject) => {
     const server = http.createServer(() => {})
+     server.on('error', (err) => {
+      server.close()
+      reject(err)
+    })
     server.listen(0, () => {
       const address = server.address()
       server.close()
