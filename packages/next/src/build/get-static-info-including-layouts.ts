@@ -1,16 +1,19 @@
-import fs from 'fs'
-import { dirname, join } from 'path/posix'
-import { UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY } from '../shared/lib/entry-constants'
-import { isAppPageRoute } from '../lib/is-app-page-route'
-import { PAGE_TYPES } from '../lib/page-types'
 import type { NextConfigComplete } from '../server/config-shared'
+import type { PageStaticInfo } from './analysis/get-page-static-info'
+import { join, dirname } from 'path'
+import fs from 'fs'
+import type { __ApiPreviewProps } from '../server/api-utils'
+import { reduceAppConfig, isAppBuiltinPage } from './utils'
 import {
-  type PageStaticInfo,
-  getPageStaticInfo,
   getAppPageStaticInfo,
+  getPageStaticInfo,
 } from './analysis/get-page-static-info'
 import type { PageExtensions } from './page-extensions-type'
-import { isAppBuiltinPage, reduceAppConfig } from './utils'
+
+import { PAGE_TYPES } from '../lib/page-types'
+import { isAppPageRoute } from '../lib/is-app-page-route'
+
+import { UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY } from '../shared/lib/entry-constants'
 
 export async function getStaticInfoIncludingLayouts({
   isInsideAppDir,
