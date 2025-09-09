@@ -392,21 +392,36 @@ class NextCustomServer implements NextWrapperServer {
       quiet: this.options.quiet,
     })
     this.init = initResult
+    this.setupWebSocketHandler(this.options.httpServer ?? initResult.server)
   }
 
-  private setupWebSocketHandler(
-    customServer?: import('http').Server,
-    _req?: IncomingMessage
-  ) {
+  private setupWebSocketHandler(customServer?: import('http').Server) {
     if (!this.didWebSocketSetup) {
       this.didWebSocketSetup = true
-      customServer = customServer || (_req?.socket as any)?.server
-
-      if (customServer) {
-        customServer.on('upgrade', async (req, socket, head) => {
-          this.upgradeHandler(req, socket, head)
+      const server = customServer
+      if (server) {
+        server.on('upgrade', (req, socket, head) => {
+          try {
+            // Basic handshake guards before delegating:
+            const toStr = (v: string | string[] | undefined) =>
+              Array.isArray(v) ? v.join(',') : v || ''
+            const isGet = req.method === 'GET'
+            const upgrade = toStr(req.headers.upgrade).toLowerCase()
+            const connection = toStr(req.headers.connection).toLowerCase()
+            if (!isGet || upgrade !== 'websocket' || !connection.includes('upgrade')) {
+              socket.write('HTTP/1.1 400 Bad Request\r\n\r\n')
+              socket.destroy()
+              return
+            }
+            Promise.resolve(this.upgradeHandler(req, socket, head)).catch(() => {
+              try { socket.destroy() } catch {}
+            })
+          } catch {
+            try { socket.destroy() } catch {}
+          }
         })
       }
+
     }
   }
 
@@ -416,8 +431,6 @@ class NextCustomServer implements NextWrapperServer {
       res: ServerResponse,
       parsedUrl?: UrlWithParsedQuery
     ) => {
-      this.setupWebSocketHandler(this.options.httpServer, req)
-
       if (parsedUrl) {
         req.url = formatUrl(parsedUrl)
       }
@@ -428,7 +441,6 @@ class NextCustomServer implements NextWrapperServer {
 
   async render(...args: Parameters<NextWrapperServer['render']>) {
     let [req, res, pathname, query, parsedUrl] = args
-    this.setupWebSocketHandler(this.options.httpServer, req as IncomingMessage)
 
     if (!pathname.startsWith('/')) {
       console.error(`Cannot render page with path "${pathname}"`)
