@@ -1380,7 +1380,7 @@ impl Project {
 
         let middleware = self.find_middleware();
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
-            return Ok(Vc::upcast(edge_module_context));
+            return Ok(edge_module_context);
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
 

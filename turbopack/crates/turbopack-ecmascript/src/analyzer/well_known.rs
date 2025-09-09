@@ -15,6 +15,7 @@ use crate::analyzer::RequireContextValue;
 pub async fn replace_well_known(
     value: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
+    define_process_cwd: bool,
 ) -> Result<(JsValue, bool)> {
     Ok(match value {
         JsValue::Call(_, box JsValue::WellKnownFunction(kind), args) => (
@@ -23,6 +24,7 @@ pub async fn replace_well_known(
                 JsValue::unknown_empty(false, "this is not analyzed yet"),
                 args,
                 compile_time_info,
+                define_process_cwd,
             )
             .await?,
             true,
@@ -67,6 +69,7 @@ pub async fn well_known_function_call(
     _this: JsValue,
     args: Vec<JsValue>,
     compile_time_info: Vc<CompileTimeInfo>,
+    define_process_cwd: bool,
 ) -> Result<JsValue> {
     Ok(match kind {
         WellKnownFunctionKind::ObjectAssign => object_assign(args),
@@ -100,7 +103,8 @@ pub async fn well_known_function_call(
             .as_str()
             .into(),
         WellKnownFunctionKind::ProcessCwd => {
-            if let Some(cwd) = &*compile_time_info.environment().cwd().await? {
+            if define_process_cwd && let Some(cwd) = &*compile_time_info.environment().cwd().await?
+            {
                 cwd.clone().into()
             } else {
                 JsValue::unknown(

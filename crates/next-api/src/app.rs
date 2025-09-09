@@ -383,7 +383,7 @@ impl AppProject {
                         )),
                         module_styles_rule_condition(),
                     ]),
-                    ResolvedVc::upcast(self.css_client_reference_transition().to_resolved().await?),
+                    self.css_client_reference_transition().to_resolved().await?,
                 ),
                 // Don't wrap in marker module but change context, this is used to determine
                 // the list of CSS module classes.
@@ -399,7 +399,7 @@ impl AppProject {
                 // Mark as client reference all regular CSS imports
                 TransitionRule::new(
                     styles_rule_condition(),
-                    ResolvedVc::upcast(self.css_client_reference_transition().to_resolved().await?),
+                    self.css_client_reference_transition().to_resolved().await?,
                 ),
             ],
             ..Default::default()
@@ -413,7 +413,7 @@ impl AppProject {
             self.get_rsc_transitions(
                 self.ecmascript_client_reference_transition(),
                 Vc::upcast(self.ssr_transition()),
-                Vc::upcast(self.shared_transition()),
+                self.shared_transition(),
             ),
             self.project().server_compile_time_info(),
             self.rsc_module_options_context(),
@@ -428,7 +428,7 @@ impl AppProject {
             self.get_rsc_transitions(
                 self.edge_ecmascript_client_reference_transition(),
                 Vc::upcast(self.edge_ssr_transition()),
-                Vc::upcast(self.edge_shared_transition()),
+                self.edge_shared_transition(),
             ),
             self.project().edge_compile_time_info(),
             self.edge_rsc_module_options_context(),
@@ -467,7 +467,7 @@ impl AppProject {
             ),
             (
                 rcstr!("next-shared"),
-                ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
+                self.shared_transition().to_resolved().await?,
             ),
             (
                 rcstr!("next-server-utility"),
@@ -518,7 +518,7 @@ impl AppProject {
             ),
             (
                 rcstr!("next-shared"),
-                ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
+                self.edge_shared_transition().to_resolved().await?,
             ),
             (
                 rcstr!("next-server-utility"),
@@ -640,7 +640,7 @@ impl AppProject {
             ),
             (
                 rcstr!("next-shared"),
-                ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
+                self.shared_transition().to_resolved().await?,
             ),
         ]
         .into_iter()
@@ -712,7 +712,7 @@ impl AppProject {
             ),
             (
                 rcstr!("next-shared"),
-                ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
+                self.edge_shared_transition().to_resolved().await?,
             ),
         ]
         .into_iter()
@@ -877,8 +877,7 @@ impl AppProject {
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
             async move {
-                let rsc_entry_chunk_group =
-                    ChunkGroupEntry::Entry(vec![ResolvedVc::upcast(rsc_entry)]);
+                let rsc_entry_chunk_group = ChunkGroupEntry::Entry(vec![rsc_entry]);
 
                 let mut graphs = vec![];
                 let mut visited_modules = if has_layout_segments {
@@ -1389,18 +1388,16 @@ impl AppEndpoint {
                 polyfill_files: vec![polyfill_output_asset],
                 ..Default::default()
             };
-            let build_manifest_output = ResolvedVc::upcast(
-                build_manifest
-                    .build_output(
-                        node_root.join(&format!(
-                            "server/app{manifest_path_prefix}/build-manifest.json",
-                        ))?,
-                        client_relative_path.clone(),
-                    )
-                    .await?
-                    .to_resolved()
-                    .await?,
-            );
+            let build_manifest_output = build_manifest
+                .build_output(
+                    node_root.join(&format!(
+                        "server/app{manifest_path_prefix}/build-manifest.json",
+                    ))?,
+                    client_relative_path.clone(),
+                )
+                .await?
+                .to_resolved()
+                .await?;
             server_assets.insert(build_manifest_output);
         }
 
@@ -1548,7 +1545,7 @@ impl AppEndpoint {
                 if emit_manifests == EmitManifests::Full {
                     let dynamic_import_entries = collect_next_dynamic_chunks(
                         *module_graphs.full,
-                        *ResolvedVc::upcast(client_chunking_context),
+                        *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
                             &*(client_references_chunks.await?),
@@ -1663,7 +1660,7 @@ impl AppEndpoint {
                     // create react-loadable-manifest for next/dynamic
                     let dynamic_import_entries = collect_next_dynamic_chunks(
                         *module_graphs.full,
-                        *ResolvedVc::upcast(client_chunking_context),
+                        *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
                             &*(client_references_chunks.await?),

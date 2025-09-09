@@ -273,18 +273,16 @@ impl NativeFunction {
         tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, flags = flags)
     }
 }
-
-impl PartialEq for &'static NativeFunction {
+impl PartialEq for NativeFunction {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(*self, *other)
+        std::ptr::eq(self, other)
     }
 }
 
-impl Eq for &'static NativeFunction {}
-
-impl Hash for &'static NativeFunction {
+impl Eq for NativeFunction {}
+impl Hash for NativeFunction {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        Hash::hash(&(*self as *const NativeFunction), state);
+        (self as *const NativeFunction).hash(state);
     }
 }
 

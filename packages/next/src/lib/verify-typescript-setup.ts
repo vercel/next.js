@@ -65,7 +65,7 @@ export async function verifyTypeScriptSetup({
     }
 
     // Ensure TypeScript and necessary `@types/*` are installed:
-    let deps: NecessaryDependencies = await hasNecessaryDependencies(
+    let deps: NecessaryDependencies = hasNecessaryDependencies(
       dir,
       requiredPackages
     )
@@ -102,7 +102,7 @@ export async function verifyTypeScriptSetup({
         }
         throw err
       })
-      deps = await hasNecessaryDependencies(dir, requiredPackages)
+      deps = hasNecessaryDependencies(dir, requiredPackages)
     }
 
     // Load TypeScript after we're sure it exists:

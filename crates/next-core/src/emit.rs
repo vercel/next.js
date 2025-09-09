@@ -159,7 +159,7 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
                     .iter()
                     .map(async |asset| {
                         Ok((
-                            ResolvedVc::upcast(*asset),
+                            *asset,
                             if emit_spans {
                                 Some(asset.path().to_string().await?)
                             } else {

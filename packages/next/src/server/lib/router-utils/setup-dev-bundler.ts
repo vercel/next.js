@@ -37,7 +37,7 @@ import {
 } from '../../../build/entries'
 import { verifyTypeScriptSetup } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
-import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
+import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
 import { normalizeAppPath } from '../../../shared/lib/router/utils/app-paths'
 import { buildDataRoute } from './build-data-route'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
@@ -970,9 +970,13 @@ async function startWatcher(
 
         opts.fsChecker.dynamicRoutes = sortedRoutes.map(
           (page): FilesystemDynamicRoute => {
-            const regex = getRouteRegex(page)
+            const regex = getNamedRouteRegex(page, {
+              prefixRouteKeys: true,
+            })
             return {
               regex: regex.re.toString(),
+              namedRegex: regex.namedRegex,
+              routeKeys: regex.routeKeys,
               match: getRouteMatcher(regex),
               page,
             }
@@ -983,10 +987,14 @@ async function startWatcher(
 
         for (const page of sortedRoutes) {
           const route = buildDataRoute(page, 'development')
-          const routeRegex = getRouteRegex(route.page)
+          const routeRegex = getNamedRouteRegex(route.page, {
+            prefixRouteKeys: true,
+          })
           dataRoutes.push({
             ...route,
             regex: routeRegex.re.toString(),
+            namedRegex: routeRegex.namedRegex,
+            routeKeys: routeRegex.routeKeys,
             match: getRouteMatcher({
               // TODO: fix this in the manifest itself, must also be fixed in
               // upstream builder that relies on this

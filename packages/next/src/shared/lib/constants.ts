@@ -12,6 +12,22 @@ export const COMPILER_NAMES = {
 
 export type CompilerNameValues = ValueOf<typeof COMPILER_NAMES>
 
+export const COMPILER_INDEXES: {
+  [compilerKey in CompilerNameValues]: number
+} = {
+  [COMPILER_NAMES.client]: 0,
+  [COMPILER_NAMES.server]: 1,
+  [COMPILER_NAMES.edgeServer]: 2,
+} as const
+
+// Re-export entry constants for backward compatibility
+export {
+  UNDERSCORE_NOT_FOUND_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+} from './entry-constants'
+
 export enum AdapterOutputType {
   /**
    * `PAGES` represents all the React pages that are under `pages/`.
@@ -51,28 +67,21 @@ export enum AdapterOutputType {
   MIDDLEWARE = 'MIDDLEWARE',
 }
 
-export const COMPILER_INDEXES: {
-  [compilerKey in CompilerNameValues]: number
-} = {
-  [COMPILER_NAMES.client]: 0,
-  [COMPILER_NAMES.server]: 1,
-  [COMPILER_NAMES.edgeServer]: 2,
-} as const
-
-// Re-export entry constants for backward compatibility
-export {
-  UNDERSCORE_NOT_FOUND_ROUTE,
-  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
-  UNDERSCORE_GLOBAL_ERROR_ROUTE,
-  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
-} from './entry-constants'
-
 export const PHASE_EXPORT = 'phase-export'
 export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
 export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PHASE_TEST = 'phase-test'
 export const PHASE_INFO = 'phase-info'
+
+export type PHASE_TYPE =
+  | typeof PHASE_INFO
+  | typeof PHASE_TEST
+  | typeof PHASE_EXPORT
+  | typeof PHASE_PRODUCTION_BUILD
+  | typeof PHASE_PRODUCTION_SERVER
+  | typeof PHASE_DEVELOPMENT_SERVER
+
 export const PAGES_MANIFEST = 'pages-manifest.json'
 export const WEBPACK_STATS = 'webpack-stats.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'

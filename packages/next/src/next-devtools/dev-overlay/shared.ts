@@ -251,6 +251,9 @@ function getStackIgnoringStrictMode(stack: string | undefined) {
 const shouldDisableDevIndicator =
   process.env.__NEXT_DEV_INDICATOR?.toString() === 'false'
 
+const devToolsInitialPositionFromNextConfig = (process.env
+  .__NEXT_DEV_INDICATOR_POSITION ?? 'bottom-left') as Corners
+
 export const INITIAL_OVERLAY_STATE: Omit<
   OverlayState,
   'isErrorOverlayOpen' | 'routerType'
@@ -272,9 +275,9 @@ export const INITIAL_OVERLAY_STATE: Omit<
   refreshState: { type: 'idle' },
   versionInfo: { installed: '0.0.0', staleness: 'unknown' },
   debugInfo: { devtoolsFrontendUrl: undefined },
-  devToolsPosition: 'bottom-left',
+  devToolsPosition: devToolsInitialPositionFromNextConfig,
   devToolsPanelPosition: {
-    [STORE_KEY_SHARED_PANEL_LOCATION]: 'bottom-left',
+    [STORE_KEY_SHARED_PANEL_LOCATION]: devToolsInitialPositionFromNextConfig,
   },
   devToolsPanelSize: {},
   scale: NEXT_DEV_TOOLS_SCALE.Medium,
