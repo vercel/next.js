@@ -26,10 +26,6 @@ import type {
 } from '../../build/swc/types'
 import { createDefineEnv } from '../../build/swc'
 import * as Log from '../../build/output/log'
-import {
-  getVersionInfo,
-  matchNextPageBundleRequest,
-} from './hot-reloader-webpack'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
   getOverlayMiddleware,
@@ -111,6 +107,10 @@ import {
   deleteReactDebugChannel,
   setReactDebugChannel,
 } from './debug-channel'
+import {
+  getVersionInfo,
+  matchNextPageBundleRequest,
+} from './hot-reloader-shared-utils'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
