@@ -1,7 +1,11 @@
 import { useContext, useEffect } from 'react'
 import { GlobalLayoutRouterContext } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { getSocketUrl } from '../get-socket-url'
-import type { TurbopackMessageSentToBrowser } from '../../../../server/dev/hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type HmrMessageSentToBrowser,
+  type TurbopackMessageSentToBrowser,
+} from '../../../../server/dev/hot-reloader-types'
 import { reportInvalidHmrMessage } from '../shared'
 import {
   performFullReload,
@@ -18,8 +22,17 @@ export function createWebSocket(
   assetPrefix: string,
   staticIndicatorState: StaticIndicatorState
 ) {
-  const url = getSocketUrl(assetPrefix)
-  const webSocket = new window.WebSocket(`${url}/_next/webpack-hmr`)
+  if (!self.__next_r) {
+    throw new InvariantError(
+      `Expected a request ID to be defined for the document via self.__next_r.`
+    )
+  }
+
+  const webSocket = new window.WebSocket(
+    `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${self.__next_r}`
+  )
+
+  webSocket.binaryType = 'arraybuffer'
 
   if (isTerminalLoggingEnabled) {
     webSocket.addEventListener('open', () => {
@@ -37,7 +50,11 @@ export function createWebSocket(
 
   webSocket.addEventListener('message', (event) => {
     try {
-      const message = JSON.parse(event.data)
+      const message: HmrMessageSentToBrowser =
+        event.data instanceof ArrayBuffer
+          ? parseBinaryMessage(event.data)
+          : JSON.parse(event.data)
+
       processMessage(
         message,
         sendMessage,
@@ -120,4 +137,48 @@ export function useWebSocketPing(webSocket: WebSocket | undefined) {
     }, 2500)
     return () => clearInterval(interval)
   }, [tree, webSocket])
+}
+
+const textDecoder = new TextDecoder()
+
+function parseBinaryMessage(data: ArrayBuffer): HmrMessageSentToBrowser {
+  assertByteLength(data, 1)
+  const view = new DataView(data)
+  const messageType = view.getUint8(0)
+
+  switch (messageType) {
+    case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
+      assertByteLength(data, 2)
+      const requestIdLength = view.getUint8(1)
+      assertByteLength(data, 2 + requestIdLength)
+
+      const requestId = textDecoder.decode(
+        new Uint8Array(data, 2, requestIdLength)
+      )
+
+      const chunk =
+        data.byteLength > 2 + requestIdLength
+          ? new Uint8Array(data, 2 + requestIdLength)
+          : null
+
+      return {
+        type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK,
+        requestId,
+        chunk,
+      }
+    }
+    default: {
+      throw new InvariantError(
+        `Invalid binary HMR message of type ${messageType}`
+      )
+    }
+  }
+}
+
+function assertByteLength(data: ArrayBuffer, expectedLength: number) {
+  if (data.byteLength < expectedLength) {
+    throw new InvariantError(
+      `Invalid binary HMR message: insufficient data (expected ${expectedLength} bytes, got ${data.byteLength})`
+    )
+  }
 }

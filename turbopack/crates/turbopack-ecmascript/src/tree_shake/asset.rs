@@ -216,7 +216,7 @@ impl EcmascriptModulePartAsset {
                     )
                 };
                 if side_effects.is_empty() {
-                    return Ok(*ResolvedVc::upcast(final_module));
+                    return Ok(*final_module);
                 }
                 let side_effects_module = SideEffectsModule::new(
                     module,
@@ -419,13 +419,13 @@ impl EvaluatableAsset for EcmascriptModulePartAsset {}
 
 #[turbo_tasks::function]
 async fn only_effects(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-    if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await? {
+    if let Some(module) = ResolvedVc::try_downcast_type::<EcmascriptModuleAsset>(module) {
         let module =
-            EcmascriptModulePartAsset::new_with_resolved_part(module, ModulePart::evaluation());
+            EcmascriptModulePartAsset::new_with_resolved_part(*module, ModulePart::evaluation());
         return Ok(Vc::upcast(module));
     }
 
-    Ok(module)
+    Ok(*module)
 }

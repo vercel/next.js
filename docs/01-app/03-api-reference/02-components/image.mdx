@@ -84,6 +84,9 @@ export default function Page() {
 }
 ```
 
+> **Good to know**: For security reasons, the Image Optimization API using the default [loader](#loader) will _not_ forward headers when fetching the `src` image.
+> If the `src` image requires authentication, consider using the [unoptimized](#unoptimized) property to disable Image Optimization.
+
 #### `alt`
 
 The `alt` property is used to describe the image for screen readers and search engines. It is also the fallback text if images have been disabled or an error occurs while loading the image.

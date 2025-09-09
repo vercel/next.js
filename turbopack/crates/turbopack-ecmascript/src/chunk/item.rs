@@ -212,7 +212,7 @@ where
 {
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code> {
-        module_factory_with_code_generation_issue(Vc::upcast(self), async_module_info)
+        module_factory_with_code_generation_issue(Vc::upcast_non_strict(self), async_module_info)
     }
 }
 

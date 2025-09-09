@@ -22,7 +22,10 @@ import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
 import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
-import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
+import {
+  getNamedRouteRegex,
+  getRouteRegex,
+} from '../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
@@ -255,10 +258,14 @@ export async function setupFsCheck(opts: {
 
     for (const route of routesManifest.dataRoutes) {
       if (isDynamicRoute(route.page)) {
-        const routeRegex = getRouteRegex(route.page)
+        const routeRegex = getNamedRouteRegex(route.page, {
+          prefixRouteKeys: true,
+        })
         dynamicRoutes.push({
           ...route,
           regex: routeRegex.re.toString(),
+          namedRegex: routeRegex.namedRegex,
+          routeKeys: routeRegex.routeKeys,
           match: getRouteMatcher({
             // TODO: fix this in the manifest itself, must also be fixed in
             // upstream builder that relies on this

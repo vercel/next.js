@@ -61,14 +61,14 @@ use swc_core::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
-    ValueToString, Vc, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
+    UpcastStrict, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
-        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment, FreeVarReference,
-        FreeVarReferences, FreeVarReferencesIndividual, InputRelativeConstant,
+        CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefinableNameSegment,
+        FreeVarReference, FreeVarReferences, FreeVarReferencesIndividual, InputRelativeConstant,
     },
     environment::Rendering,
     error::PrettyPrintError,
@@ -130,7 +130,7 @@ use super::{
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
     EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable, SpecifiedModuleType,
-    TreeShakingMode,
+    TreeShakingMode, TypeofWindow,
     analyzer::{
         ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
         builtin::early_replace_builtin,
@@ -255,7 +255,10 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an asset reference to the analysis result.
-    pub fn add_reference(&mut self, reference: ResolvedVc<impl Upcast<Box<dyn ModuleReference>>>) {
+    pub fn add_reference(
+        &mut self,
+        reference: ResolvedVc<impl UpcastStrict<Box<dyn ModuleReference>>>,
+    ) {
         let r = ResolvedVc::upcast(reference);
         self.references.insert(r);
     }
@@ -263,7 +266,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     /// Adds an asset reference with codegen to the analysis result.
     pub fn add_reference_code_gen<R: IntoCodeGenReference>(&mut self, reference: R, path: AstPath) {
         let (reference, code_gen) = reference.into_code_gen_reference(path);
-        self.add_reference(reference);
+        self.references.insert(reference);
         self.add_code_gen(code_gen);
     }
 
@@ -429,6 +432,7 @@ struct AnalysisState<'a> {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
     var_graph: &'a VarGraph,
+    define_process_cwd: bool,
     /// This is the current state of known values of function
     /// arguments.
     fun_args_values: Mutex<FxHashMap<u32, Vec<JsValue>>>,
@@ -458,6 +462,7 @@ impl AnalysisState<'_> {
                     &self.free_var_references,
                     self.var_graph,
                     attributes,
+                    self.define_process_cwd,
                 )
             },
             &self.fun_args_values,
@@ -614,10 +619,13 @@ pub async fn analyse_ecmascript_module_internal(
     analysis.set_has_side_effect_free_directive(has_side_effect_free_directive);
 
     let is_esm = eval_context.is_esm(specified_type);
-    let compile_time_info =
-        compile_time_info_for_module_type(*raw_module.compile_time_info, is_esm)
-            .to_resolved()
-            .await?;
+    let compile_time_info = compile_time_info_for_module_options(
+        *raw_module.compile_time_info,
+        is_esm,
+        options.enable_typeof_window_inlining,
+    )
+    .to_resolved()
+    .await?;
 
     let pos = program.span().lo;
     if analyze_types {
@@ -995,6 +1003,7 @@ pub async fn analyse_ecmascript_module_internal(
             origin,
             compile_time_info,
             var_graph: &var_graph,
+            define_process_cwd: !source.ident().path().await?.path.contains("/node_modules/"),
             fun_args_values: Default::default(),
             var_cache: Default::default(),
             first_import_meta: true,
@@ -1468,9 +1477,10 @@ pub async fn analyse_ecmascript_module_internal(
 }
 
 #[turbo_tasks::function]
-async fn compile_time_info_for_module_type(
+async fn compile_time_info_for_module_options(
     compile_time_info: Vc<CompileTimeInfo>,
     is_esm: bool,
+    enable_typeof_window_inlining: Option<TypeofWindow>,
 ) -> Result<Vc<CompileTimeInfo>> {
     let compile_time_info = compile_time_info.await?;
     let free_var_references = compile_time_info.free_var_references;
@@ -1581,9 +1591,33 @@ async fn compile_time_info_for_module_type(
         } else {
             rcstr!("object").into()
         });
+
+    let mut defines = compile_time_info.defines;
+    if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
+        let value = match enable_typeof_window_inlining {
+            TypeofWindow::Object => rcstr!("object"),
+            TypeofWindow::Undefined => rcstr!("undefined"),
+        };
+        let window = rcstr!("window");
+        let mut defines_value = defines.owned().await?;
+        defines_value
+            .entry(vec![
+                DefinableNameSegment::Name(window.clone()),
+                DefinableNameSegment::TypeOf,
+            ])
+            .or_insert(value.clone().into());
+        free_var_references
+            .entry(vec![
+                DefinableNameSegment::Name(window),
+                DefinableNameSegment::TypeOf,
+            ])
+            .or_insert(value.into());
+        defines = CompileTimeDefines(defines_value).resolved_cell()
+    }
+
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
-        defines: compile_time_info.defines,
+        defines,
         free_var_references: FreeVarReferences(free_var_references).resolved_cell(),
     }
     .cell())
@@ -2896,6 +2930,7 @@ async fn value_visitor(
     >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
+    define_process_cwd: bool,
 ) -> Result<(JsValue, bool)> {
     let (mut v, modified) = value_visitor_inner(
         origin,
@@ -2904,6 +2939,7 @@ async fn value_visitor(
         free_var_references,
         var_graph,
         attributes,
+        define_process_cwd,
     )
     .await?;
     v.normalize_shallow();
@@ -2920,6 +2956,7 @@ async fn value_visitor_inner(
     >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
+    define_process_cwd: bool,
 ) -> Result<(JsValue, bool)> {
     let ImportAttributes { ignore, .. } = *attributes;
     // This check is just an optimization
@@ -3045,7 +3082,8 @@ async fn value_visitor_inner(
             v.into_unknown(true, "cross function analyzing is not yet supported")
         }
         _ => {
-            let (mut v, mut modified) = replace_well_known(v, compile_time_info).await?;
+            let (mut v, mut modified) =
+                replace_well_known(v, compile_time_info, define_process_cwd).await?;
             modified = replace_builtin(&mut v) || modified;
             modified = modified || v.make_nested_operations_unknown();
             return Ok((v, modified));

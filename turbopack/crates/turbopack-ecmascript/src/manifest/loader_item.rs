@@ -105,7 +105,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -140,7 +140,7 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
         // exports a promise for all of the necessary chunk loads.
         let item_id = &*this
             .manifest
-            .chunk_item_id(*ResolvedVc::upcast(manifest.chunking_context))
+            .chunk_item_id(*manifest.chunking_context)
             .await?;
 
         // Finally, we need the id of the module that we're actually trying to
@@ -148,9 +148,7 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
         let placeable =
             ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(manifest.inner)
                 .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
-        let dynamic_id = &*placeable
-            .chunk_item_id(*ResolvedVc::upcast(manifest.chunking_context))
-            .await?;
+        let dynamic_id = &*placeable.chunk_item_id(*manifest.chunking_context).await?;
 
         // This is the code that will be executed when the dynamic import is reached.
         // It will load the manifest chunk, which will load all the chunks needed by

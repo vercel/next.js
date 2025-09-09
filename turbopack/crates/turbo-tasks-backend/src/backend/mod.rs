@@ -36,7 +36,7 @@ use turbo_tasks::{
     },
     event::{Event, EventListener},
     message_queue::TimingEvent,
-    registry::{self, get_value_type_global_name},
+    registry::get_value_type,
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     turbo_tasks,
@@ -867,7 +867,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let _span = tracing::trace_span!(
             "recomputation",
-            cell_type = registry::get_value_type_global_name(cell.type_id),
+            cell_type = get_value_type(cell.type_id).global_name,
             cell_index = cell.index
         )
         .entered();
@@ -3133,7 +3133,7 @@ impl DebugTraceTransientTask {
             cell_type_id: Option<ValueTypeId>,
         ) -> fmt::Result {
             if let Some(ty) = cell_type_id {
-                write!(f, " (read cell of type {})", get_value_type_global_name(ty))
+                write!(f, " (read cell of type {})", get_value_type(ty).global_name)
             } else {
                 Ok(())
             }

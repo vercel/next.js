@@ -94,6 +94,11 @@ export interface RenderOptsPartial {
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
   setIsrStatus?: (key: string, value: boolean) => void
+  setReactDebugChannel?: (
+    debugChannel: { readable: ReadableStream<Uint8Array> },
+    htmlRequestId: string,
+    requestId: string
+  ) => void
   isRevalidate?: boolean
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'

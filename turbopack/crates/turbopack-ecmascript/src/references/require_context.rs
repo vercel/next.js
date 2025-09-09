@@ -331,7 +331,7 @@ impl RequireContextAssetReferenceCodeGen {
             .reference
             .await?
             .inner
-            .chunk_item_id(Vc::upcast(chunking_context))
+            .chunk_item_id(chunking_context)
             .await?;
 
         let mut visitors = Vec::new();
@@ -485,7 +485,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
             let pm = PatternMapping::resolve_request(
                 *entry.request,
                 *self.origin,
-                *ResolvedVc::upcast(self.chunking_context),
+                *self.chunking_context,
                 *entry.result,
                 ResolveType::ChunkItem,
             )
@@ -563,7 +563,7 @@ impl ChunkItem for RequireContextChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]

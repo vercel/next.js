@@ -7,9 +7,7 @@ class ReactRefreshRspackPlugin {
 
   apply(compiler: Compiler) {
     new compiler.webpack.ProvidePlugin({
-      $ReactRefreshRuntime$: require.resolve(
-        './internal/RspackReactRefresh.js'
-      ),
+      $ReactRefreshRuntime$: require.resolve('./internal/RspackReactRefresh'),
     }).apply(compiler)
 
     compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {

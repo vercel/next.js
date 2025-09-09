@@ -479,7 +479,7 @@ async fn build_internal(
                                                     .unwrap(),
                                             )?
                                             .with_extension("entry.js"),
-                                        EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
+                                        EvaluatableAssets::one(*ecmascript),
                                         module_graph,
                                         OutputAssets::empty(),
                                         AvailabilityInfo::Root,
