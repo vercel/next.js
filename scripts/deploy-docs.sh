@@ -13,7 +13,7 @@ if [ -z "${VERCEL_API_TOKEN:-}" ]; then
 fi
 
 CWD="apps/docs"
-PROJECT="nextjs-apps-docs"
+PROJECT="next-docs"
 
 echo "Deploying docs from $CWD as project $PROJECT..." >&2
 
