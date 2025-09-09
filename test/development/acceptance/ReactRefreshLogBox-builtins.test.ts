@@ -59,13 +59,13 @@ describe('ReactRefreshLogBox', () => {
        }
       `)
     } else if (isRspack) {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module not found: Can't resolve 'dns' in '/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-11c6a8113f8641ebf16d8f95148ca2dd2235a41908f43340e0934bf5e8235773/node_modules/my-package'",
+         "description": "  × Module not found: Can't resolve 'dns' in '<FIXME-project-root>/node_modules/my-package'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./node_modules/my-package/index.js
-         × Module not found: Can't resolve 'dns' in '/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-11c6a8113f8641ebf16d8f95148ca2dd2235a41908f43340e0934bf5e8235773/node_modules/my-package'
+         × Module not found: Can't resolve 'dns' in '<FIXME-project-root>/node_modules/my-package'
           ╭─[1:12]
         1 │ const dns = require('dns')
           ·             ──────────────
@@ -126,13 +126,13 @@ describe('ReactRefreshLogBox', () => {
        }
       `)
     } else if (isRspack) {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module not found: Can't resolve 'b' in '/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-11c6a8113f8641ebf16d8f95148ca2dd2235a41908f43340e0934bf5e8235773'",
+         "description": "  × Module not found: Can't resolve 'b' in '<FIXME-project-root>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js
-         × Module not found: Can't resolve 'b' in '/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-11c6a8113f8641ebf16d8f95148ca2dd2235a41908f43340e0934bf5e8235773'
+         × Module not found: Can't resolve 'b' in '<FIXME-project-root>'
           ╭─[2:17]
         1 │ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
         2 │ import Comp from 'b';
@@ -195,13 +195,13 @@ describe('ReactRefreshLogBox', () => {
        }
       `)
     } else if (isRspack) {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module not found: Can't resolve 'b' in '/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-11c6a8113f8641ebf16d8f95148ca2dd2235a41908f43340e0934bf5e8235773/pages'",
+         "description": "  × Module not found: Can't resolve 'b' in '<FIXME-project-root>/pages'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/index.js
-         × Module not found: Can't resolve 'b' in '/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-11c6a8113f8641ebf16d8f95148ca2dd2235a41908f43340e0934bf5e8235773/pages'
+         × Module not found: Can't resolve 'b' in '<FIXME-project-root>/pages'
           ╭─[2:17]
         1 │ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
         2 │ import Comp from 'b';
@@ -270,13 +270,13 @@ describe('ReactRefreshLogBox', () => {
        }
       `)
     } else if (isRspack) {
-      await expect(browser).toDisplayRedbox(`
+      await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "  × Module not found: Can't resolve './non-existent.css' in '/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-11c6a8113f8641ebf16d8f95148ca2dd2235a41908f43340e0934bf5e8235773/pages'",
+         "description": "  × Module not found: Can't resolve './non-existent.css' in '<FIXME-project-root>/pages'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./pages/_app.js
-         × Module not found: Can't resolve './non-existent.css' in '/private/var/folders/b1/0fd1b6hs7lz0fm_mh346lybm0000gn/T/next-install-11c6a8113f8641ebf16d8f95148ca2dd2235a41908f43340e0934bf5e8235773/pages'
+         × Module not found: Can't resolve './non-existent.css' in '<FIXME-project-root>/pages'
           ╭─[2:7]
         1 │ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
         2 │ import './non-existent.css';
