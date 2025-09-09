@@ -17,7 +17,7 @@ function getModuleExports(moduleId: string) {
   var maybeModule = __webpack_require__.c[moduleId]
   if (typeof maybeModule === 'undefined') {
     // `moduleId` is available but the module in cache is unavailable,
-    // which indicates the module is somehow corrupted (e.g. broken Webpacak `module` globals).
+    // which indicates the module is somehow corrupted (e.g. broken Webpack `module` globals).
     // We will warn the user (as this is likely a mistake) and assume they cannot be refreshed.
     console.warn(
       '[React Refresh] Failed to get exports for module: ' + moduleId + '.'
