@@ -112,8 +112,6 @@ import { Telemetry } from '../telemetry/storage'
 import {
   createPagesMapping,
   collectAppFiles,
-  getStaticInfoIncludingLayouts,
-  sortByPageExts,
   processPageRoutes,
   processAppRoutes,
   processLayoutRoutes,
@@ -124,6 +122,8 @@ import {
   type SlotInfo,
   collectPagesFiles,
 } from './entries'
+import { sortByPageExts } from './sort-by-page-exts'
+import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -1051,7 +1051,7 @@ export default async function build(
       const hasPublicDir = existsSync(publicDir)
 
       telemetry.record(
-        eventCliSession(dir, config, {
+        eventCliSession(config, {
           webpackVersion: 5,
           cliCommand: 'build',
           isSrcDir,

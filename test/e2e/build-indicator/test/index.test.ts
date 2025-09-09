@@ -1,7 +1,7 @@
 /* eslint-env jest */
 import { join } from 'path'
 import { retry } from 'next-test-utils'
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup, isNextDev, isNextDeploy } from 'e2e-utils'
 
 const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
@@ -19,24 +19,34 @@ const installCheckVisible = (browser) => {
 
 describe('Build Activity Indicator', () => {
   // Use describe.skip so that this suite does not fail with "no tests" during deploy tests.
-  ;(isNextStart ? describe : describe.skip)('Invalid position config', () => {
+  ;(isNextDeploy ? describe.skip : describe)('Invalid position config', () => {
     const { next } = nextTestSetup({
       files: join(__dirname, '..'),
       skipStart: true,
-      startServerTimeout: 1000,
       nextConfig: {
         devIndicators: {
           // Intentionally invalid position to test error
-          position: 'ttop-leff' as any,
+          // @ts-expect-error
+          position: 'ttop-leff',
         },
       },
     })
 
     it('should validate position config', async () => {
-      const result = await next.build()
+      if (isNextDev) {
+        try {
+          await next.start()
+        } catch (err) {
+          expect(err).toEqual(
+            new Error('next dev exited unexpectedly with code/signal 1')
+          )
+        }
+      } else {
+        const result = await next.build()
+        expect(result.exitCode).toBe(1)
+      }
 
-      expect(result.exitCode).toBe(1)
-      expect(result.cliOutput).toContain(
+      expect(next.cliOutput).toContain(
         `Invalid "devIndicator.position" provided, expected one of top-left, top-right, bottom-left, bottom-right, received ttop-leff`
       )
     })

@@ -367,22 +367,22 @@ export async function startServer(
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
       let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
-      if (isDev) {
-        const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
-        envInfo = startServerInfo.envInfo
-        experimentalFeatures = startServerInfo.experimentalFeatures
-      }
-      logStartInfo({
-        networkUrl,
-        appUrl,
-        envInfo,
-        experimentalFeatures,
-        logBundler: isDev,
-      })
-
-      Log.event(`Starting...`)
-
       try {
+        if (isDev) {
+          const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
+          envInfo = startServerInfo.envInfo
+          experimentalFeatures = startServerInfo.experimentalFeatures
+        }
+        logStartInfo({
+          networkUrl,
+          appUrl,
+          envInfo,
+          experimentalFeatures,
+          logBundler: isDev,
+        })
+
+        Log.event(`Starting...`)
+
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
         const cleanup = () => {

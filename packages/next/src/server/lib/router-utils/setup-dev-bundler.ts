@@ -1,10 +1,7 @@
 import type { NextConfigComplete } from '../../config-shared'
 import type { FilesystemDynamicRoute } from './filesystem'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
-import {
-  getPageStaticInfo,
-  type MiddlewareMatcher,
-} from '../../../build/analysis/get-page-static-info'
+import type { MiddlewareMatcher } from '../../../build/analysis/get-page-static-info'
 import type { RoutesManifest } from '../../../build'
 import type { MiddlewareRouteMatch } from '../../../shared/lib/router/utils/middleware-route-matcher'
 import type { PropagateToWorkersField } from './types'
@@ -16,25 +13,19 @@ import url from 'url'
 import path from 'path'
 import qs from 'querystring'
 import Watchpack from 'next/dist/compiled/watchpack'
-import { loadEnvConfig } from '@next/env'
 import findUp from 'next/dist/compiled/find-up'
 import { buildCustomRoute } from './filesystem'
 import * as Log from '../../../build/output/log'
-import HotReloaderWebpack from '../../dev/hot-reloader-webpack'
 import { setGlobal } from '../../../trace/shared'
 import type { Telemetry } from '../../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
-import loadJsConfig from '../../../build/load-jsconfig'
 import { createValidFileMatcher } from '../find-page-file'
 import {
   EVENT_BUILD_FEATURE_USAGE,
   eventCliSession,
 } from '../../../telemetry/events'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
-import {
-  getStaticInfoIncludingLayouts,
-  sortByPageExts,
-} from '../../../build/entries'
+import { sortByPageExts } from '../../../build/sort-by-page-exts'
 import { verifyTypeScriptSetup } from '../../../lib/verify-typescript-setup'
 import { verifyPartytownSetup } from '../../../lib/verify-partytown-setup'
 import { getNamedRouteRegex } from '../../../shared/lib/router/utils/route-regex'
@@ -69,7 +60,6 @@ import { devPageFiles } from '../../../build/webpack/plugins/next-types-plugin/s
 import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
-import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
 import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
@@ -192,23 +182,38 @@ async function startWatcher(
   })
 
   const hotReloader: NextJsHotReloaderInterface = opts.turbo
-    ? await createHotReloaderTurbopack(opts, serverFields, distDir, resetFetch)
-    : new HotReloaderWebpack(opts.dir, {
-        isSrcDir: opts.isSrcDir,
-        appDir,
-        pagesDir,
-        distDir,
-        config: opts.nextConfig,
-        buildId: 'development',
-        encryptionKey: await generateEncryptionKeyBase64({
-          isBuild: false,
+    ? await (async () => {
+        const createHotReloaderTurbopack = (
+          require('../../dev/hot-reloader-turbopack') as typeof import('../../dev/hot-reloader-turbopack')
+        ).createHotReloaderTurbopack
+        return await createHotReloaderTurbopack(
+          opts,
+          serverFields,
           distDir,
-        }),
-        telemetry: opts.telemetry,
-        rewrites: opts.fsChecker.rewrites,
-        previewProps: opts.fsChecker.prerenderManifest.preview,
-        resetFetch,
-      })
+          resetFetch
+        )
+      })()
+    : await (async () => {
+        const HotReloaderWebpack = (
+          require('../../dev/hot-reloader-webpack') as typeof import('../../dev/hot-reloader-webpack')
+        ).default
+        return new HotReloaderWebpack(opts.dir, {
+          isSrcDir: opts.isSrcDir,
+          appDir,
+          pagesDir,
+          distDir,
+          config: opts.nextConfig,
+          buildId: 'development',
+          encryptionKey: await generateEncryptionKeyBase64({
+            isBuild: false,
+            distDir,
+          }),
+          telemetry: opts.telemetry,
+          rewrites: opts.fsChecker.rewrites,
+          previewProps: opts.fsChecker.prerenderManifest.preview,
+          resetFetch,
+        })
+      })()
 
   await hotReloader.start()
 
@@ -438,6 +443,9 @@ async function startWatcher(
         })
 
         if (isMiddlewareFile(rootFile)) {
+          const getStaticInfoIncludingLayouts = (
+            require('../../../build/get-static-info-including-layouts') as typeof import('../../../build/get-static-info-including-layouts')
+          ).getStaticInfoIncludingLayouts
           const staticInfo = await getStaticInfoIncludingLayouts({
             pageFilePath: fileName,
             config: nextConfig,
@@ -501,6 +509,9 @@ async function startWatcher(
             true
           )
         ) {
+          const getPageStaticInfo = (
+            require('../../../build/analysis/get-page-static-info') as typeof import('../../../build/analysis/get-page-static-info')
+          ).getPageStaticInfo
           const staticInfo = await getPageStaticInfo({
             pageFilePath: fileName,
             nextConfig: {},
@@ -718,6 +729,9 @@ async function startWatcher(
 
       if (envChange || tsconfigChange) {
         if (envChange) {
+          const loadEnvConfig = (
+            require('@next/env') as typeof import('@next/env')
+          ).loadEnvConfig
           const { loadedEnvFiles } = loadEnvConfig(
             dir,
             process.env.NODE_ENV === 'development',
@@ -748,14 +762,22 @@ async function startWatcher(
           ])
         }
         let tsconfigResult:
-          | UnwrapPromise<ReturnType<typeof loadJsConfig>>
+          | UnwrapPromise<
+              ReturnType<typeof import('../../../build/load-jsconfig').default>
+            >
           | undefined
 
-        if (tsconfigChange) {
-          try {
-            tsconfigResult = await loadJsConfig(dir, nextConfig)
-          } catch (_) {
-            /* do we want to log if there are syntax errors in tsconfig while editing? */
+        // This is not relevant for Turbopack because tsconfig/jsconfig is handled internally.
+        if (!hotReloader.turbopackProject) {
+          if (tsconfigChange) {
+            try {
+              const loadJsConfig = (
+                require('../../../build/load-jsconfig') as typeof import('../../../build/load-jsconfig')
+              ).default
+              tsconfigResult = await loadJsConfig(dir, nextConfig)
+            } catch (_) {
+              /* do we want to log if there are syntax errors in tsconfig while editing? */
+            }
           }
         }
 
@@ -1178,20 +1200,16 @@ export async function setupDevBundler(opts: SetupOpts) {
   })
 
   opts.telemetry.record(
-    eventCliSession(
-      path.join(opts.dir, opts.nextConfig.distDir),
-      opts.nextConfig,
-      {
-        webpackVersion: 5,
-        isSrcDir,
-        turboFlag: !!opts.turbo,
-        cliCommand: 'dev',
-        appDir: !!opts.appDir,
-        pagesDir: !!opts.pagesDir,
-        isCustomServer: !!opts.isCustomServer,
-        hasNowJson: !!(await findUp('now.json', { cwd: opts.dir })),
-      }
-    )
+    eventCliSession(opts.nextConfig, {
+      webpackVersion: 5,
+      isSrcDir,
+      turboFlag: !!opts.turbo,
+      cliCommand: 'dev',
+      appDir: !!opts.appDir,
+      pagesDir: !!opts.pagesDir,
+      isCustomServer: !!opts.isCustomServer,
+      hasNowJson: !!(await findUp('now.json', { cwd: opts.dir })),
+    })
   )
 
   // Track build features for dev server here:
