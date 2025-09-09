@@ -75,6 +75,9 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   if (signal != null && child?.pid) child.kill(signal)
   if (sessionStopHandled) return
   sessionStopHandled = true
+
+  // Capture the child's exit code if it has already exited and caused the
+  // session stop (via the 'exit' event), otherwise assume success (0).
   const exitCode = child?.exitCode || 0
 
   if (
