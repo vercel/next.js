@@ -333,6 +333,8 @@ async function startWatcher(
     files.push(...tsconfigPaths)
 
     const wp = new Watchpack({
+      // Watchpack default is 200ms which adds 200ms of dead time on bootup.
+      aggregateTimeout: 5, // Matches webpack-config.ts.
       ignored: (pathname: string) => {
         return (
           !files.some((file) => file.startsWith(pathname)) &&
