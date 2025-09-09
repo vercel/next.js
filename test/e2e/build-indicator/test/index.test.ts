@@ -23,7 +23,6 @@ describe('Build Activity Indicator', () => {
     const { next } = nextTestSetup({
       files: join(__dirname, '..'),
       skipStart: true,
-      startServerTimeout: 1000,
       nextConfig: {
         devIndicators: {
           // Intentionally invalid position to test error
