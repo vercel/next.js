@@ -330,6 +330,22 @@ describe('ReactRefreshLogBox', () => {
            ],
          }
         `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "no",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "FunctionDefault.js (1:51) @ FunctionDefault
+         > 1 | export default function FunctionDefault() { throw new Error('no'); }
+             |                                                   ^",
+           "stack": [
+             "FunctionDefault FunctionDefault.js (1:51)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
@@ -573,6 +589,22 @@ describe('ReactRefreshLogBox', () => {
              "ClickCount.render Child.js (4:11)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
+           ],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
+         > 4 |     throw new Error()
+             |           ^",
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
            ],
          }
         `)
