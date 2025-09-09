@@ -131,7 +131,7 @@ def format_time(nanoseconds: float) -> str:
     elif nanoseconds >= 1_000:  # >= 1 microsecond
         return f"{sign}{nanoseconds / 1_000:.1f}μs"
     else:  # nanoseconds
-        return f"{nanoseconds:.0f}ns"
+        return f"{sign}{nanoseconds:.0f}ns"
 
 
 def print_analysis(results: List[Tuple[TaskStats, float]]):
