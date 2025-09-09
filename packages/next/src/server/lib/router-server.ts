@@ -59,6 +59,9 @@ import {
   handleChromeDevtoolsWorkspaceRequest,
   isChromeDevtoolsWorkspaceUrl,
 } from './chrome-devtools-workspace'
+import type { NodeNextRequest, NodeNextResponse } from '../base-http/node'
+import { logRequests } from '../dev/log-requests'
+import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -496,11 +499,24 @@ export async function initialize(opts: {
         }
 
         try {
-          return await serveStatic(req, res, matchedOutput.itemPath, {
+          const start = Date.now()
+          await serveStatic(req, res, matchedOutput.itemPath, {
             root: matchedOutput.itemsRoot,
             // Ensures that etags are not generated for static files when disabled.
             etag: config.generateEtags,
           })
+          if (
+            config.logging !== false &&
+            isMetadataRouteFile(matchedOutput.itemPath, [], false)
+          ) {
+            logRequests({
+              request: req as unknown as NodeNextRequest,
+              response: res as unknown as NodeNextResponse,
+              loggingConfig: config.logging,
+              requestDurationInMs: Date.now() - start,
+            })
+          }
+          return
         } catch (err: any) {
           /**
            * Hardcoded every possible error status code that could be thrown by "serveStatic" method

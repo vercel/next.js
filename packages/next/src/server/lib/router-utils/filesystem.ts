@@ -510,11 +510,14 @@ export async function setupFsCheck(opts: {
       if (opts.dev && isMetadataRouteFile(itemPath, [], false)) {
         const fsPath = staticMetadataFiles.get(itemPath)
         if (fsPath) {
+          const appDir = path.join(opts.dir, 'app')
+          const appDirRelativePath = fsPath.replace(appDir, '')
           return {
             // "nextStaticFolder" sets Cache-Control "no-store" on dev.
             type: 'nextStaticFolder',
             fsPath,
-            itemPath: fsPath,
+            itemPath: appDirRelativePath,
+            itemsRoot: appDir,
           }
         }
       }
