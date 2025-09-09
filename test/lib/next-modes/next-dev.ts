@@ -81,6 +81,11 @@ export class NextDevInstance extends NextInstance {
           this.emit('stderr', [msg])
         })
 
+        const serverReadyTimeoutId = this.setServerReadyTimeout(
+          reject,
+          this.startServerTimeout
+        )
+
         this.childProcess.on('close', (code, signal) => {
           if (this.isStopping) return
           if (code || signal) {
@@ -88,15 +93,11 @@ export class NextDevInstance extends NextInstance {
             const error = new Error(
               `next dev exited unexpectedly with code/signal ${code || signal}`
             )
+            clearTimeout(serverReadyTimeoutId)
             require('console').error(error)
             reject(error)
           }
         })
-
-        const serverReadyTimeoutId = this.setServerReadyTimeout(
-          reject,
-          this.startServerTimeout
-        )
 
         const readyCb = (msg) => {
           const resolveServer = () => {
