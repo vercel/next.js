@@ -54,14 +54,12 @@ pub async fn get_next_client_transforms_rules(
     match &context_ty {
         ClientContextType::Pages { pages_dir } => {
             if !foreign_code {
-                rules.push(
-                    get_next_pages_transforms_rule(
-                        pages_dir.clone(),
-                        ExportFilter::StripDataExports,
-                        enable_mdx_rs,
-                    )
-                    .await?,
-                );
+                rules.push(get_next_pages_transforms_rule(
+                    pages_dir.clone(),
+                    ExportFilter::StripDataExports,
+                    enable_mdx_rs,
+                    vec![],
+                )?);
                 rules.push(get_next_disallow_export_all_in_page_rule(
                     enable_mdx_rs,
                     pages_dir.clone(),

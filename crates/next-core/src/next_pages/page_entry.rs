@@ -51,7 +51,8 @@ pub async fn create_page_ssr_entry_module(
         .await?;
 
     let template_file = match (&reference_type, runtime) {
-        (ReferenceType::Entry(EntryReferenceSubType::Page), _) => {
+        (ReferenceType::Entry(EntryReferenceSubType::Page), _)
+        | (ReferenceType::Entry(EntryReferenceSubType::PageData), _) => {
             // Load the Page entry file.
             "pages.js"
         }
@@ -77,7 +78,9 @@ pub async fn create_page_ssr_entry_module(
         ("VAR_USERLAND", &inner),
     ];
 
-    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
+    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page)
+        || reference_type == ReferenceType::Entry(EntryReferenceSubType::PageData)
+    {
         replacements.push(("VAR_MODULE_DOCUMENT", &inner_document));
         replacements.push(("VAR_MODULE_APP", &inner_app));
     }
@@ -89,7 +92,8 @@ pub async fn create_page_ssr_entry_module(
     // When we're building the instrumentation page (only when the
     // instrumentation file conflicts with a page also labeled
     // /instrumentation) hoist the `register` method.
-    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page)
+    if (reference_type == ReferenceType::Entry(EntryReferenceSubType::Page)
+        || reference_type == ReferenceType::Entry(EntryReferenceSubType::PageData))
         && (definition_page == "/instrumentation" || definition_page == "/src/instrumentation")
     {
         let file = &*file_content_rope(source.content().file_content()).await?;
@@ -116,28 +120,30 @@ pub async fn create_page_ssr_entry_module(
 
     let pages_structure_ref = pages_structure.await?;
 
-    let (app_module, document_module) =
-        if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
-            let document_module = process_global_item(
-                *pages_structure_ref.document,
-                reference_type.clone(),
-                ssr_module_context,
-            )
-            .to_resolved()
-            .await?;
-            let app_module = process_global_item(
-                *pages_structure_ref.app,
-                reference_type.clone(),
-                ssr_module_context,
-            )
-            .to_resolved()
-            .await?;
-            inner_assets.insert(inner_document, document_module);
-            inner_assets.insert(inner_app, app_module);
-            (Some(app_module), Some(document_module))
-        } else {
-            (None, None)
-        };
+    let (app_module, document_module) = if reference_type
+        == ReferenceType::Entry(EntryReferenceSubType::Page)
+        || reference_type == ReferenceType::Entry(EntryReferenceSubType::PageData)
+    {
+        let document_module = process_global_item(
+            *pages_structure_ref.document,
+            reference_type.clone(),
+            ssr_module_context,
+        )
+        .to_resolved()
+        .await?;
+        let app_module = process_global_item(
+            *pages_structure_ref.app,
+            reference_type.clone(),
+            ssr_module_context,
+        )
+        .to_resolved()
+        .await?;
+        inner_assets.insert(inner_document, document_module);
+        inner_assets.insert(inner_app, app_module);
+        (Some(app_module), Some(document_module))
+    } else {
+        (None, None)
+    };
 
     let mut ssr_module = ssr_module_context
         .process(
@@ -147,7 +153,9 @@ pub async fn create_page_ssr_entry_module(
         .module();
 
     if matches!(runtime, NextRuntime::Edge) {
-        if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page) {
+        if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page)
+            || reference_type == ReferenceType::Entry(EntryReferenceSubType::PageData)
+        {
             ssr_module = wrap_edge_page(
                 ssr_module_context,
                 project_root,
