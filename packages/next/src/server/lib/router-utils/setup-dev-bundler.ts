@@ -767,6 +767,7 @@ async function startWatcher(
             >
           | undefined
 
+        // This is not relevant for Turbopack because tsconfig/jsconfig is handled internally.
         if (!hotReloader.turbopackProject) {
           if (tsconfigChange) {
             try {
