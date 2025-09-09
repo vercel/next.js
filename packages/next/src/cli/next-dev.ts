@@ -90,6 +90,8 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     clearTimeout(exitTimeout)
   }
 
+  // Unset the child so that we don't try to send it SIGKILL when the parent
+  // process exits.
   child = undefined
 
   sessionSpan.stop()
