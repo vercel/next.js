@@ -45,7 +45,7 @@ import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
-import { isStaticMetadataFile } from '../../../lib/metadata/is-metadata-route'
+import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 
 export type FsOutput = {
   type:
@@ -507,11 +507,7 @@ export async function setupFsCheck(opts: {
         }
       }
 
-      if (
-        opts.dev &&
-        // Strip metadata suffix (-\w{6}) to match the static metadata file convention.
-        isStaticMetadataFile(itemPath.replace(/-\w{6}(?=\.[^/]*$)/, ''))
-      ) {
+      if (opts.dev && isMetadataRouteFile(itemPath, [], false)) {
         const fsPath = staticMetadataFiles.get(itemPath)
         if (fsPath) {
           return {
