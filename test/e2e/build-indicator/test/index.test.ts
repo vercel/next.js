@@ -36,8 +36,10 @@ describe('Build Activity Indicator', () => {
       if (isNextDev) {
         try {
           await next.start()
-        } catch {
-          // We expect `next dev` to fail.
+        } catch (err) {
+          expect(err).toEqual(
+            new Error('next dev exited unexpectedly with code/signal 1')
+          )
         }
       } else {
         const result = await next.build()
