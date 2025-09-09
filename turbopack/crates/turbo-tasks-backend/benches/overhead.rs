@@ -243,7 +243,7 @@ fn run_turbo_stats(rt: &tokio::runtime::Runtime, b: &mut criterion::Bencher<'_>,
                 for i in 0..iters {
                     black_box(busy_turbo(i, black_box(d)).await?);
                 }
-                Ok(stats.get(&*BUSY_TURBO_FUNCTION).duration)
+                Ok(stats.get(&BUSY_TURBO_FUNCTION).duration)
             })
             .await
             .unwrap()
