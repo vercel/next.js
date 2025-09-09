@@ -12,16 +12,15 @@ if [ -z "${VERCEL_API_TOKEN:-}" ]; then
   exit 0
 fi
 
-CWD="."
+CWD="apps/docs"
 PROJECT="next-docs"
 
-echo "Deploying docs (project rootDirectory is configured in Vercel) as project $PROJECT..." >&2
+echo "Deploying docs from $CWD as project $PROJECT..." >&2
 
-# Link the project from repo root (send output to stderr to keep stdout clean for URL capture)
-vercel link --scope vercel --project "$PROJECT" --token "$VERCEL_API_TOKEN" --yes 1>&2
+vercel link --cwd "$CWD" --scope vercel --project "$PROJECT" --token "$VERCEL_API_TOKEN" --yes 1>&2
 
-# Deploy from repo root; Vercel project rootDirectory (apps/docs) will be applied
-URL=$(vercel deploy --token "$VERCEL_API_TOKEN" $PROD)
+# Deploy only the docs directory; combine with archive to reduce upload surface
+URL=$(vercel deploy --cwd "$CWD" --token "$VERCEL_API_TOKEN" --archive=tgz $PROD)
 echo "$URL"
 
 
