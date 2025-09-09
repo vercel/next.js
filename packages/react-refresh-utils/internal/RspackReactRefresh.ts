@@ -39,8 +39,7 @@ function executeRuntime(moduleExports, moduleId, webpackHot) {
 
   if (webpackHot) {
     var isHotUpdate = !!webpackHot.data
-    var prevSignature: unknown[] | null =
-        webpackHot.data?.prevSignature ?? null
+    var prevSignature: unknown[] | null = webpackHot.data?.prevSignature ?? null
 
     if (RefreshHelpers.isReactRefreshBoundary(moduleExports)) {
       webpackHot.dispose(
