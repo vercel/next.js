@@ -23,11 +23,13 @@ export function getServerActionRequestMetadata(
     contentType = req.headers['content-type'] ?? null
   }
 
+  const ct = contentType?.toLowerCase() ?? null
+
   const isURLEncodedAction = Boolean(
-    req.method === 'POST' && contentType === 'application/x-www-form-urlencoded'
+    req.method === 'POST' && ct?.startsWith('application/x-www-form-urlencoded')
   )
   const isMultipartAction = Boolean(
-    req.method === 'POST' && contentType?.startsWith('multipart/form-data')
+    req.method === 'POST' && ct?.startsWith('multipart/form-data')
   )
   const isFetchAction = Boolean(
     actionId !== undefined &&
