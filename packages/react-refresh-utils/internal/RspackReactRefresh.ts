@@ -1,7 +1,7 @@
 import RefreshHelpers from './helpers'
 
 declare const __webpack_require__: {
-  c: Record<string | number, unknown>
+  c: Record<string | number, { exports: unknown | (() => Promise<unknown>) }>
 }
 
 // Extracts exports from a webpack module object.
@@ -63,16 +63,13 @@ function executeRuntime(moduleExports, moduleId, webpackHot) {
             moduleExports
           )
         ) {
-          console.log("invalidate", moduleId)
           webpackHot.invalidate()
         } else {
-          console.log("scheduleUpdate", moduleId)
           RefreshHelpers.scheduleUpdate()
         }
       }
     } else {
       if (isHotUpdate && typeof prevExports !== 'undefined') {
-        console.log("invalidate 2", moduleId)
         webpackHot.invalidate()
       }
     }

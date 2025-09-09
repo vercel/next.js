@@ -697,7 +697,7 @@ export default async function getBaseWebpackConfig(
     '...',
   ]
 
-  const reactRefreshEntry = process.env.NEXT_RSPACK
+  const reactRefreshEntry = isRspack
     ? require.resolve(
         `next/dist/compiled/@next/react-refresh-utils/dist/rspack-runtime`
       )
