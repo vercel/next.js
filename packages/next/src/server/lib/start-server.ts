@@ -304,85 +304,85 @@ export async function startServer(
 
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
-      const nodeDebugType = getNodeDebugType()
+      try {
+        const nodeDebugType = getNodeDebugType()
 
-      const addr = server.address()
-      const actualHostname = formatHostname(
-        typeof addr === 'object'
-          ? addr?.address || hostname || 'localhost'
-          : addr
-      )
-      const formattedHostname =
-        !hostname || actualHostname === '0.0.0.0'
-          ? 'localhost'
-          : actualHostname === '[::]'
-            ? '[::1]'
-            : formatHostname(hostname)
+        const addr = server.address()
+        const actualHostname = formatHostname(
+          typeof addr === 'object'
+            ? addr?.address || hostname || 'localhost'
+            : addr
+        )
+        const formattedHostname =
+          !hostname || actualHostname === '0.0.0.0'
+            ? 'localhost'
+            : actualHostname === '[::]'
+              ? '[::1]'
+              : formatHostname(hostname)
 
-      port = typeof addr === 'object' ? addr?.port || port : port
+        port = typeof addr === 'object' ? addr?.port || port : port
 
-      if (portRetryCount) {
-        const pid = await getProcessIdUsingPort(originalPort)
-        if (pid) {
-          Log.warn(
-            `Port ${originalPort} is in use by process ${pid}, using available port ${port} instead.`
-          )
-        } else {
-          Log.warn(
-            `Port ${originalPort} is in use by an unknown process, using available port ${port} instead.`
+        if (portRetryCount) {
+          const pid = await getProcessIdUsingPort(originalPort)
+          if (pid) {
+            Log.warn(
+              `Port ${originalPort} is in use by process ${pid}, using available port ${port} instead.`
+            )
+          } else {
+            Log.warn(
+              `Port ${originalPort} is in use by an unknown process, using available port ${port} instead.`
+            )
+          }
+        }
+
+        const networkHostname =
+          hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
+
+        const protocol = selfSignedCertificate ? 'https' : 'http'
+
+        const networkUrl = networkHostname
+          ? `${protocol}://${formatHostname(networkHostname)}:${port}`
+          : null
+
+        const appUrl = `${protocol}://${formattedHostname}:${port}`
+
+        if (nodeDebugType) {
+          const formattedDebugAddress = getFormattedDebugAddress()
+          Log.info(
+            `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at ${formattedDebugAddress}.`
           )
         }
-      }
 
-      const networkHostname =
-        hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
+        // Store the selected port to:
+        // - expose it to render workers
+        // - re-use it for automatic dev server restarts with a randomly selected port
+        process.env.PORT = port + ''
 
-      const protocol = selfSignedCertificate ? 'https' : 'http'
+        process.env.__NEXT_PRIVATE_ORIGIN = appUrl
 
-      const networkUrl = networkHostname
-        ? `${protocol}://${formatHostname(networkHostname)}:${port}`
-        : null
+        // Set experimental HTTPS flag for metadata resolution
+        if (selfSignedCertificate) {
+          process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
+        }
 
-      const appUrl = `${protocol}://${formattedHostname}:${port}`
+        // Only load env and config in dev to for logging purposes
+        let envInfo: string[] | undefined
+        let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
+        if (isDev) {
+          const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
+          envInfo = startServerInfo.envInfo
+          experimentalFeatures = startServerInfo.experimentalFeatures
+        }
+        logStartInfo({
+          networkUrl,
+          appUrl,
+          envInfo,
+          experimentalFeatures,
+          logBundler: isDev,
+        })
 
-      if (nodeDebugType) {
-        const formattedDebugAddress = getFormattedDebugAddress()
-        Log.info(
-          `the --${nodeDebugType} option was detected, the Next.js router server should be inspected at ${formattedDebugAddress}.`
-        )
-      }
+        Log.event(`Starting...`)
 
-      // Store the selected port to:
-      // - expose it to render workers
-      // - re-use it for automatic dev server restarts with a randomly selected port
-      process.env.PORT = port + ''
-
-      process.env.__NEXT_PRIVATE_ORIGIN = appUrl
-
-      // Set experimental HTTPS flag for metadata resolution
-      if (selfSignedCertificate) {
-        process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
-      }
-
-      // Only load env and config in dev to for logging purposes
-      let envInfo: string[] | undefined
-      let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
-      if (isDev) {
-        const startServerInfo = await getStartServerInfo({ dir, dev: isDev })
-        envInfo = startServerInfo.envInfo
-        experimentalFeatures = startServerInfo.experimentalFeatures
-      }
-      logStartInfo({
-        networkUrl,
-        appUrl,
-        envInfo,
-        experimentalFeatures,
-        logBundler: isDev,
-      })
-
-      Log.event(`Starting...`)
-
-      try {
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
         const cleanup = () => {
