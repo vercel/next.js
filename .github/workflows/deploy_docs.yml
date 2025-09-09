@@ -17,7 +17,6 @@ jobs:
   deploy:
     name: Deploy docs to Vercel
     runs-on: ubuntu-latest
-    if: ${{ secrets.VERCEL_API_TOKEN != '' }}
     env:
       VERCEL_API_TOKEN: ${{ secrets.VERCEL_API_TOKEN }}
     steps:
