@@ -19,9 +19,6 @@ describe('build-error-logs', () => {
 
     if (isTurbopack) {
       expect(moduleNotFoundLogs).toHaveLength(1)
-    } else if (isRspack) {
-      // FIXME: next with Rspack still logs the same error too many times
-      expect(moduleNotFoundLogs).toHaveLength(2)
     } else {
       // FIXME: next with webpack still logs the same error too many times
       expect(moduleNotFoundLogs).toHaveLength(3)

@@ -39,37 +39,39 @@ function executeRuntime(moduleExports, moduleId, webpackHot) {
 
   if (webpackHot) {
     var isHotUpdate = !!webpackHot.data
-    var prevExports
-    if (isHotUpdate) {
-      prevExports = webpackHot.data.prevExports
-    }
+    var prevSignature: unknown[] | null =
+        webpackHot.data?.prevSignature ?? null
 
     if (RefreshHelpers.isReactRefreshBoundary(moduleExports)) {
       webpackHot.dispose(
-        // A callback to performs a full refresh if React has unrecoverable errors,
-        // and also caches the to-be-disposed module.
+        // Save the previous exports signature on update so we can compare the boundary
+        // signatures. We avoid saving exports themselves since it causes memory leaks (https://github.com/vercel/next.js/pull/53797)
         function hotDisposeCallback(data) {
-          // We have to mutate the data object to get data registered and cached
-          data.prevExports = moduleExports
+          data.prevSignature =
+            RefreshHelpers.getRefreshBoundarySignature(moduleExports)
         }
       )
       webpackHot.accept()
 
-      if (isHotUpdate) {
-        if (
-          RefreshHelpers.isReactRefreshBoundary(prevExports) &&
-          RefreshHelpers.shouldInvalidateReactRefreshBoundary(
-            prevExports,
-            moduleExports
-          )
-        ) {
-          webpackHot.invalidate()
-        } else {
-          RefreshHelpers.scheduleUpdate()
+      // This field is set when the previous version of this module was a
+      // Refresh Boundary, letting us know we need to check for invalidation or
+      // enqueue an update.
+      if (prevSignature !== null) {
+        if (isHotUpdate) {
+          if (
+            RefreshHelpers.shouldInvalidateReactRefreshBoundary(
+              prevSignature,
+              RefreshHelpers.getRefreshBoundarySignature(moduleExports)
+            )
+          ) {
+            webpackHot.invalidate()
+          } else {
+            RefreshHelpers.scheduleUpdate()
+          }
         }
       }
     } else {
-      if (isHotUpdate && typeof prevExports !== 'undefined') {
+      if (isHotUpdate && prevSignature !== null) {
         webpackHot.invalidate()
       }
     }
