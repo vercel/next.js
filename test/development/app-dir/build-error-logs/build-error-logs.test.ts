@@ -5,7 +5,6 @@ describe('build-error-logs', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   it('should only log error a single time', async () => {
     await next.fetch('/')
