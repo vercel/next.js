@@ -9,6 +9,8 @@ describe('use-cache-segment-configs', () => {
     skipDeployment: true,
   })
 
+  const isRspack = !!process.env.NEXT_RSPACK
+
   if (skipped) {
     return
   }
@@ -20,7 +22,7 @@ describe('use-cache-segment-configs', () => {
       await assertHasRedbox(browser)
 
       if (isTurbopack) {
-        expect(browser).toDisplayRedbox(`
+        await expect(browser).toDisplayRedbox(`
          {
            "description": "Ecmascript file had an error",
            "environmentLabel": null,
@@ -32,9 +34,29 @@ describe('use-cache-segment-configs', () => {
            "stack": [],
          }
         `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "  × Module build failed:",
+           "environmentLabel": null,
+           "label": "Build Error",
+           "source": "<FIXME-nextjs-internal-source>
+           × Module build failed:
+           ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+                 │    ,-[1:1]
+                 │  1 | export const runtime = 'edge'
+                 │    :              ^^^^^^^
+                 │  2 |
+                 │  3 | export default function Page() {
+                 │  4 |   return <div>This page uses \`export const runtime\`.</div>
+                 │    \`----
+                 │",
+           "stack": [],
+         }
+        `)
       } else {
         // FIXME: Fix broken import trace for Webpack loader resource.
-        expect(browser).toDisplayRedbox(`
+        await expect(browser).toDisplayRedbox(`
          {
            "description": "  x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.",
            "environmentLabel": null,
@@ -72,6 +94,28 @@ describe('use-cache-segment-configs', () => {
 
 
              at <unknown> (./app/runtime/page.tsx:1:14)
+         "
+        `)
+      } else if (isRspack) {
+        expect(buildOutput).toMatchInlineSnapshot(`
+         "
+         // TODO(veil): Fix broken import trace for Webpack loader resource.
+           × Module build failed:
+           ╰─▶   × Error:   x Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+                 │    ,-[1:1]
+                 │  1 | export const runtime = 'edge'
+                 │    :              ^^^^^^^
+                 │  2 |
+                 │  3 | export default function Page() {
+                 │  4 |   return <div>This page uses \`export const runtime\`.</div>
+                 │    \`----
+                 │
+               
+         Import trace for requested module:
+         // TODO(veil): Fix broken import trace for Webpack loader resource.
+
+
+         > Build failed because of Rspack errors
          "
         `)
       } else {

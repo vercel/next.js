@@ -3,6 +3,8 @@ import type { BinaryStreamOf } from './app-render'
 
 import { htmlEscapeJsonString } from '../htmlescape'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -14,14 +16,21 @@ const INLINE_FLIGHT_PAYLOAD_BINARY = 3
 const flightResponses = new WeakMap<BinaryStreamOf<any>, Promise<any>>()
 const encoder = new TextEncoder()
 
+const findSourceMapURL =
+  process.env.NODE_ENV !== 'production'
+    ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
+        .findSourceMapURLDEV
+    : undefined
+
 /**
  * Render Flight stream.
  * This is only used for renderToHTML, the Flight response does not need additional wrappers.
  */
 export function useFlightStream<T>(
   flightStream: BinaryStreamOf<T>,
+  debugStream: ReadableStream<Uint8Array> | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>,
-  nonce?: string
+  nonce: string | undefined
 ): Promise<T> {
   const response = flightResponses.get(flightStream)
 
@@ -32,9 +41,10 @@ export function useFlightStream<T>(
   // react-server-dom-webpack/client.edge must not be hoisted for require cache clearing to work correctly
   const { createFromReadableStream } =
     // eslint-disable-next-line import/no-extraneous-dependencies
-    require('react-server-dom-webpack/client.edge') as typeof import('react-server-dom-webpack/client.edge')
+    require('react-server-dom-webpack/client') as typeof import('react-server-dom-webpack/client')
 
   const newResponse = createFromReadableStream<T>(flightStream, {
+    findSourceMapURL,
     serverConsumerManifest: {
       moduleLoading: clientReferenceManifest.moduleLoading,
       moduleMap: isEdgeRuntime
@@ -43,7 +53,38 @@ export function useFlightStream<T>(
       serverModuleMap: null,
     },
     nonce,
+    debugChannel: debugStream ? { readable: debugStream } : undefined,
   })
+
+  // Edge pages are never prerendered so they necessarily cannot have a workUnitStore type
+  // that requires the nextTick behavior. This is why it is safe to access a node only API here
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (!workUnitStore) {
+      throw new InvariantError('Expected workUnitAsyncStorage to have a store.')
+    }
+
+    switch (workUnitStore.type) {
+      case 'prerender-client':
+        const responseOnNextTick = new Promise<T>((resolve) => {
+          process.nextTick(() => resolve(newResponse))
+        })
+        flightResponses.set(flightStream, responseOnNextTick)
+        return responseOnNextTick
+      case 'prerender':
+      case 'prerender-runtime':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'request':
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
+  }
 
   flightResponses.set(flightStream, newResponse)
 
@@ -62,7 +103,8 @@ export function useFlightStream<T>(
 export function createInlinedDataReadableStream(
   flightStream: ReadableStream<Uint8Array>,
   nonce: string | undefined,
-  formState: unknown | null
+  formState: unknown | null,
+  requestId: string
 ): ReadableStream<Uint8Array> {
   const startScriptTag = nonce
     ? `<script nonce=${JSON.stringify(nonce)}>`
@@ -75,7 +117,12 @@ export function createInlinedDataReadableStream(
     type: 'bytes',
     start(controller) {
       try {
-        writeInitialInstructions(controller, startScriptTag, formState)
+        writeInitialInstructions(
+          controller,
+          startScriptTag,
+          formState,
+          requestId
+        )
       } catch (error) {
         // during encoding or enqueueing forward the error downstream
         controller.error(error)
@@ -119,27 +166,25 @@ export function createInlinedDataReadableStream(
 function writeInitialInstructions(
   controller: ReadableStreamDefaultController,
   scriptStart: string,
-  formState: unknown | null
+  formState: unknown | null,
+  requestId: string
 ) {
-  if (formState != null) {
-    controller.enqueue(
-      encoder.encode(
-        `${scriptStart}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-          JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-        )});self.__next_f.push(${htmlEscapeJsonString(
-          JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-        )})</script>`
-      )
-    )
-  } else {
-    controller.enqueue(
-      encoder.encode(
-        `${scriptStart}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-          JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-        )})</script>`
-      )
-    )
+  let scriptContents = `(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+    JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+  )})`
+
+  if (process.env.NODE_ENV !== 'production') {
+    // The request ID is only needed in development mode.
+    scriptContents = `self.__next_r=${JSON.stringify(requestId)};${scriptContents}`
   }
+
+  if (formState != null) {
+    scriptContents += `;self.__next_f.push(${htmlEscapeJsonString(
+      JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+    )})`
+  }
+
+  controller.enqueue(encoder.encode(`${scriptStart}${scriptContents}</script>`))
 }
 
 function writeFlightDataInstruction(

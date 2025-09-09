@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use anyhow::Result;
 use rustc_hash::FxHashMap;
-use tracing::{level_filters::LevelFilter, Subscriber};
+use tracing::{Subscriber, level_filters::LevelFilter};
 use tracing_subscriber::Layer;
 
 pub struct FilterLayer {

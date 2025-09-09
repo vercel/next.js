@@ -1,7 +1,7 @@
 // @ts-check
 
 const defaultCacheHandler =
-  require('next/dist/server/lib/cache-handlers/default').default
+  require('next/dist/server/lib/cache-handlers/default.external').default
 
 /**
  * @type {import('next/dist/server/lib/cache-handlers/types').CacheHandler}
@@ -13,7 +13,7 @@ const cacheHandler = {
       cacheKey,
       JSON.stringify(softTags)
     )
-    return defaultCacheHandler.get(cacheKey)
+    return defaultCacheHandler.get(cacheKey, softTags)
   },
 
   async set(cacheKey, pendingEntry) {

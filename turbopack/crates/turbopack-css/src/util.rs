@@ -17,7 +17,7 @@ pub fn stringify_js(str: &str) -> String {
         }
     }
 
-    format!("\"{}\"", escaped)
+    format!("\"{escaped}\"")
 }
 
 #[cfg(test)]

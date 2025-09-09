@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
-import { assertNoConsoleErrors } from 'next-test-utils'
+import { assertNoConsoleErrors, retry } from 'next-test-utils'
 
 function countSubstring(str: string, substr: string): number {
   return str.split(substr).length - 1
@@ -19,9 +19,13 @@ describe('ppr-metadata-streaming', () => {
       expect($(`${rootSelector} title`).text()).toBe('fully static')
       expect(countSubstring($.html(), '<title>')).toBe(1)
 
-      const browser = await next.browser('/fully-static')
+      const browser = await next.browser('/fully-static', {
+        pushErrorAsConsoleLog: true,
+      })
       expect(
-        await browser.waitForElementByCss(`${rootSelector} title`).text()
+        await browser
+          .waitForElementByCss(`${rootSelector} title`, { state: 'attached' })
+          .text()
       ).toBe('fully static')
       await assertNoConsoleErrors(browser)
     })
@@ -31,10 +35,14 @@ describe('ppr-metadata-streaming', () => {
       expect($(`body title`).text()).toBe('dynamic page')
       expect(countSubstring($.html(), '<title>')).toBe(1)
 
-      const browser = await next.browser('/dynamic-page')
-      expect(await browser.waitForElementByCss('body title').text()).toBe(
-        'dynamic page'
-      )
+      const browser = await next.browser('/dynamic-page', {
+        pushErrorAsConsoleLog: true,
+      })
+      expect(
+        await browser
+          .waitForElementByCss('body title', { state: 'attached' })
+          .text()
+      ).toBe('dynamic page')
       await assertNoConsoleErrors(browser)
     })
   })
@@ -46,10 +54,14 @@ describe('ppr-metadata-streaming', () => {
       expect($('body title').text()).toBe('fully dynamic')
       expect(countSubstring($.html(), '<title>')).toBe(1)
 
-      const browser = await next.browser('/fully-dynamic')
-      expect(await browser.waitForElementByCss('body title').text()).toBe(
-        'fully dynamic'
-      )
+      const browser = await next.browser('/fully-dynamic', {
+        pushErrorAsConsoleLog: true,
+      })
+      expect(
+        await browser
+          .waitForElementByCss('body title', { state: 'attached' })
+          .text()
+      ).toBe('fully dynamic')
       await assertNoConsoleErrors(browser)
     })
 
@@ -59,9 +71,11 @@ describe('ppr-metadata-streaming', () => {
       expect(countSubstring($.html(), '<title>')).toBe(1)
 
       const browser = await next.browser('/dynamic-metadata')
-      expect(await browser.waitForElementByCss('body title').text()).toBe(
-        'dynamic metadata'
-      )
+      expect(
+        await browser
+          .waitForElementByCss('body title', { state: 'attached' })
+          .text()
+      ).toBe('dynamic metadata')
       await assertNoConsoleErrors(browser)
     })
   })
@@ -72,10 +86,14 @@ describe('ppr-metadata-streaming', () => {
       expect($('body title').text()).toBe('dynamic-metadata - partial')
       expect(countSubstring($.html(), '<title>')).toBe(1)
 
-      const browser = await next.browser('/dynamic-metadata/partial')
-      expect(await browser.waitForElementByCss('body title').text()).toBe(
-        'dynamic-metadata - partial'
-      )
+      const browser = await next.browser('/dynamic-metadata/partial', {
+        pushErrorAsConsoleLog: true,
+      })
+      expect(
+        await browser
+          .waitForElementByCss('body title', { state: 'attached' })
+          .text()
+      ).toBe('dynamic-metadata - partial')
       await assertNoConsoleErrors(browser)
     })
 
@@ -85,10 +103,31 @@ describe('ppr-metadata-streaming', () => {
       expect($(`${rootSelector} title`).text()).toBe('dynamic-page - partial')
       expect(countSubstring($.html(), '<title>')).toBe(1)
 
-      const browser = await next.browser('/dynamic-page/partial')
+      const browser = await next.browser('/dynamic-page/partial', {
+        pushErrorAsConsoleLog: true,
+      })
       expect(
-        await browser.waitForElementByCss(`${rootSelector} title`).text()
+        await browser
+          .waitForElementByCss(`${rootSelector} title`, { state: 'attached' })
+          .text()
       ).toBe('dynamic-page - partial')
+      await assertNoConsoleErrors(browser)
+    })
+
+    it('should not yield hydration errors after revalidation', async () => {
+      const browser = await next.browser('/partially-static', {
+        pushErrorAsConsoleLog: true,
+      })
+
+      const initialDate = await browser.elementById('date').text()
+
+      // Wait for the background revalidation to complete.
+      await retry(async () => {
+        await browser.refresh()
+        expect(await browser.elementById('date').text()).not.toBe(initialDate)
+      })
+
+      // There should be no hydration errors after the revalidation.
       await assertNoConsoleErrors(browser)
     })
   })

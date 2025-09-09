@@ -2,15 +2,15 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput};
-use turbo_tasks_testing::{register, run_without_cache_check, Registration};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, trace::TraceRawVcs};
+use turbo_tasks_testing::{Registration, register, run_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 
 const EXPECTED_MSG: &str =
     "Collectible is transient, transient collectibles cannot be emitted from persistent tasks";
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_transient_emit_from_persistent() {
     let result = run_without_cache_check(&REGISTRATION, async {
         emit_incorrect_task_input_operation(IncorrectTaskInput(U32Wrapper(123).resolved_cell()))
@@ -19,14 +19,13 @@ async fn test_transient_emit_from_persistent() {
         anyhow::Ok(())
     })
     .await;
-    assert!(result
-        .unwrap_err()
-        .to_string()
-        .contains(&EXPECTED_MSG.escape_debug().to_string()));
+
+    let message = format!("{:#}", result.unwrap_err());
+    assert!(message.contains(&EXPECTED_MSG.to_string()));
 }
 
 #[turbo_tasks::function(operation)]
-async fn emit_incorrect_task_input_operation(value: IncorrectTaskInput) {
+fn emit_incorrect_task_input_operation(value: IncorrectTaskInput) {
     turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn Number>>(value.0));
 }
 

@@ -25,30 +25,35 @@ export function loadManifest<T extends object>(
 export function loadManifest<T extends object>(
   path: string,
   shouldCache?: boolean,
-  cache?: Map<string, unknown>
+  cache?: Map<string, unknown>,
+  skipParse?: boolean
 ): DeepReadonly<T>
 export function loadManifest<T extends object>(
   path: string,
   shouldCache?: true,
-  cache?: Map<string, unknown>
+  cache?: Map<string, unknown>,
+  skipParse?: boolean
 ): DeepReadonly<T>
 export function loadManifest<T extends object>(
   path: string,
   shouldCache: boolean = true,
-  cache = sharedCache
+  cache = sharedCache,
+  skipParse = false
 ): T {
   const cached = shouldCache && cache.get(path)
   if (cached) {
     return cached as T
   }
 
-  let manifest = JSON.parse(
-    readFileSync(/* turbopackIgnore: true */ path, 'utf8')
-  )
+  let manifest: any = readFileSync(/* turbopackIgnore: true */ path, 'utf8')
 
-  // Freeze the manifest so it cannot be modified if we're caching it.
-  if (shouldCache) {
-    manifest = deepFreeze(manifest)
+  if (!skipParse) {
+    manifest = JSON.parse(manifest)
+
+    // Freeze the manifest so it cannot be modified if we're caching it.
+    if (shouldCache) {
+      manifest = deepFreeze(manifest)
+    }
   }
 
   if (shouldCache) {
@@ -102,18 +107,43 @@ export function evalManifest<T extends object>(
   return contextObject as T
 }
 
-export function loadManifestFromRelativePath<T extends object>(
-  projectDir: string,
-  distDir: string,
-  manifest: string,
-  shouldCache = true,
+export function loadManifestFromRelativePath<T extends object>({
+  projectDir,
+  distDir,
+  manifest,
+  shouldCache,
+  cache,
+  skipParse,
+  handleMissing,
+  useEval,
+}: {
+  projectDir: string
+  distDir: string
+  manifest: string
+  shouldCache?: boolean
   cache?: Map<string, unknown>
-): DeepReadonly<T> {
-  return loadManifest<T>(
-    join(/* turbopackIgnore: true */ projectDir, distDir, manifest),
-    shouldCache,
-    cache
-  )
+  skipParse?: boolean
+  handleMissing?: boolean
+  useEval?: boolean
+}): DeepReadonly<T> {
+  try {
+    const manifestPath = join(
+      /* turbopackIgnore: true */ projectDir,
+      distDir,
+      manifest
+    )
+
+    if (useEval) {
+      return evalManifest<T>(manifestPath, shouldCache, cache)
+    }
+    return loadManifest<T>(manifestPath, shouldCache, cache, skipParse)
+  } catch (err) {
+    if (handleMissing) {
+      // TODO: should this be undefined
+      return {} as DeepReadonly<T>
+    }
+    throw err
+  }
 }
 
 export function clearManifestCache(path: string, cache = sharedCache): boolean {

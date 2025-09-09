@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import fs from 'fs-extra'
 import webdriver from 'next-webdriver'
 import {
   nextBuild,
@@ -9,7 +8,7 @@ import {
   findPort,
   killApp,
   check,
-  getPageFileFromBuildManifest,
+  getClientBuildManifestLoaderChunkUrlPath,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -26,38 +25,18 @@ describe('Failing to load _error', () => {
         const appPort = await findPort()
         app = await nextStart(appDir, appPort)
 
-        const browser = await webdriver(appPort, '/')
-        await browser.eval(`window.beforeNavigate = true`)
+        let chunk = getClientBuildManifestLoaderChunkUrlPath(appDir, '/_error')
 
-        await browser.elementByCss('#to-broken').moveTo()
-        await check(
-          async () => {
-            const scripts = await browser.elementsByCss('script')
-            let found = false
-
-            for (const script of scripts) {
-              const src = await script.getAttribute('src')
-              if (src.includes('broken-')) {
-                found = true
-                break
-              }
-            }
-            return found
+        const browser = await webdriver(appPort, '/', {
+          beforePageLoad(page) {
+            // Make _error route fail to load
+            page.route('**/' + chunk, (route) => {
+              route.abort('blockedbyclient')
+            })
           },
-          {
-            test(content) {
-              return content === true
-            },
-          }
-        )
+        })
 
-        const errorPageFilePath = getPageFileFromBuildManifest(
-          appDir,
-          '/_error'
-        )
-        // remove _error client bundle so that it can't be loaded
-        await fs.remove(join(appDir, '.next', errorPageFilePath))
-
+        await browser.eval(`window.beforeNavigate = true`)
         await browser.elementByCss('#to-broken').click()
 
         await check(async () => {

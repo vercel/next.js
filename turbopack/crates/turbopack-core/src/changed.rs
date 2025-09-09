@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{
-    graph::{GraphTraversal, NonDeterministic},
     Completion, Completions, ResolvedVc, TryJoinIterExt, Vc,
+    graph::{GraphTraversal, NonDeterministic},
 };
 
 use crate::{

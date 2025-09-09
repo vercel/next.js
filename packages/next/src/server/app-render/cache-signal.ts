@@ -1,7 +1,7 @@
 /**
  * This class is used to detect when all cache reads for a given render are settled.
  * We do this to allow for cache warming the prerender without having to continue rendering
- * the remainder of the page. This feature is really only useful when the dynamicIO flag is on
+ * the remainder of the page. This feature is really only useful when the cacheComponents flag is on
  * and should only be used in codepaths gated with this feature.
  */
 
@@ -15,6 +15,15 @@ export class CacheSignal {
   private taskPending = false
 
   private subscribedSignals: Set<CacheSignal> | null = null
+
+  constructor() {
+    if (process.env.NEXT_RUNTIME === 'edge') {
+      // we rely on `process.nextTick`, which is not supported in edge
+      throw new InvariantError(
+        'CacheSignal cannot be used in the edge runtime, because `cacheComponents` does not support it.'
+      )
+    }
+  }
 
   private noMorePendingCaches() {
     if (!this.tickPending) {
@@ -107,7 +116,9 @@ export class CacheSignal {
 
   trackRead<T>(promise: Promise<T>) {
     this.beginRead()
-    promise.finally(this.endRead.bind(this))
+    // `promise.finally()` still rejects, so don't use it here to avoid unhandled rejections
+    const onFinally = this.endRead.bind(this)
+    promise.then(onFinally, onFinally)
     return promise
   }
 

@@ -1,8 +1,8 @@
 use proc_macro2::Span;
 use syn::{
+    Meta, Result, Token, Type,
     parse::{Parse, ParseStream},
     spanned::Spanned,
-    Meta, Result, Token, Type,
 };
 
 #[derive(Debug)]
@@ -36,7 +36,7 @@ impl Parse for PrimitiveInput {
                         return Err(syn::Error::new_spanned(
                             meta,
                             "unexpected token, expected: \"manual_shrink_to_fit\"",
-                        ))
+                        ));
                     }
                 }
             }

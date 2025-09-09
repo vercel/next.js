@@ -1,4 +1,4 @@
-const ASSET_PREFIX = 'custom-asset-prefix'
+const ASSET_PREFIX = '/custom-asset-prefix'
 
 module.exports = {
   assetPrefix: ASSET_PREFIX,

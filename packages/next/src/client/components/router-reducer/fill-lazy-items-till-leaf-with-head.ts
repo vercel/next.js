@@ -1,8 +1,8 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
   CacheNodeSeedData,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 import { createRouterCacheKey } from './create-router-cache-key'
 import {
   PrefetchCacheEntryStatus,

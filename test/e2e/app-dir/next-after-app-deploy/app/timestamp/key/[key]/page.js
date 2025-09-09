@@ -5,7 +5,11 @@ export const revalidate = 3600 // arbitrarily long, just so that it doesn't happ
 export const dynamicParams = true
 
 export async function generateStaticParams() {
-  return []
+  return ['nodejs', 'edge'].flatMap((runtime) =>
+    ['dynamic-page', 'middleware', 'route', 'server-action'].map((page) => ({
+      key: `/${runtime}/${page}`,
+    }))
+  )
 }
 
 export default async function Page({ params }) {

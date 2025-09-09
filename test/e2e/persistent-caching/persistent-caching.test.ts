@@ -39,35 +39,35 @@ describe('persistent-caching', () => {
     {
       const browser = await next.browser('/')
       appTimestamp = await browser.elementByCss('main').text()
+      expect(appTimestamp).toMatch(/Timestamp = \d+/)
       await browser.close()
     }
     {
       const browser = await next.browser('/client')
       appClientTimestamp = await browser.elementByCss('main').text()
+      expect(appClientTimestamp).toMatch(/Timestamp = \d+/)
       await browser.close()
     }
     {
       const browser = await next.browser('/pages')
       pagesTimestamp = await browser.elementByCss('main').text()
+      expect(pagesTimestamp).toMatch(/Timestamp = \d+/)
       await browser.close()
     }
     await restartCycle()
 
     {
       const browser = await next.browser('/')
-      // TODO Persistent Caching for webpack dev server is broken
       expect(await browser.elementByCss('main').text()).toBe(appTimestamp)
       await browser.close()
     }
     {
       const browser = await next.browser('/client')
-      // TODO Persistent Caching for webpack dev server is broken
       expect(await browser.elementByCss('main').text()).toBe(appClientTimestamp)
       await browser.close()
     }
     {
       const browser = await next.browser('/pages')
-      // TODO Persistent Caching for webpack dev server is broken
       expect(await browser.elementByCss('main').text()).toBe(pagesTimestamp)
       await browser.close()
     }

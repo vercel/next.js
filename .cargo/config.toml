@@ -34,12 +34,6 @@ rustflags = [
   "target-feature=+crt-static"
 ]
 
-[target.aarch64-pc-windows-msvc]
-linker = "rust-lld"
-
-[target.'cfg(target_os = "macos")']
-linker = "rust-lld"
-
 [target.'cfg(all(target_os = "linux", target_env = "gnu"))']
 rustflags = [
   "--cfg",
@@ -77,3 +71,6 @@ rustflags = [
 
 [target.armv7-unknown-linux-gnueabihf]
 linker = "arm-linux-gnueabihf-gcc"
+
+[target.wasm32-unknown-unknown]
+rustflags = ["-Zshare-generics=y", "--cfg", 'getrandom_backend="wasm_js"']

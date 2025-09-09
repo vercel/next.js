@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use rustc_hash::FxHashMap;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
@@ -6,11 +6,12 @@ use turbo_tasks_hash::hash_xxh3_hash64;
 use super::ModuleId;
 use crate::{
     ident::AssetIdent,
-    issue::{module::ModuleIssue, IssueExt, StyledString},
+    issue::{IssueExt, StyledString, module::ModuleIssue},
 };
 
 #[turbo_tasks::value_trait]
 pub trait ModuleIdStrategy {
+    #[turbo_tasks::function]
     fn get_module_id(self: Vc<Self>, ident: Vc<AssetIdent>) -> Vc<ModuleId>;
 }
 
@@ -56,17 +57,19 @@ impl ModuleIdStrategy for GlobalModuleIdStrategy {
         if !ident_string.ends_with("[app-client] (ecmascript, next/dynamic entry)") {
             // TODO: This shouldn't happen, but is a temporary workaround to ignore next/dynamic
             // imports of a server component from another server component.
+            // TODO(PACK-4879): should this be a debug_assert! a panic!? a bail!?
 
             ModuleIssue {
                 ident,
                 title: StyledString::Text(
-                    format!("ModuleId not found for ident: {:?}", ident_string).into(),
+                    format!("ModuleId not found for ident: {ident_string:?}").into(),
                 )
                 .resolved_cell(),
                 description: StyledString::Text(
-                    format!("ModuleId not found for ident: {:?}", ident_string).into(),
+                    format!("ModuleId not found for ident: {ident_string:?}").into(),
                 )
                 .resolved_cell(),
+                source: None,
             }
             .resolved_cell()
             .emit();

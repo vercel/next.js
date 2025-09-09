@@ -11,9 +11,7 @@ const cwd = process.cwd()
   try {
     const publishSema = new Sema(2)
 
-    let version = JSON.parse(
-      await readFile(path.join(cwd, 'lerna.json'))
-    ).version
+    let version = require('@next/swc/package.json').version
 
     // Copy binaries to package folders, update version, and publish
     let nativePackagesDir = path.join(cwd, 'crates/napi/npm')

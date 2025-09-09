@@ -50,9 +50,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "Buffer",
-        ),
+        var: "Buffer",
         ast_path: [
             Program(
                 Script,

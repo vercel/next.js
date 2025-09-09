@@ -1,6 +1,6 @@
 use proc_macro2::TokenTree;
 use quote::ToTokens;
-use syn::visit::{visit_block, visit_expr, visit_item, visit_macro, Visit};
+use syn::visit::{Visit, visit_block, visit_expr, visit_item, visit_macro};
 
 pub fn is_self_used(block: &syn::Block) -> bool {
     let mut finder = SelfFinder { found: false };
@@ -26,11 +26,11 @@ impl Visit<'_> for SelfFinder {
             return;
         }
 
-        if let syn::Expr::Path(path) = expr {
-            if path.path.is_ident("self") {
-                self.found = true;
-                return;
-            }
+        if let syn::Expr::Path(path) = expr
+            && path.path.is_ident("self")
+        {
+            self.found = true;
+            return;
         }
 
         visit_expr(self, expr);

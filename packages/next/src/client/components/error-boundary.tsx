@@ -5,6 +5,10 @@ import { useUntrackedPathname } from './navigation-untracked'
 import { isNextRouterError } from './is-next-router-error'
 import { handleHardNavError } from './nav-failure-handler'
 import { HandleISRError } from './handle-isr-error'
+import { isBot } from '../../shared/lib/router/utils/is-bot'
+
+const isBotUserAgent =
+  typeof window !== 'undefined' && isBot(window.navigator.userAgent)
 
 export type ErrorComponent = React.ComponentType<{
   error: Error
@@ -93,7 +97,9 @@ export class ErrorBoundaryHandler extends React.Component<
 
   // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
   render(): React.ReactNode {
-    if (this.state.error) {
+    //When it's bot request, segment level error boundary will keep rendering the children,
+    // the final error will be caught by the root error boundary and determine wether need to apply graceful degrade.
+    if (this.state.error && !isBotUserAgent) {
       return (
         <>
           <HandleISRError error={this.state.error} />

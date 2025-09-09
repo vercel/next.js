@@ -45,7 +45,9 @@ export function getClientStyleLoader({
 
   const MiniCssExtractPlugin = isRspack
     ? getRspackCore().rspack.CssExtractRspackPlugin
-    : require('../../../../plugins/mini-css-extract-plugin').default
+    : (
+        require('../../../../plugins/mini-css-extract-plugin') as typeof import('../../../../plugins/mini-css-extract-plugin')
+      ).default
 
   return {
     loader: MiniCssExtractPlugin.loader,

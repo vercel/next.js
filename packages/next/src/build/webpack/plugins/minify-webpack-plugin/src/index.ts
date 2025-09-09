@@ -145,6 +145,8 @@ export class MinifyPlugin {
                 global_defs: {
                   'process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE': false,
                 },
+                keep_classnames: this.options.noMangling,
+                keep_fnames: this.options.noMangling,
               },
               mangle,
               module: 'unknown',

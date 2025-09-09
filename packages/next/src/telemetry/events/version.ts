@@ -46,7 +46,9 @@ type EventCliSessionStarted = {
 function hasBabelConfig(dir: string): boolean {
   try {
     const noopFile = path.join(dir, 'noop.js')
-    const res = require('next/dist/compiled/babel/core').loadPartialConfig({
+    const res = (
+      require('next/dist/compiled/babel/core') as typeof import('next/dist/compiled/babel/core')
+    ).loadPartialConfig({
       cwd: dir,
       filename: noopFile,
       sourceFileName: noopFile,
@@ -146,11 +148,11 @@ export function eventCliSession(
     reactCompiler: Boolean(nextConfig.experimental.reactCompiler),
     reactCompilerCompilationMode:
       typeof nextConfig.experimental.reactCompiler !== 'boolean'
-        ? nextConfig.experimental.reactCompiler?.compilationMode ?? null
+        ? (nextConfig.experimental.reactCompiler?.compilationMode ?? null)
         : null,
     reactCompilerPanicThreshold:
       typeof nextConfig.experimental.reactCompiler !== 'boolean'
-        ? nextConfig.experimental.reactCompiler?.panicThreshold ?? null
+        ? (nextConfig.experimental.reactCompiler?.panicThreshold ?? null)
         : null,
   }
   return [{ eventName: EVENT_VERSION, payload }]

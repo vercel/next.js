@@ -9,21 +9,24 @@ import { normalizeCatchAllRoutes } from '../../../build/normalize-catchall-route
 export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvider<AppPageRouteMatcher> {
   private readonly expression: RegExp
   private readonly normalizers: DevAppNormalizers
+  private readonly isTurbopack: boolean
 
   constructor(
     appDir: string,
     extensions: ReadonlyArray<string>,
-    reader: FileReader
+    reader: FileReader,
+    isTurbopack: boolean
   ) {
     super(appDir, reader)
 
-    this.normalizers = new DevAppNormalizers(appDir, extensions)
+    this.normalizers = new DevAppNormalizers(appDir, extensions, isTurbopack)
 
     // Match any page file that ends with `/page.${extension}` or `/default.${extension}` under the app
     // directory.
     this.expression = new RegExp(
       `[/\\\\](page|default)\\.(?:${extensions.join('|')})$`
     )
+    this.isTurbopack = isTurbopack
   }
 
   protected async transform(
@@ -41,10 +44,18 @@ export class DevAppPageRouteMatcherProvider extends FileCacheRouteMatcherProvide
       // If the file isn't a match for this matcher, then skip it.
       if (!this.expression.test(filename)) continue
 
-      const page = this.normalizers.page.normalize(filename)
+      let page = this.normalizers.page.normalize(filename)
 
       // Validate that this is not an ignored page.
       if (page.includes('/_')) continue
+
+      // Turbopack uses the correct page name with the underscore normalized.
+      // TODO: Move implementation to packages/next/src/server/normalizers/built/app/app-page-normalizer.ts.
+      // The `includes('/_')` check above needs to be moved for that to work as otherwise `%5Fsegmentname`
+      // will result in `_segmentname` which hits that includes check and be skipped.
+      if (this.isTurbopack) {
+        page = page.replace(/%5F/g, '_')
+      }
 
       // This is a valid file that we want to create a matcher for.
       routeFilenames.push(filename)

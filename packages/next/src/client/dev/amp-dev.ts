@@ -1,12 +1,9 @@
 /* globals __webpack_hash__ */
 import { displayContent } from './fouc'
 import initOnDemandEntries from './on-demand-entries-client'
-import {
-  addMessageListener,
-  connectHMR,
-} from '../components/react-dev-overlay/pages/websocket'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
-import { reportInvalidHmrMessage } from '../components/react-dev-overlay/shared'
+import { addMessageListener, connectHMR } from './hot-reloader/pages/websocket'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
+import { reportInvalidHmrMessage } from './hot-reloader/shared'
 
 /// <reference types="webpack/module.d.ts" />
 
@@ -80,28 +77,24 @@ async function tryApplyUpdates() {
 }
 
 addMessageListener((message) => {
-  if (!('action' in message)) {
-    return
-  }
-
   try {
-    // actions which are not related to amp-dev
+    // messages which are not related to amp-dev
     if (
-      message.action === HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR ||
-      message.action === HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE
+      message.type === HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR ||
+      message.type === HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE
     ) {
       return
     }
     if (
-      message.action === HMR_ACTIONS_SENT_TO_BROWSER.SYNC ||
-      message.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT
+      message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC ||
+      message.type === HMR_MESSAGE_SENT_TO_BROWSER.BUILT
     ) {
       if (!message.hash) {
         return
       }
       mostRecentHash = message.hash
       tryApplyUpdates()
-    } else if (message.action === HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE) {
+    } else if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE) {
       window.location.reload()
     }
   } catch (err: unknown) {

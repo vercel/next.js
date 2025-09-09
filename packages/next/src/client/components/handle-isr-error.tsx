@@ -12,7 +12,9 @@ export function HandleISRError({ error }: { error: any }) {
   if (workAsyncStorage) {
     const store = workAsyncStorage.getStore()
     if (store?.isRevalidate || store?.isStaticGeneration) {
-      console.error(error)
+      if (error) {
+        console.error(error)
+      }
       throw error
     }
   }

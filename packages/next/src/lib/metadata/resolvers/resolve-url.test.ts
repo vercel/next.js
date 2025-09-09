@@ -50,13 +50,13 @@ describe('metadata: resolveUrl', () => {
 describe('resolveAbsoluteUrlWithPathname', () => {
   describe('trailingSlash is false', () => {
     const metadataBase = new URL('https://example.com/')
+    const pathname = '/'
     const opts = {
       trailingSlash: false,
-      pathname: '/',
       isStaticMetadataRouteFile: false,
     }
     const resolver = (url: string | URL) =>
-      resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
+      resolveAbsoluteUrlWithPathname(url, metadataBase, pathname, opts)
     it('should resolve absolute internal url', () => {
       expect(resolver('https://example.com/foo')).toBe(
         'https://example.com/foo'
@@ -66,13 +66,13 @@ describe('resolveAbsoluteUrlWithPathname', () => {
 
   describe('trailingSlash is true', () => {
     const metadataBase = new URL('https://example.com/')
+    const pathname = '/'
     const opts = {
       trailingSlash: true,
-      pathname: '/',
       isStaticMetadataRouteFile: false,
     }
     const resolver = (url: string | URL) =>
-      resolveAbsoluteUrlWithPathname(url, metadataBase, opts)
+      resolveAbsoluteUrlWithPathname(url, metadataBase, pathname, opts)
     it('should add trailing slash to relative url', () => {
       expect(resolver('/foo')).toBe('https://example.com/foo/')
     })
@@ -140,6 +140,7 @@ describe('getSocialImageFallbackMetadataBase', () => {
       delete process.env.VERCEL_ENV
       delete process.env.VERCEL_BRANCH_URL
       delete process.env.VERCEL_PROJECT_PRODUCTION_URL
+      delete process.env.__NEXT_EXPERIMENTAL_HTTPS
 
       process.env = originalEnv
     })
@@ -157,6 +158,24 @@ describe('getSocialImageFallbackMetadataBase', () => {
       process.env.NODE_ENV = 'production'
       expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
         'http://localhost:3000/'
+      )
+    })
+
+    it('should return localhost url in local dev mode with experimental https', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'development'
+      process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'https://localhost:3000/'
+      )
+    })
+
+    it('should return localhost url in local build mode with experimental https', () => {
+      // @ts-expect-error override process env
+      process.env.NODE_ENV = 'production'
+      process.env.__NEXT_EXPERIMENTAL_HTTPS = '1'
+      expect(getSocialImageFallbackMetadataBaseHelper()).toBe(
+        'https://localhost:3000/'
       )
     })
 

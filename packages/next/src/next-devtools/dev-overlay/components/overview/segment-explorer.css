@@ -1,0 +1,202 @@
+.segment-explorer-content {
+  font-size: var(--size-14);
+  padding: 0 8px;
+  width: 100%;
+  height: 100%;
+}
+
+.segment-explorer-page-route-bar {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  background-color: var(--color-background-200);
+  gap: 12px;
+}
+
+.segment-explorer-page-route-bar-path {
+  font-size: var(--size-14);
+  font-weight: 500;
+  color: var(--color-gray-1000);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  line-height: 20px;
+}
+
+.segment-explorer-item {
+  margin: 4px 0;
+  border-radius: 6px;
+}
+
+.segment-explorer-item:nth-child(even) {
+  background-color: var(--color-background-200);
+}
+.segment-explorer-item-row {
+  display: flex;
+  flex-direction: column;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-right: 4px;
+}
+.segment-explorer-item-row-main {
+  display: flex;
+  align-items: center;
+  white-space: pre;
+  cursor: default;
+  color: var(--color-gray-1000);
+}
+
+.segment-explorer-children--intended {
+  padding-left: 16px;
+}
+
+.segment-explorer-filename {
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+}
+
+.segment-explorer-filename select {
+  margin-left: auto;
+}
+.segment-explorer-filename--path {
+  margin-right: 8px;
+}
+.segment-explorer-filename--path small {
+  display: inline-block;
+  width: 0;
+  opacity: 0;
+}
+.segment-explorer-filename--name {
+  color: var(--color-gray-800);
+}
+
+.segment-explorer-files {
+  display: inline-flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.segment-explorer-files + .segment-boundary-trigger {
+  margin-left: 8px;
+}
+
+.segment-explorer-file-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6px;
+  height: 20px;
+  border-radius: 16px;
+  line-height: 16px;
+  font-size: var(--size-12);
+  font-weight: 500;
+  user-select: none;
+  cursor: pointer;
+  background-color: var(--color-gray-300);
+  color: var(--color-gray-1000);
+}
+.segment-explorer-file-label-text {
+  display: inline-flex;
+  align-items: center;
+}
+
+.segment-explorer-file-label--overridden {
+  background-color: var(--color-amber-300);
+  color: var(--color-amber-900);
+}
+
+.segment-explorer-file-label .code-icon {
+  opacity: 0;
+  margin-left: 0;
+  width: 0;
+  transition: all 0.15s ease-in-out;
+}
+.segment-explorer-file-label:hover .code-icon {
+  opacity: 1;
+  width: 12px;
+  margin-left: 4px;
+}
+
+.segment-explorer-file-label:hover {
+  filter: brightness(0.95);
+}
+
+.segment-explorer-file-label--builtin {
+  background-color: transparent;
+  color: var(--color-gray-900);
+  border: 1px dashed var(--color-gray-500);
+  height: 24px;
+  cursor: default;
+}
+.segment-explorer-file-label--builtin svg {
+  margin-left: 4px;
+  margin-right: -4px;
+}
+
+/* Footer styles */
+.segment-explorer-footer {
+  padding: 8px;
+  border-top: 1px solid var(--color-gray-400);
+  user-select: none;
+}
+
+.segment-explorer-footer-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px;
+  background: var(--color-background-100);
+  border: 1px solid var(--color-gray-400);
+  border-radius: 6px;
+  color: var(--color-gray-1000);
+  font-size: var(--size-14);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.segment-explorer-footer-button:hover:not(:disabled) {
+  background: var(--color-gray-200);
+}
+
+.segment-explorer-footer-button--disabled {
+  cursor: not-allowed;
+}
+
+.segment-explorer-footer-text {
+  text-align: center;
+}
+
+.segment-explorer-footer-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--color-amber-300);
+  color: var(--color-amber-900);
+  border-radius: 10px;
+  font-size: var(--size-12);
+  font-weight: 600;
+  line-height: 1;
+}
+
+.segment-explorer-file-label-tooltip--sm {
+  white-space: nowrap;
+}
+
+.segment-explorer-file-label-tooltip--lg {
+  min-width: 200px;
+}
+
+.segment-explorer-suggestions {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.segment-explorer-suggestions-tooltip {
+  width: 200px;
+}

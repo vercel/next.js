@@ -1,7 +1,7 @@
+import { connection } from 'next/server'
 import { notFound } from 'next/navigation'
 
-export function GET() {
+export async function GET() {
+  await connection()
   notFound()
 }
-
-export const dynamic = 'force-dynamic'

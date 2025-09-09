@@ -25,7 +25,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     // Make the Next.js version available as a build-time environment variable
-    println!("cargo:rustc-env=NEXTJS_VERSION={}", nextjs_version);
+    println!("cargo:rustc-env=NEXTJS_VERSION={nextjs_version}");
 
     // Generates, stores build-time information as static values.
     // There are some places relying on correct values for this (i.e telemetry),
@@ -88,9 +88,6 @@ fn main() -> anyhow::Result<()> {
     // https://github.com/napi-rs/napi-rs/issues/1782
     #[cfg(all(target_os = "linux", not(target_arch = "wasm32")))]
     println!("cargo:rustc-link-arg=-Wl,--warn-unresolved-symbols");
-
-    #[cfg(not(target_arch = "wasm32"))]
-    turbo_tasks_build::generate_register();
 
     Ok(())
 }

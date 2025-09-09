@@ -134,7 +134,7 @@ const runTests = (mode = 'dev', didReload = false) => {
     // Verify that after hydration, the empty env var is not replaced by undefined
     expect(
       await browser.waitForElementByCss('#nextPublicEmptyEnvVar').text()
-    ).toBe('')
+    ).toBe('content:')
   })
 }
 

@@ -66,16 +66,13 @@ export async function verifyPartytownSetup(
   targetDir: string
 ): Promise<void> {
   try {
-    const partytownDeps: NecessaryDependencies = await hasNecessaryDependencies(
-      dir,
-      [
-        {
-          file: '@builder.io/partytown',
-          pkg: '@builder.io/partytown',
-          exportsRestrict: false,
-        },
-      ]
-    )
+    const partytownDeps: NecessaryDependencies = hasNecessaryDependencies(dir, [
+      {
+        file: '@builder.io/partytown',
+        pkg: '@builder.io/partytown',
+        exportsRestrict: false,
+      },
+    ])
 
     if (partytownDeps.missing?.length > 0) {
       await missingDependencyError(dir)

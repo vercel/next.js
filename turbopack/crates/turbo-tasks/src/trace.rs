@@ -4,7 +4,7 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     marker::PhantomData,
     path::{Path, PathBuf},
-    sync::{atomic::*, Arc, Mutex},
+    sync::{Arc, Mutex, atomic::*},
     time::Duration,
 };
 
@@ -62,7 +62,9 @@ macro_rules! ignore {
   }
 }
 
-ignore!(i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, char, bool, isize, usize);
+ignore!(
+    i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, f32, f64, char, bool, isize, usize
+);
 ignore!(
     AtomicI8,
     AtomicU8,

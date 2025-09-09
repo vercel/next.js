@@ -4,13 +4,14 @@ use anyhow::Result;
 use either::Either;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
-    chunk::{batch_info, ChunkItem, ChunkItems},
+    chunk::{ChunkItem, ChunkItems, batch_info},
     output::OutputAsset,
 };
 
 use crate::chunk::{
+    CodeAndIds,
     batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo},
-    batch_group_code_and_ids, item_code_and_ids, CodeAndIds,
+    batch_group_code_and_ids, item_code_and_ids,
 };
 
 #[turbo_tasks::value(shared)]

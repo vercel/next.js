@@ -51,6 +51,7 @@ function matchWildcardDomain(domain: string, pattern: string) {
         // recursive wildcard matches anything so we terminate here if the domain part is non empty
         return domainPart !== undefined
       }
+      case undefined:
       default: {
         if (domainPart !== patternPart) {
           return false

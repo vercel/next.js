@@ -10,14 +10,17 @@ use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterato
 use rustc_hash::FxHashSet;
 
 use crate::{
+    FxIndexMap,
     bottom_up::build_bottom_up_graph,
     span::{Span, SpanEvent, SpanExtra, SpanGraphEvent, SpanIndex, SpanNames, SpanTimeData},
     span_bottom_up_ref::SpanBottomUpRef,
-    span_graph_ref::{event_map_to_list, SpanGraphEventRef, SpanGraphRef},
+    span_graph_ref::{SpanGraphEventRef, SpanGraphRef, event_map_to_list},
     store::{SpanId, Store},
     timestamp::Timestamp,
-    FxIndexMap,
 };
+
+pub type GroupNameToDirectAndRecusiveSpans<'l> =
+    FxIndexMap<(&'l str, &'l str), (Vec<SpanIndex>, Vec<SpanIndex>)>;
 
 #[derive(Copy, Clone)]
 pub struct SpanRef<'a> {
@@ -89,18 +92,17 @@ impl<'a> SpanRef<'a> {
                 .find(|&(k, _)| k == "name")
                 .map(|(_, v)| v.as_str())
             {
-                if matches!(
+                if matches!(self.span.name.as_str(), "turbo_tasks::function") {
+                    (self.span.name.clone(), name.to_string())
+                } else if matches!(
                     self.span.name.as_str(),
                     "turbo_tasks::resolve_call" | "turbo_tasks::resolve_trait_call"
                 ) {
-                    (
-                        format!("{} {}", self.span.name, self.span.category),
-                        format!("*{name}"),
-                    )
+                    (self.span.name.clone(), format!("*{name}"))
                 } else {
                     (
-                        format!("{} {}", self.span.name, self.span.category),
-                        name.to_string(),
+                        self.span.category.clone(),
+                        format!("{} {name}", self.span.name),
                     )
                 }
             } else {
@@ -110,29 +112,37 @@ impl<'a> SpanRef<'a> {
         (category, title)
     }
 
-    pub fn group_name(&self) -> &'a str {
-        self.names().group_name.get_or_init(|| {
+    pub fn group_name(&self) -> (&'a str, &'a str) {
+        let (category, title) = self.names().group_name.get_or_init(|| {
             if matches!(self.span.name.as_str(), "turbo_tasks::function") {
-                self.span
+                let name = self
+                    .span
                     .args
                     .iter()
                     .find(|&(k, _)| k == "name")
                     .map(|(_, v)| v.to_string())
-                    .unwrap_or_else(|| self.span.name.to_string())
+                    .unwrap_or_else(|| self.span.name.to_string());
+                (self.span.name.clone(), name)
             } else if matches!(
                 self.span.name.as_str(),
                 "turbo_tasks::resolve_call" | "turbo_tasks::resolve_trait_call"
             ) {
-                self.span
+                let name = self
+                    .span
                     .args
                     .iter()
                     .find(|&(k, _)| k == "name")
                     .map(|(_, v)| format!("*{v}"))
-                    .unwrap_or_else(|| self.span.name.to_string())
+                    .unwrap_or_else(|| self.span.name.to_string());
+                (
+                    self.span.category.clone(),
+                    format!("{} {name}", self.span.name),
+                )
             } else {
-                self.span.name.to_string()
+                (self.span.category.clone(), self.span.name.clone())
             }
-        })
+        });
+        (category.as_str(), title.as_str())
     }
 
     pub fn args(&self) -> impl Iterator<Item = (&str, &str)> {
@@ -187,7 +197,7 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    pub fn children(&self) -> impl DoubleEndedIterator<Item = SpanRef<'a>> + 'a {
+    pub fn children(&self) -> impl DoubleEndedIterator<Item = SpanRef<'a>> + 'a + use<'a> {
         self.span.events.iter().filter_map(|event| match event {
             SpanEvent::SelfTime { .. } => None,
             SpanEvent::Child { index } => Some(SpanRef {
@@ -349,8 +359,7 @@ impl<'a> SpanRef<'a> {
                         Entry { span, recursive }
                     })
                     .collect_vec_list();
-                let mut map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> =
-                    FxIndexMap::default();
+                let mut map: GroupNameToDirectAndRecusiveSpans = FxIndexMap::default();
                 for Entry {
                     span,
                     mut recursive,

@@ -1,6 +1,13 @@
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
 import { Transform } from 'stream'
+import {
+  formatDebugAddress,
+  formatNodeOptions,
+  getNodeDebugType,
+  getParsedDebugAddress,
+  getParsedNodeOptionsWithoutInspect,
+} from '../server/lib/utils'
 
 type FarmOptions = NonNullable<ConstructorParameters<typeof JestWorker>[1]>
 
@@ -14,6 +21,13 @@ const cleanupWorkers = (worker: JestWorker) => {
   }
 }
 
+export function getNextBuildDebuggerPortOffset(_: {
+  kind: 'export-page'
+}): number {
+  // 0: export worker
+  return 0
+}
+
 export class Worker {
   private _worker: JestWorker | undefined
 
@@ -25,6 +39,15 @@ export class Worker {
             env?: Partial<NodeJS.ProcessEnv> | undefined
           })
         | undefined
+      /**
+       * `-1` if not inspectable
+       */
+      debuggerPortOffset: number
+      enableSourceMaps?: boolean
+      /**
+       * True if `--max-old-space-size` should not be forwarded to the worker.
+       */
+      isolatedMemory: boolean
       timeout?: number
       onActivity?: () => void
       onActivityAbort?: () => void
@@ -34,7 +57,15 @@ export class Worker {
       enableWorkerThreads?: boolean
     }
   ) {
-    let { timeout, onRestart, logger = console, ...farmOptions } = options
+    let {
+      enableSourceMaps,
+      timeout,
+      onRestart,
+      logger = console,
+      debuggerPortOffset,
+      isolatedMemory,
+      ...farmOptions
+    } = options
 
     let restartPromise: Promise<typeof RESTARTED>
     let resolveRestartPromise: (arg: typeof RESTARTED) => void
@@ -47,6 +78,30 @@ export class Worker {
       this.close()
     })
 
+    const nodeOptions = getParsedNodeOptionsWithoutInspect()
+
+    if (debuggerPortOffset !== -1) {
+      const nodeDebugType = getNodeDebugType()
+      if (nodeDebugType) {
+        const address = getParsedDebugAddress()
+        address.port =
+          address.port +
+          // current process runs on `address.port`
+          1 +
+          debuggerPortOffset
+        nodeOptions[nodeDebugType] = formatDebugAddress(address)
+      }
+    }
+
+    if (enableSourceMaps) {
+      nodeOptions['enable-source-maps'] = true
+    }
+
+    if (isolatedMemory) {
+      delete nodeOptions['max-old-space-size']
+      delete nodeOptions['max_old_space_size']
+    }
+
     const createWorker = () => {
       this._worker = new JestWorker(workerPath, {
         ...farmOptions,
@@ -56,6 +111,7 @@ export class Worker {
             ...process.env,
             ...((farmOptions.forkOptions?.env || {}) as any),
             IS_NEXT_WORKER: 'true',
+            NODE_OPTIONS: formatNodeOptions(nodeOptions),
           } as any,
         },
         maxRetries: 0,

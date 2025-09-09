@@ -16,7 +16,7 @@ impl Display for PrettyPrintError<'_> {
             .collect::<Vec<_>>();
 
         for description in &descriptions {
-            // see turbo-tasks-memory/src/task.rs for the error message
+            // see turbo-tasks-backend/src/backend/operation/update_output.rs for the error message
             let hidden = description.starts_with("Execution of ");
             if !hidden {
                 let header =
@@ -27,9 +27,9 @@ impl Display for PrettyPrintError<'_> {
                             header
                         });
                 match i {
-                    0 => write!(f, "{}", header)?,
-                    1 => write!(f, "\n\nCaused by:\n- {}", header)?,
-                    _ => write!(f, "\n- {}", header)?,
+                    0 => write!(f, "{header}")?,
+                    1 => write!(f, "\n\nCaused by:\n- {header}")?,
+                    _ => write!(f, "\n- {header}")?,
                 }
                 i += 1;
             } else {
@@ -54,10 +54,10 @@ impl Display for WithDash<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let mut lines = self.0.lines();
         if let Some(line) = lines.next() {
-            write!(f, "- {}", line)?;
+            write!(f, "- {line}")?;
         }
         for line in lines {
-            write!(f, "\n  {}", line)?;
+            write!(f, "\n  {line}")?;
         }
         Ok(())
     }

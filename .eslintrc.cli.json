@@ -16,9 +16,12 @@
       "parserOptions": {
         "project": true
       },
+      // These rules are added on top of the rules that are declared in
+      // .eslintrc.json for the matching files.
       "rules": {
         // TODO: enable in follow-up PR
-        "@typescript-eslint/no-floating-promises": "off"
+        "@typescript-eslint/no-floating-promises": "off",
+        "@typescript-eslint/switch-exhaustiveness-check": "error"
       }
     }
   ]

@@ -1,6 +1,6 @@
 use std::ops::Index;
 
-use petgraph::{visit::EdgeRef, Direction, Graph};
+use petgraph::{Direction, Graph, visit::EdgeRef};
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::FxIndexSet;
 
@@ -173,18 +173,17 @@ impl GraphOptimizer<'_> {
             }
 
             // If this node is reachable from exactly one starting node, add it to that group
-            if let Some(reachable_from) = reachability.get(&node) {
-                if reachable_from.len() == 1 {
-                    let start = *reachable_from.iter().next().unwrap();
+            if let Some(reachable_from) = reachability.get(&node)
+                && reachable_from.len() == 1
+            {
+                let start = *reachable_from.iter().next().unwrap();
 
-                    // Don't merge if the starting node should not be merged
-                    if self.should_not_merge_iter(g.node_weight(start).expect("Node should exist"))
-                    {
-                        continue;
-                    }
-
-                    merge_groups.entry(start).or_default().push(node);
+                // Don't merge if the starting node should not be merged
+                if self.should_not_merge_iter(g.node_weight(start).expect("Node should exist")) {
+                    continue;
                 }
+
+                merge_groups.entry(start).or_default().push(node);
             }
         }
 

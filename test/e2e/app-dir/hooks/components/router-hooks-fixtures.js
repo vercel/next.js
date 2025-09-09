@@ -27,7 +27,7 @@ export const RouterHooksFixtures = () => {
 
   return (
     <div id={pagesRouter.isReady ? 'router-ready' : 'router-not-ready'}>
-      <div id="key-value">{value}</div>
+      <div id="key-value">Value:{value}</div>
       <div id="pathname">{pathname}</div>
       <button type="button" onClick={onClick}>
         Push

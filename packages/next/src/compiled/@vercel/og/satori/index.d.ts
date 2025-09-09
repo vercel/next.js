@@ -166,6 +166,7 @@ type SatoriOptions = ({
     loadAdditionalAsset?: (languageCode: string, segment: string) => Promise<string | Array<FontOptions>>;
     tailwindConfig?: TwConfig;
     onNodeDetected?: (node: SatoriNode) => void;
+    pointScaleFactor?: number;
 };
 
 declare function satori(element: ReactNode, options: SatoriOptions): Promise<string>;

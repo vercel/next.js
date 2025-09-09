@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor, retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
+import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 const browserConfigWithFixedTime = {
   beforePageLoad: (page) => {
@@ -25,6 +26,8 @@ const browserConfigWithFixedTime = {
     })
   },
 }
+
+const itHeaded = process.env.HEADLESS ? it.skip : it
 
 describe('app dir - prefetching', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
@@ -91,12 +94,7 @@ describe('app dir - prefetching', () => {
     )
   })
 
-  it('should not suppress prefetches after navigating back', async () => {
-    if (!process.env.CI && process.env.HEADLESS) {
-      console.warn('This test can only run in headed mode. Skipping...')
-      return
-    }
-
+  itHeaded('should not suppress prefetches after navigating back', async () => {
     // Force headed mode, as bfcache is not available in headless mode.
     const browser = await next.browser('/', { headless: false })
 
@@ -264,10 +262,10 @@ describe('app dir - prefetching', () => {
     )
     const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
       headers: {
-        RSC: '1',
-        'Next-Router-Prefetch': '1',
-        'Next-Router-State-Tree': stateTree,
-        'Next-Url': '/prefetch-auto/justputit',
+        rsc: '1',
+        'next-router-prefetch': '1',
+        'next-router-state-tree': stateTree,
+        'next-url': '/prefetch-auto/justputit',
       },
     })
 
@@ -297,14 +295,26 @@ describe('app dir - prefetching', () => {
         true,
       ])
     )
-    const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
-      headers: {
-        RSC: '1',
-        'Next-Router-Prefetch': '1',
-        'Next-Router-State-Tree': stateTree,
-        'Next-Url': '/prefetch-auto/vercel',
-      },
-    })
+
+    const headers = {
+      rsc: '1',
+      'next-router-prefetch': '1',
+      'next-router-state-tree': stateTree,
+      'next-url': '/prefetch-auto/vercel',
+    }
+
+    const url = new URL('/prefetch-auto/justputit', 'http://localhost')
+    const cacheBustingParam = computeCacheBustingSearchParam(
+      headers['next-router-prefetch'] ? '1' : '0',
+      undefined,
+      headers['next-router-state-tree'],
+      headers['next-url']
+    )
+    if (cacheBustingParam) {
+      url.searchParams.set('_rsc', cacheBustingParam)
+    }
+
+    const response = await next.fetch(url.toString(), { headers })
 
     const prefetchResponse = await response.text()
     expect(prefetchResponse).not.toContain('Page Data!')

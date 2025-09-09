@@ -1,4 +1,9 @@
-use std::{fmt::Display, future::Future, pin::Pin, task::Poll};
+use std::{
+    fmt::{Debug, Display},
+    future::Future,
+    pin::Pin,
+    task::Poll,
+};
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
@@ -6,13 +11,14 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
+    CollectiblesSource, ReadCellOptions, ReadConsistency, ResolvedVc, TaskId, TaskPersistence,
+    TraitTypeId, ValueType, ValueTypeId, VcValueTrait,
     backend::{CellContent, TypedCellContent},
     event::EventListener,
     id::{ExecutionId, LocalTaskId},
     manager::{read_local_output, read_task_cell, read_task_output, with_turbo_tasks},
     registry::{self, get_value_type},
-    turbo_tasks, CollectiblesSource, ReadCellOptions, ReadConsistency, ResolvedVc, TaskId,
-    TaskPersistence, TraitTypeId, ValueType, ValueTypeId, VcValueTrait,
+    turbo_tasks,
 };
 
 #[derive(Error, Debug)]
@@ -53,7 +59,7 @@ impl Display for CellId {
 /// otherwise be treated as an internal implementation detail of `turbo-tasks`.
 ///
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RawVc {
     /// The synchronous return value of a task (after argument resolution). This is the
     /// representation used by [`OperationVc`][crate::OperationVc].
@@ -71,6 +77,28 @@ pub enum RawVc {
     /// Task's APIs are designed to prevent escapes of local [`Vc`]s, but [`ExecutionId`] is used
     /// for a fallback runtime assertion.
     LocalOutput(ExecutionId, LocalTaskId, TaskPersistence),
+}
+
+impl Debug for RawVc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RawVc::TaskOutput(task_id) => f
+                .debug_tuple("RawVc::TaskOutput")
+                .field(&**task_id)
+                .finish(),
+            RawVc::TaskCell(task_id, cell_id) => f
+                .debug_tuple("RawVc::TaskCell")
+                .field(&**task_id)
+                .field(&cell_id.to_string())
+                .finish(),
+            RawVc::LocalOutput(execution_id, local_task_id, task_persistence) => f
+                .debug_tuple("RawVc::LocalOutput")
+                .field(&**execution_id)
+                .field(&**local_task_id)
+                .field(task_persistence)
+                .finish(),
+        }
+    }
 }
 
 impl RawVc {
@@ -244,7 +272,7 @@ impl RawVc {
     }
 
     /// For a cell that's already resolved, synchronously check if it implements a trait using the
-    /// type information in `RawVc::TaskCell` (we don't actualy need to read the cell!).
+    /// type information in `RawVc::TaskCell` (we don't actually need to read the cell!).
     pub(crate) fn resolved_has_trait(&self, trait_id: TraitTypeId) -> bool {
         match self {
             RawVc::TaskCell(_task_id, cell_id) => {
@@ -255,7 +283,7 @@ impl RawVc {
     }
 
     /// For a cell that's already resolved, synchronously check if it is a given type using the type
-    /// information in `RawVc::TaskCell` (we don't actualy need to read the cell!).
+    /// information in `RawVc::TaskCell` (we don't actually need to read the cell!).
     pub(crate) fn resolved_is_type(&self, type_id: ValueTypeId) -> bool {
         match self {
             RawVc::TaskCell(_task_id, cell_id) => cell_id.type_id == type_id,

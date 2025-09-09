@@ -14,7 +14,7 @@ import './node-polyfill-crypto'
 import type { default as NextNodeServer } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
-import path, { resolve } from 'path'
+import path from 'path'
 import { NON_STANDARD_NODE_ENV } from '../lib/constants'
 import {
   PHASE_DEVELOPMENT_SERVER,
@@ -27,12 +27,20 @@ import { formatUrl } from '../shared/lib/router/utils/format-url'
 import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
 import type { ServerInitResult } from './lib/render-server'
 import { AsyncCallbackSet } from './lib/async-callback-set'
+import {
+  RouterServerContextSymbol,
+  routerServerGlobal,
+} from './lib/router-utils/router-server-context'
 
 let ServerImpl: typeof NextNodeServer
 
 const getServerImpl = async () => {
   if (ServerImpl === undefined) {
-    ServerImpl = (await Promise.resolve(require('./next-server'))).default
+    ServerImpl = (
+      await Promise.resolve(
+        require('./next-server') as typeof import('./next-server')
+      )
+    ).default
   }
   return ServerImpl
 }
@@ -81,6 +89,8 @@ interface NextWrapperServer {
   revalidate(
     ...args: Parameters<NextNodeServer['revalidate']>
   ): ReturnType<NextNodeServer['revalidate']>
+
+  logErrorWithOriginalStack(err: unknown, type: string): void
 
   render(
     ...args: Parameters<NextNodeServer['render']>
@@ -161,6 +171,14 @@ export class NextServer implements NextWrapperServer {
     }
   }
 
+  async logErrorWithOriginalStack(err: unknown, type: string) {
+    const server = await this.getServer()
+    // this is only available on dev server
+    if ((server as any).logErrorWithOriginalStack) {
+      return (server as any).logErrorWithOriginalStack(err, type)
+    }
+  }
+
   async revalidate(...args: Parameters<NextWrapperServer['revalidate']>) {
     const server = await this.getServer()
     return server.revalidate(...args)
@@ -217,8 +235,9 @@ export class NextServer implements NextWrapperServer {
   ): Promise<NextNodeServer> {
     let ServerImplementation: typeof NextNodeServer
     if (options.dev) {
-      ServerImplementation = require('./dev/next-dev-server')
-        .default as typeof import('./dev/next-dev-server').default
+      ServerImplementation = (
+        require('./dev/next-dev-server') as typeof import('./dev/next-dev-server')
+      ).default as typeof import('./dev/next-dev-server').default
     } else {
       ServerImplementation = await getServerImpl()
     }
@@ -228,7 +247,9 @@ export class NextServer implements NextWrapperServer {
   }
 
   private async [SYMBOL_LOAD_CONFIG]() {
-    const dir = resolve(this.options.dir || '.')
+    const dir = path.resolve(
+      /* turbopackIgnore: true */ this.options.dir || '.'
+    )
 
     const config = await loadConfig(
       this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
@@ -243,10 +264,14 @@ export class NextServer implements NextWrapperServer {
     if (!this.options.dev) {
       try {
         const serializedConfig = require(
-          path.join(dir, config.distDir, SERVER_FILES_MANIFEST)
+          /* turbopackIgnore: true */
+          path.join(
+            /* turbopackIgnore: true */ dir,
+            config.distDir,
+            SERVER_FILES_MANIFEST
+          )
         ).config
 
-        // @ts-expect-error internal field
         config.experimental.isExperimentalCompile =
           serializedConfig.experimental.isExperimentalCompile
       } catch (_) {
@@ -423,6 +448,22 @@ class NextCustomServer implements NextWrapperServer {
 
   setAssetPrefix(assetPrefix: string): void {
     this.server.setAssetPrefix(assetPrefix)
+
+    // update the router-server nextConfig instance as
+    // this is the source of truth for "handler" in serverful
+    const relativeProjectDir = path.relative(
+      process.cwd(),
+      this.options.dir || ''
+    )
+
+    if (
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+        ?.nextConfig
+    ) {
+      routerServerGlobal[RouterServerContextSymbol][
+        relativeProjectDir
+      ].nextConfig.assetPrefix = assetPrefix
+    }
   }
 
   getUpgradeHandler(): UpgradeHandler {
@@ -431,6 +472,10 @@ class NextCustomServer implements NextWrapperServer {
 
   logError(...args: Parameters<NextWrapperServer['logError']>) {
     this.server.logError(...args)
+  }
+
+  logErrorWithOriginalStack(err: unknown, type: string) {
+    return this.server.logErrorWithOriginalStack(err, type)
   }
 
   async revalidate(...args: Parameters<NextWrapperServer['revalidate']>) {
@@ -482,7 +527,8 @@ function createServer(
     'typescript' in options &&
     'version' in (options as any).typescript
   ) {
-    const pluginMod: typeof import('./next-typescript') = require('./next-typescript')
+    const pluginMod: typeof import('./next-typescript') =
+      require('./next-typescript') as typeof import('./next-typescript')
     return pluginMod.createTSPlugin(
       options as any
     ) as unknown as NextWrapperServer
@@ -510,7 +556,7 @@ function createServer(
 
   // When the caller is a custom server (using next()).
   if (options.customServer !== false) {
-    const dir = resolve(options.dir || '.')
+    const dir = path.resolve(/* turbopackIgnore: true */ options.dir || '.')
 
     return new NextCustomServer({
       ...options,

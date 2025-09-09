@@ -5,6 +5,7 @@ import { nextBuild } from 'next-test-utils'
 import { join } from 'path'
 
 const fixturesDir = join(__dirname, '..', 'fixtures')
+const isRspack = process.env.NEXT_RSPACK !== undefined
 
 describe('Fallback Modules', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -46,7 +47,13 @@ describe('Fallback Modules', () => {
 
           // expect(parseFloat(indexSize)).toBeLessThanOrEqual(3.1)
           // expect(parseFloat(indexSize)).toBeGreaterThanOrEqual(2)
-          expect(indexSize.endsWith('kB')).toBe(true)
+
+          if (isRspack) {
+            expect(indexSize.endsWith('B')).toBe(true)
+            expect(indexSize.endsWith('MB')).toBe(false)
+          } else {
+            expect(indexSize.endsWith('kB')).toBe(true)
+          }
 
           // expect(parseFloat(indexFirstLoad)).toBeLessThanOrEqual(67.9)
           // expect(parseFloat(indexFirstLoad)).toBeGreaterThanOrEqual(60)
