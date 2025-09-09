@@ -25,7 +25,7 @@ import {
  * /sitemap -> /sitemap
  * /(post)/sitemap -> /sitemap
  */
-export function getMetadataRouteSuffix(page: string) {
+function getMetadataRouteSuffix(page: string) {
   // Remove the last segment and get the parent pathname
   // e.g. /parent/a/b/c -> /parent/a/b
   // e.g. /parent/opengraph-image -> /parent
