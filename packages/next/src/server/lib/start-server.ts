@@ -386,6 +386,9 @@ export async function startServer(
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
         const cleanup = () => {
+          // Allow the graceful termination to be manually configurable
+          if (process.env.NEXT_MANUAL_SIG_HANDLE) return
+
           if (cleanupStarted) {
             // We can get duplicate signals, e.g. when `ctrl+c` is used in an
             // interactive shell (i.e. bash, zsh), the shell will recursively
@@ -422,11 +425,8 @@ export async function startServer(
         }
 
         // Make sure commands gracefully respect termination signals (e.g. from Docker)
-        // Allow the graceful termination to be manually configurable
-        if (!process.env.NEXT_MANUAL_SIG_HANDLE) {
-          process.on('SIGINT', cleanup)
-          process.on('SIGTERM', cleanup)
-        }
+        process.on('SIGINT', cleanup)
+        process.on('SIGTERM', cleanup)
 
         const initResult = await getRequestHandlers({
           dir,

@@ -253,16 +253,23 @@ You can set the env variable `NEXT_MANUAL_SIG_HANDLE` to `true` and then registe
 }
 ```
 
-```js filename="pages/_document.js"
+```js filename="app/layout.tsx"
 if (process.env.NEXT_MANUAL_SIG_HANDLE) {
-  process.on('SIGTERM', () => {
-    console.log('Received SIGTERM: cleaning up')
-    process.exit(0)
-  })
-  process.on('SIGINT', () => {
-    console.log('Received SIGINT: cleaning up')
-    process.exit(0)
-  })
+  let sigHandled = false
+  const handleSig = () => {
+    if (sigHandled) return
+    sigHandled = true
+
+    console.log('Received SIGINT/SIGTERM: cleaning up')
+
+    // Run clean up
+
+    // Trigger Next.js graceful shutdown
+    process.env.NEXT_MANUAL_SIG_HANDLE = false
+    process.emit('SIGTERM')
+  }
+  process.on('SIGTERM', handleSig)
+  process.on('SIGINT', handleSig)
 }
 ```
 
