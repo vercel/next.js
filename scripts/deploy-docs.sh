@@ -25,7 +25,11 @@ fi
 corepack enable 1>&2
 
 echo "Installing dependencies for ./apps/docs..." >&2
-pnpm -w --filter ./apps/docs... install --frozen-lockfile 1>&2
+# Reduce CI side-effects from deps we don't need for docs build
+export NEXT_SKIP_NATIVE_POSTINSTALL=1
+export PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+# Install directly in docs app and avoid linking local workspace packages
+pnpm -C "$CWD" install --frozen-lockfile --link-workspace-packages=false 1>&2
 
 echo "Installing Vercel CLI..." >&2
 npm i -g vercel@latest 1>&2
