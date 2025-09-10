@@ -163,7 +163,7 @@ export function formatIssue(issue: Issue) {
       message +=
         "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
       message += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n'
-      message += '\nLearn more: https://nextjs.org/docs/messages/install-sass'
+      message += '\nLearn more: https://nextjs.org/docs/messages/install-sass\n'
     } else {
       message += renderStyledStringToErrorAnsi(description) + '\n\n'
     }
@@ -178,7 +178,7 @@ export function formatIssue(issue: Issue) {
     // This is the same logic as in turbopack/crates/turbopack-cli-utils/src/issue.rs
     // We end up with multiple traces when the file with the error is reachable from multiple
     // different entry points (e.g. ssr, client)
-    message += `\nImport trace${importTraces.length > 1 ? 's' : ''}:\n`
+    message += `Import trace${importTraces.length > 1 ? 's' : ''}:\n`
     const everyTraceHasADistinctRootLayer =
       new Set(importTraces.map(leafLayerName).filter((l) => l != null)).size ===
       importTraces.length
