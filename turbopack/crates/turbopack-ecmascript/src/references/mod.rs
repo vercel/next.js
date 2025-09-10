@@ -738,9 +738,7 @@ pub async fn analyse_ecmascript_module_internal(
             let mut should_add_evaluation = false;
             let reference = EsmAssetReference::new(
                 origin,
-                Request::parse(RcStr::from(&*r.module_path).into())
-                    .to_resolved()
-                    .await?,
+                RcStr::from(&*r.module_path),
                 r.issue_source
                     .unwrap_or_else(|| IssueSource::from_source_only(source)),
                 r.annotations.clone(),
@@ -1406,7 +1404,7 @@ pub async fn analyse_ecmascript_module_internal(
                                         || {
                                             EsmAssetReference::new(
                                                 original_reference.origin,
-                                                original_reference.request,
+                                                original_reference.request_str.clone(),
                                                 original_reference.issue_source,
                                                 original_reference.annotations.clone(),
                                                 Some(ModulePart::export(export.clone())),
@@ -2668,7 +2666,7 @@ async fn handle_free_var_reference(
                         } else {
                             state.origin
                         },
-                        Request::parse(request.clone().into()).to_resolved().await?,
+                        request.clone(),
                         IssueSource::from_swc_offsets(
                             state.source,
                             span.lo.to_u32(),
