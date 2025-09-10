@@ -9,7 +9,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
-  PHASE_PRODUCTION_SERVER,
+  type PHASE_TYPE,
 } from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
 import type {
@@ -17,7 +17,6 @@ import type {
   NextConfigComplete,
   NextConfig,
   TurbopackLoaderItem,
-  NextAdapter,
 } from './config-shared'
 
 import { loadWebpackHook } from './config-utils'
@@ -43,6 +42,7 @@ import { findDir } from '../lib/find-pages-dir'
 import { CanaryOnlyError, isStableBuild } from '../shared/lib/canary-only'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
+import type { NextAdapter } from '../build/adapter/build-complete'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -1203,15 +1203,12 @@ function assignDefaultsAndValidate(
 
 async function applyModifyConfig(
   config: NextConfigComplete,
-  phase: string,
+  phase: PHASE_TYPE,
   silent: boolean
 ): Promise<NextConfigComplete> {
-  if (
-    // TODO: should this be called for server start as
-    // adapters shouldn't be relying on "next start"
-    [PHASE_PRODUCTION_BUILD, PHASE_PRODUCTION_SERVER].includes(phase) &&
-    config.experimental?.adapterPath
-  ) {
+  // we always call modify config  and phase can be used to only
+  // modify for specific times
+  if (config.experimental?.adapterPath) {
     const adapterMod = interopDefault(
       await import(
         pathToFileURL(require.resolve(config.experimental.adapterPath)).href
@@ -1222,7 +1219,10 @@ async function applyModifyConfig(
       if (!silent) {
         Log.info(`Applying modifyConfig from ${adapterMod.name}`)
       }
-      config = await adapterMod.modifyConfig(config)
+
+      config = await adapterMod.modifyConfig(config, {
+        phase,
+      })
     }
   }
   return config
@@ -1241,7 +1241,7 @@ const configCache = new Map<
 // Generate cache key based on parameters that affect config output
 // We need a unique key for cache because there can be multiple values
 function getCacheKey(
-  phase: string,
+  phase: PHASE_TYPE,
   dir: string,
   customConfig?: object | null,
   reactProductionProfiling?: boolean,
@@ -1261,7 +1261,7 @@ function getCacheKey(
 }
 
 export default async function loadConfig(
-  phase: string,
+  phase: PHASE_TYPE,
   dir: string,
   {
     customConfig,
@@ -1656,7 +1656,7 @@ function enforceExperimentalFeatures(
     isDefaultConfig: boolean
     configuredExperimentalFeatures: ConfiguredExperimentalFeature[] | undefined
     debugPrerender: boolean | undefined
-    phase: string
+    phase: PHASE_TYPE
   }
 ) {
   const {

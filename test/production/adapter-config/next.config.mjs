@@ -5,6 +5,7 @@ const require = Module.createRequire(import.meta.url)
 const nextConfig = {
   experimental: {
     adapterPath: require.resolve('./my-adapter.mjs'),
+    ppr: Boolean(process.env.TEST_PPR),
   },
 }
 
