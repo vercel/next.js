@@ -531,7 +531,7 @@ impl EsmAssetReference {
                     // unresolvable
                     let request = &this.request_str;
                     let stmt = Stmt::Expr(ExprStmt {
-                        expr: Box::new(throw_module_not_found_expr(&request)),
+                        expr: Box::new(throw_module_not_found_expr(request)),
                         span: DUMMY_SP,
                     });
                     return Ok(CodeGeneration::hoisted_stmt(
