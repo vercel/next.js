@@ -12,7 +12,7 @@ if [ -z "${VERCEL_API_TOKEN:-}" ]; then
   exit 0
 fi
 
-CWD="apps/docs"
+CWD="."
 PROJECT="next-docs"
 
 echo "Preparing local build for docs (project: $PROJECT)..." >&2
