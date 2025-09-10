@@ -1404,7 +1404,7 @@ pub async fn analyse_ecmascript_module_internal(
                                         || {
                                             EsmAssetReference::new(
                                                 original_reference.origin,
-                                                original_reference.request_str.clone(),
+                                                original_reference.request.clone(),
                                                 original_reference.issue_source,
                                                 original_reference.annotations.clone(),
                                                 Some(ModulePart::export(export.clone())),

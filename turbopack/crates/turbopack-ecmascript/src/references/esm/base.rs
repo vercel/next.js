@@ -319,7 +319,7 @@ impl EsmAssetReferences {
 pub struct EsmAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     // Request is a string to avoid eagerly parsing into a `Request` VC
-    pub request_str: RcStr,
+    pub request: RcStr,
     pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
     pub export_name: Option<ModulePart>,
@@ -340,7 +340,7 @@ impl EsmAssetReference {
 impl EsmAssetReference {
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        request_str: RcStr,
+        request: RcStr,
         issue_source: IssueSource,
         annotations: ImportAnnotations,
         export_name: Option<ModulePart>,
@@ -348,7 +348,7 @@ impl EsmAssetReference {
     ) -> Self {
         EsmAssetReference {
             origin,
-            request_str,
+            request,
             issue_source,
             annotations,
             export_name,
@@ -359,7 +359,7 @@ impl EsmAssetReference {
 
     pub fn new_pure(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        request_str: RcStr,
+        request: RcStr,
         issue_source: IssueSource,
         annotations: ImportAnnotations,
         export_name: Option<ModulePart>,
@@ -367,7 +367,7 @@ impl EsmAssetReference {
     ) -> Self {
         EsmAssetReference {
             origin,
-            request_str,
+            request,
             issue_source,
             annotations,
             export_name,
@@ -422,7 +422,7 @@ impl ModuleReference for EsmAssetReference {
                 }
             }
         }
-        let request = Request::parse(self.request_str.clone().into());
+        let request = Request::parse(self.request.clone().into());
 
         if let Request::Module { module, .. } = &*request.await?
             && module.is_match(TURBOPACK_PART_IMPORT_SOURCE)
@@ -475,7 +475,7 @@ impl ModuleReference for EsmAssetReference {
 impl ValueToString for EsmAssetReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(format!("import {} with {}", self.request_str, self.annotations).into())
+        Vc::cell(format!("import {} with {}", self.request, self.annotations).into())
     }
 }
 
@@ -529,7 +529,7 @@ impl EsmAssetReference {
                 ReferencedAsset::Unresolvable => {
                     // Insert code that throws immediately at time of import if a request is
                     // unresolvable
-                    let request = &this.request_str;
+                    let request = &this.request;
                     let stmt = Stmt::Expr(ExprStmt {
                         expr: Box::new(throw_module_not_found_expr(request)),
                         span: DUMMY_SP,
