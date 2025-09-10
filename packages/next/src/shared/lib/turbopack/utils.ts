@@ -178,7 +178,7 @@ export function formatIssue(issue: Issue) {
     // This is the same logic as in turbopack/crates/turbopack-cli-utils/src/issue.rs
     // We end up with multiple traces when the file with the error is reachable from multiple
     // different entry points (e.g. ssr, client)
-    message += `Import trace${importTraces.length > 1 ? 's' : ''}:\n`
+    message += `\nImport trace${importTraces.length > 1 ? 's' : ''}:\n`
     const everyTraceHasADistinctRootLayer =
       new Set(importTraces.map(leafLayerName).filter((l) => l != null)).size ===
       importTraces.length
