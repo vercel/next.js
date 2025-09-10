@@ -39,10 +39,10 @@ echo "Pulling env for $DEPLOY_ENVIRONMENT..." >&2
 vercel pull --cwd "$CWD" --yes --environment="${DEPLOY_ENVIRONMENT:-preview}" --token="$VERCEL_API_TOKEN" 1>&2
 
 echo "Building locally with Vercel..." >&2
-vercel build --cwd "$CWD" --token="$VERCEL_API_TOKEN" 1>&2
+vercel build --cwd apps/docs --token="$VERCEL_API_TOKEN" 1>&2
 
 echo "Deploying prebuilt output..." >&2
-URL=$(vercel deploy --cwd "$CWD" --prebuilt --archive=tgz --token "$VERCEL_API_TOKEN" $PROD)
+URL=$(vercel deploy --cwd apps/docs --prebuilt --archive=tgz --token "$VERCEL_API_TOKEN" $PROD)
 echo "$URL"
 
 
