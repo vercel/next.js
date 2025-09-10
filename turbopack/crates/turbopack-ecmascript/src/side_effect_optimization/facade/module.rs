@@ -22,6 +22,7 @@ use crate::{
     EcmascriptModuleContentOptions, EcmascriptOptions, MergedEcmascriptModule, SpecifiedModuleType,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::CodeGens,
+    export::Liveness,
     parse::ParseResult,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
@@ -251,7 +252,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 for (name, export) in &esm_exports.exports {
                     let name = name.clone();
                     match export {
-                        EsmExport::LocalBinding(_, mutable) => {
+                        EsmExport::LocalBinding(_, liveness) => {
                             exports.insert(
                                 name.clone(),
                                 EsmExport::ImportedBinding(
@@ -265,7 +266,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                                         .await?,
                                     ),
                                     name,
-                                    *mutable,
+                                    *liveness == Liveness::Mutable,
                                 ),
                             );
                         }

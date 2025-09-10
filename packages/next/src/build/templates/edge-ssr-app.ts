@@ -149,7 +149,6 @@ async function requestHandler(
       deploymentId: nextConfig.deploymentId,
       enableTainting: nextConfig.experimental.taint,
       htmlLimitedBots: nextConfig.htmlLimitedBots,
-      devtoolSegmentExplorer: nextConfig.experimental.devtoolSegmentExplorer,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
       multiZoneDraftMode: false,
@@ -169,6 +168,8 @@ async function requestHandler(
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
+        clientParamParsingOrigins:
+          nextConfig.experimental.clientParamParsingOrigins,
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(

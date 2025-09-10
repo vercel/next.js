@@ -3,7 +3,7 @@
 
 mod util;
 
-use std::{collections::VecDeque, fs, io, path::PathBuf, sync::Once};
+use std::{collections::VecDeque, fs, io, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
 use dunce::canonicalize;
@@ -63,20 +63,6 @@ use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::snapshot::{UPDATE, diff, expected, matches_expected, snapshot_issues};
 
 use crate::util::REPO_ROOT;
-
-fn register() {
-    turbo_tasks::register();
-    turbo_tasks_env::register();
-    turbo_tasks_fs::register();
-    turbopack::register();
-    turbopack_nodejs::register();
-    turbopack_browser::register();
-    turbopack_env::register();
-    turbopack_ecmascript_plugins::register();
-    turbopack_ecmascript_runtime::register();
-    turbopack_resolve::register();
-    include!(concat!(env!("OUT_DIR"), "/register_test_snapshot.rs"));
-}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -168,8 +154,9 @@ fn is_empty_dir_tree(dir_entries: impl IntoIterator<Item = io::Result<fs::DirEnt
     true
 }
 
-#[testing::fixture("tests/snapshot/*/*/", exclude("node_modules"))]
+#[testing::fixture("tests/snapshot/*/*/input/index.js", exclude("node_modules"))]
 fn test(resource: PathBuf) {
+    let resource = resource.parent().unwrap().parent().unwrap().to_path_buf();
     let resource = canonicalize(resource).unwrap();
 
     let mut has_output_dir = false;
@@ -204,9 +191,6 @@ fn test(resource: PathBuf) {
 
 #[tokio::main(flavor = "current_thread")]
 async fn run(resource: PathBuf) -> Result<()> {
-    static REGISTER_ONCE: Once = Once::new();
-    REGISTER_ONCE.call_once(register);
-
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             storage_mode: None,
@@ -273,28 +257,33 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let entry_asset = project_path.join(&options.entry)?;
 
-    let env = Environment::new(match options.environment {
+    let env = match options.environment {
         SnapshotEnvironment::Browser => {
-            ExecutionEnvironment::Browser(
-                // TODO: load more from options.json
-                BrowserEnvironment {
-                    dom: true,
-                    web_worker: false,
-                    service_worker: false,
-                    browserslist_query: options.browserslist.into(),
-                }
-                .resolved_cell(),
-            )
+            let environment=// TODO: load more from options.json
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: options.browserslist.into(),
+            }
+            .resolved_cell();
+
+            Environment::new(ExecutionEnvironment::Browser(environment), *environment)
+                .to_resolved()
+                .await?
         }
         SnapshotEnvironment::NodeJs => {
-            ExecutionEnvironment::NodeJsBuildTime(
-                // TODO: load more from options.json
-                NodeJsEnvironment::default().resolved_cell(),
+            Environment::new(
+                ExecutionEnvironment::NodeJsBuildTime(
+                    // TODO: load more from options.json
+                    NodeJsEnvironment::default().resolved_cell(),
+                ),
+                BrowserEnvironment::default().cell(),
             )
+            .to_resolved()
+            .await?
         }
-    })
-    .to_resolved()
-    .await?;
+    };
 
     let mut defines = compile_time_defines!(
         process.turbopack = true,
@@ -415,7 +404,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     {
         let evaluatable_assets = runtime_entries
             .unwrap_or_else(EvaluatableAssets::empty)
-            .with_entry(Vc::upcast(ecmascript));
+            .with_entry(ecmascript);
         (
             evaluatable_assets,
             evaluatable_assets

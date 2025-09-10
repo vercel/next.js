@@ -1,5 +1,4 @@
 import { join } from 'path'
-import { unlink } from 'fs/promises'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
 describe('multiple-lockfiles - has-turbo-root', () => {
@@ -16,17 +15,14 @@ describe('multiple-lockfiles - has-turbo-root', () => {
         lockfileVersion: 3,
       }),
     },
+    // So that ../package-lock.json doesn't leave the isolated testDir
+    subDir: 'test',
     skipDeployment: true,
   })
 
   if (skipped) {
     return
   }
-
-  afterAll(async () => {
-    // Cleanup to ensure it doesn't affect other tests.
-    await unlink(join(next.testDir, '../package-lock.json'))
-  })
 
   it('should not have multiple lockfiles warnings', async () => {
     expect(next.cliOutput).not.toMatch(

@@ -12,7 +12,13 @@ The `middleware.js|ts` file is used to write [Middleware](/docs/app/api-referenc
 
 Middleware executes before routes are rendered. It's particularly useful for implementing custom server-side logic like authentication, logging, or handling redirects.
 
-Use the file `middleware.ts` (or .js) in the root of your project to define Middleware. For example, at the same level as `app` or `pages`, or inside `src` if applicable.
+> **Good to know**:
+>
+> Middleware is meant to be invoked separately of your render code and in optimized cases deployed to your CDN for fast redirect/rewrite handling, you should not attempt relying on shared modules or globals.
+>
+> To pass information from Middleware to your application, use [headers](#setting-headers), [cookies](#using-cookies), [rewrites](/docs/app/api-reference/functions/next-response#rewrite), [redirects](/docs/app/api-reference/functions/next-response#redirect), or the URL.
+
+Create a `middleware.ts` (or `.js`) file in the project root, or inside `src` if applicable, so that it is located at the same level as `pages` or `app`.
 
 ```tsx filename="middleware.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'
@@ -281,7 +287,7 @@ export function middleware(request) {
 }
 ```
 
-## Using Cookies
+### Using Cookies
 
 Cookies are regular headers. On a `Request`, they are stored in the `Cookie` header. On a `Response` they are in the `Set-Cookie` header. Next.js provides a convenient way to access and manipulate these cookies through the `cookies` extension on `NextRequest` and `NextResponse`.
 
@@ -399,6 +405,13 @@ export function middleware(request) {
   return response
 }
 ```
+
+Note that the snippet uses:
+
+- `NextResponse.next({ request: { headers: requestHeaders } })` to make `requestHeaders` available upstream
+- **NOT** `NextResponse.next({ headers: requestHeaders })` which makes `requestHeaders` available to clients
+
+Learn more in [NextResponse headers in Middleware](/docs/app/api-reference/functions/next-response#next).
 
 > **Good to know**: Avoid setting large headers as it might cause [431 Request Header Fields Too Large](https://developer.mozilla.org/docs/Web/HTTP/Status/431) error depending on your backend web server configuration.
 
@@ -673,6 +686,7 @@ Learn how to [configure Middleware](/docs/app/guides/self-hosting#middleware) wh
 
 | Version   | Changes                                                                                       |
 | --------- | --------------------------------------------------------------------------------------------- |
+| `v15.5.0` | Middleware can now use the Node.js runtime (stable)                                           |
 | `v15.2.0` | Middleware can now use the Node.js runtime (experimental)                                     |
 | `v13.1.0` | Advanced Middleware flags added                                                               |
 | `v13.0.0` | Middleware can modify request headers, response headers, and send responses                   |

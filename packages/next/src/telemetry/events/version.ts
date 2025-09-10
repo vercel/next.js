@@ -1,5 +1,4 @@
 import type { NextConfigComplete } from '../../server/config-shared'
-import path from 'path'
 
 const EVENT_VERSION = 'NEXT_CLI_SESSION_STARTED'
 
@@ -43,28 +42,7 @@ type EventCliSessionStarted = {
   reactCompilerPanicThreshold: string | null
 }
 
-function hasBabelConfig(dir: string): boolean {
-  try {
-    const noopFile = path.join(dir, 'noop.js')
-    const res = (
-      require('next/dist/compiled/babel/core') as typeof import('next/dist/compiled/babel/core')
-    ).loadPartialConfig({
-      cwd: dir,
-      filename: noopFile,
-      sourceFileName: noopFile,
-    }) as any
-    const isForTooling =
-      res.options?.presets?.every(
-        (e: any) => e?.file?.request === 'next/babel'
-      ) && res.options?.plugins?.length === 0
-    return res.hasFilesystemConfig() && !isForTooling
-  } catch {
-    return false
-  }
-}
-
 export function eventCliSession(
-  dir: string,
   nextConfig: NextConfigComplete,
   event: Omit<
     EventCliSessionStarted,
@@ -116,7 +94,7 @@ export function eventCliSession(
     hasNextConfig: nextConfig.configOrigin !== 'default',
     buildTarget: 'default',
     hasWebpackConfig: typeof nextConfig?.webpack === 'function',
-    hasBabelConfig: hasBabelConfig(dir),
+    hasBabelConfig: false,
     imageEnabled: !!images,
     imageFutureEnabled: !!images,
     basePathEnabled: !!nextConfig?.basePath,
@@ -148,11 +126,11 @@ export function eventCliSession(
     reactCompiler: Boolean(nextConfig.experimental.reactCompiler),
     reactCompilerCompilationMode:
       typeof nextConfig.experimental.reactCompiler !== 'boolean'
-        ? nextConfig.experimental.reactCompiler?.compilationMode ?? null
+        ? (nextConfig.experimental.reactCompiler?.compilationMode ?? null)
         : null,
     reactCompilerPanicThreshold:
       typeof nextConfig.experimental.reactCompiler !== 'boolean'
-        ? nextConfig.experimental.reactCompiler?.panicThreshold ?? null
+        ? (nextConfig.experimental.reactCompiler?.panicThreshold ?? null)
         : null,
   }
   return [{ eventName: EVENT_VERSION, payload }]

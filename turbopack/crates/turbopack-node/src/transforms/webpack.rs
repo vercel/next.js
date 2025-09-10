@@ -15,7 +15,10 @@ use turbo_tasks::{
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
-    File, FileContent, FileSystemPath, glob::Glob, json::parse_json_with_source_context, rope::Rope,
+    File, FileContent, FileSystemPath,
+    glob::{Glob, GlobOptions},
+    json::parse_json_with_source_context,
+    rope::Rope,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -85,6 +88,7 @@ struct WebpackLoadersProcessingResult {
 )]
 pub struct WebpackLoaderItem {
     pub loader: RcStr,
+    #[serde(default)]
     pub options: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -513,22 +517,18 @@ impl EvaluateContext for WebpackLoaderContext {
                     .map(|(dir, glob)| async move {
                         self.cwd
                             .join(dir)?
-                            .track_glob(Glob::new(glob.clone()), false)
+                            .track_glob(Glob::new(glob.clone(), GlobOptions::default()), false)
                             .await
                     })
                     .try_join();
-                let build_paths = build_file_paths
-                    .iter()
-                    .map(|path| async move { self.cwd.join(path) })
-                    .try_join();
-                let (resolved_build_paths, ..) = try_join!(
-                    build_paths,
+                try_join!(
                     env_subscriptions,
                     file_subscriptions,
                     directory_subscriptions
                 )?;
 
-                for build_path in resolved_build_paths {
+                for build_path in build_file_paths {
+                    let build_path = self.cwd.join(&build_path)?;
                     BuildDependencyIssue {
                         source: IssueSource::from_source_only(self.context_source_for_issue),
                         path: build_path,

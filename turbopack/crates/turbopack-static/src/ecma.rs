@@ -74,7 +74,7 @@ impl ChunkableModule for StaticUrlJsModule {
                 module: self,
                 chunking_context,
                 static_asset: self
-                    .static_output_asset(*ResolvedVc::upcast(chunking_context))
+                    .static_output_asset(*chunking_context)
                     .to_resolved()
                     .await?,
             },
@@ -111,7 +111,7 @@ impl ChunkItem for StaticUrlJsChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -146,12 +146,4 @@ impl EcmascriptChunkItem for StaticUrlJsChunkItem {
         }
         .into())
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

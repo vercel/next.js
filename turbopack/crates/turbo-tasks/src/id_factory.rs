@@ -7,7 +7,7 @@ use std::{
 
 use concurrent_queue::ConcurrentQueue;
 
-/// A helper for constructing id types like [`FunctionId`][crate::FunctionId].
+/// A helper for constructing id types like [`ValueTypeId`][crate::ValueTypeId].
 ///
 /// For ids that may be re-used, see [`IdFactoryWithReuse`].
 pub struct IdFactory<T> {
@@ -121,8 +121,7 @@ where
     }
 }
 
-/// An [`IdFactory`], but extended with a free list to allow for id reuse for ids such as
-/// [`BackendJobId`][crate::backend::BackendJobId].
+/// An [`IdFactory`], but extended with a free list to allow for id reuse.
 ///
 /// If silent untracked re-use of ids is okay, consider using the cheaper
 /// [`IdFactory::wrapping_get`] method.

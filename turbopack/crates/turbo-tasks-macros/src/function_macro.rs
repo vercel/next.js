@@ -3,8 +3,9 @@ use quote::quote;
 use syn::{ItemFn, parse_macro_input, parse_quote};
 use turbo_tasks_macros_shared::{get_native_function_ident, is_self_used};
 
-use crate::func::{
-    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+use crate::{
+    func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes},
+    global_name::global_name,
 };
 
 /// This macro generates the virtual function that powers turbo tasks.
@@ -55,9 +56,11 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     let (inline_signature, inline_block) =
         turbo_fn.inline_signature_and_block(&block, is_self_used);
     let inline_attrs = filter_inline_attributes(&attrs[..]);
+    let function_path_string = ident.to_string();
 
     let native_fn = NativeFn {
-        function_path_string: ident.to_string(),
+        function_global_name: global_name(&function_path_string),
+        function_path_string,
         function_path: parse_quote! { #inline_function_ident },
         is_method: turbo_fn.is_method(),
         is_self_used,
@@ -79,10 +82,14 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         #[doc(hidden)]
         #inline_signature #inline_block
 
-        #[doc(hidden)]
-        pub(crate) static #native_function_ident:
+        static #native_function_ident:
             turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
                 turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
+
+        // Register the function for deserialization
+        turbo_tasks::macro_helpers::inventory_submit! {
+            turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
+        }
 
         #(#errors)*
     }

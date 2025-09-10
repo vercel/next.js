@@ -89,7 +89,7 @@ impl EsmModuleIdAssetReferenceCodeGen {
         if let ReferencedAsset::Some(asset) =
             &*self.reference.await?.inner.get_referenced_asset().await?
         {
-            let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
+            let id = asset.chunk_item_id(chunking_context).await?;
             let id = module_id_to_lit(&id);
             visitors.push(create_visitor!(
                 self.path,

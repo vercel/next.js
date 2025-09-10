@@ -41,6 +41,7 @@ use crate::{
     analyzer::imports::ImportAnnotations,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
+    export::Liveness,
     magic_identifier,
     references::{
         esm::EsmExport,
@@ -62,7 +63,11 @@ pub enum ReferencedAsset {
 #[derive(Debug)]
 pub enum ReferencedAssetIdent {
     /// The given export (or namespace) is a local binding in the current scope hoisting group.
-    LocalBinding { ident: RcStr, ctxt: SyntaxContext },
+    LocalBinding {
+        ident: RcStr,
+        ctxt: SyntaxContext,
+        liveness: Liveness,
+    },
     /// The given export (or namespace) should be imported and will be assigned to a new variable.
     Module {
         namespace_ident: String,
@@ -85,9 +90,11 @@ impl ReferencedAssetIdent {
 
     pub fn as_expr_individual(&self, span: Span) -> Either<Ident, MemberExpr> {
         match self {
-            ReferencedAssetIdent::LocalBinding { ident, ctxt } => {
-                Either::Left(Ident::new(ident.as_str().into(), span, *ctxt))
-            }
+            ReferencedAssetIdent::LocalBinding {
+                ident,
+                ctxt,
+                liveness: _,
+            } => Either::Left(Ident::new(ident.as_str().into(), span, *ctxt)),
             ReferencedAssetIdent::Module {
                 namespace_ident,
                 ctxt,
@@ -164,21 +171,21 @@ impl ReferencedAsset {
     ) -> Result<Option<ReferencedAssetIdent>> {
         Ok(match self {
             ReferencedAsset::Some(asset) => {
-                if let Some(ctxt) =
-                    scope_hoisting_context.get_module_syntax_context(ResolvedVc::upcast(*asset))
+                if let Some(ctxt) = scope_hoisting_context.get_module_syntax_context(*asset)
                     && let Some(export) = &export
                     && let EcmascriptExports::EsmExports(exports) = *asset.get_exports().await?
                 {
                     let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
                     let esm_export = exports.exports.get(export);
                     match esm_export {
-                        Some(EsmExport::LocalBinding(_, _)) => {
+                        Some(EsmExport::LocalBinding(_name, liveness)) => {
                             // A local binding in a module that is merged in the same group. Use the
                             // export name as identifier, it will be replaced with the actual
                             // variable name during AST merging.
                             return Ok(Some(ReferencedAssetIdent::LocalBinding {
                                 ident: export.clone(),
                                 ctxt,
+                                liveness: *liveness,
                             }));
                         }
                         Some(b @ EsmExport::ImportedBinding(esm_ref, _, _))
@@ -263,7 +270,7 @@ impl ReferencedAsset {
         asset: &Vc<Box<dyn EcmascriptChunkPlaceable>>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
-        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
+        let id = asset.chunk_item_id(chunking_context).await?;
         Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
 }
@@ -596,9 +603,7 @@ impl EsmAssetReference {
                                         unreachable!();
                                     }
                                     ReferencedAsset::Some(asset) => {
-                                        let id = asset
-                                            .chunk_item_id(Vc::upcast(chunking_context))
-                                            .await?;
+                                        let id = asset.chunk_item_id(chunking_context).await?;
                                         let (sym, ctxt) =
                                             ident.into_module_namespace_ident().unwrap();
                                         let name = Ident::new(

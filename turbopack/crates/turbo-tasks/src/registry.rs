@@ -1,145 +1,184 @@
-use std::{fmt::Debug, hash::Hash, num::NonZeroU64, ops::Deref, sync::RwLock};
+use std::num::NonZeroU16;
 
-use dashmap::mapref::entry::Entry;
+use anyhow::Error;
 use once_cell::sync::Lazy;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    FxDashMap, TraitType, ValueType,
-    id::{TraitTypeId, ValueTypeId},
-    id_factory::IdFactory,
+    TraitType, ValueType,
+    id::{FunctionId, TraitTypeId, ValueTypeId},
+    macro_helpers::CollectableFunction,
     native_function::NativeFunction,
-    no_move_vec::NoMoveVec,
+    value_type::{CollectableTrait, CollectableValueType},
 };
 
-static NAME_TO_FUNCTION: Lazy<RwLock<FxHashMap<&'static str, &'static NativeFunction>>> =
-    Lazy::new(RwLock::default);
+/// A trait for types that can be registered in a registry.
+///
+/// This allows the generic registry to work with different types
+/// while maintaining their specific requirements.
+trait RegistryItem: 'static + Eq + std::hash::Hash {
+    /// The ID type used for this registry item
+    type Id: Copy + From<NonZeroU16> + std::ops::Deref<Target = u16> + std::fmt::Display;
+    const TYPE_NAME: &'static str;
 
-static VALUE_TYPE_ID_FACTORY: IdFactory<ValueTypeId> = IdFactory::new_const(
-    ValueTypeId::MIN.to_non_zero_u64(),
-    ValueTypeId::MAX.to_non_zero_u64(),
-);
-static VALUE_TYPES_BY_NAME: Lazy<FxDashMap<&'static str, ValueTypeId>> =
-    Lazy::new(FxDashMap::default);
-static VALUE_TYPES_BY_VALUE: Lazy<FxDashMap<&'static ValueType, ValueTypeId>> =
-    Lazy::new(FxDashMap::default);
-static VALUE_TYPES: Lazy<NoMoveVec<(&'static ValueType, &'static str)>> = Lazy::new(NoMoveVec::new);
+    /// Get the global name used for sorting and uniqueness validation
+    fn global_name(&self) -> &'static str;
+}
 
-static TRAIT_TYPE_ID_FACTORY: IdFactory<TraitTypeId> = IdFactory::new_const(
-    TraitTypeId::MIN.to_non_zero_u64(),
-    TraitTypeId::MAX.to_non_zero_u64(),
-);
-static TRAIT_TYPES_BY_NAME: Lazy<FxDashMap<&'static str, TraitTypeId>> =
-    Lazy::new(FxDashMap::default);
-static TRAIT_TYPES_BY_VALUE: Lazy<FxDashMap<&'static TraitType, TraitTypeId>> =
-    Lazy::new(FxDashMap::default);
-static TRAIT_TYPES: Lazy<NoMoveVec<(&'static TraitType, &'static str)>> = Lazy::new(NoMoveVec::new);
+impl RegistryItem for NativeFunction {
+    type Id = FunctionId;
+    const TYPE_NAME: &'static str = "Function";
 
-/// Registers the value and returns its id if this is the initial
-fn register_thing<
-    K: Copy + Deref<Target = u32> + TryFrom<NonZeroU64>,
-    V: Copy + Hash + Eq,
-    const INITIAL_CAPACITY_BITS: u32,
->(
-    global_name: &'static str,
-    value: V,
-    id_factory: &IdFactory<K>,
-    store: &NoMoveVec<(V, &'static str), INITIAL_CAPACITY_BITS>,
-    map_by_name: &FxDashMap<&'static str, K>,
-    map_by_value: &FxDashMap<V, K>,
-) -> Option<K> {
-    if let Entry::Vacant(e) = map_by_value.entry(value) {
-        let new_id = id_factory.get();
-        // SAFETY: this is a fresh id
-        unsafe {
-            store.insert(*new_id as usize, (value, global_name));
+    fn global_name(&self) -> &'static str {
+        self.global_name
+    }
+}
+
+impl RegistryItem for ValueType {
+    type Id = ValueTypeId;
+    const TYPE_NAME: &'static str = "Value";
+
+    fn global_name(&self) -> &'static str {
+        self.global_name
+    }
+}
+
+impl RegistryItem for TraitType {
+    type Id = TraitTypeId;
+    const TYPE_NAME: &'static str = "Trait";
+    fn global_name(&self) -> &'static str {
+        self.global_name
+    }
+}
+
+/// A generic registry that maps between IDs and static references to items.
+///
+/// This eliminates the code duplication between Functions, Values, and Traits registries.
+struct Registry<T: RegistryItem> {
+    id_to_item: Box<[&'static T]>,
+    item_to_id: FxHashMap<&'static T, T::Id>,
+}
+
+impl<T: RegistryItem> Registry<T> {
+    /// Create a new registry from a collection of items.
+    ///
+    /// Items are sorted by global_name to ensure stable ID assignment.
+    fn new_from_items(mut items: Vec<&'static T>) -> Self {
+        // Sort by global name to get stable order
+        items.sort_unstable_by_key(|item| item.global_name());
+
+        let mut item_to_id = FxHashMap::with_capacity_and_hasher(items.len(), Default::default());
+        let mut names = FxHashSet::with_capacity_and_hasher(items.len(), Default::default());
+
+        let mut id = NonZeroU16::MIN;
+        for &item in items.iter() {
+            item_to_id.insert(item, id.into());
+            let global_name = item.global_name();
+            assert!(
+                names.insert(global_name),
+                "multiple {ty} items registered with name: {global_name}!",
+                ty = T::TYPE_NAME
+            );
+            id = id.checked_add(1).expect("overflowing item ids");
         }
-        map_by_name.insert(global_name, new_id);
-        e.insert(new_id);
-        Some(new_id)
-    } else {
-        None
+
+        Self {
+            id_to_item: items.into_boxed_slice(),
+            item_to_id,
+        }
+    }
+
+    /// Get an item by its ID
+    fn get_item(&self, id: T::Id) -> &'static T {
+        self.id_to_item[*id as usize - 1]
+    }
+
+    /// Get the ID for an item
+    fn get_id(&self, item: &'static T) -> T::Id {
+        match self.item_to_id.get(&item) {
+            Some(id) => *id,
+            None => panic!(
+                "{ty} isn't registered: {item}",
+                ty = T::TYPE_NAME,
+                item = item.global_name()
+            ),
+        }
+    }
+
+    /// Validate that an ID is within the valid range
+    fn validate_id(&self, id: T::Id) -> Option<Error> {
+        let len = self.id_to_item.len();
+        if *id as usize <= len {
+            None
+        } else {
+            Some(anyhow::anyhow!(
+                "Invalid {ty} id, {id} expected a value <= {len}",
+                ty = T::TYPE_NAME
+            ))
+        }
     }
 }
 
-fn get_thing_id<K, V>(value: V, map_by_value: &FxDashMap<V, K>) -> K
-where
-    V: Hash + Eq + Debug,
-    K: Clone,
-{
-    if let Some(id) = map_by_value.get(&value) {
-        id.clone()
-    } else {
-        panic!("Use of unregistered {value:?}");
-    }
+static FUNCTIONS: Lazy<Registry<NativeFunction>> = Lazy::new(|| {
+    let functions = inventory::iter::<CollectableFunction>
+        .into_iter()
+        .map(|c| &**c.0)
+        .collect::<Vec<_>>();
+    Registry::new_from_items(functions)
+});
+
+pub fn get_native_function(id: FunctionId) -> &'static NativeFunction {
+    FUNCTIONS.get_item(id)
 }
 
-/// Registers a function so it is available for persistence
-pub fn register_function(global_name: &'static str, func: &'static NativeFunction) {
-    let prev = NAME_TO_FUNCTION.write().unwrap().insert(global_name, func);
-    debug_assert!(
-        prev.is_none(),
-        "registration mappings for {global_name} are inconsistent!"
-    );
+pub fn get_function_id(func: &'static NativeFunction) -> FunctionId {
+    FUNCTIONS.get_id(func)
 }
 
-pub fn get_function_by_global_name(global_name: &str) -> &'static NativeFunction {
-    NAME_TO_FUNCTION.read().unwrap().get(global_name).unwrap()
+pub fn validate_function_id(id: FunctionId) -> Option<Error> {
+    FUNCTIONS.validate_id(id)
 }
 
-pub fn register_value_type(
-    global_name: &'static str,
-    ty: &'static ValueType,
-) -> Option<ValueTypeId> {
-    register_thing(
-        global_name,
-        ty,
-        &VALUE_TYPE_ID_FACTORY,
-        &VALUE_TYPES,
-        &VALUE_TYPES_BY_NAME,
-        &VALUE_TYPES_BY_VALUE,
-    )
-}
+static VALUES: Lazy<Registry<ValueType>> = Lazy::new(|| {
+    // Inventory does not guarantee an order. So we sort by the global name to get a stable order
+    // This ensures that assigned ids are also stable which is important since they are serialized.
+    let all_values = inventory::iter::<CollectableValueType>
+        .into_iter()
+        .map(|t| &**t.0)
+        .collect::<Vec<_>>();
+    Registry::new_from_items(all_values)
+});
 
-pub fn get_value_type_id(func: &'static ValueType) -> ValueTypeId {
-    get_thing_id(func, &VALUE_TYPES_BY_VALUE)
-}
-
-pub fn get_value_type_id_by_global_name(global_name: &str) -> Option<ValueTypeId> {
-    VALUE_TYPES_BY_NAME.get(global_name).map(|x| *x)
+pub fn get_value_type_id(value: &'static ValueType) -> ValueTypeId {
+    VALUES.get_id(value)
 }
 
 pub fn get_value_type(id: ValueTypeId) -> &'static ValueType {
-    VALUE_TYPES.get(*id as usize).unwrap().0
+    VALUES.get_item(id)
 }
 
-pub fn get_value_type_global_name(id: ValueTypeId) -> &'static str {
-    VALUE_TYPES.get(*id as usize).unwrap().1
+pub fn validate_value_type_id(id: ValueTypeId) -> Option<Error> {
+    VALUES.validate_id(id)
 }
 
-pub fn register_trait_type(global_name: &'static str, ty: &'static TraitType) {
-    register_thing(
-        global_name,
-        ty,
-        &TRAIT_TYPE_ID_FACTORY,
-        &TRAIT_TYPES,
-        &TRAIT_TYPES_BY_NAME,
-        &TRAIT_TYPES_BY_VALUE,
-    );
-}
+static TRAITS: Lazy<Registry<TraitType>> = Lazy::new(|| {
+    // Inventory does not guarantee an order. So we sort by the global name to get a stable order
+    // This ensures that assigned ids are also stable.
+    let all_traits = inventory::iter::<CollectableTrait>
+        .into_iter()
+        .map(|t| &**t.0)
+        .collect::<Vec<_>>();
+    Registry::new_from_items(all_traits)
+});
 
-pub fn get_trait_type_id(func: &'static TraitType) -> TraitTypeId {
-    get_thing_id(func, &TRAIT_TYPES_BY_VALUE)
-}
-
-pub fn get_trait_type_id_by_global_name(global_name: &str) -> Option<TraitTypeId> {
-    TRAIT_TYPES_BY_NAME.get(global_name).map(|x| *x)
+pub fn get_trait_type_id(trait_type: &'static TraitType) -> TraitTypeId {
+    TRAITS.get_id(trait_type)
 }
 
 pub fn get_trait(id: TraitTypeId) -> &'static TraitType {
-    TRAIT_TYPES.get(*id as usize).unwrap().0
+    TRAITS.get_item(id)
 }
 
-pub fn get_trait_type_global_name(id: TraitTypeId) -> &'static str {
-    TRAIT_TYPES.get(*id as usize).unwrap().1
+pub fn validate_trait_type_id(id: TraitTypeId) -> Option<Error> {
+    TRAITS.validate_id(id)
 }

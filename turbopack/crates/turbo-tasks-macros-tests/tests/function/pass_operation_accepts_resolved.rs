@@ -1,3 +1,4 @@
+#![allow(unexpected_cfgs)]
 use anyhow::Result;
 use turbo_tasks::{OperationVc, ResolvedVc, Vc};
 

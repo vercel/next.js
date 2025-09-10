@@ -1,8 +1,10 @@
 use std::{
-    fmt::{Debug, Display},
-    hash::Hash,
+    cmp::Ordering,
+    fmt::{self, Debug, Display},
+    hash::{Hash, Hasher},
     marker::PhantomData,
     mem::transmute_copy,
+    ops::Deref,
 };
 
 use serde::{Deserialize, Serialize};
@@ -31,7 +33,7 @@ impl<T> Clone for ReadRef<T> {
     }
 }
 
-impl<T> std::ops::Deref for ReadRef<T>
+impl<T> Deref for ReadRef<T>
 where
     T: VcValueType,
 {
@@ -47,28 +49,26 @@ where
     T: VcValueType,
     VcReadTarget<T>: Display,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Display::fmt(&**self, f)
     }
 }
 
 impl<T> Debug for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: Debug,
+    T: Debug,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(&**self, f)
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        Self::as_raw_ref(self).fmt(f)
     }
 }
 
 impl<T> TraceRawVcs for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: TraceRawVcs,
+    T: TraceRawVcs,
 {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
-        (**self).trace_raw_vcs(trace_context);
+        Self::as_raw_ref(self).trace_raw_vcs(trace_context);
     }
 }
 
@@ -85,48 +85,39 @@ where
 
 impl<T> PartialEq for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: PartialEq,
+    T: PartialEq,
 {
     fn eq(&self, other: &Self) -> bool {
-        PartialEq::eq(&**self, &**other)
+        Self::as_raw_ref(self).eq(Self::as_raw_ref(other))
     }
 }
 
-impl<T> Eq for ReadRef<T>
-where
-    T: VcValueType,
-    VcReadTarget<T>: Eq,
-{
-}
+impl<T> Eq for ReadRef<T> where T: Eq {}
 
 impl<T> PartialOrd for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: PartialOrd,
+    T: PartialOrd,
 {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        PartialOrd::partial_cmp(&**self, &**other)
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Self::as_raw_ref(self).partial_cmp(Self::as_raw_ref(other))
     }
 }
 
 impl<T> Ord for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: Ord,
+    T: Ord,
 {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        Ord::cmp(&**self, &**other)
+    fn cmp(&self, other: &Self) -> Ordering {
+        Self::as_raw_ref(self).cmp(Self::as_raw_ref(other))
     }
 }
 
 impl<T> Hash for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: Hash,
+    T: Hash,
 {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        Hash::hash(&**self, state)
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Self::as_raw_ref(self).hash(state)
     }
 }
 
@@ -198,14 +189,13 @@ where
 
 impl<T> Serialize for ReadRef<T>
 where
-    T: VcValueType,
-    VcReadTarget<T>: Serialize,
+    T: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        (**self).serialize(serializer)
+        Self::as_raw_ref(self).serialize(serializer)
     }
 }
 
@@ -229,6 +219,12 @@ impl<T> ReadRef<T> {
 
     pub fn new_arc(arc: triomphe::Arc<T>) -> Self {
         Self(arc)
+    }
+
+    /// Returns the reference to `&T`, rather than `<<T as VcValueType>::Read as VcRead<T>>::Target`
+    /// (the behavior of [`Deref`]).
+    pub fn as_raw_ref(this: &ReadRef<T>) -> &T {
+        &this.0
     }
 
     pub fn ptr_eq(&self, other: &ReadRef<T>) -> bool {

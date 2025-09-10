@@ -255,6 +255,18 @@
         (newKey._store.validated = oldElement._store.validated);
       return newKey;
     }
+    function validateChildKeys(node) {
+      isValidElement(node)
+        ? node._store && (node._store.validated = 1)
+        : "object" === typeof node &&
+          null !== node &&
+          node.$$typeof === REACT_LAZY_TYPE &&
+          ("fulfilled" === node._payload.status
+            ? isValidElement(node._payload.value) &&
+              node._payload.value._store &&
+              (node._payload.value._store.validated = 1)
+            : node._store && (node._store.validated = 1));
+    }
     function isValidElement(object) {
       return (
         "object" === typeof object &&
@@ -1030,8 +1042,7 @@
         element._debugTask
       );
       for (key = 2; key < arguments.length; key++)
-        (owner = arguments[key]),
-          isValidElement(owner) && owner._store && (owner._store.validated = 1);
+        validateChildKeys(arguments[key]);
       return props;
     };
     exports.createContext = function (defaultValue) {
@@ -1053,12 +1064,10 @@
       return defaultValue;
     };
     exports.createElement = function (type, config, children) {
-      for (var i = 2; i < arguments.length; i++) {
-        var node = arguments[i];
-        isValidElement(node) && node._store && (node._store.validated = 1);
-      }
+      for (var i = 2; i < arguments.length; i++)
+        validateChildKeys(arguments[i]);
       i = {};
-      node = null;
+      var key = null;
       if (null != config)
         for (propName in (didWarnAboutOldJSXRuntime ||
           !("__self" in config) ||
@@ -1068,7 +1077,7 @@
             "Your app (or one of its dependencies) is using an outdated JSX transform. Update to the modern JSX transform for faster performance: https://react.dev/link/new-jsx-transform"
           )),
         hasValidKey(config) &&
-          (checkKeyStringCoercion(config.key), (node = "" + config.key)),
+          (checkKeyStringCoercion(config.key), (key = "" + config.key)),
         config))
           hasOwnProperty.call(config, propName) &&
             "key" !== propName &&
@@ -1090,7 +1099,7 @@
       if (type && type.defaultProps)
         for (propName in ((childrenLength = type.defaultProps), childrenLength))
           void 0 === i[propName] && (i[propName] = childrenLength[propName]);
-      node &&
+      key &&
         defineKeyPropWarningGetter(
           i,
           "function" === typeof type
@@ -1100,7 +1109,7 @@
       var propName = 1e4 > ReactSharedInternals.recentlyCreatedOwnerStacks++;
       return ReactElement(
         type,
-        node,
+        key,
         i,
         getOwner(),
         propName ? Error("react-stack-top-frame") : unknownOwnerDebugStack,
@@ -1347,7 +1356,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.2.0-experimental-03fda05d-20250820";
+    exports.version = "19.2.0-experimental-6b70072c-20250909";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

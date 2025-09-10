@@ -9,8 +9,10 @@ import type { VersionInfo } from './parse-version-info'
 import type { DebugInfo } from '../../next-devtools/shared/types'
 import type { DevIndicatorServerState } from './dev-indicator-server-state'
 import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
+import type { ReactDebugChannelForBrowser } from './debug-channel'
 
-export const enum HMR_ACTIONS_SENT_TO_BROWSER {
+export const enum HMR_MESSAGE_SENT_TO_BROWSER {
+  // JSON messages:
   ADDED_PAGE = 'addedPage',
   REMOVED_PAGE = 'removedPage',
   RELOAD_PAGE = 'reloadPage',
@@ -28,20 +30,23 @@ export const enum HMR_ACTIONS_SENT_TO_BROWSER {
   ISR_MANIFEST = 'isrManifest',
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
+
+  // Binary messages:
+  REACT_DEBUG_CHUNK = 0,
 }
 
-interface ServerErrorAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR
+export interface ServerErrorMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR
   errorJSON: string
 }
 
-export interface TurbopackMessageAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE
+export interface TurbopackMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE
   data: TurbopackUpdate | TurbopackUpdate[]
 }
 
-interface BuildingAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING
+export interface BuildingMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING
 }
 
 export interface CompilationError {
@@ -51,8 +56,9 @@ export interface CompilationError {
   moduleTrace?: Array<{ moduleName?: string }>
   stack?: string
 }
-export interface SyncAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC
+
+export interface SyncMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.SYNC
   hash: string
   errors: ReadonlyArray<CompilationError>
   warnings: ReadonlyArray<CompilationError>
@@ -62,49 +68,50 @@ export interface SyncAction {
   devIndicator: DevIndicatorServerState
   devToolsConfig?: DevToolsConfig
 }
-interface BuiltAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT
+
+export interface BuiltMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.BUILT
   hash: string
   errors: ReadonlyArray<CompilationError>
   warnings: ReadonlyArray<CompilationError>
   updatedModules?: ReadonlyArray<string>
 }
 
-interface AddedPageAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE
+export interface AddedPageMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE
   data: [page: string | null]
 }
 
-interface RemovedPageAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE
+export interface RemovedPageMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE
   data: [page: string | null]
 }
 
-export interface ReloadPageAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE
+export interface ReloadPageMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE
   data: string
 }
 
-interface ServerComponentChangesAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+export interface ServerComponentChangesMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
   hash: string
 }
 
-interface MiddlewareChangesAction {
-  event: HMR_ACTIONS_SENT_TO_BROWSER.MIDDLEWARE_CHANGES
+export interface MiddlewareChangesMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES
 }
 
-interface ClientChangesAction {
-  event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES
+export interface ClientChangesMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES
 }
 
-interface ServerOnlyChangesAction {
-  event: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
+export interface ServerOnlyChangesMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES
   pages: ReadonlyArray<string>
 }
 
-interface DevPagesManifestUpdateAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE
+export interface DevPagesManifestUpdateMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE
   data: [
     {
       devPagesManifest: true
@@ -112,43 +119,61 @@ interface DevPagesManifestUpdateAction {
   ]
 }
 
-export interface TurbopackConnectedAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+export interface TurbopackConnectedMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED
   data: { sessionId: number }
 }
 
-export interface AppIsrManifestAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST
-  data: Record<string, boolean>
+export interface AppIsrManifestMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST
+  data: Record<string, true>
 }
 
-export interface DevToolsConfigAction {
-  action: HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG
+export interface DevToolsConfigMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG
   data: DevToolsConfig
 }
 
-export type HMR_ACTION_TYPES =
-  | TurbopackMessageAction
-  | TurbopackConnectedAction
-  | BuildingAction
-  | SyncAction
-  | BuiltAction
-  | AddedPageAction
-  | RemovedPageAction
-  | ReloadPageAction
-  | ServerComponentChangesAction
-  | ClientChangesAction
-  | MiddlewareChangesAction
-  | ServerOnlyChangesAction
-  | DevPagesManifestUpdateAction
-  | ServerErrorAction
-  | AppIsrManifestAction
-  | DevToolsConfigAction
+export interface ReactDebugChunkMessage {
+  type: HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK
+  requestId: string
+  /**
+   * A null chunk signals to the browser that no more chunks will be sent.
+   */
+  chunk: Uint8Array | null
+}
 
-export type TurbopackMsgToBrowser =
-  | { type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE; data: any }
+export type HmrMessageSentToBrowser =
+  | TurbopackMessage
+  | TurbopackConnectedMessage
+  | BuildingMessage
+  | SyncMessage
+  | BuiltMessage
+  | AddedPageMessage
+  | RemovedPageMessage
+  | ReloadPageMessage
+  | ServerComponentChangesMessage
+  | ClientChangesMessage
+  | MiddlewareChangesMessage
+  | ServerOnlyChangesMessage
+  | DevPagesManifestUpdateMessage
+  | ServerErrorMessage
+  | AppIsrManifestMessage
+  | DevToolsConfigMessage
+  | ReactDebugChunkMessage
+
+export type BinaryHmrMessageSentToBrowser = Extract<
+  HmrMessageSentToBrowser,
+  { type: number }
+>
+
+export type TurbopackMessageSentToBrowser =
   | {
-      type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+      type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE
+      data: any
+    }
+  | {
+      type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED
       data: { sessionId: number }
     }
 
@@ -166,7 +191,12 @@ export interface NextJsHotReloaderInterface {
   setHmrServerError(error: Error | null): void
   clearHmrServerError(): void
   start(): Promise<void>
-  send(action: HMR_ACTION_TYPES): void
+  send(action: HmrMessageSentToBrowser): void
+  setReactDebugChannel(
+    debugChannel: ReactDebugChannelForBrowser,
+    htmlRequestId: string,
+    requestId: string
+  ): void
   getCompilationErrors(page: string): Promise<any[]>
   onHMR(
     req: IncomingMessage,

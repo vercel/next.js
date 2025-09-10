@@ -4,14 +4,15 @@ import type { WorkerRequestHandler } from './types'
 
 import { LRUCache } from './lru-cache'
 import { createRequestResponseMocks } from './mock-request'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
+import type { ReactDebugChannelForBrowser } from '../dev/debug-channel'
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
  * bundler while in development.
  */
 export class DevBundlerService {
-  public appIsrManifestInner: InstanceType<typeof LRUCache<boolean>>
+  public appIsrManifestInner: InstanceType<typeof LRUCache<true>>
 
   constructor(
     private readonly bundler: DevBundler,
@@ -85,7 +86,7 @@ export class DevBundlerService {
   }
 
   public get appIsrManifest() {
-    const serializableManifest: Record<string, boolean> = {}
+    const serializableManifest: Record<string, true> = {}
 
     for (const [key, value] of this.appIsrManifestInner) {
       serializableManifest[key] = value
@@ -94,16 +95,28 @@ export class DevBundlerService {
     return serializableManifest
   }
 
-  public setIsrStatus(key: string, value: boolean | null) {
-    if (value === null) {
+  public setIsrStatus(key: string, value: boolean) {
+    if (value === false) {
       this.appIsrManifestInner.remove(key)
     } else {
       this.appIsrManifestInner.set(key, value)
     }
     this.bundler?.hotReloader?.send({
-      action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
       data: this.appIsrManifest,
     })
+  }
+
+  public setReactDebugChannel(
+    debugChannel: ReactDebugChannelForBrowser,
+    htmlRequestId: string,
+    requestId: string
+  ): void {
+    this.bundler.hotReloader.setReactDebugChannel(
+      debugChannel,
+      htmlRequestId,
+      requestId
+    )
   }
 
   public close() {

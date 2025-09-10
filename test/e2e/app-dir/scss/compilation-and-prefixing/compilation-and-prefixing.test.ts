@@ -128,6 +128,50 @@ describe.each([
               }
             `)
           }
+        } else if (process.env.NEXT_RSPACK) {
+          if (dependencies.sass) {
+            expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+             {
+               "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
+               "names": [],
+               "sourcesContent": [
+                 "$var: red;
+             .redText {
+               ::placeholder {
+                 color: $var;
+               }
+             }
+
+             .flex-parsing {
+               flex: 0 0 calc(50% - var(--vertical-gutter));
+             }
+             ",
+               ],
+               "version": 3,
+             }
+            `)
+          } else {
+            expect(sourceMapContentParsed).toMatchInlineSnapshot(`
+             {
+               "mappings": "AAEE,uBACE,SAHE,CAON,cACE,2CAAA",
+               "names": [],
+               "sourcesContent": [
+                 "$var: red;
+             .redText {
+               ::placeholder {
+                 color: $var;
+               }
+             }
+
+             .flex-parsing {
+               flex: 0 0 calc(50% - var(--vertical-gutter));
+             }
+             ",
+               ],
+               "version": 3,
+             }
+            `)
+          }
         } else {
           if (dependencies.sass) {
             expect(sourceMapContentParsed).toMatchInlineSnapshot(`

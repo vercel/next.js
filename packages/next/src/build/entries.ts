@@ -12,9 +12,8 @@ import type {
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import { posix, join, dirname, extname, normalize } from 'path'
+import { posix, join, normalize } from 'path'
 import { stringify } from 'querystring'
-import fs from 'fs'
 import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
@@ -27,7 +26,7 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import {
   APP_CLIENT_INTERNALS,
   RSC_MODULE_TYPES,
-  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_NOT_FOUND_ROUTE,
 } from '../shared/lib/constants'
 import {
   CLIENT_STATIC_FILES_RUNTIME_AMP,
@@ -45,12 +44,8 @@ import {
   isMiddlewareFilename,
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
-  reduceAppConfig,
 } from './utils'
-import {
-  getAppPageStaticInfo,
-  getPageStaticInfo,
-} from './analysis/get-page-static-info'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import type { ServerRuntime } from '../types'
@@ -74,12 +69,17 @@ import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import type { PageExtensions } from './page-extensions-type'
 import type { MappedPages } from './build-context'
 import { PAGE_TYPES } from '../lib/page-types'
-import { isAppPageRoute } from '../lib/is-app-page-route'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import type { createValidFileMatcher } from '../server/lib/find-page-file'
 import { isReservedPage } from './utils'
 import { isParallelRouteSegment } from '../shared/lib/segment'
 import { ensureLeadingSlash } from '../shared/lib/page-path/ensure-leading-slash'
+import {
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+} from '../shared/lib/entry-constants'
+import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 
 /**
  * Collect app pages, layouts, and default files from the app directory
@@ -225,10 +225,15 @@ export function extractSlotsFromAppRoutes(mappedAppPages: {
 }): SlotInfo[] {
   const slots: SlotInfo[] = []
 
-  for (const [route] of Object.entries(mappedAppPages)) {
-    if (route === '/_not-found/page') continue
+  for (const [page] of Object.entries(mappedAppPages)) {
+    if (
+      page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY ||
+      page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+    ) {
+      continue
+    }
 
-    const segments = route.split('/')
+    const segments = page.split('/')
     for (let i = segments.length - 1; i >= 0; i--) {
       const segment = segments[i]
       if (isParallelRouteSegment(segment)) {
@@ -327,8 +332,13 @@ export function processAppRoutes(
   const appRoutes: RouteInfo[] = []
   const appRouteHandlers: RouteInfo[] = []
 
-  for (const [route, filePath] of Object.entries(mappedAppPages)) {
-    if (route === '/_not-found/page') continue
+  for (const [page, filePath] of Object.entries(mappedAppPages)) {
+    if (
+      page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY ||
+      page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+    ) {
+      continue
+    }
 
     const relativeFilePath = createRelativeFilePath(
       baseDir,
@@ -339,12 +349,12 @@ export function processAppRoutes(
 
     if (validFileMatcher.isAppRouterRoute(filePath)) {
       appRouteHandlers.push({
-        route: normalizeAppPath(normalizePathSep(route)),
+        route: normalizeAppPath(normalizePathSep(page)),
         filePath: relativeFilePath,
       })
     } else {
       appRoutes.push({
-        route: normalizeAppPath(normalizePathSep(route)),
+        route: normalizeAppPath(normalizePathSep(page)),
         filePath: relativeFilePath,
       })
     }
@@ -383,105 +393,6 @@ export function processLayoutRoutes(
   }
 
   return layoutRoutes
-}
-
-export function sortByPageExts(pageExtensions: PageExtensions) {
-  return (a: string, b: string) => {
-    // prioritize entries according to pageExtensions order
-    // for consistency as fs order can differ across systems
-    // NOTE: this is reversed so preferred comes last and
-    // overrides prior
-    const aExt = extname(a)
-    const bExt = extname(b)
-
-    const aNoExt = a.substring(0, a.length - aExt.length)
-    const bNoExt = a.substring(0, b.length - bExt.length)
-
-    if (aNoExt !== bNoExt) return 0
-
-    // find extension index (skip '.' as pageExtensions doesn't have it)
-    const aExtIndex = pageExtensions.indexOf(aExt.substring(1))
-    const bExtIndex = pageExtensions.indexOf(bExt.substring(1))
-
-    return bExtIndex - aExtIndex
-  }
-}
-
-export async function getStaticInfoIncludingLayouts({
-  isInsideAppDir,
-  pageExtensions,
-  pageFilePath,
-  appDir,
-  config: nextConfig,
-  isDev,
-  page,
-}: {
-  isInsideAppDir: boolean
-  pageExtensions: PageExtensions
-  pageFilePath: string
-  appDir: string | undefined
-  config: NextConfigComplete
-  isDev: boolean | undefined
-  page: string
-}): Promise<PageStaticInfo> {
-  // TODO: sync types for pages: PAGE_TYPES, ROUTER_TYPE, 'app' | 'pages', etc.
-  const pageType = isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES
-
-  const pageStaticInfo = await getPageStaticInfo({
-    nextConfig,
-    pageFilePath,
-    isDev,
-    page,
-    pageType,
-  })
-
-  if (pageStaticInfo.type === PAGE_TYPES.PAGES || !appDir) {
-    return pageStaticInfo
-  }
-
-  const segments = [pageStaticInfo]
-
-  // inherit from layout files only if it's a page route
-  if (isAppPageRoute(page)) {
-    const layoutFiles = []
-    const potentialLayoutFiles = pageExtensions.map((ext) => 'layout.' + ext)
-    let dir = dirname(pageFilePath)
-
-    // Uses startsWith to not include directories further up.
-    while (dir.startsWith(appDir)) {
-      for (const potentialLayoutFile of potentialLayoutFiles) {
-        const layoutFile = join(dir, potentialLayoutFile)
-        if (!fs.existsSync(layoutFile)) {
-          continue
-        }
-        layoutFiles.push(layoutFile)
-      }
-      // Walk up the directory tree
-      dir = join(dir, '..')
-    }
-
-    for (const layoutFile of layoutFiles) {
-      const layoutStaticInfo = await getAppPageStaticInfo({
-        nextConfig,
-        pageFilePath: layoutFile,
-        isDev,
-        page,
-        pageType: isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
-      })
-
-      segments.unshift(layoutStaticInfo)
-    }
-  }
-
-  const config = reduceAppConfig(segments)
-
-  return {
-    ...pageStaticInfo,
-    config,
-    runtime: config.runtime,
-    preferredRegion: config.preferredRegion,
-    maxDuration: config.maxDuration,
-  }
 }
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
@@ -539,6 +450,7 @@ export async function createPagesMapping({
   pagesType,
   pagesDir,
   appDir,
+  appDirOnly,
 }: {
   isDev: boolean
   pageExtensions: PageExtensions
@@ -546,6 +458,7 @@ export async function createPagesMapping({
   pagesType: PAGE_TYPES
   pagesDir: string | undefined
   appDir: string | undefined
+  appDirOnly: boolean
 }): Promise<MappedPages> {
   const isAppRoute = pagesType === 'app'
   const pages: MappedPages = {}
@@ -558,8 +471,11 @@ export async function createPagesMapping({
     let pageKey = getPageFromPath(pagePath, pageExtensions)
     if (isAppRoute) {
       pageKey = pageKey.replace(/%5F/g, '_')
-      if (pageKey === '/not-found') {
+      if (pageKey === UNDERSCORE_NOT_FOUND_ROUTE) {
         pageKey = UNDERSCORE_NOT_FOUND_ROUTE_ENTRY
+      }
+      if (pageKey === UNDERSCORE_GLOBAL_ERROR_ROUTE) {
+        pageKey = UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
       }
     }
 
@@ -605,15 +521,20 @@ export async function createPagesMapping({
       return pages
     }
     case PAGE_TYPES.APP: {
-      const hasAppPages = Object.keys(pages).some((page) =>
-        page.endsWith('/page')
-      )
+      const hasAppPages = Object.keys(pages).length > 0
+      // Whether to emit App router 500.html entry, which only presents in production and only app router presents
+      const hasAppGlobalError = !isDev && appDirOnly
       return {
         // If there's any app pages existed, add a default /_not-found route as 404.
         // If there's any custom /_not-found page, it will override the default one.
         ...(hasAppPages && {
           [UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]: require.resolve(
             'next/dist/client/components/builtin/global-not-found'
+          ),
+        }),
+        ...(hasAppGlobalError && {
+          [UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY]: require.resolve(
+            'next/dist/client/components/builtin/app-error'
           ),
         }),
         ...pages,
@@ -632,10 +553,13 @@ export async function createPagesMapping({
       const root = isDev && pagesDir ? PAGES_DIR_ALIAS : 'next/dist/pages'
 
       return {
-        '/_app': `${root}/_app`,
-        '/_error': `${root}/_error`,
-        '/_document': `${root}/_document`,
-        ...pages,
+        // Don't add default pages entries if this is an app-router-only build
+        ...((isDev || !appDirOnly) && {
+          '/_app': `${root}/_app`,
+          '/_error': `${root}/_error`,
+          '/_document': `${root}/_document`,
+          ...pages,
+        }),
       }
     }
     default: {

@@ -125,16 +125,16 @@ export type Segment =
   | string
   | [
       // Param name
-      string,
+      paramName: string,
       // Param cache key (almost the same as the value, but arrays are
       // concatenated into strings)
       // TODO: We should change this to just be the value. Currently we convert
       // it back to a value when passing to useParams. It only needs to be
       // a string when converted to a a cache key, but that doesn't mean we
       // need to store it as that representation.
-      string,
+      paramCacheKey: string,
       // Dynamic param type
-      DynamicParamTypesShort,
+      dynamicParamType: DynamicParamTypesShort,
     ]
 
 /**
@@ -228,6 +228,8 @@ export type CacheNodeSeedData = [
   },
   loading: LoadingModuleData | Promise<LoadingModuleData>,
   isPartial: boolean,
+  /** TODO: this doesn't feel like it belongs here, because it's only used during build, in `collectSegmentData` */
+  hasRuntimePrefetch: boolean,
 ]
 
 export type FlightDataSegment = [
@@ -258,8 +260,6 @@ export type ActionResult = Promise<any>
 export type InitialRSCPayload = {
   /** buildId */
   b: string
-  /** assetPrefix */
-  p: string
   /** initialCanonicalUrlParts */
   c: string[]
   /** couldBeIntercepted */

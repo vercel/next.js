@@ -237,9 +237,12 @@ async fn build_internal(
                 build_output_root.clone(),
                 build_output_root.clone(),
                 build_output_root.clone(),
-                Environment::new(ExecutionEnvironment::NodeJsLambda(
-                    NodeJsEnvironment::default().resolved_cell(),
-                ))
+                Environment::new(
+                    ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment::default().resolved_cell(),
+                    ),
+                    compile_time_info.css_environment(),
+                )
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -321,6 +324,14 @@ async fn build_internal(
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match target {
         Target::Browser => {
+            let browser_environment = BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: browserslist_query.clone(),
+            }
+            .resolved_cell();
+
             let mut builder = BrowserChunkingContext::builder(
                 project_path,
                 build_output_root.clone(),
@@ -328,15 +339,10 @@ async fn build_internal(
                 build_output_root.clone(),
                 build_output_root.clone(),
                 build_output_root.clone(),
-                Environment::new(ExecutionEnvironment::Browser(
-                    BrowserEnvironment {
-                        dom: true,
-                        web_worker: false,
-                        service_worker: false,
-                        browserslist_query: browserslist_query.clone(),
-                    }
-                    .resolved_cell(),
-                ))
+                Environment::new(
+                    ExecutionEnvironment::Browser(browser_environment),
+                    *browser_environment,
+                )
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -382,9 +388,12 @@ async fn build_internal(
                 build_output_root.clone(),
                 build_output_root.clone(),
                 build_output_root.clone(),
-                Environment::new(ExecutionEnvironment::NodeJsLambda(
-                    NodeJsEnvironment::default().resolved_cell(),
-                ))
+                Environment::new(
+                    ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment::default().resolved_cell(),
+                    ),
+                    BrowserEnvironment::default().cell(),
+                )
                 .to_resolved()
                 .await?,
                 runtime_type,
@@ -470,7 +479,7 @@ async fn build_internal(
                                                     .unwrap(),
                                             )?
                                             .with_extension("entry.js"),
-                                        EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
+                                        EvaluatableAssets::one(*ecmascript),
                                         module_graph,
                                         OutputAssets::empty(),
                                         AvailabilityInfo::Root,

@@ -9,6 +9,7 @@ use napi::{
 };
 use next_api::{
     entrypoints::Entrypoints,
+    next_server_nft::next_server_nft_assets,
     operation::{
         EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, OptionEndpoint,
         RouteOperation,
@@ -72,7 +73,6 @@ use crate::{
             get_issues, subscribe,
         },
     },
-    register,
     util::DhatProfilerGuard,
 };
 
@@ -146,9 +146,6 @@ pub struct NapiProjectOptions {
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: RcStr,
 
-    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: RcStr,
-
     /// A map of environment variables to use when compiling code.
     pub env: Vec<NapiEnvVar>,
 
@@ -203,9 +200,6 @@ pub struct NapiPartialProjectOptions {
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: Option<RcStr>,
-
-    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: Option<RcStr>,
 
     /// A map of environment variables to use when compiling code.
     pub env: Option<Vec<NapiEnvVar>>,
@@ -276,7 +270,6 @@ impl From<NapiProjectOptions> for ProjectOptions {
             project_path: val.project_path,
             watch: val.watch.into(),
             next_config: val.next_config,
-            js_config: val.js_config,
             env: val
                 .env
                 .into_iter()
@@ -301,7 +294,6 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             project_path: val.project_path,
             watch: val.watch.map(From::from),
             next_config: val.next_config,
-            js_config: val.js_config,
             env: val
                 .env
                 .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
@@ -351,7 +343,6 @@ pub fn project_new(
 ) -> napi::Result<JsObject> {
     let napi_callbacks = NapiNextTurbopackCallbacks::from_js(napi_callbacks)?;
     env.spawn_future(async move {
-        register();
         let (exit, exit_receiver) = ExitHandler::new_receiver();
 
         if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
@@ -534,8 +525,7 @@ async fn benchmark_file_io(
     directory: FileSystemPath,
 ) -> Result<Vc<Completion>> {
     // try to get the real file path on disk so that we can use it with tokio
-    let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())
-        .await?
+    let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(directory.fs)
         .context(anyhow!(
             "expected node_root to be a DiskFileSystem, cannot benchmark"
         ))?
@@ -988,7 +978,14 @@ async fn output_assets_operation(
         .flat_map(|assets| assets.iter().copied())
         .collect();
 
-    Ok(Vc::cell(output_assets.into_iter().collect()))
+    let nft = next_server_nft_assets(container.project()).await?;
+
+    Ok(Vc::cell(
+        output_assets
+            .into_iter()
+            .chain(nft.iter().copied())
+            .collect(),
+    ))
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]

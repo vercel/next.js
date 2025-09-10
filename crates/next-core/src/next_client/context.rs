@@ -8,7 +8,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     css::chunk::CssChunkType,
     module_options::{
-        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule, TypeofWindow,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
         TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
     },
     resolve_options_context::ResolveOptionsContext,
@@ -28,7 +28,7 @@ use turbopack_core::{
     module_graph::export_usage::OptionExportUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkType;
+use turbopack_ecmascript::{TypeofWindow, chunk::EcmascriptChunkType};
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -98,18 +98,18 @@ pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     define_env: Vc<OptionEnvMap>,
 ) -> Result<Vc<CompileTimeInfo>> {
+    let environment = BrowserEnvironment {
+        dom: true,
+        web_worker: false,
+        service_worker: false,
+        browserslist_query: browserslist_query.to_owned(),
+    }
+    .resolved_cell();
+
     CompileTimeInfo::builder(
-        Environment::new(ExecutionEnvironment::Browser(
-            BrowserEnvironment {
-                dom: true,
-                web_worker: false,
-                service_worker: false,
-                browserslist_query: browserslist_query.to_owned(),
-            }
-            .resolved_cell(),
-        ))
-        .to_resolved()
-        .await?,
+        Environment::new(ExecutionEnvironment::Browser(environment), *environment)
+            .to_resolved()
+            .await?,
     )
     .defines(next_client_defines(define_env).to_resolved().await?)
     .free_var_references(next_client_free_vars(define_env).to_resolved().await?)
@@ -184,17 +184,22 @@ pub async fn get_client_resolve_options_context(
         ..Default::default()
     };
 
+    let tsconfig_path = next_config
+        .typescript_tsconfig_path()
+        .await?
+        .as_ref()
+        // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
+        // resolve tsconfig.json relative to the file being compiled.
+        .or(Some(&RcStr::from("tsconfig.json")))
+        .map(|p| project_path.join(p))
+        .transpose()?;
+
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
-        tsconfig_path: next_config
-            .typescript_tsconfig_path()
-            .await?
-            .as_ref()
-            .map(|p| project_path.join(p))
-            .transpose()?,
+        tsconfig_path,
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().resolved_cell(),
@@ -223,10 +228,18 @@ pub async fn get_client_module_options_context(
         *execution_context,
     );
 
-    let tsconfig = get_typescript_transform_options(project_path.clone())
+    let tsconfig_path = next_config
+        .typescript_tsconfig_path()
+        .await?
+        .as_ref()
+        .map(|p| project_path.join(p))
+        .transpose()?;
+
+    let tsconfig = get_typescript_transform_options(project_path.clone(), tsconfig_path.clone())
         .to_resolved()
         .await?;
-    let decorators_options = get_decorators_transform_options(project_path.clone());
+    let decorators_options =
+        get_decorators_transform_options(project_path.clone(), tsconfig_path.clone());
     let enable_mdx_rs = *next_config.mdx_rs().await?;
     let jsx_runtime_options = get_jsx_transform_options(
         project_path.clone(),
@@ -234,6 +247,7 @@ pub async fn get_client_module_options_context(
         Some(resolve_options_context),
         false,
         next_config,
+        tsconfig_path,
     )
     .to_resolved()
     .await?;
@@ -248,11 +262,11 @@ pub async fn get_client_module_options_context(
     let mut foreign_conditions = loader_conditions.clone();
     foreign_conditions.insert(WebpackLoaderBuiltinCondition::Foreign);
     let foreign_enable_webpack_loaders =
-        webpack_loader_options(project_path.clone(), next_config, true, foreign_conditions).await?;
+        *webpack_loader_options(project_path.clone(), next_config, foreign_conditions).await?;
 
     // Now creates a webpack rules that applies to all code.
     let enable_webpack_loaders =
-        webpack_loader_options(project_path.clone(), next_config, false, loader_conditions).await?;
+        *webpack_loader_options(project_path.clone(), next_config, loader_conditions).await?;
 
     let tree_shaking_mode_for_user_code = *next_config
         .tree_shaking_mode_for_user_code(next_mode.is_development())
@@ -260,7 +274,7 @@ pub async fn get_client_module_options_context(
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
-    let target_browsers = env.runtime_versions();
+    let css_target_browsers = env.css_runtime_versions();
 
     let mut next_client_rules =
         get_next_client_transforms_rules(next_config, ty.clone(), mode, false, encryption_key)
@@ -273,7 +287,7 @@ pub async fn get_client_module_options_context(
         get_relay_transform_rule(next_config, project_path.clone()).await?,
         get_emotion_transform_rule(next_config).await?,
         get_styled_components_transform_rule(next_config).await?,
-        get_styled_jsx_transform_rule(next_config, target_browsers).await?,
+        get_styled_jsx_transform_rule(next_config, css_target_browsers).await?,
         get_react_remove_properties_transform_rule(next_config).await?,
         get_remove_console_transform_rule(next_config).await?,
     ]

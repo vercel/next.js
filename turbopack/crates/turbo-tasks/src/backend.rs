@@ -16,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use tracing::Span;
 use turbo_rcstr::RcStr;
 
-pub use crate::id::BackendJobId;
 use crate::{
     RawVc, ReadCellOptions, ReadRef, SharedReference, TaskId, TaskIdSet, TraitRef, TraitTypeId,
     TurboTasksPanic, ValueTypeId, VcRead, VcValueTrait, VcValueType,
@@ -128,7 +127,7 @@ mod ser {
                 None
             };
             let mut state = serializer.serialize_tuple(3)?;
-            state.serialize_element(registry::get_value_type_global_name(self.0))?;
+            state.serialize_element(&self.0)?;
             if let Some(serializable) = serializable {
                 state.serialize_element(&true)?;
                 state.serialize_element(serializable)?;
@@ -158,11 +157,9 @@ mod ser {
                 where
                     A: de::SeqAccess<'de>,
                 {
-                    let value_type = seq
+                    let value_type: ValueTypeId = seq
                         .next_element()?
                         .ok_or_else(|| de::Error::invalid_length(0, &self))?;
-                    let value_type = registry::get_value_type_id_by_global_name(value_type)
-                        .ok_or_else(|| de::Error::custom("Unknown value type"))?;
                     let has_value: bool = seq
                         .next_element()?
                         .ok_or_else(|| de::Error::invalid_length(1, &self))?;
@@ -213,7 +210,7 @@ mod ser {
                 unreachable!();
             };
             let mut state = serializer.serialize_seq(Some(2))?;
-            state.serialize_element(native_fn.global_name())?;
+            state.serialize_element(&registry::get_function_id(native_fn))?;
             let arg = *arg;
             let arg = native_fn.arg_meta.as_serialize(arg);
             state.serialize_element(arg)?;
@@ -235,10 +232,10 @@ mod ser {
                 where
                     A: serde::de::SeqAccess<'de>,
                 {
-                    let fn_name = seq
+                    let fn_id = seq
                         .next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-                    let native_fn = registry::get_function_by_global_name(fn_name);
+                    let native_fn = registry::get_native_function(fn_id);
                     let seed = native_fn.arg_meta.deserialization_seed();
                     let arg = seq
                         .next_element_seed(seed)?
@@ -582,9 +579,11 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> bool;
 
+    type BackendJob: Send + 'static;
+
     fn run_backend_job<'a>(
         &'a self,
-        id: BackendJobId,
+        job: Self::BackendJob,
         turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 

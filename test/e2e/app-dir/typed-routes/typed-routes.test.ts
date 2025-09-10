@@ -79,6 +79,8 @@ type InvalidRoute = RouteContext<'/api/users/invalid'>`
       )
 
       const { cliOutput } = await next.build()
+      // clean up for future tests
+      await next.deleteFile('app/type-testing.ts')
 
       expect(cliOutput).toContain(
         `Type '"/dasboard"' does not satisfy the constraint 'AppRoutes'.`

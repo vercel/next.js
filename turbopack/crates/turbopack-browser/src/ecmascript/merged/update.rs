@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, FxIndexSet, IntoTraitRef, ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, IntoTraitRef, ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::rope::Rope;
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleId},
@@ -131,11 +131,11 @@ impl MergedModuleMap {
 
 pub(super) async fn update_ecmascript_merged_chunk(
     content: Vc<EcmascriptBrowserMergedChunkContent>,
-    from_version: Vc<Box<dyn Version>>,
+    from_version: ResolvedVc<Box<dyn Version>>,
 ) -> Result<Update> {
     let to_merged_version = content.version();
     let from_merged_version = if let Some(from) =
-        Vc::try_resolve_downcast_type::<EcmascriptBrowserMergedChunkVersion>(from_version).await?
+        ResolvedVc::try_downcast_type::<EcmascriptBrowserMergedChunkVersion>(from_version)
     {
         from
     } else {

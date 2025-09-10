@@ -243,7 +243,7 @@ export function getDefineEnv({
     'process.env.__NEXT_DEV_INDICATOR_POSITION':
       config.devIndicators === false
         ? 'bottom-left' // This will not be used as the indicator is disabled.
-        : config.devIndicators.position ?? 'bottom-left',
+        : (config.devIndicators.position ?? 'bottom-left'),
     'process.env.__NEXT_STRICT_MODE':
       config.reactStrictMode === null ? false : config.reactStrictMode,
     'process.env.__NEXT_STRICT_MODE_APP':
@@ -312,8 +312,6 @@ export function getDefineEnv({
           ),
         }
       : {}),
-    'process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER':
-      !!config.experimental.devtoolSegmentExplorer,
 
     'process.env.__NEXT_BROWSER_DEBUG_INFO_IN_TERMINAL': JSON.stringify(
       config.experimental.browserDebugInfoInTerminal || false

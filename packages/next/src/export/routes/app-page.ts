@@ -24,12 +24,16 @@ import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
 import type { FetchMetrics } from '../../server/base-http'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
-import type { FallbackRouteParams } from '../../server/request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../../server/request/fallback-params'
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
 import { stringifyResumeDataCache } from '../../server/resume-data-cache/resume-data-cache'
+import {
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+} from '../../shared/lib/entry-constants'
 
 /**
  * Renders & exports a page associated with the /app directory
@@ -41,7 +45,7 @@ export async function exportAppPage(
   path: string,
   pathname: string,
   query: NextParsedUrlQuery,
-  fallbackRouteParams: FallbackRouteParams | null,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
   partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>,
   htmlFilepath: string,
   debugOutput: boolean,
@@ -59,11 +63,16 @@ export async function exportAppPage(
   }
 
   let isDefaultNotFound = false
+  let isDefaultGlobalError = false
   // If the page is `/_not-found`, then we should update the page to be `/404`.
-  // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
-  if (page === '/_not-found/page') {
+  if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) {
     isDefaultNotFound = true
     pathname = '/404'
+  }
+  // If the page is `/_global-error`, then we should update the page to be `/500`.
+  if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY) {
+    isDefaultGlobalError = true
+    pathname = '/500'
   }
 
   try {
@@ -123,14 +132,19 @@ export async function exportAppPage(
     // If page data isn't available, it means that the page couldn't be rendered
     // properly so long as we don't have unknown route params. When a route doesn't
     // have unknown route params, there will not be any flight data.
-    if (
-      !flightData &&
-      (!fallbackRouteParams || fallbackRouteParams.size === 0)
-    ) {
-      throw new Error(`Invariant: failed to get page data for ${path}`)
-    }
-
-    if (flightData) {
+    if (!flightData) {
+      // Unless the user has clientParamParsing enabled, we expect that routes
+      // that don't have fallback route params would have flight data. This is
+      // because when clientParamParsing is enabled, the absence of flight data
+      // means that the route has unknown route params.
+      if (
+        !fallbackRouteParams ||
+        fallbackRouteParams.size === 0 ||
+        renderOpts.experimental.clientParamParsing
+      ) {
+        throw new Error(`Invariant: failed to get page data for ${path}`)
+      }
+    } else {
       // If PPR is enabled, we want to emit a prefetch rsc file for the page
       // instead of the standard rsc. This is because the standard rsc will
       // contain the dynamic data. We do this if any routes have PPR enabled so
@@ -197,6 +211,9 @@ export async function exportAppPage(
     if (isDefaultNotFound) {
       // Override the default /_not-found page status code to 404
       status = 404
+    } else if (isDefaultGlobalError) {
+      // Override the default /_global-error page status code to 500
+      status = 500
     } else if (isNonSuccessfulStatusCode && !isParallelRoute) {
       // If it's parallel route the status from mock response is 404
       status = res.statusCode
@@ -227,7 +244,10 @@ export async function exportAppPage(
       cacheControl,
       fetchMetrics,
       renderResumeDataCache: renderResumeDataCache
-        ? await stringifyResumeDataCache(renderResumeDataCache)
+        ? await stringifyResumeDataCache(
+            renderResumeDataCache,
+            renderOpts.experimental.cacheComponents
+          )
         : undefined,
     }
   } catch (err) {

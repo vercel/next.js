@@ -23,10 +23,9 @@ use next_core::{
     pages_structure::{
         PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
-    util::{
-        NextRuntime, get_asset_prefix_from_pathname, pages_middleware_function_name,
-        parse_config_from_source,
-    },
+    parse_segment_config_from_source,
+    segment_config::ParseSegmentMode,
+    util::{NextRuntime, get_asset_prefix_from_pathname, pages_function_name},
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -106,8 +105,15 @@ impl PagesProject {
             document: _,
             error: _,
             error_500: _,
+            has_user_pages: _,
+            should_create_pages_entries,
         } = &*pages_structure.await?;
         let mut routes = FxIndexMap::default();
+
+        // If pages entries shouldn't be created (build mode with no pages), return empty routes
+        if !should_create_pages_entries {
+            return Ok(Vc::cell(routes));
+        }
 
         async fn add_page_to_routes(
             routes: &mut FxIndexMap<RcStr, Route>,
@@ -272,6 +278,7 @@ impl PagesProject {
             self.project.project_path().owned().await?,
             next_router_root,
             self.project.next_config().page_extensions(),
+            self.project.next_mode(),
         ))
     }
 
@@ -315,7 +322,7 @@ impl PagesProject {
                 (
                     rcstr!("next-dynamic-client"),
                     ResolvedVc::upcast(
-                        NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
+                        NextDynamicTransition::new_client(self.client_transition())
                             .to_resolved()
                             .await?,
                     ),
@@ -923,7 +930,9 @@ impl PageEndpoint {
             .module();
 
         let config =
-            parse_config_from_source(self.source(), ssr_module, NextRuntime::default()).await?;
+            parse_segment_config_from_source(self.source(), ParseSegmentMode::Base).await?;
+
+        let runtime = config.runtime.unwrap_or(NextRuntime::NodeJs);
 
         Ok(
             // `/_app` and `/_document` never get rendered directly so they don't need to be
@@ -937,9 +946,9 @@ impl PageEndpoint {
                     // /_app and /_document are always rendered for Node.js for this case. For edge
                     // they're included in the page bundle.
                     runtime: NextRuntime::NodeJs,
-                    regions: config.regions.clone(),
+                    regions: config.preferred_region.clone(),
                 }
-            } else if config.runtime == NextRuntime::Edge {
+            } else if runtime == NextRuntime::Edge {
                 let modules = create_page_ssr_entry_module(
                     this.pathname.clone(),
                     reference_type,
@@ -948,7 +957,7 @@ impl PageEndpoint {
                     self.source(),
                     this.original_name.clone(),
                     *this.pages_structure,
-                    config.runtime,
+                    runtime,
                     this.pages_project.project().next_config(),
                 )
                 .await?;
@@ -957,8 +966,8 @@ impl PageEndpoint {
                     ssr_module: modules.ssr_module,
                     app_module: modules.app_module,
                     document_module: modules.document_module,
-                    runtime: config.runtime,
-                    regions: config.regions.clone(),
+                    runtime,
+                    regions: config.preferred_region.clone(),
                 }
             } else {
                 let modules = create_page_ssr_entry_module(
@@ -969,7 +978,7 @@ impl PageEndpoint {
                     self.source(),
                     this.original_name.clone(),
                     *this.pages_structure,
-                    config.runtime,
+                    runtime,
                     this.pages_project.project().next_config(),
                 )
                 .await?;
@@ -977,8 +986,8 @@ impl PageEndpoint {
                     ssr_module: modules.ssr_module,
                     app_module: modules.app_module,
                     document_module: modules.document_module,
-                    runtime: config.runtime,
-                    regions: config.regions.clone(),
+                    runtime,
+                    regions: config.preferred_region.clone(),
                 }
             }
             .cell(),
@@ -1064,7 +1073,7 @@ impl PageEndpoint {
             {
                 collect_next_dynamic_chunks(
                     self.client_module_graph(),
-                    Vc::upcast(project.client_chunking_context()),
+                    project.client_chunking_context(),
                     next_dynamic_imports,
                     NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
                 )
@@ -1075,7 +1084,7 @@ impl PageEndpoint {
 
             let chunking_context: Vc<Box<dyn ChunkingContext>> = match runtime {
                 NextRuntime::NodeJs => Vc::upcast(node_chunking_context),
-                NextRuntime::Edge => Vc::upcast(edge_chunking_context),
+                NextRuntime::Edge => edge_chunking_context,
             };
 
             let mut current_chunks = OutputAssets::empty();
@@ -1168,7 +1177,7 @@ impl PageEndpoint {
                     ResolvedVc::cell(Some(ResolvedVc::upcast(
                         NftJsonAsset::new(
                             project,
-                            Some(this.original_name.clone()),
+                            Some(pages_function_name(&this.original_name).into()),
                             *ssr_entry_chunk,
                             additional_assets,
                         )
@@ -1256,18 +1265,23 @@ impl PageEndpoint {
         entry_chunk: Vc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let node_root = self.pages_project.project().node_root().await?;
-        let chunk_path = entry_chunk.path().await?;
 
-        let asset_path = node_root
-            .join("server")?
-            .get_path_to(&chunk_path)
-            .context("ssr chunk entry path must be inside the node root")?;
-
-        let pages_manifest = PagesManifest {
-            pages: [(self.pathname.clone(), asset_path.into())]
+        // Check if we should include pages in the manifest
+        let pages_structure = self.pages_structure.await?;
+        let pages = if pages_structure.should_create_pages_entries {
+            let chunk_path = entry_chunk.path().await?;
+            let asset_path = node_root
+                .join("server")?
+                .get_path_to(&chunk_path)
+                .context("ssr chunk entry path must be inside the node root")?;
+            [(self.pathname.clone(), asset_path.into())]
                 .into_iter()
-                .collect(),
+                .collect()
+        } else {
+            FxIndexMap::default() // Empty pages when no user pages should be created
         };
+
+        let pages_manifest = PagesManifest { pages };
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
         let asset = Vc::upcast(VirtualOutputAsset::new(
             node_root.join(&format!(
@@ -1314,21 +1328,28 @@ impl PageEndpoint {
             .client_relative_path()
             .owned()
             .await?;
+
+        // Check if we should include pages in the manifest
+        let pages_structure = self.pages_structure.await?;
+        let pages = if pages_structure.should_create_pages_entries {
+            fxindexmap!(self.pathname.clone() => client_chunks)
+        } else {
+            fxindexmap![] // Empty pages when no user pages should be created
+        };
+
         let build_manifest = BuildManifest {
-            pages: fxindexmap!(self.pathname.clone() => client_chunks),
+            pages,
             ..Default::default()
         };
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
-        Ok(Vc::upcast(
-            build_manifest
-                .build_output(
-                    node_root.join(&format!(
-                        "server/pages{manifest_path_prefix}/build-manifest.json",
-                    ))?,
-                    client_relative_path,
-                )
-                .await?,
-        ))
+        build_manifest
+            .build_output(
+                node_root.join(&format!(
+                    "server/pages{manifest_path_prefix}/build-manifest.json",
+                ))?,
+                client_relative_path,
+            )
+            .await
     }
 
     #[turbo_tasks::function]
@@ -1339,10 +1360,18 @@ impl PageEndpoint {
         let this = self.await?;
         let node_root = this.pages_project.project().node_root().await?;
         let client_relative_path = this.pages_project.project().client_relative_path().await?;
-        let page_loader_path = client_relative_path
-            .get_relative_path_to(&*page_loader.path().await?)
-            .context("failed to resolve client-relative path to page loader")?;
-        let client_build_manifest = fxindexmap!(this.pathname.clone() => vec![page_loader_path]);
+
+        // Check if we should include pages in the manifest
+        let pages_structure = this.pages_structure.await?;
+        let client_build_manifest = if pages_structure.should_create_pages_entries {
+            let page_loader_path = client_relative_path
+                .get_relative_path_to(&*page_loader.path().await?)
+                .context("failed to resolve client-relative path to page loader")?;
+            fxindexmap!(this.pathname.clone() => vec![page_loader_path])
+        } else {
+            fxindexmap![] // Empty manifest when no user pages should be created
+        };
+
         let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname);
         Ok(Vc::upcast(VirtualOutputAsset::new_with_references(
             node_root.join(&format!(
@@ -1372,6 +1401,7 @@ impl PageEndpoint {
             PageEndpointType::Html => {
                 let client_chunks = *self.client_chunks().await?.assets;
                 client_assets.extend(client_chunks.await?.iter().map(|asset| **asset));
+
                 let build_manifest = self.build_manifest(client_chunks).to_resolved().await?;
                 let page_loader = self.page_loader(client_chunks);
                 let client_build_manifest = self
@@ -1381,8 +1411,10 @@ impl PageEndpoint {
                 client_assets.push(page_loader);
                 server_assets.push(build_manifest);
                 server_assets.push(client_build_manifest);
+
                 self.ssr_chunk(emit_manifests)
             }
+
             PageEndpointType::Data => self.ssr_data_chunk(emit_manifests),
             PageEndpointType::Api => self.api_chunk(emit_manifests),
             PageEndpointType::SsrOnly => self.ssr_chunk(emit_manifests),
@@ -1439,9 +1471,13 @@ impl PageEndpoint {
                 dynamic_import_entries,
                 server_asset_trace_file,
             } => {
-                server_assets.push(entry);
-                if let Some(server_asset_trace_file) = &*server_asset_trace_file.await? {
-                    server_assets.push(*server_asset_trace_file);
+                // Only include the actual SSR entry chunk if pages should be created
+                let pages_structure = this.pages_structure.await?;
+                if pages_structure.should_create_pages_entries {
+                    server_assets.push(entry);
+                    if let Some(server_asset_trace_file) = &*server_asset_trace_file.await? {
+                        server_assets.push(*server_asset_trace_file);
+                    }
                 }
 
                 if emit_manifests != EmitManifests::None {
@@ -1482,32 +1518,49 @@ impl PageEndpoint {
                     };
 
                     let files_value = files.await?;
+
                     if let Some(&file) = files_value.first() {
                         let pages_manifest = self.pages_manifest(*file).to_resolved().await?;
                         server_assets.push(pages_manifest);
                     }
-                    server_assets.extend(files_value.iter().copied());
-                    file_paths_from_root
-                        .extend(get_js_paths_from_root(&node_root, &files_value).await?);
+
+                    // Only include the actual edge files if pages should be created
+                    let pages_structure = this.pages_structure.await?;
+                    if pages_structure.should_create_pages_entries {
+                        server_assets.extend(files_value.iter().copied());
+                        file_paths_from_root
+                            .extend(get_js_paths_from_root(&node_root, &files_value).await?);
+                    }
 
                     if emit_manifests == EmitManifests::Full {
                         let loadable_manifest_output = self
                             .react_loadable_manifest(*dynamic_import_entries, NextRuntime::Edge)
                             .await?;
-                        server_assets.extend(loadable_manifest_output.iter().copied());
-                        file_paths_from_root.extend(
-                            get_js_paths_from_root(&node_root, &loadable_manifest_output).await?,
-                        );
+                        if pages_structure.should_create_pages_entries {
+                            server_assets.extend(loadable_manifest_output.iter().copied());
+                            file_paths_from_root.extend(
+                                get_js_paths_from_root(&node_root, &loadable_manifest_output)
+                                    .await?,
+                            );
+                        }
                     }
 
-                    let all_output_assets = all_assets_from_entries(*files).await?;
+                    let (wasm_paths_from_root, all_assets) =
+                        if pages_structure.should_create_pages_entries {
+                            let all_output_assets = all_assets_from_entries(*files).await?;
 
-                    let mut wasm_paths_from_root = fxindexset![];
-                    wasm_paths_from_root
-                        .extend(get_wasm_paths_from_root(&node_root, &all_output_assets).await?);
+                            let mut wasm_paths_from_root = fxindexset![];
+                            wasm_paths_from_root.extend(
+                                get_wasm_paths_from_root(&node_root, &all_output_assets).await?,
+                            );
 
-                    let all_assets =
-                        get_asset_paths_from_root(&node_root, &all_output_assets).await?;
+                            let all_assets =
+                                get_asset_paths_from_root(&node_root, &all_output_assets).await?;
+
+                            (wasm_paths_from_root, all_assets)
+                        } else {
+                            (fxindexset![], vec![])
+                        };
 
                     let named_regex = get_named_middleware_regex(&this.pathname).into();
                     let matchers = MiddlewareMatcher {
@@ -1531,7 +1584,7 @@ impl PageEndpoint {
                         files: file_paths_from_root.into_iter().collect(),
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
-                        name: pages_middleware_function_name(&this.original_name).into(),
+                        name: pages_function_name(&this.original_name).into(),
                         page: this.original_name.clone(),
                         regions,
                         matchers: vec![matchers],
@@ -1649,14 +1702,24 @@ impl Endpoint for PageEndpoint {
 
             let node_root = node_root.clone();
             let written_endpoint = match *output {
-                PageEndpointOutput::NodeJs { entry_chunk, .. } => EndpointOutputPaths::NodeJs {
-                    server_entry_path: node_root
-                        .get_path_to(&*entry_chunk.path().await?)
-                        .context("ssr chunk entry path must be inside the node root")?
-                        .to_string(),
-                    server_paths,
-                    client_paths,
-                },
+                PageEndpointOutput::NodeJs { entry_chunk, .. } => {
+                    // Only set server_entry_path if pages should be created
+                    let pages_structure = this.pages_structure.await?;
+                    let server_entry_path = if pages_structure.should_create_pages_entries {
+                        node_root
+                            .get_path_to(&*entry_chunk.path().await?)
+                            .context("ssr chunk entry path must be inside the node root")?
+                            .into()
+                    } else {
+                        rcstr!("") // Empty path when no pages should be created
+                    };
+
+                    EndpointOutputPaths::NodeJs {
+                        server_entry_path,
+                        server_paths,
+                        client_paths,
+                    }
+                }
                 PageEndpointOutput::Edge { .. } => EndpointOutputPaths::Edge {
                     server_paths,
                     client_paths,

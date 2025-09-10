@@ -42,9 +42,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "module",
-        ),
+        var: "module",
         ast_path: [
             Program(
                 Script,
@@ -83,9 +81,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "md5",
-        ),
+        var: "md5",
         ast_path: [
             Program(
                 Script,
@@ -4180,9 +4176,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4232,9 +4226,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "bitRotateLeft",
-        ),
+        var: "bitRotateLeft",
         ast_path: [
             Program(
                 Script,
@@ -4295,9 +4287,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4369,9 +4359,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,
@@ -4549,9 +4537,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "safeAdd",
-        ),
+        var: "safeAdd",
         ast_path: [
             Program(
                 Script,

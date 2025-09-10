@@ -9,7 +9,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_EXPORT,
   PHASE_PRODUCTION_BUILD,
-  PHASE_PRODUCTION_SERVER,
+  type PHASE_TYPE,
 } from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
 import type {
@@ -17,7 +17,6 @@ import type {
   NextConfigComplete,
   NextConfig,
   TurbopackLoaderItem,
-  NextAdapter,
 } from './config-shared'
 
 import { loadWebpackHook } from './config-utils'
@@ -43,6 +42,7 @@ import { findDir } from '../lib/find-pages-dir'
 import { CanaryOnlyError, isStableBuild } from '../shared/lib/canary-only'
 import { interopDefault } from '../lib/interop-default'
 import { djb2Hash } from '../shared/lib/hash'
+import type { NextAdapter } from '../build/adapter/build-complete'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -135,27 +135,6 @@ function checkDeprecations(
     silent
   )
 
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'devIndicators.appIsrStatus',
-    `\`devIndicators.appIsrStatus\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'devIndicators.buildActivity',
-    `\`devIndicators.buildActivity\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    userConfig,
-    'devIndicators.buildActivityPosition',
-    `\`devIndicators.buildActivityPosition\` has been renamed to \`devIndicators.position\`. Please update your ${configFileName} file accordingly.`,
-    silent
-  )
-
   // i18n deprecation for App Router
   if (userConfig.i18n) {
     const hasAppDir = Boolean(findDir(dir, 'app'))
@@ -224,10 +203,19 @@ function warnCustomizedOption(
   }
 }
 
-function assignDefaults(
+/**
+ * Assigns defaults to the user config and validates the config.
+ *
+ * @param dir - The directory of the project.
+ * @param userConfig - The user config.
+ * @param silent - Whether to suppress warnings.
+ * @returns The complete config.
+ */
+function assignDefaultsAndValidate(
   dir: string,
   userConfig: NextConfig & { configFileName: string },
-  silent: boolean
+  silent: boolean,
+  configuredExperimentalFeatures: ConfiguredExperimentalFeature[]
 ): NextConfigComplete {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
@@ -585,21 +573,6 @@ function assignDefaults(
     configFileName,
     silent
   )
-
-  // Handle buildActivityPosition migration (needs to be done after merging with defaults)
-  if (
-    result.devIndicators &&
-    typeof result.devIndicators === 'object' &&
-    'buildActivityPosition' in result.devIndicators &&
-    result.devIndicators.buildActivityPosition !== result.devIndicators.position
-  ) {
-    if (!silent) {
-      Log.warnOnce(
-        `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") for backward compatibility.`
-      )
-    }
-    result.devIndicators.position = result.devIndicators.buildActivityPosition
-  }
 
   warnOptionHasBeenMovedOutOfExperimental(
     result,
@@ -1171,6 +1144,58 @@ function assignDefaults(
     }
 
     result.experimental.ppr = true
+
+    if (
+      configuredExperimentalFeatures &&
+      // If we've already noted that the `process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`
+      // has enabled the feature, we don't need to note it again.
+      process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS !== 'true' &&
+      process.env.__NEXT_EXPERIMENTAL_PPR !== 'true'
+    ) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'ppr',
+        true,
+        'enabled by `experimental.cacheComponents`'
+      )
+    }
+  }
+
+  // If ppr is enabled and the user hasn't configured rdcForNavigations, we
+  // enable it by default.
+  if (
+    result.experimental.ppr &&
+    userConfig.experimental?.rdcForNavigations === undefined
+  ) {
+    result.experimental.rdcForNavigations = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'rdcForNavigations',
+        true,
+        'enabled by `experimental.ppr`'
+      )
+    }
+  }
+
+  // If rdcForNavigations is enabled, but ppr is not, we throw an error.
+  if (result.experimental.rdcForNavigations && !result.experimental.ppr) {
+    throw new Error(
+      '`experimental.rdcForNavigations` is enabled, but `experimental.ppr` is not.'
+    )
+  }
+
+  // We require clientSegmentCache to be enabled if clientParamParsing is
+  // enabled. This is because clientParamParsing is only relevant when
+  // clientSegmentCache is enabled.
+  if (
+    result.experimental.clientParamParsing &&
+    !result.experimental.clientSegmentCache
+  ) {
+    throw new Error(
+      `\`experimental.clientParamParsing\` can not be \`true\` when \`experimental.clientSegmentCache\` is \`false\`. Client param parsing is only relevant when client segment cache is enabled.`
+    )
   }
 
   return result as NextConfigComplete
@@ -1178,15 +1203,12 @@ function assignDefaults(
 
 async function applyModifyConfig(
   config: NextConfigComplete,
-  phase: string,
+  phase: PHASE_TYPE,
   silent: boolean
 ): Promise<NextConfigComplete> {
-  if (
-    // TODO: should this be called for server start as
-    // adapters shouldn't be relying on "next start"
-    [PHASE_PRODUCTION_BUILD, PHASE_PRODUCTION_SERVER].includes(phase) &&
-    config.experimental?.adapterPath
-  ) {
+  // we always call modify config  and phase can be used to only
+  // modify for specific times
+  if (config.experimental?.adapterPath) {
     const adapterMod = interopDefault(
       await import(
         pathToFileURL(require.resolve(config.experimental.adapterPath)).href
@@ -1197,7 +1219,10 @@ async function applyModifyConfig(
       if (!silent) {
         Log.info(`Applying modifyConfig from ${adapterMod.name}`)
       }
-      config = await adapterMod.modifyConfig(config)
+
+      config = await adapterMod.modifyConfig(config, {
+        phase,
+      })
     }
   }
   return config
@@ -1216,7 +1241,7 @@ const configCache = new Map<
 // Generate cache key based on parameters that affect config output
 // We need a unique key for cache because there can be multiple values
 function getCacheKey(
-  phase: string,
+  phase: PHASE_TYPE,
   dir: string,
   customConfig?: object | null,
   reactProductionProfiling?: boolean,
@@ -1236,7 +1261,7 @@ function getCacheKey(
 }
 
 export default async function loadConfig(
-  phase: string,
+  phase: PHASE_TYPE,
   dir: string,
   {
     customConfig,
@@ -1329,14 +1354,15 @@ export default async function loadConfig(
     checkDeprecations(customConfig as NextConfig, configFileName, silent, dir)
 
     const config = await applyModifyConfig(
-      assignDefaults(
+      assignDefaultsAndValidate(
         dir,
         {
           configOrigin: 'server',
           configFileName,
           ...customConfig,
         },
-        silent
+        silent,
+        configuredExperimentalFeatures
       ) as NextConfigComplete,
       phase,
       silent
@@ -1534,7 +1560,7 @@ export default async function loadConfig(
       phase,
     })
 
-    const completeConfig = assignDefaults(
+    const completeConfig = assignDefaultsAndValidate(
       dir,
       {
         configOrigin: relative(dir, path),
@@ -1542,7 +1568,8 @@ export default async function loadConfig(
         configFileName,
         ...userConfig,
       },
-      silent
+      silent,
+      configuredExperimentalFeatures
     ) as NextConfigComplete
 
     const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
@@ -1592,10 +1619,11 @@ export default async function loadConfig(
 
   // always call assignDefaults to ensure settings like
   // reactRoot can be updated correctly even with no next.config.js
-  const completeConfig = assignDefaults(
+  const completeConfig = assignDefaultsAndValidate(
     dir,
     { ...clonedDefaultConfig, configFileName },
-    silent
+    silent,
+    configuredExperimentalFeatures
   ) as NextConfigComplete
 
   setHttpClientAndAgentOptions(completeConfig)
@@ -1628,7 +1656,7 @@ function enforceExperimentalFeatures(
     isDefaultConfig: boolean
     configuredExperimentalFeatures: ConfiguredExperimentalFeature[] | undefined
     debugPrerender: boolean | undefined
-    phase: string
+    phase: PHASE_TYPE
   }
 ) {
   const {
@@ -1764,6 +1792,44 @@ function enforceExperimentalFeatures(
         'cacheComponents',
         true,
         'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made RDC for Navigations the default for PPR.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.rdcForNavigations === undefined ||
+      (isDefaultConfig && !config.experimental.rdcForNavigations))
+  ) {
+    config.experimental.rdcForNavigations = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'rdcForNavigations',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made RDC for Navigations the default for PPR.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.rdcForNavigations === undefined ||
+      (isDefaultConfig && !config.experimental.rdcForNavigations))
+  ) {
+    config.experimental.rdcForNavigations = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'rdcForNavigations',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
       )
     }
   }

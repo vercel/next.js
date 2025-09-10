@@ -3,7 +3,11 @@ title: Route Segment Config
 description: Learn about how to configure options for Next.js route segments.
 ---
 
-> The options outlined on this page are disabled if the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag is on, and will eventually be deprecated in the future.
+> **Good to know**:
+>
+> - The options outlined on this page are disabled if the [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) flag is on, and will eventually be deprecated in the future.
+> - Route Segment options only take effect in Server Component Pages, Layouts, or Route Handlers.
+> - `generateStaticParams` cannot be used inside a `'use client'` file.
 
 The Route Segment options allows you to configure the behavior of a [Page](/docs/app/api-reference/file-conventions/layout), [Layout](/docs/app/api-reference/file-conventions/layout), or [Route Handler](/docs/app/api-reference/file-conventions/route) by directly exporting the following variables:
 
@@ -52,7 +56,6 @@ export const dynamic = 'auto'
 
 - **`'auto'`** (default): The default option to cache as much as possible without preventing any components from opting into dynamic behavior.
 - **`'force-dynamic'`**: Force [dynamic rendering](/docs/app/getting-started/partial-prerendering#dynamic-rendering), which will result in routes being rendered for each user at request time. This option is equivalent to:
-
   - Setting the option of every `fetch()` request in a layout or page to `{ cache: 'no-store', next: { revalidate: 0 } }`.
   - Setting the segment config to `export const fetchCache = 'force-no-store'`
 

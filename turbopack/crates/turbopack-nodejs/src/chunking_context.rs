@@ -19,7 +19,7 @@ use turbopack_core::{
     module_graph::{
         ModuleGraph,
         chunk_group_info::ChunkGroup,
-        export_usage::{ExportUsageInfo, ModuleExportUsageInfo},
+        export_usage::{ExportUsageInfo, ModuleExportUsage},
     },
     output::{OutputAsset, OutputAssets},
 };
@@ -108,7 +108,7 @@ impl NodeJsChunkingContextBuilder {
     {
         self.chunking_context
             .chunking_configs
-            .push((ResolvedVc::upcast(ty), chunking_config));
+            .push((ResolvedVc::upcast_non_strict(ty), chunking_config));
         self
     }
 
@@ -205,17 +205,16 @@ impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     async fn generate_chunk(
         self: Vc<Self>,
-        chunk: Vc<Box<dyn Chunk>>,
+        chunk: ResolvedVc<Box<dyn Chunk>>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         Ok(
-            if let Some(ecmascript_chunk) =
-                Vc::try_resolve_downcast_type::<EcmascriptChunk>(chunk).await?
+            if let Some(ecmascript_chunk) = ResolvedVc::try_downcast_type::<EcmascriptChunk>(chunk)
             {
-                Vc::upcast(EcmascriptBuildNodeChunk::new(self, ecmascript_chunk))
+                Vc::upcast(EcmascriptBuildNodeChunk::new(self, *ecmascript_chunk))
             } else if let Some(output_asset) =
-                Vc::try_resolve_sidecast::<Box<dyn OutputAsset>>(chunk).await?
+                ResolvedVc::try_sidecast::<Box<dyn OutputAsset>>(chunk)
             {
-                output_asset
+                *output_asset
             } else {
                 bail!("Unable to generate output asset for chunk");
             },
@@ -509,7 +508,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             ))
         } else {
             let module = AsyncLoaderModule::new(module, Vc::upcast(self), availability_info);
-            Vc::upcast(module.as_chunk_item(module_graph, Vc::upcast(self)))
+            module.as_chunk_item(module_graph, Vc::upcast(self))
         })
     }
 
@@ -529,11 +528,13 @@ impl ChunkingContext for NodeJsChunkingContext {
     async fn module_export_usage(
         self: Vc<Self>,
         module: ResolvedVc<Box<dyn Module>>,
-    ) -> Result<Vc<ModuleExportUsageInfo>> {
+    ) -> Result<Vc<ModuleExportUsage>> {
         if let Some(export_usage) = self.await?.export_usage {
-            Ok(export_usage.await?.used_exports(module))
+            Ok(export_usage.await?.used_exports(module).await?)
         } else {
-            Ok(ModuleExportUsageInfo::all())
+            // In development mode, we don't have export usage info, so we assume all exports are
+            // used.
+            Ok(ModuleExportUsage::all())
         }
     }
 }

@@ -39,6 +39,7 @@
 #![feature(ptr_metadata)]
 #![feature(sync_unsafe_cell)]
 #![feature(vec_into_raw_parts)]
+#![feature(async_fn_traits)]
 
 pub mod backend;
 mod capture_future;
@@ -62,7 +63,6 @@ mod manager;
 mod marker_trait;
 pub mod message_queue;
 mod native_function;
-mod no_move_vec;
 mod once_map;
 mod output;
 pub mod panic_hooks;
@@ -132,8 +132,8 @@ pub use value::{TransientInstance, TransientValue};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
     Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-    Upcast, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead,
-    VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
+    Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead,
+    VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
 };
 
 pub type SliceMap<K, V> = Box<[(K, V)]>;
@@ -305,8 +305,4 @@ pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 
 pub mod test_helpers {
     pub use super::manager::{current_task_for_testing, with_turbo_tasks_for_testing};
-}
-
-pub fn register() {
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

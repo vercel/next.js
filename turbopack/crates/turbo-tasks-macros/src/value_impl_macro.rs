@@ -9,13 +9,16 @@ use syn::{
     spanned::Spanned,
 };
 use turbo_tasks_macros_shared::{
-    get_inherent_impl_function_ident, get_path_ident, get_register_trait_impls_ident,
-    get_register_trait_methods_ident, get_trait_impl_function_ident, get_type_ident, is_self_used,
+    get_cast_to_fat_pointer_ident, get_inherent_impl_function_ident, get_path_ident,
+    get_trait_impl_function_ident, get_type_ident, is_self_used,
 };
 
-use crate::func::{
-    DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
-    split_function_attributes,
+use crate::{
+    func::{
+        DefinitionContext, FunctionArguments, NativeFn, TurboFn, filter_inline_attributes,
+        split_function_attributes,
+    },
+    global_name::global_name,
 };
 
 struct ValueImplArguments {
@@ -108,9 +111,10 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let (inline_signature, inline_block) =
                     turbo_fn.inline_signature_and_block(block, is_self_used);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
-
+                let function_path_string = format!("{ty}::{ident}", ty = ty.to_token_stream());
                 let native_fn = NativeFn {
-                    function_path_string: format!("{ty}::{ident}", ty = ty.to_token_stream()),
+                    function_global_name: global_name(&function_path_string),
+                    function_path_string,
                     function_path: parse_quote! { <#ty>::#inline_function_ident },
                     is_method: turbo_fn.is_method(),
                     is_self_used,
@@ -141,10 +145,14 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         pub(self) #inline_signature #inline_block
                     }
 
-                    #[doc(hidden)]
-                    pub(crate) static #native_function_ident:
+                    static #native_function_ident:
                         turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
                             turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
+
+                    // Register the function for deserialization
+                    turbo_tasks::macro_helpers::inventory_submit! {
+                        turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
+                    }
                 })
             }
         }
@@ -170,11 +178,10 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
-        let register_trait_methods: Ident =
-            get_register_trait_methods_ident(&trait_ident, ty_ident);
-        let register_trait_impls: Ident = get_register_trait_impls_ident(&trait_ident, ty_ident);
+        let cast_to_fat_pointer_ident: Ident =
+            get_cast_to_fat_pointer_ident(&trait_ident, ty_ident);
 
-        let mut trait_registers = Vec::new();
+        let mut trait_methods = Vec::new();
         let mut trait_functions = Vec::with_capacity(items.len());
         let mut trait_items = Vec::new();
         let mut all_definitions = Vec::with_capacity(items.len());
@@ -220,8 +227,13 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let (inline_signature, inline_block) =
                     turbo_fn.inline_signature_and_block(block, is_self_used);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
-
                 let native_fn = NativeFn {
+                    // This global name breaks the pattern.  It isn't clear if it is intentional
+                    function_global_name: global_name(format!(
+                        "{ty}::{trait_path}::{ident}",
+                        ty = ty.to_token_stream(),
+                        trait_path = trait_path.to_token_stream()
+                    )),
                     function_path_string: format!(
                         "<{ty} as {trait_path}>::{ident}",
                         ty = ty.to_token_stream(),
@@ -266,43 +278,58 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         #inline_signature #inline_block
                     }
 
-                    #[doc(hidden)]
-                    pub(crate) static #native_function_ident:
+                    static #native_function_ident:
                         turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
                             turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
+
+                    // Register the function for deserialization
+                    turbo_tasks::macro_helpers::inventory_submit! {
+                        turbo_tasks::macro_helpers::CollectableFunction(&#native_function_ident)
+                    }
                 });
 
-                trait_registers.push(quote! {
-                    value.register_trait_method(
-                        <Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(),
-                        stringify!(#ident),
-                        &#native_function_ident);
+                trait_methods.push(quote! {
+                    (stringify!(#ident), &#native_function_ident),
                 });
             }
         }
-
+        let value_name = global_name(quote! {stringify!(#ty_ident)});
         quote! {
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            pub(crate) fn #register_trait_methods(value: &mut turbo_tasks::ValueType) {
-                value.register_trait(<Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id());
-                #(#trait_registers)*
+            // Register all the function impls so the ValueType can find them
+            // This means objects resolve as
+            // 1 NativeFunctions
+            // 2 TraitTypes (requires functions)
+            // 3 ValueTypes (requires functions and TraitTypeIds)
+            // 4.VTableRegistries (requires ValueTypeIds)
+            turbo_tasks::macro_helpers::inventory_submit!{
+                turbo_tasks::macro_helpers::CollectableTraitMethods(
+                    #value_name,
+                    || (<::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id(),
+                        vec![#(#trait_methods)*])
+                )
             }
-            #[doc(hidden)]
+
+            // These can execute later so they can reference trait_types during registration
+
+            turbo_tasks::macro_helpers::inventory_submit!{
+                turbo_tasks::macro_helpers::CollectableTraitCastFunctions(
+                    <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::get_trait_type_id,
+                    <#ty as turbo_tasks::VcValueType>::get_value_type_id,
+                    #cast_to_fat_pointer_ident as *const ()
+                )
+            }
+
             #[allow(non_snake_case)]
-            pub(crate) fn #register_trait_impls(value_id: turbo_tasks::ValueTypeId) {
-                // NOTE(lukesandberg): This relies on the nightly ptr_metadata feature.  Alternatively
-                // we could generate a function that does the downcasting and pass that up to register_trait.
-                // This would avoid the nightly feature.
-                let fat_pointer: *const dyn #trait_path = ::std::ptr::null::<#ty>() as *const dyn #trait_path;
-                let metadata = turbo_tasks::macro_helpers::metadata(fat_pointer);
-                turbo_tasks::macro_helpers::register_trait_impl::<dyn #trait_path, Box<dyn #trait_path>>(value_id, metadata);
+            fn #cast_to_fat_pointer_ident(raw: * const ()) -> *const dyn #trait_path {
+                let typed = raw as *const #ty;
+                typed as *const dyn #trait_path
             }
 
             // NOTE(alexkirsz) We can't have a general `turbo_tasks::Upcast<Box<dyn Trait>> for T where T: Trait` because
             // rustc complains: error[E0210]: type parameter `T` must be covered by another type when it appears before
             // the first local type (`dyn Trait`).
-            unsafe impl #impl_generics turbo_tasks::Upcast<Box<dyn #trait_path>> for #ty #where_clause {}
+            unsafe impl #impl_generics turbo_tasks::Upcast<::std::boxed::Box<dyn #trait_path>> for #ty #where_clause {}
+            unsafe impl #impl_generics turbo_tasks::UpcastStrict<::std::boxed::Box<dyn #trait_path>> for #ty #where_clause {}
 
             impl #impl_generics #trait_path for #ty #where_clause {
                 #(#trait_items)*
