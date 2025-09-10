@@ -17,18 +17,18 @@ impl<T> ChunkedVec<T> {
         for (i, chunk) in self.chunks.iter().enumerate().rev() {
             if !chunk.is_empty() {
                 let free = chunk.capacity() - chunk.len();
-                return cummulative_chunk_size(i) - free;
+                return cumulative_chunk_size(i) - free;
             }
         }
         0
     }
 
     pub fn push(&mut self, item: T) {
-        if let Some(chunk) = self.chunks.last_mut() {
-            if chunk.len() < chunk.capacity() {
-                chunk.push(item);
-                return;
-            }
+        if let Some(chunk) = self.chunks.last_mut()
+            && chunk.len() < chunk.capacity()
+        {
+            chunk.push(item);
+            return;
         }
         let mut chunk = Vec::with_capacity(chunk_size(self.chunks.len()));
         chunk.push(item);
@@ -78,7 +78,7 @@ fn chunk_size(chunk_index: usize) -> usize {
     8 << chunk_index
 }
 
-fn cummulative_chunk_size(chunk_index: usize) -> usize {
+fn cumulative_chunk_size(chunk_index: usize) -> usize {
     (8 << (chunk_index + 1)) - 8
 }
 

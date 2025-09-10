@@ -3,11 +3,10 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 
 describe('dynamic on hover', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (isNextDev || skipped) {
+  if (isNextDev) {
     test('prefetching is disabled', () => {})
     return
   }

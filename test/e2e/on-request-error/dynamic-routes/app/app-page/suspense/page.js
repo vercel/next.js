@@ -1,6 +1,8 @@
+import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-export default function Page() {
+export default async function Page() {
+  await connection()
   return (
     <Suspense>
       <Inner />
@@ -14,5 +16,3 @@ function Inner() {
   }
   return 'inner'
 }
-
-export const dynamic = 'force-dynamic'

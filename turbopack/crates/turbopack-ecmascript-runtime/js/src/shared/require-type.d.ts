@@ -3,7 +3,7 @@ declare var require: ((moduleId: ModuleId) => Exports) & {
   resolve: (
     moduleId: ModuleId,
     options?: {
-      paths?: string[];
+      paths?: string[]
     }
-  ) => ModuleId;
-};
+  ) => ModuleId
+}

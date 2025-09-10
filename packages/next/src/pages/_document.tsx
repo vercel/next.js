@@ -330,7 +330,7 @@ function getPreNextScripts(context: HtmlProps, props: OriginProps) {
           {...scriptProps}
           key={scriptProps.src || index}
           defer={scriptProps.defer ?? !disableOptimizedLoading}
-          nonce={props.nonce}
+          nonce={scriptProps.nonce || props.nonce}
           data-nscript="beforeInteractive"
           crossOrigin={props.crossOrigin || crossOrigin}
         />
@@ -657,22 +657,12 @@ export class Head extends React.Component<HeadProps> {
           child.props['rel'] === 'preload' &&
           child.props['as'] === 'style'
         ) {
-          if (this.context.strictNextHead) {
-            cssPreloads.push(
-              React.cloneElement(child, { 'data-next-head': '' })
-            )
-          } else {
-            cssPreloads.push(child)
-          }
+          cssPreloads.push(child)
         } else {
           if (child) {
-            if (this.context.strictNextHead) {
-              otherHeadElements.push(
-                React.cloneElement(child, { 'data-next-head': '' })
-              )
-            } else {
-              otherHeadElements.push(child)
-            }
+            otherHeadElements.push(
+              React.cloneElement(child, { 'data-next-head': '' })
+            )
           }
         }
       })
@@ -811,12 +801,6 @@ export class Head extends React.Component<HeadProps> {
           </>
         )}
         {head}
-        {this.context.strictNextHead ? null : (
-          <meta
-            name="next-head-count"
-            content={React.Children.count(head || []).toString()}
-          />
-        )}
 
         {children}
 
@@ -834,7 +818,9 @@ export class Head extends React.Component<HeadProps> {
                 rel="canonical"
                 href={
                   canonicalBase +
-                  require('../server/utils').cleanAmpPath(dangerousAsPath)
+                  (
+                    require('../server/utils') as typeof import('../server/utils')
+                  ).cleanAmpPath(dangerousAsPath)
                 }
               />
             )}
@@ -1004,7 +990,9 @@ export class NextScript extends React.Component<OriginProps> {
         process.env.NEXT_RUNTIME === 'edge'
           ? new TextEncoder().encode(data).buffer.byteLength
           : Buffer.from(data).byteLength
-      const prettyBytes = require('../lib/pretty-bytes').default
+      const prettyBytes = (
+        require('../lib/pretty-bytes') as typeof import('../lib/pretty-bytes')
+      ).default
 
       if (largePageDataBytes && bytes > largePageDataBytes) {
         if (process.env.NODE_ENV === 'production') {
@@ -1200,10 +1188,10 @@ export default class Document<P = {}> extends React.Component<
   render() {
     return (
       <Html>
-        <Head />
+        <Head nonce={this.props.nonce} />
         <body>
           <Main />
-          <NextScript />
+          <NextScript nonce={this.props.nonce} />
         </body>
       </Html>
     )

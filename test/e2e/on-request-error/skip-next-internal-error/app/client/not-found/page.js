@@ -1,9 +1,9 @@
 'use client'
 
+import { connection } from 'next/server'
 import { notFound } from 'next/navigation'
 
-export default function Page() {
+export default async function Page() {
+  await connection()
   notFound()
 }
-
-export const dynamic = 'force-dynamic'

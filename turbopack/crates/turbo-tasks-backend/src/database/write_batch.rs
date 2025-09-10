@@ -1,9 +1,11 @@
 use std::{
     borrow::{Borrow, Cow},
     marker::PhantomData,
+    ops::Deref,
 };
 
 use anyhow::Result;
+use smallvec::SmallVec;
 
 use crate::database::key_value_database::KeySpace;
 
@@ -19,14 +21,63 @@ pub trait BaseWriteBatch<'a> {
     fn commit(self) -> Result<()>;
 }
 
+pub enum WriteBuffer<'a> {
+    Borrowed(&'a [u8]),
+    Vec(Vec<u8>),
+    SmallVec(smallvec::SmallVec<[u8; 16]>),
+}
+
+impl WriteBuffer<'_> {
+    pub fn into_static(self) -> WriteBuffer<'static> {
+        match self {
+            WriteBuffer::Borrowed(b) => WriteBuffer::SmallVec(SmallVec::from_slice(b)),
+            WriteBuffer::Vec(v) => WriteBuffer::Vec(v),
+            WriteBuffer::SmallVec(sv) => WriteBuffer::Vec(sv.into_vec()),
+        }
+    }
+}
+
+impl Deref for WriteBuffer<'_> {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            WriteBuffer::Borrowed(b) => b,
+            WriteBuffer::Vec(v) => v,
+            WriteBuffer::SmallVec(sv) => sv,
+        }
+    }
+}
+
+impl<'l> From<Cow<'l, [u8]>> for WriteBuffer<'l> {
+    fn from(c: Cow<'l, [u8]>) -> Self {
+        match c {
+            Cow::Borrowed(b) => WriteBuffer::Borrowed(b),
+            Cow::Owned(o) => WriteBuffer::Vec(o),
+        }
+    }
+}
+
 pub trait SerialWriteBatch<'a>: BaseWriteBatch<'a> {
-    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()>;
-    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()>;
+    fn put(
+        &mut self,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
+    ) -> Result<()>;
+    fn delete(&mut self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()>;
+    fn flush(&mut self, key_space: KeySpace) -> Result<()>;
 }
 
 pub trait ConcurrentWriteBatch<'a>: BaseWriteBatch<'a> + Sync + Send {
-    fn put(&self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()>;
-    fn delete(&self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()>;
+    fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()>;
+    fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()>;
+    /// Flushes a key space of the write batch, reducing the amount of buffered memory used.
+    /// Does not commit any data persistently.
+    ///
+    /// Safety: Caller must ensure that no concurrent put or delete operation is happening on the
+    /// flushed key space.
+    unsafe fn flush(&self, key_space: KeySpace) -> Result<()>;
 }
 
 pub enum WriteBatch<'a, S, C>
@@ -102,17 +153,32 @@ where
     S: SerialWriteBatch<'a>,
     C: ConcurrentWriteBatch<'a>,
 {
-    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+    fn put(
+        &mut self,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
+    ) -> Result<()> {
         match self {
             WriteBatch::Serial(s) => s.put(key_space, key, value),
             WriteBatch::Concurrent(c, _) => c.put(key_space, key, value),
         }
     }
 
-    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+    fn delete(&mut self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         match self {
             WriteBatch::Serial(s) => s.delete(key_space, key),
             WriteBatch::Concurrent(c, _) => c.delete(key_space, key),
+        }
+    }
+
+    fn flush(&mut self, key_space: KeySpace) -> Result<()> {
+        match self {
+            WriteBatch::Serial(s) => s.flush(key_space),
+            WriteBatch::Concurrent(c, _) => {
+                // Safety: the &mut self ensures that no concurrent operation is happening
+                unsafe { c.flush(key_space) }
+            }
         }
     }
 }
@@ -174,17 +240,32 @@ where
     S: SerialWriteBatch<'a>,
     C: ConcurrentWriteBatch<'a>,
 {
-    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+    fn put(
+        &mut self,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
+    ) -> Result<()> {
         match self {
             WriteBatchRef::Serial(s) => s.put(key_space, key, value),
             WriteBatchRef::Concurrent(c, _) => c.put(key_space, key, value),
         }
     }
 
-    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+    fn delete(&mut self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         match self {
             WriteBatchRef::Serial(s) => s.delete(key_space, key),
             WriteBatchRef::Concurrent(c, _) => c.delete(key_space, key),
+        }
+    }
+
+    fn flush(&mut self, key_space: KeySpace) -> Result<()> {
+        match self {
+            WriteBatchRef::Serial(s) => s.flush(key_space),
+            WriteBatchRef::Concurrent(c, _) => {
+                // Safety: the &mut self ensures that no concurrent operation is happening
+                unsafe { c.flush(key_space) }
+            }
         }
     }
 }
@@ -210,19 +291,35 @@ impl<'a> BaseWriteBatch<'a> for UnimplementedWriteBatch {
 }
 
 impl SerialWriteBatch<'_> for UnimplementedWriteBatch {
-    fn put(&mut self, _key_space: KeySpace, _key: Cow<[u8]>, _value: Cow<[u8]>) -> Result<()> {
+    fn put(
+        &mut self,
+        _key_space: KeySpace,
+        _key: WriteBuffer<'_>,
+        _value: WriteBuffer<'_>,
+    ) -> Result<()> {
         todo!()
     }
-    fn delete(&mut self, _key_space: KeySpace, _key: Cow<[u8]>) -> Result<()> {
+    fn delete(&mut self, _key_space: KeySpace, _key: WriteBuffer<'_>) -> Result<()> {
+        todo!()
+    }
+    fn flush(&mut self, _key_space: KeySpace) -> Result<()> {
         todo!()
     }
 }
 
 impl ConcurrentWriteBatch<'_> for UnimplementedWriteBatch {
-    fn put(&self, _key_space: KeySpace, _key: Cow<[u8]>, _value: Cow<[u8]>) -> Result<()> {
+    fn put(
+        &self,
+        _key_space: KeySpace,
+        _key: WriteBuffer<'_>,
+        _value: WriteBuffer<'_>,
+    ) -> Result<()> {
         todo!()
     }
-    fn delete(&self, _key_space: KeySpace, _key: Cow<[u8]>) -> Result<()> {
+    fn delete(&self, _key_space: KeySpace, _key: WriteBuffer<'_>) -> Result<()> {
+        todo!()
+    }
+    unsafe fn flush(&self, _key_space: KeySpace) -> Result<()> {
         todo!()
     }
 }

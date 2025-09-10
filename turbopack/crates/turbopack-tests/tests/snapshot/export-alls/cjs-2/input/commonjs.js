@@ -1,3 +1,2 @@
 // commonjs.js
-exports.hello = "World";
-
+exports.hello = 'World'

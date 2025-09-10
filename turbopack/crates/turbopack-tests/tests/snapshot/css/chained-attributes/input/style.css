@@ -1,4 +1,4 @@
-@import url("./a.css") layer(layer) supports(not(display: inline-grid)) print;
+@import url('./a.css') layer(layer) supports(not(display: inline-grid)) print;
 
 .style {
   color: yellow;

@@ -4,8 +4,6 @@ An example of Server Side Rendered React [Portals](https://react.dev/reference/r
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-portals-ssr)
-
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-portals-ssr&project-name=with-portals-ssr&repository-name=with-portals-ssr)
 
 ## How to use

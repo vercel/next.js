@@ -1,5 +1,4 @@
 use std::{
-    borrow::Cow,
     fs,
     path::Path,
     sync::atomic::{AtomicBool, Ordering},
@@ -9,7 +8,9 @@ use anyhow::Result;
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
-    write_batch::{BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch},
+    write_batch::{
+        BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch, WriteBuffer,
+    },
 };
 
 pub fn is_fresh(path: &Path) -> bool {
@@ -35,12 +36,6 @@ impl<T: KeyValueDatabase> KeyValueDatabase for FreshDbOptimization<T> {
         = T::ReadTransaction<'l>
     where
         Self: 'l;
-
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        T::lower_read_transaction(tx)
-    }
 
     fn is_empty(&self) -> bool {
         self.fresh_db.load(Ordering::Acquire) || self.database.is_empty()
@@ -124,23 +119,36 @@ impl<'a, B: BaseWriteBatch<'a>> BaseWriteBatch<'a> for FreshDbOptimizationWriteB
 }
 
 impl<'a, B: SerialWriteBatch<'a>> SerialWriteBatch<'a> for FreshDbOptimizationWriteBatch<'a, B> {
-    fn put(&mut self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+    fn put(
+        &mut self,
+        key_space: KeySpace,
+        key: WriteBuffer<'_>,
+        value: WriteBuffer<'_>,
+    ) -> Result<()> {
         self.write_batch.put(key_space, key, value)
     }
 
-    fn delete(&mut self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+    fn delete(&mut self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.write_batch.delete(key_space, key)
+    }
+
+    fn flush(&mut self, key_space: KeySpace) -> Result<()> {
+        self.write_batch.flush(key_space)
     }
 }
 
 impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a>
     for FreshDbOptimizationWriteBatch<'a, B>
 {
-    fn put(&self, key_space: KeySpace, key: Cow<[u8]>, value: Cow<[u8]>) -> Result<()> {
+    fn put(&self, key_space: KeySpace, key: WriteBuffer<'_>, value: WriteBuffer<'_>) -> Result<()> {
         self.write_batch.put(key_space, key, value)
     }
 
-    fn delete(&self, key_space: KeySpace, key: Cow<[u8]>) -> Result<()> {
+    fn delete(&self, key_space: KeySpace, key: WriteBuffer<'_>) -> Result<()> {
         self.write_batch.delete(key_space, key)
+    }
+
+    unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
+        unsafe { self.write_batch.flush(key_space) }
     }
 }

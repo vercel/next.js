@@ -1,0 +1,11 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/foo.js"],"sourcesContent":["export default 'foo'\n"],"names":[],"mappings":";;;;uCAAe"}},
+    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/dep/index.js"],"sourcesContent":["export default 'dep'\n"],"names":[],"mappings":";;;;uCAAe"}},
+    {"offset": {"line": 22, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/pat.js"],"sourcesContent":["export default 'pat'\n"],"names":[],"mappings":";;;;uCAAe"}},
+    {"offset": {"line": 31, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/import.mjs"],"sourcesContent":["export default 'import'\n"],"names":[],"mappings":";;;;uCAAe"}},
+    {"offset": {"line": 39, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/require.cjs"],"sourcesContent":["module.exports = 'require'\n"],"names":[],"mappings":"AAAA,OAAO,OAAO,GAAG"}},
+    {"offset": {"line": 44, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/subpath-imports/input/index.js"],"sourcesContent":["import foo from '#foo'\nimport dep from '#dep'\nimport pattern from '#pattern/pat.js'\nimport conditionalImport from '#conditional'\nconst conditionalRequire = require('#conditional')\n\nconsole.log(foo, dep, pattern, conditionalImport, conditionalRequire)\n"],"names":[],"mappings":";AAAA;AACA;AACA;AACA;;;;;AACA,MAAM;AAEN,QAAQ,GAAG,CAAC,oNAAG,EAAE,6NAAG,EAAE,oNAAO,EAAE,wNAAiB,EAAE"}}]
+}

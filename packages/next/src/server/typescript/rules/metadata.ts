@@ -1,437 +1,283 @@
 import { NEXT_TS_ERRORS } from '../constant'
-import {
-  getSource,
-  getSourceFromVirtualTsEnv,
-  getTs,
-  getTypeChecker,
-  isPositionInsideNode,
-  log,
-  virtualTsEnv,
-} from '../utils'
+import { getSource, getTs, getTypeChecker } from '../utils'
 
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
-const TYPE_ANNOTATION = ': Metadata | null'
-const TYPE_ANNOTATION_ASYNC = ': Promise<Metadata | null>'
-const TYPE_IMPORT = `\n\nimport type { Metadata } from 'next'`
-
-// Find the `export const metadata = ...` node.
-function getMetadataExport(fileName: string, position: number) {
-  const source = getSource(fileName)
-  let metadataExport: tsModule.VariableDeclaration | undefined
-
-  if (source) {
-    const ts = getTs()
-    ts.forEachChild(source, function visit(node) {
-      if (metadataExport) return
-
-      // Covered by this node
-      if (isPositionInsideNode(position, node)) {
-        // Export variable
-        if (
-          ts.isVariableStatement(node) &&
-          node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
-        ) {
-          if (ts.isVariableDeclarationList(node.declarationList)) {
-            for (const declaration of node.declarationList.declarations) {
-              if (
-                isPositionInsideNode(position, declaration) &&
-                declaration.name.getText() === 'metadata'
-              ) {
-                // `export const metadata = ...`
-                metadataExport = declaration
-                return
-              }
-            }
-          }
-        }
-      }
-    })
-  }
-  return metadataExport
-}
-
-function updateVirtualFileWithType(
-  fileName: string,
-  node: tsModule.VariableDeclaration | tsModule.FunctionDeclaration,
-  isGenerateMetadata?: boolean
-) {
-  const source = getSource(fileName)
-  if (!source) return
-
-  // We annotate with the type in a virtual language service
-  const sourceText = source.getFullText()
-  let nodeEnd: number
-  let annotation: string
-
-  const ts = getTs()
-  if (ts.isFunctionDeclaration(node)) {
-    if (isGenerateMetadata) {
-      nodeEnd = node.body!.getFullStart()
-      const isAsync = node.modifiers?.some(
-        (m) => m.kind === ts.SyntaxKind.AsyncKeyword
-      )
-      annotation = isAsync ? TYPE_ANNOTATION_ASYNC : TYPE_ANNOTATION
-    } else {
-      return
-    }
-  } else {
-    nodeEnd = node.name.getFullStart() + node.name.getFullWidth()
-    annotation = TYPE_ANNOTATION
-  }
-
-  const newSource =
-    sourceText.slice(0, nodeEnd) +
-    annotation +
-    sourceText.slice(nodeEnd) +
-    TYPE_IMPORT
-
-  if (virtualTsEnv.getSourceFile(fileName)) {
-    log('Updating file: ' + fileName)
-    virtualTsEnv.updateFile(fileName, newSource)
-  } else {
-    log('Creating file: ' + fileName)
-    virtualTsEnv.createFile(fileName, newSource)
-  }
-
-  return [nodeEnd, annotation.length]
-}
-
-function isTyped(
-  node: tsModule.VariableDeclaration | tsModule.FunctionDeclaration
-) {
-  return node.type !== undefined
-}
-
-function proxyDiagnostics(
-  fileName: string,
-  pos: number[],
-  n: tsModule.VariableDeclaration | tsModule.FunctionDeclaration
-) {
-  // Get diagnostics
-  const diagnostics =
-    virtualTsEnv.languageService.getSemanticDiagnostics(fileName)
-  const source = getSourceFromVirtualTsEnv(fileName)
-
-  // Filter and map the results
-  return diagnostics
-    .filter((d) => {
-      if (d.start === undefined || d.length === undefined) return false
-      if (d.start < n.getFullStart()) return false
-      if (d.start + d.length >= n.getFullStart() + n.getFullWidth() + pos[1])
-        return false
-      return true
-    })
-    .map((d) => {
-      return {
-        file: source,
-        category: d.category,
-        code: d.code,
-        messageText: d.messageText,
-        start: d.start! < pos[0] ? d.start : d.start! - pos[1],
-        length: d.length,
-      }
-    })
-}
-
 const metadata = {
-  filterCompletionsAtPosition(
-    fileName: string,
-    position: number,
-    _options: any,
-    prior: tsModule.WithMetadata<tsModule.CompletionInfo>
-  ) {
-    const node = getMetadataExport(fileName, position)
-    if (!node) return prior
-    if (isTyped(node)) return prior
-
-    // We annotate with the type in a virtual language service
-    const pos = updateVirtualFileWithType(fileName, node)
-    if (pos === undefined) return prior
-
-    // Get completions
-    const newPos = position <= pos[0] ? position : position + pos[1]
-    const completions = virtualTsEnv.languageService.getCompletionsAtPosition(
-      fileName,
-      newPos,
-      undefined
-    )
-
-    if (completions) {
+  client: {
+    getSemanticDiagnosticsForExportVariableStatement(
+      fileName: string,
+      node: tsModule.VariableStatement | tsModule.FunctionDeclaration
+    ): tsModule.Diagnostic[] {
+      const source = getSource(fileName)
       const ts = getTs()
-      completions.isIncomplete = true
-      // https://github.com/microsoft/TypeScript/blob/4dc677b292354f4b9162452b2e00f4d7dd118221/src/services/types.ts#L1428-L1433
-      if (completions.optionalReplacementSpan) {
-        // Adjust the start position of the text span to original source.
-        completions.optionalReplacementSpan.start -= newPos - position
-      }
-      completions.entries = completions.entries
-        .filter((e) => {
-          return [
-            ts.ScriptElementKind.memberVariableElement,
-            ts.ScriptElementKind.typeElement,
-            ts.ScriptElementKind.string,
-          ].includes(e.kind)
-        })
-        .map((e) => {
-          const insertText =
-            e.kind === ts.ScriptElementKind.memberVariableElement &&
-            /^[a-zA-Z0-9_]+$/.test(e.name)
-              ? e.name + ': '
-              : e.name
 
-          return {
-            name: e.name,
-            insertText,
-            kind: e.kind,
-            kindModifiers: e.kindModifiers,
-            sortText: '!' + e.name,
-            labelDetails: {
-              description: `Next.js metadata`,
-            },
-            data: e.data,
-          }
-        })
-
-      return completions
-    }
-
-    return prior
-  },
-
-  getSemanticDiagnosticsForExportVariableStatementInClientEntry(
-    fileName: string,
-    node: tsModule.VariableStatement | tsModule.FunctionDeclaration
-  ) {
-    const source = getSource(fileName)
-    const ts = getTs()
-
-    // It is not allowed to export `metadata` or `generateMetadata` in client entry
-    if (ts.isFunctionDeclaration(node)) {
-      if (node.name?.getText() === 'generateMetadata') {
-        return [
-          {
-            file: source,
-            category: ts.DiagnosticCategory.Error,
-            code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-            messageText: `The Next.js 'generateMetadata' API is not allowed in a client component.`,
-            start: node.name.getStart(),
-            length: node.name.getWidth(),
-          },
-        ]
-      }
-    } else {
-      for (const declaration of node.declarationList.declarations) {
-        const name = declaration.name.getText()
-        if (name === 'metadata') {
+      // It is not allowed to export `metadata` or `generateMetadata` in client entry
+      if (ts.isFunctionDeclaration(node)) {
+        if (node.name?.getText() === 'generateMetadata') {
           return [
             {
               file: source,
               category: ts.DiagnosticCategory.Error,
               code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-              messageText: `The Next.js 'metadata' API is not allowed in a client component.`,
-              start: declaration.name.getStart(),
-              length: declaration.name.getWidth(),
+              messageText: `The Next.js 'generateMetadata' API is not allowed in a Client Component.`,
+              start: node.name.getStart(),
+              length: node.name.getWidth(),
             },
           ]
         }
-      }
-    }
-    return []
-  },
-
-  getSemanticDiagnosticsForExportVariableStatement(
-    fileName: string,
-    node: tsModule.VariableStatement | tsModule.FunctionDeclaration
-  ) {
-    const ts = getTs()
-
-    if (ts.isFunctionDeclaration(node)) {
-      if (node.name?.getText() === 'generateMetadata') {
-        if (isTyped(node)) return []
-
-        // We annotate with the type in a virtual language service
-        const pos = updateVirtualFileWithType(fileName, node, true)
-        if (!pos) return []
-
-        return proxyDiagnostics(fileName, pos, node)
-      }
-    } else {
-      for (const declaration of node.declarationList.declarations) {
-        if (declaration.name.getText() === 'metadata') {
-          if (isTyped(declaration)) break
-
-          // We annotate with the type in a virtual language service
-          const pos = updateVirtualFileWithType(fileName, declaration)
-          if (!pos) break
-
-          return proxyDiagnostics(fileName, pos, declaration)
+      } else {
+        for (const declaration of node.declarationList.declarations) {
+          const name = declaration.name.getText()
+          if (name === 'metadata') {
+            return [
+              {
+                file: source,
+                category: ts.DiagnosticCategory.Error,
+                code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+                messageText: `The Next.js 'metadata' API is not allowed in a Client Component.`,
+                start: declaration.name.getStart(),
+                length: declaration.name.getWidth(),
+              },
+            ]
+          }
         }
       }
-    }
-    return []
-  },
+      return []
+    },
+    getSemanticDiagnosticsForExportDeclaration(
+      fileName: string,
+      node: tsModule.ExportDeclaration
+    ): tsModule.Diagnostic[] {
+      const ts = getTs()
+      const source = getSource(fileName)
+      const diagnostics: tsModule.Diagnostic[] = []
 
-  getSemanticDiagnosticsForExportDeclarationInClientEntry(
-    fileName: string,
-    node: tsModule.ExportDeclaration
-  ) {
-    const ts = getTs()
-    const source = getSource(fileName)
-    const diagnostics: tsModule.Diagnostic[] = []
-
-    const exportClause = node.exportClause
-    if (exportClause && ts.isNamedExports(exportClause)) {
-      for (const e of exportClause.elements) {
-        if (['generateMetadata', 'metadata'].includes(e.name.getText())) {
-          diagnostics.push({
-            file: source,
-            category: ts.DiagnosticCategory.Error,
-            code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-            messageText: `The Next.js '${e.name.getText()}' API is not allowed in a client component.`,
-            start: e.name.getStart(),
-            length: e.name.getWidth(),
-          })
+      const exportClause = node.exportClause
+      if (exportClause && ts.isNamedExports(exportClause)) {
+        for (const e of exportClause.elements) {
+          if (['generateMetadata', 'metadata'].includes(e.name.getText())) {
+            diagnostics.push({
+              file: source,
+              category: ts.DiagnosticCategory.Error,
+              code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+              messageText: `The Next.js '${e.name.getText()}' API is not allowed in a Client Component.`,
+              start: e.name.getStart(),
+              length: e.name.getWidth(),
+            })
+          }
         }
       }
-    }
 
-    return diagnostics
+      return diagnostics
+    },
   },
+  server: {
+    getSemanticDiagnosticsForExportVariableStatement(
+      fileName: string,
+      node: tsModule.VariableStatement | tsModule.FunctionDeclaration
+    ): tsModule.Diagnostic[] {
+      const source = getSource(fileName)
+      const ts = getTs()
 
-  getSemanticDiagnosticsForExportDeclaration(
-    fileName: string,
-    node: tsModule.ExportDeclaration
-  ) {
-    const ts = getTs()
+      if (ts.isFunctionDeclaration(node)) {
+        if (node.name?.getText() === 'generateMetadata') {
+          if (hasType(node)) {
+            return []
+          }
 
-    const exportClause = node.exportClause
-    if (exportClause && ts.isNamedExports(exportClause)) {
-      for (const e of exportClause.elements) {
-        if (e.name.getText() === 'metadata') {
-          // Get the original declaration node of element
-          const typeChecker = getTypeChecker()
-          if (typeChecker) {
-            const symbol = typeChecker.getSymbolAtLocation(e.name)
-            if (symbol) {
-              const metadataSymbol = typeChecker.getAliasedSymbol(symbol)
-              if (metadataSymbol && metadataSymbol.declarations) {
-                const declaration = metadataSymbol.declarations[0]
-                if (declaration && ts.isVariableDeclaration(declaration)) {
-                  if (isTyped(declaration)) break
+          const isAsync = node.modifiers?.some(
+            (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+          )
 
-                  const declarationFileName =
-                    declaration.getSourceFile().fileName
-                  const isSameFile = declarationFileName === fileName
+          return [
+            {
+              file: source,
+              category: ts.DiagnosticCategory.Warning,
+              code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+              messageText: `The Next.js "generateMetadata" export should have a return type of ${isAsync ? '"Promise<Metadata>"' : '"Metadata"'} from "next".`,
+              start: node.name.getStart(),
+              length: node.name.getWidth(),
+            },
+          ]
+        }
+      } else {
+        for (const declaration of node.declarationList.declarations) {
+          if (hasType(declaration)) {
+            return []
+          }
 
-                  // We annotate with the type in a virtual language service
-                  const pos = updateVirtualFileWithType(
-                    declarationFileName,
-                    declaration
-                  )
-                  if (!pos) break
-
-                  const diagnostics = proxyDiagnostics(
-                    declarationFileName,
-                    pos,
-                    declaration
-                  )
-                  if (diagnostics.length) {
-                    if (isSameFile) {
-                      return diagnostics
-                    } else {
-                      return [
-                        {
-                          file: getSource(fileName),
-                          category: ts.DiagnosticCategory.Error,
-                          code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
-                          messageText: `The 'metadata' export value is not typed correctly, please make sure it is typed as 'Metadata':\nhttps://nextjs.org/docs/app/building-your-application/optimizing/metadata#static-metadata`,
-                          start: e.name.getStart(),
-                          length: e.name.getWidth(),
-                        },
-                      ]
-                    }
-                  }
-                }
-              }
+          const name = declaration.name.getText()
+          if (name === 'metadata') {
+            return [
+              {
+                file: source,
+                category: ts.DiagnosticCategory.Warning,
+                code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+                messageText: `The Next.js "metadata" export should be type of "Metadata" from "next".`,
+                start: declaration.name.getStart(),
+                length: declaration.name.getWidth(),
+              },
+            ]
+          }
+          if (name === 'generateMetadata') {
+            // Check if it's a function expression or arrow function
+            if (
+              declaration.initializer &&
+              (ts.isFunctionExpression(declaration.initializer) ||
+                ts.isArrowFunction(declaration.initializer))
+            ) {
+              const isAsync = declaration.initializer.modifiers?.some(
+                (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+              )
+              return [
+                {
+                  file: source,
+                  category: ts.DiagnosticCategory.Warning,
+                  code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+                  messageText: `The Next.js "generateMetadata" export should have a return type of ${isAsync ? '"Promise<Metadata>"' : '"Metadata"'} from "next".`,
+                  start: declaration.name.getStart(),
+                  length: declaration.name.getWidth(),
+                },
+              ]
             }
           }
         }
       }
-    }
-
-    return []
-  },
-
-  getCompletionEntryDetails(
-    fileName: string,
-    position: number,
-    entryName: string,
-    formatOptions: tsModule.FormatCodeOptions,
-    source: string,
-    preferences: tsModule.UserPreferences,
-    data: tsModule.CompletionEntryData
-  ) {
-    const node = getMetadataExport(fileName, position)
-    if (!node) return
-    if (isTyped(node)) return
-
-    // We annotate with the type in a virtual language service
-    const pos = updateVirtualFileWithType(fileName, node)
-    if (pos === undefined) return
-
-    const newPos = position <= pos[0] ? position : position + pos[1]
-
-    const details = virtualTsEnv.languageService.getCompletionEntryDetails(
-      fileName,
-      newPos,
-      entryName,
-      formatOptions,
-      source,
-      preferences,
-      data
-    )
-    return details
-  },
-
-  getQuickInfoAtPosition(fileName: string, position: number) {
-    const node = getMetadataExport(fileName, position)
-    if (!node) return
-    if (isTyped(node)) return
-
-    // We annotate with the type in a virtual language service
-    const pos = updateVirtualFileWithType(fileName, node)
-    if (pos === undefined) return
-
-    const newPos = position <= pos[0] ? position : position + pos[1]
-    const insight = virtualTsEnv.languageService.getQuickInfoAtPosition(
-      fileName,
-      newPos
-    )
-    return insight
-  },
-
-  getDefinitionAndBoundSpan(fileName: string, position: number) {
-    const node = getMetadataExport(fileName, position)
-    if (!node) return
-    if (isTyped(node)) return
-    if (!isPositionInsideNode(position, node)) return
-    // We annotate with the type in a virtual language service
-    const pos = updateVirtualFileWithType(fileName, node)
-    if (pos === undefined) return
-    const newPos = position <= pos[0] ? position : position + pos[1]
-
-    const definitionInfoAndBoundSpan =
-      virtualTsEnv.languageService.getDefinitionAndBoundSpan(fileName, newPos)
-
-    if (definitionInfoAndBoundSpan) {
-      // Adjust the start position of the text span
-      if (definitionInfoAndBoundSpan.textSpan.start > pos[0]) {
-        definitionInfoAndBoundSpan.textSpan.start -= pos[1]
+      return []
+    },
+    getSemanticDiagnosticsForExportDeclaration(
+      fileName: string,
+      node: tsModule.ExportDeclaration
+    ) {
+      const typeChecker = getTypeChecker()
+      if (!typeChecker) {
+        return []
       }
-    }
-    return definitionInfoAndBoundSpan
+
+      const ts = getTs()
+      const source = getSource(fileName)
+      const diagnostics: tsModule.Diagnostic[] = []
+
+      const exportClause = node.exportClause
+      if (!node.isTypeOnly && exportClause && ts.isNamedExports(exportClause)) {
+        for (const e of exportClause.elements) {
+          if (e.isTypeOnly) {
+            continue
+          }
+          const exportName = e.name.getText()
+          if (exportName !== 'metadata' && exportName !== 'generateMetadata') {
+            continue
+          }
+
+          const symbol = typeChecker.getSymbolAtLocation(e.name)
+          if (!symbol) {
+            continue
+          }
+
+          const originalSymbol = typeChecker.getAliasedSymbol(symbol)
+          const declarations = originalSymbol.getDeclarations()
+          if (!declarations) {
+            continue
+          }
+
+          const declaration = declarations[0]
+          if (hasType(declaration)) {
+            continue
+          }
+
+          if (exportName === 'generateMetadata') {
+            let isAsync = false
+
+            // async function() {}
+            if (ts.isFunctionDeclaration(declaration)) {
+              isAsync =
+                declaration.modifiers?.some(
+                  (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+                ) ?? false
+            }
+
+            // foo = async function() {}
+            // foo = async () => {}
+            if (
+              ts.isVariableDeclaration(declaration) &&
+              declaration.initializer
+            ) {
+              const initializer = declaration.initializer
+              const isFunction =
+                ts.isArrowFunction(initializer) ||
+                ts.isFunctionExpression(initializer)
+
+              if (isFunction) {
+                isAsync =
+                  initializer.modifiers?.some(
+                    (m) => m.kind === ts.SyntaxKind.AsyncKeyword
+                  ) ?? false
+              }
+            }
+
+            diagnostics.push({
+              file: source,
+              category: ts.DiagnosticCategory.Warning,
+              code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+              messageText: `The Next.js "generateMetadata" export should have a return type of ${isAsync ? '"Promise<Metadata>"' : '"Metadata"'} from "next".`,
+              start: e.name.getStart(),
+              length: e.name.getWidth(),
+            })
+          } else {
+            diagnostics.push({
+              file: source,
+              category: ts.DiagnosticCategory.Warning,
+              code: NEXT_TS_ERRORS.INVALID_METADATA_EXPORT,
+              messageText: `The Next.js "metadata" export should be type of "Metadata" from "next".`,
+              start: e.name.getStart(),
+              length: e.name.getWidth(),
+            })
+          }
+        }
+      }
+      return diagnostics
+    },
   },
+}
+
+function hasType(node: tsModule.Declaration): boolean {
+  const ts = getTs()
+
+  if (
+    !ts.isVariableDeclaration(node) &&
+    !ts.isFunctionDeclaration(node) &&
+    !ts.isArrowFunction(node) &&
+    !ts.isFunctionExpression(node)
+  ) {
+    return false
+  }
+
+  // For function declarations, expressions, and arrow functions, check if they have return type
+  if (
+    ts.isFunctionDeclaration(node) ||
+    ts.isFunctionExpression(node) ||
+    ts.isArrowFunction(node)
+  ) {
+    return !!node.type
+  }
+
+  // For variable declarations
+  if (!node.name) return false
+  const name = node.name.getText()
+  if (name === 'generateMetadata') {
+    // If it's a function expression or arrow function, check if it has return type
+    if (
+      node.initializer &&
+      (ts.isFunctionExpression(node.initializer) ||
+        ts.isArrowFunction(node.initializer))
+    ) {
+      return !!node.initializer.type
+    }
+  }
+
+  // For all other cases, check if the node has a type annotation
+  return !!node.type
 }
 
 export default metadata

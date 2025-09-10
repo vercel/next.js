@@ -6,13 +6,13 @@ title: Cannot access Request information synchronously with `cookies()`, `header
 
 In Next.js 15 global functions that provide access to Request Header information such as `cookies()`, `headers()`, and `draftMode()` are each now `async` and return a `Promise` rather than the associated object directly.
 
-To support migrating to the async APIs Next.js 15 still supports accessing properties of the underlying object directly on the returned Promise. However when `dynamicIO` is enabled it is an error to do so.
+To support migrating to the async APIs Next.js 15 still supports accessing properties of the underlying object directly on the returned Promise. However when `cacheComponents` is enabled it is an error to do so.
 
 ## Possible Ways to Fix It
 
 If you haven't already followed the Next.js 15 upgrade guide which includes running a codemod to auto-convert to the necessary async form of these APIs start there.
 
-[Next 15 Upgrade Guide](/docs/app/building-your-application/upgrading/version-15#async-request-apis-breaking-change)
+[Next 15 Upgrade Guide](/docs/app/guides/upgrading/version-15#async-request-apis-breaking-change)
 
 If you have already run the codemod on your project look for instances of the string `@next-codemod-error` to see where the codemod was unable to convert to the async form. You will have to refactor your code manually here to make it compatible with the new result type.
 
@@ -86,7 +86,7 @@ export default async function Page() {
 }
 ```
 
-Note that with `await connection()` and `dynamicIO` it is still required that there is a Suspense boundary somewhere above the component that uses `await connection()`. If you do not have any Suspense boundary parent you will need to add one where is appropriate to describe a fallback UI.
+Note that with `await connection()` and `cacheComponents` it is still required that there is a Suspense boundary somewhere above the component that uses `await connection()`. If you do not have any Suspense boundary parent you will need to add one where is appropriate to describe a fallback UI.
 
 ## Useful Links
 

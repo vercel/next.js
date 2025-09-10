@@ -1,5 +1,5 @@
-@import "b.css";
+@import 'b.css';
 
 .a {
-  content: "5 2";
+  content: '5 2';
 }

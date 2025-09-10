@@ -1,3 +1,3 @@
-export type Test = "b" | "bb";
+export type Test = 'b' | 'bb'
 
-export default "b";
+export default 'b'

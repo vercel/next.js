@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_tasks::{Completion, Vc};
 use turbopack_core::module_graph::GraphEntries;
 

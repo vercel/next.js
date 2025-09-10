@@ -15,9 +15,9 @@ it('should support require.resolve on the current module', () => {
     '[project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/require-resolve/input/index.js [test] (ecmascript)'
   )
   // Check if static evaluation is not hanging
-  if (require.resolve('./index.js') == "") {
-    throw new Error("no no");
+  if (require.resolve('./index.js') == '') {
+    throw new Error('no no')
   }
 })
 
-export {};
+export {}

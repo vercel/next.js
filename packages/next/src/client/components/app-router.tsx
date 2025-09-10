@@ -1,7 +1,6 @@
 'use client'
 
 import React, {
-  use,
   useEffect,
   useMemo,
   startTransition,
@@ -13,7 +12,10 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import type { CacheNode } from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  CacheNode,
+  FlightRouterState,
+} from '../../shared/lib/app-router-types'
 import { ACTION_RESTORE } from './router-reducer/router-reducer-types'
 import type { AppRouterState } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
@@ -23,11 +25,6 @@ import {
   PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
-import {
-  default as DefaultGlobalError,
-  ErrorBoundary,
-  type GlobalErrorComponent,
-} from './error-boundary'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -37,16 +34,20 @@ import { unresolvedThenable } from './unresolved-thenable'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import { getSelectedParams } from './router-reducer/compute-changed-path'
-import type { FlightRouterState } from '../../server/app-render/types'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,
   publicAppRouterInstance,
   type AppRouterActionQueue,
+  type GlobalErrorState,
 } from './app-router-instance'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
 import { pingVisibleLinks } from './links'
+import RootErrorBoundary from './errors/root-error-boundary'
+import DefaultGlobalError from './builtin/global-error'
+import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
+import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -196,12 +197,14 @@ function Head({
  */
 function Router({
   actionQueue,
-  assetPrefix,
   globalError,
+  webSocket,
+  staticIndicatorState,
 }: {
   actionQueue: AppRouterActionQueue
-  assetPrefix: string
-  globalError: [GlobalErrorComponent, React.ReactNode]
+  globalError: GlobalErrorState
+  webSocket: WebSocket | undefined
+  staticIndicatorState: StaticIndicatorState | undefined
 }) {
   const state = useActionQueue(actionQueue)
   const { canonicalUrl } = state
@@ -327,7 +330,10 @@ function Router({
     // TODO-APP: Should we listen to navigateerror here to catch failed
     // navigations somehow? And should we call window.stop() if a SPA navigation
     // should interrupt an MPA one?
-    use(unresolvedThenable)
+    // NOTE: This is intentionally using `throw` instead of `use` because we're
+    // inside an externally mutable condition (pushRef.mpaNavigation), which
+    // violates the rules of hooks.
+    throw unresolvedThenable
   }
 
   useEffect(() => {
@@ -473,8 +479,17 @@ function Router({
     //
     // The `key` is used to remount the component whenever the head moves to
     // a different segment.
-    const [headCacheNode, headKey] = matchingHead
-    head = <Head key={headKey} headCacheNode={headCacheNode} />
+    const [headCacheNode, headKey, headKeyWithoutSearchParams] = matchingHead
+
+    head = (
+      <Head
+        key={
+          // Necessary for PPR: omit search params from the key to match prerendered keys
+          typeof window === 'undefined' ? headKeyWithoutSearchParams : headKey
+        }
+        headCacheNode={headCacheNode}
+      />
+    )
   } else {
     head = null
   }
@@ -482,7 +497,10 @@ function Router({
   let content = (
     <RedirectBoundary>
       {head}
-      {cache.rsc}
+      {/* RootLayoutBoundary enables detection of Suspense boundaries around the root layout.
+          When users wrap their layout in <Suspense>, this creates the component stack pattern
+          "Suspense -> RootLayoutBoundary" which dynamic-rendering.ts uses to allow dynamic rendering. */}
+      <RootLayoutBoundary>{cache.rsc}</RootLayoutBoundary>
       <AppRouterAnnouncer tree={tree} />
     </RedirectBoundary>
   )
@@ -503,23 +521,28 @@ function Router({
         </DevRootHTTPAccessFallbackBoundary>
       )
     }
-    const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =
-      require('./react-dev-overlay/app/hot-reloader-client').default
+    const HotReloader: typeof import('../dev/hot-reloader/app/hot-reloader-app').default =
+      (
+        require('../dev/hot-reloader/app/hot-reloader-app') as typeof import('../dev/hot-reloader/app/hot-reloader-app')
+      ).default
 
     content = (
-      <HotReloader assetPrefix={assetPrefix} globalError={globalError}>
+      <HotReloader
+        globalError={globalError}
+        webSocket={webSocket}
+        staticIndicatorState={staticIndicatorState}
+      >
         {content}
       </HotReloader>
     )
   } else {
-    // In production, we only apply the user-customized global error boundary.
     content = (
-      <ErrorBoundary
+      <RootErrorBoundary
         errorComponent={globalError[0]}
         errorStyles={globalError[1]}
       >
         {content}
-      </ErrorBoundary>
+      </RootErrorBoundary>
     )
   }
 
@@ -553,27 +576,32 @@ function Router({
 
 export default function AppRouter({
   actionQueue,
-  globalErrorComponentAndStyles: [globalErrorComponent, globalErrorStyles],
-  assetPrefix,
+  globalErrorState,
+  webSocket,
+  staticIndicatorState,
 }: {
   actionQueue: AppRouterActionQueue
-  globalErrorComponentAndStyles: [GlobalErrorComponent, React.ReactNode]
-  assetPrefix: string
+  globalErrorState: GlobalErrorState
+  webSocket?: WebSocket
+  staticIndicatorState?: StaticIndicatorState
 }) {
   useNavFailureHandler()
 
+  const router = (
+    <Router
+      actionQueue={actionQueue}
+      globalError={globalErrorState}
+      webSocket={webSocket}
+      staticIndicatorState={staticIndicatorState}
+    />
+  )
+
+  // At the very top level, use the default GlobalError component as the final fallback.
+  // When the app router itself fails, which means the framework itself fails, we show the default error.
   return (
-    <ErrorBoundary
-      // At the very top level, use the default GlobalError component as the final fallback.
-      // When the app router itself fails, which means the framework itself fails, we show the default error.
-      errorComponent={DefaultGlobalError}
-    >
-      <Router
-        actionQueue={actionQueue}
-        assetPrefix={assetPrefix}
-        globalError={[globalErrorComponent, globalErrorStyles]}
-      />
-    </ErrorBoundary>
+    <RootErrorBoundary errorComponent={DefaultGlobalError}>
+      {router}
+    </RootErrorBoundary>
   )
 }
 

@@ -1,12 +1,12 @@
-use turbo_tasks::{backend::CellContent, CellId, TaskId};
+use turbo_tasks::{CellId, TaskId, backend::CellContent};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
+        TaskDataCategory,
         operation::{ExecuteContext, InvalidateOperation, TaskGuard},
         storage::{get_many, remove},
-        TaskDataCategory,
     },
     data::{CachedDataItem, CachedDataItemKey},
 };

@@ -1,12 +1,10 @@
 # rosetta example
 
-This example uses [rosetta](https://github.com/lukeed/rosetta), react hooks and context to provide a SSR, SSG, CSR compatible i18n solution.
+This example uses [rosetta](https://github.com/lukeed/rosetta), React Hooks and context to provide a SSR, SSG, CSR compatible i18n solution.
 
 In `next.config.js` you can configure the fallback language.
 
 ## Deploy your own
-
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-i18n-rosetta)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-i18n-rosetta&project-name=with-i18n-rosetta&repository-name=with-i18n-rosetta)
 

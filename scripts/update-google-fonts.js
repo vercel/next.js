@@ -66,10 +66,11 @@ const fetch = require('node-fetch')
     const weightTypes = [...weights]
     const styleTypes = [...styles]
 
-    fontFunctions += `export declare function ${family.replaceAll(
-      ' ',
-      '_'
-    )}<T extends CssVariable | undefined = undefined>(options${optionalIfVariableFont}: {
+    fontFunctions += `export declare function ${(/\d/.test(family[0])
+      ? '_' + family
+      : family
+    ).replaceAll(' ', '_')}
+    <T extends CssVariable | undefined = undefined>(options${optionalIfVariableFont}: {
     weight${optionalIfVariableFont}:${formatUnion(
       weightTypes
     )} | Array<${formatUnion(

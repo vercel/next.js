@@ -23,7 +23,7 @@ function verifyTypeScriptSetup(
   distDir: string,
   intentDirs: string[],
   typeCheckPreflight: boolean,
-  tsconfigPath: string,
+  tsconfigPath: string | undefined,
   disableStaticImages: boolean,
   cacheDir: string | undefined,
   enableWorkerThreads: boolean | undefined,
@@ -34,6 +34,8 @@ function verifyTypeScriptSetup(
     require.resolve('../lib/verify-typescript-setup'),
     {
       exposedMethods: ['verifyTypeScriptSetup'],
+      debuggerPortOffset: -1,
+      isolatedMemory: false,
       numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,

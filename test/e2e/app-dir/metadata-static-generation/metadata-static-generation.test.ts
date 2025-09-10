@@ -24,6 +24,8 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
         const staticRoutes = prerenderManifest.routes
         expect(Object.keys(staticRoutes).sort()).toEqual([
           '/',
+          '/_global-error',
+          '/_not-found',
           '/suspenseful/static',
         ])
       })

@@ -1,3 +1,3 @@
-import { b } from "./module";
+import { b } from './module'
 
-export default b;
+export default b

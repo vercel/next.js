@@ -525,7 +525,7 @@ describe('Error Overlay for server components', () => {
       // So we need to check for the first part of the message.
       const normalizedSource = await session.getRedboxSource()
       expect(normalizedSource).toContain(
-        `You're importing a component that needs \`${hook}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+        `You're importing a component that needs \`${hook}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
       expect(normalizedSource).toContain(
         `import { ${hook} } from 'next/navigation'`
@@ -557,7 +557,7 @@ describe('Error Overlay for server components', () => {
         // So we need to check for the first part of the message.
         const normalizedSource = await session.getRedboxSource()
         expect(normalizedSource).toContain(
-          `You're importing a component that needs \`${hook}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
+          `You're importing a component that needs \`${hook}\`. This React Hook only works in a Client Component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
         )
         expect(normalizedSource).toContain(
           `import { ${hook} } from 'next/link'`

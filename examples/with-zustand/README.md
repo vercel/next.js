@@ -4,11 +4,9 @@ This example shows how to integrate Zustand in Next.js.
 
 This is an example on how you can use Zustand with Next.js.
 
-All client components have access to the Zustand store using `useStore()` returned `store.ts` file.
+All Client Components have access to the Zustand store using `useStore()` returned `store.ts` file.
 
 ## Deploy your own
-
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-zustand)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-zustand&project-name=with-zustand&repository-name=with-zustand)
 

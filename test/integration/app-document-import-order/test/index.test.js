@@ -61,9 +61,15 @@ describe('Root components import order', () => {
       })
       afterAll(() => killApp(app))
 
-      it(
-        '_app chunks should be attached to de dom before page chunks',
-        respectsChunkAttachmentOrder
+      // Test relies on webpack splitChunks overrides.
+      ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+        'Skipped in Turbopack',
+        () => {
+          it(
+            '_app chunks should be attached to de dom before page chunks',
+            respectsChunkAttachmentOrder
+          )
+        }
       )
       it(
         'root components should be imported in this order _document > _app > page in order to respect side effects',

@@ -4,7 +4,7 @@ import type { ImageProps, ImageLoader, StaticImageData } from './get-img-props'
 import { getImgProps } from './get-img-props'
 import { Image } from '../../client/image-component'
 
-// @ts-ignore - This is replaced by webpack alias
+// This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 
 /**

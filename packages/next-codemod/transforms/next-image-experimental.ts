@@ -10,6 +10,7 @@ import type {
   Options,
 } from 'jscodeshift'
 import { createParserFromPath } from '../lib/parser'
+import { isNextConfigFile } from './lib/utils'
 
 function findAndReplaceProps(
   j: JSCodeshift,
@@ -262,16 +263,12 @@ export default function transformer(
   const j = createParserFromPath(file.path)
   const root = j(file.source)
 
-  const parsed = parse(file.path || '/')
-  const isConfig =
-    parsed.base === 'next.config.js' ||
-    parsed.base === 'next.config.ts' ||
-    parsed.base === 'next.config.mjs' ||
-    parsed.base === 'next.config.cjs'
+  const isConfig = isNextConfigFile(file)
 
   if (isConfig) {
-    const result = nextConfigTransformer(j, root, parsed.dir)
-    return result.toSource()
+    const fileDir = parse(file.path).dir
+    const result = nextConfigTransformer(j, root, fileDir)
+    return result.toSource(options)
   }
 
   // Before: import Image from "next/legacy/image"

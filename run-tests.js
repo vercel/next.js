@@ -33,6 +33,8 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .number('c')
   .boolean('related')
   .boolean('dry')
+  .boolean('print-tests')
+  .describe('print-tests', 'Prints the test files that will be run')
   .boolean('local')
   .alias('r', 'related')
   .alias('c', 'concurrency').argv
@@ -74,15 +76,9 @@ const TIMINGS_API_HEADERS = {
 }
 
 const testFilters = {
-  development: new RegExp(
-    '^(test/(development|e2e)|packages/.*/src/.*|packages/next-codemod/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
-  ),
-  production: new RegExp(
-    '^(test/(production|e2e))/.*\\.test\\.(js|jsx|ts|tsx)$'
-  ),
-  unit: new RegExp(
-    '^test/unit|packages/.*/src/.*/.*\\.test\\.(js|jsx|ts|tsx)$'
-  ),
+  development: new RegExp('^(test/(development|e2e))'),
+  production: new RegExp('^(test/(production|e2e))'),
+  unit: new RegExp('^(test/unit|packages/.*/src|packages/next-codemod)'),
   examples: 'examples/',
   integration: 'test/integration/',
   e2e: 'test/e2e/',
@@ -200,8 +196,13 @@ async function main() {
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
 
+  // `.github/workflows/build_reusable.yml` sets this, we should use it unless
+  // it's overridden by an explicit `--concurrency` argument.
+  const envConcurrency =
+    process.env.TEST_CONCURRENCY && parseInt(process.env.TEST_CONCURRENCY, 10)
+
   const options = {
-    concurrency: argv.concurrency || DEFAULT_CONCURRENCY,
+    concurrency: argv.concurrency ?? envConcurrency ?? DEFAULT_CONCURRENCY,
     debug: argv.debug ?? false,
     timings: argv.timings ?? false,
     writeTimings: argv.writeTimings ?? false,
@@ -212,6 +213,7 @@ async function main() {
     retries: argv.retries ?? DEFAULT_NUM_RETRIES,
     dry: argv.dry ?? false,
     local: argv.local ?? false,
+    printTests: argv.printTests ?? false,
   }
   let numRetries = options.retries
   const hideOutput = !options.debug && !options.dry
@@ -296,6 +298,8 @@ async function main() {
         file,
         excludedCases: [],
       }))
+
+    //
   }
 
   if (options.timings && options.group) {
@@ -401,6 +405,10 @@ ${tests.map((t) => t.file).join('\n')}
 ${ENDGROUP}`)
   console.log(`total: ${tests.length}`)
 
+  if (options.printTests) {
+    await cleanUpAndExit(0)
+  }
+
   if (
     !options.dry &&
     process.env.NEXT_TEST_MODE !== 'deploy' &&
@@ -455,7 +463,6 @@ ${ENDGROUP}`)
         '--runInBand',
         '--forceExit',
         '--verbose',
-        '--silent',
         ...(isTestJob
           ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
           : []),
@@ -475,7 +482,7 @@ ${ENDGROUP}`)
         // tested when enabled
         CI: '',
         // But some tests need to fork based on machine? CI? behavior differences
-        // Only use read this in tests.
+        // Only use this in tests.
         // For implementation forks, use `process.env.CI` instead
         NEXT_TEST_CI: process.env.CI,
 

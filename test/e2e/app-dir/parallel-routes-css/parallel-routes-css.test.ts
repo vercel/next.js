@@ -1,18 +1,18 @@
 import { nextTestSetup } from 'e2e-utils'
-import type { BrowserInterface } from 'next-webdriver'
+import type { Playwright } from 'next-webdriver'
 
 describe('parallel-routes-catchall-css', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
-  async function getChildrenBackgroundColor(browser: BrowserInterface) {
+  async function getChildrenBackgroundColor(browser: Playwright) {
     return browser.eval(
       `window.getComputedStyle(document.getElementById('main')).backgroundColor`
     )
   }
 
-  async function getSlotBackgroundColor(browser: BrowserInterface) {
+  async function getSlotBackgroundColor(browser: Playwright) {
     return browser.eval(
       `window.getComputedStyle(document.getElementById('slot')).backgroundColor`
     )

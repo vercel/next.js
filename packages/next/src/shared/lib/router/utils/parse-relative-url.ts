@@ -8,6 +8,7 @@ export interface ParsedRelativeUrl {
   pathname: string
   query: ParsedUrlQuery
   search: string
+  slashes: undefined
 }
 
 /**
@@ -58,5 +59,8 @@ export function parseRelativeUrl(
     search,
     hash,
     href: href.slice(origin.length),
+    // We don't know for relative URLs at this point since we set a custom, internal
+    // base that isn't surfaced to users.
+    slashes: undefined,
   }
 }

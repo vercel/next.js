@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('interception-dynamic-segment', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -10,10 +10,18 @@ describe('interception-dynamic-segment', () => {
     const browser = await next.browser('/')
 
     await browser.elementByCss('[href="/foo/1"]').click()
-    await check(() => browser.elementById('modal').text(), /intercepted/)
+    await retry(async () => {
+      expect(await browser.elementById('modal').text()).toEqual('intercepted')
+    })
     await browser.refresh()
-    await check(() => browser.elementById('modal').text(), '')
-    await check(() => browser.elementById('children').text(), /not intercepted/)
+    await retry(async () => {
+      expect(await browser.elementById('modal').text()).toEqual('catch-all')
+    })
+    await retry(async () => {
+      expect(await browser.elementById('children').text()).toEqual(
+        'not intercepted'
+      )
+    })
   })
 
   if (isNextStart) {

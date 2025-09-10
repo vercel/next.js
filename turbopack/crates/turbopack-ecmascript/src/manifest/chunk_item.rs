@@ -11,8 +11,8 @@ use turbopack_core::{
 use super::chunk_asset::ManifestAsyncModule;
 use crate::{
     chunk::{
-        data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
-        EcmascriptChunkType,
+        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType,
+        data::EcmascriptChunkData,
     },
     runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
@@ -30,8 +30,11 @@ pub(super) struct ManifestChunkItem {
 #[turbo_tasks::value_impl]
 impl ManifestChunkItem {
     #[turbo_tasks::function]
-    fn chunks_data(&self) -> Vc<ChunksData> {
-        ChunkData::from_assets(self.chunking_context.output_root(), self.manifest.chunks())
+    async fn chunks_data(&self) -> Result<Vc<ChunksData>> {
+        Ok(ChunkData::from_assets(
+            self.chunking_context.output_root().owned().await?,
+            self.manifest.chunks(),
+        ))
     }
 }
 
@@ -85,7 +88,7 @@ impl ChunkItem for ManifestChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]

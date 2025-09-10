@@ -246,7 +246,9 @@ describe('parallel-routes-revalidation', () => {
           })
         }
 
-        let initialRandomNumber = await browser.elementById('random-number')
+        let initialRandomNumber = await browser
+          .elementById('random-number')
+          .text()
         await browser.elementByCss(`[href='${basePath}/login']`).click()
 
         // interception modal should be visible

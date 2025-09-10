@@ -34,7 +34,7 @@ export function createTestDataServer(
   onRequest: (key: string, response: TestDataResponse) => any
 ): TestDataServer {
   const httpServer = http.createServer(async (req, res) => {
-    const searchParams = new URL(req.url, 'http://n').searchParams
+    const searchParams = new URL(req.url!, 'http://n').searchParams
     const key = searchParams.get('key')
 
     if (typeof key !== 'string') {

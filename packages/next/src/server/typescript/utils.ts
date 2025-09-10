@@ -1,11 +1,4 @@
-import type { VirtualTypeScriptEnvironment } from 'next/dist/compiled/@typescript/vfs'
-import {
-  createFSBackedSystem,
-  createDefaultMapFromNodeModules,
-  createVirtualTypeScriptEnvironment,
-} from 'next/dist/compiled/@typescript/vfs'
-
-import path, { join } from 'path'
+import path from 'path'
 
 import type tsModule from 'typescript/lib/tsserverlibrary'
 type TypeScript = typeof import('typescript/lib/tsserverlibrary')
@@ -13,7 +6,6 @@ type TypeScript = typeof import('typescript/lib/tsserverlibrary')
 let ts: TypeScript
 let info: tsModule.server.PluginCreateInfo
 let appDirRegExp: RegExp
-export let virtualTsEnv: VirtualTypeScriptEnvironment
 
 export function log(message: string) {
   info.project.projectService.logger.info('[next] ' + message)
@@ -23,7 +15,7 @@ export function log(message: string) {
 export function init(opts: {
   ts: TypeScript
   info: tsModule.server.PluginCreateInfo
-}): boolean {
+}) {
   const projectDir = opts.info.project.getCurrentDirectory()
   ts = opts.ts
   info = opts.info
@@ -31,32 +23,7 @@ export function init(opts: {
     '^' + (projectDir + '(/src)?/app').replace(/[\\/]/g, '[\\/]')
   )
 
-  log('Initializing Next.js TypeScript plugin: ' + projectDir)
-
-  const compilerOptions = info.project.getCompilerOptions()
-  const fsMap = createDefaultMapFromNodeModules(
-    compilerOptions,
-    ts,
-    join(projectDir, 'node_modules/typescript/lib')
-  )
-  const system = createFSBackedSystem(fsMap, projectDir, ts)
-
-  virtualTsEnv = createVirtualTypeScriptEnvironment(
-    system,
-    [],
-    ts,
-    compilerOptions
-  )
-
-  if (!virtualTsEnv) {
-    log(
-      'Failed to create virtual TypeScript environment. This is a bug in Next.js TypeScript plugin. Please report it by opening an issue at https://github.com/vercel/next.js/issues.'
-    )
-    return false
-  }
-
-  log('Successfully initialized Next.js TypeScript plugin!')
-  return true
+  log('Initialized Next.js TypeScript plugin: ' + projectDir)
 }
 
 export function getTs() {
@@ -68,18 +35,33 @@ export function getInfo() {
 }
 
 export function getTypeChecker() {
-  return info.languageService.getProgram()?.getTypeChecker()
+  const program = info.languageService.getProgram()
+  if (!program) {
+    log('Failed to get program while while running getTypeChecker.')
+    return
+  }
+  const typeChecker = program.getTypeChecker()
+  if (!typeChecker) {
+    log('Failed to get type checker while running getTypeChecker.')
+    return
+  }
+  return typeChecker
 }
 
 export function getSource(fileName: string) {
-  return info.languageService.getProgram()?.getSourceFile(fileName)
-}
-
-export function getSourceFromVirtualTsEnv(fileName: string) {
-  if (virtualTsEnv.sys.fileExists(fileName)) {
-    return virtualTsEnv.getSourceFile(fileName)
+  const program = info.languageService.getProgram()
+  if (!program) {
+    log('Failed to get program while running getSource for: ' + fileName)
+    return
   }
-  return getSource(fileName)
+
+  const sourceFile = program.getSourceFile(fileName)
+  if (!sourceFile) {
+    log('Failed to get source file while running getSource for: ' + fileName)
+    return
+  }
+
+  return sourceFile
 }
 
 export function removeStringQuotes(str: string): string {

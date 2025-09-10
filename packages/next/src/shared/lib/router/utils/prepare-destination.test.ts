@@ -17,9 +17,11 @@ describe('parseDestination', () => {
        "hash": "",
        "hostname": undefined,
        "href": "/hello/:name",
+       "origin": undefined,
        "pathname": "/hello/:name",
        "query": {},
        "search": "",
+       "slashes": undefined,
      }
     `)
   })
@@ -40,11 +42,13 @@ describe('parseDestination', () => {
        "hash": "#bar",
        "hostname": "o:foo.com",
        "href": "https://o:foo.com/hello/:name#bar",
+       "origin": "https://o:foo.com",
        "pathname": "/hello/:name",
        "port": "",
        "protocol": "https:",
        "query": {},
        "search": "",
+       "slashes": true,
      }
     `)
   })
@@ -65,6 +69,7 @@ describe('parseDestination', () => {
        "hash": "",
        "hostname": "o:foo.com",
        "href": "https://o:foo.com/hello/:name?foo=:bar",
+       "origin": "https://o:foo.com",
        "pathname": "/hello/:name",
        "port": "",
        "protocol": "https:",
@@ -72,6 +77,7 @@ describe('parseDestination', () => {
          "foo": ":bar",
        },
        "search": "?foo=:bar",
+       "slashes": true,
      }
     `)
   })

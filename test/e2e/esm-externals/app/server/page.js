@@ -4,8 +4,8 @@ import World3 from 'app-cjs-esm-package/entry'
 
 export default function Page() {
   return (
-    <div>
+    <p>
       Hello {World1}+{World2}+{World3}
-    </div>
+    </p>
   )
 }

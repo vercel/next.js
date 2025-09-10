@@ -12,7 +12,7 @@ describe('hook-function-names', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "description": "Error: Kaputt!",
+       "description": "Kaputt!",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": "app/button/page.tsx (7:11) @ Button.useCallback[handleClick]
@@ -20,7 +20,7 @@ describe('hook-function-names', () => {
           |           ^",
        "stack": [
          "Button.useCallback[handleClick] app/button/page.tsx (7:11)",
-         "button <anonymous> (0:0)",
+         "button <anonymous>",
          "Button app/button/page.tsx (11:5)",
          "Page app/button/page.tsx (18:10)",
        ],
@@ -33,7 +33,7 @@ describe('hook-function-names', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "Error: error in useEffect",
+       "description": "error in useEffect",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": "app/page.tsx (7:11) @ Page.useEffect

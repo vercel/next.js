@@ -2,18 +2,17 @@ use std::{fmt::Debug, hash::Hash, pin::Pin};
 
 use anyhow::Result;
 use futures::Future;
+use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use tracing::Span;
 
 use crate::{
-    self as turbo_tasks,
+    RawVc, TaskExecutionReason, TaskInput, TaskPersistence,
     magic_any::{MagicAny, MagicAnyDeserializeSeed, MagicAnySerializeSeed},
-    registry::register_function,
     task::{
-        function::{IntoTaskFnWithThis, NativeTaskFuture},
         IntoTaskFn, TaskFn,
+        function::{IntoTaskFnWithThis, NativeTaskFuture},
     },
-    RawVc, TaskInput, TaskPersistence,
 };
 
 type ResolveFuture<'a> = Pin<Box<dyn Future<Output = Result<Box<dyn MagicAny>>> + Send + 'a>>;
@@ -89,13 +88,15 @@ impl ArgMeta {
         (self.filter_owned)(args)
     }
 
+    /// This will return `(None, _)` even if the target is a method, if the method does not use
+    /// `self`.
     pub async fn filter_and_resolve(&self, args: &dyn MagicAny) -> Result<Box<dyn MagicAny>> {
         (self.filter_and_resolve)(args).await
     }
 }
 
 fn resolve_functor_impl<T: MagicAny + TaskInput>(value: &dyn MagicAny) -> ResolveFuture<'_> {
-    Box::pin(async {
+    Box::pin(async move {
         let value = downcast_args_ref::<T>(value);
         let resolved = value.resolve_input().await?;
         Ok(Box::new(resolved) as Box<dyn MagicAny>)
@@ -147,27 +148,27 @@ pub struct FunctionMeta {
 
 /// A native (rust) turbo-tasks function. It's used internally by
 /// `#[turbo_tasks::function]`.
-#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual")]
 pub struct NativeFunction {
     /// A readable name of the function that is used to reporting purposes.
-    pub name: String,
+    pub(crate) name: &'static str,
 
-    #[turbo_tasks(trace_ignore)]
-    pub function_meta: FunctionMeta,
+    pub(crate) function_meta: FunctionMeta,
 
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    pub arg_meta: ArgMeta,
+    pub(crate) arg_meta: ArgMeta,
 
     /// The functor that creates a functor from inputs. The inner functor
     /// handles the task execution.
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    pub implementation: Box<dyn TaskFn + Send + Sync + 'static>,
+    pub(crate) implementation: Box<dyn TaskFn + Send + Sync + 'static>,
+
+    // The globally unique name for this function, used when persisting
+    pub(crate) global_name: &'static str,
 }
 
 impl Debug for NativeFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("NativeFunction")
             .field("name", &self.name)
+            .field("global_name", &self.global_name)
             .field("function_meta", &self.function_meta)
             .finish_non_exhaustive()
     }
@@ -175,7 +176,8 @@ impl Debug for NativeFunction {
 
 impl NativeFunction {
     pub fn new_function<Mode, Inputs>(
-        name: String,
+        name: &'static str,
+        global_name: &'static str,
         function_meta: FunctionMeta,
         implementation: impl IntoTaskFn<Mode, Inputs>,
     ) -> Self
@@ -184,14 +186,40 @@ impl NativeFunction {
     {
         Self {
             name,
+            global_name,
             function_meta,
             arg_meta: ArgMeta::new::<Inputs>(),
             implementation: Box::new(implementation.into_task_fn()),
         }
     }
 
+    pub fn new_method_without_this<Mode, Inputs, I>(
+        name: &'static str,
+        global_name: &'static str,
+        function_meta: FunctionMeta,
+        arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
+        implementation: I,
+    ) -> Self
+    where
+        Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
+        I: IntoTaskFn<Mode, Inputs>,
+    {
+        Self {
+            name,
+            global_name,
+            function_meta,
+            arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
+                ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
+            } else {
+                ArgMeta::new::<Inputs>()
+            },
+            implementation: Box::new(implementation.into_task_fn()),
+        }
+    }
+
     pub fn new_method<Mode, This, Inputs, I>(
-        name: String,
+        name: &'static str,
+        global_name: &'static str,
         function_meta: FunctionMeta,
         arg_filter: Option<(FilterOwnedArgsFunctor, FilterAndResolveFunctor)>,
         implementation: I,
@@ -203,6 +231,7 @@ impl NativeFunction {
     {
         Self {
             name,
+            global_name,
             function_meta,
             arg_meta: if let Some((filter_owned, filter_and_resolve)) = arg_filter {
                 ArgMeta::with_filter_trait_call::<Inputs>(filter_owned, filter_and_resolve)
@@ -221,66 +250,39 @@ impl NativeFunction {
         }
     }
 
-    pub fn span(&'static self, persistence: TaskPersistence) -> Span {
-        match persistence {
-            TaskPersistence::Persistent => {
-                tracing::trace_span!("turbo_tasks::function", name = self.name.as_str())
-            }
-            TaskPersistence::Transient => {
-                tracing::trace_span!(
-                    "turbo_tasks::function",
-                    name = self.name.as_str(),
-                    transient = true,
-                )
-            }
-            TaskPersistence::Local => {
-                tracing::trace_span!(
-                    "turbo_tasks::function",
-                    name = self.name.as_str(),
-                    local = true,
-                )
-            }
-        }
+    pub fn span(&'static self, persistence: TaskPersistence, reason: TaskExecutionReason) -> Span {
+        let flags = match persistence {
+            TaskPersistence::Persistent => "",
+            TaskPersistence::Transient => "transient",
+            TaskPersistence::Local => "local",
+        };
+        tracing::trace_span!(
+            "turbo_tasks::function",
+            name = self.name,
+            flags = flags,
+            reason = reason.as_str()
+        )
     }
 
     pub fn resolve_span(&'static self, persistence: TaskPersistence) -> Span {
-        match persistence {
-            TaskPersistence::Persistent => {
-                tracing::trace_span!("turbo_tasks::resolve_call", name = self.name.as_str())
-            }
-            TaskPersistence::Transient => {
-                tracing::trace_span!(
-                    "turbo_tasks::resolve_call",
-                    name = self.name.as_str(),
-                    transient = true,
-                )
-            }
-            TaskPersistence::Local => {
-                tracing::trace_span!(
-                    "turbo_tasks::resolve_call",
-                    name = self.name.as_str(),
-                    local = true,
-                )
-            }
-        }
-    }
-
-    pub fn register(&'static self, global_name: &'static str) {
-        register_function(global_name, self);
+        let flags = match persistence {
+            TaskPersistence::Persistent => "",
+            TaskPersistence::Transient => "transient",
+            TaskPersistence::Local => "local",
+        };
+        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name, flags = flags)
     }
 }
-
-impl PartialEq for &'static NativeFunction {
+impl PartialEq for NativeFunction {
     fn eq(&self, other: &Self) -> bool {
-        std::ptr::eq(*self, *other)
+        std::ptr::eq(self, other)
     }
 }
 
-impl Eq for &'static NativeFunction {}
-
-impl Hash for &'static NativeFunction {
+impl Eq for NativeFunction {}
+impl Hash for NativeFunction {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        Hash::hash(&(*self as *const NativeFunction), state);
+        (self as *const NativeFunction).hash(state);
     }
 }
 
@@ -298,3 +300,7 @@ impl Ord for &'static NativeFunction {
         )
     }
 }
+
+pub struct CollectableFunction(pub &'static Lazy<NativeFunction>);
+
+inventory::collect! {CollectableFunction}

@@ -1,0 +1,17 @@
+[package]
+name = "turbo-esregex"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+
+[dependencies]
+anyhow = { workspace = true }
+regex = { workspace = true }
+regress = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+turbo-tasks = { workspace = true }
+
+
+[lints]
+workspace = true

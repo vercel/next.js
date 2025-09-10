@@ -9,8 +9,8 @@ use parking_lot::{Mutex, MutexGuard};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    get_invalidator, mark_session_dependent, mark_stateful, trace::TraceRawVcs, Invalidator,
-    OperationValue, SerializationInvalidator,
+    Invalidator, OperationValue, SerializationInvalidator, get_invalidator, mark_session_dependent,
+    mark_stateful, trace::TraceRawVcs,
 };
 
 #[derive(Serialize, Deserialize)]
@@ -96,6 +96,10 @@ impl<T> Drop for StateRef<'_, T> {
     }
 }
 
+/// **This API violates core assumption of turbo-tasks, is believed to be unsound, and there's no
+/// plan fix it.** You should prefer to use [collectibles][crate::CollectiblesSource] instead of
+/// state where at all possible. This API may be removed in the future.
+///
 /// An [internally-mutable] type, similar to [`RefCell`][std::cell::RefCell] or [`Mutex`] that can
 /// be stored inside a [`VcValueType`].
 ///
@@ -112,7 +116,7 @@ impl<T> Drop for StateRef<'_, T> {
 ///
 /// [internally-mutable]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html
 /// [`VcValueType`]: crate::VcValueType
-/// [strong consistency]: crate::Vc::strongly_consistent
+/// [strong consistency]: crate::OperationVc::read_strongly_consistent
 /// [`OperationVc`]: crate::OperationVc
 /// [`OperationValue`]: crate::OperationValue
 #[derive(Serialize, Deserialize)]

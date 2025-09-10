@@ -1,5 +1,5 @@
-export const named = "named";
-export default "default";
+export const named = 'named'
+export default 'default'
 export function identity(x) {
-  return x;
+  return x
 }

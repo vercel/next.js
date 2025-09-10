@@ -11,7 +11,9 @@ export interface ParsedUrl {
   port?: string | null
   protocol?: string | null
   query: ParsedUrlQuery
+  origin?: string | null
   search: string
+  slashes: boolean | undefined
 }
 
 export function parseUrl(url: string): ParsedUrl {
@@ -29,5 +31,11 @@ export function parseUrl(url: string): ParsedUrl {
     protocol: parsedURL.protocol,
     query: searchParamsToUrlQuery(parsedURL.searchParams),
     search: parsedURL.search,
+    origin: parsedURL.origin,
+    slashes:
+      parsedURL.href.slice(
+        parsedURL.protocol.length,
+        parsedURL.protocol.length + 2
+      ) === '//',
   }
 }

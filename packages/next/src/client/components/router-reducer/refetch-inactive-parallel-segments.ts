@@ -1,5 +1,7 @@
-import type { FlightRouterState } from '../../../server/app-render/types'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type {
+  FlightRouterState,
+  CacheNode,
+} from '../../../shared/lib/app-router-types'
 import type { AppRouterState } from './router-reducer-types'
 import { applyFlightData } from './apply-flight-data'
 import { fetchServerResponse } from './fetch-server-response'

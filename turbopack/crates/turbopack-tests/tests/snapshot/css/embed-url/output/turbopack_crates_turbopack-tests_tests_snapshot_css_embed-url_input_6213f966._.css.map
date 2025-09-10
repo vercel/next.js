@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.module.css"],"sourcesContent":[".module-style {\n  cursor: url(./image.png);\n  list-style-image: url(image.png);\n  background-image: url('./image.png');\n}\n"],"names":[],"mappings":"AAAA"}},
+    {"offset": {"line": 8, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.css"],"sourcesContent":[".style {\n  cursor: url(./image.png);\n  list-style-image: url(image.png);\n  background-image: url('image.png');\n}\n"],"names":[],"mappings":"AAAA"}}]
+}

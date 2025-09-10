@@ -1,8 +1,8 @@
 import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { BrowserInterface } from 'next-webdriver'
+import { Playwright } from 'next-webdriver'
 
-async function assertNoConsoleErrors(browser: BrowserInterface) {
+async function assertNoConsoleErrors(browser: Playwright) {
   const logs = await browser.log()
   const warningsAndErrors = logs.filter((log) => {
     return log.source === 'warning' || log.source === 'error'

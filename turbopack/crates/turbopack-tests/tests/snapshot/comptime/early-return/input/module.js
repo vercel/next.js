@@ -1,21 +1,21 @@
 export function a() {
   if (true) {
-    a1();
-    return;
+    a1()
+    return
   }
-  a2();
-  var a3 = 3;
+  a2()
+  var a3 = 3
   function a4() {
-    var a5;
+    var a5
   }
-  (function a6() {
-    var a7;
-  });
+  ;(function a6() {
+    var a7
+  })
   const a8 = () => {
-    var a9;
-  };
+    var a9
+  }
   class a10 {}
-  let a11 = 11;
+  let a11 = 11
   let {
     a12 = 12,
     a14: {
@@ -23,165 +23,165 @@ export function a() {
       a16: [a17, ...a18],
     },
     ...a19
-  } = {};
+  } = {}
   function a20() {
-    return;
-    a21();
+    return
+    a21()
   }
-  ({
+  ;({
     get a22() {
-      var a23;
+      var a23
     },
     set a22(value) {
-      var a24;
+      var a24
     },
     a25() {
-      var a26;
+      var a26
     },
-  });
+  })
   {
-    let a27;
-    var a28;
+    let a27
+    var a28
   }
 }
 
 export function b() {
   if (true) {
-    b1();
-    return;
+    b1()
+    return
   } else {
-    b2();
+    b2()
   }
-  b3();
+  b3()
 }
 
 export function c() {
   if (true) {
-    return;
+    return
   }
-  c1();
+  c1()
 }
 
 export function d() {
   if (true) {
-    return;
+    return
   } else {
-    d1();
+    d1()
   }
-  d2();
+  d2()
 }
 
 export function e() {
   if (false) {
-    e1();
+    e1()
   } else {
-    return;
+    return
   }
-  e2();
+  e2()
 }
 
 export function f() {
   if (false) {
   } else {
-    return;
+    return
   }
-  f1();
+  f1()
 }
 
 export function g() {
   if (false) {
-    g1();
+    g1()
   } else {
-    g2();
-    return;
+    g2()
+    return
   }
-  g3();
+  g3()
 }
 
 export function h() {
   if (false) {
   } else {
-    h1();
-    return;
+    h1()
+    return
   }
-  h2();
+  h2()
 }
 
 export function i(j) {
-  if (j < 1) return i1();
-  return i2();
+  if (j < 1) return i1()
+  return i2()
 }
 
 export function j(j) {
   if (j < 1) {
-    return i1();
+    return i1()
   }
-  return i2();
+  return i2()
 }
 
 class K {
   constructor() {
     try {
-      k1();
+      k1()
     } catch (e) {
-      k2();
-      return;
-      k3();
+      k2()
+      return
+      k3()
     } finally {
-      k4();
+      k4()
     }
-    k5();
+    k5()
   }
 
   l() {
     try {
-      l1();
+      l1()
     } catch (e) {
-      l2();
+      l2()
     } finally {
-      l3();
-      return;
-      l4();
+      l3()
+      return
+      l4()
     }
-    l5();
+    l5()
   }
 
   get m() {
     if (true) {
-      m1();
-      return;
+      m1()
+      return
     }
-    m2();
+    m2()
   }
 
   set m(value) {
-    m1();
-    return m2();
-    m3();
+    m1()
+    return m2()
+    m3()
   }
 
   n = () => {
     switch (42) {
       case 1:
-        n1();
-        return;
-        n2();
+        n1()
+        return
+        n2()
       case 2:
-        n3();
-        break;
+        n3()
+        break
       default:
-        n4();
+        n4()
     }
-    n5();
-  };
+    n5()
+  }
 
   o() {
     if (something) {
-      require("./module");
-      return;
+      require('./module')
+      return
     } else {
-      require("./module");
-      return;
+      require('./module')
+      return
     }
   }
 }
@@ -189,19 +189,19 @@ class K {
 function p() {
   class C {
     constructor() {
-      p1();
-      return;
-      p2();
+      p1()
+      return
+      p2()
     }
   }
 
-  p3();
-  return;
-  p4();
+  p3()
+  return
+  p4()
 }
 
-z1();
+z1()
 
-return;
+return
 
-z2();
+z2()

@@ -15,16 +15,17 @@ function errorIfEnvConflicted(config: NextConfigComplete, key: string) {
  * Collects all environment variables that are using the `NEXT_PUBLIC_` prefix.
  */
 export function getNextPublicEnvironmentVariables() {
-  const defineEnv: Record<string, string | undefined> = {}
+  const defineEnv: [string, string | undefined][] = []
   for (const key in process.env) {
     if (key.startsWith('NEXT_PUBLIC_')) {
       const value = process.env[key]
       if (value != null) {
-        defineEnv[`process.env.${key}`] = value
+        defineEnv.push([`process.env.${key}`, value])
       }
     }
   }
-  return defineEnv
+  defineEnv.sort((a, b) => a[0].localeCompare(b[0]))
+  return Object.fromEntries(defineEnv)
 }
 
 /**

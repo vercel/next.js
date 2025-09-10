@@ -1,4 +1,4 @@
-export let value = undefined;
+export let value = undefined
 export function setValue(newValue) {
-    value = newValue;
+  value = newValue
 }

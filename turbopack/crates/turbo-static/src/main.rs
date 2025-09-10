@@ -3,8 +3,8 @@ use std::{
     fs,
     path::PathBuf,
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc,
+        atomic::{AtomicBool, Ordering},
     },
 };
 
@@ -96,31 +96,31 @@ fn get_all_tasks(folders: &[PathBuf]) -> FxHashMap<Identifier, Vec<String>> {
 
             let file = fs::read_to_string(&rs_file).unwrap();
             let lines = file.lines();
-            let mut occurences = vec![];
+            let mut occurrences = vec![];
 
             tracing::debug!("processing {}", rs_file.display());
 
             for ((_, line), (line_no, _)) in lines.enumerate().tuple_windows() {
                 if line.contains("turbo_tasks::function") {
                     tracing::debug!("found at {:?}:L{}", rs_file, line_no);
-                    occurences.push(line_no + 1);
+                    occurrences.push(line_no + 1);
                 }
             }
 
-            if occurences.is_empty() {
+            if occurrences.is_empty() {
                 continue;
             }
 
             // parse the file using syn and get the span of the functions
             let file = syn::parse_file(&file).unwrap();
-            let occurences_count = occurences.len();
+            let occurrences_count = occurrences.len();
             let mut visitor = visitor::TaskVisitor::new();
             syn::visit::visit_file(&mut visitor, &file);
-            if visitor.results.len() != occurences_count {
+            if visitor.results.len() != occurrences_count {
                 tracing::warn!(
                     "file {:?} passed the heuristic with {:?} but the visitor found {:?}",
                     rs_file,
-                    occurences_count,
+                    occurrences_count,
                     visitor.results.len()
                 );
             }
@@ -281,7 +281,7 @@ fn write_dep_tree(
             ident.name,
             ident.path,
             ident.range.start.line,
-            tags.iter().map(|t| format!("\"{}\"", t)).join(",")
+            tags.iter().map(|t| format!("\"{t}\"")).join(",")
         );
         node_ids.insert(ident, counter);
     }
@@ -297,6 +297,6 @@ fn write_dep_tree(
         let src_id = *node_ids.get(src).unwrap();
         let dst_id = *node_ids.get(dest).unwrap();
 
-        _ = writeln!(file, "CREATE (n_{})-[:{}]->(n_{})", src_id, style, dst_id,);
+        _ = writeln!(file, "CREATE (n_{src_id})-[:{style}]->(n_{dst_id})",);
     }
 }

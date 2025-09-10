@@ -187,39 +187,37 @@ describe('next.rs api', () => {
   let project: Project
   let projectUpdateSubscription: AsyncIterableIterator<UpdateInfo>
   beforeAll(async () => {
-    console.log(next.testDir)
     const nextConfig = await loadConfig(PHASE_DEVELOPMENT_SERVER, next.testDir)
     const bindings = await loadBindings()
-    const distDir = path.join(
-      process.env.NEXT_SKIP_ISOLATE
-        ? path.resolve(__dirname, '../../..')
-        : next.testDir,
-      '.next'
-    )
+    const rootPath = process.env.NEXT_SKIP_ISOLATE
+      ? path.resolve(__dirname, '../../..')
+      : next.testDir
+    const distDir = '.next'
     project = await bindings.turbo.createProject({
       env: {},
-      jsConfig: {
-        compilerOptions: {},
-      },
       nextConfig: nextConfig,
-      projectPath: next.testDir,
+      rootPath,
+      projectPath: path.relative(rootPath, next.testDir) || '.',
       distDir,
-      rootPath: process.env.NEXT_SKIP_ISOLATE
-        ? path.resolve(__dirname, '../../..')
-        : next.testDir,
       watch: {
         enable: true,
       },
       dev: true,
       defineEnv: createDefineEnv({
+        projectPath: next.testDir,
         isTurbopack: true,
         clientRouterFilters: undefined,
         config: nextConfig,
         dev: true,
-        distDir: distDir,
+        distDir: path.join(rootPath, distDir),
         fetchCacheKeyPrefix: undefined,
         hasRewrites: false,
         middlewareMatchers: undefined,
+        rewrites: {
+          beforeFiles: [],
+          afterFiles: [],
+          fallback: [],
+        },
       }),
       buildId: 'development',
       encryptionKey: '12345',
@@ -230,6 +228,7 @@ describe('next.rs api', () => {
       },
       browserslistQuery: 'last 2 versions',
       noMangling: false,
+      currentNodeJsVersion: '18.0.0',
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
@@ -258,7 +257,7 @@ describe('next.rs api', () => {
     expect(normalizeDiagnostics(entrypoints.value.diagnostics)).toMatchSnapshot(
       'diagnostics'
     )
-    entrypointsSubscription.return()
+    await entrypointsSubscription.return()
   })
 
   const routes = [
@@ -640,7 +639,7 @@ describe('next.rs api', () => {
     let currentContent = await next.readFile(file)
     let nextContent = pagesIndexCode('hello world2')
 
-    const count = process.env.CI ? 300 : 1000
+    const count = process.env.NEXT_TEST_CI ? 300 : 1000
     for (let i = 0; i < count; i++) {
       await next.patchFile(file, nextContent)
       const content = currentContent

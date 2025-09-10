@@ -14,39 +14,51 @@ describe('app dir - metadata static routes cache', () => {
   })
 
   it('should generate different content after replace the static metadata file', async () => {
-    await next.build()
+    await next.start()
 
-    const faviconBuildContent = await next.readFile(
-      '.next/server/app/favicon.ico.body'
-    )
-    const opengrpahImageBuildContent = await next.readFile(
-      '.next/server/app/opengraph-image.png.body'
-    )
+    const $ = await next.render$('/')
+    const faviconUrl = $('link[rel="icon"]').attr('href')
+    const faviconBody = await (await next.fetch(faviconUrl)).text()
+    const faviconMd5 = generateMD5(faviconBody)
 
-    const faviconMd5 = generateMD5(faviconBuildContent)
-    const opengraphImageMd5 = generateMD5(opengrpahImageBuildContent)
+    const opengraphImageUrl = $('meta[property="og:image"]').attr('href')
+    const opengraphImageBody = await (
+      await next.fetch(opengraphImageUrl)
+    ).text()
+    const opengraphImageMd5 = generateMD5(opengraphImageBody)
+
+    await next.stop()
 
     // Update favicon and opengraph image
-    const newFaviconContent = await next.readFile('app/favicon.ico.new')
-    await next.patchFile('app/favicon.ico', newFaviconContent)
+    const newFaviconContent = await next.readFileBuffer('app/favicon.new.ico')
+    await next.remove('app/favicon.ico')
+    await next.writeFileBuffer('app/favicon.ico', newFaviconContent)
 
-    const newOpengraphImageContent = await next.readFile(
-      'app/opengraph-image.png.new'
+    const newOpengraphImageContent = await next.readFileBuffer(
+      'app/opengraph-image.new.png'
     )
-    await next.patchFile('app/opengraph-image.png', newOpengraphImageContent)
-
-    await next.build()
-    const faviconBuildContentNew = await next.readFile(
-      '.next/server/app/favicon.ico.body'
-    )
-    const opengrpahImageBuildContentNew = await next.readFile(
-      '.next/server/app/opengraph-image.png.body'
+    await next.remove('app/opengraph-image.png')
+    await next.writeFileBuffer(
+      'app/opengraph-image.png',
+      newOpengraphImageContent
     )
 
-    const faviconMd5New = generateMD5(faviconBuildContentNew)
-    const opengraphImageMd5New = generateMD5(opengrpahImageBuildContentNew)
+    await next.start()
 
-    expect(faviconMd5).not.toBe(faviconMd5New)
-    expect(opengraphImageMd5).not.toBe(opengraphImageMd5New)
+    const new$ = await next.render$('/')
+    const newFaviconUrl = new$('link[rel="icon"]').attr('href')
+    const newFaviconBody = await (await next.fetch(newFaviconUrl)).text()
+    const newFaviconMd5 = generateMD5(newFaviconBody)
+
+    const newOpengraphImageUrl = new$('meta[property="og:image"]').attr('href')
+    const newOpengraphImageBody = await (
+      await next.fetch(newOpengraphImageUrl)
+    ).text()
+    const newOpengraphImageMd5 = generateMD5(newOpengraphImageBody)
+
+    await next.stop()
+
+    expect(faviconMd5).not.toBe(newFaviconMd5)
+    expect(opengraphImageMd5).not.toBe(newOpengraphImageMd5)
   })
 })

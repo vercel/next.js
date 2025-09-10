@@ -208,20 +208,12 @@ import '../../utils/environment';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { DEFAULT_ENVIRONMENT } from '../../utils/environment';
-export { DEFAULT_ENVIRONMENT as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 ## Part 2
 ```js
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
-};
-import { parseEnvironment } from '../../utils/environment';
-export { parseEnvironment as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
 };
 
 ```
@@ -238,10 +230,6 @@ export { };
 ```js
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
-};
-import { _globalThis } from './globalThis';
-export { _globalThis as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
 };
 
 ```
@@ -264,7 +252,7 @@ function getEnv() {
     return Object.assign({}, DEFAULT_ENVIRONMENT, globalEnv);
 }
 export { getEnv };
-export { getEnv as d } from "__TURBOPACK_VAR__" assert {
+export { getEnv as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -283,7 +271,7 @@ function getEnvWithoutDefaults() {
     return parseEnvironment(_globalThis);
 }
 export { getEnvWithoutDefaults };
-export { getEnvWithoutDefaults as e } from "__TURBOPACK_VAR__" assert {
+export { getEnvWithoutDefaults as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -334,20 +322,12 @@ import '../../utils/environment';
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
 };
-import { DEFAULT_ENVIRONMENT } from '../../utils/environment';
-export { DEFAULT_ENVIRONMENT as a } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
 
 ```
 ## Part 2
 ```js
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 0
-};
-import { parseEnvironment } from '../../utils/environment';
-export { parseEnvironment as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
 };
 
 ```
@@ -364,10 +344,6 @@ export { };
 ```js
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 3
-};
-import { _globalThis } from './globalThis';
-export { _globalThis as c } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
 };
 
 ```
@@ -390,7 +366,7 @@ function getEnv() {
     return Object.assign({}, DEFAULT_ENVIRONMENT, globalEnv);
 }
 export { getEnv };
-export { getEnv as d } from "__TURBOPACK_VAR__" assert {
+export { getEnv as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
@@ -409,7 +385,7 @@ function getEnvWithoutDefaults() {
     return parseEnvironment(_globalThis);
 }
 export { getEnvWithoutDefaults };
-export { getEnvWithoutDefaults as e } from "__TURBOPACK_VAR__" assert {
+export { getEnvWithoutDefaults as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 

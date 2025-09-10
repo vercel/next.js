@@ -118,7 +118,7 @@ export const tokenizeArgs = (input: string): string[] => {
  *
  * @returns An array of strings with the node options.
  */
-const getNodeOptionsArgs = () => {
+export const getNodeOptionsArgs = () => {
   if (!process.env.NODE_OPTIONS) return []
 
   return tokenizeArgs(process.env.NODE_OPTIONS)

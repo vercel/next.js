@@ -31,6 +31,8 @@ export function getPkgManager(baseDir: string): PackageManager {
           return 'npm'
       }
     }
+    // No lock file found, default to npm
+    return 'npm'
   } catch {
     return 'npm'
   }

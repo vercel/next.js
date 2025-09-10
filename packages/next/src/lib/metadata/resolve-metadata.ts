@@ -105,15 +105,16 @@ function isFavicon(icon: IconDescriptor | undefined): boolean {
   )
 }
 
-function mergeStaticMetadata(
+async function mergeStaticMetadata(
   source: Metadata | null,
   target: ResolvedMetadata,
   staticFilesMetadata: StaticMetadata,
   metadataContext: MetadataContext,
   titleTemplates: TitleTemplates,
-  leafSegmentStaticIcons: StaticIcons
-) {
-  if (!staticFilesMetadata) return
+  leafSegmentStaticIcons: StaticIcons,
+  pathname: Promise<string>
+): Promise<ResolvedMetadata> {
+  if (!staticFilesMetadata) return target
   const { icon, apple, openGraph, twitter, manifest } = staticFilesMetadata
 
   // Keep updating the static icons in the most leaf node
@@ -138,9 +139,10 @@ function mergeStaticMetadata(
 
   // file based metadata is specified and current level metadata openGraph.images is not specified
   if (openGraph && !source?.openGraph?.hasOwnProperty('images')) {
-    const resolvedOpenGraph = resolveOpenGraph(
+    const resolvedOpenGraph = await resolveOpenGraph(
       { ...target.openGraph, images: openGraph } as OpenGraph,
       target.metadataBase,
+      pathname,
       { ...metadataContext, isStaticMetadataRouteFile: true },
       titleTemplates.openGraph
     )
@@ -154,23 +156,27 @@ function mergeStaticMetadata(
 }
 
 // Merge the source metadata into the resolved target metadata.
-function mergeMetadata({
-  source,
-  target,
-  staticFilesMetadata,
-  titleTemplates,
-  metadataContext,
-  buildState,
-  leafSegmentStaticIcons,
-}: {
-  source: Metadata | null
-  target: ResolvedMetadata
-  staticFilesMetadata: StaticMetadata
-  titleTemplates: TitleTemplates
-  metadataContext: MetadataContext
-  buildState: BuildState
-  leafSegmentStaticIcons: StaticIcons
-}): void {
+async function mergeMetadata(
+  route: string,
+  pathname: Promise<string>,
+  {
+    source,
+    target,
+    staticFilesMetadata,
+    titleTemplates,
+    metadataContext,
+    buildState,
+    leafSegmentStaticIcons,
+  }: {
+    source: Metadata | null
+    target: ResolvedMetadata
+    staticFilesMetadata: StaticMetadata
+    titleTemplates: TitleTemplates
+    metadataContext: MetadataContext
+    buildState: BuildState
+    leafSegmentStaticIcons: StaticIcons
+  }
+): Promise<ResolvedMetadata> {
   // If there's override metadata, prefer it otherwise fallback to the default metadata.
   const metadataBase =
     typeof source?.metadataBase !== 'undefined'
@@ -185,17 +191,19 @@ function mergeMetadata({
         break
       }
       case 'alternates': {
-        target.alternates = resolveAlternates(
+        target.alternates = await resolveAlternates(
           source.alternates,
           metadataBase,
+          pathname,
           metadataContext
         )
         break
       }
       case 'openGraph': {
-        target.openGraph = resolveOpenGraph(
+        target.openGraph = await resolveOpenGraph(
           source.openGraph,
           metadataBase,
+          pathname,
           metadataContext,
           titleTemplates.openGraph
         )
@@ -243,22 +251,25 @@ function mergeMetadata({
         break
       }
       case 'itunes': {
-        target[key] = resolveItunes(
+        target[key] = await resolveItunes(
           source.itunes,
           metadataBase,
+          pathname,
           metadataContext
         )
         break
       }
       case 'pagination': {
-        target.pagination = resolvePagination(
+        target.pagination = await resolvePagination(
           source.pagination,
           metadataBase,
+          pathname,
           metadataContext
         )
         break
       }
       // directly assign fields that fallback to null
+      case 'abstract':
       case 'applicationName':
       case 'description':
       case 'generator':
@@ -280,28 +291,40 @@ function mergeMetadata({
         target.metadataBase = metadataBase
         break
 
-      default: {
-        if (
-          (key === 'viewport' ||
-            key === 'themeColor' ||
-            key === 'colorScheme') &&
-          source[key] != null
-        ) {
+      case 'apple-touch-fullscreen': {
+        buildState.warnings.add(
+          `Use appleWebApp instead\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata`
+        )
+        break
+      }
+      case 'apple-touch-icon-precomposed': {
+        buildState.warnings.add(
+          `Use icons.apple instead\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata`
+        )
+        break
+      }
+      case 'themeColor':
+      case 'colorScheme':
+      case 'viewport':
+        if (source[key] != null) {
           buildState.warnings.add(
-            `Unsupported metadata ${key} is configured in metadata export in ${metadataContext.pathname}. Please move it to viewport export instead.\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport`
+            `Unsupported metadata ${key} is configured in metadata export in ${route}. Please move it to viewport export instead.\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport`
           )
         }
         break
+      default: {
+        key satisfies never
       }
     }
   }
-  mergeStaticMetadata(
+  return mergeStaticMetadata(
     source,
     target,
     staticFilesMetadata,
     metadataContext,
     titleTemplates,
-    leafSegmentStaticIcons
+    leafSegmentStaticIcons,
+    pathname
   )
 }
 
@@ -324,11 +347,20 @@ function mergeViewport({
       case 'colorScheme':
         target.colorScheme = source.colorScheme || null
         break
-      default:
+      case 'width':
+      case 'height':
+      case 'initialScale':
+      case 'minimumScale':
+      case 'maximumScale':
+      case 'userScalable':
+      case 'viewportFit':
+      case 'interactiveWidget':
         // always override the target with the source
         // @ts-ignore viewport properties
         target[key] = source[key]
         break
+      default:
+        key satisfies never
     }
   }
 }
@@ -894,8 +926,14 @@ function resolvePendingResult<
   // In dev we clone and freeze to prevent relying on mutating resolvedMetadata directly.
   // In prod we just pass resolvedMetadata through without any copying.
   if (process.env.NODE_ENV === 'development') {
-    parentResult = require('../../shared/lib/deep-freeze').deepFreeze(
-      require('./clone-metadata').cloneMetadata(parentResult)
+    // @ts-expect-error -- DeepReadonly<T> is by definition not assignable to T
+    // Instead, we should only accept DeepReadonly<ResolvedType>
+    parentResult = (
+      require('../../shared/lib/deep-freeze') as typeof import('../../shared/lib/deep-freeze')
+    ).deepFreeze(
+      (
+        require('./clone-metadata') as typeof import('./clone-metadata')
+      ).cloneMetadata(parentResult)
     )
   }
 
@@ -903,10 +941,12 @@ function resolvePendingResult<
 }
 
 export async function accumulateMetadata(
+  route: string,
   metadataItems: MetadataItems,
+  pathname: Promise<string>,
   metadataContext: MetadataContext
 ): Promise<ResolvedMetadata> {
-  const resolvedMetadata = createDefaultMetadata()
+  let resolvedMetadata = createDefaultMetadata()
 
   let titleTemplates: TitleTemplates = {
     title: null,
@@ -960,7 +1000,7 @@ export async function accumulateMetadata(
       metadata = pendingMetadata
     }
 
-    mergeMetadata({
+    resolvedMetadata = await mergeMetadata(route, pathname, {
       target: resolvedMetadata,
       source: metadata,
       metadataContext,
@@ -1055,6 +1095,7 @@ export async function accumulateViewport(
 // Exposed API for metadata component, that directly resolve the loader tree and related context as resolved metadata.
 export async function resolveMetadata(
   tree: LoaderTree,
+  pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
@@ -1068,7 +1109,12 @@ export async function resolveMetadata(
     getDynamicParamFromSegment,
     workStore
   )
-  return accumulateMetadata(metadataItems, metadataContext)
+  return accumulateMetadata(
+    workStore.route,
+    metadataItems,
+    pathname,
+    metadataContext
+  )
 }
 
 // Exposed API for viewport component, that directly resolve the loader tree and related context as resolved viewport.

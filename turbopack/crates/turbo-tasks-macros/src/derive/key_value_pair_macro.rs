@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, Ident, ItemEnum};
+use syn::{Ident, ItemEnum, parse_macro_input};
 
 pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemEnum);
@@ -219,6 +219,15 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 }
             }
 
+            fn from_key_and_value_ref(key: #key_name, value_ref: #value_ref_name) -> Self {
+                match (key, value_ref) {
+                    #(
+                        (#key_name::#variant_names { #key_pat }, #value_ref_name::#variant_names { #value_pat }) => #ident::#variant_names { #key_pat #value_clone_fields },
+                    )*
+                    _ => panic!("Invalid key and value combination"),
+                }
+            }
+
             fn into_key_and_value(self) -> (#key_name, #value_name) {
                 match self {
                     #(
@@ -303,6 +312,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             }
         }
 
+        #[derive(Debug, Clone)]
         #vis enum #storage_name {
             #(
                 #variant_names {
@@ -499,7 +509,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
 }
 
 fn patterns(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {
-    let variant_pat = fields
+    fields
         .iter()
         .map(|fields| {
             let pat = fields
@@ -515,12 +525,11 @@ fn patterns(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {
                 #(#pat,)*
             }
         })
-        .collect::<Vec<_>>();
-    variant_pat
+        .collect::<Vec<_>>()
 }
 
 fn clone_fields(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {
-    let variant_pat = fields
+    fields
         .iter()
         .map(|fields| {
             let pat = fields
@@ -536,12 +545,11 @@ fn clone_fields(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {
                 #(#pat,)*
             }
         })
-        .collect::<Vec<_>>();
-    variant_pat
+        .collect::<Vec<_>>()
 }
 
 fn ref_fields(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {
-    let variant_pat = fields
+    fields
         .iter()
         .map(|fields| {
             let pat = fields
@@ -557,8 +565,7 @@ fn ref_fields(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {
                 #(#pat,)*
             }
         })
-        .collect::<Vec<_>>();
-    variant_pat
+        .collect::<Vec<_>>()
 }
 
 fn field_declarations(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {

@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     asset::AssetContent,
@@ -49,7 +49,10 @@ impl VersionedContent for EcmascriptBrowserMergedChunkContent {
     }
 
     #[turbo_tasks::function]
-    async fn update(self: Vc<Self>, from_version: Vc<Box<dyn Version>>) -> Result<Vc<Update>> {
+    async fn update(
+        self: Vc<Self>,
+        from_version: ResolvedVc<Box<dyn Version>>,
+    ) -> Result<Vc<Update>> {
         Ok(update_ecmascript_merged_chunk(self, from_version)
             .await?
             .cell())

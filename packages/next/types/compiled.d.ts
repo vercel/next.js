@@ -2,6 +2,9 @@
 // it is not meant to be used with local type checking and is ignored in our
 // local tsconfig.json
 
+// TODO: Use tsconfig#paths instead
+declare module 'next/dist/compiled/next-devtools'
+
 declare module 'next/dist/compiled/webpack/webpack' {
   export function init(): void
   export let BasicEvaluatedExpression: any
@@ -55,11 +58,15 @@ declare module 'next/dist/compiled/jest-worker' {
 }
 
 declare module 'next/dist/compiled/amphtml-validator' {
+  export type Validator = {
+    validateString(html: string): Promise<any>
+  }
+  export function getInstance(validatorPath: string): Promise<Validator>
   export type ValidationError = any
 }
 
-declare module 'react-server-dom-webpack/server.edge'
-declare module 'react-server-dom-webpack/static.edge'
+declare module 'react-server-dom-webpack/server'
+declare module 'react-server-dom-webpack/static'
 
 declare module 'VAR_MODULE_GLOBAL_ERROR'
 declare module 'VAR_USERLAND'

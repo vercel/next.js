@@ -6,12 +6,12 @@ describe('router autoscrolling on navigation with css modules', () => {
     files: __dirname,
   })
 
-  type BrowserInterface = Awaited<ReturnType<(typeof next)['browser']>>
+  type Playwright = Awaited<ReturnType<(typeof next)['browser']>>
 
-  const getTopScroll = async (browser: BrowserInterface) =>
+  const getTopScroll = async (browser: Playwright) =>
     await browser.eval('document.documentElement.scrollTop')
 
-  const getLeftScroll = async (browser: BrowserInterface) =>
+  const getLeftScroll = async (browser: Playwright) =>
     await browser.eval('document.documentElement.scrollLeft')
 
   const waitForScrollToComplete = (
@@ -27,7 +27,7 @@ describe('router autoscrolling on navigation with css modules', () => {
     }, 'success')
 
   const scrollTo = async (
-    browser: BrowserInterface,
+    browser: Playwright,
     options: { x: number; y: number }
   ) => {
     await browser.eval(`window.scrollTo(${options.x}, ${options.y})`)

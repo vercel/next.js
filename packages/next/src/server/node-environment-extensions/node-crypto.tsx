@@ -1,6 +1,6 @@
 /**
  * We extend node:crypto APIs during builds and revalidates to ensure that prerenders don't observe random bytes
- * When dynamicIO is enabled. Random bytes are a form of IO even if they resolve synchronously. When dyanmicIO is
+ * When cacheComponents is enabled. Random bytes are a form of IO even if they resolve synchronously. When cacheComponents is
  * enabled we need to ensure that random bytes are excluded from prerenders unless they are cached.
  *
  *
@@ -12,7 +12,7 @@ import { io } from './utils'
 if (process.env.NEXT_RUNTIME === 'edge') {
   // nothing to patch
 } else {
-  const nodeCrypto = require('node:crypto')
+  const nodeCrypto = require('node:crypto') as typeof import('node:crypto')
 
   // require('node:crypto').getRandomValues is an alias for
   // crypto.getRandomValues which is extended in web-crypto.tsx
@@ -28,13 +28,14 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     }
   } catch {
     console.error(
-      `Failed to install ${randomUUIDExpression} extension. When using \`experimental.dynamicIO\` calling this function will not correctly trigger dynamic behavior.`
+      `Failed to install ${randomUUIDExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
     )
   }
 
   const randomBytesExpression = "`require('node:crypto').randomBytes(size)`"
   try {
     const _randomBytes = nodeCrypto.randomBytes
+    // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.randomBytes = function randomBytes() {
       if (typeof arguments[1] !== 'function') {
         // randomBytes is sync if the second arg is undefined
@@ -44,7 +45,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     }
   } catch {
     console.error(
-      `Failed to install ${randomBytesExpression} extension. When using \`experimental.dynamicIO\` calling this function without a callback argument will not correctly trigger dynamic behavior.`
+      `Failed to install ${randomBytesExpression} extension. When using \`experimental.cacheComponents\` calling this function without a callback argument will not correctly trigger dynamic behavior.`
     )
   }
 
@@ -52,19 +53,21 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     "`require('node:crypto').randomFillSync(...)`"
   try {
     const _randomFillSync = nodeCrypto.randomFillSync
+    // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.randomFillSync = function randomFillSync() {
       io(randomFillSyncExpression, 'random')
       return _randomFillSync.apply(this, arguments as any)
     }
   } catch {
     console.error(
-      `Failed to install ${randomFillSyncExpression} extension. When using \`experimental.dynamicIO\` calling this function will not correctly trigger dynamic behavior.`
+      `Failed to install ${randomFillSyncExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
     )
   }
 
   const randomIntExpression = "`require('node:crypto').randomInt(min, max)`"
   try {
     const _randomInt = nodeCrypto.randomInt
+    // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.randomInt = function randomInt() {
       if (typeof arguments[2] !== 'function') {
         // randomInt is sync if the third arg is undefined
@@ -74,7 +77,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     }
   } catch {
     console.error(
-      `Failed to install ${randomBytesExpression} extension. When using \`experimental.dynamicIO\` calling this function without a callback argument will not correctly trigger dynamic behavior.`
+      `Failed to install ${randomBytesExpression} extension. When using \`experimental.cacheComponents\` calling this function without a callback argument will not correctly trigger dynamic behavior.`
     )
   }
 
@@ -82,13 +85,14 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     "`require('node:crypto').generatePrimeSync(...)`"
   try {
     const _generatePrimeSync = nodeCrypto.generatePrimeSync
+    // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.generatePrimeSync = function generatePrimeSync() {
       io(generatePrimeSyncExpression, 'random')
       return _generatePrimeSync.apply(this, arguments as any)
     }
   } catch {
     console.error(
-      `Failed to install ${generatePrimeSyncExpression} extension. When using \`experimental.dynamicIO\` calling this function will not correctly trigger dynamic behavior.`
+      `Failed to install ${generatePrimeSyncExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
     )
   }
 
@@ -96,13 +100,14 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     "`require('node:crypto').generateKeyPairSync(...)`"
   try {
     const _generateKeyPairSync = nodeCrypto.generateKeyPairSync
+    // @ts-expect-error -- TODO: tell TS the overloads are preserved
     nodeCrypto.generateKeyPairSync = function generateKeyPairSync() {
       io(generateKeyPairSyncExpression, 'random')
       return _generateKeyPairSync.apply(this, arguments as any)
     }
   } catch {
     console.error(
-      `Failed to install ${generateKeyPairSyncExpression} extension. When using \`experimental.dynamicIO\` calling this function will not correctly trigger dynamic behavior.`
+      `Failed to install ${generateKeyPairSyncExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
     )
   }
 
@@ -116,7 +121,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     }
   } catch {
     console.error(
-      `Failed to install ${generateKeySyncExpression} extension. When using \`experimental.dynamicIO\` calling this function will not correctly trigger dynamic behavior.`
+      `Failed to install ${generateKeySyncExpression} extension. When using \`experimental.cacheComponents\` calling this function will not correctly trigger dynamic behavior.`
     )
   }
 }

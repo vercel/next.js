@@ -27,7 +27,7 @@ impl ValueToString for NextServerComponentModuleReference {
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(
             format!(
-                "Next.js server component {}",
+                "Next.js Server Component {}",
                 self.asset.ident().to_string().await?
             )
             .into(),

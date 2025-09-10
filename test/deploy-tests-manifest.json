@@ -4,6 +4,14 @@
     "test/e2e/app-dir/actions/app-action.test.ts": {
       "failed": [
         "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
+        "app-dir action handling fetch actions should handle unstable_expireTag"
+      ]
+    },
+    "test/e2e/app-dir/actions/app-action-node-middleware.test.ts": {
+      "failed": [
+        "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+        "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
         "app-dir action handling fetch actions should handle unstable_expireTag"
       ]
     },
@@ -53,7 +61,7 @@
       "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts",
       "test/e2e/basepath/basepath.test.ts",
       "test/e2e/postcss-config-cjs/index.test.ts",
-      "test/e2e/socket-io/index.test.js",
+      "test/e2e/socket-io/index.test.ts",
       "test/e2e/middleware-matcher/index.test.ts",
       "test/e2e/next-script/index.test.ts",
       "test/production/standalone-mode/**/*"

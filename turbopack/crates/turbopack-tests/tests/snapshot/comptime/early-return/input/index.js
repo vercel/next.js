@@ -1,2 +1,2 @@
-import * as module from "./module";
-console.log(module);
+import * as module from './module'
+console.log(module)

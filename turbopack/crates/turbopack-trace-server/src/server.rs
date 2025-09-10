@@ -4,9 +4,9 @@ use std::{
     thread::spawn,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
-use tungstenite::{accept, Message};
+use tungstenite::{Message, accept};
 
 use crate::{
     store::SpanId,
@@ -128,7 +128,7 @@ pub fn serve(store: Arc<StoreContainer>, port: u16) {
         spawn(move || {
             let websocket = accept(stream.unwrap()).unwrap();
             if let Err(err) = handle_connection(websocket, store) {
-                eprintln!("Error: {:?}", err);
+                eprintln!("Error: {err:?}");
             }
         });
     }

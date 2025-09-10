@@ -2,7 +2,7 @@
  * If set to `incremental`, only those leaf pages that export
  * `experimental_ppr = true` will have partial prerendering enabled. If any
  * page exports this value as `false` or does not export it at all will not
- * have partial prerendering enabled. If set to a boolean, it the options for
+ * have partial prerendering enabled. If set to a boolean, the options for
  * `experimental_ppr` will be ignored.
  */
 

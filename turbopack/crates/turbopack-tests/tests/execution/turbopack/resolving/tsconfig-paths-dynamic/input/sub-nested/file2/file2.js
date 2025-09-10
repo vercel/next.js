@@ -1,1 +1,1 @@
-export default "file2";
+export default 'file2'

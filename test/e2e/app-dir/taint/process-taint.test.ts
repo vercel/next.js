@@ -8,7 +8,7 @@ export function runTest({ next, isNextDev }) {
     const browser = await next.browser('/')
     expect(await browser.waitForElementByCss('#error-component').text()).toBe(
       isNextDev
-        ? 'Do not pass process.env to client components since it will leak sensitive data'
+        ? 'Do not pass process.env to Client Components since it will leak sensitive data'
         : GENERIC_RSC_ERROR
     )
   })
