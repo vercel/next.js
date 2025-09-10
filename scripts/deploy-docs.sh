@@ -12,15 +12,35 @@ if [ -z "${VERCEL_API_TOKEN:-}" ]; then
   exit 0
 fi
 
-CWD="."
+CWD="apps/docs"
 PROJECT="next-docs"
 
-echo "Deploying docs as project $PROJECT..." >&2
+echo "Preparing local build for docs (project: $PROJECT)..." >&2
 
-vercel link --scope vercel --project "$PROJECT" --token "$VERCEL_API_TOKEN" --yes 1>&2
+# Ensure corepack and install only the docs workspace graph
+if ! command -v corepack >/dev/null 2>&1; then
+  echo "Installing corepack..." >&2
+  npm i -g corepack@0.31 1>&2
+fi
+corepack enable 1>&2
 
-# Deploy from repo root; dashboard rootDirectory points to apps/docs
-URL=$(vercel deploy --token "$VERCEL_API_TOKEN" --archive=tgz $PROD)
+echo "Installing dependencies for ./apps/docs..." >&2
+pnpm -w --filter ./apps/docs... install --frozen-lockfile 1>&2
+
+echo "Installing Vercel CLI..." >&2
+npm i -g vercel@latest 1>&2
+
+echo "Linking Vercel project..." >&2
+vercel link --cwd "$CWD" --scope vercel --project "$PROJECT" --token "$VERCEL_API_TOKEN" --yes 1>&2
+
+echo "Pulling env for $DEPLOY_ENVIRONMENT..." >&2
+vercel pull --cwd "$CWD" --yes --environment="${DEPLOY_ENVIRONMENT:-preview}" --token="$VERCEL_API_TOKEN" 1>&2
+
+echo "Building locally with Vercel..." >&2
+vercel build --cwd "$CWD" --token="$VERCEL_API_TOKEN" 1>&2
+
+echo "Deploying prebuilt output..." >&2
+URL=$(vercel deploy --cwd "$CWD" --prebuilt --archive=tgz --token "$VERCEL_API_TOKEN" $PROD)
 echo "$URL"
 
 
