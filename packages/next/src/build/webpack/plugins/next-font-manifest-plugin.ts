@@ -78,7 +78,7 @@ export class NextFontManifestPlugin {
           if (this.appDir) {
             const appDirBase = path.dirname(this.appDir) + path.sep
 
-            // After all modules are created, we collect the modules that was created by next-font-loader.
+            // After all modules are created, we collect the modules that were created by next-font-loader.
             traverseModules(
               compilation,
               (mod, _chunk, chunkGroup) => {
@@ -95,7 +95,6 @@ export class NextFontManifestPlugin {
                     /\.(woff|woff2|eot|ttf|otf)$/.test(file)
                   )
 
-                  // Look if size-adjust fallback font is being used
                   if (!nextFontManifest.appUsingSizeAdjust) {
                     nextFontManifest.appUsingSizeAdjust =
                       getPageIsUsingSizeAdjust(fontFiles)
@@ -103,42 +102,34 @@ export class NextFontManifestPlugin {
 
                   const preloadedFontFiles = getPreloadedFontFiles(fontFiles)
 
-                  // Add an entry of the module's font files in the manifest.
-                  // We'll add an entry even if no files should preload.
-                  // When an entry is present but empty, instead of preloading the font files, a preconnect tag is added.
                   if (fontFiles.length > 0) {
                     if (!nextFontManifest.app[chunkEntryName]) {
                       nextFontManifest.app[chunkEntryName] = []
                     }
                     nextFontManifest.app[chunkEntryName].push(
-                      ...preloadedFontFiles
+                      ...preloadedFontFiles.map(
+                        (file) => `/_next/${file.replace(/\\/g, '/')}`
+                      )
                     )
                   }
                 }
               },
               (chunkGroup) => {
-                // Only loop through entrypoints that are under app/.
                 return !!chunkGroup.name?.startsWith('app/')
               }
             )
           }
 
-          // Look at all the entrypoints created for pages/.
           for (const entrypoint of compilation.entrypoints.values()) {
             const pagePath = getRouteFromEntrypoint(entrypoint.name!)
+            if (!pagePath) continue
 
-            if (!pagePath) {
-              continue
-            }
-
-            // Get font files from the chunks included in the entrypoint.
             const fontFiles: string[] = entrypoint.chunks
               .flatMap((chunk: any) => [...chunk.auxiliaryFiles])
               .filter((file: string) =>
                 /\.(woff|woff2|eot|ttf|otf)$/.test(file)
               )
 
-            // Look if size-adjust fallback font is being used
             if (!nextFontManifest.pagesUsingSizeAdjust) {
               nextFontManifest.pagesUsingSizeAdjust =
                 getPageIsUsingSizeAdjust(fontFiles)
@@ -146,15 +137,15 @@ export class NextFontManifestPlugin {
 
             const preloadedFontFiles = getPreloadedFontFiles(fontFiles)
 
-            // Add an entry of the route's font files in the manifest.
-            // We'll add an entry even if no files should preload.
-            // When an entry is present but empty, instead of preloading the font files, a preconnect tag is added.
             if (fontFiles.length > 0) {
-              nextFontManifest.pages[pagePath] = preloadedFontFiles
+              nextFontManifest.pages[pagePath] = preloadedFontFiles.map(
+                (file) => `/_next/${file.replace(/\\/g, '/')}`
+              )
             }
           }
 
           const manifest = JSON.stringify(nextFontManifest, null)
+
           // Create manifest for edge
           compilation.emitAsset(
             `server/${NEXT_FONT_MANIFEST}.js`,

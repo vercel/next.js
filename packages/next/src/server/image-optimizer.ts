@@ -249,7 +249,8 @@ export async function detectContentType(
     const sharp = getSharp(concurrency)
     const meta = await sharp(buffer)
       .metadata()
-      .catch((_) => null)
+      .catch((_: any) => null)
+
     format = meta?.format
   }
 

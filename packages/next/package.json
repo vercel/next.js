@@ -215,6 +215,7 @@
     "@types/react-is": "18.2.4",
     "@types/semver": "7.3.1",
     "@types/send": "0.14.4",
+    "@types/sharp": "0.32.0",
     "@types/shell-quote": "1.7.1",
     "@types/tar": "6.1.5",
     "@types/text-table": "0.2.1",
