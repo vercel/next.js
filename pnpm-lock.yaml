@@ -624,9 +624,6 @@ importers:
 
   apps/docs:
     dependencies:
-      '-':
-        specifier: 0.0.1
-        version: 0.0.1
       fumadocs-core:
         specifier: 15.7.8
         version: 15.7.8(@types/react@19.1.10)(next@15.5.1-canary.38(@babel/core@7.26.10)(@opentelemetry/api@1.6.0)(@playwright/test@1.51.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@19.1.0-rc.2)(react-dom@19.2.0-canary-6b70072c-20250909(react@19.2.0-canary-6b70072c-20250909))(react@19.2.0-canary-6b70072c-20250909)(sass@1.77.8))(react-dom@19.2.0-canary-6b70072c-20250909(react@19.2.0-canary-6b70072c-20250909))(react@19.2.0-canary-6b70072c-20250909)
@@ -1956,9 +1953,6 @@ importers:
         version: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.15))
 
 packages:
-
-  '-@0.0.1':
-    resolution: {integrity: sha512-3HfneK3DGAm05fpyj20sT3apkNcvPpCuccOThOPdzz8sY7GgQGe0l93XH9bt+YzibcTIgUAIMoyVJI740RtgyQ==}
 
   '@actions/core@1.10.1':
     resolution: {integrity: sha512-3lBR9EDAY+iYIpTnTIXmWcNbX3T2kCkAEQGIQx4NVQ0575nk2k3GRZDTPQG+vVtS2izSLmINlxXf0uLtnrTP+g==}
@@ -18085,8 +18079,6 @@ packages:
 
 snapshots:
 
-  '-@0.0.1': {}
-
   '@actions/core@1.10.1':
     dependencies:
       '@actions/http-client': 2.2.0
@@ -23813,7 +23805,7 @@ snapshots:
     dependencies:
       '@vitest/spy': 3.0.4
       estree-walker: 3.0.3
-      magic-string: 0.30.17
+      magic-string: 0.30.19
     optionalDependencies:
       vite: 6.2.5(@types/node@20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu))(jiti@2.5.1)(sass@1.54.0)(tsx@4.19.2)
     optional: true
@@ -23845,7 +23837,7 @@ snapshots:
   '@vitest/snapshot@3.0.4':
     dependencies:
       '@vitest/pretty-format': 3.0.4
-      magic-string: 0.30.17
+      magic-string: 0.30.19
       pathe: 2.0.3
     optional: true
 
@@ -37638,7 +37630,7 @@ snapshots:
 
   vite@6.2.5(@types/node@20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu))(jiti@2.5.1)(sass@1.54.0)(tsx@4.19.2):
     dependencies:
-      esbuild: 0.25.2
+      esbuild: 0.25.9
       postcss: 8.5.3
       rollup: 4.39.0
     optionalDependencies:
@@ -37651,7 +37643,7 @@ snapshots:
 
   vite@6.2.5(@types/node@20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu))(jiti@2.5.1)(sass@1.77.8)(tsx@4.19.2):
     dependencies:
-      esbuild: 0.25.2
+      esbuild: 0.25.9
       postcss: 8.5.3
       rollup: 4.39.0
     optionalDependencies:
@@ -37674,7 +37666,7 @@ snapshots:
       chai: 5.2.0
       debug: 4.4.0
       expect-type: 1.2.1
-      magic-string: 0.30.17
+      magic-string: 0.30.19
       pathe: 2.0.3
       std-env: 3.9.0
       tinybench: 2.9.0
