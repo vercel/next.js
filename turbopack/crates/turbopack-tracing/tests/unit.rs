@@ -6,6 +6,7 @@ mod helpers;
 use std::{path::PathBuf, sync::LazyLock};
 
 use anyhow::Result;
+use difference::Changeset;
 use regex::Regex;
 use rstest::*;
 use turbo_rcstr::{RcStr, rcstr};
@@ -30,6 +31,8 @@ use turbopack_core::{
     traced_asset::TracedAsset,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
+
+use crate::helpers::print_changeset;
 
 #[global_allocator]
 static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
@@ -301,9 +304,17 @@ fn node_file_trace(input_path: &str) -> Result<()> {
                 .filter(|m| m != "package.json")
                 .collect::<FxIndexSet<_>>();
 
-            assert_eq!(reference, list);
-
-            anyhow::Ok(())
+            if reference == list {
+                anyhow::Ok(())
+            } else {
+                let reference = reference.into_iter().collect::<Vec<_>>().join("\n");
+                let list = list.into_iter().collect::<Vec<_>>().join("\n");
+                println!(
+                    "{}",
+                    print_changeset(&Changeset::new(reference.trim(), list.trim(), "\n"))
+                );
+                anyhow::bail!("file trace does not match reference");
+            }
         };
 
         let tt = TurboTasks::new(TurboTasksBackend::new(
