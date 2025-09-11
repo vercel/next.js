@@ -125,7 +125,7 @@ where
     // contain the same value
     let mut upcast_vcs = Vec::new();
     for _idx in 0..2 {
-        upcast_vcs.push(Vc::upcast((cell_fn)(input.value)));
+        upcast_vcs.push(Vc::upcast_non_strict((cell_fn)(input.value)));
     }
 
     // pick a different cell idx upon each invalidation/execution

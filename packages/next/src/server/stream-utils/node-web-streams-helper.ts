@@ -123,40 +123,59 @@ export async function streamToString(
   return string
 }
 
-export function createBufferedTransformStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
-> {
+export type BufferedTransformOptions = {
+  /**
+   * Flush synchronously once the buffer reaches this many bytes.
+   */
+  readonly maxBufferByteLength?: number
+}
+
+export function createBufferedTransformStream(
+  options: BufferedTransformOptions = {}
+): TransformStream<Uint8Array, Uint8Array> {
+  const { maxBufferByteLength = Infinity } = options
+
   let bufferedChunks: Array<Uint8Array> = []
   let bufferByteLength: number = 0
   let pending: DetachedPromise<void> | undefined
 
   const flush = (controller: TransformStreamDefaultController) => {
-    // If we already have a pending flush, then return early.
-    if (pending) return
+    try {
+      if (bufferedChunks.length === 0) {
+        return
+      }
+
+      const chunk = new Uint8Array(bufferByteLength)
+      let copiedBytes = 0
+
+      for (let i = 0; i < bufferedChunks.length; i++) {
+        const bufferedChunk = bufferedChunks[i]
+        chunk.set(bufferedChunk, copiedBytes)
+        copiedBytes += bufferedChunk.byteLength
+      }
+      // We just wrote all the buffered chunks so we need to reset the bufferedChunks array
+      // and our bufferByteLength to prepare for the next round of buffered chunks
+      bufferedChunks.length = 0
+      bufferByteLength = 0
+      controller.enqueue(chunk)
+    } catch {
+      // If an error occurs while enqueuing, it can't be due to this
+      // transformer. It's most likely caused by the controller having been
+      // errored (for example, if the stream was cancelled).
+    }
+  }
+
+  const scheduleFlush = (controller: TransformStreamDefaultController) => {
+    if (pending) {
+      return
+    }
 
     const detached = new DetachedPromise<void>()
     pending = detached
 
     scheduleImmediate(() => {
       try {
-        const chunk = new Uint8Array(bufferByteLength)
-        let copiedBytes = 0
-
-        for (let i = 0; i < bufferedChunks.length; i++) {
-          const bufferedChunk = bufferedChunks[i]
-          chunk.set(bufferedChunk, copiedBytes)
-          copiedBytes += bufferedChunk.byteLength
-        }
-        // We just wrote all the buffered chunks so we need to reset the bufferedChunks array
-        // and our bufferByteLength to prepare for the next round of buffered chunks
-        bufferedChunks.length = 0
-        bufferByteLength = 0
-        controller.enqueue(chunk)
-      } catch {
-        // If an error occurs while enqueuing it can't be due to this
-        // transformers fault. It's likely due to the controller being
-        // errored due to the stream being cancelled.
+        flush(controller)
       } finally {
         pending = undefined
         detached.resolve()
@@ -170,13 +189,14 @@ export function createBufferedTransformStream(): TransformStream<
       bufferedChunks.push(chunk)
       bufferByteLength += chunk.byteLength
 
-      // Flush the buffer to the controller.
-      flush(controller)
+      if (bufferByteLength >= maxBufferByteLength) {
+        flush(controller)
+      } else {
+        scheduleFlush(controller)
+      }
     },
     flush() {
-      if (!pending) return
-
-      return pending.promise
+      return pending?.promise
     },
   })
 }

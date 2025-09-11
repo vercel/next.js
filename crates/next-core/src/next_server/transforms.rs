@@ -13,8 +13,7 @@ use crate::{
         get_next_dynamic_transform_rule, get_next_font_transform_rule, get_next_image_rule,
         get_next_lint_transform_rule, get_next_modularize_imports_rule,
         get_next_pages_transforms_rule, get_next_track_dynamic_imports_transform_rule,
-        get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
-        next_cjs_optimizer::get_next_cjs_optimizer_rule,
+        get_server_actions_transform_rule, next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
         next_edge_node_api_assert::next_edge_node_api_assert,
         next_middleware_dynamic_assert::get_middleware_dynamic_assert_rule,
@@ -167,7 +166,6 @@ pub async fn get_next_server_transforms_rules(
                 .await?,
         );
 
-        rules.push(get_next_amp_attr_rule(mdx_rs));
         rules.push(get_next_cjs_optimizer_rule(mdx_rs));
         rules.push(get_next_pure_rule(mdx_rs));
 

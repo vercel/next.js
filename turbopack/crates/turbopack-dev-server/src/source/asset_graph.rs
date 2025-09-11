@@ -323,9 +323,7 @@ impl Introspectable for AssetGraphContentSource {
             .map(|&asset| async move {
                 Ok((
                     rcstr!("root"),
-                    IntrospectableOutputAsset::new(*ResolvedVc::upcast(asset))
-                        .to_resolved()
-                        .await?,
+                    IntrospectableOutputAsset::new(*asset).to_resolved().await?,
                 ))
             })
             .try_join()
@@ -338,9 +336,7 @@ impl Introspectable for AssetGraphContentSource {
             .map(|&asset| async move {
                 Ok((
                     rcstr!("inner"),
-                    IntrospectableOutputAsset::new(*ResolvedVc::upcast(asset))
-                        .to_resolved()
-                        .await?,
+                    IntrospectableOutputAsset::new(*asset).to_resolved().await?,
                 ))
             })
             .try_join()

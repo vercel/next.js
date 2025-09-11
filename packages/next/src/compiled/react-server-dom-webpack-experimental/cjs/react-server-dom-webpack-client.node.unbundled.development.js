@@ -1552,7 +1552,8 @@
       this.value = value;
       this.reason = reason;
       this._children = [];
-      this._debugInfo = this._debugChunk = null;
+      this._debugChunk = null;
+      this._debugInfo = [];
     }
     function unwrapWeakResponse(weakResponse) {
       weakResponse = weakResponse.weak.deref();
@@ -1751,7 +1752,6 @@
         var rejectListeners = chunk.reason;
         chunk.status = "resolved_module";
         chunk.value = value;
-        chunk._debugInfo = null;
         null !== response &&
           (initializeModuleChunk(chunk),
           wakeChunkIfInitialized(chunk, response, rejectListeners));
@@ -1760,7 +1760,7 @@
     function initializeDebugChunk(response, chunk) {
       var debugChunk = chunk._debugChunk;
       if (null !== debugChunk) {
-        var debugInfo = chunk._debugInfo || (chunk._debugInfo = []);
+        var debugInfo = chunk._debugInfo;
         try {
           if ("resolved_model" === debugChunk.status) {
             for (
@@ -1944,8 +1944,7 @@
         _payload: chunk,
         _init: readChunk
       };
-      chunk = chunk._debugInfo || (chunk._debugInfo = []);
-      lazyType._debugInfo = chunk;
+      lazyType._debugInfo = chunk._debugInfo;
       lazyType._store = { validated: validated };
       return lazyType;
     }
@@ -2064,9 +2063,7 @@
             erroredComponent.debugStack = blockedValue._debugStack;
             supportsCreateTask &&
               (erroredComponent.debugTask = blockedValue._debugTask);
-            (handler._debugInfo || (handler._debugInfo = [])).push(
-              erroredComponent
-            );
+            handler._debugInfo.push(erroredComponent);
           }
           triggerErrorOnChunk(reference, handler, error);
         }
@@ -2219,9 +2216,7 @@
                 erroredComponent.debugStack = blockedValue._debugStack;
                 supportsCreateTask &&
                   (erroredComponent.debugTask = blockedValue._debugTask);
-                (chunk._debugInfo || (chunk._debugInfo = [])).push(
-                  erroredComponent
-                );
+                chunk._debugInfo.push(erroredComponent);
               }
               triggerErrorOnChunk(response, chunk, error);
             }
@@ -2235,24 +2230,27 @@
       referencedChunk,
       referencedValue
     ) {
-      referencedChunk._debugInfo &&
-        ((referencedChunk = referencedChunk._debugInfo),
-        "object" !== typeof referencedValue ||
-          null === referencedValue ||
-          (!isArrayImpl(referencedValue) &&
-            "function" !== typeof referencedValue[ASYNC_ITERATOR] &&
-            referencedValue.$$typeof !== REACT_ELEMENT_TYPE) ||
-          referencedValue._debugInfo ||
-          Object.defineProperty(referencedValue, "_debugInfo", {
-            configurable: !1,
-            enumerable: !1,
-            writable: !0,
-            value: referencedChunk
-          }),
-        null !== parentChunk &&
-          ((parentChunk =
-            parentChunk._debugInfo || (parentChunk._debugInfo = [])),
-          parentChunk.push.apply(parentChunk, referencedChunk)));
+      referencedChunk = referencedChunk._debugInfo;
+      if (
+        "object" === typeof referencedValue &&
+        null !== referencedValue &&
+        (isArrayImpl(referencedValue) ||
+          "function" === typeof referencedValue[ASYNC_ITERATOR] ||
+          referencedValue.$$typeof === REACT_ELEMENT_TYPE)
+      ) {
+        var existingDebugInfo = referencedValue._debugInfo;
+        null == existingDebugInfo
+          ? Object.defineProperty(referencedValue, "_debugInfo", {
+              configurable: !1,
+              enumerable: !1,
+              writable: !0,
+              value: referencedChunk.slice(0)
+            })
+          : existingDebugInfo.push.apply(existingDebugInfo, referencedChunk);
+      }
+      null !== parentChunk &&
+        ((parentChunk = parentChunk._debugInfo),
+        parentChunk.push.apply(parentChunk, referencedChunk));
     }
     function getOutlinedModel(response, reference, parentObject, key, map) {
       reference = reference.split(":");

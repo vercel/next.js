@@ -100,7 +100,7 @@ async function exportAppImpl(
 
   if (telemetry) {
     telemetry.record(
-      eventCliSession(distDir, nextConfig, {
+      eventCliSession(nextConfig, {
         webpackVersion: null,
         cliCommand: 'export',
         isSrcDir: null,

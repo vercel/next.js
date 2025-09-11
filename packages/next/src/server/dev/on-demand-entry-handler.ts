@@ -13,10 +13,8 @@ import type HotReloaderWebpack from './hot-reloader-webpack'
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import {
-  getStaticInfoIncludingLayouts,
-  runDependingOnPageType,
-} from '../../build/entries'
+import { runDependingOnPageType } from '../../build/entries'
+import { getStaticInfoIncludingLayouts } from '../../build/get-static-info-including-layouts'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'

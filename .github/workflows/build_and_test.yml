@@ -521,6 +521,50 @@ jobs:
 
     secrets: inherit
 
+  # TODO: Remove this once we bump minimum Node.js version to v22
+  test-next-config-ts-native-ts-dev:
+    name: test next-config-ts-native-ts dev
+    needs: ['changes', 'build-next', 'build-native']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: ${{ matrix.node }}
+      afterBuild: |
+        export NEXT_TEST_MODE=dev
+        export NODE_OPTIONS=--experimental-transform-types
+        node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts
+      stepName: 'test-next-config-ts-native-ts-dev-${{ matrix.node }}'
+
+    secrets: inherit
+
+  # TODO: Remove this once we bump minimum Node.js version to v22
+  test-next-config-ts-native-ts-prod:
+    name: test next-config-ts-native-ts prod
+    needs: ['changes', 'build-next', 'build-native']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: ${{ matrix.node }}
+      afterBuild: |
+        export NEXT_TEST_MODE=start
+        export NODE_OPTIONS=--experimental-transform-types
+        node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts
+      stepName: 'test-next-config-ts-native-ts-prod-${{ matrix.node }}'
+
+    secrets: inherit
+
   test-unit-windows:
     name: test unit windows
     needs: ['changes', 'build-native', 'build-native-windows']
@@ -956,6 +1000,8 @@ jobs:
         'validate-docs-links',
         'check-types-precompiled',
         'test-unit',
+        'test-next-config-ts-native-ts-dev',
+        'test-next-config-ts-native-ts-prod',
         'test-dev',
         'test-prod',
         'test-integration',

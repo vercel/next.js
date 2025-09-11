@@ -8,7 +8,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     css::chunk::CssChunkType,
     module_options::{
-        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule, TypeofWindow,
+        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
         TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
     },
     resolve_options_context::ResolveOptionsContext,
@@ -28,7 +28,7 @@ use turbopack_core::{
     module_graph::export_usage::OptionExportUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkType;
+use turbopack_ecmascript::{TypeofWindow, chunk::EcmascriptChunkType};
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -188,6 +188,9 @@ pub async fn get_client_resolve_options_context(
         .typescript_tsconfig_path()
         .await?
         .as_ref()
+        // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
+        // resolve tsconfig.json relative to the file being compiled.
+        .or(Some(&RcStr::from("tsconfig.json")))
         .map(|p| project_path.join(p))
         .transpose()?;
 
