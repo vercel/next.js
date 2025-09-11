@@ -42,6 +42,7 @@ struct Fallback {
     pub adjustment: Option<FontAdjustment>,
 }
 
+// This JSON file is large, so we cache it in turbotasks
 #[turbo_tasks::function]
 async fn load_font_metrics(project_root: FileSystemPath) -> Result<Vc<FontMetricsMap>> {
     let data: FontMetricsMap = load_next_js_templateon(
