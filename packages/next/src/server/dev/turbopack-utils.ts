@@ -382,7 +382,7 @@ export async function handleRouteType({
       const type = writtenEndpoint.type
 
       if (type === 'edge') {
-        await manifestLoader.loadMiddlewareManifest(page, 'app')
+        manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
       }
@@ -394,7 +394,7 @@ export async function handleRouteType({
       manifestLoader.loadFontManifest(page, 'app')
 
       if (shouldCreateWebpackStats) {
-        await manifestLoader.loadWebpackStats(page, 'app')
+        manifestLoader.loadWebpackStats(page, 'app')
       }
 
       manifestLoader.writeManifests({
@@ -418,7 +418,7 @@ export async function handleRouteType({
       manifestLoader.loadAppPathsManifest(page)
 
       if (type === 'edge') {
-        await manifestLoader.loadMiddlewareManifest(page, 'app')
+        manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
       }
