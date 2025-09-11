@@ -227,7 +227,7 @@ impl ModuleOptions {
             execution_context,
             tree_shaking_mode,
             keep_last_successful_parse,
-            is_tracing,
+            tracing_mode,
             ..
         } = *module_options_context.await?;
 
@@ -280,7 +280,7 @@ impl ModuleOptions {
             ignore_dynamic_requests,
             extract_source_map: matches!(ecmascript_source_maps, SourceMapsType::Full),
             keep_last_successful_parse,
-            is_tracing,
+            tracing_mode,
             enable_typeof_window_inlining,
             ..Default::default()
         };

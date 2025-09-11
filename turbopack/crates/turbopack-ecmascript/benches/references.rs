@@ -50,7 +50,7 @@ pub fn benchmark(c: &mut Criterion) {
             .resolved_cell();
 
             let mut cases = vec![];
-            for (file, is_tracing) in [
+            for (file, tracing_mode) in [
                 (r#"packages-bundle.js"#, false),
                 (r#"packages-bundle.js"#, true),
                 (r#"app-page-turbo.runtime.prod.js"#, false),
@@ -68,7 +68,11 @@ pub fn benchmark(c: &mut Criterion) {
                     EcmascriptInputTransforms::empty().to_resolved().await?,
                     EcmascriptOptions {
                         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                        is_tracing,
+                        tracing_mode: if tracing_mode {
+                            turbopack_ecmascript::TracingMode::TracingOnly
+                        } else {
+                            turbopack_ecmascript::TracingMode::BundlingWithTracing
+                        },
                         ..Default::default()
                     }
                     .resolved_cell(),
@@ -80,7 +84,7 @@ pub fn benchmark(c: &mut Criterion) {
 
                 cases.push((
                     file.rsplit("/").next().unwrap(),
-                    if is_tracing { "tracing" } else { "full" },
+                    if tracing_mode { "tracing" } else { "full" },
                     module,
                 ));
             }

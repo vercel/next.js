@@ -33,7 +33,9 @@ use turbo_tasks::{
 use turbo_tasks_backend::TurboTasksBackend;
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
-    ModuleAssetContext, emit_with_completion_operation,
+    ModuleAssetContext,
+    ecmascript::TracingMode,
+    emit_with_completion_operation,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
         TypescriptTransformOptions,
@@ -373,7 +375,7 @@ async fn node_file_trace_operation(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            is_tracing: true,
+            tracing_mode: TracingMode::TracingOnly,
             ..Default::default()
         }
         .cell(),

@@ -129,7 +129,7 @@ use super::{
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
     EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable, SpecifiedModuleType,
-    TreeShakingMode, TypeofWindow,
+    TracingMode, TreeShakingMode, TypeofWindow,
     analyzer::{
         ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
         builtin::early_replace_builtin,
@@ -212,7 +212,7 @@ impl AnalyzeEcmascriptModuleResult {
 /// A temporary analysis result builder to pass around, to be turned into an
 /// `Vc<AnalyzeEcmascriptModuleResult>` eventually.
 pub struct AnalyzeEcmascriptModuleResultBuilder {
-    is_tracing: bool,
+    tracing_mode: TracingMode,
 
     references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
 
@@ -234,9 +234,9 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
 }
 
 impl AnalyzeEcmascriptModuleResultBuilder {
-    pub fn new(is_tracing: bool) -> Self {
+    pub fn new(tracing_mode: TracingMode) -> Self {
         Self {
-            is_tracing,
+            tracing_mode,
             references: Default::default(),
             esm_references: Default::default(),
             esm_local_references: Default::default(),
@@ -290,7 +290,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     where
         C: Into<CodeGen>,
     {
-        if !self.is_tracing {
+        if self.tracing_mode.is_code_gen() {
             self.code_gens.push(code_gen.into())
         }
     }
@@ -510,11 +510,11 @@ pub async fn analyse_ecmascript_module_internal(
     let options = raw_module.options;
     let options = options.await?;
     let import_externals = options.import_externals;
-    let is_tracing = options.is_tracing;
+    let tracing_mode = options.tracing_mode;
 
     let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
 
-    let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new(is_tracing);
+    let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new(tracing_mode);
     let path = &*origin.origin_path().await?;
 
     // Is this a typescript file that requires analyzing type references?
@@ -687,7 +687,7 @@ pub async fn analyse_ecmascript_module_internal(
     let mut var_graph = {
         let _span = tracing::info_span!("analyze variable values").entered();
         set_handler_and_globals(&handler, globals, || {
-            create_graph(program, eval_context, is_tracing)
+            create_graph(program, eval_context, tracing_mode)
         })
     };
 
@@ -754,7 +754,7 @@ pub async fn analyse_ecmascript_module_internal(
                     eval_context,
                     &import_references,
                     &mut analysis,
-                    is_tracing,
+                    tracing_mode,
                     &var_graph,
                 );
                 // ModuleReferencesVisitor has already called analysis.add_esm_reexport_reference
@@ -1008,7 +1008,7 @@ pub async fn analyse_ecmascript_module_internal(
             match effect {
                 Effect::Unreachable { start_ast_path } => {
                     debug_assert!(
-                        !is_tracing,
+                        tracing_mode.is_code_gen(),
                         "unexpected Effect::Unreachable in tracing mode"
                     );
 
@@ -1031,14 +1031,14 @@ pub async fn analyse_ecmascript_module_internal(
 
                     macro_rules! inactive {
                         ($block:ident) => {
-                            if !is_tracing {
+                            if tracing_mode.is_code_gen() {
                                 analysis.add_code_gen(Unreachable::new($block.range.clone()));
                             }
                         };
                     }
                     macro_rules! condition {
                         ($expr:expr) => {
-                            if !is_tracing && !condition_has_side_effects {
+                            if tracing_mode.is_code_gen() && !condition_has_side_effects {
                                 analysis.add_code_gen(ConstantConditionCodeGen::new(
                                     $expr,
                                     condition_ast_path.to_vec().into(),
@@ -1286,7 +1286,10 @@ pub async fn analyse_ecmascript_module_internal(
                     ast_path,
                     span,
                 } => {
-                    debug_assert!(!is_tracing, "unexpected Effect::FreeVar in tracing mode");
+                    debug_assert!(
+                        tracing_mode.is_code_gen(),
+                        "unexpected Effect::FreeVar in tracing mode"
+                    );
 
                     // FreeVar("require") might be turbopackIgnore-d
                     if !analysis_state
@@ -1314,7 +1317,10 @@ pub async fn analyse_ecmascript_module_internal(
                     ast_path,
                     span,
                 } => {
-                    debug_assert!(!is_tracing, "unexpected Effect::Member in tracing mode");
+                    debug_assert!(
+                        tracing_mode.is_code_gen(),
+                        "unexpected Effect::Member in tracing mode"
+                    );
 
                     // Intentionally not awaited because `handle_member` reads this only when needed
                     let obj = analysis_state.link_value(*obj, ImportAttributes::empty_ref());
@@ -1387,14 +1393,20 @@ pub async fn analyse_ecmascript_module_internal(
                     ast_path,
                     span,
                 } => {
-                    debug_assert!(!is_tracing, "unexpected Effect::TypeOf in tracing mode");
+                    debug_assert!(
+                        tracing_mode.is_code_gen(),
+                        "unexpected Effect::TypeOf in tracing mode"
+                    );
                     let arg = analysis_state
                         .link_value(*arg, ImportAttributes::empty_ref())
                         .await?;
                     handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
                 }
                 Effect::ImportMeta { ast_path, span: _ } => {
-                    debug_assert!(!is_tracing, "unexpected Effect::ImportMeta in tracing mode");
+                    debug_assert!(
+                        tracing_mode.is_code_gen(),
+                        "unexpected Effect::ImportMeta in tracing mode"
+                    );
                     if analysis_state.first_import_meta {
                         analysis_state.first_import_meta = false;
                         analysis.add_code_gen(ImportMetaBinding::new(
@@ -3202,7 +3214,7 @@ impl StaticAnalyser {
 /// A visitor that walks the AST and collects information about the various
 /// references a module makes to other parts of the code.
 struct ModuleReferencesVisitor<'a> {
-    is_tracing: bool,
+    tracing_mode: TracingMode,
     eval_context: &'a EvalContext,
     old_analyser: StaticAnalyser,
     import_references: &'a [ResolvedVc<EsmAssetReference>],
@@ -3219,11 +3231,11 @@ impl<'a> ModuleReferencesVisitor<'a> {
         eval_context: &'a EvalContext,
         import_references: &'a [ResolvedVc<EsmAssetReference>],
         analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
-        is_tracing: bool,
+        tracing_mode: TracingMode,
         var_graph: &'a VarGraph,
     ) -> Self {
         Self {
-            is_tracing,
+            tracing_mode,
             eval_context,
             old_analyser: StaticAnalyser::default(),
             import_references,
@@ -3303,7 +3315,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         export: &'ast ExportAll,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if !self.is_tracing {
+        if self.tracing_mode.is_code_gen() {
             self.analysis
                 .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
         }
@@ -3391,7 +3403,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         }
 
-        if !self.is_tracing {
+        if self.tracing_mode.is_code_gen() {
             self.analysis
                 .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
         }
@@ -3439,7 +3451,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 }
             }
         };
-        if !self.is_tracing {
+        if self.tracing_mode.is_code_gen() {
             self.analysis
                 .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
         }
@@ -3459,7 +3471,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 Liveness::Constant,
             ),
         );
-        if !self.is_tracing {
+        if self.tracing_mode.is_code_gen() {
             self.analysis
                 .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
         }
@@ -3494,7 +3506,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 // ignore
             }
         }
-        if !self.is_tracing {
+        if self.tracing_mode.is_code_gen() {
             self.analysis
                 .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
         }
@@ -3542,7 +3554,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 }
             }
         }
-        if !self.is_tracing {
+        if self.tracing_mode.is_code_gen() {
             self.analysis.add_code_gen(EsmModuleItem::new(path));
         }
     }

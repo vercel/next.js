@@ -28,7 +28,7 @@ use turbopack_core::{
     module_graph::export_usage::OptionExportUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
-use turbopack_ecmascript::{TypeofWindow, chunk::EcmascriptChunkType};
+use turbopack_ecmascript::{TracingMode, TypeofWindow, chunk::EcmascriptChunkType};
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -337,6 +337,14 @@ pub async fn get_client_module_options_context(
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
         keep_last_successful_parse: next_mode.is_development(),
+        tracing_mode: if next_mode.is_development() {
+            TracingMode::Bundling
+        } else {
+            // Technically, this doesn't need to tracing for the client context. But this will
+            // result in more cache hits for the analysis for modules which are loaded for both ssr
+            // and client
+            TracingMode::BundlingWithTracing
+        },
         ..Default::default()
     };
 
