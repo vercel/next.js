@@ -3163,6 +3163,8 @@
                 serializeByValueID(id$jscomp$0)
               );
             }
+            null != info.owner &&
+              outlineComponentInfo(request$jscomp$1, info.owner);
             request =
               null == info.stack && null != info.debugStack
                 ? filterStackTrace(

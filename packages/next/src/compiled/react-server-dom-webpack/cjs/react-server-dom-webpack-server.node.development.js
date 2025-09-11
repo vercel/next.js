@@ -1933,6 +1933,8 @@
                   ? (request.status === ABORTING &&
                       startTime > request.abortTime) ||
                     (serializeIONode(request, _ioNode, awaited.promise),
+                    null != node.owner &&
+                      outlineComponentInfo(request, node.owner),
                     (cutOff = (0, request.environmentName)()),
                     advanceTaskTime(request, task, startTime),
                     request.pendingChunks++,
@@ -3412,6 +3414,8 @@
                 serializeByValueID(id$jscomp$0)
               );
             }
+            null != info.owner &&
+              outlineComponentInfo(request$jscomp$0, info.owner);
             debugStack =
               null == info.stack && null != info.debugStack
                 ? filterStackTrace(
