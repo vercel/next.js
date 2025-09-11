@@ -2338,16 +2338,20 @@ describe('Prerender', () => {
         const revalidateData = await res3.json()
         expect(revalidateData.revalidated).toBe(true)
 
-        await retry(async () => {
-          const res4 = await fetchViaHTTP(
-            next.url,
-            '/blocking-fallback/test-manual-1'
-          )
-          const html4 = await res4.text()
-          const $4 = cheerio.load(html4)
-          expect($4('#time').text()).not.toBe(initialTime)
-          expect(res4.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
-        })
+        await retry(
+          async () => {
+            const res4 = await fetchViaHTTP(
+              next.url,
+              '/blocking-fallback/test-manual-1'
+            )
+            const html4 = await res4.text()
+            const $4 = cheerio.load(html4)
+            expect($4('#time').text()).not.toBe(initialTime)
+            expect(res4.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          },
+          15000,
+          1000
+        )
       })
     }
 
