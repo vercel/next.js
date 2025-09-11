@@ -1213,13 +1213,21 @@ impl AppEndpoint {
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
         let rsc_entry = app_entry.rsc_entry;
+
+        let is_app_page = matches!(this.ty, AppEndpointType::Page { .. });
+
         let module_graphs = this
             .app_project
             .app_module_graphs(
                 self,
                 *rsc_entry,
-                this.app_project.client_runtime_entries(),
-                matches!(this.ty, AppEndpointType::Page { .. }),
+                // We only need the client runtime entries for pages not for Route Handlers
+                if is_app_page {
+                    this.app_project.client_runtime_entries()
+                } else {
+                    EvaluatableAssets::empty()
+                },
+                is_app_page,
             )
             .await?;
 
@@ -1241,25 +1249,34 @@ impl AppEndpoint {
             None
         };
 
-        let client_shared_chunk_group = get_app_client_shared_chunk_group(
-            AssetIdent::from_path(project.project_path().owned().await?)
-                .with_modifier(rcstr!("client-shared-chunks")),
-            this.app_project.client_runtime_entries(),
-            *module_graphs.full,
-            *client_chunking_context,
-        )
-        .await?;
+        // We only need the client runtime entries for pages not for Route Handlers
+        let (availability_info, client_shared_chunks) = if is_app_page {
+            let client_shared_chunk_group = get_app_client_shared_chunk_group(
+                AssetIdent::from_path(project.project_path().owned().await?)
+                    .with_modifier(rcstr!("client-shared-chunks")),
+                this.app_project.client_runtime_entries(),
+                *module_graphs.full,
+                *client_chunking_context,
+            )
+            .await?;
 
-        let mut client_shared_chunks = vec![];
-        for chunk in client_shared_chunk_group.assets.await?.iter().copied() {
-            client_assets.insert(chunk);
+            let mut client_shared_chunks = vec![];
+            for chunk in client_shared_chunk_group.assets.await?.iter().copied() {
+                client_assets.insert(chunk);
 
-            let chunk_path = chunk.path().await?;
-            if chunk_path.has_extension(".js") {
-                client_shared_chunks.push(chunk);
+                let chunk_path = chunk.path().await?;
+                if chunk_path.has_extension(".js") {
+                    client_shared_chunks.push(chunk);
+                }
             }
-        }
-        let client_shared_availability_info = client_shared_chunk_group.availability_info;
+
+            (
+                client_shared_chunk_group.availability_info,
+                client_shared_chunks,
+            )
+        } else {
+            (AvailabilityInfo::Root, vec![])
+        };
 
         let global_information = get_global_information_for_endpoint(
             *module_graphs.base,
@@ -1282,7 +1299,7 @@ impl AppEndpoint {
             *client_references,
             *module_graphs.full,
             *client_chunking_context,
-            client_shared_availability_info,
+            availability_info,
             ssr_chunking_context.map(|ctx| *ctx),
         )
         .to_resolved()
