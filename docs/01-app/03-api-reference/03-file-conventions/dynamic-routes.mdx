@@ -136,7 +136,7 @@ function assertValidLocale(value: string): asserts value is Locale {
 export default async function Page(props: PageProps<'/[locale]'>) {
   const { locale } = await props.params // locale is typed as string
   assertValidLocale(locale)
-  // lng is now typed as Locale
+  // locale is now typed as Locale
 }
 ```
 
