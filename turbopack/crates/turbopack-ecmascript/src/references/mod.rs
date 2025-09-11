@@ -769,7 +769,7 @@ pub async fn analyse_ecmascript_module_internal(
                         options.tree_shaking_mode,
                         Some(TreeShakingMode::ModuleFragments)
                     )
-                    .then(|| ModulePart::exports()),
+                    .then(ModulePart::exports),
                 },
                 import_externals,
             )
