@@ -738,42 +738,38 @@ pub async fn analyse_ecmascript_module_internal(
             let mut should_add_evaluation = false;
             let reference = EsmAssetReference::new(
                 origin,
-                Request::parse(RcStr::from(&*r.module_path).into())
-                    .to_resolved()
-                    .await?,
+                RcStr::from(&*r.module_path),
                 r.issue_source
                     .unwrap_or_else(|| IssueSource::from_source_only(source)),
                 r.annotations.clone(),
-                match options.tree_shaking_mode {
-                    Some(TreeShakingMode::ModuleFragments) => match &r.imported_symbol {
-                        ImportedSymbol::ModuleEvaluation => {
-                            should_add_evaluation = true;
-                            Some(ModulePart::evaluation())
-                        }
-                        ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
-                        ImportedSymbol::PartEvaluation(part_id) => {
-                            should_add_evaluation = true;
-                            Some(ModulePart::internal(*part_id))
-                        }
-                        ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
-                        ImportedSymbol::Exports => Some(ModulePart::exports()),
-                    },
-                    _ => match &r.imported_symbol {
-                        ImportedSymbol::ModuleEvaluation => {
-                            should_add_evaluation = true;
-                            Some(ModulePart::evaluation())
-                        }
-                        ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
-                        ImportedSymbol::PartEvaluation(_) | ImportedSymbol::Part(_) => {
+                match &r.imported_symbol {
+                    ImportedSymbol::ModuleEvaluation => {
+                        should_add_evaluation = true;
+                        Some(ModulePart::evaluation())
+                    }
+                    ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
+                    ImportedSymbol::PartEvaluation(part_id) | ImportedSymbol::Part(part_id) => {
+                        if !matches!(
+                            options.tree_shaking_mode,
+                            Some(TreeShakingMode::ModuleFragments)
+                        ) {
                             bail!(
-                                "Internal imports doesn't exist in reexports only mode when \
+                                "Internal imports only exist in reexports only mode when \
                                  importing {:?} from {}",
                                 r.imported_symbol,
                                 r.module_path
                             );
                         }
-                        ImportedSymbol::Exports => None,
-                    },
+                        if matches!(&r.imported_symbol, ImportedSymbol::PartEvaluation(_)) {
+                            should_add_evaluation = true;
+                        }
+                        Some(ModulePart::internal(*part_id))
+                    }
+                    ImportedSymbol::Exports => matches!(
+                        options.tree_shaking_mode,
+                        Some(TreeShakingMode::ModuleFragments)
+                    )
+                    .then(ModulePart::exports),
                 },
                 import_externals,
             )
@@ -1406,7 +1402,7 @@ pub async fn analyse_ecmascript_module_internal(
                                         || {
                                             EsmAssetReference::new(
                                                 original_reference.origin,
-                                                original_reference.request,
+                                                original_reference.request.clone(),
                                                 original_reference.issue_source,
                                                 original_reference.annotations.clone(),
                                                 Some(ModulePart::export(export.clone())),
@@ -2668,7 +2664,7 @@ async fn handle_free_var_reference(
                         } else {
                             state.origin
                         },
-                        Request::parse(request.clone().into()).to_resolved().await?,
+                        request.clone(),
                         IssueSource::from_swc_offsets(
                             state.source,
                             span.lo.to_u32(),

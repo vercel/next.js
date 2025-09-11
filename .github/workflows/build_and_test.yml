@@ -269,9 +269,9 @@ jobs:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
         # Empty value uses default
         # TODO: Run with React 18.
-        # Integration tests use the installed React version in next/package.json.include:
+        # Integration tests use the installed React version in next/package.json.
         # We can't easily switch like we do for e2e tests.
-        # Skipping this dimensions until we can figure out a way to test multiple React versions.
+        # Skipping this dimension until we can figure out a way to test multiple React versions.
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -301,10 +301,6 @@ jobs:
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
-        # TODO: Run with React 18.
-        # Integration tests use the installed React version in next/package.json.include:
-        # We can't easily switch like we do for e2e tests.
-        # Skipping this dimensions until we can figure out a way to test multiple React versions.
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -328,18 +324,25 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+        # Empty value uses default
+        # TODO: Run with React 18.
+        # Integration tests use the installed React version in next/package.json.
+        # We can't easily switch like we do for e2e tests.
+        # Skipping this dimension until we can figure out a way to test multiple React versions.
+        react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 20.9.0
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         node run-tests.js \
           --timings \
           -g ${{ matrix.group }} \
           --type integration
-      stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
+      stepName: 'test-turbopack-production-integration-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
   test-rspack-dev:
@@ -349,12 +352,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        exclude:
+          # Excluding React 18 tests unless on `canary` branch until budget is approved.
+          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        # Empty value uses default
+        react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
         export NEXT_TEST_MODE=dev
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -379,11 +388,18 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+        # Empty value uses default
+        # TODO: Run with React 18.
+        # Integration tests use the installed React version in next/package.json.
+        # We can't easily switch like we do for e2e tests.
+        # Skipping this dimension until we can figure out a way to test multiple React versions.
+        react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -412,12 +428,14 @@ jobs:
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
+        react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
         export NEXT_TEST_MODE=start
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -439,11 +457,18 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+        # Empty value uses default
+        # TODO: Run with React 18.
+        # Integration tests use the installed React version in next/package.json.
+        # We can't easily switch like we do for e2e tests.
+        # Skipping this dimension until we can figure out a way to test multiple React versions.
+        react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -457,7 +482,7 @@ jobs:
           --timings \
           -g ${{ matrix.group }} \
           --type integration
-      stepName: 'test-rspack-production-integration-${{ matrix.group }}'
+      stepName: 'test-rspack-production-integration-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
   test-next-swc-wasm:
@@ -813,9 +838,9 @@ jobs:
           - 13/13
         # Empty value uses default
         # TODO: Run with React 18.
-        # Integration tests use the installed React version in next/package.json.include:
+        # Integration tests use the installed React version in next/package.json.
         # We can't easily switch like we do for e2e tests.
-        # Skipping this dimensions until we can figure out a way to test multiple React versions.
+        # Skipping this dimension until we can figure out a way to test multiple React versions.
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:

@@ -1574,12 +1574,7 @@ export default async function build(
                 // Once we've made RDC for Navigations the default for PPR, we
                 // can remove the check for `config.experimental.rdcForNavigations`.
                 isAppPPREnabled &&
-                config.experimental.rdcForNavigations === true &&
-                // Temporarily we require that clientParamParsing is enabled for
-                // RDC for Navigations. This is due to a builder configuration
-                // bug that manifests as invalid query params being passed to
-                // the resume lambdas.
-                config.experimental.clientParamParsing === true,
+                config.experimental.rdcForNavigations === true,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
@@ -2199,7 +2194,8 @@ export default async function build(
 
                       if (pageType === 'app' && originalAppPath) {
                         appNormalizedPaths.set(originalAppPath, page)
-                        // TODO-APP: handle prerendering with edge
+
+                        // Edge runtime doesn't support static generation.
                         if (isEdgeRuntime(pageRuntime)) {
                           isStatic = false
                           isSSG = false
