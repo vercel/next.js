@@ -395,7 +395,7 @@ Calling `redirect` [throws](/docs/app/api-reference/functions/redirect#behavior)
 
 You can `get`, `set`, and `delete` cookies inside a Server Function using the [`cookies`](/docs/app/api-reference/functions/cookies) API.
 
-When you [set or delete](/docs/apps/api-reference/functions/cookies#understanding-cookie-behavior-in-server-functions) a cookie in a Server Function, Next.js re-renders the current page and its layouts on the server so the **UI reflects the new cookie value**.
+When you [set or delete](/docs/app/api-reference/functions/cookies#understanding-cookie-behavior-in-server-functions) a cookie in a Server Function, Next.js re-renders the current page and its layouts on the server so the **UI reflects the new cookie value**.
 
 > **Good to know**: The server update applies to the current React tree, re-rendering, mounting, or unmounting components, as needed. Client state is preserved for re-rendered components, and effects re-run if their dependencies changed.
 
