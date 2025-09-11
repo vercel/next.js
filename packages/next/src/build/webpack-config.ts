@@ -1188,7 +1188,7 @@ export default async function getBaseWebpackConfig(
           chunks: isRspack
             ? // using a function here causes noticable slowdown
               // in rspack
-              /(?!polyfills|main|pages\/_app)/
+              /^(?!(polyfills|main|pages\/_app)$).*$/
             : (chunk: any) =>
                 !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
 
