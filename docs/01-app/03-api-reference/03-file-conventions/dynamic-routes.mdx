@@ -120,6 +120,38 @@ When using TypeScript, you can add types for `params` depending on your configur
 | `app/shop/[[...slug]]/page.js`      | `{ slug?: string[] }`                    |
 | `app/[categoryId]/[itemId]/page.js` | `{ categoryId: string, itemId: string }` |
 
+Dynamic segment values are typed as `string` or `string[]`. If your app needs narrower value types, use one of the following approaches.
+
+#### Override `params`
+
+```tsx filename="/app/[lng]/page.tsx"
+type PageWithLocale = Omit<PageProps<'/[lng]'>, 'params'> & {
+  params: Promise<{ lng: Locale }>
+}
+
+export default async function Page(props: PageWithLocale) {
+  const { lng } = await props.params
+}
+```
+
+#### Runtime validation with `asserts`
+
+```tsx filename="/app/[lng]/page.tsx"
+import { notFound } from 'next/navigation'
+import type { Locale } from '@i18n/types'
+import { isValidLocale } from '@i18n/utils'
+
+function assertValidLocale(value: string): asserts value is Locale {
+  if (!isValidLocale(value)) notFound()
+}
+
+export default async function Page(props: PageProps<'/[lng]'>) {
+  const { lng } = await props.params // lng is typed as string
+  assertValidLocale(lng)
+  // lng is now typed as Locale
+}
+```
+
 ## Behavior
 
 - Since the `params` prop is a promise. You must use `async`/`await` or React's use function to access the values.
