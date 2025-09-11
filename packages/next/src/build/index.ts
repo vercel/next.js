@@ -2998,7 +2998,7 @@ export default async function build(
               debugPrerender,
               pages: combinedPages,
               outdir,
-              statusMessage: 'Generating static pages',
+              statusMessage: 'Generating static routes',
               numWorkers: getNumberOfWorkers(exportConfig),
               appDirOnly,
             },
