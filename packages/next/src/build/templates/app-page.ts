@@ -294,7 +294,13 @@ export async function handler(
   // When a page supports PPR, we can support RSC for Navigations so long as the
   // feature is not disabled.
   const supportsRSCForNavigations =
-    isRoutePPREnabled && nextConfig.experimental.rdcForNavigations === true
+    isRoutePPREnabled &&
+    nextConfig.experimental.rdcForNavigations === true &&
+    // Temporarily we require that clientParamParsing is enabled for
+    // RDC for Navigations. This is due to a builder configuration
+    // bug that manifests as invalid query params being passed to
+    // the resume lambdas.
+    nextConfig.experimental.clientParamParsing === true
 
   // In development, we always want to generate dynamic HTML.
   const supportsDynamicResponse: boolean =
