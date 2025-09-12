@@ -30,7 +30,7 @@ const MODE:
   | '0'
   | ''
   | string
-  | undefined = process.env.__NEXT_USE_UNHANDLED_REJECTION_FILTER
+  | undefined = process.env.NEXT_USE_UNHANDLED_REJECTION_FILTER
 
 let ENABLE_UHR_FILTER = false
 let DEBUG_UHR_FILTER = false
@@ -53,7 +53,7 @@ switch (MODE) {
   default:
     if (typeof MODE === 'string') {
       console.error(
-        `__NEXT_USE_UNHANDLED_REJECTION_FILTER has an unrecognized value: ${JSON.stringify(MODE)}. Use "enabled", "disabled", or "debug" or omit the environment variable altogether`
+        `NEXT_USE_UNHANDLED_REJECTION_FILTER has an unrecognized value: ${JSON.stringify(MODE)}. Use "enabled", "disabled", or "debug" or omit the environment variable altogether`
       )
     }
 }
