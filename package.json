@@ -152,7 +152,7 @@
     "@typescript-eslint/eslint-plugin": "^8.36.0",
     "@typescript-eslint/parser": "^8.36.0",
     "@vercel/devlow-bench": "workspace:*",
-    "@vercel/fetch": "6.1.1",
+    "@vercel/kv": "3.0.0",
     "@vercel/og": "0.7.2",
     "abort-controller": "3.0.0",
     "alex": "9.1.0",
