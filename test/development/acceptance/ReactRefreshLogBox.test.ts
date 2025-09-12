@@ -11,6 +11,7 @@ import path from 'path'
 import { outdent } from 'outdent'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+const isRspack = !!process.env.NEXT_RSPACK
 
 describe('ReactRefreshLogBox', () => {
   const { isTurbopack, next } = nextTestSetup({
@@ -286,6 +287,33 @@ describe('ReactRefreshLogBox', () => {
          },
        ]
       `)
+    } else if (isReact18 && isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "description": "no",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "FunctionDefault.js (1:51) @ FunctionDefault
+       > 1 | export default function FunctionDefault() { throw new Error('no'); }
+           |                                                   ^",
+           "stack": [
+             "FunctionDefault FunctionDefault.js (1:51)",
+           ],
+         },
+         {
+           "description": "no",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "FunctionDefault.js (1:51) @ FunctionDefault
+       > 1 | export default function FunctionDefault() { throw new Error('no'); }
+           |                                                   ^",
+           "stack": [
+             "FunctionDefault FunctionDefault.js (1:51)",
+           ],
+         },
+       ]
+      `)
     } else {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
@@ -495,6 +523,33 @@ describe('ReactRefreshLogBox', () => {
              "ClickCount.render Child.js (4:11)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
+           ],
+         },
+       ]
+      `)
+    } else if (isReact18 && isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "description": "",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
+       > 4 |     throw new Error()
+           |           ^",
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
+           ],
+         },
+         {
+           "description": "",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
+       > 4 |     throw new Error()
+           |           ^",
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
            ],
          },
        ]
