@@ -84,15 +84,14 @@ const MenuPanel = () => {
               value: <ChevronRight />,
               onClick: () => setPanel('turbo-info'),
             },
-        !!process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER &&
-          isAppRouter && {
-            label: 'Route Info',
-            value: <ChevronRight />,
-            onClick: () => setPanel('segment-explorer'),
-            attributes: {
-              'data-segment-explorer': true,
-            },
+        isAppRouter && {
+          label: 'Route Info',
+          value: <ChevronRight />,
+          onClick: () => setPanel('segment-explorer'),
+          attributes: {
+            'data-segment-explorer': true,
           },
+        },
         {
           label: 'Preferences',
           value: <GearIcon />,
@@ -201,7 +200,7 @@ export const PanelRouter = () => {
         </DynamicPanel>
       </PanelRoute>
 
-      {process.env.__NEXT_DEVTOOL_SEGMENT_EXPLORER && isAppRouter && (
+      {isAppRouter && (
         <PanelRoute name="segment-explorer">
           <DynamicPanel
             sharePanelSizeGlobally={false}

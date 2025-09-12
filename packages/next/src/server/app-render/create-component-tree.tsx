@@ -229,7 +229,7 @@ async function createComponentTreeInternal(
     ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
     : undefined
   /** Whether this segment should use a runtime prefetch instead of a static prefetch. */
-  const shouldUseRuntimePrefetch = prefetchConfig === 'unstable_runtime'
+  const hasRuntimePrefetch = prefetchConfig === 'unstable_runtime'
 
   const [Forbidden, forbiddenStyles] =
     authInterrupts && forbidden
@@ -422,9 +422,7 @@ async function createComponentTreeInternal(
 
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
-  const isSegmentViewEnabled =
-    process.env.NODE_ENV === 'development' &&
-    ctx.renderOpts.devtoolSegmentExplorer
+  const isSegmentViewEnabled = !!ctx.renderOpts.dev
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR
@@ -704,7 +702,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      shouldUseRuntimePrefetch,
+      hasRuntimePrefetch,
     ]
   }
 
@@ -737,7 +735,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       true,
-      shouldUseRuntimePrefetch,
+      hasRuntimePrefetch,
     ]
   }
 
@@ -843,7 +841,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      shouldUseRuntimePrefetch,
+      hasRuntimePrefetch,
     ]
   } else {
     const SegmentComponent = Component
@@ -1021,7 +1019,7 @@ async function createComponentTreeInternal(
       parallelRouteCacheNodeSeedData,
       loadingData,
       isPossiblyPartialResponse,
-      shouldUseRuntimePrefetch,
+      hasRuntimePrefetch,
     ]
   }
 }
@@ -1145,9 +1143,7 @@ async function createBoundaryConventionElement({
   styles: React.ReactNode | undefined
   tree: LoaderTree
 }) {
-  const isSegmentViewEnabled =
-    process.env.NODE_ENV === 'development' &&
-    ctx.renderOpts.devtoolSegmentExplorer
+  const isSegmentViewEnabled = !!ctx.renderOpts.dev
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR

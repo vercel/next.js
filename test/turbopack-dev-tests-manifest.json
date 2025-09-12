@@ -2539,6 +2539,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/hmr-intercept-routes/hmr-intercept-routes.test.ts": {
+    "passed": ["hmr-intercept-routes should update intercept routes via HMR"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/hmr-move-file/hmr-move-file.test.ts": {
     "passed": [
       "HMR Move File should work when moving a component to another directory"
@@ -2618,7 +2625,7 @@
   "test/development/app-dir/missing-required-html-tags/index.test.ts": {
     "passed": [
       "app-dir - missing required html tags should display correct error count in dev indicator",
-      "app-dir - missing required html tags should hmr when you fix the error",
+      "app-dir - missing required html tags should reload when you fix the error",
       "app-dir - missing required html tags should show error overlay"
     ],
     "failed": [],
@@ -13295,7 +13302,7 @@
     "passed": [
       "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
       "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator should validate buildActivityPosition config"
+      "Build Activity Indicator should validate position config"
     ],
     "failed": [],
     "pending": [

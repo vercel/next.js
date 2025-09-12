@@ -58,6 +58,7 @@ export function PreloadChunks({
               href={href}
               rel="stylesheet"
               as="style"
+              nonce={workStore.nonce}
             />
           )
         } else {
@@ -65,6 +66,7 @@ export function PreloadChunks({
           preload(href, {
             as: 'script',
             fetchPriority: 'low',
+            nonce: workStore.nonce,
           })
           return null
         }

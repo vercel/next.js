@@ -4244,7 +4244,11 @@ describe('app-dir static/dynamic handling', () => {
         expect(await browser.elementByCss('#params-second').text()).toBe(
           'other'
         )
-        expect(await browser.elementByCss('#params-third').text()).toBe('')
+        expect(
+          await browser
+            .elementByCss('#params-third', { state: 'attached' })
+            .text()
+        ).toBe('')
         expect(await browser.elementByCss('#params-not-real').text()).toBe(
           'N/A'
         )

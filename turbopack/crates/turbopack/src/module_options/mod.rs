@@ -11,7 +11,7 @@ pub use module_options_context::*;
 pub use module_rule::*;
 pub use rule_condition::*;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{IntoTraitRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -27,7 +27,10 @@ use turbopack_ecmascript::{
     EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptOptions, SpecifiedModuleType,
 };
 use turbopack_mdx::MdxTransform;
-use turbopack_node::transforms::{postcss::PostCssTransform, webpack::WebpackLoaders};
+use turbopack_node::{
+    execution_context::ExecutionContext,
+    transforms::{postcss::PostCssTransform, webpack::WebpackLoaders},
+};
 use turbopack_wasm::source::WebAssemblySourceType;
 
 use crate::{
@@ -58,6 +61,80 @@ fn package_import_map_from_context(
         ImportMapping::PrimaryAlternative(package_name, Some(context_path)).resolved_cell(),
     );
     import_map.cell()
+}
+
+async fn rule_condition_from_webpack_condition_glob(
+    execution_context: ResolvedVc<ExecutionContext>,
+    glob: &RcStr,
+) -> Result<RuleCondition> {
+    Ok(if glob.contains('/') {
+        RuleCondition::ResourcePathGlob {
+            base: execution_context.project_path().owned().await?,
+            glob: Glob::new(glob.clone(), GlobOptions::default()).await?,
+        }
+    } else {
+        RuleCondition::ResourceBasePathGlob(Glob::new(glob.clone(), GlobOptions::default()).await?)
+    })
+}
+
+async fn rule_condition_from_webpack_condition(
+    execution_context: ResolvedVc<ExecutionContext>,
+    builtin_conditions: &dyn WebpackLoaderBuiltinConditionSet,
+    webpack_loader_condition: &ConditionItem,
+) -> Result<RuleCondition> {
+    Ok(match webpack_loader_condition {
+        ConditionItem::All(conds) => RuleCondition::All(
+            conds
+                .iter()
+                .map(|c| {
+                    rule_condition_from_webpack_condition(execution_context, builtin_conditions, c)
+                })
+                .try_join()
+                .await?,
+        ),
+        ConditionItem::Any(conds) => RuleCondition::Any(
+            conds
+                .iter()
+                .map(|c| {
+                    rule_condition_from_webpack_condition(execution_context, builtin_conditions, c)
+                })
+                .try_join()
+                .await?,
+        ),
+        ConditionItem::Not(cond) => RuleCondition::Not(Box::new(
+            Box::pin(rule_condition_from_webpack_condition(
+                execution_context,
+                builtin_conditions,
+                cond,
+            ))
+            .await?,
+        )),
+        ConditionItem::Builtin(name) => match builtin_conditions.match_condition(name) {
+            WebpackLoaderBuiltinConditionSetMatch::Matched => RuleCondition::True,
+            WebpackLoaderBuiltinConditionSetMatch::Unmatched => RuleCondition::False,
+            WebpackLoaderBuiltinConditionSetMatch::Invalid => {
+                // We don't expect the user to hit this because whatever deserailizes the user
+                // configuration should validate conditions itself
+                anyhow::bail!("{name:?} is not a valid built-in condition")
+            }
+        },
+        ConditionItem::Base { path, content } => {
+            let mut rule_conditions = Vec::new();
+            match &path {
+                Some(ConditionPath::Glob(glob)) => rule_conditions.push(
+                    rule_condition_from_webpack_condition_glob(execution_context, glob).await?,
+                ),
+                Some(ConditionPath::Regex(regex)) => {
+                    rule_conditions.push(RuleCondition::ResourcePathEsRegex(regex.await?));
+                }
+                None => {}
+            }
+            if let Some(content) = content {
+                rule_conditions.push(RuleCondition::ResourceContentEsRegex(content.await?));
+            }
+            RuleCondition::All(rule_conditions)
+        }
+    })
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
@@ -130,7 +207,7 @@ impl ModuleOptions {
                     ignore_dynamic_requests,
                     import_externals,
                     esm_url_rewrite_behavior,
-                    ref enable_typeof_window_inlining,
+                    enable_typeof_window_inlining,
                     source_maps: ecmascript_source_maps,
                     ..
                 },
@@ -150,6 +227,7 @@ impl ModuleOptions {
             execution_context,
             tree_shaking_mode,
             keep_last_successful_parse,
+            is_tracing,
             ..
         } = *module_options_context.await?;
 
@@ -203,21 +281,14 @@ impl ModuleOptions {
             ignore_dynamic_requests,
             extract_source_map: matches!(ecmascript_source_maps, SourceMapsType::Full),
             keep_last_successful_parse,
+            is_tracing,
+            enable_typeof_window_inlining,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
 
         if let Some(environment) = environment {
             postprocess.push(EcmascriptInputTransform::PresetEnv(environment));
-        }
-
-        if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
-            postprocess.push(EcmascriptInputTransform::GlobalTypeofs {
-                window_value: match enable_typeof_window_inlining {
-                    TypeofWindow::Object => rcstr!("object"),
-                    TypeofWindow::Undefined => rcstr!("undefined"),
-                },
-            });
         }
 
         let ts_transform = if let Some(options) = enable_typescript_transform {
@@ -491,80 +562,60 @@ impl ModuleOptions {
                         .context("need_path in ModuleOptions::new is incorrect")?,
                 )
             };
+            let builtin_conditions = webpack_loaders_options
+                .builtin_conditions
+                .into_trait_ref()
+                .await?;
             for (key, rule) in webpack_loaders_options.rules.await?.iter() {
                 let mut rule_conditions = Vec::new();
-                if key.starts_with("#") {
-                    // This is a custom marker requiring a corresponding condition entry
-                    let conditions = (*webpack_loaders_options.conditions.await?)
-                        .context(
-                            "Expected a condition entry for the webpack loader rule matching \
-                             {key}. Create a `conditions` mapping in your next.config.js",
-                        )?
-                        .await?;
 
-                    let condition = conditions.get(key).context(
-                        "Expected a condition entry for the webpack loader rule matching {key}.",
-                    )?;
+                // prefer to add the glob condition ahead of the user-defined `condition` field,
+                // because we know it's cheap to check
+                rule_conditions.push(
+                    rule_condition_from_webpack_condition_glob(execution_context, key).await?,
+                );
 
-                    let ConditionItem { path, content } = &condition;
+                if let Some(condition) = &rule.condition {
+                    rule_conditions.push(
+                        rule_condition_from_webpack_condition(
+                            execution_context,
+                            &*builtin_conditions,
+                            condition,
+                        )
+                        .await?,
+                    )
+                }
 
-                    match &path {
-                        Some(ConditionPath::Glob(glob)) => {
-                            if glob.contains('/') {
-                                rule_conditions.push(RuleCondition::ResourcePathGlob {
-                                    base: execution_context.project_path().owned().await?,
-                                    glob: Glob::new(glob.clone(), GlobOptions::default()).await?,
-                                });
-                            } else {
-                                rule_conditions.push(RuleCondition::ResourceBasePathGlob(
-                                    Glob::new(glob.clone(), GlobOptions::default()).await?,
-                                ));
-                            }
-                        }
-                        Some(ConditionPath::Regex(regex)) => {
-                            rule_conditions.push(RuleCondition::ResourcePathEsRegex(regex.await?));
-                        }
-                        None => {}
-                    }
-                    if let Some(content) = content {
-                        rule_conditions.push(RuleCondition::ResourceContentEsRegex(content.await?));
-                    }
-                } else if key.contains('/') {
-                    rule_conditions.push(RuleCondition::ResourcePathGlob {
-                        base: execution_context.project_path().owned().await?,
-                        glob: Glob::new(key.clone(), GlobOptions::default()).await?,
-                    });
-                } else {
-                    rule_conditions.push(RuleCondition::ResourceBasePathGlob(
-                        Glob::new(key.clone(), GlobOptions::default()).await?,
-                    ));
-                };
                 rule_conditions.push(RuleCondition::not(RuleCondition::ResourceIsVirtualSource));
                 rule_conditions.push(module_css_external_transform_conditions.clone());
 
-                rules.push(ModuleRule::new(
-                    RuleCondition::All(rule_conditions),
-                    vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                        ResolvedVc::upcast(
-                            WebpackLoaders::new(
-                                node_evaluate_asset_context(
+                let mut all_rule_condition = RuleCondition::All(rule_conditions);
+                all_rule_condition.flatten();
+                if !matches!(all_rule_condition, RuleCondition::False) {
+                    rules.push(ModuleRule::new(
+                        all_rule_condition,
+                        vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
+                            ResolvedVc::upcast(
+                                WebpackLoaders::new(
+                                    node_evaluate_asset_context(
+                                        *execution_context,
+                                        Some(import_map),
+                                        None,
+                                        Layer::new(rcstr!("webpack_loaders")),
+                                        false,
+                                    ),
                                     *execution_context,
-                                    Some(import_map),
-                                    None,
-                                    Layer::new(rcstr!("webpack_loaders")),
-                                    false,
-                                ),
-                                *execution_context,
-                                *rule.loaders,
-                                rule.rename_as.clone(),
-                                resolve_options_context,
-                                matches!(ecmascript_source_maps, SourceMapsType::Full),
-                            )
-                            .to_resolved()
-                            .await?,
-                        ),
-                    ]))],
-                ));
+                                    *rule.loaders,
+                                    rule.rename_as.clone(),
+                                    resolve_options_context,
+                                    matches!(ecmascript_source_maps, SourceMapsType::Full),
+                                )
+                                .to_resolved()
+                                .await?,
+                            ),
+                        ]))],
+                    ));
+                }
             }
         }
 

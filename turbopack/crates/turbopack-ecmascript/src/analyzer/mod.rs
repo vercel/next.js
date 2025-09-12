@@ -3747,7 +3747,7 @@ pub mod test_utils {
                 }
             }
             _ => {
-                let (mut v, m1) = replace_well_known(v, compile_time_info).await?;
+                let (mut v, m1) = replace_well_known(v, compile_time_info, true).await?;
                 let m2 = replace_builtin(&mut v);
                 let m = m1 || m2 || v.make_nested_operations_unknown();
                 return Ok((v, m));
@@ -3790,7 +3790,6 @@ mod tests {
 
     #[fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {
-        crate::register();
         let graph_snapshot_path = input.with_file_name("graph.snapshot");
         let graph_explained_snapshot_path = input.with_file_name("graph-explained.snapshot");
         let graph_effects_snapshot_path = input.with_file_name("graph-effects.snapshot");
@@ -3828,7 +3827,7 @@ mod tests {
                     None,
                 );
 
-                let mut var_graph = create_graph(&m, &eval_context);
+                let mut var_graph = create_graph(&m, &eval_context, false);
                 let var_cache = Default::default();
 
                 let mut named_values = var_graph

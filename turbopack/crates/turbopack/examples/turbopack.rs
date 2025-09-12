@@ -12,7 +12,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Vc, util::FormatDuration};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
-use turbopack::{emit_with_completion, register};
+use turbopack::emit_with_completion;
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME,
     compile_time_info::CompileTimeInfo,
@@ -26,8 +26,6 @@ use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    register();
-
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions::default(),
         noop_backing_storage(),

@@ -19,11 +19,13 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{
+        ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset, ModuleId,
+    },
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
@@ -75,7 +77,7 @@ pub(crate) async fn create_server_actions_manifest(
         .to_resolved()
         .await?;
 
-    let chunk_item = loader.as_chunk_item(module_graph, Vc::upcast(chunking_context));
+    let chunk_item = loader.as_chunk_item(module_graph, chunking_context);
     let manifest = build_manifest(
         node_root,
         page_name,
@@ -168,7 +170,11 @@ async fn build_manifest(
     let key = format!("app{page_name}");
 
     let actions_value = actions.await?;
-    let loader_id = chunk_item.id().to_string().await?;
+    let loader_id = chunk_item.id().await?;
+    let loader_id = match &*loader_id {
+        ModuleId::Number(id) => ActionManifestModuleId::Number(*id),
+        ModuleId::String(id) => ActionManifestModuleId::String(id),
+    };
     let mapping = match runtime {
         NextRuntime::Edge => &mut manifest.edge,
         NextRuntime::NodeJs => &mut manifest.node,
@@ -190,7 +196,7 @@ async fn build_manifest(
         entry.workers.insert(
             &key,
             ActionManifestWorkerEntry {
-                module_id: ActionManifestModuleId::String(loader_id.as_str()),
+                module_id: loader_id.clone(),
                 is_async: *async_module_info.is_async(chunk_item.module()).await?,
                 exported_name: name.as_str(),
                 filename: filename.as_str(),
@@ -269,14 +275,13 @@ pub fn parse_server_actions(
 /// If found, we return the mapping of every action's hashed id to the name of
 /// the exported action function. If not, we return a None.
 #[turbo_tasks::function]
-async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
-    let Some(ecmascript_asset) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
+async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
+    let Some(ecmascript_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module)
     else {
         return Ok(Vc::cell(None));
     };
 
-    if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
+    if let Some(module) = ResolvedVc::try_downcast_type::<EcmascriptModulePartAsset>(module)
         && matches!(
             module.await?.part,
             ModulePart::Evaluation | ModulePart::Facade

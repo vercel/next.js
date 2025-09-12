@@ -11,11 +11,11 @@ use turbopack_core::{
 };
 
 use crate::{
-    app_segment_config::NextSegmentConfig,
     next_app::{AppEntry, AppPage, AppPath},
     next_config::{NextConfig, OutputType},
     next_edge::entry::wrap_edge_entry,
     parse_segment_config_from_source,
+    segment_config::{NextSegmentConfig, ParseSegmentMode},
     util::{NextRuntime, app_function_name, load_next_js_template},
 };
 
@@ -36,7 +36,7 @@ pub async fn get_app_route_entry(
     original_segment_config: Option<Vc<NextSegmentConfig>>,
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<AppEntry>> {
-    let segment_from_source = parse_segment_config_from_source(source);
+    let segment_from_source = parse_segment_config_from_source(source, ParseSegmentMode::App);
     let config = if let Some(original_segment_config) = original_segment_config {
         let mut segment_config = segment_from_source.owned().await?;
         segment_config.apply_parent_config(&*original_segment_config.await?);
@@ -102,7 +102,7 @@ pub async fn get_app_route_entry(
 
     let mut rsc_entry = module_asset_context
         .process(
-            Vc::upcast(virtual_source),
+            virtual_source,
             ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();
@@ -153,7 +153,7 @@ async fn wrap_edge_route(
 
     let wrapped = asset_context
         .process(
-            Vc::upcast(source),
+            source,
             ReferenceType::Internal(ResolvedVc::cell(inner_assets)),
         )
         .module();

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { useCases, notUsingEval, usingEval } from './lib/utils'
+import { notUsingEval, usingEval } from './lib/utils'
 import {
   usingWebAssemblyCompile,
   usingWebAssemblyInstantiate,
@@ -7,31 +7,33 @@ import {
 } from './lib/wasm'
 
 export async function middleware(request) {
-  if (request.nextUrl.pathname === `/${useCases.eval}`) {
+  if (request.nextUrl.pathname === '/using-eval') {
     return new Response(null, {
       headers: { data: JSON.stringify(await usingEval()) },
     })
   }
 
-  if (request.nextUrl.pathname === `/${useCases.noEval}`) {
+  if (request.nextUrl.pathname === '/not-using-eval') {
     return new Response(null, {
       headers: { data: JSON.stringify(await notUsingEval()) },
     })
   }
 
-  if (request.nextUrl.pathname === `/${useCases.wasmCompile}`) {
+  if (request.nextUrl.pathname === '/using-webassembly-compile') {
     return new Response(null, {
       headers: { data: JSON.stringify(await usingWebAssemblyCompile(9)) },
     })
   }
 
-  if (request.nextUrl.pathname === `/${useCases.wasmInstanciate}`) {
+  if (request.nextUrl.pathname === '/using-webassembly-instantiate') {
     return new Response(null, {
       headers: { data: JSON.stringify(await usingWebAssemblyInstantiate(9)) },
     })
   }
 
-  if (request.nextUrl.pathname === `/${useCases.wasmBufferInstanciate}`) {
+  if (
+    request.nextUrl.pathname === '/using-webassembly-instantiate-with-buffer'
+  ) {
     return new Response(null, {
       headers: {
         data: JSON.stringify(await usingWebAssemblyInstantiateWithBuffer(9)),
@@ -43,5 +45,11 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: Object.values(useCases).map((route) => `/${route}`),
+  matcher: [
+    '/using-eval',
+    '/not-using-eval',
+    '/using-webassembly-compile',
+    '/using-webassembly-instantiate',
+    '/using-webassembly-instantiate-with-buffer',
+  ],
 }

@@ -57,6 +57,8 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_HMR_REFRESH_HASH_COOKIE,
   NEXT_DID_POSTPONE_HEADER,
+  NEXT_REQUEST_ID_HEADER,
+  NEXT_HTML_REQUEST_ID_HEADER,
 } from '../../client/components/app-router-headers'
 import { createMetadataContext } from '../../lib/metadata/metadata-context'
 import { createRequestStoreForRender } from '../async-storage/request-store'
@@ -237,6 +239,7 @@ export type AppRenderContext = {
   appUsingSizeAdjustment: boolean
   flightRouterState?: FlightRouterState
   requestId: string
+  htmlRequestId: string
   pagePath: string
   clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
   assetPrefix: string
@@ -283,6 +286,7 @@ interface ParsedRequestHeaders {
   readonly isRSCRequest: boolean
   readonly nonce: string | undefined
   readonly previouslyRevalidatedTags: string[]
+  readonly htmlRequestId: string | undefined
 }
 
 function parseRequestHeaders(
@@ -327,6 +331,11 @@ function parseRequestHeaders(
     options.previewModeId
   )
 
+  const htmlRequestId =
+    typeof headers[NEXT_HTML_REQUEST_ID_HEADER] === 'string'
+      ? headers[NEXT_HTML_REQUEST_ID_HEADER]
+      : undefined
+
   return {
     flightRouterState,
     isPrefetchRequest,
@@ -337,22 +346,26 @@ function parseRequestHeaders(
     isDevWarmupRequest,
     nonce,
     previouslyRevalidatedTags,
+    htmlRequestId,
   }
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   const components = loaderTree[2]
   const hasGlobalNotFound = !!components['global-not-found']
+  const notFoundTreeComponents: LoaderTree[2] = hasGlobalNotFound
+    ? {
+        layout: components['global-not-found']!,
+        page: [() => null, 'next/dist/client/components/builtin/empty-stub'],
+      }
+    : {
+        page: components['not-found'],
+      }
+
   return [
     '',
     {
-      children: [
-        PAGE_SEGMENT_KEY,
-        {},
-        {
-          page: components['global-not-found'] ?? components['not-found'],
-        },
-      ],
+      children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents],
     },
     // When global-not-found is present, skip layout from components
     hasGlobalNotFound ? components : {},
@@ -551,17 +564,30 @@ async function generateDynamicFlightRenderResult(
     temporaryReferences?: WeakMap<any, string>
   }
 ): Promise<RenderResult> {
-  const renderOpts = ctx.renderOpts
+  const {
+    clientReferenceManifest,
+    componentMod,
+    htmlRequestId,
+    renderOpts,
+    requestId,
+    workStore,
+  } = ctx
+
+  const {
+    dev = false,
+    onInstrumentationRequestError,
+    setReactDebugChannel,
+  } = renderOpts
 
   function onFlightDataRenderError(err: DigestedError) {
-    return renderOpts.onInstrumentationRequestError?.(
+    return onInstrumentationRequestError?.(
       err,
       req,
       createErrorContext(ctx, 'react-server-components-payload')
     )
   }
   const onError = createFlightReactServerErrorHandler(
-    !!renderOpts.dev,
+    dev,
     onFlightDataRenderError
   )
 
@@ -575,22 +601,29 @@ async function generateDynamicFlightRenderResult(
     options
   )
 
+  const debugChannel = setReactDebugChannel && createDebugChannel()
+
+  if (debugChannel) {
+    setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
+  }
+
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
   // which contains the subset React.
   const flightReadableStream = workUnitAsyncStorage.run(
     requestStore,
-    ctx.componentMod.renderToReadableStream,
+    componentMod.renderToReadableStream,
     RSCPayload,
-    ctx.clientReferenceManifest.clientModules,
+    clientReferenceManifest.clientModules,
     {
       onError,
       temporaryReferences: options?.temporaryReferences,
       filterStackFrame,
+      debugChannel: debugChannel?.serverSide,
     }
   )
 
   return new FlightRenderResult(flightReadableStream, {
-    fetchMetrics: ctx.workStore.fetchMetrics,
+    fetchMetrics: workStore.fetchMetrics,
   })
 }
 
@@ -1329,12 +1362,14 @@ function assertClientReferenceManifest(
 // This component must run in an SSR context. It will render the RSC root component
 function App<T>({
   reactServerStream,
+  reactDebugStream,
   preinitScripts,
   clientReferenceManifest,
   ServerInsertedHTMLProvider,
   nonce,
 }: {
   reactServerStream: BinaryStreamOf<T>
+  reactDebugStream: ReadableStream<Uint8Array> | undefined
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
@@ -1344,6 +1379,7 @@ function App<T>({
   const response = React.use(
     useFlightStream<InitialRSCPayload>(
       reactServerStream,
+      reactDebugStream,
       clientReferenceManifest,
       nonce
     )
@@ -1388,12 +1424,14 @@ function App<T>({
 // consistent for now.
 function ErrorApp<T>({
   reactServerStream,
+  reactDebugStream,
   preinitScripts,
   clientReferenceManifest,
   ServerInsertedHTMLProvider,
   nonce,
 }: {
   reactServerStream: BinaryStreamOf<T>
+  reactDebugStream: ReadableStream<Uint8Array> | undefined
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
@@ -1403,6 +1441,7 @@ function ErrorApp<T>({
   const response = React.use(
     useFlightStream<InitialRSCPayload>(
       reactServerStream,
+      reactDebugStream,
       clientReferenceManifest,
       nonce
     )
@@ -1616,22 +1655,8 @@ async function renderToHTMLOrFlightImpl(
   query = { ...query }
   stripInternalQueries(query)
 
-  const {
-    flightRouterState,
-    isPrefetchRequest,
-    isRuntimePrefetchRequest,
-    isRSCRequest,
-    isDevWarmupRequest,
-    isHmrRefresh,
-    nonce,
-  } = parsedRequestHeaders
-
   const { isStaticGeneration } = workStore
 
-  /**
-   * The metadata items array created in next-app-loader with all relevant information
-   * that we need to resolve the final metadata.
-   */
   let requestId: string
 
   if (isStaticGeneration) {
@@ -1645,6 +1670,21 @@ async function renderToHTMLOrFlightImpl(
       require('next/dist/compiled/nanoid') as typeof import('next/dist/compiled/nanoid')
     ).nanoid()
   }
+
+  if (process.env.NODE_ENV !== 'production') {
+    res.setHeader(NEXT_REQUEST_ID_HEADER, requestId)
+  }
+
+  const {
+    flightRouterState,
+    isPrefetchRequest,
+    isRuntimePrefetchRequest,
+    isRSCRequest,
+    isDevWarmupRequest,
+    isHmrRefresh,
+    nonce,
+    htmlRequestId = requestId,
+  } = parsedRequestHeaders
 
   /**
    * Dynamic parameters. E.g. when you visit `/dashboard/vercel` which is rendered by `/dashboard/[slug]` the value will be {"slug": "vercel"}.
@@ -1679,6 +1719,7 @@ async function renderToHTMLOrFlightImpl(
     appUsingSizeAdjustment,
     flightRouterState,
     requestId,
+    htmlRequestId,
     pagePath,
     clientReferenceManifest,
     assetPrefix,
@@ -1779,7 +1820,9 @@ async function renderToHTMLOrFlightImpl(
   } else {
     // We're rendering dynamically
     const renderResumeDataCache =
-      renderOpts.renderResumeDataCache ?? postponedState?.renderResumeDataCache
+      renderOpts.renderResumeDataCache ??
+      postponedState?.renderResumeDataCache ??
+      null
 
     const rootParams = getRootParams(loaderTree, ctx.getDynamicParamFromSegment)
     const devValidatingFallbackParams =
@@ -1840,6 +1883,9 @@ async function renderToHTMLOrFlightImpl(
 
     let formState: null | any = null
     if (isPossibleActionRequest) {
+      // For action requests, we don't want to use the resume data cache.
+      requestStore.renderResumeDataCache = null
+
       // For action requests, we handle them differently with a special render result.
       const actionRequestResult = await handleAction({
         req,
@@ -1884,6 +1930,9 @@ async function renderToHTMLOrFlightImpl(
           }
         }
       }
+
+      // Restore the resume data cache
+      requestStore.renderResumeDataCache = renderResumeDataCache
     }
 
     const options: RenderResultOptions = {
@@ -1971,7 +2020,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
     previewModeId: renderOpts.previewProps?.previewModeId,
   })
 
-  const { isPrefetchRequest, previouslyRevalidatedTags } = parsedRequestHeaders
+  const { isPrefetchRequest, previouslyRevalidatedTags, nonce } =
+    parsedRequestHeaders
 
   let postponedState: PostponedState | null = null
 
@@ -2007,6 +2057,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     isPrefetchRequest,
     buildId: sharedContext.buildId,
     previouslyRevalidatedTags,
+    nonce,
   })
 
   return workAsyncStorage.run(
@@ -2068,7 +2119,7 @@ function applyMetadataFromPrerenderResult(
   }
 
   // provide bailout info for debugging
-  if (metadata.cacheControl?.revalidate === 0) {
+  if (metadata.cacheControl.revalidate === 0) {
     metadata.staticBailoutInfo = {
       description: workStore.dynamicUsageDescription,
       stack: workStore.dynamicUsageStack,
@@ -2087,7 +2138,8 @@ async function renderToStream(
   metadata: AppPageRenderResultMetadata,
   devValidatingFallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<ReadableStream<Uint8Array>> {
-  const { assetPrefix, nonce, pagePath, renderOpts } = ctx
+  const { assetPrefix, htmlRequestId, nonce, pagePath, renderOpts, requestId } =
+    ctx
 
   const {
     basePath,
@@ -2101,6 +2153,7 @@ async function renderToStream(
     onInstrumentationRequestError,
     page,
     reactMaxHeadersLength,
+    setReactDebugChannel,
     shouldWaitOnAllReady,
     subresourceIntegrityManifest,
     supportsDynamicResponse,
@@ -2182,6 +2235,7 @@ async function renderToStream(
   )
 
   let reactServerResult: null | ReactServerResult = null
+  let reactDebugStream: ReadableStream<Uint8Array> | undefined
 
   const setHeader = res.setHeader.bind(res)
   const appendHeader = res.appendHeader.bind(res)
@@ -2211,6 +2265,21 @@ async function renderToStream(
       const [resolveValidation, validationOutlet] = createValidationOutlet()
       RSCPayload._validation = validationOutlet
 
+      const debugChannel = setReactDebugChannel && createDebugChannel()
+
+      if (debugChannel) {
+        const [readableSsr, readableBrowser] =
+          debugChannel.clientSide.readable.tee()
+
+        reactDebugStream = readableSsr
+
+        setReactDebugChannel(
+          { readable: readableBrowser },
+          htmlRequestId,
+          requestId
+        )
+      }
+
       const reactServerStream = await workUnitAsyncStorage.run(
         requestStore,
         scheduleInSequentialTasks,
@@ -2224,6 +2293,7 @@ async function renderToStream(
               environmentName: () =>
                 requestStore.prerenderPhase === true ? 'Prerender' : 'Server',
               filterStackFrame,
+              debugChannel: debugChannel?.serverSide,
             }
           )
         },
@@ -2253,6 +2323,21 @@ async function renderToStream(
         res.statusCode === 404
       )
 
+      const debugChannel = setReactDebugChannel && createDebugChannel()
+
+      if (debugChannel) {
+        const [readableSsr, readableBrowser] =
+          debugChannel.clientSide.readable.tee()
+
+        reactDebugStream = readableSsr
+
+        setReactDebugChannel(
+          { readable: readableBrowser },
+          htmlRequestId,
+          requestId
+        )
+      }
+
       reactServerResult = new ReactServerResult(
         workUnitAsyncStorage.run(
           requestStore,
@@ -2262,6 +2347,7 @@ async function renderToStream(
           {
             filterStackFrame,
             onError: serverComponentsErrorHandler,
+            debugChannel: debugChannel?.serverSide,
           }
         )
       )
@@ -2282,7 +2368,8 @@ async function renderToStream(
         const inlinedReactServerDataStream = createInlinedDataReadableStream(
           reactServerResult.tee(),
           nonce,
-          formState
+          formState,
+          requestId
         )
 
         return chainStreams(
@@ -2302,6 +2389,7 @@ async function renderToStream(
           resume,
           <App
             reactServerStream={reactServerResult.tee()}
+            reactDebugStream={reactDebugStream}
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -2328,7 +2416,8 @@ async function renderToStream(
           inlinedDataStream: createInlinedDataReadableStream(
             reactServerResult.consume(),
             nonce,
-            formState
+            formState,
+            requestId
           ),
           getServerInsertedHTML,
           getServerInsertedMetadata,
@@ -2346,6 +2435,7 @@ async function renderToStream(
       renderToReadableStream,
       <App
         reactServerStream={reactServerResult.tee()}
+        reactDebugStream={reactDebugStream}
         preinitScripts={preinitScripts}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -2396,7 +2486,8 @@ async function renderToStream(
       inlinedDataStream: createInlinedDataReadableStream(
         reactServerResult.consume(),
         nonce,
-        formState
+        formState,
+        requestId
       ),
       isStaticGeneration: generateStaticHTML,
       isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
@@ -2504,6 +2595,7 @@ async function renderToStream(
           element: (
             <ErrorApp
               reactServerStream={errorServerStream}
+              reactDebugStream={undefined}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
@@ -2544,7 +2636,8 @@ async function renderToStream(
           // render
           reactServerResult.consume(),
           nonce,
-          formState
+          formState,
+          requestId
         ),
         isStaticGeneration: generateStaticHTML,
         isBuildTimePrerendering: ctx.workStore.isBuildTimePrerendering === true,
@@ -2570,6 +2663,44 @@ async function renderToStream(
       }
       throw finalErr
     }
+  }
+}
+
+function createDebugChannel():
+  | {
+      serverSide: { readable?: ReadableStream; writable: WritableStream }
+      clientSide: { readable: ReadableStream; writable?: WritableStream }
+    }
+  | undefined {
+  if (process.env.NODE_ENV === 'production') {
+    return undefined
+  }
+
+  let readableController: ReadableStreamDefaultController | undefined
+
+  const clientSideReadable = new ReadableStream<Uint8Array>({
+    start(controller) {
+      readableController = controller
+    },
+  })
+
+  return {
+    serverSide: {
+      writable: new WritableStream<Uint8Array>({
+        write(chunk) {
+          readableController?.enqueue(chunk)
+        },
+        close() {
+          readableController?.close()
+        },
+        abort(err) {
+          readableController?.error(err)
+        },
+      }),
+    },
+    clientSide: {
+      readable: clientSideReadable,
+    },
   }
 }
 
@@ -2847,6 +2978,7 @@ async function spawnDynamicValidationInDev(
       prerender,
       <App
         reactServerStream={initialServerResult.asUnclosingStream()}
+        reactDebugStream={undefined}
         preinitScripts={preinitScripts}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -3075,6 +3207,7 @@ async function spawnDynamicValidationInDev(
             prerender,
             <App
               reactServerStream={reactServerResult.asUnclosingStream()}
+              reactDebugStream={undefined}
               preinitScripts={preinitScripts}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -3220,6 +3353,7 @@ async function prerenderToStream(
     nonce,
     pagePath,
     renderOpts,
+    requestId,
     workStore,
   } = ctx
 
@@ -3513,6 +3647,7 @@ async function prerenderToStream(
         'abort',
         () => {
           initialServerRenderController.abort()
+          initialServerPrerenderController.abort()
         },
         { once: true }
       )
@@ -3587,6 +3722,7 @@ async function prerenderToStream(
           prerender,
           <App
             reactServerStream={initialServerResult.asUnclosingStream()}
+            reactDebugStream={undefined}
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -3820,6 +3956,7 @@ async function prerenderToStream(
               prerender,
               <App
                 reactServerStream={reactServerResult.asUnclosingStream()}
+                reactDebugStream={undefined}
                 preinitScripts={preinitScripts}
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -3929,12 +4066,15 @@ async function prerenderToStream(
               ? DynamicHTMLPreludeState.Empty
               : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
-            resumeDataCache
+            resumeDataCache,
+            experimental.cacheComponents
           )
         } else {
           // Dynamic Data case
-          metadata.postponed =
-            await getDynamicDataPostponedState(resumeDataCache)
+          metadata.postponed = await getDynamicDataPostponedState(
+            resumeDataCache,
+            experimental.cacheComponents
+          )
         }
         reactServerResult.consume()
         return {
@@ -3980,6 +4120,7 @@ async function prerenderToStream(
           const resumeStream = await resume(
             <App
               reactServerStream={foreverStream}
+              reactDebugStream={undefined}
               preinitScripts={() => {}}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4004,7 +4145,8 @@ async function prerenderToStream(
             inlinedDataStream: createInlinedDataReadableStream(
               reactServerResult.consumeAsStream(),
               nonce,
-              formState
+              formState,
+              requestId
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
@@ -4086,6 +4228,7 @@ async function prerenderToStream(
           prerender,
           <App
             reactServerStream={reactServerResult.asUnclosingStream()}
+            reactDebugStream={undefined}
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4152,12 +4295,14 @@ async function prerenderToStream(
               ? DynamicHTMLPreludeState.Empty
               : DynamicHTMLPreludeState.Full,
             fallbackRouteParams,
-            prerenderResumeDataCache
+            prerenderResumeDataCache,
+            experimental.cacheComponents
           )
         } else {
           // Dynamic Data case.
           metadata.postponed = await getDynamicDataPostponedState(
-            prerenderResumeDataCache
+            prerenderResumeDataCache,
+            experimental.cacheComponents
           )
         }
         // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
@@ -4182,7 +4327,8 @@ async function prerenderToStream(
       } else if (fallbackRouteParams && fallbackRouteParams.size > 0) {
         // Rendering the fallback case.
         metadata.postponed = await getDynamicDataPostponedState(
-          prerenderResumeDataCache
+          prerenderResumeDataCache,
+          experimental.cacheComponents
         )
 
         return {
@@ -4223,6 +4369,7 @@ async function prerenderToStream(
           const resumeStream = await resume(
             <App
               reactServerStream={foreverStream}
+              reactDebugStream={undefined}
               preinitScripts={() => {}}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4247,7 +4394,8 @@ async function prerenderToStream(
             inlinedDataStream: createInlinedDataReadableStream(
               reactServerResult.consumeAsStream(),
               nonce,
-              formState
+              formState,
+              requestId
             ),
             getServerInsertedHTML,
             getServerInsertedMetadata,
@@ -4306,6 +4454,7 @@ async function prerenderToStream(
         renderToReadableStream,
         <App
           reactServerStream={reactServerResult.asUnclosingStream()}
+          reactDebugStream={undefined}
           preinitScripts={preinitScripts}
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -4343,7 +4492,8 @@ async function prerenderToStream(
           inlinedDataStream: createInlinedDataReadableStream(
             reactServerResult.consumeAsStream(),
             nonce,
-            formState
+            formState,
+            requestId
           ),
           isStaticGeneration: true,
           isBuildTimePrerendering:
@@ -4479,6 +4629,7 @@ async function prerenderToStream(
           element: (
             <ErrorApp
               reactServerStream={errorServerStream}
+              reactDebugStream={undefined}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
               preinitScripts={errorPreinitScripts}
               clientReferenceManifest={clientReferenceManifest}
@@ -4520,7 +4671,8 @@ async function prerenderToStream(
           inlinedDataStream: createInlinedDataReadableStream(
             flightStream,
             nonce,
-            formState
+            formState,
+            requestId
           ),
           isStaticGeneration: true,
           isBuildTimePrerendering:
@@ -4594,7 +4746,7 @@ const getGlobalErrorStyles = async (
       dir,
       globalErrorModule?.[1]
     )
-    if (ctx.renderOpts.devtoolSegmentExplorer && globalErrorModulePath) {
+    if (globalErrorModulePath) {
       const SegmentViewNode = ctx.componentMod.SegmentViewNode
       globalErrorStyles = (
         // This will be rendered next to GlobalError component under ErrorBoundary,

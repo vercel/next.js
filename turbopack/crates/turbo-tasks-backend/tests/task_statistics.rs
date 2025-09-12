@@ -254,12 +254,11 @@ fn enable_stats() {
 
 fn stats_json() -> serde_json::Value {
     let tt = turbo_tasks::turbo_tasks();
-    remove_crate_and_hashes(serde_json::to_value(tt.task_statistics().get()).unwrap())
+    remove_crate(serde_json::to_value(tt.task_statistics().get()).unwrap())
 }
 
-// Global task identifiers can contain a hash of the crate and dependencies.
-// Remove that so that we can compare against a stable value in tests.
-fn remove_crate_and_hashes(mut json: serde_json::Value) -> serde_json::Value {
+// Global task identifiers can contain the crate name, remove it to simplify test assertions
+fn remove_crate(mut json: serde_json::Value) -> serde_json::Value {
     static HASH_RE: Lazy<Regex> = Lazy::new(|| Regex::new("^[^:@]+@[^:]+:+").unwrap());
     match &mut json {
         serde_json::Value::Object(map) => {

@@ -189,9 +189,7 @@ impl OutputAsset for EcmascriptBuildNodeEntryChunk {
         }
 
         let other_chunks = this.other_chunks.await?;
-        for &other_chunk in &*other_chunks {
-            references.push(ResolvedVc::upcast(other_chunk));
-        }
+        references.extend(other_chunks.iter().copied());
 
         Ok(Vc::cell(references))
     }

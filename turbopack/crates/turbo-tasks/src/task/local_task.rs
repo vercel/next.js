@@ -163,7 +163,6 @@ pub(crate) mod tests {
 
     #[test]
     fn test_fmt() {
-        crate::register();
         assert_eq!(
             LocalTaskType::Native {
                 native_fn: &MOCK_FUNC_TASK_FUNCTION,

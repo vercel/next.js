@@ -86,6 +86,7 @@ const PARALLEL_VIRTUAL_SEGMENT = 'slot$'
 const defaultGlobalErrorPath =
   'next/dist/client/components/builtin/global-error.js'
 const defaultNotFoundPath = 'next/dist/client/components/builtin/not-found.js'
+const defaultEmptyStubPath = 'next/dist/client/components/builtin/empty-stub'
 const defaultLayoutPath = 'next/dist/client/components/builtin/layout.js'
 const defaultGlobalNotFoundPath =
   'next/dist/client/components/builtin/global-not-found.js'
@@ -151,7 +152,6 @@ async function createTreeCodeFromPath(
   }
 ): Promise<{
   treeCode: string
-  pages: string
   rootLayout: string | undefined
   globalError: string
   globalNotFound: string
@@ -162,7 +162,6 @@ async function createTreeCodeFromPath(
   const isDefaultNotFound = isAppBuiltinPage(pagePath)
 
   const appDirPrefix = isDefaultNotFound ? APP_DIR_ALIAS : splittedPath[0]
-  const pages: string[] = []
 
   let rootLayout: string | undefined
   let globalError: string = defaultGlobalErrorPath
@@ -247,8 +246,6 @@ async function createTreeCodeFromPath(
 
         const resolvedPagePath = await resolver(matchedPagePath)
         if (resolvedPagePath) {
-          pages.push(resolvedPagePath)
-
           const varName = `page${nestedCollectedDeclarations.length}`
           nestedCollectedDeclarations.push([varName, resolvedPagePath])
 
@@ -426,12 +423,18 @@ async function createTreeCodeFromPath(
           if (matchedGlobalNotFound) {
             const varName = `notFound${nestedCollectedDeclarations.length}`
             nestedCollectedDeclarations.push([varName, matchedGlobalNotFound])
+            const layoutName = `layout${nestedCollectedDeclarations.length}`
+            nestedCollectedDeclarations.push([layoutName, defaultEmptyStubPath])
             subtreeCode = `{
               children: [${JSON.stringify(UNDERSCORE_NOT_FOUND_ROUTE)}, {
                 children: ['${PAGE_SEGMENT_KEY}', {}, {
-                  page: [
+                  layout: [
                     ${varName},
                     ${JSON.stringify(matchedGlobalNotFound)}
+                  ],
+                  page: [
+                    ${layoutName},
+                    ${JSON.stringify(defaultEmptyStubPath)}
                   ]
                 }]
               }, {}]
@@ -475,12 +478,21 @@ async function createTreeCodeFromPath(
       }
 
       // For 404 route
-      // if global-not-found is in definedFilePaths, remove root layout for /_not-found
+      // if global-not-found is in definedFilePaths, remove root layout for /_not-found,
+      // and change it to global-not-found route.
       // TODO: remove this once global-not-found is stable.
       if (isNotFoundRoute && isGlobalNotFoundEnabled) {
         definedFilePaths = definedFilePaths.filter(
           ([type]) => type !== 'layout'
         )
+
+        // Replace the layout to global-not-found
+        definedFilePaths.push([
+          'layout',
+          definedFilePaths.find(
+            ([type]) => type === GLOBAL_NOT_FOUND_FILE_TYPE
+          )?.[1] ?? defaultGlobalNotFoundPath,
+        ])
       }
 
       if (isAppErrorRoute) {
@@ -560,7 +572,6 @@ async function createTreeCodeFromPath(
 
   return {
     treeCode: `${treeCode}.children;`,
-    pages: `${JSON.stringify(pages)};`,
     rootLayout,
     globalError,
     globalNotFound,
@@ -824,7 +835,7 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
       const [createdRootLayout, rootLayoutPath] = await verifyRootLayout({
         appDir: appDir,
         dir: rootDir!,
-        tsconfigPath: tsconfigPath!,
+        tsconfigPath: tsconfigPath,
         pagePath,
         pageExtensions,
       })
@@ -875,7 +886,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     },
     {
       tree: treeCodeResult.treeCode,
-      pages: treeCodeResult.pages,
       __next_app_require__: '__webpack_require__',
       // all modules are in the entry chunk, so we never actually need to load chunks in webpack
       __next_app_load_chunk__: '() => Promise.resolve()',

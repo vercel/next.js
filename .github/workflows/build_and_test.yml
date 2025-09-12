@@ -11,8 +11,8 @@ on:
 # of that workflow. Environment variables are not automatically passed to
 # reusable workflows.
 env:
-  NODE_MAINTENANCE_VERSION: 18
-  NODE_LTS_VERSION: 20
+  NODE_MAINTENANCE_VERSION: 20
+  NODE_LTS_VERSION: 22
 
 jobs:
   optimize-ci:
@@ -109,7 +109,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
       - name: Setup corepack
         run: |
           npm i -g corepack@0.31
@@ -269,13 +269,13 @@ jobs:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
         # Empty value uses default
         # TODO: Run with React 18.
-        # Integration tests use the installed React version in next/package.json.include:
+        # Integration tests use the installed React version in next/package.json.
         # We can't easily switch like we do for e2e tests.
-        # Skipping this dimensions until we can figure out a way to test multiple React versions.
+        # Skipping this dimension until we can figure out a way to test multiple React versions.
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
@@ -301,14 +301,10 @@ jobs:
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
-        # TODO: Run with React 18.
-        # Integration tests use the installed React version in next/package.json.include:
-        # We can't easily switch like we do for e2e tests.
-        # Skipping this dimensions until we can figure out a way to test multiple React versions.
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
@@ -328,18 +324,25 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+        # Empty value uses default
+        # TODO: Run with React 18.
+        # Integration tests use the installed React version in next/package.json.
+        # We can't easily switch like we do for e2e tests.
+        # Skipping this dimension until we can figure out a way to test multiple React versions.
+        react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         node run-tests.js \
           --timings \
           -g ${{ matrix.group }} \
           --type integration
-      stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
+      stepName: 'test-turbopack-production-integration-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
   test-rspack-dev:
@@ -349,12 +352,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        exclude:
+          # Excluding React 18 tests unless on `canary` branch until budget is approved.
+          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        # Empty value uses default
+        react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
         export NEXT_TEST_MODE=dev
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -379,11 +388,18 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+        # Empty value uses default
+        # TODO: Run with React 18.
+        # Integration tests use the installed React version in next/package.json.
+        # We can't easily switch like we do for e2e tests.
+        # Skipping this dimension until we can figure out a way to test multiple React versions.
+        react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -412,12 +428,14 @@ jobs:
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
+        react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
         export NEXT_TEST_MODE=start
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -439,11 +457,18 @@ jobs:
       fail-fast: false
       matrix:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+        # Empty value uses default
+        # TODO: Run with React 18.
+        # Integration tests use the installed React version in next/package.json.
+        # We can't easily switch like we do for e2e tests.
+        # Skipping this dimension until we can figure out a way to test multiple React versions.
+        react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
+        export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         # rspack flags
         export NEXT_RSPACK=1
@@ -457,7 +482,7 @@ jobs:
           --timings \
           -g ${{ matrix.group }} \
           --type integration
-      stepName: 'test-rspack-production-integration-${{ matrix.group }}'
+      stepName: 'test-rspack-production-integration-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
   test-next-swc-wasm:
@@ -511,13 +536,57 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [18, 20] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
+        node: [20, 22] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-${{ matrix.node }}'
+
+    secrets: inherit
+
+  # TODO: Remove this once we bump minimum Node.js version to v22
+  test-next-config-ts-native-ts-dev:
+    name: test next-config-ts-native-ts dev
+    needs: ['changes', 'build-next', 'build-native']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: ${{ matrix.node }}
+      afterBuild: |
+        export NEXT_TEST_MODE=dev
+        export NODE_OPTIONS=--experimental-transform-types
+        node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts
+      stepName: 'test-next-config-ts-native-ts-dev-${{ matrix.node }}'
+
+    secrets: inherit
+
+  # TODO: Remove this once we bump minimum Node.js version to v22
+  test-next-config-ts-native-ts-prod:
+    name: test next-config-ts-native-ts prod
+    needs: ['changes', 'build-next', 'build-native']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: ${{ matrix.node }}
+      afterBuild: |
+        export NEXT_TEST_MODE=start
+        export NODE_OPTIONS=--experimental-transform-types
+        node run-tests.js test/e2e/app-dir/next-config-ts-native-ts/**/*.test.ts
+      stepName: 'test-next-config-ts-native-ts-prod-${{ matrix.node }}'
 
     secrets: inherit
 
@@ -529,7 +598,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [18, 20] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
+        node: [20, 22] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -680,7 +749,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         node run-tests.js \
           --concurrency 4 \
@@ -769,13 +838,13 @@ jobs:
           - 13/13
         # Empty value uses default
         # TODO: Run with React 18.
-        # Integration tests use the installed React version in next/package.json.include:
+        # Integration tests use the installed React version in next/package.json.
         # We can't easily switch like we do for e2e tests.
-        # Skipping this dimensions until we can figure out a way to test multiple React versions.
+        # Skipping this dimension until we can figure out a way to test multiple React versions.
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
@@ -821,7 +890,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export __NEXT_EXPERIMENTAL_PPR=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json"
@@ -878,29 +947,29 @@ jobs:
       stepName: 'test-ppr-prod-${{ matrix.group }}'
     secrets: inherit
 
-  # TODO: remove these jobs once Cache Components is the default
+  # TODO: Disable these when no more experiments are tested
   # Manifest generated via: https://gist.github.com/wyattjoh/2ceaebd82a5bcff4819600fd60126431
-  test-cache-components-integration:
-    name: test cache components integration
+  test-experimental-integration:
+    name: test experimental integration
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: 20.9.0
       afterBuild: |
         export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
         export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
 
         node run-tests.js \
           --timings \
           --type integration
-      stepName: 'test-cache-components-integration'
+      stepName: 'test-experimental-integration'
     secrets: inherit
 
-  test-cache-components-dev:
-    name: test cache components dev
+  test-experimental-dev:
+    name: test experimental dev
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
@@ -913,18 +982,18 @@ jobs:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
         export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
         export NEXT_TEST_MODE=dev
 
         node run-tests.js \
           --timings \
           -g ${{ matrix.group }} \
           --type development
-      stepName: 'test-cache-components-dev-${{ matrix.group }}'
+      stepName: 'test-experimental-dev-${{ matrix.group }}'
     secrets: inherit
 
-  test-cache-components-prod:
-    name: test cache components prod
+  test-experimental-prod:
+    name: test experimental prod
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
@@ -937,14 +1006,14 @@ jobs:
       afterBuild: |
         export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
         export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
-        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
         export NEXT_TEST_MODE=start
 
         node run-tests.js \
           --timings \
           -g ${{ matrix.group }} \
           --type production
-      stepName: 'test-cache-components-prod-${{ matrix.group }}'
+      stepName: 'test-experimental-prod-${{ matrix.group }}'
     secrets: inherit
 
   tests-pass:
@@ -956,6 +1025,8 @@ jobs:
         'validate-docs-links',
         'check-types-precompiled',
         'test-unit',
+        'test-next-config-ts-native-ts-dev',
+        'test-next-config-ts-native-ts-prod',
         'test-dev',
         'test-prod',
         'test-integration',
@@ -963,9 +1034,9 @@ jobs:
         'test-ppr-dev',
         'test-ppr-prod',
         'test-ppr-integration',
-        'test-cache-components-dev',
-        'test-cache-components-prod',
-        'test-cache-components-integration',
+        'test-experimental-dev',
+        'test-experimental-prod',
+        'test-experimental-integration',
         'test-cargo-unit',
         'rust-check',
         'rustdoc-check',

@@ -2,7 +2,6 @@ import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
   formatIssue,
-  getTurbopackJsConfig,
   isPersistentCachingEnabled,
   isRelevantWarning,
 } from '../../shared/lib/turbopack/utils'
@@ -60,7 +59,6 @@ export async function turbopackBuild(): Promise<{
       projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
       distDir,
       nextConfig: config,
-      jsConfig: await getTurbopackJsConfig(dir, config),
       watch: {
         enable: false,
       },
@@ -204,7 +202,7 @@ export async function turbopackBuild(): Promise<{
         )),
     ])
 
-    await manifestLoader.writeManifests({
+    manifestLoader.writeManifests({
       devRewrites: undefined,
       productionRewrites: rewrites,
       entrypoints: currentEntrypoints,

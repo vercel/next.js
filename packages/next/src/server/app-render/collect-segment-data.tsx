@@ -51,7 +51,7 @@ export type TreePrefetch = {
   }
 
   /** Whether this segment should be fetched using a runtime prefetch */
-  shouldUseRuntimePrefetch: boolean
+  hasRuntimePrefetch: boolean
 
   // Extra fields that only exist so we can reconstruct a FlightRouterState on
   // the client. We may be able to unify TreePrefetch and FlightRouterState
@@ -281,7 +281,7 @@ function collectSegmentDataImpl(
     slotMetadata[parallelRouteKey] = childTree
   }
 
-  const shouldUseRuntimePrefetch = seedData !== null ? seedData[5] : false
+  const hasRuntimePrefetch = seedData !== null ? seedData[5] : false
 
   if (seedData !== null) {
     // Spawn a task to write the segment data to a new Flight stream.
@@ -324,7 +324,7 @@ function collectSegmentDataImpl(
     // case there's a bug and we need to revert.
     // TODO: Remove once clientParamParsing is enabled everywhere.
     paramKey: isClientParamParsingEnabled ? null : paramKey,
-    shouldUseRuntimePrefetch,
+    hasRuntimePrefetch,
     slots: slotMetadata,
     isRootLayout: route[4] === true,
   }

@@ -81,8 +81,6 @@ turbo-tasks-malloc = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbopack-test-utils = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
 
 [[bench]]
 name = "mod"

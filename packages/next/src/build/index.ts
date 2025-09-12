@@ -112,8 +112,6 @@ import { Telemetry } from '../telemetry/storage'
 import {
   createPagesMapping,
   collectAppFiles,
-  getStaticInfoIncludingLayouts,
-  sortByPageExts,
   processPageRoutes,
   processAppRoutes,
   processLayoutRoutes,
@@ -124,6 +122,8 @@ import {
   type SlotInfo,
   collectPagesFiles,
 } from './entries'
+import { sortByPageExts } from './sort-by-page-exts'
+import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -391,8 +391,8 @@ export type ManifestHeaderRoute = ManifestBuiltRoute & Header
 
 export type ManifestRoute = ManifestBuiltRoute & {
   page: string
-  namedRegex?: string
-  routeKeys?: { [key: string]: string }
+  namedRegex: string
+  routeKeys: { [key: string]: string }
 
   /**
    * If true, this indicates that the route has fallback root params. This is
@@ -480,6 +480,7 @@ export type RoutesManifest = {
      * rewrites will get the rewrite headers.
      */
     clientParamParsingOrigins: string[] | undefined
+    dynamicRSCPrerender: boolean
   }
   rewriteHeaders: {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
@@ -1050,7 +1051,7 @@ export default async function build(
       const hasPublicDir = existsSync(publicDir)
 
       telemetry.record(
-        eventCliSession(dir, config, {
+        eventCliSession(config, {
           webpackVersion: 5,
           cliCommand: 'build',
           isSrcDir,
@@ -1082,6 +1083,7 @@ export default async function build(
         appUrl: null,
         envInfo,
         experimentalFeatures,
+        logBundler: true,
       })
 
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
@@ -1567,6 +1569,12 @@ export default async function build(
               clientParamParsingOrigins: config.experimental.clientParamParsing
                 ? config.experimental.clientParamParsingOrigins
                 : undefined,
+              dynamicRSCPrerender:
+                // Only enable RDC for Navigations if the feature is enabled.
+                // Once we've made RDC for Navigations the default for PPR, we
+                // can remove the check for `config.experimental.rdcForNavigations`.
+                isAppPPREnabled &&
+                config.experimental.rdcForNavigations === true,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
@@ -1736,7 +1744,6 @@ export default async function build(
                     hasSsrAmpPages: false,
                     buildTraceContext,
                     outputFileTracingRoot,
-                    isTurbopack: false,
                   })
                   .catch((err) => {
                     console.error(err)
@@ -2187,7 +2194,8 @@ export default async function build(
 
                       if (pageType === 'app' && originalAppPath) {
                         appNormalizedPaths.set(originalAppPath, page)
-                        // TODO-APP: handle prerendering with edge
+
+                        // Edge runtime doesn't support static generation.
                         if (isEdgeRuntime(pageRuntime)) {
                           isStatic = false
                           isSSG = false
@@ -2630,7 +2638,7 @@ export default async function build(
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
 
-      if (!isGenerateMode && !buildTracesPromise) {
+      if (!isTurbopack && !isGenerateMode && !buildTracesPromise) {
         buildTracesPromise = collectBuildTraces({
           dir,
           config,
@@ -2641,7 +2649,6 @@ export default async function build(
           hasSsrAmpPages,
           buildTraceContext,
           outputFileTracingRoot,
-          isTurbopack: true,
         }).catch((err) => {
           console.error(err)
           process.exit(1)
@@ -3923,7 +3930,10 @@ export default async function build(
       }
 
       const postBuildSpinner = createSpinner('Finalizing page optimization')
-      let buildTracesSpinner = createSpinner(`Collecting build traces`)
+      let buildTracesSpinner
+      if (buildTracesPromise) {
+        buildTracesSpinner = createSpinner('Collecting build traces')
+      }
 
       // ensure the worker is not left hanging
       worker.end()
@@ -4098,6 +4108,9 @@ export default async function build(
         await handleBuildComplete({
           dir,
           distDir,
+          config,
+          staticPages,
+          nextVersion: process.env.__NEXT_VERSION as string,
           tracingRoot: outputFileTracingRoot,
           hasNodeMiddleware,
           hasInstrumentationHook,
