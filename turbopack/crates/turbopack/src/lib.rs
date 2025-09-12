@@ -490,10 +490,10 @@ async fn process_default_internal(
     reference_type: ReferenceType,
     processed_rules: Vec<usize>,
 ) -> Result<Vc<ProcessResult>> {
-    let ident = source.ident().resolve().await?;
+    let ident = source.ident().to_resolved().await?;
     let path_ref = ident.path().await?;
     let options = ModuleOptions::new(
-        ident.path().await?.parent(),
+        path_ref.parent(),
         module_asset_context.module_options_context(),
         module_asset_context.resolve_options_context(),
     );
@@ -539,7 +539,7 @@ async fn process_default_internal(
                     ModuleRuleEffect::SourceTransforms(transforms) => {
                         current_source =
                             transforms.transform(*current_source).to_resolved().await?;
-                        if current_source.ident().resolve().await? != ident {
+                        if current_source.ident().to_resolved().await? != ident {
                             // The ident has been changed, so we need to apply new rules.
                             if let Some(transition) = module_asset_context
                                 .await?
@@ -615,7 +615,7 @@ async fn process_default_internal(
                             }),
                             Some(module_type) => {
                                 ModuleIssue {
-                                    ident: ident.to_resolved().await?,
+                                    ident,
                                     title: StyledString::Text(rcstr!("Invalid module type"))
                                         .resolved_cell(),
                                     description: StyledString::Text(rcstr!(
@@ -631,7 +631,7 @@ async fn process_default_internal(
                             }
                             None => {
                                 ModuleIssue {
-                                    ident: ident.to_resolved().await?,
+                                    ident,
                                     title: StyledString::Text(rcstr!("Missing module type"))
                                         .resolved_cell(),
                                     description: StyledString::Text(rcstr!(

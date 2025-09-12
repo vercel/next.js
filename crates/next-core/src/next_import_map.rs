@@ -345,9 +345,7 @@ pub async fn get_next_server_import_map(
 
     import_map.insert_exact_alias(rcstr!("next/dist/server/require-hook"), external);
     match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             import_map.insert_exact_alias(rcstr!("react"), external);
             import_map.insert_wildcard_alias(rcstr!("react/"), external);
             import_map.insert_exact_alias(rcstr!("react-dom"), external);
@@ -494,7 +492,6 @@ pub async fn get_next_edge_import_map(
 
     match &ty {
         ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {}
@@ -547,7 +544,6 @@ pub async fn get_next_edge_import_map(
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. }
         | ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
             insert_unsupported_node_internal_aliases(&mut import_map).await?;
         }
@@ -705,7 +701,6 @@ async fn insert_next_server_special_aliases(
 
     match &ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
-        ServerContextType::PagesData { .. } => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir, .. }
@@ -759,8 +754,7 @@ async fn insert_next_server_special_aliases(
                 },
             );
         }
-        ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. }
+        ServerContextType::PagesApi { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
@@ -1243,11 +1237,12 @@ async fn insert_next_shared_aliases(
 
 #[turbo_tasks::function]
 pub async fn get_next_package(context_directory: FileSystemPath) -> Result<Vc<FileSystemPath>> {
+    let root = context_directory.root().owned().await?;
     let result = resolve(
-        context_directory.clone(),
+        context_directory,
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
-        node_cjs_resolve_options(context_directory.root().owned().await?),
+        node_cjs_resolve_options(root),
     );
     let source = result
         .first_source()

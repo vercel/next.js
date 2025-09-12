@@ -851,7 +851,10 @@ export async function handleBuildComplete({
         outputs.prerenders.push(initialOutput)
 
         if (dataRoute) {
-          let dataFilePath = path.join(pagesDistDir, `${route}.json`)
+          let dataFilePath = path.join(
+            pagesDistDir,
+            `${route === '/' ? 'index' : route}.json`
+          )
 
           if (isAppPage) {
             // When experimental PPR is enabled, we expect that the data

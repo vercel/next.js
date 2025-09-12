@@ -1989,7 +1989,7 @@ function abort(request, reason) {
           errorId = request.nextChunkId++;
         request.fatalError = errorId;
         request.pendingChunks++;
-        emitErrorChunk(request, errorId, digest, error, !1);
+        emitErrorChunk(request, errorId, digest, error, !1, null);
         abortableTasks.forEach(function (task) {
           return abortTask(task, request, errorId);
         });

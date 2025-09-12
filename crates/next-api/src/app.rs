@@ -12,8 +12,8 @@ use next_core::{
         get_app_page_entry, get_app_route_entry, metadata::route::get_app_metadata_route_entry,
     },
     next_client::{
-        ClientContextType, RuntimeEntries, get_client_module_options_context,
-        get_client_resolve_options_context, get_client_runtime_entries,
+        ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
+        get_client_runtime_entries,
     },
     next_client_reference::{
         ClientReferenceGraphResult, NextCssClientReferenceTransition,
@@ -29,7 +29,6 @@ use next_core::{
     },
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
-        get_server_runtime_entries,
     },
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
@@ -776,26 +775,6 @@ impl AppProject {
         Vc::upcast(FullContextTransition::new(
             self.edge_shared_module_context(),
         ))
-    }
-
-    #[turbo_tasks::function]
-    async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        Ok(get_server_runtime_entries(
-            self.rsc_ty().owned().await?,
-            self.project().next_mode(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn rsc_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
-        self.runtime_entries()
-            .resolve_entries(Vc::upcast(self.rsc_module_context()))
-    }
-
-    #[turbo_tasks::function]
-    fn edge_rsc_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
-        self.runtime_entries()
-            .resolve_entries(Vc::upcast(self.edge_rsc_module_context()))
     }
 
     #[turbo_tasks::function]
@@ -1780,17 +1759,11 @@ impl AppEndpoint {
                     )
                     .await?;
 
-                let edge_rsc_runtime_entries = this.app_project.edge_rsc_runtime_entries().await?;
-                let evaluatable_assets = edge_rsc_runtime_entries
-                    .iter()
-                    .map(|m| ResolvedVc::upcast(*m))
-                    .chain(std::iter::once(app_entry.rsc_entry));
-
                 assets.concatenate(
                     chunking_context
                         .evaluated_chunk_group_assets(
                             app_entry.rsc_entry.ident(),
-                            ChunkGroup::Entry(evaluatable_assets.collect()),
+                            ChunkGroup::Entry(vec![app_entry.rsc_entry]),
                             module_graph,
                             availability_info,
                         )
@@ -1799,13 +1772,11 @@ impl AppEndpoint {
                 )
             }
             NextRuntime::NodeJs => {
-                let mut evaluatable_assets = this.app_project.rsc_runtime_entries().owned().await?;
-
                 let Some(rsc_entry) = ResolvedVc::try_downcast(app_entry.rsc_entry) else {
                     bail!("rsc_entry must be evaluatable");
                 };
 
-                evaluatable_assets.push(rsc_entry);
+                let evaluatable_assets = Vc::cell(vec![rsc_entry]);
 
                 async {
                     let mut current_chunks = OutputAssets::empty();
@@ -1909,7 +1880,7 @@ impl AppEndpoint {
                                     "app{original_name}.js",
                                     original_name = app_entry.original_name
                                 ))?,
-                                Vc::cell(evaluatable_assets),
+                                evaluatable_assets,
                                 module_graph,
                                 current_chunks,
                                 current_availability_info,
