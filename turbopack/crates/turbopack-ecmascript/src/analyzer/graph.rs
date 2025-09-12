@@ -2059,6 +2059,7 @@ impl VisitAstPath for Analyzer<'_> {
                     | AstParentKind::ClassDecl(ClassDeclField::Class)
                     | AstParentKind::ClassExpr(ClassExprField::Class)
                     | AstParentKind::Function(FunctionField::Body)
+                    | AstParentKind::Function(FunctionField::Params(_))
             )
         }) {
             // We are in some scope that will rebind this
