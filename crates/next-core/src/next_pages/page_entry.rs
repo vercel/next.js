@@ -78,9 +78,12 @@ pub async fn create_page_ssr_entry_module(
         ("VAR_USERLAND", &inner),
     ];
 
-    if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page)
-        || reference_type == ReferenceType::Entry(EntryReferenceSubType::PageData)
-    {
+    let is_page = matches!(
+        reference_type,
+        ReferenceType::Entry(EntryReferenceSubType::Page)
+            | ReferenceType::Entry(EntryReferenceSubType::PageData)
+    );
+    if is_page {
         replacements.push(("VAR_MODULE_DOCUMENT", &inner_document));
         replacements.push(("VAR_MODULE_APP", &inner_app));
     }
@@ -92,8 +95,7 @@ pub async fn create_page_ssr_entry_module(
     // When we're building the instrumentation page (only when the
     // instrumentation file conflicts with a page also labeled
     // /instrumentation) hoist the `register` method.
-    if (reference_type == ReferenceType::Entry(EntryReferenceSubType::Page)
-        || reference_type == ReferenceType::Entry(EntryReferenceSubType::PageData))
+    if is_page
         && (definition_page == "/instrumentation" || definition_page == "/src/instrumentation")
     {
         let file = &*file_content_rope(source.content().file_content()).await?;
@@ -108,8 +110,8 @@ pub async fn create_page_ssr_entry_module(
 
         let file = File::from(result.build());
 
-        source = Vc::upcast(VirtualSource::new(
-            source.ident().path().owned().await?,
+        source = Vc::upcast(VirtualSource::new_with_ident(
+            source.ident(),
             AssetContent::file(file.into()),
         ));
     }
@@ -120,10 +122,8 @@ pub async fn create_page_ssr_entry_module(
 
     let pages_structure_ref = pages_structure.await?;
 
-    let (app_module, document_module) = if reference_type
-        == ReferenceType::Entry(EntryReferenceSubType::Page)
-        || reference_type == ReferenceType::Entry(EntryReferenceSubType::PageData)
-    {
+    let (app_module, document_module) = if is_page {
+        // We process the document and app modules in the same context and reference type.
         let document_module = process_global_item(
             *pages_structure_ref.document,
             reference_type.clone(),
@@ -153,9 +153,7 @@ pub async fn create_page_ssr_entry_module(
         .module();
 
     if matches!(runtime, NextRuntime::Edge) {
-        if reference_type == ReferenceType::Entry(EntryReferenceSubType::Page)
-            || reference_type == ReferenceType::Entry(EntryReferenceSubType::PageData)
-        {
+        if is_page {
             ssr_module = wrap_edge_page(
                 ssr_module_context,
                 project_root,
