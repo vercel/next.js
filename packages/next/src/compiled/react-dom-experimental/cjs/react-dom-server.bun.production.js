@@ -7293,13 +7293,13 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_869 = React.version;
 if (
-  "19.2.0-experimental-93d7aa69-20250912" !==
+  "19.2.0-experimental-8a8e9a7e-20250912" !==
   isomorphicReactPackageVersion$jscomp$inline_869
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_869 +
-        "\n  - react-dom:  19.2.0-experimental-93d7aa69-20250912\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.2.0-experimental-8a8e9a7e-20250912\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -7390,4 +7390,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-experimental-93d7aa69-20250912";
+exports.version = "19.2.0-experimental-8a8e9a7e-20250912";
