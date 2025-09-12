@@ -288,6 +288,47 @@ pub enum ChunkGroupKey {
     },
 }
 
+impl ChunkGroupKey {
+    pub async fn value_to_string(
+        &self,
+        keys: impl std::ops::Index<usize, Output = Self>,
+    ) -> Result<String> {
+        Ok(match self {
+            ChunkGroupKey::Entry(entries) => format!(
+                "Entry({:?})",
+                entries
+                    .iter()
+                    .map(|m| m.ident().to_string())
+                    .try_join()
+                    .await?
+            ),
+            ChunkGroupKey::Async(module) => {
+                format!("Async({:?})", module.ident().to_string().await?)
+            }
+            ChunkGroupKey::Isolated(module) => {
+                format!("Isolated({:?})", module.ident().to_string().await?)
+            }
+            ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
+                format!(
+                    "IsolatedMerged {{ parent: {}, merge_tag: {:?} }}",
+                    Box::pin(keys.index(parent.0 as usize).clone().value_to_string(keys)).await?,
+                    merge_tag
+                )
+            }
+            ChunkGroupKey::Shared(module) => {
+                format!("Shared({:?})", module.ident().to_string().await?)
+            }
+            ChunkGroupKey::SharedMerged { parent, merge_tag } => {
+                format!(
+                    "SharedMerged {{ parent: {}, merge_tag: {:?} }}",
+                    Box::pin(keys.index(parent.0 as usize).clone().value_to_string(keys)).await?,
+                    merge_tag
+                )
+            }
+        })
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ChunkGroupId(u32);
 
@@ -456,17 +497,6 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
             entry_chunk_group_keys
         };
-
-        let ids = graph
-            .get_graphs()
-            .await?
-            .iter()
-            .flat_map(|g| g.iter_nodes())
-            .map(async |n| Ok((n.module, n.module.ident().to_string().await?)))
-            .try_join()
-            .await?
-            .into_iter()
-            .collect::<FxHashMap<_, _>>();
 
         let visit_count = graph
             .traverse_edges_fixed_point_with_priority(
@@ -677,6 +707,44 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         span.record("visit_count", visit_count);
         span.record("chunk_group_count", chunk_groups_map.len());
+
+        #[cfg(debug_assertions)]
+        {
+            use once_cell::sync::Lazy;
+            static PRINT_CHUNK_GROUP_INFO: Lazy<bool> =
+                Lazy::new(|| match std::env::var_os("TURBOPACK_PRINT_CHUNK_GROUPS") {
+                    Some(v) => v == "1",
+                    None => false,
+                });
+            if *PRINT_CHUNK_GROUP_INFO {
+                let mut buckets = FxIndexMap::default();
+                for (module, key) in &module_chunk_groups {
+                    if !key.is_empty() {
+                        buckets
+                            .entry(key.clone())
+                            .or_insert(vec![])
+                            .push(module.ident().to_string().await?);
+                    }
+                }
+
+                println!("Chunk Groups:");
+                for (i, (key, _)) in chunk_groups_map.iter().enumerate() {
+                    println!(
+                        "  {:?}: {}",
+                        i,
+                        key.value_to_string(chunk_groups_map.keys()).await?
+                    );
+                }
+                println!("# Module buckets:");
+                for (key, modules) in buckets.iter() {
+                    println!("## {:?}:", key.iter().collect::<Vec<_>>());
+                    for module in modules {
+                        println!("  {module}");
+                    }
+                    println!();
+                }
+            }
+        }
 
         Ok(ChunkGroupInfo {
             module_chunk_groups,
