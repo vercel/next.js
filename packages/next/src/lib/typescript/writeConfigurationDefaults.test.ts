@@ -53,43 +53,43 @@ describe('writeConfigurationDefaults()', () => {
       )
 
       expect(tsConfig).toMatchInlineSnapshot(`
-      {
-        "compilerOptions": {
-          "allowJs": true,
-          "esModuleInterop": true,
-          "incremental": true,
-          "isolatedModules": true,
-          "jsx": "react-jsx",
-          "lib": [
-            "dom",
-            "dom.iterable",
-            "esnext",
-          ],
-          "module": "esnext",
-          "moduleResolution": "node",
-          "noEmit": true,
-          "plugins": [
-            {
-              "name": "next",
-            },
-          ],
-          "resolveJsonModule": true,
-          "skipLibCheck": true,
-          "strict": false,
-          "target": "ES2017",
-        },
-        "exclude": [
-          "node_modules",
-        ],
-        "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
-          "**/*.mts",
-          "**/*.ts",
-          "**/*.tsx",
-        ],
-      }
-    `)
+             {
+               "compilerOptions": {
+                 "allowJs": true,
+                 "esModuleInterop": true,
+                 "incremental": true,
+                 "isolatedModules": true,
+                 "jsx": "react-jsx",
+                 "lib": [
+                   "dom",
+                   "dom.iterable",
+                   "esnext",
+                 ],
+                 "module": "esnext",
+                 "moduleResolution": "node",
+                 "noEmit": true,
+                 "plugins": [
+                   {
+                     "name": "next",
+                   },
+                 ],
+                 "resolveJsonModule": true,
+                 "skipLibCheck": true,
+                 "strict": false,
+                 "target": "ES2017",
+               },
+               "exclude": [
+                 "node_modules",
+               ],
+               "include": [
+                 "next-env.d.ts",
+                 ".next/types/**/*.ts",
+                 "**/*.mts",
+                 "**/*.ts",
+                 "**/*.tsx",
+               ],
+             }
+          `)
 
       expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n')))
         .toMatchInlineSnapshot(`
@@ -151,7 +151,7 @@ describe('writeConfigurationDefaults()', () => {
       })
 
       it('should support empty includes when base provides it', async () => {
-        const include = ['**/*.ts', '**/*.tsx', nextAppTypes]
+        const include = ['**/*.ts', '**/*.tsx', nextAppTypes, '**/*.mts']
         const content = { extends: './tsconfig.base.json' }
         const baseContent = { include }
 
@@ -198,11 +198,12 @@ describe('writeConfigurationDefaults()', () => {
         const parsed = JSON.parse(output)
 
         expect(parsed.include.sort()).toMatchInlineSnapshot(`
-          [
-            "**/*.ts",
-            "**/*.tsx",
-            ".next/types/**/*.ts",
-          ]
+         [
+           "**/*.mts",
+           "**/*.ts",
+           "**/*.tsx",
+           ".next/types/**/*.ts",
+         ]
         `)
       })
 
