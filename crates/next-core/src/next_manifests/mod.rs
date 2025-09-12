@@ -12,7 +12,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
-    asset::AssetContent,
+    asset::{Asset, AssetContent},
     output::{OutputAsset, OutputAssets},
     virtual_output::VirtualOutputAsset,
 };
@@ -25,20 +25,44 @@ pub struct PagesManifest {
     pub pages: FxIndexMap<RcStr, RcStr>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
+#[turbo_tasks::value(shared)]
 pub struct BuildManifest {
+    pub output_path: FileSystemPath,
+    pub client_relative_path: FileSystemPath,
+
     pub polyfill_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     pub root_main_files: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     pub pages: FxIndexMap<RcStr, ResolvedVc<OutputAssets>>,
 }
 
-impl BuildManifest {
-    pub async fn build_output(
-        self,
-        output_path: FileSystemPath,
-        client_relative_path: FileSystemPath,
-    ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let client_relative_path_ref = client_relative_path.clone();
+#[turbo_tasks::value_impl]
+impl OutputAsset for BuildManifest {
+    #[turbo_tasks::function]
+    async fn path(&self) -> Vc<FileSystemPath> {
+        self.output_path.clone().cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
+        let chunks: Vec<ReadRef<OutputAssets>> = self.pages.values().try_join().await?;
+
+        let references = chunks
+            .into_iter()
+            .flat_map(|c| c.into_iter().copied()) // once again, rustc struggles here
+            .chain(self.root_main_files.iter().copied())
+            .chain(self.polyfill_files.iter().copied())
+            .collect();
+
+        Ok(Vc::cell(references))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for BuildManifest {
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<Vc<AssetContent>> {
+        let client_relative_path = &self.client_relative_path;
 
         #[derive(Serialize, Default, Debug)]
         #[serde(rename_all = "camelCase")]
@@ -55,33 +79,23 @@ impl BuildManifest {
         let pages: Vec<(RcStr, Vec<RcStr>)> = self
             .pages
             .iter()
-            .map(|(k, chunks)| {
-                let client_relative_path_ref = client_relative_path_ref.clone();
-
-                async move {
-                    Ok((
-                        k.clone(),
-                        chunks
-                            .await?
-                            .iter()
-                            .copied()
-                            .map(|chunk| {
-                                let client_relative_path_ref = client_relative_path_ref.clone();
-                                async move {
-                                    let chunk_path = chunk.path().await?;
-                                    Ok(client_relative_path_ref
-                                        .get_path_to(&chunk_path)
-                                        .context(
-                                            "client chunk entry path must be inside the client \
-                                             root",
-                                        )?
-                                        .into())
-                                }
-                            })
-                            .try_join()
-                            .await?,
-                    ))
-                }
+            .map(|(k, chunks)| async move {
+                Ok((
+                    k.clone(),
+                    chunks
+                        .await?
+                        .iter()
+                        .copied()
+                        .map(async |chunk| {
+                            let chunk_path = chunk.path().await?;
+                            Ok(client_relative_path
+                                .get_path_to(&chunk_path)
+                                .context("client chunk entry path must be inside the client root")?
+                                .into())
+                        })
+                        .try_join()
+                        .await?,
+                ))
             })
             .try_join()
             .await?;
@@ -90,16 +104,12 @@ impl BuildManifest {
             .polyfill_files
             .iter()
             .copied()
-            .map(|chunk| {
-                let client_relative_path_ref = client_relative_path_ref.clone();
-
-                async move {
-                    let chunk_path = chunk.path().await?;
-                    Ok(client_relative_path_ref
-                        .get_path_to(&chunk_path)
-                        .context("failed to resolve client-relative path to polyfill")?
-                        .into())
-                }
+            .map(async |chunk| {
+                let chunk_path = chunk.path().await?;
+                Ok(client_relative_path
+                    .get_path_to(&chunk_path)
+                    .context("failed to resolve client-relative path to polyfill")?
+                    .into())
             })
             .try_join()
             .await?;
@@ -108,16 +118,12 @@ impl BuildManifest {
             .root_main_files
             .iter()
             .copied()
-            .map(|chunk| {
-                let client_relative_path_ref = client_relative_path_ref.clone();
-
-                async move {
-                    let chunk_path = chunk.path().await?;
-                    Ok(client_relative_path_ref
-                        .get_path_to(&chunk_path)
-                        .context("failed to resolve client-relative path to root_main_file")?
-                        .into())
-                }
+            .map(async |chunk| {
+                let chunk_path = chunk.path().await?;
+                Ok(client_relative_path
+                    .get_path_to(&chunk_path)
+                    .context("failed to resolve client-relative path to root_main_file")?
+                    .into())
             })
             .try_join()
             .await?;
@@ -129,20 +135,9 @@ impl BuildManifest {
             ..Default::default()
         };
 
-        let chunks: Vec<ReadRef<OutputAssets>> = self.pages.values().try_join().await?;
-
-        let references = chunks
-            .into_iter()
-            .flat_map(|c| c.into_iter().copied()) // once again, rustc struggles here
-            .chain(self.root_main_files.iter().copied())
-            .chain(self.polyfill_files.iter().copied())
-            .collect();
-
-        Ok(Vc::upcast(VirtualOutputAsset::new_with_references(
-            output_path,
-            AssetContent::file(File::from(serde_json::to_string_pretty(&manifest)?).into()),
-            Vc::cell(references),
-        )))
+        Ok(AssetContent::file(
+            File::from(serde_json::to_string_pretty(&manifest)?).into(),
+        ))
     }
 }
 

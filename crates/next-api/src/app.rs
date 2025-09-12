@@ -1362,21 +1362,15 @@ impl AppEndpoint {
             }
 
             let build_manifest = BuildManifest {
+                output_path: node_root.join(&format!(
+                    "server/app{manifest_path_prefix}/build-manifest.json",
+                ))?,
+                client_relative_path: client_relative_path.clone(),
+                pages: Default::default(),
                 root_main_files: client_shared_chunks,
                 polyfill_files: vec![polyfill_output_asset],
-                ..Default::default()
             };
-            let build_manifest_output = build_manifest
-                .build_output(
-                    node_root.join(&format!(
-                        "server/app{manifest_path_prefix}/build-manifest.json",
-                    ))?,
-                    client_relative_path.clone(),
-                )
-                .await?
-                .to_resolved()
-                .await?;
-            server_assets.insert(build_manifest_output);
+            server_assets.insert(ResolvedVc::upcast(build_manifest.resolved_cell()));
         }
 
         if runtime == NextRuntime::Edge {

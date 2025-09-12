@@ -1235,19 +1235,17 @@ impl PageEndpoint {
             fxindexmap![] // Empty pages when no user pages should be created
         };
 
-        let build_manifest = BuildManifest {
-            pages,
-            ..Default::default()
-        };
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
-        build_manifest
-            .build_output(
-                node_root.join(&format!(
-                    "server/pages{manifest_path_prefix}/build-manifest.json",
-                ))?,
-                client_relative_path,
-            )
-            .await
+        let build_manifest = BuildManifest {
+            output_path: node_root.join(&format!(
+                "server/pages{manifest_path_prefix}/build-manifest.json",
+            ))?,
+            client_relative_path,
+            pages,
+            polyfill_files: Default::default(),
+            root_main_files: Default::default(),
+        };
+        Ok(Vc::upcast(build_manifest.cell()))
     }
 
     #[turbo_tasks::function]
