@@ -882,19 +882,13 @@ export default abstract class Server<
   ): Promise<void> {
     await this.prepare()
     const method = req.method.toUpperCase()
-    
     const tracer = getTracer()
-    
-    // Get the route from root span attributes for better span naming
-    const rootSpanAttributes = tracer.getRootSpanAttributes()
-    const route = rootSpanAttributes?.get('next.route')
-    const spanName = route ? `${method} ${route}` : `${method}`
-    
+
     return tracer.withPropagatedContext(req.headers, () => {
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
-          spanName,
+          spanName: `${method}`,
           kind: SpanKind.SERVER,
           attributes: {
             'http.method': method,
@@ -950,11 +944,7 @@ export default abstract class Server<
               })
               span.updateName(name)
             } else {
-              span.updateName(
-                isRSCRequest
-                  ? `RSC ${method}`
-                  : `${method}`
-              )
+              span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
             }
           })
       )
