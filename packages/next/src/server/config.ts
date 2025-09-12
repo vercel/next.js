@@ -1592,7 +1592,6 @@ export default async function loadConfig(
       [
         `${configBaseName}.cjs`,
         `${configBaseName}.cts`,
-        `${configBaseName}.mts`,
         `${configBaseName}.json`,
         `${configBaseName}.jsx`,
         `${configBaseName}.tsx`,
