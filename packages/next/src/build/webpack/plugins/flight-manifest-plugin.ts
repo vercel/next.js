@@ -296,9 +296,15 @@ export class ClientReferenceManifestPlugin {
 
       manifest.entryCSSFiles[chunkEntryName] = entrypoint
         .getFiles()
-        .filter((f) => !f.startsWith('static/css/pages/') && f.endsWith('.css'))
+        .filter((f) => {
+          if (!f.endsWith('.css')) return false
+          if (f.startsWith('static/css/pages/')) return false
+          return true
+        })
         .map((file) => {
           const source = compilation.getAsset(file)!.source.source()
+          const sourceContent = typeof source === 'string' ? source : source.toString()
+          
           if (
             this.experimentalInlineCss &&
             // Inline CSS currently does not work properly with HMR, so we only
@@ -308,7 +314,7 @@ export class ClientReferenceManifestPlugin {
             return {
               inlined: true,
               path: file,
-              content: typeof source === 'string' ? source : source.toString(),
+              content: sourceContent,
             }
           }
           return {
@@ -343,6 +349,7 @@ export class ClientReferenceManifestPlugin {
           mod.resourceResolveData?.path || resource
         )
 
+        
         const rscNamedModuleId = relative(
           context,
           mod.resourceResolveData?.path || resource
