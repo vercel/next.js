@@ -30,11 +30,13 @@ const Dialog: React.FC<DialogProps> = function Dialog({
 }) {
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   // TODO: Document is an external store. Either use useSyncExternalStore or always set the role.
-  const [role, setRole] = React.useState<string | undefined>(
-    typeof document !== 'undefined' && document.hasFocus()
-      ? 'dialog'
-      : undefined
-  )
+  const [role, setRole] = React.useState<string | undefined>(undefined)
+
+  React.useEffect(() => {
+    if (document.hasFocus()) {
+      setRole('dialog')
+    }
+  }, [])
 
   useOnClickOutside(
     // eslint-disable-next-line react-hooks/refs -- TODO
