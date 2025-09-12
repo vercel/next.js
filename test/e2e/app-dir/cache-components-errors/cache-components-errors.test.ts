@@ -10,6 +10,9 @@ describe('Cache Components Errors', () => {
     files: __dirname + '/fixtures/default',
     skipStart: !isNextDev,
     skipDeployment: true,
+    env: {
+      __NEXT_USE_UNHANDLED_REJECTION_FILTER: 'enabled',
+    },
   })
   const isRspack = !!process.env.NEXT_RSPACK
 
