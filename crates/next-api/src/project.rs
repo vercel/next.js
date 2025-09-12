@@ -896,14 +896,13 @@ impl Project {
 
     #[turbo_tasks::function]
     pub async fn get_all_entries(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        let mut modules = self
+        let modules = self
             .get_all_endpoints(false)
             .await?
             .iter()
             .map(async |endpoint| Ok(endpoint.entries().owned().await?))
             .try_flat_join()
             .await?;
-        modules.extend(self.client_main_modules().await?.iter().cloned());
         Ok(Vc::cell(modules))
     }
 
@@ -1726,22 +1725,6 @@ impl Project {
     pub async fn client_changed(self: Vc<Self>, roots: Vc<OutputAssets>) -> Result<Vc<Completion>> {
         let path = self.client_root().owned().await?;
         Ok(any_output_changed(roots, path, false))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn client_main_modules(self: Vc<Self>) -> Result<Vc<GraphEntries>> {
-        let pages_project = self.pages_project();
-        let mut modules = vec![ChunkGroupEntry::Entry(vec![
-            pages_project.client_main_module().to_resolved().await?,
-        ])];
-
-        if let Some(app_project) = *self.app_project().await? {
-            modules.push(ChunkGroupEntry::Entry(vec![
-                app_project.client_main_module().to_resolved().await?,
-            ]));
-        }
-
-        Ok(Vc::cell(modules))
     }
 
     /// Gets the module id strategy for the project.
