@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import ts from 'typescript'
+// eslint-disable-next-line import/no-extraneous-dependencies
+import stripAnsi from 'strip-ansi'
 import { writeConfigurationDefaults } from './writeConfigurationDefaults'
 
 describe('writeConfigurationDefaults()', () => {
@@ -93,13 +95,8 @@ describe('writeConfigurationDefaults()', () => {
       }
     `)
 
-        expect(
-          consoleLogSpy.mock.calls
-            .flat()
-            .join('\n')
-            // eslint-disable-next-line no-control-regex
-            .replace(/\x1B\[\d+m/g, '') // remove color control characters
-        ).toMatchInlineSnapshot(`
+        expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n')))
+          .toMatchInlineSnapshot(`
         "
            We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.
            The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
@@ -164,13 +161,8 @@ describe('writeConfigurationDefaults()', () => {
       }
     `)
 
-        expect(
-          consoleLogSpy.mock.calls
-            .flat()
-            .join('\n')
-            // eslint-disable-next-line no-control-regex
-            .replace(/\x1B\[\d+m/g, '') // remove color control characters
-        ).toMatchInlineSnapshot(`
+        expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n')))
+          .toMatchInlineSnapshot(`
         "
            We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.
            The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
@@ -215,13 +207,9 @@ describe('writeConfigurationDefaults()', () => {
         hasPagesDir
       )
 
-      expect(
-        consoleLogSpy.mock.calls
-          .flat()
-          .join('\n')
-          // eslint-disable-next-line no-control-regex
-          .replace(/\x1B\[\d+m/g, '') // remove color control characters
-      ).not.toMatch('Strict-mode is set to false by default.')
+      expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n'))).not.toMatch(
+        'Strict-mode is set to false by default.'
+      )
     })
 
     describe('with tsconfig extends', () => {
