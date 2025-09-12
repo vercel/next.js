@@ -209,22 +209,18 @@ export async function writeConfigurationDefaults(
   }
 
   const nextAppTypes = `${distDir}/types/**/*.ts`
-  const nextConfigMts = (process.features as any).typescript
-    ? ['next.config.mts']
-    : []
-  const nextConfigMtsString = nextConfigMts[0] ? ` '${nextConfigMts[0]}',` : ''
 
   if (!('include' in rawConfig)) {
     userTsConfig.include = hasAppDir
-      ? ['next-env.d.ts', nextAppTypes, ...nextConfigMts, '**/*.ts', '**/*.tsx']
-      : ['next-env.d.ts', ...nextConfigMts, '**/*.ts', '**/*.tsx']
+      ? ['next-env.d.ts', nextAppTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
+      : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       cyan('include') +
         ' was set to ' +
         bold(
           hasAppDir
-            ? `['next-env.d.ts', '${nextAppTypes}',${nextConfigMtsString} '**/*.ts', '**/*.tsx']`
-            : `['next-env.d.ts',${nextConfigMtsString} '**/*.ts', '**/*.tsx']`
+            ? `['next-env.d.ts', '${nextAppTypes}', '**/*.mts', '**/*.ts', '**/*.tsx']`
+            : `['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']`
         )
     )
   } else if (hasAppDir && !rawConfig.include.includes(nextAppTypes)) {

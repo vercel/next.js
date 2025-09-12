@@ -52,11 +52,7 @@ describe('writeConfigurationDefaults()', () => {
         await readFile(tsConfigPath, { encoding: 'utf8' })
       )
 
-      // Native TS resolution was enabled by default in v22.18.0 but
-      // unit tests run on Node.js above that.
-      // TODO: Remove `as any` once we bump @types/node to v22.10.0+
-      if ((process.features as any).typescript) {
-        expect(tsConfig).toMatchInlineSnapshot(`
+      expect(tsConfig).toMatchInlineSnapshot(`
       {
         "compilerOptions": {
           "allowJs": true,
@@ -88,15 +84,15 @@ describe('writeConfigurationDefaults()', () => {
         "include": [
           "next-env.d.ts",
           ".next/types/**/*.ts",
-          "next.config.mts",
+          "**/*.mts",
           "**/*.ts",
           "**/*.tsx",
         ],
       }
     `)
 
-        expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n')))
-          .toMatchInlineSnapshot(`
+      expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n')))
+        .toMatchInlineSnapshot(`
         "
            We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.
            The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
@@ -108,7 +104,7 @@ describe('writeConfigurationDefaults()', () => {
            	- strict was set to false
            	- noEmit was set to true
            	- incremental was set to true
-           	- include was set to ['next-env.d.ts', '.next/types/**/*.ts', 'next.config.mts', '**/*.ts', '**/*.tsx']
+           	- include was set to ['next-env.d.ts', '.next/types/**/*.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
            	- plugins was updated to add { name: 'next' }
            	- exclude was set to ['node_modules']
 
@@ -122,73 +118,6 @@ describe('writeConfigurationDefaults()', () => {
            	- jsx was set to react-jsx (next.js uses the React automatic runtime)
         "
       `)
-      } else {
-        expect(tsConfig).toMatchInlineSnapshot(`
-      {
-        "compilerOptions": {
-          "allowJs": true,
-          "esModuleInterop": true,
-          "incremental": true,
-          "isolatedModules": true,
-          "jsx": "react-jsx",
-          "lib": [
-            "dom",
-            "dom.iterable",
-            "esnext",
-          ],
-          "module": "esnext",
-          "moduleResolution": "node",
-          "noEmit": true,
-          "plugins": [
-            {
-              "name": "next",
-            },
-          ],
-          "resolveJsonModule": true,
-          "skipLibCheck": true,
-          "strict": false,
-          "target": "ES2017",
-        },
-        "exclude": [
-          "node_modules",
-        ],
-        "include": [
-          "next-env.d.ts",
-          ".next/types/**/*.ts",
-          "**/*.ts",
-          "**/*.tsx",
-        ],
-      }
-    `)
-
-        expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n')))
-          .toMatchInlineSnapshot(`
-        "
-           We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.
-           The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
-
-           	- target was set to ES2017 (For top-level \`await\`. Note: Next.js only polyfills for the esmodules target.)
-           	- lib was set to dom,dom.iterable,esnext
-           	- allowJs was set to true
-           	- skipLibCheck was set to true
-           	- strict was set to false
-           	- noEmit was set to true
-           	- incremental was set to true
-           	- include was set to ['next-env.d.ts', '.next/types/**/*.ts', '**/*.ts', '**/*.tsx']
-           	- plugins was updated to add { name: 'next' }
-           	- exclude was set to ['node_modules']
-
-           The following mandatory changes were made to your tsconfig.json:
-
-           	- module was set to esnext (for dynamic import() support)
-           	- esModuleInterop was set to true (requirement for SWC / babel)
-           	- moduleResolution was set to node (to match webpack resolution)
-           	- resolveJsonModule was set to true (to match webpack resolution)
-           	- isolatedModules was set to true (requirement for SWC / Babel)
-           	- jsx was set to react-jsx (next.js uses the React automatic runtime)
-        "
-      `)
-      }
     })
 
     it('does not warn about disabled strict mode if strict mode was already enabled', async () => {
