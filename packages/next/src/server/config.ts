@@ -1592,6 +1592,8 @@ export default async function loadConfig(
       [
         `${configBaseName}.cjs`,
         `${configBaseName}.cts`,
+        // TODO: Remove `as any` once we bump @types/node to v22.10.0+
+        ...((process.features as any).typescript ? [] : ['next.config.mts']),
         `${configBaseName}.json`,
         `${configBaseName}.jsx`,
         `${configBaseName}.tsx`,
