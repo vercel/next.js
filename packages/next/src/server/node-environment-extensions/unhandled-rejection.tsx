@@ -76,18 +76,69 @@ let underlyingListeners: Array<NodeJS.UnhandledRejectionListener> = []
 // details like whether the listener is a once listener.
 let listenerMetadata: Array<ListenerMetadata> = []
 
-let originalProcessOn: typeof process.on
+// These methods are used to restore the original implementations when uninstalling the patch
 let originalProcessAddListener: typeof process.addListener
-let originalProcessOnce: typeof process.once
 let originalProcessRemoveListener: typeof process.removeListener
+let originalProcessOn: typeof process.on
+let originalProcessOff: typeof process.off
+let originalProcessPrependListener: typeof process.prependListener
+let originalProcessOnce: typeof process.once
+let originalProcessPrependOnceListener: typeof process.prependOnceListener
 let originalProcessRemoveAllListeners: typeof process.removeAllListeners
 let originalProcessListeners: typeof process.listeners
-let originalProcessPrependListener: typeof process.prependListener
-let originalProcessPrependOnceListener: typeof process.prependOnceListener
-let originalProcessOff: typeof process.off
+
+type UnderlyingMethod =
+  | typeof originalProcessAddListener
+  | typeof originalProcessRemoveListener
+  | typeof originalProcessOn
+  | typeof originalProcessOff
+  | typeof originalProcessPrependListener
+  | typeof originalProcessOnce
+  | typeof originalProcessPrependOnceListener
+  | typeof originalProcessRemoveAllListeners
+  | typeof originalProcessListeners
 
 let didWarnPrepend = false
 let didWarnRemoveAll = false
+
+// Some of these base methods call others and we don't want them to call the patched version so we
+// need a way to synchronously disable the patch temporarily.
+let bypassPatch = false
+
+// This patch ensures that if any patched methods end up calling other methods internally they will
+// bypass the patch during their execution. This is important for removeAllListeners in particular
+// because it calls removeListener internally and we want to ensure it actually clears the listeners
+// from the process queue and not our private queue.
+function patchWithoutReentrancy<T extends UnderlyingMethod>(
+  original: T,
+  patchedImpl: T
+): T {
+  // Produce a function which has the correct name
+  const patched = {
+    [original.name]: function (...args: Parameters<T>) {
+      if (bypassPatch) {
+        return Reflect.apply(original, process, args)
+      }
+
+      const previousBypassPatch = bypassPatch
+      bypassPatch = true
+      try {
+        return Reflect.apply(patchedImpl, process, args)
+      } finally {
+        bypassPatch = previousBypassPatch
+      }
+    } as any,
+  }[original.name]
+
+  // Preserve the original toString behavior
+  Object.defineProperty(patched, 'toString', {
+    value: original.toString.bind(original),
+    writable: true,
+    configurable: true,
+  })
+
+  return patched
+}
 
 /**
  * Installs a filtering unhandled rejection handler that intelligently suppresses
@@ -114,67 +165,118 @@ function installUnhandledRejectionFilter(): void {
     once: false,
   }))
 
+  // Remove all existing handlers
+  process.removeAllListeners('unhandledRejection')
+
+  // Install our filtering handler
+  process.addListener('unhandledRejection', filteringUnhandledRejectionHandler)
+
   // Store the original process methods
-  originalProcessOn = process.on
   originalProcessAddListener = process.addListener
-  originalProcessOnce = process.once
-  originalProcessOff = process.off
   originalProcessRemoveListener = process.removeListener
+  originalProcessOn = process.on
+  originalProcessOff = process.off
+  originalProcessPrependListener = process.prependListener
+  originalProcessOnce = process.once
+  originalProcessPrependOnceListener = process.prependOnceListener
   originalProcessRemoveAllListeners = process.removeAllListeners
   originalProcessListeners = process.listeners
-  originalProcessPrependListener = process.prependListener
-  originalProcessPrependOnceListener = process.prependOnceListener
 
-  // Helper function to create a patched method that preserves toString behavior
-  function patchMethod<T extends Function>(original: T, patchedImpl: T): T {
-    // Preserve the original toString behavior
-    Object.defineProperty(patchedImpl, 'toString', {
-      value: original.toString.bind(original),
-      writable: true,
-      configurable: true,
-    })
-    return patchedImpl
-  }
-
-  // Intercept process.on to capture new unhandled rejection handlers
-  process.on = patchMethod(originalProcessOn, function (
-    event: string | symbol,
-    listener: (...args: any[]) => void
-  ) {
-    if (event === 'unhandledRejection') {
-      debug?.('process.on/addListener', listener.toString())
-      // Add new handlers to our internal queue instead of the process
-      underlyingListeners.push(listener as NodeJS.UnhandledRejectionListener)
-      listenerMetadata.push({ listener, once: false })
-      return process
-    }
-    // For other events, use the original method
-    return originalProcessOn.call(process, event, listener)
-  } as typeof process.on)
-
-  // Intercept process.addListener (alias for process.on)
-  process.addListener = patchMethod(
+  process.addListener = patchWithoutReentrancy(
     originalProcessAddListener,
-    process.on as typeof originalProcessAddListener
+    function (event: string | symbol, listener: (...args: any[]) => void) {
+      if (event === 'unhandledRejection') {
+        debug?.('process.addListener', listener.toString())
+        // Add new handlers to our internal queue instead of the process
+        underlyingListeners.push(listener as NodeJS.UnhandledRejectionListener)
+        listenerMetadata.push({ listener, once: false })
+        return process
+      }
+      // For other events, use the original method
+      return originalProcessAddListener.call(process, event as any, listener)
+    } as typeof process.addListener
   )
 
-  // Intercept process.once for one-time handlers
-  process.once = patchMethod(originalProcessOnce, function (
-    event: string | symbol,
-    listener: (...args: any[]) => void
-  ) {
-    if (event === 'unhandledRejection') {
-      debug?.('process.once', listener.toString())
-      underlyingListeners.push(listener)
-      listenerMetadata.push({ listener, once: true })
-      return process
-    }
-    // For other events, use the original method
-    return originalProcessOnce.call(process, event, listener)
-  } as typeof process.once)
+  // Intercept process.removeListener (alias for process.off)
+  process.removeListener = patchWithoutReentrancy(
+    originalProcessRemoveListener,
+    function (event: string | symbol, listener: (...args: any[]) => void) {
+      if (event === 'unhandledRejection') {
+        debug?.('process.removeListener', listener.toString())
+        // Check if they're trying to remove our filtering handler
+        if (listener === filteringUnhandledRejectionHandler) {
+          uninstallUnhandledRejectionFilter()
+          return process
+        }
+
+        const index = underlyingListeners.lastIndexOf(listener)
+        if (index > -1) {
+          debug?.('process.removeListener match found', index)
+          underlyingListeners.splice(index, 1)
+          listenerMetadata.splice(index, 1)
+        } else {
+          debug?.('process.removeListener match not found', index)
+        }
+        return process
+      }
+      // For other events, use the original method
+      return originalProcessRemoveListener.call(process, event, listener)
+    } as typeof process.off
+  )
+
+  // If the process.on is referentially process.addListener then share the patched version as well
+  if (originalProcessOn === originalProcessAddListener) {
+    process.on = process.addListener
+  } else {
+    process.on = patchWithoutReentrancy(originalProcessOn, function (
+      event: string | symbol,
+      listener: (...args: any[]) => void
+    ) {
+      if (event === 'unhandledRejection') {
+        debug?.('process.on', listener.toString())
+        // Add new handlers to our internal queue instead of the process
+        underlyingListeners.push(listener as NodeJS.UnhandledRejectionListener)
+        listenerMetadata.push({ listener, once: false })
+        return process
+      }
+      // For other events, use the original method
+      return originalProcessOn.call(process, event, listener)
+    } as typeof process.on)
+  }
+
+  // If the process.off is referentially process.addListener then share the patched version as well
+  if (originalProcessOff === originalProcessRemoveListener) {
+    process.off = process.removeListener
+  } else {
+    process.off = patchWithoutReentrancy(originalProcessOff, function (
+      event: string | symbol,
+      listener: (...args: any[]) => void
+    ) {
+      if (event === 'unhandledRejection') {
+        debug?.('process.off', listener.toString())
+        // Check if they're trying to remove our filtering handler
+        if (listener === filteringUnhandledRejectionHandler) {
+          uninstallUnhandledRejectionFilter()
+          return process
+        }
+
+        const index = underlyingListeners.lastIndexOf(listener)
+        if (index > -1) {
+          debug?.('process.off match found', index)
+          underlyingListeners.splice(index, 1)
+          listenerMetadata.splice(index, 1)
+        } else {
+          debug?.('process.off match not found', index)
+        }
+        return process
+      }
+      // For other events, use the original method
+      return originalProcessOff.call(process, event, listener)
+    } as typeof process.off)
+  }
 
   // Intercept process.prependListener for handlers that should go first
-  process.prependListener = patchMethod(
+  process.prependListener = patchWithoutReentrancy(
     originalProcessPrependListener,
     function (event: string | symbol, listener: (...args: any[]) => void) {
       if (event === 'unhandledRejection') {
@@ -202,8 +304,26 @@ function installUnhandledRejectionFilter(): void {
     } as typeof process.prependListener
   )
 
+  // Intercept process.once for one-time handlers
+  process.once = patchWithoutReentrancy(originalProcessOnce, function (
+    event: string | symbol,
+    listener: (...args: any[]) => void
+  ) {
+    if (event === 'unhandledRejection') {
+      debug?.('process.once', listener.toString())
+      underlyingListeners.push(listener as NodeJS.UnhandledRejectionListener)
+      listenerMetadata.push({
+        listener: listener as NodeJS.UnhandledRejectionListener,
+        once: true,
+      })
+      return process
+    }
+    // For other events, use the original method
+    return originalProcessOnce.call(process, event, listener)
+  } as typeof process.once)
+
   // Intercept process.prependOnceListener for one-time handlers that should go first
-  process.prependOnceListener = patchMethod(
+  process.prependOnceListener = patchWithoutReentrancy(
     originalProcessPrependOnceListener,
     function (event: string | symbol, listener: (...args: any[]) => void) {
       if (event === 'unhandledRejection') {
@@ -216,8 +336,13 @@ function installUnhandledRejectionFilter(): void {
           )
         }
         // Add to the beginning of our internal queue
-        underlyingListeners.unshift(listener)
-        listenerMetadata.unshift({ listener, once: true })
+        underlyingListeners.unshift(
+          listener as NodeJS.UnhandledRejectionListener
+        )
+        listenerMetadata.unshift({
+          listener: listener as NodeJS.UnhandledRejectionListener,
+          once: true,
+        })
         return process
       }
       // For other events, use the original method
@@ -229,41 +354,8 @@ function installUnhandledRejectionFilter(): void {
     } as typeof process.prependOnceListener
   )
 
-  // Intercept process.removeListener
-  process.removeListener = patchMethod(originalProcessRemoveListener, function (
-    event: string | symbol,
-    listener: (...args: any[]) => void
-  ) {
-    if (event === 'unhandledRejection') {
-      debug?.('process.removeListener', listener.toString())
-      // Check if they're trying to remove our filtering handler
-      if (listener === filteringUnhandledRejectionHandler) {
-        uninstallUnhandledRejectionFilter()
-        return process
-      }
-
-      const index = underlyingListeners.lastIndexOf(listener)
-      if (index > -1) {
-        debug?.('process.removeListener match found', index)
-        underlyingListeners.splice(index, 1)
-        listenerMetadata.splice(index, 1)
-      } else {
-        debug?.('process.removeListener match not found', index)
-      }
-      return process
-    }
-    // For other events, use the original method
-    return originalProcessRemoveListener.call(process, event, listener)
-  } as typeof process.removeListener)
-
-  // Intercept process.off (alias for process.removeListener)
-  process.off = patchMethod(
-    originalProcessOff,
-    process.removeListener as typeof originalProcessOff
-  )
-
   // Intercept process.removeAllListeners
-  process.removeAllListeners = patchMethod(
+  process.removeAllListeners = patchWithoutReentrancy(
     originalProcessRemoveAllListeners,
     function (event?: string | symbol) {
       if (event === 'unhandledRejection') {
@@ -301,32 +393,21 @@ function installUnhandledRejectionFilter(): void {
   )
 
   // Intercept process.listeners to return our internal handlers for unhandled rejection
-  process.listeners = patchMethod(originalProcessListeners, function (
-    event: string | symbol
-  ) {
-    if (event === 'unhandledRejection') {
-      debug?.(
-        'process.listeners',
-        [filteringUnhandledRejectionHandler, ...underlyingListeners].map((l) =>
-          l.toString()
+  process.listeners = patchWithoutReentrancy(
+    originalProcessListeners,
+    function (event: string | symbol) {
+      if (event === 'unhandledRejection') {
+        debug?.(
+          'process.listeners',
+          [filteringUnhandledRejectionHandler, ...underlyingListeners].map(
+            (l) => l.toString()
+          )
         )
-      )
-      return [filteringUnhandledRejectionHandler, ...underlyingListeners]
-    }
-    return originalProcessListeners.call(process, event as any)
-  } as typeof process.listeners)
-
-  // Remove all existing handlers
-  originalProcessRemoveAllListeners.call(process, 'unhandledRejection')
-
-  // Install our filtering handler
-  originalProcessOn.call(
-    process,
-    'unhandledRejection',
-    filteringUnhandledRejectionHandler
+        return [filteringUnhandledRejectionHandler, ...underlyingListeners]
+      }
+      return originalProcessListeners.call(process, event as any)
+    } as typeof process.listeners
   )
-
-  originalProcessOn.call(process, 'rejectionHandled', noopRejectionHandled)
 
   filterInstalled = true
 
@@ -373,24 +454,17 @@ function uninstallUnhandledRejectionFilter(): void {
   process.listeners = originalProcessListeners
 
   // Remove our filtering handler
-  originalProcessRemoveListener.call(
-    process,
+  process.removeListener(
     'unhandledRejection',
     filteringUnhandledRejectionHandler
-  )
-
-  originalProcessRemoveListener.call(
-    process,
-    'rejectionHandled',
-    noopRejectionHandled
   )
 
   // Re-register all the handlers that were in our internal queue
   for (const meta of listenerMetadata) {
     if (meta.once) {
-      originalProcessOnce.call(process, 'unhandledRejection', meta.listener)
+      process.once('unhandledRejection', meta.listener)
     } else {
-      originalProcessOn.call(process, 'unhandledRejection', meta.listener)
+      process.addListener('unhandledRejection', meta.listener)
     }
   }
 
@@ -472,8 +546,6 @@ function filteringUnhandledRejectionHandler(
     }
   }
 }
-
-function noopRejectionHandled() {}
 
 // Install the filter when this module is imported
 if (ENABLE_UHR_FILTER) {
