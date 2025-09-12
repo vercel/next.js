@@ -14,10 +14,9 @@ use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{OutputAsset, OutputAssets},
-    virtual_output::VirtualOutputAsset,
 };
 
-use crate::next_config::{CrossOriginConfig, Rewrites, RouteHas};
+use crate::next_config::{CrossOriginConfig, RouteHas};
 
 #[derive(Serialize, Default, Debug)]
 pub struct PagesManifest {
@@ -134,6 +133,60 @@ impl Asset for BuildManifest {
             root_main_files,
             ..Default::default()
         };
+
+        Ok(AssetContent::file(
+            File::from(serde_json::to_string_pretty(&manifest)?).into(),
+        ))
+    }
+}
+
+#[derive(Debug)]
+#[turbo_tasks::value(shared)]
+pub struct ClientBuildManifest {
+    pub output_path: FileSystemPath,
+    pub client_relative_path: FileSystemPath,
+
+    pub pages: FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>,
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAsset for ClientBuildManifest {
+    #[turbo_tasks::function]
+    async fn path(&self) -> Vc<FileSystemPath> {
+        self.output_path.clone().cell()
+    }
+
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
+        let chunks: Vec<ResolvedVc<Box<dyn OutputAsset>>> = self.pages.values().copied().collect();
+        Ok(Vc::cell(chunks))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl Asset for ClientBuildManifest {
+    #[turbo_tasks::function]
+    async fn content(&self) -> Result<Vc<AssetContent>> {
+        let client_relative_path = &self.client_relative_path;
+
+        let manifest: FxIndexMap<RcStr, Vec<RcStr>> = self
+            .pages
+            .iter()
+            .map(async |(k, chunk)| {
+                Ok((
+                    k.clone(),
+                    vec![
+                        client_relative_path
+                            .get_path_to(&*chunk.path().await?)
+                            .context("client chunk entry path must be inside the client root")?
+                            .into(),
+                    ],
+                ))
+            })
+            .try_join()
+            .await?
+            .into_iter()
+            .collect();
 
         Ok(AssetContent::file(
             File::from(serde_json::to_string_pretty(&manifest)?).into(),
@@ -432,19 +485,6 @@ pub struct FontManifest(pub Vec<FontManifestEntry>);
 pub struct FontManifestEntry {
     pub url: RcStr,
     pub content: RcStr,
-}
-
-// TODO(alexkirsz) Unify with the one for dev.
-#[derive(Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct ClientBuildManifest<'a> {
-    #[serde(rename = "__rewrites")]
-    pub rewrites: &'a Rewrites,
-
-    pub sorted_pages: &'a [RcStr],
-
-    #[serde(flatten)]
-    pub pages: FxIndexMap<RcStr, Vec<&'a str>>,
 }
 
 #[cfg(test)]
