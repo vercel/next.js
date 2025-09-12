@@ -253,6 +253,16 @@ export async function writeConfigurationDefaults(
     }
   }
 
+  if (hasAppDir && !rawConfig.include.includes('**/*.mts')) {
+    if (!Array.isArray(userTsConfig.include)) {
+      userTsConfig.include = []
+    }
+    userTsConfig.include.push('**/*.mts')
+    suggestedActions.push(
+      cyan('include') + ' was updated to add ' + bold(`'**/*.mts'`)
+    )
+  }
+
   // Enable the Next.js typescript plugin.
   if (hasAppDir) {
     // Check if the config or the resolved config has the plugin already.
