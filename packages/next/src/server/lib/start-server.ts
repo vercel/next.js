@@ -487,11 +487,7 @@ export async function startServer(
     ) {
       const wp = new Watchpack()
       wp.watch({
-        files: CONFIG_FILES.concat(
-          // 'next.config.mts' is only available when Node.js native TypeScript resolution is enabled.
-          // TODO: Remove `as any` once we bump @types/node to v22.10.0+
-          (process.features as any)?.typescript ? ['next.config.mts'] : []
-        ).map((file) => path.join(dirToWatch, file)),
+        files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)),
       })
       wp.on('change', onChange)
     }
