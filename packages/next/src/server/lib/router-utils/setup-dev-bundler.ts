@@ -474,7 +474,7 @@ async function startWatcher(
             serverFields.actualMiddlewareFile
           )
           middlewareMatchers = staticInfo.middleware?.matchers || [
-            { regexp: '.*', originalSource: '/:path*' },
+            { regexp: '^/.*$', originalSource: '/:path*' },
           ]
           continue
         }
