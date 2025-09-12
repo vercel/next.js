@@ -32,11 +32,21 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   // TODO: Document is an external store. Either use useSyncExternalStore or always set the role.
   const [role, setRole] = React.useState<string | undefined>(undefined)
 
-  React.useEffect(() => {
-    if (document.hasFocus()) {
+
+React.useEffect(() => {
+  let isMounted = true
+  
+  if (typeof document !== 'undefined' && document.hasFocus()) {
+    if (isMounted) {
       setRole('dialog')
     }
-  }, [])
+  }
+  
+  return () => {
+    isMounted = false
+  }
+}, [])
+
 
   useOnClickOutside(
     // eslint-disable-next-line react-hooks/refs -- TODO
