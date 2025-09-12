@@ -920,28 +920,35 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [Headers configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/headers)
    */
-  headers?: () => Promise<Header[]>
+  headers?: () => Promise<Header[]> | Header[]
 
   /**
    * Rewrites allow you to map an incoming request path to a different destination path.
    *
    * @see [Rewrites configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites)
    */
-  rewrites?: () => Promise<
+  rewrites?: () =>
+    | Promise<
+        | Rewrite[]
+        | {
+            beforeFiles?: Rewrite[]
+            afterFiles?: Rewrite[]
+            fallback?: Rewrite[]
+          }
+      >
     | Rewrite[]
     | {
         beforeFiles?: Rewrite[]
         afterFiles?: Rewrite[]
         fallback?: Rewrite[]
       }
-  >
 
   /**
    * Redirects allow you to redirect an incoming request path to a different destination path.
    *
    * @see [Redirects configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/redirects)
    */
-  redirects?: () => Promise<Redirect[]>
+  redirects?: () => Promise<Redirect[]> | Redirect[]
 
   /**
    * @see [Moment.js locales excluded by default](https://nextjs.org/docs/upgrading#momentjs-locales-excluded-by-default)
