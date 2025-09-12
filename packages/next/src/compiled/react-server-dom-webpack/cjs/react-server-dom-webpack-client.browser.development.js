@@ -2446,7 +2446,7 @@
     function resolveErrorDev(response, errorInfo) {
       var name = errorInfo.name,
         env = errorInfo.env;
-      errorInfo = buildFakeCallStack(
+      var error = buildFakeCallStack(
         response,
         errorInfo.stack,
         env,
@@ -2457,11 +2457,25 @@
             "An error occurred in the Server Components render but no message was provided"
         )
       );
-      response = getRootTask(response, env);
-      response = null != response ? response.run(errorInfo) : errorInfo();
-      response.name = name;
-      response.environmentName = env;
-      return response;
+      var ownerTask = null;
+      null != errorInfo.owner &&
+        ((errorInfo = errorInfo.owner.slice(1)),
+        (errorInfo = getOutlinedModel(
+          response,
+          errorInfo,
+          {},
+          "",
+          createModel
+        )),
+        null !== errorInfo &&
+          (ownerTask = initializeFakeTask(response, errorInfo)));
+      null === ownerTask
+        ? ((response = getRootTask(response, env)),
+          (error = null != response ? response.run(error) : error()))
+        : (error = ownerTask.run(error));
+      error.name = name;
+      error.environmentName = env;
+      return error;
     }
     function createFakeFunction(
       name,
@@ -3691,10 +3705,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-f3a80361-20250911",
+      version: "19.2.0-canary-93d7aa69-20250912",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-f3a80361-20250911",
+      reconcilerVersion: "19.2.0-canary-93d7aa69-20250912",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
