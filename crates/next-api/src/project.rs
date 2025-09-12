@@ -984,7 +984,6 @@ impl Project {
             format!("/ROOT/{}", self.project_path().await?.path).into(),
             this.define_env.nodejs(),
             self.current_node_js_version(),
-            this.browserslist_query.clone(),
         ))
     }
 
@@ -995,7 +994,6 @@ impl Project {
             self.project_path().owned().await?,
             this.define_env.edge(),
             self.current_node_js_version(),
-            this.browserslist_query.clone(),
         ))
     }
 
@@ -1296,6 +1294,7 @@ impl Project {
                 NextRuntime::Edge,
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1358,6 +1357,7 @@ impl Project {
                 NextRuntime::NodeJs,
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1472,6 +1472,7 @@ impl Project {
                 NextRuntime::NodeJs,
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1534,6 +1535,7 @@ impl Project {
                 NextRuntime::Edge,
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,

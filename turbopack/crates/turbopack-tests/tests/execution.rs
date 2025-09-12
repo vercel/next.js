@@ -36,7 +36,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
     context::AssetContext,
-    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
     issue::IssueDescriptionExt,
@@ -337,10 +337,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .get_relative_path_to(project_root)
         .context("Project path is in root path")?;
 
-    let env = Environment::new(
-        ExecutionEnvironment::NodeJsBuildTime(NodeJsEnvironment::default().resolved_cell()),
-        BrowserEnvironment::default().cell(),
-    )
+    let env = Environment::new(ExecutionEnvironment::NodeJsBuildTime(
+        NodeJsEnvironment::default().resolved_cell(),
+    ))
     .to_resolved()
     .await?;
 

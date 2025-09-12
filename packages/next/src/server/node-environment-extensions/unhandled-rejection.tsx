@@ -21,6 +21,48 @@
 
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 
+const MODE:
+  | 'enabled'
+  | 'debug'
+  | 'true'
+  | 'false'
+  | '1'
+  | '0'
+  | ''
+  | string
+  | undefined = process.env.__NEXT_USE_UNHANDLED_REJECTION_FILTER
+
+let ENABLE_UHR_FILTER = false
+let DEBUG_UHR_FILTER = false
+
+switch (MODE) {
+  case 'debug':
+    DEBUG_UHR_FILTER = true
+  // fallthrough
+  case 'enabled':
+  case 'true':
+  case '1':
+    ENABLE_UHR_FILTER = true
+    break
+  case 'false':
+  case 'disabled':
+  case '0':
+  case '':
+  case undefined:
+    break
+  default:
+    if (typeof MODE === 'string') {
+      console.error(
+        `__NEXT_USE_UNHANDLED_REJECTION_FILTER has an unrecognized value: ${JSON.stringify(MODE)}. Use "enabled", "disabled", or "debug" or omit the environment variable altogether`
+      )
+    }
+}
+
+const debug = DEBUG_UHR_FILTER
+  ? (...args: any[]) =>
+      console.log('[UNHANDLED REJECTION DEBUG]', ...args, new Error().stack)
+  : undefined
+
 type ListenerMetadata = {
   listener: NodeJS.UnhandledRejectionListener
   once: boolean
@@ -55,8 +97,14 @@ let didWarnRemoveAll = false
  */
 function installUnhandledRejectionFilter(): void {
   if (filterInstalled) {
+    debug?.('unexpected second install')
     return
   }
+
+  debug?.(
+    'installUnhandledRejectionFilter',
+    process.listeners('unhandledRejection').map((l) => l.toString())
+  )
 
   // Capture existing handlers
   underlyingListeners = Array.from(process.listeners('unhandledRejection'))
@@ -94,6 +142,7 @@ function installUnhandledRejectionFilter(): void {
     listener: (...args: any[]) => void
   ) {
     if (event === 'unhandledRejection') {
+      debug?.('process.on/addListener', listener.toString())
       // Add new handlers to our internal queue instead of the process
       underlyingListeners.push(listener as NodeJS.UnhandledRejectionListener)
       listenerMetadata.push({ listener, once: false })
@@ -115,6 +164,7 @@ function installUnhandledRejectionFilter(): void {
     listener: (...args: any[]) => void
   ) {
     if (event === 'unhandledRejection') {
+      debug?.('process.once', listener.toString())
       underlyingListeners.push(listener)
       listenerMetadata.push({ listener, once: true })
       return process
@@ -128,6 +178,7 @@ function installUnhandledRejectionFilter(): void {
     originalProcessPrependListener,
     function (event: string | symbol, listener: (...args: any[]) => void) {
       if (event === 'unhandledRejection') {
+        debug?.('process.prependListener', listener.toString())
         if (didWarnPrepend === false) {
           didWarnPrepend = true
           console.warn(
@@ -156,6 +207,7 @@ function installUnhandledRejectionFilter(): void {
     originalProcessPrependOnceListener,
     function (event: string | symbol, listener: (...args: any[]) => void) {
       if (event === 'unhandledRejection') {
+        debug?.('process.prependOnceListener', listener.toString())
         if (didWarnPrepend === false) {
           didWarnPrepend = true
           console.warn(
@@ -183,6 +235,7 @@ function installUnhandledRejectionFilter(): void {
     listener: (...args: any[]) => void
   ) {
     if (event === 'unhandledRejection') {
+      debug?.('process.removeListener', listener.toString())
       // Check if they're trying to remove our filtering handler
       if (listener === filteringUnhandledRejectionHandler) {
         uninstallUnhandledRejectionFilter()
@@ -191,8 +244,11 @@ function installUnhandledRejectionFilter(): void {
 
       const index = underlyingListeners.lastIndexOf(listener)
       if (index > -1) {
+        debug?.('process.removeListener match found', index)
         underlyingListeners.splice(index, 1)
         listenerMetadata.splice(index, 1)
+      } else {
+        debug?.('process.removeListener match not found', index)
       }
       return process
     }
@@ -211,6 +267,10 @@ function installUnhandledRejectionFilter(): void {
     originalProcessRemoveAllListeners,
     function (event?: string | symbol) {
       if (event === 'unhandledRejection') {
+        debug?.(
+          'process.removeAllListeners',
+          underlyingListeners.map((l) => l.toString())
+        )
         if (didWarnRemoveAll === false) {
           didWarnRemoveAll = true
           console.warn(
@@ -245,6 +305,12 @@ function installUnhandledRejectionFilter(): void {
     event: string | symbol
   ) {
     if (event === 'unhandledRejection') {
+      debug?.(
+        'process.listeners',
+        [filteringUnhandledRejectionHandler, ...underlyingListeners].map((l) =>
+          l.toString()
+        )
+      )
       return [filteringUnhandledRejectionHandler, ...underlyingListeners]
     }
     return originalProcessListeners.call(process, event as any)
@@ -263,6 +329,18 @@ function installUnhandledRejectionFilter(): void {
   originalProcessOn.call(process, 'rejectionHandled', noopRejectionHandled)
 
   filterInstalled = true
+
+  debug?.(
+    'after install actual listeners',
+    originalProcessListeners
+      .call(process, 'unhandledRejection' as any)
+      .map((l) => l.toString())
+  )
+
+  debug?.(
+    'after install listeners',
+    process.listeners('unhandledRejection').map((l) => l.toString())
+  )
 }
 
 /**
@@ -272,8 +350,16 @@ function installUnhandledRejectionFilter(): void {
  */
 function uninstallUnhandledRejectionFilter(): void {
   if (!filterInstalled) {
+    debug?.('unexpected second uninstall')
     return
   }
+
+  debug?.(
+    'uninstallUnhandledRejectionFilter',
+    [filteringUnhandledRejectionHandler, ...underlyingListeners].map((l) =>
+      l.toString()
+    )
+  )
 
   // Restore original process methods
   process.on = originalProcessOn
@@ -312,6 +398,11 @@ function uninstallUnhandledRejectionFilter(): void {
   filterInstalled = false
   underlyingListeners.length = 0
   listenerMetadata.length = 0
+
+  debug?.(
+    'after uninstall',
+    process.listeners('unhandledRejection').map((l) => l.toString())
+  )
 }
 
 /**
@@ -385,4 +476,6 @@ function filteringUnhandledRejectionHandler(
 function noopRejectionHandled() {}
 
 // Install the filter when this module is imported
-installUnhandledRejectionFilter()
+if (ENABLE_UHR_FILTER) {
+  installUnhandledRejectionFilter()
+}

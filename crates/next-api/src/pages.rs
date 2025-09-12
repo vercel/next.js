@@ -460,6 +460,7 @@ impl PagesProject {
             NextRuntime::NodeJs,
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
+            self.project().client_compile_time_info().environment(),
         ))
     }
 
@@ -476,6 +477,7 @@ impl PagesProject {
             NextRuntime::Edge,
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
+            self.project().client_compile_time_info().environment(),
         ))
     }
 
@@ -492,6 +494,7 @@ impl PagesProject {
             NextRuntime::NodeJs,
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
+            self.project().client_compile_time_info().environment(),
         ))
     }
 
@@ -508,6 +511,7 @@ impl PagesProject {
             NextRuntime::Edge,
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
+            self.project().client_compile_time_info().environment(),
         ))
     }
 
@@ -524,6 +528,7 @@ impl PagesProject {
             NextRuntime::NodeJs,
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
+            self.project().client_compile_time_info().environment(),
         ))
     }
 
@@ -542,6 +547,7 @@ impl PagesProject {
             NextRuntime::Edge,
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
+            self.project().client_compile_time_info().environment(),
         ))
     }
 

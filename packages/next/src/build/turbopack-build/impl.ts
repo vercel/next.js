@@ -202,7 +202,7 @@ export async function turbopackBuild(): Promise<{
         )),
     ])
 
-    await manifestLoader.writeManifests({
+    manifestLoader.writeManifests({
       devRewrites: undefined,
       productionRewrites: rewrites,
       entrypoints: currentEntrypoints,
