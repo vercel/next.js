@@ -16,14 +16,14 @@ pub fn get_next_pages_transforms_rule(
     pages_dir: FileSystemPath,
     export_filter: ExportFilter,
     enable_mdx_rs: bool,
-    extra_conditions: impl IntoIterator<Item = RuleCondition>,
+    extra_conditions: Vec<RuleCondition>,
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
     let strip_transform =
         EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextJsStripPageExports {
             export_filter,
         }) as _));
-    let mut conditions = RuleCondition::all(vec![
+    let conditions = RuleCondition::all(vec![
         RuleCondition::all(vec![
             RuleCondition::ResourcePathInExactDirectory(pages_dir.clone()),
             RuleCondition::not(RuleCondition::ResourcePathInExactDirectory(
@@ -38,9 +38,8 @@ pub fn get_next_pages_transforms_rule(
             ])),
         ]),
         module_rule_match_js_no_url(enable_mdx_rs),
-        RuleCondition::all(extra_conditions.into_iter().collect()),
+        RuleCondition::all(extra_conditions),
     ]);
-    conditions.flatten();
     Ok(ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
