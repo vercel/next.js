@@ -87,6 +87,11 @@ pub async fn create_page_ssr_entry_module(
         replacements.push(("VAR_MODULE_DOCUMENT", &inner_document));
         replacements.push(("VAR_MODULE_APP", &inner_app));
     }
+    let source_ident = source.ident().await?;
+    // for PagesData we apply a ?server-data query parameter to avoid conflicts with the Page
+    // module.
+    // We need to copy that to all the modules we create.
+    let source_query = source_ident.query.clone();
 
     // Load the file from the next.js codebase.
     let mut source =
@@ -127,6 +132,7 @@ pub async fn create_page_ssr_entry_module(
         let document_module = process_global_item(
             *pages_structure_ref.document,
             reference_type.clone(),
+            source_query.clone(),
             ssr_module_context,
         )
         .to_resolved()
@@ -134,6 +140,7 @@ pub async fn create_page_ssr_entry_module(
         let app_module = process_global_item(
             *pages_structure_ref.app,
             reference_type.clone(),
+            source_query.clone(),
             ssr_module_context,
         )
         .to_resolved()
@@ -163,6 +170,7 @@ pub async fn create_page_ssr_entry_module(
                 reference_type,
                 pages_structure,
                 next_config,
+                source_query.clone(),
             );
         } else {
             ssr_module = wrap_edge_entry(
@@ -186,9 +194,13 @@ pub async fn create_page_ssr_entry_module(
 async fn process_global_item(
     item: Vc<PagesStructureItem>,
     reference_type: ReferenceType,
+    source_query: RcStr,
     module_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    let source = Vc::upcast(FileSource::new(item.file_path().owned().await?));
+    let source = Vc::upcast(FileSource::new_with_query(
+        item.file_path().owned().await?,
+        source_query,
+    ));
     Ok(module_context.process(source, reference_type).module())
 }
 
@@ -202,6 +214,7 @@ async fn wrap_edge_page(
     reference_type: ReferenceType,
     pages_structure: Vc<PagesStructure>,
     next_config: Vc<NextConfig>,
+    source_query: RcStr,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_PAGE_ENTRY";
 
@@ -260,16 +273,19 @@ async fn wrap_edge_page(
         INNER_DOCUMENT.into() => process_global_item(
             *pages_structure_ref.document,
             reference_type.clone(),
+            source_query.clone(),
             asset_context,
         ).to_resolved().await?,
         INNER_APP.into() => process_global_item(
             *pages_structure_ref.app,
             reference_type.clone(),
+            source_query.clone(),
             asset_context,
         ).to_resolved().await?,
         INNER_ERROR.into() => process_global_item(
             *pages_structure_ref.error,
             reference_type.clone(),
+            source_query.clone(),
             asset_context,
         ).to_resolved().await?,
     };
@@ -277,9 +293,14 @@ async fn wrap_edge_page(
     if let Some(error_500) = pages_structure_ref.error_500 {
         inner_assets.insert(
             INNER_ERROR_500.into(),
-            process_global_item(*error_500, reference_type.clone(), asset_context)
-                .to_resolved()
-                .await?,
+            process_global_item(
+                *error_500,
+                reference_type.clone(),
+                source_query.clone(),
+                asset_context,
+            )
+            .to_resolved()
+            .await?,
         );
     }
 
