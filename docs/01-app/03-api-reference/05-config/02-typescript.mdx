@@ -168,7 +168,7 @@ export default function Example() {
       {/* Link: literal and dynamic */}
       <Link href="/about" />
       <Link href={`/blog/${slug}`} />
-      <Link href={('/blog' + slug) as Route} />
+      <Link href={('/blog/' + slug) as Route} />
       {/* TypeScript error if href is not a valid route */}
       <Link href="/aboot" />
 
@@ -182,7 +182,7 @@ export default function Example() {
       </button>
 
       {/* For non-literal strings, cast to Route */}
-      <button onClick={() => router.push(('/blog' + slug) as Route)}>
+      <button onClick={() => router.push(('/blog/' + slug) as Route)}>
         Push Non-literal Blog
       </button>
     </>
