@@ -221,7 +221,7 @@ function installUnhandledRejectionFilter(): void {
       }
       // For other events, use the original method
       return originalProcessRemoveListener.call(process, event, listener)
-    } as typeof process.off
+    } as typeof process.removeListener
   )
 
   // If the process.on is referentially process.addListener then share the patched version as well
