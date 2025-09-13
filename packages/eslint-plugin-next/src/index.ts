@@ -53,32 +53,38 @@ const coreWebVitalsRules = {
   '@next/next/no-sync-scripts': 'error',
 } satisfies Linter.RulesRecord
 
-const rules = {
-  'google-font-display': googleFontDisplay,
-  'google-font-preconnect': googleFontPreconnect,
-  'inline-script-id': inlineScriptId,
-  'next-script-for-ga': nextScriptForGa,
-  'no-assign-module-variable': noAssignModuleVariable,
-  'no-async-client-component': noAsyncClientComponent,
-  'no-before-interactive-script-outside-document':
-    noBeforeInteractiveScriptOutsideDocument,
-  'no-css-tags': noCssTags,
-  'no-document-import-in-page': noDocumentImportInPage,
-  'no-duplicate-head': noDuplicateHead,
-  'no-head-element': noHeadElement,
-  'no-head-import-in-document': noHeadImportInDocument,
-  'no-html-link-for-pages': noHtmlLinkForPages,
-  'no-img-element': noImgElement,
-  'no-page-custom-font': noPageCustomFont,
-  'no-script-component-in-head': noScriptComponentInHead,
-  'no-styled-jsx-in-document': noStyledJsxInDocument,
-  'no-sync-scripts': noSyncScripts,
-  'no-title-in-document-head': noTitleInDocumentHead,
-  'no-typos': noTypos,
-  'no-unwanted-polyfillio': noUnwantedPolyfillio,
-} satisfies Record<string, Rule.RuleModule>
+const plugin = {
+  meta: {
+    name: '@next/eslint-plugin-next',
+  },
+  rules: {
+    'google-font-display': googleFontDisplay,
+    'google-font-preconnect': googleFontPreconnect,
+    'inline-script-id': inlineScriptId,
+    'next-script-for-ga': nextScriptForGa,
+    'no-assign-module-variable': noAssignModuleVariable,
+    'no-async-client-component': noAsyncClientComponent,
+    'no-before-interactive-script-outside-document':
+      noBeforeInteractiveScriptOutsideDocument,
+    'no-css-tags': noCssTags,
+    'no-document-import-in-page': noDocumentImportInPage,
+    'no-duplicate-head': noDuplicateHead,
+    'no-head-element': noHeadElement,
+    'no-head-import-in-document': noHeadImportInDocument,
+    'no-html-link-for-pages': noHtmlLinkForPages,
+    'no-img-element': noImgElement,
+    'no-page-custom-font': noPageCustomFont,
+    'no-script-component-in-head': noScriptComponentInHead,
+    'no-styled-jsx-in-document': noStyledJsxInDocument,
+    'no-sync-scripts': noSyncScripts,
+    'no-title-in-document-head': noTitleInDocumentHead,
+    'no-typos': noTypos,
+    'no-unwanted-polyfillio': noUnwantedPolyfillio,
+  } satisfies Record<string, Rule.RuleModule>,
+  configs: {},
+}
 
-const configs = {
+Object.assign(plugin.configs, {
   'recommended-legacy': {
     plugins: ['@next/next'],
     rules: recommendedRules,
@@ -90,24 +96,22 @@ const configs = {
   },
   recommended: {
     name: 'next/recommended',
+    plugins: {
+      '@next/next': plugin,
+    },
     rules: recommendedRules,
   },
   'core-web-vitals': {
     name: 'next/core-web-vitals',
+    plugins: {
+      '@next/next': plugin,
+    },
     rules: {
       ...recommendedRules,
       ...coreWebVitalsRules,
     },
   },
-}
-
-const plugin = {
-  meta: {
-    name: '@next/eslint-plugin-next',
-  },
-  configs,
-  rules,
-}
+})
 
 export default plugin
-export { rules, configs }
+export const { rules, configs } = plugin
