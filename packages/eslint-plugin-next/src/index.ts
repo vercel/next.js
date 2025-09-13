@@ -81,7 +81,14 @@ const plugin = {
     'no-typos': noTypos,
     'no-unwanted-polyfillio': noUnwantedPolyfillio,
   } satisfies Record<string, Rule.RuleModule>,
-  configs: {},
+  configs: {} as ESLintPluginConfigs,
+}
+
+type ESLintPluginConfigs = {
+  'recommended-legacy': Linter.LegacyConfig
+  'core-web-vitals-legacy': Linter.LegacyConfig
+  recommended: Linter.Config
+  'core-web-vitals': Linter.Config
 }
 
 Object.assign(plugin.configs, {
@@ -111,7 +118,7 @@ Object.assign(plugin.configs, {
       ...coreWebVitalsRules,
     },
   },
-})
+} satisfies ESLintPluginConfigs)
 
 export default plugin
 export const { rules, configs } = plugin
