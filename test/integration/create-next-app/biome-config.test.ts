@@ -69,22 +69,13 @@ describe('create-next-app Biome configuration', () => {
       const projectDir = join(cwd, projectName)
 
       // Run biome check on the generated project
-      const {
-        exitCode: biomeExitCode,
-        stdout,
-        stderr,
-      } = await execa('npm', ['run', 'lint'], {
-        cwd: projectDir,
-        reject: false, // Don't throw on non-zero exit codes
-      })
-
-      if (biomeExitCode !== 0) {
-        console.log('Lint failed with exit code:', biomeExitCode)
-        console.log('STDOUT:', stdout)
-        console.log('STDERR:', stderr)
-      } else {
-        console.log({ stdout })
-      }
+      const { exitCode: biomeExitCode, stdout } = await execa(
+        'npm',
+        ['run', 'lint'],
+        {
+          cwd: projectDir,
+        }
+      )
 
       expect(biomeExitCode).toBe(0)
       expect(stdout).toContain('Checked')
@@ -114,20 +105,13 @@ describe('create-next-app Biome configuration', () => {
       const projectDir = join(cwd, projectName)
 
       // Run biome check on the generated project
-      const {
-        exitCode: biomeExitCode,
-        stdout,
-        stderr,
-      } = await execa('npm', ['run', 'lint'], {
-        cwd: projectDir,
-        reject: false, // Don't throw on non-zero exit codes
-      })
-
-      if (biomeExitCode !== 0) {
-        console.log('Lint failed with exit code:', biomeExitCode)
-        console.log('STDOUT:', stdout)
-        console.log('STDERR:', stderr)
-      }
+      const { exitCode: biomeExitCode, stdout } = await execa(
+        'npm',
+        ['run', 'lint'],
+        {
+          cwd: projectDir,
+        }
+      )
 
       expect(biomeExitCode).toBe(0)
       expect(stdout).toContain('Checked')
