@@ -18,6 +18,11 @@ import {
 } from '../../../../next-devtools/userspace/app/forward-logs'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
 
+let reconnections = 0
+let reloading = false
+let serverSessionId: number | null = null
+let source: WebSocket
+
 export function createWebSocket(
   assetPrefix: string,
   staticIndicatorState: StaticIndicatorState
@@ -28,45 +33,98 @@ export function createWebSocket(
     )
   }
 
-  const webSocket = new window.WebSocket(
-    `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${self.__next_r}`
-  )
-
-  webSocket.binaryType = 'arraybuffer'
-
-  if (isTerminalLoggingEnabled) {
-    webSocket.addEventListener('open', () => {
-      logQueue.onSocketReady(webSocket)
-    })
-  }
-
   const sendMessage = (data: string) => {
-    if (webSocket.readyState === webSocket.OPEN) {
-      webSocket.send(data)
+    if (source.readyState === source.OPEN) {
+      source.send(data)
     }
   }
 
   const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
 
-  webSocket.addEventListener('message', (event) => {
-    try {
-      const message: HmrMessageSentToBrowser =
-        event.data instanceof ArrayBuffer
-          ? parseBinaryMessage(event.data)
-          : JSON.parse(event.data)
+  function init(): WebSocket {
+    if (source) source.close()
 
-      processMessage(
-        message,
-        sendMessage,
-        processTurbopackMessage,
-        staticIndicatorState
-      )
-    } catch (err: unknown) {
-      reportInvalidHmrMessage(event, err)
+    function handleOnline() {
+      if (isTerminalLoggingEnabled) {
+        logQueue.onSocketReady(source)
+      }
+      reconnections = 0
+      console.log('[HMR] connected')
     }
-  })
 
-  return webSocket
+    function handleMessage(event: MessageEvent) {
+      // While the page is reloading, don't respond to any more messages.
+      // On reconnect, the server may send an empty list of changes if it was restarted.
+      if (reloading) {
+        return
+      }
+
+      try {
+        const message: HmrMessageSentToBrowser =
+          event.data instanceof ArrayBuffer
+            ? parseBinaryMessage(event.data)
+            : JSON.parse(event.data)
+
+        if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED) {
+          if (
+            serverSessionId !== null &&
+            serverSessionId !== message.data.sessionId
+          ) {
+            // Either the server's session id has changed and it's a new server, or
+            // it's been too long since we disconnected and we should reload the page.
+            // There could be 1) unhandled server errors and/or 2) stale content.
+            // Perform a hard reload of the page.
+            window.location.reload()
+
+            reloading = true
+            return
+          }
+
+          serverSessionId = message.data.sessionId
+        }
+
+        processMessage(
+          message,
+          sendMessage,
+          processTurbopackMessage,
+          staticIndicatorState
+        )
+      } catch (err: unknown) {
+        reportInvalidHmrMessage(event, err)
+      }
+    }
+
+    let timer: ReturnType<typeof setTimeout>
+    function handleDisconnect() {
+      source.onerror = null
+      source.onclose = null
+      source.close()
+      reconnections++
+      // After 25 reconnects we'll want to reload the page as it indicates the dev server is no longer running.
+      if (reconnections > 25) {
+        reloading = true
+        window.location.reload()
+        return
+      }
+
+      clearTimeout(timer)
+      // Try again after 5 seconds
+      timer = setTimeout(init, reconnections > 5 ? 5000 : 1000)
+    }
+
+    source = new window.WebSocket(
+      `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${self.__next_r}`
+    )
+    source.binaryType = 'arraybuffer'
+    source.onopen = handleOnline
+    source.onmessage = handleMessage
+    source.onerror = handleDisconnect
+    source.onclose = handleDisconnect
+
+    return source
+  }
+
+  return init()
 }
 
 export function createProcessTurbopackMessage(
