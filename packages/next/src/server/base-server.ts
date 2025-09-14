@@ -2290,7 +2290,8 @@ export default abstract class Server<
     if (
       routeModule?.isDev &&
       isDynamicRoute(pathname) &&
-      (components.getStaticPaths || isAppPath)
+      (components.getStaticPaths ||
+        (isAppPath && components.hasGenerateStaticParams))
     ) {
       const pathsResults = await this.getStaticPaths({
         pathname,

@@ -34,6 +34,12 @@ import { createServerModuleMap } from './app-render/action-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { isStaticMetadataRoute } from '../lib/metadata/is-metadata-route'
+import {
+  isAppPageRouteModule,
+  isAppRouteRouteModule,
+} from './route-modules/checks'
+import { collectSegments } from '../build/segment-config/app/app-segments'
+import { isDynamicRoute } from '../shared/lib/router/utils'
 
 export type ManifestItem = {
   id: number | string
@@ -76,6 +82,7 @@ export type LoadComponentsReturnType<NextModule = any> = {
   ComponentMod: NextModule
   routeModule: RouteModule
   isAppPath?: boolean
+  hasGenerateStaticParams?: boolean
   page: string
   multiZoneDraftMode?: boolean
 }
@@ -298,6 +305,30 @@ async function loadComponentsImpl<N = any>({
     const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
       ComponentMod
 
+    // In dev, static path generation runs on-demand. Unlike getStaticPaths which is a
+    // 1:1 export from the page component module, generateStaticParams can be defined in
+    // page/layout/route files and the params cascade down the tree. Therefore to verify
+    // if this module is eligible to run generateStaticParams, we need to check the segments.
+    let hasGenerateStaticParams: boolean | undefined
+    if (
+      isDev &&
+      isAppPath &&
+      isDynamicRoute(page) &&
+      routeModule &&
+      (isAppPageRouteModule(routeModule) || isAppRouteRouteModule(routeModule))
+    ) {
+      try {
+        const segments = await collectSegments(routeModule)
+        hasGenerateStaticParams = segments.some(
+          (segment) => typeof segment.generateStaticParams === 'function'
+        )
+      } catch (cause) {
+        throw new Error(`Failed to collect configuration for ${page}`, {
+          cause,
+        })
+      }
+    }
+
     return {
       App,
       Document,
@@ -316,6 +347,7 @@ async function loadComponentsImpl<N = any>({
       isAppPath,
       page,
       routeModule,
+      hasGenerateStaticParams,
     }
   } else {
     const ComponentMod = await requirePage(page, distDir, isAppPath)
@@ -326,6 +358,30 @@ async function loadComponentsImpl<N = any>({
 
     const { getServerSideProps, getStaticProps, getStaticPaths, routeModule } =
       ComponentMod
+
+    // In dev, static path generation runs on-demand. Unlike getStaticPaths which is a
+    // 1:1 export from the page component module, generateStaticParams can be defined in
+    // page/layout/route files and the params cascade down the tree. Therefore to verify
+    // if this module is eligible to run generateStaticParams, we need to check the segments.
+    let hasGenerateStaticParams: boolean | undefined
+    if (
+      isDev &&
+      isAppPath &&
+      isDynamicRoute(page) &&
+      routeModule &&
+      (isAppPageRouteModule(routeModule) || isAppRouteRouteModule(routeModule))
+    ) {
+      try {
+        const segments = await collectSegments(routeModule)
+        hasGenerateStaticParams = segments.some(
+          (segment) => typeof segment.generateStaticParams === 'function'
+        )
+      } catch (cause) {
+        throw new Error(`Failed to collect configuration for ${page}`, {
+          cause,
+        })
+      }
+    }
 
     return {
       App,
@@ -339,6 +395,7 @@ async function loadComponentsImpl<N = any>({
       isAppPath,
       page,
       routeModule,
+      hasGenerateStaticParams,
     } as any // temporary `as any` to make TypeScript not fail so that the tests will run on the PR.
   }
 }
