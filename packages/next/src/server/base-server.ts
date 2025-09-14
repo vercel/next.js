@@ -2291,7 +2291,13 @@ export default abstract class Server<
       routeModule?.isDev &&
       isDynamicRoute(pathname) &&
       (components.getStaticPaths ||
-        (isAppPath && components.hasGenerateStaticParams))
+        // In export mode, static path generation is required. Therefore, we need to run
+        // generateStaticParams in order to identify which paths are currently not generated.
+        this.nextConfig.output === 'export' ||
+        // Only run if the module has generateStaticParams defined because it spawns a worker and
+        // loads the whole app into memory, resulting in any side effects being executed as well,
+        // which can be fairly expensive in large apps.
+        components.hasGenerateStaticParams)
     ) {
       const pathsResults = await this.getStaticPaths({
         pathname,
