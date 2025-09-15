@@ -1,7 +1,7 @@
 import { defineRule } from '../utils/define-rule'
 const url = 'https://nextjs.org/docs/messages/no-duplicate-head'
 
-export = defineRule({
+export default defineRule({
   meta: {
     docs: {
       description:

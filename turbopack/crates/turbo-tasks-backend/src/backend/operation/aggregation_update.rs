@@ -733,7 +733,6 @@ impl AggregationUpdateQueue {
     /// Runs the job and all dependent jobs until it's done. It can persist the operation, so
     /// following code might not be executed when persisted.
     pub fn run(job: AggregationUpdateJob, ctx: &mut impl ExecuteContext) {
-        debug_assert!(ctx.should_track_children());
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);
