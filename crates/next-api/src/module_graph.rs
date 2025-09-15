@@ -581,7 +581,7 @@ async fn validate_pages_css_imports(
         .map(async |issue| {
             // We allow imports of global CSS files which are inside of `node_modules`.
             if !issue
-                .parent_module
+                .module
                 .ident()
                 .path()
                 .await?
