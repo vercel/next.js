@@ -1,10 +1,12 @@
+// /home/hp/new4/next.js/turbopack/crates/turbo-tasks-malloc/src/counter.rs
+
 use std::{
     cell::UnsafeCell,
     ptr::NonNull,
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use crate::AllocationCounters;
+use crate::{AllocationCounters, IS_THREAD_EXITING_FLAG};
 
 /// Tracks the current total amount of memory allocated through all the [ThreadLocalCounter]
 /// instances.  This is an overestimate as individual threads 'preallocate' a [TARGET_BUFFER] bytes
@@ -27,6 +29,18 @@ struct ThreadLocalCounter {
     /// value.
     buffer: usize,
     allocation_counters: AllocationCounters,
+}
+
+// A helper function for safe atomic subtraction that prevents underflow.
+fn saturating_fetch_sub(atomic: &AtomicUsize, val: usize) {
+    let mut current = atomic.load(Ordering::Relaxed);
+    loop {
+        let new = current.saturating_sub(val);
+        match atomic.compare_exchange_weak(current, new, Ordering::Relaxed, Ordering::Relaxed) {
+            Ok(_) => break,
+            Err(x) => current = x,
+        }
+    }
 }
 
 impl ThreadLocalCounter {
@@ -55,7 +69,7 @@ impl ThreadLocalCounter {
         if self.buffer > MAX_BUFFER {
             let offset = self.buffer - TARGET_BUFFER;
             self.buffer = TARGET_BUFFER;
-            ALLOCATED.fetch_sub(offset, Ordering::Relaxed);
+            saturating_fetch_sub(&ALLOCATED, offset);
         }
     }
 
@@ -82,7 +96,7 @@ impl ThreadLocalCounter {
                 if self.buffer > MAX_BUFFER {
                     let offset = self.buffer - TARGET_BUFFER;
                     self.buffer = TARGET_BUFFER;
-                    ALLOCATED.fetch_sub(offset, Ordering::Relaxed);
+                    saturating_fetch_sub(&ALLOCATED, offset);
                 }
             }
         }
@@ -90,15 +104,35 @@ impl ThreadLocalCounter {
 
     fn unload(&mut self) {
         if self.buffer > 0 {
-            ALLOCATED.fetch_sub(self.buffer, Ordering::Relaxed);
+            saturating_fetch_sub(&ALLOCATED, self.buffer);
             self.buffer = 0;
         }
         self.allocation_counters = AllocationCounters::default();
     }
 }
 
+// This guard's ONLY job is to set the poison pill flag on drop.
+struct CounterGuard(ThreadLocalCounter);
+
+impl Drop for CounterGuard {
+    fn drop(&mut self) {
+        // This is safe. It is a minimal, non-allocating write to a
+        // thread-local variable. It makes no assumptions about global state
+        // or other thread-locals.
+        unsafe {
+            *IS_THREAD_EXITING_FLAG.get() = true;
+        }
+    }
+}
+
+impl CounterGuard {
+    const fn new() -> Self {
+        Self(ThreadLocalCounter::new())
+    }
+}
+
 thread_local! {
-  static LOCAL_COUNTER: UnsafeCell<ThreadLocalCounter> = const {UnsafeCell::new(ThreadLocalCounter::new())};
+  static LOCAL_COUNTER: UnsafeCell<CounterGuard> = const {UnsafeCell::new(CounterGuard::new())};
 }
 
 pub fn get() -> usize {
@@ -116,9 +150,9 @@ pub fn reset_allocation_counters(start: AllocationCounters) {
 fn with_local_counter<T>(f: impl FnOnce(&mut ThreadLocalCounter) -> T) -> T {
     LOCAL_COUNTER.with(|local| {
         let ptr = local.get();
-        // SAFETY: This is a thread local.
-        let mut local = unsafe { NonNull::new_unchecked(ptr) };
-        f(unsafe { local.as_mut() })
+        // SAFETY: This is a thread local, so we have exclusive access on this thread.
+        let mut local_guard = unsafe { NonNull::new_unchecked(ptr) };
+        f(unsafe { &mut local_guard.as_mut().0 })
     })
 }
 

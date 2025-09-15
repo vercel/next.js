@@ -1,12 +1,26 @@
+// /home/hp/new4/next.js/turbopack/crates/turbo-tasks-malloc/src/lib.rs
+
+#![feature(thread_local)]
+
 mod counter;
 
 use std::{
     alloc::{GlobalAlloc, Layout},
+    cell::UnsafeCell,
     marker::PhantomData,
     ops::{Add, AddAssign},
 };
 
 use self::counter::{add, flush, get, remove, update};
+
+#[thread_local]
+static mut IN_ALLOCATOR: bool = false;
+
+// This is the "poison pill" flag. It is set to true when the thread-local
+// counter begins its destruction, signaling that the thread is exiting.
+#[thread_local]
+pub(crate) static IS_THREAD_EXITING_FLAG: UnsafeCell<bool> = UnsafeCell::new(false);
+
 
 #[derive(Default, Clone, Debug)]
 pub struct AllocationInfo {
@@ -77,13 +91,14 @@ impl AllocationCounters {
             _not_send: PhantomData {},
         }
     }
+
     pub fn until_now(&self) -> AllocationInfo {
         let new = TurboMalloc::allocation_counters();
         AllocationInfo {
-            allocations: new.allocations - self.allocations,
-            deallocations: new.deallocations - self.deallocations,
-            allocation_count: new.allocation_count - self.allocation_count,
-            deallocation_count: new.deallocation_count - self.deallocation_count,
+            allocations: new.allocations.saturating_sub(self.allocations),
+            deallocations: new.deallocations.saturating_sub(self.deallocations),
+            allocation_count: new.allocation_count.saturating_sub(self.allocation_count),
+            deallocation_count: new.deallocation_count.saturating_sub(self.deallocation_count),
         }
     }
 }
@@ -100,6 +115,9 @@ impl TurboMalloc {
 
     pub fn thread_stop() {
         flush();
+        unsafe {
+            *IS_THREAD_EXITING_FLAG.get() = true;
+        }
     }
 
     pub fn allocation_counters() -> AllocationCounters {
@@ -140,41 +158,77 @@ unsafe fn base_alloc_size(ptr: *const u8, layout: Layout) -> usize {
     return layout.size();
 }
 
+#[inline(always)]
+fn should_bypass() -> bool {
+    // SAFETY: This is safe because these statics are thread-local.
+    unsafe { IN_ALLOCATOR || *IS_THREAD_EXITING_FLAG.get() }
+}
+
 unsafe impl GlobalAlloc for TurboMalloc {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
-        let ret = unsafe { base_alloc().alloc(layout) };
-        if !ret.is_null() {
-            let size = unsafe { base_alloc_size(ret, layout) };
-            add(size);
+        unsafe {
+            if should_bypass() {
+                return base_alloc().alloc(layout);
+            }
+
+            IN_ALLOCATOR = true;
+            let ret = base_alloc().alloc(layout);
+            if !ret.is_null() {
+                let size = base_alloc_size(ret, layout);
+                add(size);
+            }
+            IN_ALLOCATOR = false;
+            ret
         }
-        ret
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
-        let size = unsafe { base_alloc_size(ptr, layout) };
-        unsafe { base_alloc().dealloc(ptr, layout) };
-        remove(size);
+        unsafe {
+            if should_bypass() {
+                return base_alloc().dealloc(ptr, layout);
+            }
+
+            IN_ALLOCATOR = true;
+            let size = base_alloc_size(ptr, layout);
+            base_alloc().dealloc(ptr, layout);
+            remove(size);
+            IN_ALLOCATOR = false;
+        }
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
-        let ret = unsafe { base_alloc().alloc_zeroed(layout) };
-        if !ret.is_null() {
-            let size = unsafe { base_alloc_size(ret, layout) };
-            add(size);
+        unsafe {
+            if should_bypass() {
+                return base_alloc().alloc_zeroed(layout);
+            }
+
+            IN_ALLOCATOR = true;
+            let ret = base_alloc().alloc_zeroed(layout);
+            if !ret.is_null() {
+                let size = base_alloc_size(ret, layout);
+                add(size);
+            }
+            IN_ALLOCATOR = false;
+            ret
         }
-        ret
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
-        let old_size = unsafe { base_alloc_size(ptr, layout) };
-        let ret = unsafe { base_alloc().realloc(ptr, layout, new_size) };
-        if !ret.is_null() {
-            // SAFETY: the caller must ensure that the `new_size` does not overflow.
-            // `layout.align()` comes from a `Layout` and is thus guaranteed to be valid.
-            let new_layout = unsafe { Layout::from_size_align_unchecked(new_size, layout.align()) };
-            let new_size = unsafe { base_alloc_size(ret, new_layout) };
-            update(old_size, new_size);
+        unsafe {
+            if should_bypass() {
+                return base_alloc().realloc(ptr, layout, new_size);
+            }
+
+            IN_ALLOCATOR = true;
+            let old_size = base_alloc_size(ptr, layout);
+            let ret = base_alloc().realloc(ptr, layout, new_size);
+            if !ret.is_null() {
+                let new_layout = Layout::from_size_align_unchecked(new_size, layout.align());
+                let new_size = base_alloc_size(ret, new_layout);
+                update(old_size, new_size);
+            }
+            IN_ALLOCATOR = false;
+            ret
         }
-        ret
     }
 }
