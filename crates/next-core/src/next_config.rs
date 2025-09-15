@@ -1694,11 +1694,6 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_router_bfcache(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.router_bfcache.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
     pub fn enable_view_transition(&self) -> Vc<bool> {
         Vc::cell(self.experimental.view_transition.unwrap_or(false))
     }
