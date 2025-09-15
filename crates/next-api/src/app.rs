@@ -23,8 +23,8 @@ use next_core::{
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
-        EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
+        AppPathsManifest, BuildManifest, ClientReferenceManifest, EdgeFunctionDefinition,
+        MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
         client_reference_manifest::ClientReferenceManifestOptions,
     },
     next_server::{
@@ -40,7 +40,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    fxindexmap, fxindexset, trace::TraceRawVcs,
+    fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -1154,7 +1154,7 @@ impl AppEndpoint {
         enum EmitManifests {
             /// Don't emit any manifests (needed for the RSC endpoints)
             None,
-            /// Emit the manifest for basic Next.js functionality (e.g. app-build-manifest.json)
+            /// Emit the manifest for basic Next.js functionality
             Minimal,
             /// All manifests: `Minimal` plus next-font, next-dynamic, ...
             Full,
@@ -1311,30 +1311,6 @@ impl AppEndpoint {
         server_assets.extend(entry_ssr_chunks.iter().copied());
 
         let manifest_path_prefix = &app_entry.original_name;
-
-        if emit_manifests != EmitManifests::None {
-            let app_build_manifest = AppBuildManifest {
-                pages: fxindexmap!(
-                    app_entry.original_name.clone() => ResolvedVc::cell(entry_client_chunks
-                        .iter()
-                        .chain(client_shared_chunks.iter())
-                        .copied()
-                        .collect())
-                ),
-            };
-            let app_build_manifest_output = app_build_manifest
-                .build_output(
-                    node_root.join(&format!(
-                        "server/app{manifest_path_prefix}/app-build-manifest.json",
-                    ))?,
-                    client_relative_path.clone(),
-                )
-                .await?
-                .to_resolved()
-                .await?;
-
-            server_assets.insert(app_build_manifest_output);
-        }
 
         // polyfill-nomodule.js is a pre-compiled asset distributed as part of next,
         // load it as a RawModule.

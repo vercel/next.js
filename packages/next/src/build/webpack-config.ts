@@ -63,7 +63,6 @@ import loadJsConfig, {
   type ResolvedBaseUrl,
 } from './load-jsconfig'
 import { loadBindings } from './swc'
-import { AppBuildManifestPlugin } from './webpack/plugins/app-build-manifest-plugin'
 import { SubresourceIntegrityPlugin } from './webpack/plugins/subresource-integrity-plugin'
 import { NextFontManifestPlugin } from './webpack/plugins/next-font-manifest-plugin'
 import { getSupportedBrowsers } from './utils'
@@ -1970,7 +1969,7 @@ export default async function getBaseWebpackConfig(
               '.shared-runtime'
             )
             const layer = resource.contextInfo.issuerLayer
-            let runtime
+            let runtime: string
 
             switch (layer) {
               case WEBPACK_LAYERS.serverSideRendering:
@@ -2128,7 +2127,6 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
-      hasAppDir && isClient && new AppBuildManifestPlugin(),
       hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
