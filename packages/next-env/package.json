@@ -29,8 +29,7 @@
     "prepublishOnly": "cd ../../ && turbo run build"
   },
   "devDependencies": {
-    "@vercel/ncc": "0.34.0",
-    "dotenv": "16.3.1",
-    "dotenv-expand": "10.0.0"
+    "@dotenvx/dotenvx": "1.39.0",
+    "@vercel/ncc": "0.34.0"
   }
 }

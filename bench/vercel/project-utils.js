@@ -1,4 +1,4 @@
-import { config } from 'dotenv'
+import { config } from '@dotenvx/dotenvx'
 
 import execa from 'execa'
 import path from 'path'
