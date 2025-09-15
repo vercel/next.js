@@ -11,7 +11,6 @@ import path from 'path'
 import { outdent } from 'outdent'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
-const isRspack = !!process.env.NEXT_RSPACK
 
 describe('ReactRefreshLogBox', () => {
   const { isTurbopack, next } = nextTestSetup({
