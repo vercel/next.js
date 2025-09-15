@@ -180,8 +180,8 @@ export async function printTreeView(
   },
   pageInfos: Map<string, PageInfo>,
   {
-    _distPath,
-    _buildId,
+    distPath: _distPath,
+    buildId: _buildId,
     pagesDir,
     pageExtensions,
     buildManifest,
@@ -251,6 +251,11 @@ export async function printTreeView(
       if (showRevalidate && showExpire) {
         break
       }
+    }
+
+    // Only show routes table if there are additional columns to display
+    if (!showRevalidate && !showExpire) {
+      return
     }
 
     messages.push(
