@@ -1199,13 +1199,13 @@ export default async function getBaseWebpackConfig(
                   name: 'framework',
                   layer: RSPACK_DEFAULT_LAYERS_REGEX,
                   test: new RegExp(
-                    `^(${topLevelFrameworkPaths.map((p) => `(${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`).join('|')})`
+                    `^(${topLevelFrameworkPaths.map((p) => `(${escapeStringRegexp(p)})`).join('|')})`
                   ),
                   priority: 40,
                   enforce: true,
                 },
                 lib: {
-                  test: /[\\/]node_modules[\\/](?!.*\.(css|scss|sass|less|styl)$)/,
+                  test: /[/]node_modules[/](?!.*\.(css|scss|sass|less|styl)$)/,
                   name: 'lib',
                   chunks: 'all',
                   priority: 30,
