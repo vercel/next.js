@@ -3,7 +3,9 @@ use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
-use turbopack_core::reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType};
+use turbopack_core::reference_type::{
+    CssReferenceSubType, EntryReferenceSubType, ReferenceType, UrlReferenceSubType,
+};
 
 use crate::{
     mode::NextMode,
@@ -75,26 +77,18 @@ pub async fn get_next_server_transforms_rules(
                     mdx_rs,
                     pages_dir.clone(),
                 ));
-            }
-            false
-        }
-        ServerContextType::PagesData { pages_dir } => {
-            if !foreign_code {
-                rules.push(
-                    get_next_pages_transforms_rule(
-                        pages_dir.clone(),
-                        ExportFilter::StripDefaultExport,
-                        mdx_rs,
-                    )
-                    .await?,
-                );
-                rules.push(get_next_disallow_export_all_in_page_rule(
-                    mdx_rs,
+                rules.push(get_next_pages_transforms_rule(
                     pages_dir.clone(),
-                ));
+                    ExportFilter::StripDefaultExport,
+                    mdx_rs,
+                    vec![RuleCondition::ReferenceType(ReferenceType::Entry(
+                        EntryReferenceSubType::PageData,
+                    ))],
+                )?);
             }
             false
         }
+
         ServerContextType::AppSSR { .. } => {
             // Yah, this is SSR, but this is still treated as a Client transform layer.
             // need to apply to foreign code too
@@ -232,7 +226,6 @@ pub async fn get_next_server_internal_transforms_rules(
             rules.push(get_next_font_transform_rule(mdx_rs));
         }
         ServerContextType::PagesApi { .. } => {}
-        ServerContextType::PagesData { .. } => {}
         ServerContextType::AppSSR { .. } => {
             rules.push(get_next_font_transform_rule(mdx_rs));
         }

@@ -3,7 +3,6 @@ use next_core::{
     all_assets_from_entries,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
-    next_server::{ServerContextType, get_server_runtime_entries},
 };
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
@@ -104,26 +103,10 @@ impl InstrumentationEndpoint {
 
         let module_graph = this.project.module_graph(*module);
 
-        let evaluatable_assets = get_server_runtime_entries(
-            ServerContextType::Instrumentation {
-                app_dir: this.app_dir.clone(),
-                ecmascript_client_reference_transition_name: this
-                    .ecmascript_client_reference_transition_name
-                    .clone(),
-            },
-            this.project.next_mode(),
-        )
-        .resolve_entries(*this.asset_context)
-        .await?
-        .iter()
-        .map(|m| ResolvedVc::upcast(*m))
-        .chain(std::iter::once(module))
-        .collect();
-
         let edge_chunking_context = this.project.edge_chunking_context(false);
         let edge_files: Vc<OutputAssets> = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            ChunkGroup::Entry(evaluatable_assets),
+            ChunkGroup::Entry(vec![module]),
             module_graph,
             AvailabilityInfo::Root,
         );
@@ -150,17 +133,7 @@ impl InstrumentationEndpoint {
                     .node_root()
                     .await?
                     .join("server/instrumentation.js")?,
-                get_server_runtime_entries(
-                    ServerContextType::Instrumentation {
-                        app_dir: this.app_dir.clone(),
-                        ecmascript_client_reference_transition_name: this
-                            .ecmascript_client_reference_transition_name
-                            .clone(),
-                    },
-                    this.project.next_mode(),
-                )
-                .resolve_entries(*this.asset_context)
-                .with_entry(*module),
+                Vc::cell(vec![module]),
                 module_graph,
                 OutputAssets::empty(),
                 AvailabilityInfo::Root,
