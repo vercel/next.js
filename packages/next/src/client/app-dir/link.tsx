@@ -18,7 +18,6 @@ import {
   type LinkInstance,
 } from '../components/links'
 import { isLocalURL } from '../../shared/lib/router/utils/is-local-url'
-import { dispatchNavigateAction } from '../components/app-router-instance'
 import {
   FetchStrategy,
   type PrefetchTaskFetchStrategy,
@@ -221,47 +220,52 @@ function linkClicked(
   scroll?: boolean,
   onNavigate?: OnNavigateEventHandler
 ): void {
-  if (isModifiedEvent(e) || e.currentTarget.hasAttribute('download')) {
-    // ignore click for browser’s default behavior
-    return
-  }
-
-  if (!isLocalURL(href)) {
-    if (replace) {
-      // browser default behavior does not replace the history state
-      // so we need to do it manually
-      e.preventDefault()
-      location.replace(href)
-    }
-
-    // ignore click for browser’s default behavior
-    return
-  }
-
-  e.preventDefault()
-
-  if (onNavigate) {
-    let isDefaultPrevented = false
-
-    onNavigate({
-      preventDefault: () => {
-        isDefaultPrevented = true
-      },
-    })
-
-    if (isDefaultPrevented) {
+  if (typeof window !== 'undefined') {
+    if (isModifiedEvent(e) || e.currentTarget.hasAttribute('download')) {
+      // ignore click for browser’s default behavior
       return
     }
-  }
 
-  React.startTransition(() => {
-    dispatchNavigateAction(
-      as || href,
-      replace ? 'replace' : 'push',
-      scroll ?? true,
-      linkInstanceRef.current
-    )
-  })
+    if (!isLocalURL(href)) {
+      if (replace) {
+        // browser default behavior does not replace the history state
+        // so we need to do it manually
+        e.preventDefault()
+        location.replace(href)
+      }
+
+      // ignore click for browser’s default behavior
+      return
+    }
+
+    e.preventDefault()
+
+    if (onNavigate) {
+      let isDefaultPrevented = false
+
+      onNavigate({
+        preventDefault: () => {
+          isDefaultPrevented = true
+        },
+      })
+
+      if (isDefaultPrevented) {
+        return
+      }
+    }
+
+    const { dispatchNavigateAction } =
+      require('../components/app-router-instance') as typeof import('../components/app-router-instance')
+
+    React.startTransition(() => {
+      dispatchNavigateAction(
+        as || href,
+        replace ? 'replace' : 'push',
+        scroll ?? true,
+        linkInstanceRef.current
+      )
+    })
+  }
 }
 
 function formatStringOrUrl(urlObjOrString: UrlObject | string): string {

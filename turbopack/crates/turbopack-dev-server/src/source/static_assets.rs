@@ -126,13 +126,9 @@ impl Introspectable for StaticAssetsContentSource {
                 async move {
                     let child = match entry {
                         DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
-                            ResolvedVc::upcast(
-                                IntrospectableSource::new(Vc::upcast(FileSource::new(
-                                    path.clone(),
-                                )))
+                            IntrospectableSource::new(Vc::upcast(FileSource::new(path.clone())))
                                 .to_resolved()
-                                .await?,
-                            )
+                                .await?
                         }
                         DirectoryEntry::Directory(path) => ResolvedVc::upcast(
                             StaticAssetsContentSource::with_prefix(

@@ -86,6 +86,11 @@ describe('app dir - metadata dynamic routes', () => {
       }
     })
 
+    it('should 404 for non-existing id from generateImageMetadata', async () => {
+      const res = await next.fetch('/gsp/icon/non-existing-id')
+      expect(res.status).toBe(404)
+    })
+
     it('should not throw if client components are imported but not used in sitemap', async () => {
       const { status } = await next.fetch('/client-ref-dependency/sitemap.xml')
       expect(status).toBe(200)

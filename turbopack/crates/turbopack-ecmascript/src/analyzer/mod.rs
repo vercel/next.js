@@ -3747,7 +3747,7 @@ pub mod test_utils {
                 }
             }
             _ => {
-                let (mut v, m1) = replace_well_known(v, compile_time_info).await?;
+                let (mut v, m1) = replace_well_known(v, compile_time_info, true).await?;
                 let m2 = replace_builtin(&mut v);
                 let m = m1 || m2 || v.make_nested_operations_unknown();
                 return Ok((v, m));
@@ -3777,9 +3777,7 @@ mod tests {
     use turbo_tasks::{ResolvedVc, util::FormatDuration};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
-        environment::{
-            BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion,
-        },
+        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
         target::{Arch, CompileTarget, Endianness, Libc, Platform},
     };
 
@@ -4178,26 +4176,21 @@ mod tests {
         var_cache: &Mutex<FxHashMap<Id, JsValue>>,
     ) -> (JsValue, u32) {
         turbo_tasks_testing::VcStorage::with(async {
-            let css_environment = BrowserEnvironment::default().resolved_cell();
-
             let compile_time_info = CompileTimeInfo::builder(
-                Environment::new(
-                    ExecutionEnvironment::NodeJsLambda(
-                        NodeJsEnvironment {
-                            compile_target: CompileTarget {
-                                arch: Arch::X64,
-                                platform: Platform::Linux,
-                                endianness: Endianness::Little,
-                                libc: Libc::Glibc,
-                            }
-                            .resolved_cell(),
-                            node_version: NodeJsVersion::default().resolved_cell(),
-                            cwd: ResolvedVc::cell(None),
+                Environment::new(ExecutionEnvironment::NodeJsLambda(
+                    NodeJsEnvironment {
+                        compile_target: CompileTarget {
+                            arch: Arch::X64,
+                            platform: Platform::Linux,
+                            endianness: Endianness::Little,
+                            libc: Libc::Glibc,
                         }
                         .resolved_cell(),
-                    ),
-                    *css_environment,
-                )
+                        node_version: NodeJsVersion::default().resolved_cell(),
+                        cwd: ResolvedVc::cell(None),
+                    }
+                    .resolved_cell(),
+                ))
                 .to_resolved()
                 .await?,
             )

@@ -273,11 +273,7 @@ impl OutputChunk for CssChunk {
             .await?;
         let imports_chunk_items: Vec<_> = entries_chunk_items
             .iter()
-            .map(|&chunk_item| async move {
-                let Some(css_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(chunk_item)
-                else {
-                    return Ok(vec![]);
-                };
+            .map(|&css_item| async move {
                 Ok(css_item
                     .content()
                     .await?
@@ -290,7 +286,7 @@ impl OutputChunk for CssChunk {
                             None
                         }
                     })
-                    .collect())
+                    .collect::<Vec<_>>())
             })
             .try_join()
             .await?
@@ -544,12 +540,10 @@ impl ChunkType for CssChunkType {
     async fn chunk_item_size(
         &self,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-        chunk_item: Vc<Box<dyn ChunkItem>>,
+        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<usize>> {
-        let Some(chunk_item) =
-            Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(chunk_item).await?
-        else {
+        let Some(chunk_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(chunk_item) else {
             bail!("Chunk item is not an css chunk item but reporting chunk type css");
         };
         Ok(Vc::cell(chunk_item.content().await.map_or(0, |content| {

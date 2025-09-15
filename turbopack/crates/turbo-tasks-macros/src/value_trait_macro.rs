@@ -250,6 +250,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {
             unsafe impl turbo_tasks::Dynamic<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
             unsafe impl turbo_tasks::Upcast<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
+            unsafe impl turbo_tasks::UpcastStrict<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
         }
     } else {
         quote! {}
@@ -314,8 +315,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         }
 
         unsafe impl turbo_tasks::Dynamic<Box<dyn #trait_ident>> for Box<dyn #trait_ident> {}
-        // TODO(alexkirsz) It would be great to have the following identity. However, I run into an ICE when I attempt this,
-        // so tabling it for now.
         unsafe impl turbo_tasks::Upcast<Box<dyn #trait_ident>> for Box<dyn #trait_ident> {}
 
         impl<T> #trait_ident for T
@@ -328,6 +327,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         #(
             unsafe impl turbo_tasks::Dynamic<Box<dyn #supertraits>> for Box<dyn #trait_ident> {}
             unsafe impl turbo_tasks::Upcast<Box<dyn #supertraits>> for Box<dyn #trait_ident> {}
+            unsafe impl turbo_tasks::UpcastStrict<Box<dyn #supertraits>> for Box<dyn #trait_ident> {
+            }
         )*
 
         #value_debug_impl

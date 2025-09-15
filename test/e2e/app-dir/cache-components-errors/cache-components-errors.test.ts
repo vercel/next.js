@@ -10,6 +10,9 @@ describe('Cache Components Errors', () => {
     files: __dirname + '/fixtures/default',
     skipStart: !isNextDev,
     skipDeployment: true,
+    env: {
+      NEXT_USE_UNHANDLED_REJECTION_FILTER: 'enabled',
+    },
   })
   const isRspack = !!process.env.NEXT_RSPACK
 
@@ -241,13 +244,13 @@ describe('Cache Components Errors', () => {
                    at ScrollAndFocusHandler (bundler:///<next-src>)
                    at RenderFromTemplateContext (bundler:///<next-src>)
                    at OuterLayoutRouter (bundler:///<next-src>)
-                 333 |  */
-                 334 | function InnerLayoutRouter({
-               > 335 |   tree,
+                 330 |  */
+                 331 | function InnerLayoutRouter({
+               > 332 |   tree,
                      |   ^
-                 336 |   segmentPath,
-                 337 |   cacheNode,
-                 338 |   url,
+                 333 |   segmentPath,
+                 334 |   cacheNode,
+                 335 |   url,
                To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-metadata-error-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -748,13 +751,13 @@ describe('Cache Components Errors', () => {
                    at ScrollAndFocusHandler (bundler:///<next-src>)
                    at RenderFromTemplateContext (bundler:///<next-src>)
                    at OuterLayoutRouter (bundler:///<next-src>)
-                 333 |  */
-                 334 | function InnerLayoutRouter({
-               > 335 |   tree,
+                 330 |  */
+                 331 | function InnerLayoutRouter({
+               > 332 |   tree,
                      |   ^
-                 336 |   segmentPath,
-                 337 |   cacheNode,
-                 338 |   url,
+                 333 |   segmentPath,
+                 334 |   cacheNode,
+                 335 |   url,
                To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -2133,13 +2136,13 @@ describe('Cache Components Errors', () => {
                      at ScrollAndFocusHandler (bundler:///<next-src>)
                      at RenderFromTemplateContext (<anonymous>)
                      at OuterLayoutRouter (bundler:///<next-src>)
-                   333 |  */
-                   334 | function InnerLayoutRouter({
-                 > 335 |   tree,
+                   330 |  */
+                   331 | function InnerLayoutRouter({
+                 > 332 |   tree,
                        |   ^
-                   336 |   segmentPath,
-                   337 |   cacheNode,
-                   338 |   url,
+                   333 |   segmentPath,
+                   334 |   cacheNode,
+                   335 |   url,
                  To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-attribution/unguarded-async-guarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -3171,13 +3174,13 @@ describe('Cache Components Errors', () => {
                      at ScrollAndFocusHandler (bundler:///<next-src>)
                      at RenderFromTemplateContext (bundler:///<next-src>)
                      at OuterLayoutRouter (bundler:///<next-src>)
-                   333 |  */
-                   334 | function InnerLayoutRouter({
-                 > 335 |   tree,
+                   330 |  */
+                   331 | function InnerLayoutRouter({
+                 > 332 |   tree,
                        |   ^
-                   336 |   segmentPath,
-                   337 |   cacheNode,
-                   338 |   url,
+                   333 |   segmentPath,
+                   334 |   cacheNode,
+                   335 |   url,
                  To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -5071,6 +5074,91 @@ describe('Cache Components Errors', () => {
               `)
             }
           }
+        })
+      }
+    })
+
+    describe('Unhandled Rejection Suppression', () => {
+      const pathname = '/unhandled-rejection'
+
+      if (isNextDev) {
+        it('should suppress unhandled rejections during prerender validation in dev', async () => {
+          const browser = await next.browser(pathname)
+
+          await expect(browser).toDisplayCollapsedRedbox(`
+           [
+             {
+               "description": "BOOM",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": " ⨯ "unhandledRejection:" "BOOM"",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": " ⨯ "unhandledRejection: " "BOOM"",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": "BAM",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": " ⨯ "unhandledRejection:" "BAM"",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": " ⨯ "unhandledRejection: " "BAM"",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+           ]
+          `)
+        })
+      } else {
+        it('should suppress unhandled rejections after prerender abort', async () => {
+          try {
+            await prerender(pathname)
+          } catch {}
+
+          const output = getPrerenderOutput(
+            next.cliOutput.slice(cliOutputLength),
+            { isMinified: !isDebugPrerender }
+          )
+
+          expect(output).toMatchInlineSnapshot(`
+             "BOOM
+             BOOM"
+            `)
         })
       }
     })

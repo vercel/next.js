@@ -801,5 +801,12 @@
   "800": "`experimental.rdcForNavigations` is enabled, but `experimental.ppr` is not.",
   "801": "> `pages` and `app` directories should be under the same folder",
   "802": "Image with src \"%s\" has both \"preload\" and \"priority\" properties. Only \"preload\" should be used.",
-  "803": "Image with src \"%s\" has both \"preload\" and \"loading='lazy'\" properties. Only one should be used."
+  "803": "Image with src \"%s\" has both \"preload\" and \"loading='lazy'\" properties. Only one should be used.",
+  "804": "Did not start HotReloaderWebpack.",
+  "805": "Request ID is too long for the binary HMR message.",
+  "806": "Expected a request ID to be defined for the document via self.__next_r.",
+  "807": "Expected a %s response header.",
+  "808": "Invalid binary HMR message: insufficient data (expected %s bytes, got %s)",
+  "809": "Invalid binary HMR message of type %s",
+  "810": "React debug channel stream error"
 }
