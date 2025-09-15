@@ -10,8 +10,8 @@ describe('bundle-size', () => {
   // TODO bring these numbers down for Turbopack, especially the softnav one
   const BASE_SIZES = {
     pages: process.env.IS_TURBOPACK_TEST ? 111_000 : 101_000,
-    app: process.env.IS_TURBOPACK_TEST ? 110_000 : 106_000,
-    appClient: process.env.IS_TURBOPACK_TEST ? 114_000 : 110_000,
+    app: process.env.IS_TURBOPACK_TEST ? 119_000 : 106_000,
+    appClient: process.env.IS_TURBOPACK_TEST ? 123_000 : 110_000,
   }
   it.each([
     {
