@@ -98,18 +98,18 @@ pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     define_env: Vc<OptionEnvMap>,
 ) -> Result<Vc<CompileTimeInfo>> {
-    let environment = BrowserEnvironment {
-        dom: true,
-        web_worker: false,
-        service_worker: false,
-        browserslist_query: browserslist_query.to_owned(),
-    }
-    .resolved_cell();
-
     CompileTimeInfo::builder(
-        Environment::new(ExecutionEnvironment::Browser(environment), *environment)
-            .to_resolved()
-            .await?,
+        Environment::new(ExecutionEnvironment::Browser(
+            BrowserEnvironment {
+                dom: true,
+                web_worker: false,
+                service_worker: false,
+                browserslist_query: browserslist_query.to_owned(),
+            }
+            .resolved_cell(),
+        ))
+        .to_resolved()
+        .await?,
     )
     .defines(next_client_defines(define_env).to_resolved().await?)
     .free_var_references(next_client_free_vars(define_env).to_resolved().await?)
@@ -274,7 +274,7 @@ pub async fn get_client_module_options_context(
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
-    let css_target_browsers = env.css_runtime_versions();
+    let target_browsers = env.runtime_versions();
 
     let mut next_client_rules =
         get_next_client_transforms_rules(next_config, ty.clone(), mode, false, encryption_key)
@@ -287,7 +287,7 @@ pub async fn get_client_module_options_context(
         get_relay_transform_rule(next_config, project_path.clone()).await?,
         get_emotion_transform_rule(next_config).await?,
         get_styled_components_transform_rule(next_config).await?,
-        get_styled_jsx_transform_rule(next_config, css_target_browsers).await?,
+        get_styled_jsx_transform_rule(next_config, target_browsers).await?,
         get_react_remove_properties_transform_rule(next_config).await?,
         get_remove_console_transform_rule(next_config).await?,
     ]

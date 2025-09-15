@@ -795,7 +795,7 @@ export async function handleBuildComplete({
 
         let filePath = path.join(
           isAppPage ? appDistDir : pagesDistDir,
-          `${route}.${isAppPage && !dataRoute ? 'body' : 'html'}`
+          `${route === '/' ? 'index' : route}.${isAppPage && !dataRoute ? 'body' : 'html'}`
         )
 
         // we use the static 404 for notFound: true if available
@@ -851,7 +851,10 @@ export async function handleBuildComplete({
         outputs.prerenders.push(initialOutput)
 
         if (dataRoute) {
-          let dataFilePath = path.join(pagesDistDir, `${route}.json`)
+          let dataFilePath = path.join(
+            pagesDistDir,
+            `${route === '/' ? 'index' : route}.json`
+          )
 
           if (isAppPage) {
             // When experimental PPR is enabled, we expect that the data
@@ -933,7 +936,9 @@ export async function handleBuildComplete({
               ? {
                   filePath: path.join(
                     isAppPage ? appDistDir : pagesDistDir,
-                    fallback
+                    // app router dynamic route fallbacks don't have the
+                    // extension so ensure it's added here
+                    fallback.endsWith('.html') ? fallback : `${fallback}.html`
                   ),
                   initialStatus: fallbackStatus,
                   initialHeaders: {

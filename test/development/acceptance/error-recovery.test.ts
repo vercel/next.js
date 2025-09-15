@@ -245,7 +245,7 @@ describe('pages/ error recovery', () => {
     )
 
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
-    // Somehow we end up with two in React 18 + Turbopack due to React's attempt to recover from this error.
+    // Somehow we end up with two in React 18 + Turbopack/Rspack due to React's attempt to recover from this error.
     if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        [
@@ -273,6 +273,33 @@ describe('pages/ error recovery', () => {
              "Child child.js (3:9)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
+           ],
+         },
+       ]
+      `)
+    } else if (isReact18 && isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "description": "oops",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "child.js (3:9) @ Child
+       > 3 |   throw new Error('oops')
+           |         ^",
+           "stack": [
+             "Child child.js (3:9)",
+           ],
+         },
+         {
+           "description": "oops",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "child.js (3:9) @ Child
+       > 3 |   throw new Error('oops')
+           |         ^",
+           "stack": [
+             "Child child.js (3:9)",
            ],
          },
        ]
@@ -689,7 +716,7 @@ describe('pages/ error recovery', () => {
 
     // TODO(veil): Don't bail in Turbopack for sources outside of the project (https://linear.app/vercel/issue/NDX-944)
     // We get an error because Foo didn't import React. Fair.
-    // Somehow we end up with two in React 18 due to React's attempt to recover from this error.
+    // Somehow we end up with two in React 18 + Turbopack/Rspack due to React's attempt to recover from this error.
     if (isReact18 && isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        [
@@ -717,6 +744,33 @@ describe('pages/ error recovery', () => {
              "Foo Foo.js (3:3)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
+           ],
+         },
+       ]
+      `)
+    } else if (isReact18 && isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "description": "React is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "Foo.js (3:3) @ Foo
+       > 3 |   return React.createElement('h1', null, 'Foo');
+           |   ^",
+           "stack": [
+             "Foo Foo.js (3:3)",
+           ],
+         },
+         {
+           "description": "React is not defined",
+           "environmentLabel": null,
+           "label": "Runtime ReferenceError",
+           "source": "Foo.js (3:3) @ Foo
+       > 3 |   return React.createElement('h1', null, 'Foo');
+           |   ^",
+           "stack": [
+             "Foo Foo.js (3:3)",
            ],
          },
        ]

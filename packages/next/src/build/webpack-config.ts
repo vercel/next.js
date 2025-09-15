@@ -1190,7 +1190,7 @@ export default async function getBaseWebpackConfig(
           chunks: isRspack
             ? // using a function here causes noticable slowdown
               // in rspack
-              /(?!polyfills|main|pages\/_app)/
+              /^(?!(polyfills|main|pages\/_app)$).*$/
             : (chunk: any) =>
                 !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
 
@@ -1200,7 +1200,9 @@ export default async function getBaseWebpackConfig(
                   chunks: 'all' as const,
                   name: 'framework',
                   layer: RSPACK_DEFAULT_LAYERS_REGEX,
-                  test: /[/]node_modules[/](react|react-dom|next[/]dist[/]compiled[/](react|react-dom)(-experimental)?)[/]/,
+                  test: new RegExp(
+                    `^(${topLevelFrameworkPaths.map((p) => `(${escapeStringRegexp(p)})`).join('|')})`
+                  ),
                   priority: 40,
                   enforce: true,
                 },
