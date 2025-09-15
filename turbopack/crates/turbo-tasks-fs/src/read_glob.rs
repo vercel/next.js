@@ -580,7 +580,7 @@ pub mod tests {
             let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
             fs.root()
                 .await?
-                .track_glob(Glob::new(rcstr!("sub/*.js"), GlobOptions::default()), false)
+                .track_glob(Glob::new(rcstr!("sub/*.js")), false)
                 .await
         })
         .await
@@ -589,9 +589,7 @@ pub mod tests {
         tt.run_once(async {
             let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
             let root = fs.root().owned().await?;
-            let read_dir = root
-                .read_glob(Glob::new(rcstr!("sub/*.js"), GlobOptions::default()))
-                .await?;
+            let read_dir = root.read_glob(Glob::new(rcstr!("sub/*.js"))).await?;
             assert_eq!(read_dir.results.len(), 0);
             assert_eq!(read_dir.inner.len(), 1);
             let inner_sub = &*read_dir.inner.get("sub").unwrap().await?;
@@ -643,7 +641,7 @@ pub mod tests {
             let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), root));
             fs.root()
                 .await?
-                .track_glob(Glob::new(rcstr!("*.js"), GlobOptions::default()), false)
+                .track_glob(Glob::new(rcstr!("*.js")), false)
                 .await
         })
         .await
