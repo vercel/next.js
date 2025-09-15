@@ -160,7 +160,7 @@ export default (
     ],
     (isStandalone || isServer) &&
       (require('next/dist/compiled/babel/plugin-syntax-bigint') as typeof import('next/dist/compiled/babel/plugin-syntax-bigint')),
-  ]
+  ].filter(Boolean)
 
   if (isStandalone) {
     // Just enable a few syntax plugins, we'll let SWC handle any of the downleveling or
