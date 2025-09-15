@@ -69,6 +69,7 @@ export interface WorkStore {
    * to cache handlers to propagate their revalidation.
    */
   pendingRevalidatedTags?: string[]
+  pendingRevalidatedTagsWithProfile?: Array<{ tag: string; profile?: string }>
 
   /**
    * Tags that were previously revalidated (e.g. by a redirecting server action)

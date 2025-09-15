@@ -2,6 +2,9 @@ const cacheExports = {
   unstable_cache: require('next/dist/server/web/spec-extension/unstable-cache')
     .unstable_cache,
 
+  updateTag: require('next/dist/server/web/spec-extension/revalidate')
+    .updateTag,
+
   revalidateTag: require('next/dist/server/web/spec-extension/revalidate')
     .revalidateTag,
   revalidatePath: require('next/dist/server/web/spec-extension/revalidate')
@@ -28,6 +31,7 @@ module.exports = cacheExports
 exports.unstable_cache = cacheExports.unstable_cache
 exports.revalidatePath = cacheExports.revalidatePath
 exports.revalidateTag = cacheExports.revalidateTag
+exports.updateTag = cacheExports.updateTag
 exports.unstable_expireTag = cacheExports.unstable_expireTag
 exports.unstable_expirePath = cacheExports.unstable_expirePath
 exports.unstable_noStore = cacheExports.unstable_noStore

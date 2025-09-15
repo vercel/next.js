@@ -28,7 +28,10 @@ export async function withExecuteRevalidates<T>(
 type RevalidationState = Required<
   Pick<
     WorkStore,
-    'pendingRevalidatedTags' | 'pendingRevalidates' | 'pendingRevalidateWrites'
+    | 'pendingRevalidatedTags'
+    | 'pendingRevalidates'
+    | 'pendingRevalidateWrites'
+    | 'pendingRevalidatedTagsWithProfile'
   >
 >
 
@@ -36,6 +39,9 @@ function cloneRevalidationState(store: WorkStore): RevalidationState {
   return {
     pendingRevalidatedTags: store.pendingRevalidatedTags
       ? [...store.pendingRevalidatedTags]
+      : [],
+    pendingRevalidatedTagsWithProfile: store.pendingRevalidatedTagsWithProfile
+      ? [...store.pendingRevalidatedTagsWithProfile]
       : [],
     pendingRevalidates: { ...store.pendingRevalidates },
     pendingRevalidateWrites: store.pendingRevalidateWrites
@@ -49,11 +55,20 @@ function diffRevalidationState(
   curr: RevalidationState
 ): RevalidationState {
   const prevTags = new Set(prev.pendingRevalidatedTags)
+  const prevTagsWithProfile = new Set(
+    prev.pendingRevalidatedTagsWithProfile.map(
+      (item) => `${item.tag}:${item.profile || ''}`
+    )
+  )
   const prevRevalidateWrites = new Set(prev.pendingRevalidateWrites)
   return {
     pendingRevalidatedTags: curr.pendingRevalidatedTags.filter(
       (tag) => !prevTags.has(tag)
     ),
+    pendingRevalidatedTagsWithProfile:
+      curr.pendingRevalidatedTagsWithProfile.filter(
+        (item) => !prevTagsWithProfile.has(`${item.tag}:${item.profile || ''}`)
+      ),
     pendingRevalidates: Object.fromEntries(
       Object.entries(curr.pendingRevalidates).filter(
         ([key]) => !(key in prev.pendingRevalidates)
@@ -67,15 +82,54 @@ function diffRevalidationState(
 
 async function revalidateTags(
   tags: string[],
-  incrementalCache: IncrementalCache | undefined
+  incrementalCache: IncrementalCache | undefined,
+  tagsWithProfile?: Array<{ tag: string; profile?: string }>,
+  workStore?: WorkStore
 ): Promise<void> {
-  if (tags.length === 0) {
+  if (tags.length === 0 && (!tagsWithProfile || tagsWithProfile.length === 0)) {
     return
   }
 
   const promises: Promise<void>[] = []
 
-  if (incrementalCache) {
+  if (incrementalCache && tagsWithProfile && tagsWithProfile.length > 0) {
+    // Group tags by profile for batch processing
+    const tagsByProfile = new Map<string | undefined, string[]>()
+
+    for (const item of tagsWithProfile) {
+      const profile = item.profile
+      if (!tagsByProfile.has(profile)) {
+        tagsByProfile.set(profile, [])
+      }
+      tagsByProfile.get(profile)!.push(item.tag)
+    }
+
+    // Process each profile group
+    for (const [profile, tagsForProfile] of tagsByProfile) {
+      // Look up the cache profile from workStore if available
+      let durations: { stale?: number; expire?: number } | undefined
+
+      if (profile && workStore?.cacheLifeProfiles?.[profile]) {
+        const cacheLife = workStore.cacheLifeProfiles[profile]
+        durations = {
+          stale: cacheLife.stale,
+          expire: cacheLife.expire,
+        }
+      } else if (profile === 'max') {
+        // Default 'max' profile: stale immediately, expire in 1 year
+        const oneYearInSeconds = 365 * 24 * 60 * 60
+        durations = {
+          stale: 0,
+          expire: oneYearInSeconds,
+        }
+      }
+      // If profile is not found and not 'max', durations will be undefined
+      // which will trigger immediate expiration in the cache handler
+
+      promises.push(incrementalCache.revalidateTag(tagsForProfile, durations))
+    }
+  } else if (incrementalCache && tags.length > 0) {
+    // Fallback to old behavior for compatibility
     promises.push(incrementalCache.revalidateTag(tags))
   }
 
@@ -96,6 +150,11 @@ export async function executeRevalidates(
   const pendingRevalidatedTags =
     state?.pendingRevalidatedTags ?? workStore.pendingRevalidatedTags ?? []
 
+  const pendingRevalidatedTagsWithProfile =
+    state?.pendingRevalidatedTagsWithProfile ??
+    workStore.pendingRevalidatedTagsWithProfile ??
+    []
+
   const pendingRevalidates =
     state?.pendingRevalidates ?? workStore.pendingRevalidates ?? {}
 
@@ -103,7 +162,12 @@ export async function executeRevalidates(
     state?.pendingRevalidateWrites ?? workStore.pendingRevalidateWrites ?? []
 
   return Promise.all([
-    revalidateTags(pendingRevalidatedTags, workStore.incrementalCache),
+    revalidateTags(
+      pendingRevalidatedTags,
+      workStore.incrementalCache,
+      pendingRevalidatedTagsWithProfile,
+      workStore
+    ),
     ...Object.values(pendingRevalidates),
     ...pendingRevalidateWrites,
   ])

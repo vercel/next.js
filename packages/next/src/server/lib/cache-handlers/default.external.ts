@@ -10,7 +10,7 @@
 import { LRUCache } from '../lru-cache'
 import type { CacheEntry, CacheHandlerV2 } from './types'
 import {
-  isStale,
+  areTagsExpired,
   tagsManifest,
 } from '../incremental-cache/tags-manifest.external'
 
@@ -74,8 +74,8 @@ const DefaultCacheHandler: CacheHandlerV2 = {
       return undefined
     }
 
-    if (isStale(entry.tags, entry.timestamp)) {
-      debug?.('get', cacheKey, 'had stale tag')
+    if (areTagsExpired(entry.tags, entry.timestamp)) {
+      debug?.('get', cacheKey, 'had expired tag')
 
       return undefined
     }
@@ -139,9 +139,14 @@ const DefaultCacheHandler: CacheHandlerV2 = {
   },
 
   async getExpiration(...tags) {
-    const expiration = Math.max(
-      ...tags.map((tag) => tagsManifest.get(tag) ?? 0)
-    )
+    const expirations = tags.map((tag) => {
+      const entry = tagsManifest.get(tag)
+      if (!entry) return 0
+      // Return the most recent timestamp (either expired or stale)
+      return entry.expired || 0
+    })
+
+    const expiration = Math.max(...expirations, 0)
 
     debug?.('getExpiration', { tags, expiration })
 
@@ -154,7 +159,9 @@ const DefaultCacheHandler: CacheHandlerV2 = {
 
     for (const tag of tags) {
       // TODO: update file-system-cache?
-      tagsManifest.set(tag, timestamp)
+      const existingEntry = tagsManifest.get(tag) || {}
+      // For expireTags, we set expired to immediate expiration
+      tagsManifest.set(tag, { ...existingEntry, expired: timestamp })
     }
   },
 }

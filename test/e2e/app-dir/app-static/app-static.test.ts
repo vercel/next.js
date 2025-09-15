@@ -911,6 +911,8 @@ describe('app-dir static/dynamic handling', () => {
          "unstable-cache/fetch/no-cache.rsc",
          "unstable-cache/fetch/no-store.html",
          "unstable-cache/fetch/no-store.rsc",
+         "update-tag-test.html",
+         "update-tag-test.rsc",
          "variable-config-revalidate/revalidate-3.html",
          "variable-config-revalidate/revalidate-3.rsc",
          "variable-revalidate-stable/revalidate-3.html",
@@ -2265,6 +2267,31 @@ describe('app-dir static/dynamic handling', () => {
            "initialRevalidateSeconds": false,
            "prefetchDataRoute": null,
            "srcRoute": "/unstable-cache/fetch/no-store",
+         },
+         "/update-tag-test": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/update-tag-test.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "next-action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": false,
+           "prefetchDataRoute": null,
+           "srcRoute": "/update-tag-test",
          },
          "/variable-config-revalidate/revalidate-3": {
            "allowHeader": [
@@ -4592,5 +4619,73 @@ describe('app-dir static/dynamic handling', () => {
   it('should build dynamic param with edge runtime correctly', async () => {
     const browser = await next.browser('/dynamic-param-edge/hello')
     expect(await browser.elementByCss('#slug').text()).toBe('hello')
+  })
+
+  describe('updateTag', () => {
+    it('should throw error when updateTag is called in route handler', async () => {
+      const res = await next.fetch('/api/update-tag-error')
+      const data = await res.json()
+
+      expect(data.error).toContain(
+        'updateTag can only be called from within a Server Action'
+      )
+    })
+
+    it('should successfully update tag when called from server action', async () => {
+      // First fetch to get initial data
+      const browser = await next.browser('/update-tag-test')
+      const initialData = JSON.parse(await browser.elementByCss('#data').text())
+
+      await retry(async () => {
+        // Click update button to trigger server action with updateTag
+        await browser.elementByCss('#update-button').click()
+
+        // Refresh the page to see if cache was invalidated
+        await browser.refresh()
+        const newData = JSON.parse(await browser.elementByCss('#data').text())
+
+        // Data should be different after updateTag (immediate expiration)
+        expect(newData).not.toEqual(initialData)
+      })
+    })
+
+    it('should use revalidateTag with max profile in server actions', async () => {
+      // First fetch to get initial data
+      const browser = await next.browser('/update-tag-test')
+      const initialData = JSON.parse(await browser.elementByCss('#data').text())
+
+      // Click revalidate button to trigger server action with revalidateTag(..., 'max')
+      await browser.elementByCss('#revalidate-button').click()
+
+      // The behavior with 'max' profile would be stale-while-revalidate
+      // Initial request after revalidation might still show stale data
+      await retry(async () => {
+        await browser.refresh()
+        const dataAfterRevalidate = JSON.parse(
+          await browser.elementByCss('#data').text()
+        )
+
+        expect(dataAfterRevalidate).toBeDefined()
+        expect(dataAfterRevalidate).not.toBe(initialData)
+      })
+    })
+
+    // Runtime logs aren't queryable in deploy mode
+    if (!isNextDeploy) {
+      it('should show deprecation warning for revalidateTag without second argument', async () => {
+        const cliOutputStart = next.cliOutput.length
+
+        const browser = await next.browser('/update-tag-test')
+
+        await retry(async () => {
+          // Click deprecated button to trigger server action with revalidateTag (no second arg)
+          await browser.elementByCss('#deprecated-button').click()
+          const output = next.cliOutput.substring(cliOutputStart)
+          expect(output).toContain(
+            'revalidateTag without the second argument is now deprecated'
+          )
+        })
+      })
+    }
   })
 })

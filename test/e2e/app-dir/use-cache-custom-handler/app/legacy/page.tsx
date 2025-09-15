@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import {
   unstable_cacheLife as cacheLife,
   unstable_cacheTag as cacheTag,
-  revalidateTag,
+  updateTag,
 } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
@@ -35,7 +35,7 @@ export default async function Legacy() {
         action={async () => {
           'use server'
 
-          revalidateTag('legacy')
+          updateTag('legacy')
           redirect('/legacy')
         }}
       >

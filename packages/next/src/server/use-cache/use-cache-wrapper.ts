@@ -1372,7 +1372,7 @@ export function cache(
               implicitTagsExpiration
             )
           ) {
-            debug?.('discarding stale entry', serializedCacheKey)
+            debug?.('discarding expired entry', serializedCacheKey)
             entry = undefined
           }
         }
