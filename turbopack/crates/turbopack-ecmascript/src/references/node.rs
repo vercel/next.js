@@ -1,5 +1,4 @@
 use anyhow::Result;
-use either::Either;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
