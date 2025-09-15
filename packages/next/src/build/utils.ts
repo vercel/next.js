@@ -180,16 +180,12 @@ export async function printTreeView(
   },
   pageInfos: Map<string, PageInfo>,
   {
-    distPath: _distPath,
-    buildId: _buildId,
     pagesDir,
     pageExtensions,
     buildManifest,
     middlewareManifest,
     useStaticPages404,
   }: {
-    distPath: string
-    buildId: string
     pagesDir?: string
     pageExtensions: PageExtensions
     buildManifest: BuildManifest
@@ -251,11 +247,6 @@ export async function printTreeView(
       if (showRevalidate && showExpire) {
         break
       }
-    }
-
-    // Only show routes table if there are additional columns to display
-    if (!showRevalidate && !showExpire) {
-      return
     }
 
     messages.push(
@@ -346,10 +337,7 @@ export async function printTreeView(
         const contSymbol = i === arr.length - 1 ? ' ' : '├'
 
         let routes: { route: string; duration: number; avgDuration?: number }[]
-        if (
-          pageInfo.ssgPageDurations &&
-          pageInfo.ssgPageDurations.some((d) => d > MIN_DURATION)
-        ) {
+        if (pageInfo.ssgPageDurations?.some((d) => d > MIN_DURATION)) {
           const previewPages = totalRoutes === 8 ? 8 : Math.min(totalRoutes, 7)
           const routesWithDuration = pageInfo.ssgPageRoutes
             .map((route, idx) => ({

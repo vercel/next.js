@@ -4136,8 +4136,6 @@ export default async function build(
 
       await nextBuildSpan.traceChild('print-tree-view').traceAsyncFn(() =>
         printTreeView(pageKeys, pageInfos, {
-          distPath: distDir,
-          buildId: buildId,
           pagesDir,
           useStaticPages404,
           pageExtensions: config.pageExtensions,
