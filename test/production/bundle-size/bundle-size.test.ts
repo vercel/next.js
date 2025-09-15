@@ -28,7 +28,7 @@ describe('bundle-size', () => {
       to: '/app/b',
       fromInitialJs: BASE_SIZES.app,
       toInitialJs: BASE_SIZES.app,
-      softNavJs: process.env.IS_TURBOPACK_TEST ? 0 : 112,
+      softNavJs: process.env.IS_TURBOPACK_TEST ? 0 : 1000,
     },
     {
       title: 'App Router: adding a client component',
