@@ -23,7 +23,7 @@ const nextConfig = {
   },
   webpack(config, { dev }) {
     config.module.rules.push({
-      test: /app\/.*\/page\.tsx|pages\/pages\.tsx/,
+      test: /app(?:\/.*)?\/page\.tsx|pages\/pages\.tsx/,
       use: ['./my-loader.js'],
     })
     if (dev) {

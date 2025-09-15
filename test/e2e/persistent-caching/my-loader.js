@@ -1,5 +1,4 @@
 module.exports = async function myLoader(source) {
-  console.log('Loader is running!')
   if (this._compiler && this._compiler.__extra_delay) {
     if (!this._compilation.__extra_delay) {
       this._compilation.__extra_delay = true
