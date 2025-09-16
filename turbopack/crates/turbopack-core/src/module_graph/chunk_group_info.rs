@@ -288,6 +288,47 @@ pub enum ChunkGroupKey {
     },
 }
 
+impl ChunkGroupKey {
+    pub async fn debug_str(
+        &self,
+        keys: impl std::ops::Index<usize, Output = Self>,
+    ) -> Result<String> {
+        Ok(match self {
+            ChunkGroupKey::Entry(entries) => format!(
+                "Entry({:?})",
+                entries
+                    .iter()
+                    .map(|m| m.ident().to_string())
+                    .try_join()
+                    .await?
+            ),
+            ChunkGroupKey::Async(module) => {
+                format!("Async({:?})", module.ident().to_string().await?)
+            }
+            ChunkGroupKey::Isolated(module) => {
+                format!("Isolated({:?})", module.ident().to_string().await?)
+            }
+            ChunkGroupKey::IsolatedMerged { parent, merge_tag } => {
+                format!(
+                    "IsolatedMerged {{ parent: {}, merge_tag: {:?} }}",
+                    Box::pin(keys.index(parent.0 as usize).clone().debug_str(keys)).await?,
+                    merge_tag
+                )
+            }
+            ChunkGroupKey::Shared(module) => {
+                format!("Shared({:?})", module.ident().to_string().await?)
+            }
+            ChunkGroupKey::SharedMerged { parent, merge_tag } => {
+                format!(
+                    "SharedMerged {{ parent: {}, merge_tag: {:?} }}",
+                    Box::pin(keys.index(parent.0 as usize).clone().debug_str(keys)).await?,
+                    merge_tag
+                )
+            }
+        })
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ChunkGroupId(u32);
 
@@ -644,6 +685,53 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         span.record("visit_count", visit_count);
         span.record("chunk_group_count", chunk_groups_map.len());
+
+        #[cfg(debug_assertions)]
+        {
+            use once_cell::sync::Lazy;
+            static PRINT_CHUNK_GROUP_INFO: Lazy<bool> =
+                Lazy::new(|| match std::env::var_os("TURBOPACK_PRINT_CHUNK_GROUPS") {
+                    Some(v) => v == "1",
+                    None => false,
+                });
+            if *PRINT_CHUNK_GROUP_INFO {
+                use std::{
+                    collections::{BTreeMap, BTreeSet},
+                    path::absolute,
+                };
+
+                let mut buckets = BTreeMap::default();
+                for (module, key) in &module_chunk_groups {
+                    if !key.is_empty() {
+                        buckets
+                            .entry(key.iter().collect::<Vec<_>>())
+                            .or_insert(BTreeSet::new())
+                            .insert(module.ident().to_string().await?);
+                    }
+                }
+
+                let mut result = vec![];
+                result.push("Chunk Groups:".to_string());
+                for (i, (key, _)) in chunk_groups_map.iter().enumerate() {
+                    result.push(format!(
+                        "  {:?}: {}",
+                        i,
+                        key.debug_str(chunk_groups_map.keys()).await?
+                    ));
+                }
+                result.push("# Module buckets:".to_string());
+                for (key, modules) in buckets.iter() {
+                    result.push(format!("## {:?}:", key.iter().collect::<Vec<_>>()));
+                    for module in modules {
+                        result.push(format!("  {module}"));
+                    }
+                    result.push("".to_string());
+                }
+                let f = absolute("chunk_group_info.log")?;
+                println!("written to {}", f.display());
+                std::fs::write(f, result.join("\n"))?;
+            }
+        }
 
         Ok(ChunkGroupInfo {
             module_chunk_groups,
