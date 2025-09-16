@@ -105,8 +105,6 @@ async function getTsConfig(cwd: string): Promise<CompilerOptions> {
   return parsedCommandLine.options
 }
 
-let useNodeNativeTSLoader = true
-
 export async function transpileConfig({
   nextConfigPath,
   configFileName,
@@ -117,7 +115,8 @@ export async function transpileConfig({
   cwd: string
 }) {
   try {
-    if (useNodeNativeTSLoader) {
+    // envs are passed to the workers and preserve the flag
+    if (process.env.__NEXT_NODE_NATIVE_TS_LOADER_FAILED !== '1') {
       try {
         // Node.js v22.10.0+
         // Value is 'strip' or 'transform' based on how the feature is enabled.
@@ -140,7 +139,7 @@ export async function transpileConfig({
         }
 
         // Feature is not enabled, fallback to legacy resolution for current session.
-        useNodeNativeTSLoader = false
+        process.env.__NEXT_NODE_NATIVE_TS_LOADER_FAILED = '1'
       } catch (cause) {
         warnOnce(
           `Failed to import "${configFileName}" using Node.js native TypeScript resolution.` +
@@ -148,7 +147,7 @@ export async function transpileConfig({
           { cause }
         )
         // Once failed, fallback to legacy resolution for current session.
-        useNodeNativeTSLoader = false
+        process.env.__NEXT_NODE_NATIVE_TS_LOADER_FAILED = '1'
       }
     }
 
