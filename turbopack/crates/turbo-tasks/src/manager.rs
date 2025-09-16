@@ -77,16 +77,13 @@ pub trait TurboTasksCallApi: Sync + Send {
     fn run_once(
         &self,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId;
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
     fn run_once_with_reason(
         &self,
         reason: StaticOrArc<dyn InvalidationReason>,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId;
-    fn run_once_process(
-        &self,
-        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId;
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
+    fn start_once_process(&self, future: Pin<Box<dyn Future<Output = ()> + Send + 'static>>);
 }
 
 /// A type-erased subset of [`TurboTasks`] stored inside a thread local when we're in a turbo task
@@ -493,7 +490,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     /// Creates a new root task, that is only executed once.
     /// Dependencies will not invalidate the task.
     #[track_caller]
-    pub fn spawn_once_task<T, Fut>(&self, future: Fut) -> TaskId
+    fn spawn_once_task<T, Fut>(&self, future: Fut) -> TaskId
     where
         T: ?Sized,
         Fut: Future<Output = Result<Vc<T>>> + Send + 'static,
@@ -531,6 +528,21 @@ impl<B: Backend + 'static> TurboTasks<B> {
         .await?;
 
         Ok(rx.await?)
+    }
+
+    pub fn start_once_process(&self, future: impl Future<Output = ()> + Send + 'static) {
+        let this = self.pin();
+        tokio::spawn(async move {
+            this.pin()
+                .run_once(async move {
+                    this.finish_foreground_job();
+                    future.await;
+                    this.begin_foreground_job();
+                    Ok(())
+                })
+                .await
+                .unwrap()
+        });
     }
 
     pub(crate) fn native_call(
@@ -1109,11 +1121,9 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
     fn run_once(
         &self,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
-        self.spawn_once_task(async move {
-            future.await?;
-            Ok(Completion::new())
-        })
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
+        let this = self.pin();
+        Box::pin(async move { this.run_once(future).await })
     }
 
     #[track_caller]
@@ -1121,29 +1131,18 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         &self,
         reason: StaticOrArc<dyn InvalidationReason>,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
         {
             let (_, reason_set) = &mut *self.aggregated_update.lock().unwrap();
             reason_set.insert(reason);
         }
-        self.spawn_once_task(async move {
-            future.await?;
-            Ok(Completion::new())
-        })
+        let this = self.pin();
+        Box::pin(async move { this.run_once(future).await })
     }
 
     #[track_caller]
-    fn run_once_process(
-        &self,
-        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
-        let this = self.pin();
-        self.spawn_once_task(async move {
-            this.finish_foreground_job();
-            future.await?;
-            this.begin_foreground_job();
-            Ok(Completion::new())
-        })
+    fn start_once_process(&self, future: Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
+        self.start_once_process(future)
     }
 }
 
@@ -1428,18 +1427,13 @@ pub async fn run_once<T: Send + 'static>(
 ) -> Result<T> {
     let (tx, rx) = tokio::sync::oneshot::channel();
 
-    let task_id = tt.run_once(Box::pin(async move {
+    tt.run_once(Box::pin(async move {
         let result = future.await?;
         tx.send(result)
             .map_err(|_| anyhow!("unable to send result"))?;
         Ok(())
-    }));
-
-    // INVALIDATION: A Once task will never invalidate, therefore we don't need to
-    // track a dependency
-    let raw_result = read_task_output_untracked(&*tt, task_id, ReadConsistency::Eventual).await?;
-    let raw_future = raw_result.into_read().untracked();
-    turbo_tasks_future_scope(tt, ReadVcFuture::<Completion>::from(raw_future)).await?;
+    }))
+    .await?;
 
     Ok(rx.await?)
 }
@@ -1451,7 +1445,7 @@ pub async fn run_once_with_reason<T: Send + 'static>(
 ) -> Result<T> {
     let (tx, rx) = tokio::sync::oneshot::channel();
 
-    let task_id = tt.run_once_with_reason(
+    tt.run_once_with_reason(
         (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
         Box::pin(async move {
             let result = future.await?;
@@ -1459,13 +1453,8 @@ pub async fn run_once_with_reason<T: Send + 'static>(
                 .map_err(|_| anyhow!("unable to send result"))?;
             Ok(())
         }),
-    );
-
-    // INVALIDATION: A Once task will never invalidate, therefore we don't need to
-    // track a dependency
-    let raw_result = read_task_output_untracked(&*tt, task_id, ReadConsistency::Eventual).await?;
-    let raw_future = raw_result.into_read().untracked();
-    turbo_tasks_future_scope(tt, ReadVcFuture::<Completion>::from(raw_future)).await?;
+    )
+    .await?;
 
     Ok(rx.await?)
 }
