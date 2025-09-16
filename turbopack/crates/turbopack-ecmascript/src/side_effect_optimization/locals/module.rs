@@ -111,7 +111,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             .await?;
 
         Ok(EcmascriptModuleContentOptions {
-            parsed,
+            parsed: Some(parsed),
             module: ResolvedVc::upcast(self),
             specified_module_type: module_type_result.module_type,
             chunking_context,

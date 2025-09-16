@@ -10,7 +10,6 @@ use swc_core::{
         errors::{HANDLER, Handler},
         input::StringInput,
         source_map::{Files, SourceMapGenConfig, build_source_map},
-        util::take::Take,
     },
     ecma::{
         ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
@@ -44,7 +43,7 @@ use turbopack_swc_utils::emitter::IssueEmitter;
 use super::EcmascriptModuleAssetType;
 use crate::{
     EcmascriptInputTransform,
-    analyzer::{ImportMap, graph::EvalContext},
+    analyzer::graph::EvalContext,
     swc_comments::ImmutableComments,
     transform::{EcmascriptInputTransforms, TransformContext},
 };
@@ -77,28 +76,6 @@ impl PartialEq for ParseResult {
             (Self::Ok { .. }, Self::Ok { .. }) => false,
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ParseResult {
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<ParseResult> {
-        let globals = Globals::new();
-        let eval_context = GLOBALS.set(&globals, || EvalContext {
-            unresolved_mark: Mark::new(),
-            top_level_mark: Mark::new(),
-            imports: ImportMap::default(),
-            force_free_values: Default::default(),
-        });
-        ParseResult::Ok {
-            program: Program::Module(swc_core::ecma::ast::Module::dummy()),
-            comments: Default::default(),
-            eval_context,
-            globals: Arc::new(globals),
-            source_map: Default::default(),
-        }
-        .cell()
     }
 }
 
