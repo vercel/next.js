@@ -113,26 +113,28 @@ module.exports = nextConfig
 
 ### Using Node.js Native TypeScript Resolver for `next.config.ts`
 
-> **Note**: Using Node.js native TypeScript resolver for `next.config.ts` is available for Node.js v22.10.0 and higher, and only when the feature is enabled. Next.js does not enable the feature by default.
+> **Note**: Available on Node.js v22.10.0+ and only when the feature is enabled. Next.js does not enable it.
 
-Next.js feature detects [Node.js native TypeScript resolver](https://nodejs.org/api/typescript.html) by [`process.features.typescript`](https://nodejs.org/api/process.html#processfeaturestypescript) which was added in Node.js v22.10.0. This allows `next.config.ts` to use native ECMAScript Modules (ESM) syntax like top-level `await` and dynamic imports in `next.config.ts`. However, it inherits the limitations of the Node.js native TypeScript resolver.
+Next.js detects the [Node.js native TypeScript resolver](https://nodejs.org/api/typescript.html) via [`process.features.typescript`](https://nodejs.org/api/process.html#processfeaturestypescript), added in **v22.10.0**. When present, `next.config.ts` can use native ESM, including top‑level `await` and dynamic `import()`. This mechanism inherits the capabilities and limitations of Node's resolver.
 
-Node.js enables the feature by default since [v22.18.0](https://nodejs.org/en/blog/release/v22.18.0). For versions below v22.18.0, you need to run `next dev` with `NODE_OPTIONS=--experimental-transform-types` flag to enable the Node.js native TypeScript resolver:
+In Node.js versions **v22.18.0+**, `process.features.typescript` is enabled by default. For versions between **v22.10.0** and **22.17.x**, opt in with `NODE_OPTIONS=--experimental-transform-types`:
 
-```bash
+```bash filename="Terminal"
 NODE_OPTIONS=--experimental-transform-types next <command>
 ```
 
-Although `next.config.ts` supports native ESM syntax on CommonJS projects, Node.js will still assume `next.config.ts` is a CommonJS file by default, resulting in Node.js reparsing the file as ESM when module syntax is detected. Therefore, we recommend using the `next.config.mts` file for CommonJS projects.
+In CommonJS projects, Node treats `.ts` as CommonJS. If `next.config.ts` uses ESM syntax, Node detects that and parses the file again using ESM. This works but will print an error indicating this incurs a performance overhead. Use `next.config.mts` to declare ESM up front and avoid the extra pass.
 
 ```ts filename="next.config.mts"
 import type { NextConfig } from 'next'
 
+// Top-level await and dynamic import are supported
+const flags = await import('./flags.js').then((m) => m.default ?? m)
+
 const nextConfig: NextConfig = {
   /* config options here */
+  typedRoutes: Boolean(flags?.typedRoutes),
 }
-
-export default nextConfig
 ```
 
 ### Statically Typed Links
