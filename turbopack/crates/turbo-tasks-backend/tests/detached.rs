@@ -11,13 +11,13 @@ use turbo_tasks::{
     trace::{TraceRawVcs, TraceRawVcsContext},
     turbo_tasks,
 };
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_spawns_detached() -> anyhow::Result<()> {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`, just
         // disable GC for the test so this can't cause any problems.
         prevent_gc();
@@ -84,7 +84,7 @@ async fn spawns_detached(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_spawns_detached_changing() -> anyhow::Result<()> {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`
         prevent_gc();
         // timeout: prevent the test from hanging, and fail instead if this is broken

@@ -25,7 +25,9 @@ use turbo_tasks::{
     util::{SharedError, StaticOrArc},
 };
 
-pub use crate::run::{Registration, run, run_with_tt, run_without_cache_check};
+pub use crate::run::{
+    Registration, run, run_once, run_once_without_cache_check, run_with_tt, run_without_cache_check,
+};
 
 enum Task {
     Spawned(Event),
@@ -115,6 +117,15 @@ impl TurboTasksCallApi for VcStorage {
         _arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
     ) -> RawVc {
+        unreachable!()
+    }
+
+    fn run(
+        &self,
+        _future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
+    ) -> Pin<
+        Box<dyn Future<Output = Result<(), turbo_tasks::backend::TurboTasksExecutionError>> + Send>,
+    > {
         unreachable!()
     }
 

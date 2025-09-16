@@ -600,11 +600,13 @@ pub trait Backend: Sync + Send {
         }
     }
 
+    /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
+    /// using it could break cache invalidation.
     fn read_task_collectibles(
         &self,
         task: TaskId,
         trait_id: TraitTypeId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskCollectiblesMap;
 
@@ -636,14 +638,14 @@ pub trait Backend: Sync + Send {
     fn get_or_create_persistent_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 
     fn get_or_create_transient_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 
