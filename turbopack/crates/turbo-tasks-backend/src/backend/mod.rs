@@ -124,12 +124,6 @@ pub struct BackendOptions {
     /// forever.
     pub dependency_tracking: bool,
 
-    /// Enables children tracking.
-    ///
-    /// When disabled: Strongly consistent reads are only eventually consistent. All tasks are
-    /// considered as active. Collectibles are disabled.
-    pub children_tracking: bool,
-
     /// Enables active tracking.
     ///
     /// Automatically disabled when `dependency_tracking` is disabled.
@@ -148,7 +142,6 @@ impl Default for BackendOptions {
     fn default() -> Self {
         Self {
             dependency_tracking: true,
-            children_tracking: true,
             active_tracking: true,
             storage_mode: Some(StorageMode::ReadWrite),
             small_preallocation: false,
@@ -386,10 +379,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.options.active_tracking
     }
 
-    fn should_track_children(&self) -> bool {
-        self.options.children_tracking
-    }
-
     fn track_cache_hit(&self, task_type: &CachedTaskType) {
         self.task_statistics
             .map(|stats| stats.increment_cache_hit(task_type.native_fn));
@@ -509,7 +498,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        if self.should_track_children() && matches!(consistency, ReadConsistency::Strong) {
+        if matches!(consistency, ReadConsistency::Strong) {
             // Ensure it's an root node
             loop {
                 let aggregation_number = get_aggregation_number(&task);
@@ -1597,27 +1586,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 })),
             });
 
-            if self.should_track_children() {
-                // Make all current collectibles outdated (remove left-over outdated collectibles)
-                enum Collectible {
-                    Current(CollectibleRef, i32),
-                    Outdated(CollectibleRef),
-                }
-                let collectibles = iter_many!(task, Collectible { collectible } value => Collectible::Current(collectible, *value))
+            // Make all current collectibles outdated (remove left-over outdated collectibles)
+            enum Collectible {
+                Current(CollectibleRef, i32),
+                Outdated(CollectibleRef),
+            }
+            let collectibles = iter_many!(task, Collectible { collectible } value => Collectible::Current(collectible, *value))
                     .chain(iter_many!(task, OutdatedCollectible { collectible } => Collectible::Outdated(collectible)))
                     .collect::<Vec<_>>();
-                for collectible in collectibles {
-                    match collectible {
-                        Collectible::Current(collectible, value) => {
-                            let _ = task
-                                .insert(CachedDataItem::OutdatedCollectible { collectible, value });
-                        }
-                        Collectible::Outdated(collectible) => {
-                            if !task.has_key(&CachedDataItemKey::Collectible { collectible }) {
-                                task.remove(&CachedDataItemKey::OutdatedCollectible {
-                                    collectible,
-                                });
-                            }
+            for collectible in collectibles {
+                match collectible {
+                    Collectible::Current(collectible, value) => {
+                        let _ =
+                            task.insert(CachedDataItem::OutdatedCollectible { collectible, value });
+                    }
+                    Collectible::Outdated(collectible) => {
+                        if !task.has_key(&CachedDataItemKey::Collectible { collectible }) {
+                            task.remove(&CachedDataItemKey::OutdatedCollectible { collectible });
                         }
                     }
                 }
@@ -1883,18 +1868,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
             }));
         }
-        if self.should_track_children() {
-            old_edges.extend(
-                task.iter(CachedDataItemType::OutdatedCollectible)
-                    .filter_map(|(key, value)| match (key, value) {
-                        (
-                            CachedDataItemKey::OutdatedCollectible { collectible },
-                            CachedDataItemValueRef::OutdatedCollectible { value },
-                        ) => Some(OutdatedEdge::Collectible(collectible, *value)),
-                        _ => None,
-                    }),
-            );
-        }
+
+        old_edges.extend(
+            task.iter(CachedDataItemType::OutdatedCollectible)
+                .filter_map(|(key, value)| match (key, value) {
+                    (
+                        CachedDataItemKey::OutdatedCollectible { collectible },
+                        CachedDataItemValueRef::OutdatedCollectible { value },
+                    ) => Some(OutdatedEdge::Collectible(collectible, *value)),
+                    _ => None,
+                }),
+        );
+
         if self.should_track_dependencies() {
             old_edges.extend(iter_many!(task, OutdatedCellDependency { target } => OutdatedEdge::CellDependency(target)));
             old_edges.extend(iter_many!(task, OutdatedOutputDependency { target } => OutdatedEdge::OutputDependency(target)));
@@ -2080,9 +2065,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task.remove(&CachedDataItemKey::Dirty {});
             }
 
-            if self.should_track_children()
-                && (old_dirty_state.is_some() || new_dirty_state.is_some())
-            {
+            if old_dirty_state.is_some() || new_dirty_state.is_some() {
                 let mut dirty_containers = get!(task, AggregatedDirtyContainerCount)
                     .cloned()
                     .unwrap_or_default();
@@ -2284,10 +2267,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         reader_id: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
-        if !self.should_track_children() {
-            return AutoMap::default();
-        }
-
         let mut ctx = self.execute_context(turbo_tasks);
         let mut collectibles = AutoMap::default();
         {
@@ -2363,9 +2342,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         self.assert_valid_collectible(task_id, collectible);
-        if !self.should_track_children() {
-            return;
-        }
 
         let RawVc::TaskCell(collectible_task, cell) = collectible else {
             panic!("Collectibles need to be resolved");
@@ -2394,9 +2370,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         self.assert_valid_collectible(task_id, collectible);
-        if !self.should_track_children() {
-            return;
-        }
 
         let RawVc::TaskCell(collectible_task, cell) = collectible else {
             panic!("Collectibles need to be resolved");

@@ -459,7 +459,7 @@ export async function handler(
           })
           span.updateName(name)
         } else {
-          span.updateName(`${method} ${req.url}`)
+          span.updateName(`${method}`)
         }
       })
     }
@@ -1396,7 +1396,7 @@ export async function handler(
         tracer.trace(
           BaseServerSpan.handleRequest,
           {
-            spanName: `${method} ${req.url}`,
+            spanName: `${method}`,
             kind: SpanKind.SERVER,
             attributes: {
               'http.method': method,

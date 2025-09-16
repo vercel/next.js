@@ -2739,7 +2739,7 @@ impl DirectiveVisitor<'_> {
                     });
                 } else
                 // `use cache` or `use cache: foo`
-                if value == "use cache" || value.starts_with("use cache: ") {
+                if let Some(rest) = value.strip_prefix("use cache") {
                     // Increment telemetry counter tracking usage of "use cache" directives
 
                     if in_fn_body && !allow_inline {
@@ -2759,25 +2759,59 @@ impl DirectiveVisitor<'_> {
                             });
                         }
 
-                        if value == "use cache" {
+                        if rest.is_empty() {
                             self.directive = Some(Directive::UseCache {
                                 cache_kind: rcstr!("default"),
                             });
+
                             self.increment_cache_usage_counter("default");
-                        } else {
-                            // Slice the value after "use cache: "
-                            let cache_kind = RcStr::from(value.split_at("use cache: ".len()).1);
 
-                            if !self.config.cache_kinds.contains(&cache_kind) {
-                                emit_error(ServerActionsErrorKind::UnknownCacheKind {
-                                    span: *span,
-                                    cache_kind: cache_kind.clone(),
-                                });
-                            }
-
-                            self.increment_cache_usage_counter(&cache_kind);
-                            self.directive = Some(Directive::UseCache { cache_kind });
+                            return true;
                         }
+
+                        if rest.starts_with(": ") {
+                            let cache_kind = RcStr::from(rest.split_at(": ".len()).1);
+
+                            if !cache_kind.is_empty() {
+                                if !self.config.cache_kinds.contains(&cache_kind) {
+                                    emit_error(ServerActionsErrorKind::UnknownCacheKind {
+                                        span: *span,
+                                        cache_kind: cache_kind.clone(),
+                                    });
+                                }
+
+                                self.increment_cache_usage_counter(&cache_kind);
+                                self.directive = Some(Directive::UseCache { cache_kind });
+
+                                return true;
+                            }
+                        }
+
+                        // Emit helpful errors for variants like "use cache:<cache-kind>",
+                        // "use cache : <cache-kind>", and "use cache <cache-kind>" etc.
+                        let expected_directive = if let Some(colon_pos) = rest.find(':') {
+                            let kind = rest[colon_pos + 1..].trim();
+
+                            if kind.is_empty() {
+                                "use cache: <cache-kind>".to_string()
+                            } else {
+                                format!("use cache: {kind}")
+                            }
+                        } else {
+                            let kind = rest.trim();
+
+                            if kind.is_empty() {
+                                "use cache".to_string()
+                            } else {
+                                format!("use cache: {kind}")
+                            }
+                        };
+
+                        emit_error(ServerActionsErrorKind::MisspelledDirective {
+                            span: *span,
+                            directive: value.to_string(),
+                            expected_directive,
+                        });
 
                         return true;
                     } else {

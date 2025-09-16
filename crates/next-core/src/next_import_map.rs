@@ -129,7 +129,6 @@ pub async fn get_next_client_import_map(
             let react_flavor = if *next_config.enable_ppr().await?
                 || *next_config.enable_taint().await?
                 || *next_config.enable_view_transition().await?
-                || *next_config.enable_router_bfcache().await?
             {
                 "-experimental"
             } else {
@@ -833,9 +832,8 @@ async fn apply_vendored_react_aliases_server(
 ) -> Result<()> {
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
-    let router_bfcache = *next_config.enable_router_bfcache().await?;
     let view_transition = *next_config.enable_view_transition().await?;
-    let react_channel = if ppr || taint || view_transition || router_bfcache {
+    let react_channel = if ppr || taint || view_transition {
         "-experimental"
     } else {
         ""

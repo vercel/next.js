@@ -349,7 +349,7 @@ function addTransitionType(type) {
       : -1 === transitionTypes.indexOf(type) && transitionTypes.push(type);
   } else startTransition(addTransitionType.bind(null, type));
 }
-exports.Children = {
+var Children = {
   map: mapChildren,
   forEach: function (children, forEachFunc, forEachContext) {
     mapChildren(
@@ -382,6 +382,8 @@ exports.Children = {
     return children;
   }
 };
+exports.Activity = REACT_ACTIVITY_TYPE;
+exports.Children = Children;
 exports.Component = Component;
 exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.Profiler = REACT_PROFILER_TYPE;
@@ -595,4 +597,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.2.0-experimental-93d7aa69-20250912";
+exports.version = "19.2.0-experimental-8a8e9a7e-20250912";
