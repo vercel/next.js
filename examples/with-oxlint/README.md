@@ -2,6 +2,11 @@
 
 This example shows how to configure [Oxlint](https://oxc.rs/docs/guide/usage/linter) to work with a Next.js application.
 
+Linting via Oxlint in this example includes type-aware linting through the `oxlint-tsgolint` integration, which is [in technical preview](https://oxc.rs/blog/2025-08-17-oxlint-type-aware.html) at the time of writing.
+
+In Oxlint's config, the [`.oxlintrc.json`](./.oxlintrc.json), the plugins `react`, and `nextjs` are enabled, which are [rust-based Oxlint plugins](https://oxc.rs/docs/guide/usage/linter/plugins.html#supported-plugins) that ported rules from the corresponding ESLint plugins to Oxlint. In addition, the default plugins `unicorn`, `oxc`, and `typescript` are enabled by default.
+
+
 ## Deploy your own
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-oxlint&project-name=with-oxlint&repository-name=with-oxlint)
@@ -24,7 +29,6 @@ pnpm create next-app --example with-oxlint with-oxlint-app
 
 ## Linting the application
 
-This includes type-aware linting.
 
 ```bash
 npm run lint
