@@ -157,10 +157,6 @@ impl TurboTasksApi for VcStorage {
         // ignore
     }
 
-    fn notify_scheduled_tasks(&self) {
-        // ignore
-    }
-
     fn try_read_task_output(
         &self,
         id: TaskId,
