@@ -3284,9 +3284,9 @@ export default async function build(
                 }
               } else {
                 hasRevalidateZero = true
-                const pageInfo = pageInfos.get(page) as PageInfo
 
                 if (ssgPageRoutesSet.has(route.pathname)) {
+                  const pageInfo = pageInfos.get(page) as PageInfo
                   // Remove the route from the SSG page routes if it bailed out
                   // during prerendering.
                   ssgPageRoutesSet.delete(route.pathname)
@@ -3301,7 +3301,7 @@ export default async function build(
                   // we might have determined during prerendering that this page
                   // used dynamic data
                   pageInfos.set(route.pathname, {
-                    ...pageInfo,
+                    ...(pageInfos.get(route.pathname) as PageInfo),
                     isSSG: false,
                     isStatic: false,
                   })
