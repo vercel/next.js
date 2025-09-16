@@ -1048,15 +1048,15 @@ async function startWatcher(
         // For Turbopack ADDED_PAGE and REMOVED_PAGE are implemented in hot-reloader-turbopack.ts
         // in order to avoid a race condition where ADDED_PAGE and REMOVED_PAGE are sent before Turbopack picked up the file change.
         if (!opts.turbo) {
+          // Reload the matchers. The filesystem would have been written to,
+          // and the matchers need to re-scan it to update the router.
+          // Reloading the matchers should happen before `ADDED_PAGE` or `REMOVED_PAGE` is sent over the websocket
+          // otherwise it sends the event too early.
+          await propagateServerField(opts, 'reloadMatchers', undefined)
+
           if (
             !prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
           ) {
-            // Reload the matchers. The filesystem would have been written to,
-            // and the matchers need to re-scan it to update the router.
-            // Reloading the matchers should happen before `ADDED_PAGE` or `REMOVED_PAGE` is sent over the websocket
-            // otherwise it sends the event too early.
-            await propagateServerField(opts, 'reloadMatchers', undefined)
-
             const addedRoutes = sortedRoutes.filter(
               (route) => !prevSortedRoutes.includes(route)
             )
