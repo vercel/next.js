@@ -1,4 +1,4 @@
-name: Release
+name: Release next-rspack bindings
 
 on:
   workflow_dispatch:
@@ -69,9 +69,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.pnpm-store
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          key: ${{ runner.os }}-${{ runner.arch }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
-            ${{ runner.os }}-pnpm-
+            ${{ runner.os }}-${{ runner.arch }}-pnpm-
 
       - name: Install dependencies
         run: pnpm install
@@ -79,6 +79,8 @@ jobs:
       - name: Get NAPI info
         id: napi-info
         uses: rspack-contrib/rspack-toolchain/get-napi-info@v1
+        with:
+          package-json-path: rspack/crates/binding/package.json
 
       - name: Download rspack binding
         uses: rspack-contrib/rspack-toolchain/download-rspack-binding@v1
@@ -113,11 +115,8 @@ jobs:
           npm config set provenance true
           pnpm napi pre-publish --no-gh-release -t npm
         working-directory: ${{ steps.napi-info.outputs.binding-directory }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Release npm packages
         run: |
           pnpm publish -r --tag ${{ inputs.npm-tag }} --no-git-checks --provenance --access public ${{ inputs.dry-run && '--dry-run' || '' }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
