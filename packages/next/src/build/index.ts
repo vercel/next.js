@@ -3285,7 +3285,7 @@ export default async function build(
               } else {
                 hasRevalidateZero = true
                 const pageInfo = pageInfos.get(page) as PageInfo
-                
+
                 if (ssgPageRoutesSet.has(route.pathname)) {
                   // Remove the route from the SSG page routes if it bailed out
                   // during prerendering.
