@@ -109,9 +109,9 @@ pub use key_value_pair::KeyValuePair;
 pub use magic_any::MagicAny;
 pub use manager::{
     CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
-    TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
-    dynamic_call, emit, mark_finished, mark_root, mark_session_dependent, mark_stateful,
-    prevent_gc, run_once, run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope,
+    TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo, dynamic_call, emit, mark_finished,
+    mark_root, mark_session_dependent, mark_stateful, prevent_gc, run_once, run_once_with_reason,
+    trait_call, turbo_tasks, turbo_tasks_scope,
 };
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};

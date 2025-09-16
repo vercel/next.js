@@ -2873,9 +2873,6 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         self.0.get_task_description(task)
     }
 
-    type TaskState = ();
-    fn new_task_state(&self, _task: TaskId) -> Self::TaskState {}
-
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
         self.0.task_execution_canceled(task, turbo_tasks)
     }
