@@ -51,7 +51,7 @@ export async function handleRoute(
         ([name]) => !name.toLowerCase().startsWith('next-test-')
       )
     ),
-    body: postData ?? null,
+    body: postData ? Uint8Array.from(postData) : null,
   })
 
   const proxyResponse = await fetchHandler(fetchRequest)

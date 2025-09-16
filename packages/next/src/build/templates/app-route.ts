@@ -437,7 +437,7 @@ export async function handler(
       await sendResponse(
         nodeNextReq,
         nodeNextRes,
-        new Response(cacheEntry.value.body, {
+        new Response(Uint8Array.from(cacheEntry.value.body), {
           headers,
           status: cacheEntry.value.status || 200,
         })

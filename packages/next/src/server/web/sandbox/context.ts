@@ -105,7 +105,7 @@ async function loadWasm(
   await Promise.all(
     wasm.map(async (binding) => {
       const module = await WebAssembly.compile(
-        await fs.readFile(binding.filePath)
+        Uint8Array.from(await fs.readFile(binding.filePath))
       )
       modules[binding.name] = module
     })

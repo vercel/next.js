@@ -41,7 +41,11 @@ export function stringToUint8Array(binary: string) {
   return arr
 }
 
-export function encrypt(key: CryptoKey, iv: Uint8Array, data: Uint8Array) {
+export function encrypt(
+  key: CryptoKey,
+  iv: Uint8Array<ArrayBuffer>,
+  data: Uint8Array<ArrayBuffer>
+) {
   return crypto.subtle.encrypt(
     {
       name: 'AES-GCM',
@@ -52,7 +56,11 @@ export function encrypt(key: CryptoKey, iv: Uint8Array, data: Uint8Array) {
   )
 }
 
-export function decrypt(key: CryptoKey, iv: Uint8Array, data: Uint8Array) {
+export function decrypt(
+  key: CryptoKey,
+  iv: Uint8Array<ArrayBuffer>,
+  data: Uint8Array<ArrayBuffer>
+) {
   return crypto.subtle.decrypt(
     {
       name: 'AES-GCM',
