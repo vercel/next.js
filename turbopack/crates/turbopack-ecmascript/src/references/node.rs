@@ -124,7 +124,7 @@ async fn resolve_reference_from_dir(
                         FileSource::new(symlink.clone()).to_resolved().await?,
                     ));
                 }
-                let path: FileSystemPath = match &realpath.path_or_error {
+                let path: FileSystemPath = match &realpath.path_result {
                     Ok(path) => path.clone(),
                     Err(e) => bail!(e.as_error_message(file, &realpath)),
                 };
