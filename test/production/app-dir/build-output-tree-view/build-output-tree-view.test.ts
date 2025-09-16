@@ -15,23 +15,23 @@ describe('build-output-tree-view', () => {
 
     it('should show info about prerendered and dynamic routes in a tree view', async () => {
       expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
-       "Route (app)                        Revalidate  Expire
+       "Route (app)             Revalidate  Expire
        ┌ ○ /_not-found
        ├ ƒ /api
        ├ ○ /api/force-static
        ├ ○ /app-static
-       ├ ○ /cache-life-custom              ≈7m     ≈2h
-       ├ ○ /cache-life-hours                1h      1d
+       ├ ○ /cache-life-custom         ≈7m     ≈2h
+       ├ ○ /cache-life-hours           1h      1d
        ├ ƒ /dynamic
-       ├ ◐ /ppr/[slug]                      1w     30d
-       ├   ├ /ppr/[slug]                     1w     30d
-       ├   ├ /ppr/days                       1d      1w
-       ├   └ /ppr/weeks                      1w     30d
-       └ ○ /revalidate                     15m      1y
+       ├ ◐ /ppr/[slug]                 1w     30d
+       ├   ├ /ppr/[slug]                       1w  30d
+       ├   ├ /ppr/days                         1d   1w
+       ├   └ /ppr/weeks                        1w  30d
+       └ ○ /revalidate                15m      1y
 
-       Route (pages)                      Revalidate  Expire
+       Route (pages)           Revalidate  Expire
        ┌ ƒ /api/hello
-       ├ ● /gsp-revalidate                  5m      1y
+       ├ ● /gsp-revalidate             5m      1y
        ├ ƒ /gssp
        └ ○ /static
 
@@ -56,7 +56,14 @@ describe('build-output-tree-view', () => {
 
     it('should show info about prerendered routes in a compact tree view', async () => {
       expect(getTreeView(next.cliOutput)).toMatchInlineSnapshot(`
-       "○  (Static)  prerendered as static content"
+       "Route (app)
+       ┌ ○ /
+       └ ○ /_not-found
+
+       Route (pages)
+       ─ ○ /static
+
+       ○  (Static)  prerendered as static content"
       `)
     })
   })

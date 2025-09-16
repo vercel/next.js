@@ -388,6 +388,8 @@ export interface ExperimentalConfig {
     skipValidation?: boolean
   }
   disableOptimizedLoading?: boolean
+
+  /** @deprecated A no-op as of Next 16, size metrics were removed from the build output. */
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'

@@ -270,7 +270,9 @@ export async function printTreeView(
             : '├'
 
       const pageInfo = pageInfos.get(item)
-      const _ampFirst = buildManifest.ampFirstPages.includes(item)
+      const ampLabel = buildManifest.ampFirstPages.includes(item)
+        ? ` ${cyan('AMP')}`
+        : ''
       const totalDuration =
         (pageInfo?.pageDuration || 0) +
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
@@ -306,31 +308,19 @@ export async function printTreeView(
 
       usedSymbols.add(symbol)
 
-      const messageParts = [
-        `${border} ${symbol} ${item}${
+      messages.push([
+        `${border} ${symbol} ${item}${ampLabel}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
         }`,
-      ]
-
-      if (showRevalidate) {
-        messageParts.push(
-          pageInfo?.initialCacheControl
-            ? formatRevalidate(pageInfo.initialCacheControl)
-            : ''
-        )
-      }
-
-      if (showExpire) {
-        messageParts.push(
-          pageInfo?.initialCacheControl
-            ? formatExpire(pageInfo.initialCacheControl)
-            : ''
-        )
-      }
-
-      messages.push(messageParts)
+        showRevalidate && pageInfo?.initialCacheControl
+          ? formatRevalidate(pageInfo.initialCacheControl)
+          : '',
+        showExpire && pageInfo?.initialCacheControl
+          ? formatExpire(pageInfo.initialCacheControl)
+          : '',
+      ])
 
       if (pageInfo?.ssgPageRoutes?.length) {
         const totalRoutes = pageInfo.ssgPageRoutes.length
@@ -383,7 +373,7 @@ export async function printTreeView(
             const initialCacheControl =
               pageInfos.get(route)?.initialCacheControl
 
-            const routeParts = [
+            messages.push([
               `${contSymbol}   ${innerSymbol} ${route}${
                 duration > MIN_DURATION
                   ? ` (${getPrettyDuration(duration)})`
@@ -394,21 +384,13 @@ export async function printTreeView(
                   : ''
               }`,
               '',
-            ]
-
-            if (showRevalidate) {
-              routeParts.push(
-                initialCacheControl ? formatRevalidate(initialCacheControl) : ''
-              )
-            }
-
-            if (showExpire) {
-              routeParts.push(
-                initialCacheControl ? formatExpire(initialCacheControl) : ''
-              )
-            }
-
-            messages.push(routeParts)
+              showRevalidate && initialCacheControl
+                ? formatRevalidate(initialCacheControl)
+                : '',
+              showExpire && initialCacheControl
+                ? formatExpire(initialCacheControl)
+                : '',
+            ])
           }
         )
       }
