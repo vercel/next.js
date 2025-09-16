@@ -185,10 +185,15 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
                                 name,
                                 if let Some(value) =
                                     replacements.get(&DefinableNameSegment::Name(name.into()))
-                                    && let Some(value) = value.get(&vec![
-                                        DefinableNameSegment::Name("process".into()),
-                                        DefinableNameSegment::Name("env".into()),
-                                    ])
+                                    && let Some((_, value)) = value.iter().find(|(path, _)| {
+                                        matches!(
+                                            path.as_slice(),
+                                            [
+                                                DefinableNameSegment::Name(a),
+                                                DefinableNameSegment::Name(b)
+                                            ] if a == "process" && b == "env"
+                                        )
+                                    })
                                 {
                                     let value = value.await?;
                                     let value = match &*value {
