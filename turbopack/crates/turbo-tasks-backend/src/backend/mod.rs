@@ -2928,45 +2928,24 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn try_read_task_output(
         &self,
         task_id: TaskId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>> {
         self.0
-            .try_read_task_output(task_id, Some(reader), consistency, turbo_tasks)
-    }
-
-    fn try_read_task_output_untracked(
-        &self,
-        task_id: TaskId,
-        consistency: ReadConsistency,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<RawVc, EventListener>> {
-        self.0
-            .try_read_task_output(task_id, None, consistency, turbo_tasks)
+            .try_read_task_output(task_id, reader, consistency, turbo_tasks)
     }
 
     fn try_read_task_cell(
         &self,
         task_id: TaskId,
         cell: CellId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         self.0
-            .try_read_task_cell(task_id, Some(reader), cell, options, turbo_tasks)
-    }
-
-    fn try_read_task_cell_untracked(
-        &self,
-        task_id: TaskId,
-        cell: CellId,
-        options: ReadCellOptions,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
-        self.0
-            .try_read_task_cell(task_id, None, cell, options, turbo_tasks)
+            .try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
     }
 
     fn try_read_own_task_cell_untracked(

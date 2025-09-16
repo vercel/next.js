@@ -564,38 +564,23 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
+    /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
+    /// using it could break cache invalidation.
     fn try_read_task_output(
         &self,
         task: TaskId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>>;
 
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
+    /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
     /// using it could break cache invalidation.
-    fn try_read_task_output_untracked(
-        &self,
-        task: TaskId,
-        consistency: ReadConsistency,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<RawVc, EventListener>>;
-
     fn try_read_task_cell(
         &self,
         task: TaskId,
         index: CellId,
-        reader: TaskId,
-        options: ReadCellOptions,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<TypedCellContent, EventListener>>;
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    fn try_read_task_cell_untracked(
-        &self,
-        task: TaskId,
-        index: CellId,
+        reader: Option<TaskId>,
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>>;
@@ -609,7 +594,7 @@ pub trait Backend: Sync + Send {
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<TypedCellContent> {
-        match self.try_read_task_cell_untracked(current_task, index, options, turbo_tasks)? {
+        match self.try_read_task_cell(current_task, index, None, options, turbo_tasks)? {
             Ok(content) => Ok(content),
             Err(_) => Ok(TypedCellContent(index.type_id, CellContent(None))),
         }

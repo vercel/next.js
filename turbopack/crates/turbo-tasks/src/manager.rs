@@ -1170,8 +1170,12 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         task: TaskId,
         consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>> {
-        self.backend
-            .try_read_task_output(task, current_task("reading Vcs"), consistency, self)
+        self.backend.try_read_task_output(
+            task,
+            Some(current_task("reading Vcs")),
+            consistency,
+            self,
+        )
     }
 
     fn try_read_task_output_untracked(
@@ -1180,7 +1184,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>> {
         self.backend
-            .try_read_task_output_untracked(task, consistency, self)
+            .try_read_task_output(task, None, consistency, self)
     }
 
     fn try_read_task_cell(
@@ -1189,8 +1193,13 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         index: CellId,
         options: ReadCellOptions,
     ) -> Result<Result<TypedCellContent, EventListener>> {
-        self.backend
-            .try_read_task_cell(task, index, current_task("reading Vcs"), options, self)
+        self.backend.try_read_task_cell(
+            task,
+            index,
+            Some(current_task("reading Vcs")),
+            options,
+            self,
+        )
     }
 
     fn try_read_task_cell_untracked(
@@ -1200,7 +1209,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         options: ReadCellOptions,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         self.backend
-            .try_read_task_cell_untracked(task, index, options, self)
+            .try_read_task_cell(task, index, None, options, self)
     }
 
     fn try_read_own_task_cell_untracked(
