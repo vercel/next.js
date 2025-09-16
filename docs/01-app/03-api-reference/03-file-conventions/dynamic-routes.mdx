@@ -122,7 +122,7 @@ Route `params` values are typed as `string`, `string[]`, or `undefined` (for opt
 | `app/shop/[[...slug]]/page.js`      | `{ slug?: string[] }`                    |
 | `app/[categoryId]/[itemId]/page.js` | `{ categoryId: string, itemId: string }` |
 
-If you're working on a route whose `params` can only have a fixed number of valid values, such as a [locale] param with a known set of language codes, you can use runtime validation to handle any invalid params a user may enter, and let the rest of your application work with the narrower type from your known set.
+If you're working on a route where `params` can only have a fixed number of valid values, such as a `[locale]` param with a known set of language codes, you can use runtime validation to handle any invalid params a user may enter, and let the rest of your application work with the narrower type from your known set.
 
 ```tsx filename="/app/[locale]/page.tsx"
 import { notFound } from 'next/navigation'
