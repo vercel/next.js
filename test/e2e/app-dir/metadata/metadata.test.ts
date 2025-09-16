@@ -7,9 +7,14 @@ import {
   createMultiDomMatcher,
   checkMetaNameContentPair,
   checkLink,
+  retry,
 } from 'next-test-utils'
 import fs from 'fs/promises'
 import path from 'path'
+
+// Webpack: /favicon.ico?<hash>
+// Turbopack: /favicon.ico?favicon.<hash>.ico
+const FAVICON_REGEX = /\/favicon.ico\?\w+/
 
 describe('app dir - metadata', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
@@ -227,16 +232,17 @@ describe('app dir - metadata', () => {
       const browser = await next.browser('/')
       await browser.waitForElementByCss('p#index')
       await browser.eval(`next.router.push('/alternates')`)
-      // wait for /alternates page is loaded
-      await browser.waitForElementByCss('p#alternates')
 
       const matchDom = createDomMatcher(browser)
-      await matchDom('link', 'rel="canonical"', {
-        href: 'https://example.com/alternates',
-      })
-      await matchDom('link', 'title="js title"', {
-        type: 'application/rss+xml',
-        href: 'https://example.com/blog/js.rss',
+      // Dynamic metadata streams in async
+      await retry(async () => {
+        await matchDom('link', 'rel="canonical"', {
+          href: 'https://example.com/alternates',
+        })
+        await matchDom('link', 'title="js title"', {
+          type: 'application/rss+xml',
+          href: 'https://example.com/blog/js.rss',
+        })
       })
     })
 
@@ -283,18 +289,24 @@ describe('app dir - metadata', () => {
         .click()
         .waitForElementByCss('#basic')
 
-      await checkMetaNameContentPair(
-        browser,
-        'referrer',
-        'origin-when-cross-origin'
-      )
+      await retry(async () => {
+        await checkMetaNameContentPair(
+          browser,
+          'referrer',
+          'origin-when-cross-origin'
+        )
+      })
+
       await browser.back().waitForElementByCss('#index')
       expect(await getTitle(browser)).toBe('index page')
       await browser
         .elementByCss('#to-title')
         .click()
         .waitForElementByCss('#title')
-      expect(await getTitle(browser)).toBe('this is the page title')
+
+      await retry(async () => {
+        expect(await getTitle(browser)).toBe('this is the page title')
+      })
     })
 
     it('should support generateMetadata dynamic props', async () => {
@@ -420,7 +432,7 @@ describe('app dir - metadata', () => {
       })
 
       // favicon shouldn't be overridden
-      expect($('link[rel="icon"]').attr('href')).toMatch('/favicon.ico')
+      expect($('link[rel="icon"]').attr('href')).toMatch(FAVICON_REGEX)
     })
 
     it('should override file based images when opengraph-image and twitter-image specify images property', async () => {
@@ -442,7 +454,7 @@ describe('app dir - metadata', () => {
         .toArray()
         .map((i) => $(i).attr('href'))
 
-      expect(favicon).toMatch('/favicon.ico')
+      expect(favicon).toMatch(FAVICON_REGEX)
       expect(icons).toEqual(['https://custom-icon-1.png'])
     })
 
@@ -477,7 +489,7 @@ describe('app dir - metadata', () => {
 
       await checkLink(browser, 'shortcut icon', '/shortcut-icon.png')
       await checkLink(browser, 'icon', [
-        expect.stringMatching(/favicon\.ico/),
+        expect.stringMatching(FAVICON_REGEX),
         '/icon.png',
         'https://example.com/icon.png',
       ])
@@ -516,7 +528,7 @@ describe('app dir - metadata', () => {
     it('should support root level of favicon.ico', async () => {
       let $ = await next.render$('/')
       const favIcon = $('link[rel="icon"]')
-      expect(favIcon.attr('href')).toMatch('/favicon.ico')
+      expect(favIcon.attr('href')).toMatch(FAVICON_REGEX)
       expect(favIcon.attr('type')).toBe('image/x-icon')
       // Turbopack renders / emits image differently
       expect(['16x16', '48x48']).toContain(favIcon.attr('sizes'))
@@ -528,7 +540,7 @@ describe('app dir - metadata', () => {
 
       $ = await next.render$('/basic')
       const icon = $('link[rel="icon"]')
-      expect(icon.attr('href')).toMatch('/favicon.ico')
+      expect(icon.attr('href')).toMatch(FAVICON_REGEX)
       expect(['16x16', '48x48']).toContain(favIcon.attr('sizes'))
 
       if (!isNextDeploy) {
@@ -668,7 +680,9 @@ describe('app dir - metadata', () => {
       expect(res.status).toBe(200)
       expect(res.headers.get('content-type')).toBe('image/x-icon')
       expect(res.headers.get('cache-control')).toBe(
-        'public, max-age=0, must-revalidate'
+        isNextDev
+          ? 'no-store, must-revalidate'
+          : 'public, max-age=0, must-revalidate'
       )
     })
 
@@ -682,21 +696,24 @@ describe('app dir - metadata', () => {
       expect(resAppleIcon.headers.get('content-type')).toBe('image/png')
       expect(resAppleIcon.headers.get('cache-control')).toBe(
         isNextDev
-          ? 'no-cache, no-store'
-          : 'public, immutable, no-transform, max-age=31536000'
+          ? 'no-store, must-revalidate'
+          : 'public, max-age=0, must-revalidate'
       )
       expect(resIcon.status).toBe(200)
       expect(resIcon.headers.get('content-type')).toBe('image/png')
       expect(resIcon.headers.get('cache-control')).toBe(
         isNextDev
-          ? 'no-cache, no-store'
-          : 'public, immutable, no-transform, max-age=31536000'
+          ? 'no-store, must-revalidate'
+          : 'public, max-age=0, must-revalidate'
       )
     })
 
     it('should support root dir robots.txt', async () => {
       const res = await next.fetch('/robots.txt')
-      expect(res.headers.get('content-type')).toBe('text/plain')
+      expect(res.headers.get('content-type')).toBe(
+        // In dev, sendStatic() is used to send static files, which adds MIME type.
+        isNextDev ? 'text/plain; charset=UTF-8' : 'text/plain'
+      )
       expect(await res.text()).toContain('User-Agent: *\nDisallow:')
       const invalidRobotsResponse = await next.fetch('/title/robots.txt')
       expect(invalidRobotsResponse.status).toBe(404)
@@ -809,6 +826,12 @@ describe('app dir - metadata', () => {
         .waitForElementByCss('#value')
       const value = await browser.elementByCss('#value').text()
       const value2 = await browser.elementByCss('#value2').text()
+      // Dynamic metadata streams in async
+      await retry(async () => {
+        expect(await browser.eval(`document.title`)).toContain(
+          '"page":"cache-deduping"'
+        )
+      })
       // Value in the title should match what's shown on the page component
       const title = await browser.eval(`document.title`)
       const obj = JSON.parse(title)
@@ -854,5 +877,22 @@ describe('app dir - metadata', () => {
         }
       )
     }
+  })
+
+  it('regression: renders a large shell', async () => {
+    const pageErrors: unknown[] = []
+    await next.browser('/large-shell/foo', {
+      beforePageLoad(page) {
+        page.on('pageerror', (error) => {
+          pageErrors.push(error)
+        })
+      },
+    })
+
+    // TODO: Assert on errorless pages by default.
+    // This isn't 100% accurate.
+    // We sometimes receive the pageerror after the hydration complete event
+    // since that event is just for shell hydration not everything being hydrated.
+    expect(pageErrors).toEqual([])
   })
 })

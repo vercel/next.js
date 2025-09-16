@@ -10,7 +10,7 @@ use swc_core::{
         visit::VisitMutWith,
     },
 };
-use turbo_tasks::{ResolvedVc, Value};
+use turbo_tasks::ResolvedVc;
 use turbo_tasks_testing::VcStorage;
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
@@ -25,8 +25,6 @@ use turbopack_ecmascript::analyzer::{
 };
 
 pub fn benchmark(c: &mut Criterion) {
-    turbopack_ecmascript::register();
-
     let tests_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/analyzer/graph");
     let results = fs::read_dir(tests_dir).unwrap();
 
@@ -57,14 +55,14 @@ pub fn benchmark(c: &mut Criterion) {
                 program.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
                 let eval_context = EvalContext::new(
-                    &program,
+                    Some(&program),
                     unresolved_mark,
                     top_level_mark,
                     Default::default(),
                     None,
                     None,
                 );
-                let var_graph = create_graph(&program, &eval_context);
+                let var_graph = create_graph(&program, &eval_context, false);
 
                 let input = BenchInput {
                     program,
@@ -90,7 +88,7 @@ struct BenchInput {
 }
 
 fn bench_create_graph(b: &mut Bencher, input: &BenchInput) {
-    b.iter(|| create_graph(&input.program, &input.eval_context));
+    b.iter(|| create_graph(&input.program, &input.eval_context, false));
 }
 
 fn bench_link(b: &mut Bencher, input: &BenchInput) {
@@ -103,14 +101,14 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
         for val in input.var_graph.values.values() {
             VcStorage::with(async {
                 let compile_time_info = CompileTimeInfo::builder(
-                    Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+                    Environment::new(ExecutionEnvironment::NodeJsLambda(
                         NodeJsEnvironment {
                             compile_target: CompileTarget::unknown().to_resolved().await?,
                             node_version: NodeJsVersion::default().resolved_cell(),
                             cwd: ResolvedVc::cell(None),
                         }
                         .resolved_cell(),
-                    )))
+                    ))
                     .to_resolved()
                     .await?,
                 )

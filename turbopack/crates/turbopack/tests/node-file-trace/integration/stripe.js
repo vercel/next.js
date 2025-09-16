@@ -1,1 +1,0 @@
-const stripe = require("stripe");

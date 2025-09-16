@@ -11,9 +11,9 @@ use std::{
 use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
 use rustc_hash::FxHashSet;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
+    NonLocalValue, OperationVc, ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Vc,
     trace::TraceRawVcs,
     util::{FormatBytes, FormatDuration},
 };
@@ -159,29 +159,30 @@ impl TurbopackDevServerBuilder {
             let addr = SocketAddr::new(host, current_port);
             let listen_result = DevServer::listen(addr);
 
-            if let Err(e) = &listen_result {
-                if self.allow_retry && attempts < max_attempts {
-                    // Returned error from `listen` is not `std::io::Error` but `anyhow::Error`,
-                    // so we need to access its source to check if it is
-                    // `std::io::ErrorKind::AddrInUse`.
-                    let should_retry = e
-                        .source()
-                        .and_then(|e| {
-                            e.downcast_ref::<std::io::Error>()
-                                .map(|e| e.kind() == std::io::ErrorKind::AddrInUse)
-                        })
-                        .unwrap_or(false);
+            if let Err(e) = &listen_result
+                && self.allow_retry
+                && attempts < max_attempts
+            {
+                // Returned error from `listen` is not `std::io::Error` but `anyhow::Error`,
+                // so we need to access its source to check if it is
+                // `std::io::ErrorKind::AddrInUse`.
+                let should_retry = e
+                    .source()
+                    .and_then(|e| {
+                        e.downcast_ref::<std::io::Error>()
+                            .map(|e| e.kind() == std::io::ErrorKind::AddrInUse)
+                    })
+                    .unwrap_or(false);
 
-                    if should_retry {
-                        println!(
-                            "{} - Port {} is in use, trying {} instead",
-                            "warn ".yellow(),
-                            current_port,
-                            current_port + 1
-                        );
-                        attempts += 1;
-                        continue;
-                    }
+                if should_retry {
+                    println!(
+                        "{} - Port {} is in use, trying {} instead",
+                        "warn ".yellow(),
+                        current_port,
+                        current_port + 1
+                    );
+                    attempts += 1;
+                    continue;
                 }
             }
 
@@ -264,59 +265,48 @@ async fn source(
         .into();
 
     let output_fs = output_fs(project_dir);
-    let fs: Vc<Box<dyn FileSystem>> = project_fs(root_dir);
-    let root_path = fs.root().to_resolved().await?;
-    let project_path = root_path.join(project_relative).to_resolved().await?;
+    let fs: Vc<Box<dyn FileSystem>> = project_fs(root_dir, /* watch= */ true);
+    let root_path = fs.root().owned().await?;
+    let project_path = root_path.join(&project_relative)?;
 
-    let env = load_env(*root_path);
-    let build_output_root = output_fs
-        .root()
-        .join(".turbopack/build".into())
-        .to_resolved()
-        .await?;
+    let env = load_env(root_path.clone());
+    let build_output_root = output_fs.root().await?.join(".turbopack/build")?;
 
     let build_output_root_to_root_path = project_path
-        .join(".turbopack/build".into())
-        .await?
-        .get_relative_path_to(&*root_path.await?)
+        .join(".turbopack/build")?
+        .get_relative_path_to(&root_path)
         .context("Project path is in root path")?;
-    let build_output_root_to_root_path = ResolvedVc::cell(build_output_root_to_root_path);
+    let build_output_root_to_root_path = build_output_root_to_root_path;
 
     let build_chunking_context = NodeJsChunkingContext::builder(
-        root_path,
-        build_output_root,
+        root_path.clone(),
+        build_output_root.clone(),
         build_output_root_to_root_path,
-        build_output_root,
-        build_output_root
-            .join("chunks".into())
-            .to_resolved()
-            .await?,
-        build_output_root
-            .join("assets".into())
-            .to_resolved()
-            .await?,
+        build_output_root.clone(),
+        build_output_root.join("chunks")?,
+        build_output_root.join("assets")?,
         node_build_environment().to_resolved().await?,
         RuntimeType::Development,
     )
     .build();
 
     let execution_context =
-        ExecutionContext::new(*root_path, Vc::upcast(build_chunking_context), env);
+        ExecutionContext::new(root_path.clone(), Vc::upcast(build_chunking_context), env);
 
     let server_fs = Vc::upcast::<Box<dyn FileSystem>>(ServerFileSystem::new());
-    let server_root = server_fs.root();
+    let server_root = server_fs.root().owned().await?;
     let entry_requests = entry_requests
         .iter()
         .map(|r| match r {
             EntryRequest::Relative(p) => Request::relative(
-                Value::new(p.clone().into()),
+                p.clone().into(),
                 Default::default(),
                 Default::default(),
                 false,
             ),
             EntryRequest::Module(m, p) => Request::module(
-                m.clone(),
-                Value::new(p.clone().into()),
+                m.clone().into(),
+                p.clone().into(),
                 Default::default(),
                 Default::default(),
             ),
@@ -324,11 +314,11 @@ async fn source(
         .collect();
 
     let web_source: ResolvedVc<Box<dyn ContentSource>> = create_web_entry_source(
-        *root_path,
+        root_path.clone(),
         execution_context,
         entry_requests,
         server_root,
-        Vc::cell("/ROOT".into()),
+        rcstr!("/ROOT"),
         env,
         eager_compile,
         NodeEnv::Development.cell(),
@@ -338,7 +328,7 @@ async fn source(
     .to_resolved()
     .await?;
     let static_source = ResolvedVc::upcast(
-        StaticAssetsContentSource::new(Default::default(), project_path.join("public".into()))
+        StaticAssetsContentSource::new(Default::default(), project_path.join("public")?)
             .to_resolved()
             .await?,
     );
@@ -354,14 +344,9 @@ async fn source(
     let main_source = ResolvedVc::upcast(main_source);
     Ok(Vc::upcast(PrefixedRouterContentSource::new(
         Default::default(),
-        vec![("__turbopack__".into(), introspect)],
+        vec![(rcstr!("__turbopack__"), introspect)],
         *main_source,
     )))
-}
-
-pub fn register() {
-    turbopack::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
 /// Start a devserver with the given args.
@@ -370,7 +355,6 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
 
     #[cfg(feature = "tokio_console")]
     console_subscriber::init();
-    register();
 
     let NormalizedDirs {
         project_dir,

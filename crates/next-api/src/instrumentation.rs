@@ -3,11 +3,10 @@ use next_core::{
     all_assets_from_entries,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{InstrumentationDefinition, MiddlewaresManifestV2},
-    next_server::{ServerContextType, get_server_runtime_entries},
 };
 use tracing::Instrument;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ResolvedVc, Value, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -43,8 +42,8 @@ pub struct InstrumentationEndpoint {
     source: ResolvedVc<Box<dyn Source>>,
     is_edge: bool,
 
-    app_dir: Option<ResolvedVc<FileSystemPath>>,
-    ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
+    app_dir: Option<FileSystemPath>,
+    ecmascript_client_reference_transition_name: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -55,8 +54,8 @@ impl InstrumentationEndpoint {
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
         source: ResolvedVc<Box<dyn Source>>,
         is_edge: bool,
-        app_dir: Option<ResolvedVc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
+        app_dir: Option<FileSystemPath>,
+        ecmascript_client_reference_transition_name: Option<RcStr>,
     ) -> Vc<Self> {
         Self {
             project,
@@ -75,7 +74,7 @@ impl InstrumentationEndpoint {
             .asset_context
             .process(
                 *self.source,
-                Value::new(ReferenceType::Entry(EntryReferenceSubType::Instrumentation)),
+                ReferenceType::Entry(EntryReferenceSubType::Instrumentation),
             )
             .module()
             .to_resolved()
@@ -83,9 +82,9 @@ impl InstrumentationEndpoint {
 
         let edge_entry_module = wrap_edge_entry(
             *self.asset_context,
-            self.project.project_path(),
+            self.project.project_path().owned().await?,
             *userland_module,
-            "instrumentation".into(),
+            rcstr!("instrumentation"),
         )
         .to_resolved()
         .await?;
@@ -104,27 +103,12 @@ impl InstrumentationEndpoint {
 
         let module_graph = this.project.module_graph(*module);
 
-        let evaluatable_assets = get_server_runtime_entries(
-            Value::new(ServerContextType::Instrumentation {
-                app_dir: this.app_dir,
-                ecmascript_client_reference_transition_name: this
-                    .ecmascript_client_reference_transition_name,
-            }),
-            this.project.next_mode(),
-        )
-        .resolve_entries(*this.asset_context)
-        .await?
-        .iter()
-        .map(|m| ResolvedVc::upcast(*m))
-        .chain(std::iter::once(module))
-        .collect();
-
         let edge_chunking_context = this.project.edge_chunking_context(false);
         let edge_files: Vc<OutputAssets> = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            ChunkGroup::Entry(evaluatable_assets),
+            ChunkGroup::Entry(vec![module]),
             module_graph,
-            Value::new(AvailabilityInfo::Root),
+            AvailabilityInfo::Root,
         );
 
         Ok(edge_files)
@@ -147,20 +131,12 @@ impl InstrumentationEndpoint {
             .entry_chunk_group(
                 this.project
                     .node_root()
-                    .join("server/instrumentation.js".into()),
-                get_server_runtime_entries(
-                    Value::new(ServerContextType::Instrumentation {
-                        app_dir: this.app_dir,
-                        ecmascript_client_reference_transition_name: this
-                            .ecmascript_client_reference_transition_name,
-                    }),
-                    this.project.next_mode(),
-                )
-                .resolve_entries(*this.asset_context)
-                .with_entry(*module),
+                    .await?
+                    .join("server/instrumentation.js")?,
+                Vc::cell(vec![module]),
                 module_graph,
                 OutputAssets::empty(),
-                Value::new(AvailabilityInfo::Root),
+                AvailabilityInfo::Root,
             )
             .await?;
         Ok(*chunk)
@@ -174,8 +150,8 @@ impl InstrumentationEndpoint {
             let edge_files = self.edge_files();
             let mut output_assets = edge_files.owned().await?;
 
-            let node_root = this.project.node_root();
-            let node_root_value = node_root.await?;
+            let node_root = this.project.node_root().owned().await?;
+            let node_root_value = node_root.clone();
 
             let file_paths_from_root =
                 get_js_paths_from_root(&node_root_value, &output_assets).await?;
@@ -188,7 +164,7 @@ impl InstrumentationEndpoint {
             let instrumentation_definition = InstrumentationDefinition {
                 files: file_paths_from_root,
                 wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
-                name: "instrumentation".into(),
+                name: rcstr!("instrumentation"),
                 ..Default::default()
             };
             let middleware_manifest_v2 = MiddlewaresManifestV2 {
@@ -196,7 +172,7 @@ impl InstrumentationEndpoint {
                 ..Default::default()
             };
             let middleware_manifest_v2 = VirtualOutputAsset::new(
-                node_root.join("server/instrumentation/middleware-manifest.json".into()),
+                node_root.join("server/instrumentation/middleware-manifest.json")?,
                 AssetContent::file(
                     FileContent::Content(File::from(serde_json::to_string_pretty(
                         &middleware_manifest_v2,
@@ -214,7 +190,7 @@ impl InstrumentationEndpoint {
             let mut output_assets = vec![chunk];
             if this.project.next_mode().await?.is_production() {
                 output_assets.push(ResolvedVc::upcast(
-                    NftJsonAsset::new(*this.project, *chunk, vec![])
+                    NftJsonAsset::new(*this.project, None, *chunk, vec![])
                         .to_resolved()
                         .await?,
                 ));
@@ -240,7 +216,7 @@ impl Endpoint for InstrumentationEndpoint {
             let output_assets = self.output_assets();
 
             let server_paths = if this.project.next_mode().await?.is_development() {
-                let node_root = this.project.node_root();
+                let node_root = this.project.node_root().owned().await?;
                 all_server_paths(output_assets, node_root).owned().await?
             } else {
                 vec![]

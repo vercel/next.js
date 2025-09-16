@@ -1,6 +1,5 @@
 /* eslint-env jest */
 import { join } from 'path'
-import loadConfig from 'next/dist/server/config'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
@@ -11,6 +10,17 @@ const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
 process.env.__NEXT_TEST_MODE = 'jest'
 
 describe('config', () => {
+  let loadConfig: typeof import('next/dist/server/config').default
+
+  beforeEach(async () => {
+    // Reset the module cache to ensure each test gets a fresh config load
+    // This is important because config.ts now has a module-level configCache
+    jest.resetModules()
+
+    // Dynamically import the module after reset to get a fresh instance
+    const configModule = await import('next/dist/server/config')
+    loadConfig = configModule.default
+  })
   it('Should get the configuration', async () => {
     const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, pathToConfig)
     expect(config.customConfig).toBe(true)
@@ -33,7 +43,7 @@ describe('config', () => {
   })
 
   it('Should pass the customConfig correctly', async () => {
-    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
       customConfig: {
         customConfigKey: 'customConfigValue',
       },
@@ -42,7 +52,7 @@ describe('config', () => {
   })
 
   it('Should assign object defaults deeply to customConfig', async () => {
-    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
       customConfig: {
         customConfig: true,
         onDemandEntries: { custom: true },
@@ -53,7 +63,7 @@ describe('config', () => {
   })
 
   it('Should allow setting objects which do not have defaults', async () => {
-    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
       customConfig: {
         bogusSetting: { custom: true },
       },
@@ -63,7 +73,7 @@ describe('config', () => {
   })
 
   it('Should override defaults for arrays from user arrays', async () => {
-    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, null, {
+    const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
       customConfig: {
         pageExtensions: ['.bogus'],
       },
@@ -106,5 +116,57 @@ describe('config', () => {
       join(__dirname, '_resolvedata', 'typescript-config')
     )
     expect(config.__test__ext).toBe('ts')
+  })
+
+  describe('outputFileTracingRoot and turbopack.root consistency', () => {
+    it('Should set both outputFileTracingRoot and turbopack.root to the same value when only outputFileTracingRoot is provided', async () => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          outputFileTracingRoot: '/custom/root',
+        },
+      })
+      expect(config.outputFileTracingRoot).toBe('/custom/root')
+      expect(config.turbopack.root).toBe('/custom/root')
+    })
+
+    it('Should set both outputFileTracingRoot and turbopack.root to the same value when only turbopack.root is provided', async () => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          turbopack: { root: '/custom/root' },
+        },
+      })
+      expect(config.outputFileTracingRoot).toBe('/custom/root')
+      expect(config.turbopack.root).toBe('/custom/root')
+    })
+
+    it('Should use outputFileTracingRoot value when both are provided with different values', async () => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          outputFileTracingRoot: '/tracing/root',
+          turbopack: { root: '/turbo/root' },
+        },
+      })
+      expect(config.outputFileTracingRoot).toBe('/tracing/root')
+      expect(config.turbopack.root).toBe('/tracing/root')
+    })
+
+    it('Should keep the same value when both are provided with matching values', async () => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          outputFileTracingRoot: '/same/root',
+          turbopack: { root: '/same/root' },
+        },
+      })
+      expect(config.outputFileTracingRoot).toBe('/same/root')
+      expect(config.turbopack.root).toBe('/same/root')
+    })
+
+    it('Should set both to findRootDir result when neither is provided', async () => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {},
+      })
+      expect(config.outputFileTracingRoot).toBeDefined()
+      expect(config.turbopack.root).toBe(config.outputFileTracingRoot)
+    })
   })
 })

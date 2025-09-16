@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/x/index.js"],"sourcesContent":["setTimeout(() => import('./inner'), 500)\n"],"names":[],"mappings":"AAAA,WAAW,yKAAyB"}},
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/y/index.js"],"sourcesContent":["setTimeout(() => import('./middle'), 1000)\n"],"names":[],"mappings":"AAAA,WAAW,0KAA0B"}},
+    {"offset": {"line": 12, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/index.js"],"sourcesContent":["import './x/index'\nimport './y/index'\n"],"names":[],"mappings":";AAAA;AACA"}}]
+}

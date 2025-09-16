@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use anyhow::{Result, bail};
 use indoc::formatdoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -24,11 +24,6 @@ use turbopack_ecmascript::{
 };
 
 use super::server_component_reference::NextServerComponentModuleReference;
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("Next.js Server Component".into())
-}
 
 #[turbo_tasks::value(shared)]
 pub struct NextServerComponentModule {
@@ -52,7 +47,9 @@ impl NextServerComponentModule {
 impl Module for NextServerComponentModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident().with_modifier(modifier())
+        self.module
+            .ident()
+            .with_modifier(rcstr!("Next.js Server Component"))
     }
 
     #[turbo_tasks::function]
@@ -103,9 +100,10 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
         );
 
         let mut exports = BTreeMap::new();
+        let default = rcstr!("default");
         exports.insert(
-            "default".into(),
-            EsmExport::ImportedBinding(module_reference, "default".into(), false),
+            default.clone(),
+            EsmExport::ImportedBinding(module_reference, default, false),
         );
 
         Ok(EcmascriptExports::EsmExports(
@@ -132,10 +130,7 @@ impl EcmascriptChunkItem for NextServerComponentChunkItem {
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let inner = self.inner.await?;
 
-        let module_id = inner
-            .module
-            .chunk_item_id(Vc::upcast(*self.chunking_context))
-            .await?;
+        let module_id = inner.module.chunk_item_id(*self.chunking_context).await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 r#"

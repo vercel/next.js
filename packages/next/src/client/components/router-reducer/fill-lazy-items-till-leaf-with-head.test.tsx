@@ -1,7 +1,9 @@
 import React from 'react'
 import { fillLazyItemsTillLeafWithHead } from './fill-lazy-items-till-leaf-with-head'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
-import type { FlightData } from '../../../server/app-render/types'
+import type {
+  CacheNode,
+  FlightData,
+} from '../../../shared/lib/app-router-types'
 
 const getFlightData = (): FlightData => {
   return [

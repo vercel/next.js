@@ -3,12 +3,12 @@
 import type {
   CacheNode,
   LazyCacheNode,
-  LoadingModuleData,
-} from '../../shared/lib/app-router-context.shared-runtime'
+} from '../../shared/lib/app-router-types'
+import type { LoadingModuleData } from '../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
   FlightSegmentPath,
-} from '../../server/app-render/types'
+} from '../../shared/lib/app-router-types'
 import type { ErrorComponent } from './error-boundary'
 import {
   ACTION_SERVER_PATCH,
@@ -16,6 +16,7 @@ import {
 } from './router-reducer/router-reducer-types'
 
 import React, {
+  Activity,
   useContext,
   use,
   startTransition,
@@ -33,17 +34,14 @@ import { fetchServerResponse } from './router-reducer/fetch-server-response'
 import { unresolvedThenable } from './unresolved-thenable'
 import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
-import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
+import { disableSmoothScrollDuringRouteTransition } from '../../shared/lib/router/utils/disable-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
 import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
 import { dispatchAppRouterAction } from './use-action-queue'
 import { useRouterBFCache, type RouterBFCacheEntry } from './bfcache'
-
-const Activity = process.env.__NEXT_ROUTER_BF_CACHE
-  ? require('react').unstable_Activity
-  : null
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 
 /**
  * Add refetch marker to router state at the point of the current layout segment.
@@ -244,7 +242,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       focusAndScrollRef.hashFragment = null
       focusAndScrollRef.segmentPaths = []
 
-      handleSmoothScroll(
+      disableSmoothScrollDuringRouteTransition(
         () => {
           // In case of hash scroll, we only need to scroll the element into view
           if (hashFragment) {
@@ -281,7 +279,7 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
         }
       )
 
-      // Mutate after scrolling so that it can be read by `handleSmoothScroll`
+      // Mutate after scrolling so that it can be read by `disableSmoothScrollDuringRouteTransition`
       focusAndScrollRef.onlyHashChange = false
 
       // Set focus on the element
@@ -487,10 +485,6 @@ function LoadingBoundary({
   return <>{children}</>
 }
 
-function RenderChildren({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
-}
-
 /**
  * OuterLayoutRouter handles the current segment as well as <Offscreen> rendering of other segments.
  * It can be rendered next to each other with a different `parallelRouterKey`, allowing for Parallel routes.
@@ -506,7 +500,7 @@ export default function OuterLayoutRouter({
   notFound,
   forbidden,
   unauthorized,
-  gracefullyDegrade,
+  segmentViewBoundaries,
 }: {
   parallelRouterKey: string
   error: ErrorComponent | undefined
@@ -518,7 +512,7 @@ export default function OuterLayoutRouter({
   notFound: React.ReactNode | undefined
   forbidden: React.ReactNode | undefined
   unauthorized: React.ReactNode | undefined
-  gracefullyDegrade?: boolean
+  segmentViewBoundaries?: React.ReactNode
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -609,9 +603,23 @@ export default function OuterLayoutRouter({
       - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
   */
 
-    const ErrorBoundaryComponent = gracefullyDegrade
-      ? RenderChildren
-      : ErrorBoundary
+    let segmentBoundaryTriggerNode: React.ReactNode = null
+    let segmentViewStateNode: React.ReactNode = null
+    if (process.env.NODE_ENV !== 'production') {
+      const { SegmentBoundaryTriggerNode, SegmentViewStateNode } =
+        require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
+
+      const pagePrefix = normalizeAppPath(url)
+      segmentViewStateNode = (
+        <SegmentViewStateNode key={pagePrefix} page={pagePrefix} />
+      )
+
+      segmentBoundaryTriggerNode = (
+        <>
+          <SegmentBoundaryTriggerNode />
+        </>
+      )
+    }
 
     // TODO: The loading module data for a segment is stored on the parent, then
     // applied to each of that parent segment's parallel route slots. In the
@@ -627,7 +635,7 @@ export default function OuterLayoutRouter({
         key={stateKey}
         value={
           <ScrollAndFocusHandler segmentPath={segmentPath}>
-            <ErrorBoundaryComponent
+            <ErrorBoundary
               errorComponent={error}
               errorStyles={errorStyles}
               errorScripts={errorScripts}
@@ -645,10 +653,12 @@ export default function OuterLayoutRouter({
                       cacheNode={cacheNode}
                       segmentPath={segmentPath}
                     />
+                    {segmentBoundaryTriggerNode}
                   </RedirectBoundary>
                 </HTTPAccessFallbackBoundary>
               </LoadingBoundary>
-            </ErrorBoundaryComponent>
+            </ErrorBoundary>
+            {segmentViewStateNode}
           </ScrollAndFocusHandler>
         }
       >
@@ -657,6 +667,18 @@ export default function OuterLayoutRouter({
         {template}
       </TemplateContext.Provider>
     )
+
+    if (process.env.NODE_ENV !== 'production') {
+      const { SegmentStateProvider } =
+        require('../../next-devtools/userspace/app/segment-explorer-node') as typeof import('../../next-devtools/userspace/app/segment-explorer-node')
+
+      child = (
+        <SegmentStateProvider key={stateKey}>
+          {child}
+          {segmentViewBoundaries}
+        </SegmentStateProvider>
+      )
+    }
 
     if (process.env.__NEXT_ROUTER_BF_CACHE) {
       child = (

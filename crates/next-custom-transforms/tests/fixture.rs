@@ -2,9 +2,9 @@ use std::{
     env::current_dir,
     iter::FromIterator,
     path::{Path, PathBuf},
-    sync::Arc,
 };
 
+use bytes_str::BytesStr;
 use next_custom_transforms::transforms::{
     amp_attributes::amp_attributes,
     cjs_optimizer::cjs_optimizer,
@@ -366,8 +366,8 @@ fn next_ssg_fixture(input: PathBuf) {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
-                    pragma: Some(Arc::new("__jsx".into())),
-                    pragma_frag: Some(Arc::new("__jsxFrag".into())),
+                    pragma: Some(BytesStr::from_str_slice("__jsx")),
+                    pragma_frag: Some(BytesStr::from_str_slice("__jsxFrag")),
                     throw_if_namespace: false.into(),
                     development: false.into(),
                     refresh: Default::default(),
@@ -477,7 +477,7 @@ fn react_server_components_typescript(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
-                    dynamic_io_enabled: false,
+                    cache_components_enabled: false,
                     use_cache_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
@@ -505,7 +505,7 @@ fn react_server_components_fixture(input: PathBuf) {
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
                     is_react_server_layer,
-                    dynamic_io_enabled: false,
+                    cache_components_enabled: false,
                     use_cache_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
@@ -789,7 +789,7 @@ fn pure(input: PathBuf) {
     );
 }
 
-fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
+fn run_strip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
     test_fixture(
         syntax(),
         &|tr| {
@@ -802,8 +802,8 @@ fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
-                    pragma: Some(Arc::new("__jsx".into())),
-                    pragma_frag: Some(Arc::new("__jsxFrag".into())),
+                    pragma: Some(BytesStr::from_str_slice("__jsx")),
+                    pragma_frag: Some(BytesStr::from_str_slice("__jsxFrag")),
                     throw_if_namespace: false.into(),
                     development: false.into(),
                     ..Default::default()
@@ -830,14 +830,14 @@ fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
 fn next_transform_strip_page_exports_fixture_data(output: PathBuf) {
     let input = output.parent().unwrap().join("input.js");
 
-    run_stip_page_exports_test(&input, &output, ExportFilter::StripDefaultExport);
+    run_strip_page_exports_test(&input, &output, ExportFilter::StripDefaultExport);
 }
 
 #[fixture("tests/fixture/strip-page-exports/**/output-default.js")]
 fn next_transform_strip_page_exports_fixture_default(output: PathBuf) {
     let input = output.parent().unwrap().join("input.js");
 
-    run_stip_page_exports_test(&input, &output, ExportFilter::StripDataExports);
+    run_strip_page_exports_test(&input, &output, ExportFilter::StripDataExports);
 }
 
 #[fixture("tests/fixture/debug-fn-name/**/input.js")]

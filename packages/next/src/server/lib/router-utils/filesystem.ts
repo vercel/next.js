@@ -22,7 +22,10 @@ import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
 import { getPathMatch } from '../../../shared/lib/router/utils/path-match'
-import { getRouteRegex } from '../../../shared/lib/router/utils/route-regex'
+import {
+  getNamedRouteRegex,
+  getRouteRegex,
+} from '../../../shared/lib/router/utils/route-regex'
 import { getRouteMatcher } from '../../../shared/lib/router/utils/route-matcher'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
@@ -42,6 +45,7 @@ import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route
 import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
 import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
+import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 
 export type FsOutput = {
   type:
@@ -107,9 +111,6 @@ export async function setupFsCheck(opts: {
   dev: boolean
   minimalMode?: boolean
   config: NextConfigComplete
-  addDevWatcherCallback?: (
-    arg: (files: Map<string, { timestamp: number }>) => void
-  ) => void
 }) {
   const getItemsLru = !opts.dev
     ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
@@ -130,6 +131,15 @@ export async function setupFsCheck(opts: {
 
   const appFiles = new Set<string>()
   const pageFiles = new Set<string>()
+  // Map normalized path to the file path. This is essential
+  // for parallel and group routes as their original path
+  // cannot be restored from the request path.
+  // Example:
+  // [normalized-path] -> [file-path]
+  // /icon-<hash>.png -> .../app/@parallel/icon.png
+  // /icon-<hash>.png -> .../app/(group)/icon.png
+  // /icon.png -> .../app/icon.png
+  const staticMetadataFiles = new Map<string, string>()
   let dynamicRoutes: FilesystemDynamicRoute[] = []
 
   let middlewareMatcher:
@@ -258,10 +268,14 @@ export async function setupFsCheck(opts: {
 
     for (const route of routesManifest.dataRoutes) {
       if (isDynamicRoute(route.page)) {
-        const routeRegex = getRouteRegex(route.page)
+        const routeRegex = getNamedRouteRegex(route.page, {
+          prefixRouteKeys: true,
+        })
         dynamicRoutes.push({
           ...route,
           regex: routeRegex.re.toString(),
+          namedRegex: routeRegex.namedRegex,
+          routeKeys: routeRegex.routeKeys,
           match: getRouteMatcher({
             // TODO: fix this in the manifest itself, must also be fixed in
             // upstream builder that relies on this
@@ -281,6 +295,12 @@ export async function setupFsCheck(opts: {
     }
 
     for (const route of routesManifest.dynamicRoutes) {
+      // If a route is marked as skipInternalRouting, it's not for the internal
+      // router, and instead has been added to support external routers.
+      if (route.skipInternalRouting) {
+        continue
+      }
+
       dynamicRoutes.push({
         ...route,
         match: getRouteMatcher(getRouteRegex(route.page)),
@@ -326,11 +346,13 @@ export async function setupFsCheck(opts: {
       dynamicRoutes: {},
       notFoundRoutes: [],
       preview: {
-        previewModeId: require('crypto').randomBytes(16).toString('hex'),
-        previewModeSigningKey: require('crypto')
+        previewModeId: (require('crypto') as typeof import('crypto'))
+          .randomBytes(16)
+          .toString('hex'),
+        previewModeSigningKey: (require('crypto') as typeof import('crypto'))
           .randomBytes(32)
           .toString('hex'),
-        previewModeEncryptionKey: require('crypto')
+        previewModeEncryptionKey: (require('crypto') as typeof import('crypto'))
           .randomBytes(32)
           .toString('hex'),
       },
@@ -418,6 +440,7 @@ export async function setupFsCheck(opts: {
 
     appFiles,
     pageFiles,
+    staticMetadataFiles,
     dynamicRoutes,
     nextDataRoutes,
 
@@ -481,6 +504,18 @@ export async function setupFsCheck(opts: {
         return {
           itemPath,
           type: 'nextImage',
+        }
+      }
+
+      if (opts.dev && isMetadataRouteFile(itemPath, [], false)) {
+        const fsPath = staticMetadataFiles.get(itemPath)
+        if (fsPath) {
+          return {
+            // "nextStaticFolder" sets Cache-Control "no-store" on dev.
+            type: 'nextStaticFolder',
+            fsPath,
+            itemPath: fsPath,
+          }
         }
       }
 
@@ -609,8 +644,14 @@ export async function setupFsCheck(opts: {
               itemsRoot = publicFolderPath
               break
             }
-            default: {
+            case 'appFile':
+            case 'pageFile':
+            case 'nextImage':
+            case 'devVirtualFsItem': {
               break
+            }
+            default: {
+              ;(type) satisfies never
             }
           }
 
@@ -648,16 +689,19 @@ export async function setupFsCheck(opts: {
               }
             } else if (type === 'pageFile' || type === 'appFile') {
               const isAppFile = type === 'appFile'
-              if (
-                ensureFn &&
-                (await ensureFn({
-                  type,
-                  itemPath: isAppFile
-                    ? normalizeMetadataRoute(curItemPath)
-                    : curItemPath,
-                })?.catch(() => 'ENSURE_FAILED')) === 'ENSURE_FAILED'
-              ) {
-                continue
+
+              // Attempt to ensure the page/app file is compiled and ready
+              if (ensureFn) {
+                const ensureItemPath = isAppFile
+                  ? normalizeMetadataRoute(curItemPath)
+                  : curItemPath
+
+                try {
+                  await ensureFn({ type, itemPath: ensureItemPath })
+                } catch (error) {
+                  // If ensure failed, skip this item and continue to the next one
+                  continue
+                }
               }
             } else {
               continue

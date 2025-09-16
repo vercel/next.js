@@ -8,7 +8,7 @@ use next_core::{
     util::NextRuntime,
 };
 use swc_core::{
-    atoms::Atom,
+    atoms::{Atom, atom},
     common::comments::Comments,
     ecma::{
         ast::{
@@ -18,12 +18,14 @@ use swc_core::{
         utils::find_pat_ids,
     },
 };
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Value, ValueToString, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::{self, File, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
+    chunk::{
+        ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset, ModuleId,
+    },
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
@@ -59,8 +61,8 @@ pub(crate) struct ServerActionsManifest {
 #[turbo_tasks::function]
 pub(crate) async fn create_server_actions_manifest(
     actions: Vc<AllActions>,
-    project_path: Vc<FileSystemPath>,
-    node_root: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
+    node_root: FileSystemPath,
     page_name: RcStr,
     runtime: NextRuntime,
     rsc_asset_context: Vc<Box<dyn AssetContext>>,
@@ -75,7 +77,7 @@ pub(crate) async fn create_server_actions_manifest(
         .to_resolved()
         .await?;
 
-    let chunk_item = loader.as_chunk_item(module_graph, Vc::upcast(chunking_context));
+    let chunk_item = loader.as_chunk_item(module_graph, chunking_context);
     let manifest = build_manifest(
         node_root,
         page_name,
@@ -92,11 +94,6 @@ pub(crate) async fn create_server_actions_manifest(
     .cell())
 }
 
-#[turbo_tasks::function]
-fn server_actions_loader_modifier() -> Vc<RcStr> {
-    Vc::cell("server actions loader".into())
-}
-
 /// Builds the "action loader" entry point, which reexports every found action
 /// behind a lazy dynamic import.
 ///
@@ -105,7 +102,7 @@ fn server_actions_loader_modifier() -> Vc<RcStr> {
 /// client and present inside the paired manifest.
 #[turbo_tasks::function]
 pub(crate) async fn build_server_actions_loader(
-    project_path: Vc<FileSystemPath>,
+    project_path: FileSystemPath,
     page_name: RcStr,
     actions: Vc<AllActions>,
     asset_context: Vc<Box<dyn AssetContext>>,
@@ -129,17 +126,17 @@ pub(crate) async fn build_server_actions_loader(
         )?;
     }
 
-    let path = project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
+    let path = project_path.join(&format!(".next-internal/server/app{page_name}/actions.js"))?;
     let file = File::from(contents.build());
     let source = VirtualSource::new_with_ident(
-        AssetIdent::from_path(path).with_modifier(server_actions_loader_modifier()),
+        AssetIdent::from_path(path).with_modifier(rcstr!("server actions loader")),
         AssetContent::file(file.into()),
     );
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
     let module = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::Internal(ResolvedVc::cell(import_map))),
+            ReferenceType::Internal(ResolvedVc::cell(import_map)),
         )
         .module();
 
@@ -155,7 +152,7 @@ pub(crate) async fn build_server_actions_loader(
 /// Builds a manifest containing every action's hashed id, with an internal
 /// module id which exports a function using that hashed name.
 async fn build_manifest(
-    node_root: Vc<FileSystemPath>,
+    node_root: FileSystemPath,
     page_name: RcStr,
     runtime: NextRuntime,
     actions: Vc<AllActions>,
@@ -163,8 +160,9 @@ async fn build_manifest(
     async_module_info: Vc<AsyncModulesInfo>,
 ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
     let manifest_path_prefix = &page_name;
-    let manifest_path = node_root
-        .join(format!("server/app{manifest_path_prefix}/server-reference-manifest.json",).into());
+    let manifest_path = node_root.join(&format!(
+        "server/app{manifest_path_prefix}/server-reference-manifest.json",
+    ))?;
     let mut manifest = ServerReferenceManifest {
         ..Default::default()
     };
@@ -172,22 +170,43 @@ async fn build_manifest(
     let key = format!("app{page_name}");
 
     let actions_value = actions.await?;
-    let loader_id = chunk_item.id().to_string().await?;
+    let loader_id = chunk_item.id().await?;
+    let loader_id = match &*loader_id {
+        ModuleId::Number(id) => ActionManifestModuleId::Number(*id),
+        ModuleId::String(id) => ActionManifestModuleId::String(id),
+    };
     let mapping = match runtime {
         NextRuntime::Edge => &mut manifest.edge,
         NextRuntime::NodeJs => &mut manifest.node,
     };
 
-    for (hash_id, (layer, _name, _module)) in actions_value {
+    // Collect all the action metadata including filenames
+    let mut action_metadata: Vec<(String, (ActionLayer, String, String))> = Vec::new();
+    for (hash_id, (layer, name, module)) in actions_value.iter() {
+        // Get the module path and use the full path
+        let module_path = module.ident().path().await?;
+        let full_path = module_path.to_string();
+
+        action_metadata.push((hash_id.clone(), (*layer, name.clone(), full_path)));
+    }
+
+    // Now create the manifest entries
+    for (hash_id, (layer, name, filename)) in &action_metadata {
         let entry = mapping.entry(hash_id.as_str()).or_default();
         entry.workers.insert(
             &key,
             ActionManifestWorkerEntry {
-                module_id: ActionManifestModuleId::String(loader_id.as_str()),
+                module_id: loader_id.clone(),
                 is_async: *async_module_info.is_async(chunk_item.module()).await?,
+                exported_name: name.as_str(),
+                filename: filename.as_str(),
             },
         );
         entry.layer.insert(&key, *layer);
+
+        // Hoist the filename and exported_name to the entry level
+        entry.exported_name = name.as_str();
+        entry.filename = filename.as_str();
     }
 
     Ok(ResolvedVc::upcast(
@@ -212,15 +231,19 @@ pub async fn to_rsc_context(
     // opposed to the following hack to construct the RSC module corresponding to this client
     // module.
     let source = FileSource::new_with_query(
-        client_module.ident().path().root().join(entry_path.into()),
-        Vc::cell(entry_query.into()),
+        client_module
+            .ident()
+            .path()
+            .await?
+            .root()
+            .await?
+            .join(entry_path)?,
+        entry_query.into(),
     );
     let module = asset_context
         .process(
             Vc::upcast(source),
-            Value::new(ReferenceType::EcmaScriptModules(
-                EcmaScriptModulesReferenceSubType::Undefined,
-            )),
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined),
         )
         .module()
         .to_resolved()
@@ -252,21 +275,19 @@ pub fn parse_server_actions(
 /// If found, we return the mapping of every action's hashed id to the name of
 /// the exported action function. If not, we return a None.
 #[turbo_tasks::function]
-async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
-    let Some(ecmascript_asset) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
+async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionActionMap>> {
+    let Some(ecmascript_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module)
     else {
         return Ok(Vc::cell(None));
     };
 
-    if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModulePartAsset>(module).await?
-    {
-        if matches!(
+    if let Some(module) = ResolvedVc::try_downcast_type::<EcmascriptModulePartAsset>(module)
+        && matches!(
             module.await?.part,
             ModulePart::Evaluation | ModulePart::Facade
-        ) {
-            return Ok(Vc::cell(None));
-        }
+        )
+    {
+        return Ok(Vc::cell(None));
     }
 
     let original_parsed = ecmascript_asset.parse_original().resolve().await?;
@@ -322,7 +343,7 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
                     ModuleItem::ModuleDecl(
                         ModuleDecl::ExportDefaultExpr(..) | ModuleDecl::ExportDefaultDecl(..),
                     ) => {
-                        exports.push("default".into());
+                        exports.push(atom!("default"));
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(decl)) => match &decl.decl {
                         Decl::Class(c) => {
@@ -355,7 +376,7 @@ fn all_export_names(program: &Program) -> Vec<Atom> {
                                     );
                                 }
                                 ExportSpecifier::Default(_) => {
-                                    exports.push("default".into());
+                                    exports.push(atom!("default"));
                                 }
                                 ExportSpecifier::Namespace(e) => {
                                     exports.push(e.name.atom().clone());
@@ -435,14 +456,13 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
         .iter_nodes()
         .map(|node| {
             async move {
-                let SingleModuleGraphModuleNode { module, layer, .. } = node;
-
+                let SingleModuleGraphModuleNode { module } = node;
                 // TODO: compare module contexts instead?
-                let layer = match &layer {
-                    Some(layer) if &**layer == "app-rsc" || &**layer == "app-edge-rsc" => {
+                let layer = match module.ident().await?.layer.as_ref() {
+                    Some(layer) if layer.name() == "app-rsc" || layer.name() == "app-edge-rsc" => {
                         ActionLayer::Rsc
                     }
-                    Some(layer) if &**layer == "app-client" => ActionLayer::ActionBrowser,
+                    Some(layer) if layer.name() == "app-client" => ActionLayer::ActionBrowser,
                     // TODO really ignore SSR?
                     _ => return Ok(None),
                 };

@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/index.js"],"sourcesContent":["'use strict'\n\nconsole.log('this is CJS')\nmodule.exports = 1234\n"],"names":[],"mappings":"AAEA,QAAQ,GAAG,CAAC;AACZ,OAAO,OAAO,GAAG"}}]
+}

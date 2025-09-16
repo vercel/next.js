@@ -315,7 +315,7 @@ describe('dynamic-data inside cache scope', () => {
              |                                        ^",
            "stack": [
              "${isTurbopack ? '<anonymous>' : 'eval'} app/cookies/page.js (4:40)",
-             "async Page app/cookies/page.js (15:11)",
+             "Page app/cookies/page.js (15:11)",
            ],
          }
         `)
@@ -335,7 +335,7 @@ describe('dynamic-data inside cache scope', () => {
              |                                                      ^",
            "stack": [
              "${isTurbopack ? '<anonymous>' : 'eval'} app/connection/page.js (4:54)",
-             "async Page app/connection/page.js (7:3)",
+             "Page app/connection/page.js (7:3)",
            ],
          }
         `)
@@ -355,7 +355,7 @@ describe('dynamic-data inside cache scope', () => {
              |                                        ^",
            "stack": [
              "${isTurbopack ? '<anonymous>' : 'eval'} app/headers/page.js (4:40)",
-             "async Page app/headers/page.js (15:21)",
+             "Page app/headers/page.js (15:21)",
            ],
          }
         `)

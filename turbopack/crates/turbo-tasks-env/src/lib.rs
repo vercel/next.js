@@ -49,9 +49,11 @@ pub trait ProcessEnv {
     // Instead we should use only `read_prefix` to read all env vars with a specific
     // prefix.
     /// Reads all env variables into a Map
+    #[turbo_tasks::function]
     fn read_all(self: Vc<Self>) -> Vc<EnvMap>;
 
     /// Reads a single env variable. Ignores casing.
+    #[turbo_tasks::function]
     fn read(self: Vc<Self>, name: RcStr) -> Vc<Option<RcStr>> {
         case_insensitive_read(self.read_all(), name)
     }
@@ -86,8 +88,3 @@ async fn to_uppercase_map(map: Vc<EnvMap>) -> Result<Vc<EnvMap>> {
 }
 
 pub static GLOBAL_ENV_LOCK: Mutex<()> = Mutex::new(());
-
-pub fn register() {
-    turbo_tasks::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

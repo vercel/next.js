@@ -29,7 +29,7 @@ While fetching data on the client is supported with Next.js, it also gives you t
 
 ### Fast and intentional loading states
 
-With built-in support for [streaming through React Suspense](/docs/app/building-your-application/routing/loading-ui-and-streaming#streaming-with-suspense), you can be more intentional about which parts of your UI you want to load first and in what order without introducing network waterfalls.
+With built-in support for [streaming through React Suspense](/docs/app/getting-started/linking-and-navigating#streaming), you can be more intentional about which parts of your UI you want to load first and in what order without introducing network waterfalls.
 
 This enables you to build pages that are faster to load and eliminate [layout shifts](https://vercel.com/blog/how-core-web-vitals-affect-seo).
 
@@ -39,7 +39,7 @@ Depending on your needs, Next.js allows you to choose your data fetching strateg
 
 ### Middleware
 
-[Next.js Middleware](/docs/app/building-your-application/routing/middleware) allows you to run code on the server before a request is completed. This is especially useful to avoid having a flash of unauthenticated content when the user visits an authenticated-only page by redirecting the user to a login page. The middleware is also useful for experimentation and [internationalization](/docs/app/guides/internationalization).
+[Next.js Middleware](/docs/app/api-reference/file-conventions/middleware) allows you to run code on the server before a request is completed. This is especially useful to avoid having a flash of unauthenticated content when the user visits an authenticated-only page by redirecting the user to a login page. The middleware is also useful for experimentation and [internationalization](/docs/app/guides/internationalization).
 
 ### Built-in Optimizations
 
@@ -87,7 +87,7 @@ to make it compatible with Next.js. If you're not using TypeScript, you can skip
 3. Add `./node_modules` to the [`exclude` array](https://www.typescriptlang.org/tsconfig#exclude)
 4. Add `{ "name": "next" }` to the [`plugins` array in `compilerOptions`](https://www.typescriptlang.org/tsconfig#plugins): `"plugins": [{ "name": "next" }]`
 5. Set [`esModuleInterop`](https://www.typescriptlang.org/tsconfig#esModuleInterop) to `true`: `"esModuleInterop": true`
-6. Set [`jsx`](https://www.typescriptlang.org/tsconfig#jsx) to `preserve`: `"jsx": "preserve"`
+6. Set [`jsx`](https://www.typescriptlang.org/tsconfig#jsx) to `react-jsx`: `"jsx": "react-jsx"`
 7. Set [`allowJs`](https://www.typescriptlang.org/tsconfig#allowJs) to `true`: `"allowJs": true`
 8. Set [`forceConsistentCasingInFileNames`](https://www.typescriptlang.org/tsconfig#forceConsistentCasingInFileNames) to `true`: `"forceConsistentCasingInFileNames": true`
 9. Set [`incremental`](https://www.typescriptlang.org/tsconfig#incremental) to `true`: `"incremental": true`
@@ -108,7 +108,7 @@ Here's an example of a working `tsconfig.json` with those changes:
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -592,9 +592,9 @@ single-page application. However, you aren't yet taking advantage of most of Nex
 you can now start making incremental changes to reap all the benefits. Here's what you might want to
 do next:
 
-- Migrate from React Router to the [Next.js App Router](/docs/app/building-your-application/routing) to get:
+- Migrate from React Router to the [Next.js App Router](/docs/app) to get:
   - Automatic code splitting
-  - [Streaming Server-Rendering](/docs/app/building-your-application/routing/loading-ui-and-streaming)
+  - [Streaming Server-Rendering](/docs/app/api-reference/file-conventions/loading)
   - [React Server Components](/docs/app/getting-started/server-and-client-components)
 - [Optimize images with the `<Image>` component](/docs/app/api-reference/components/image)
 - [Optimize fonts with `next/font`](/docs/app/api-reference/components/font)

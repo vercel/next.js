@@ -128,9 +128,6 @@ function getAppPathRequiredChunks(
     }
 
     // Get the actual chunk file names from the chunk file list.
-    // It's possible that the chunk is generated via `import()`, in
-    // that case the chunk file name will be '[name].[contenthash]'
-    // instead of '[name]-[chunkhash]'.
     if (chunk.id != null) {
       const chunkId = '' + chunk.id
       chunk.files.forEach((file) => {
@@ -223,13 +220,13 @@ export class ClientReferenceManifestPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.thisCompilation.tap(PLUGIN_NAME, (compilation) => {
+    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
           // Have to be in the optimize stage to run after updating the CSS
           // asset hash via extract mini css plugin.
-          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_ANALYSE,
         },
         () => this.createAsset(compilation, compiler.context)
       )

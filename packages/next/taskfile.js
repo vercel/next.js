@@ -1,4 +1,3 @@
-const { outdent } = require('outdent')
 const { relative, basename, resolve, join, dirname } = require('path')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const glob = require('glob')
@@ -662,6 +661,17 @@ export async function ncc_image_size(task, opts) {
 }
 
 // eslint-disable-next-line camelcase
+externals['image-detector'] = 'next/dist/compiled/image-detector'
+export async function ncc_image_detector(task, opts) {
+  // NOTE: remove this special compile step if the upstream PR lands
+  // https://github.com/image-size/image-size/pull/451
+  await task
+    .source(relative(__dirname, require.resolve('image-size/dist/detector.js')))
+    .ncc({ packageName: 'image-size', externals })
+    .target('src/compiled/image-detector')
+}
+
+// eslint-disable-next-line camelcase
 externals['@hapi/accept'] = 'next/dist/compiled/@hapi/accept'
 export async function ncc_hapi_accept(task, opts) {
   await task
@@ -677,6 +687,23 @@ export async function ncc_amphtml_validator(task, opts) {
     .source(relative(__dirname, require.resolve('amphtml-validator')))
     .ncc({ packageName: 'amphtml-validator', externals })
     .target('src/compiled/amphtml-validator')
+
+  const validatorRes = await fetch(
+    'https://cdn.ampproject.org/v0/validator_wasm.js'
+  ).catch((err) => {
+    throw new Error('Failed to fetch AMP validator', { cause: err })
+  })
+
+  if (!validatorRes.ok) {
+    throw new Error(
+      `Failed to get the AMP validator, status: ${validatorRes.status}`
+    )
+  }
+
+  await fs.writeFile(
+    join(__dirname, 'src/compiled/amphtml-validator/validator_wasm.js'),
+    require('buffer').Buffer.from(await validatorRes.arrayBuffer())
+  )
 }
 
 // eslint-disable-next-line camelcase
@@ -1628,155 +1655,12 @@ export async function copy_vendor_react(task_) {
         // We replace the module/chunk loading code with our own implementation in Next.js.
         let newSource = aliasVendoredReactPackages(source)
 
-        const filepath = file.dir + '/' + file.base
-        if (
-          /cjs\/react-dom-server\.edge\.(?:development|production)\.js$/.test(
-            filepath
-          )
-        ) {
-          const ast = parseFile(newSource, {
-            sourceFileName: filepath,
-          })
-          replaceSetTimeoutInAst(ast, filepath)
-          newSource = recast.print(ast).code
-        }
-
         file.data = newSource
 
         // Note that we don't replace `react-dom` with `next/dist/compiled/react-dom`
         // as it mighe be aliased to the server rendering stub.
       })
       .target(`src/compiled/react-dom${packageSuffix}/cjs`)
-
-    function replaceSetTimeoutInAst(
-      /** @type {recast.types.namedTypes.File} */ ast,
-      /** @type {string} */ filepath
-    ) {
-      // FIXME: we need this hack until we can use the Node build of 'react-dom/server'
-      //
-      // We're currently using the Edge builds of 'react-dom/server' and 'react-server-dom-{webpack,turbopack}' everywhere.
-      // But if we're in Node, we want to change the implementation of `scheduleWork` from the Edge one:
-      //   https://github.com/facebook/react/blob/19bd26beb689e554fceb0b929dc5199be8cba594/packages/react-server/src/ReactServerStreamConfigEdge.js#L31-L33
-      // to the Node one:
-      //   https://github.com/facebook/react/blob/19bd26beb689e554fceb0b929dc5199be8cba594/packages/react-server/src/ReactServerStreamConfigNode.js#L25-L27
-      // for performance and correctness reasons (e.g. in DynamicIO).
-      //
-      // Since `scheduleWork` is inlined, we have to convert `setTimeout` calls like this
-      //   setTimeout(() => ..., 0)
-      // into this:
-      //   setImmediate(() => ...)
-
-      recast.types.namedTypes.File.assert(ast)
-      const definitionStr = outdent`
-        // This is a patch added by Next.js
-        const setTimeoutOrImmediate =
-          typeof globalThis["set" + "Immediate"] === "function" &&
-          // edge runtime sandbox defines a stub for setImmediate
-          // (see 'addStub' in packages/next/src/server/web/sandbox/context.ts)
-          // but it's made non-enumerable, so we can detect it
-          globalThis.propertyIsEnumerable("setImmediate")
-            ? globalThis["set" + "Immediate"]
-            : (callback, ...args) => setTimeout(callback, 0, ...args);
-
-      `
-      const getDefinitionStmt = () => {
-        const fileAst = /** @type {recast.types.namedTypes.File} */ (
-          recast.parse(definitionStr)
-        )
-        return fileAst.program.body[0]
-      }
-
-      let needsDefinition = false
-      recast.visit(ast, {
-        visitCallExpression(path) {
-          const { callee, arguments: args } = path.node
-
-          if (callee.type === 'Identifier' && callee.name === 'setTimeout') {
-            const durationArg = args.length >= 2 ? args[1] : undefined
-            if (
-              // `setTimeout(fn)`
-              !durationArg ||
-              // `setTimeout(fn, 0, ...)`
-              (durationArg.type === 'Literal' && durationArg.value === 0) ||
-              // `setTimeout(fn, undefined, ...)`
-              (durationArg.type === 'Identifier' &&
-                durationArg.name === 'undefined')
-            ) {
-              needsDefinition = true
-              // setTimeout(fn, 0, ...) ->
-              // setTimeoutOrImmediate(fn, ...)
-              callee.name = 'setTimeoutOrImmediate'
-              path.node.arguments = [args[0], ...args.slice(2)]
-            }
-          }
-          this.traverse(path)
-        },
-      })
-
-      if (!needsDefinition) {
-        return
-      }
-
-      let didInsertDefinition = false
-      recast.visit(ast, {
-        visitAssignmentExpression(path) {
-          // we should only insert the definition of `setTimeoutOrImmediate` once.
-          if (didInsertDefinition) {
-            return false
-          }
-
-          // Find the first `exports.NAME = ...` assignment
-          const { left: target } = path.node
-          if (
-            target.type === 'MemberExpression' &&
-            target.object.type === 'Identifier' &&
-            target.object.name === 'exports' &&
-            // we don't care about which export is being assigned.
-            target.property.type === 'Identifier'
-          ) {
-            didInsertDefinition = true
-            // We expect `exports` assignments to happen:
-            // - at the top level for prod builds of react
-            // - inside an IIFE for dev builds of react
-            // In either case, we now need find an ancestor node we can insert the definition into.
-            const blocklikeAncestor = findBlocklikeAncestor(
-              /** @type {recast.types.NodePath} */ (path)
-            )
-            if (!blocklikeAncestor) {
-              throw new Error('Could not find a block to insert definition')
-            }
-            blocklikeAncestor.insertAt(0, getDefinitionStmt())
-          }
-
-          // we don't care about any assignment expressions that might happen in the RHS,
-          // React doesn't do that
-          return false
-        },
-      })
-      if (!didInsertDefinition) {
-        throw new Error(
-          `Failed to find an insertion point for \`setTimeout\` replacement in '${filepath}'`
-        )
-      }
-
-      function findBlocklikeAncestor(
-        /** @type {recast.types.NodePath} */ path
-      ) {
-        /** @type {recast.types.NodePath | null} */
-        let current = path
-        while (current) {
-          if (
-            recast.types.namedTypes.BlockStatement.check(current.node) ||
-            recast.types.namedTypes.Program.check(current.node)
-          ) {
-            break
-          } else {
-            current = current.parentPath
-          }
-        }
-        return current
-      }
-    }
 
     function replaceIdentifiersInAst(
       /** @type {recast.types.namedTypes.File} */ ast,
@@ -1834,7 +1718,6 @@ export async function copy_vendor_react(task_) {
     )
     const itemsToRemove = [
       'static.js',
-      'static.node.js',
       'static.browser.js',
       'unstable_testing.js',
       'test-utils.js',
@@ -1890,9 +1773,7 @@ export async function copy_vendor_react(task_) {
               ],
             ])
           )
-          if (file.base.startsWith('react-server-dom-webpack-server.edge')) {
-            replaceSetTimeoutInAst(ast, filepath)
-          }
+
           file.data = recast.print(ast).code
         } else if (file.base === 'package.json') {
           file.data = overridePackageName(file.data)
@@ -1929,24 +1810,10 @@ export async function copy_vendor_react(task_) {
         // package will be bundled alongside user code and we don't need to introduce the extra
         // indirection
 
-        if (file.base.startsWith('react-server-dom-turbopack-client.browser')) {
-          const source = file.data.toString()
-          const filepath = file.dir + '/' + file.base
-          const ast = parseFile(source, { sourceFileName: filepath })
-          replaceIdentifiersInAst(
-            ast,
-            new Map([
-              [
-                '__turbopack_load__',
-                parseExpression('__turbopack_load_by_url__'),
-              ],
-            ])
-          )
-          file.data = recast.print(ast).code
-        } else if (
-          file.base.startsWith('react-server-dom-turbopack-client') ||
-          (file.base.startsWith('react-server-dom-turbopack-server') &&
-            !file.base.startsWith('react-server-dom-turbopack-server.browser'))
+        if (
+          (file.base.startsWith('react-server-dom-turbopack-client') ||
+            file.base.startsWith('react-server-dom-turbopack-server')) &&
+          !file.base.includes('.browser.')
         ) {
           const source = file.data.toString()
           const filepath = file.dir + '/' + file.base
@@ -1956,7 +1823,7 @@ export async function copy_vendor_react(task_) {
             ast,
             new Map([
               [
-                '__turbopack_load__',
+                '__turbopack_load_by_url__',
                 parseExpression('globalThis.__next_chunk_load__'),
               ],
               [
@@ -1965,10 +1832,6 @@ export async function copy_vendor_react(task_) {
               ],
             ])
           )
-
-          if (file.base.startsWith('react-server-dom-turbopack-server.edge')) {
-            replaceSetTimeoutInAst(ast, filepath)
-          }
 
           file.data = recast.print(ast).code
         } else if (file.base === 'package.json') {
@@ -2390,27 +2253,22 @@ export async function ncc_https_proxy_agent(task, opts) {
     .target('src/compiled/https-proxy-agent')
 }
 
+externals['safe-stable-stringify'] = 'next/dist/compiled/safe-stable-stringify'
+export async function ncc_safe_stable_stringify(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('safe-stable-stringify')))
+    .ncc({
+      packageName: 'safe-stable-stringify',
+      externals,
+      target: 'es5',
+    })
+    .target('src/compiled/safe-stable-stringify')
+}
+
 export async function precompile(task, opts) {
   await task.parallel(
     ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets'],
     opts
-  )
-
-  const validatorRes = await fetch(
-    'https://cdn.ampproject.org/v0/validator_wasm.js'
-  ).catch((err) => {
-    throw new Error('Failed to fetch AMP validator', { cause: err })
-  })
-
-  if (!validatorRes.ok) {
-    throw new Error(
-      `Failed to get the AMP validator, status: ${validatorRes.status}`
-    )
-  }
-
-  await fs.writeFile(
-    join(__dirname, 'dist/compiled/amphtml-validator/validator_wasm.js'),
-    require('buffer').Buffer.from(await validatorRes.arrayBuffer())
   )
 }
 
@@ -2426,6 +2284,7 @@ export async function ncc(task, opts) {
     .clear('src/compiled')
     .parallel(
       [
+        'ncc_safe_stable_stringify',
         'ncc_amp_optimizer',
         'ncc_node_html_parser',
         'ncc_napirs_triples',
@@ -2433,6 +2292,7 @@ export async function ncc(task, opts) {
         'ncc_p_queue',
         'ncc_raw_body',
         'ncc_image_size',
+        'ncc_image_detector',
         'ncc_hapi_accept',
         'ncc_commander',
         'ncc_node_anser',
@@ -2579,6 +2439,13 @@ export async function next_compile(task, opts) {
       'nextbuildstatic',
       'nextbuildstatic_esm',
       'nextbuild_esm',
+      'next_devtools_entrypoint',
+      'next_devtools_server',
+      'next_devtools_server_esm',
+      'next_devtools_shared',
+      'next_devtools_shared_esm',
+      'next_devtools_userspace',
+      'next_devtools_userspace_esm',
       'pages',
       'pages_esm',
       'lib',
@@ -2720,6 +2587,67 @@ export async function client_esm(task, opts) {
     .target('dist/esm/client')
 }
 
+export async function next_devtools_entrypoint(task, opts) {
+  await task
+    .source('src/next-devtools/dev-overlay.shim.ts')
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/next-devtools')
+}
+
+export async function next_devtools_server(task, opts) {
+  await task
+    .source(
+      'src/next-devtools/server/**/!(*.test|*.stories).+(js|ts|tsx|woff2)'
+    )
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/next-devtools/server')
+}
+
+export async function next_devtools_server_esm(task, opts) {
+  await task
+    .source(
+      'src/next-devtools/server/**/!(*.test|*.stories).+(js|ts|tsx|woff2)'
+    )
+    .swc('client', { dev: opts.dev, esm: true })
+    .target('dist/esm/next-devtools/server')
+}
+
+export async function next_devtools_shared(task, opts) {
+  await task
+    .source(
+      'src/next-devtools/shared/**/!(*.test|*.stories).+(js|ts|tsx|woff2)'
+    )
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/next-devtools/shared')
+}
+
+export async function next_devtools_shared_esm(task, opts) {
+  await task
+    .source(
+      'src/next-devtools/shared/**/!(*.test|*.stories).+(js|ts|tsx|woff2)'
+    )
+    .swc('client', { dev: opts.dev, esm: true })
+    .target('dist/esm/next-devtools/shared')
+}
+
+export async function next_devtools_userspace(task, opts) {
+  await task
+    .source(
+      'src/next-devtools/userspace/**/!(*.test|*.stories).+(js|ts|tsx|woff2)'
+    )
+    .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
+    .target('dist/next-devtools/userspace')
+}
+
+export async function next_devtools_userspace_esm(task, opts) {
+  await task
+    .source(
+      'src/next-devtools/userspace/**/!(*.test|*.stories).+(js|ts|tsx|woff2)'
+    )
+    .swc('client', { dev: opts.dev, esm: true })
+    .target('dist/esm/next-devtools/userspace')
+}
+
 // export is a reserved keyword for functions
 export async function nextbuildstatic(task, opts) {
   await task
@@ -2835,9 +2763,21 @@ export async function build(task, opts) {
 }
 
 export async function generate_types(task, opts) {
-  await execa.command('pnpm run types', {
-    stdio: 'inherit',
-  })
+  const watchmode = opts.dev
+  const typesPromise = execa(
+    'pnpm',
+    [
+      'run',
+      'types',
+      ...(watchmode ? ['--watch', '--preserveWatchOutput'] : []),
+    ],
+    { stdio: 'inherit' }
+  )
+  // In watch-mode the process never completes i.e. the Promise never resolve.
+  // But taskr needs to know that it can start watching the files for the task it has to manually restart.
+  if (!watchmode) {
+    await typesPromise
+  }
 }
 
 export async function check_error_codes(task, opts) {
@@ -2870,6 +2810,19 @@ export default async function (task) {
   await task.watch(
     'src/build',
     ['nextbuild', 'nextbuild_esm', 'nextbuildjest'],
+    opts
+  )
+  await task.watch(
+    'src/next-devtools',
+    [
+      'next_devtools_entrypoint',
+      'next_devtools_server',
+      'next_devtools_server_esm',
+      'next_devtools_shared',
+      'next_devtools_shared_esm',
+      'next_devtools_userspace',
+      'next_devtools_userspace_esm',
+    ],
     opts
   )
   await task.watch('src/experimental/testing', 'experimental_testing', opts)
@@ -3120,6 +3073,16 @@ export async function next_bundle_server(task, opts) {
   })
 }
 
+export async function next_bundle_devtools(task, opts) {
+  await task.source('dist').webpack({
+    watch: opts.dev,
+    config: require('./next-devtools.webpack-config')({
+      dev: opts.dev,
+    }),
+    name: 'next-bundle-devtools-dev',
+  })
+}
+
 export async function next_bundle(task, opts) {
   await task.parallel(
     [
@@ -3140,6 +3103,8 @@ export async function next_bundle(task, opts) {
       'next_bundle_pages_dev_turbo',
       // builds the minimal server
       'next_bundle_server',
+      // devtools
+      'next_bundle_devtools',
     ],
     opts
   )

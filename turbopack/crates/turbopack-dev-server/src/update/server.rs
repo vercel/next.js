@@ -185,7 +185,7 @@ where
             UpdateStreamItem::Found { update, issues } => {
                 let issues = issues
                     .iter()
-                    .map(|p| (&**p).into())
+                    .map(|p| Issue::from(&**p))
                     .collect::<Vec<Issue<'_>>>();
                 match &**update {
                     Update::Partial(partial) => {

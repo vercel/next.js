@@ -1,0 +1,1 @@
+./asset1.txt

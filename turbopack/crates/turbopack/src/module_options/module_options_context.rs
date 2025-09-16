@@ -3,15 +3,13 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{MinifyType, SourceMapsType},
-    condition::ContextCondition,
-    environment::Environment,
-    resolve::options::ImportMapping,
+    chunk::SourceMapsType, compile_time_info::CompileTimeInfo, condition::ContextCondition,
+    environment::Environment, resolve::options::ImportMapping,
 };
-use turbopack_ecmascript::{TreeShakingMode, references::esm::UrlRewriteBehavior};
+use turbopack_ecmascript::{TreeShakingMode, TypeofWindow, references::esm::UrlRewriteBehavior};
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
     execution_context::ExecutionContext,
@@ -19,28 +17,23 @@ use turbopack_node::{
 };
 
 use super::ModuleRule;
+use crate::module_options::RuleCondition;
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub struct LoaderRuleItem {
     pub loaders: ResolvedVc<WebpackLoaderItems>,
     pub rename_as: Option<RcStr>,
+    pub condition: Option<ConditionItem>,
 }
 
+/// This is a list of instructions for the rule engine to process. The first element in each tuple
+/// is a glob to match against, and the second is a rule to execute if that glob matches.
+///
+/// This is not a map, since multiple rules can be configured for the same glob, and since execution
+/// order matters.
 #[derive(Default)]
 #[turbo_tasks::value(transparent)]
-pub struct WebpackRules(FxIndexMap<RcStr, LoaderRuleItem>);
-
-#[derive(Default)]
-#[turbo_tasks::value(transparent)]
-pub struct OptionWebpackRules(Option<ResolvedVc<WebpackRules>>);
-
-#[derive(Default)]
-#[turbo_tasks::value(transparent)]
-pub struct WebpackConditions(pub FxIndexMap<RcStr, ConditionItem>);
-
-#[derive(Default)]
-#[turbo_tasks::value(transparent)]
-pub struct OptionWebpackConditions(Option<ResolvedVc<WebpackConditions>>);
+pub struct WebpackRules(Vec<(RcStr, LoaderRuleItem)>);
 
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum ConditionPath {
@@ -50,16 +43,61 @@ pub enum ConditionPath {
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
-pub struct ConditionItem {
-    pub path: ConditionPath,
+pub enum ConditionItem {
+    All(Box<[ConditionItem]>),
+    Any(Box<[ConditionItem]>),
+    Not(Box<ConditionItem>),
+    Builtin(RcStr),
+    Base {
+        path: Option<ConditionPath>,
+        content: Option<ResolvedVc<EsRegex>>,
+    },
 }
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct WebpackLoadersOptions {
     pub rules: ResolvedVc<WebpackRules>,
-    pub conditions: ResolvedVc<OptionWebpackConditions>,
+    pub builtin_conditions: ResolvedVc<Box<dyn WebpackLoaderBuiltinConditionSet>>,
     pub loader_runner_package: Option<ResolvedVc<ImportMapping>>,
+}
+
+pub enum WebpackLoaderBuiltinConditionSetMatch {
+    Matched,
+    Unmatched,
+    /// The given condition is not supported by the framework.
+    Invalid,
+}
+
+/// A collection of framework-provided conditions for user (or framework) specified loader rules
+/// ([`WebpackRules`]) to match against.
+#[turbo_tasks::value_trait]
+pub trait WebpackLoaderBuiltinConditionSet {
+    /// Determines if the string representation of this condition is in the set. If it's not valid,
+    /// an issue will be emitted as a collectible.
+    fn match_condition(&self, condition: &str) -> WebpackLoaderBuiltinConditionSetMatch;
+}
+
+/// A no-op implementation of `WebpackLoaderBuiltinConditionSet` that always returns
+/// `WebpackLoaderBuiltinConditionSetMatch::Invalid`.
+#[turbo_tasks::value]
+pub struct EmptyWebpackLoaderBuiltinConditionSet;
+
+#[turbo_tasks::value_impl]
+impl EmptyWebpackLoaderBuiltinConditionSet {
+    #[turbo_tasks::function]
+    fn new() -> Vc<Box<dyn WebpackLoaderBuiltinConditionSet>> {
+        Vc::upcast::<Box<dyn WebpackLoaderBuiltinConditionSet>>(
+            EmptyWebpackLoaderBuiltinConditionSet.cell(),
+        )
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl WebpackLoaderBuiltinConditionSet for EmptyWebpackLoaderBuiltinConditionSet {
+    fn match_condition(&self, _condition: &str) -> WebpackLoaderBuiltinConditionSetMatch {
+        WebpackLoaderBuiltinConditionSetMatch::Invalid
+    }
 }
 
 /// The kind of decorators transform to use.
@@ -68,13 +106,6 @@ pub struct WebpackLoadersOptions {
 pub enum DecoratorsKind {
     Legacy,
     Ecma,
-}
-
-/// The types when replacing `typeof window` with a constant.
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
-pub enum TypeofWindow {
-    Object,
-    Undefined,
 }
 
 /// Configuration options for the decorators transform.
@@ -123,7 +154,6 @@ impl ValueDefault for TypescriptTransformOptions {
     }
 }
 
-// [TODO]: should enabled_react_refresh belong to this options?
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 pub struct JsxTransformOptions {
@@ -131,6 +161,14 @@ pub struct JsxTransformOptions {
     pub react_refresh: bool,
     pub import_source: Option<RcStr>,
     pub runtime: Option<RcStr>,
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+pub struct ExternalsTracingOptions {
+    /// The directory from which the bundled files will require the externals at runtime.
+    pub tracing_root: FileSystemPath,
+    pub compile_time_info: ResolvedVc<CompileTimeInfo>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -147,17 +185,14 @@ pub struct ModuleOptionsContext {
     pub enable_mdx: bool,
     pub enable_mdx_rs: Option<ResolvedVc<MdxTransformOptions>>,
 
-    pub preset_env_versions: Option<ResolvedVc<Environment>>,
+    pub environment: Option<ResolvedVc<Environment>>,
     pub execution_context: Option<ResolvedVc<ExecutionContext>>,
     pub side_effect_free_packages: Vec<RcStr>,
     pub tree_shaking_mode: Option<TreeShakingMode>,
 
     /// Generate (non-emitted) output assets for static assets and externals, to facilitate
     /// generating a list of all non-bundled files that will be required at runtime.
-    ///
-    /// The filepath is the directory from which the bundled files will require the externals at
-    /// runtime.
-    pub enable_externals_tracing: Option<ResolvedVc<FileSystemPath>>,
+    pub enable_externals_tracing: Option<ResolvedVc<ExternalsTracingOptions>>,
 
     /// If true, it stores the last successful parse result in state and keeps using it when
     /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
@@ -169,6 +204,11 @@ pub struct ModuleOptionsContext {
     /// A list of rules to use a different module option context for certain
     /// context paths. The first matching is used.
     pub rules: Vec<(ContextCondition, ResolvedVc<ModuleOptionsContext>)>,
+
+    /// Whether the modules in this context are never chunked/codegen-ed, but only used for
+    /// tracing.
+    pub is_tracing: bool,
+
     pub placeholder_for_future_extensions: (),
 }
 
@@ -176,6 +216,9 @@ pub struct ModuleOptionsContext {
 #[derive(Clone, Default)]
 #[serde(default)]
 pub struct EcmascriptOptionsContext {
+    // TODO this should just be handled via CompileTimeInfo FreeVarReferences, but then it
+    // (currently) wouldn't be possible to have different replacement values in user code vs
+    // node_modules.
     pub enable_typeof_window_inlining: Option<TypeofWindow>,
     pub enable_jsx: Option<ResolvedVc<JsxTransformOptions>>,
     /// Follow type references and resolve declaration files in additional to
@@ -208,10 +251,13 @@ pub struct CssOptionsContext {
     /// the module graph, but neither asset types can be emitted directly.
     pub enable_raw_css: bool,
 
-    pub minify_type: MinifyType,
-
     /// Specifies how Source Maps are handled.
     pub source_maps: SourceMapsType,
+
+    /// Override the conditions for module CSS (doesn't have any effect if `enable_raw_css` is
+    /// true). By default (for `None`), it uses
+    /// `Any(ResourcePathEndsWith(".module.css"), ContentTypeStartsWith("text/css+module"))`
+    pub module_css_condition: Option<RuleCondition>,
 
     pub placeholder_for_future_extensions: (),
 }

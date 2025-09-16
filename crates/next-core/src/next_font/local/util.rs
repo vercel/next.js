@@ -17,7 +17,7 @@ pub(super) async fn build_font_family_string(
     let mut font_families = vec![
         format!(
             "'{}'",
-            *get_scoped_font_family(FontFamilyType::WebFont.cell(), options.font_family(),).await?
+            get_scoped_font_family(FontFamilyType::WebFont, options.font_family().await?)
         )
         .into(),
     ];
@@ -25,7 +25,7 @@ pub(super) async fn build_font_family_string(
     for font_fallback in &*font_fallbacks.await? {
         match &*font_fallback.await? {
             FontFallback::Automatic(fallback) => {
-                font_families.push(format!("'{}'", *fallback.scoped_font_family.await?).into());
+                font_families.push(format!("'{}'", fallback.scoped_font_family).into());
             }
             FontFallback::Manual(fallbacks) => {
                 font_families.extend_from_slice(fallbacks);

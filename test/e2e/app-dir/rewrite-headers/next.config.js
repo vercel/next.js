@@ -18,6 +18,10 @@ module.exports = {
         source: '/hello/(.*)/google',
         destination: 'https://www.google.$1/',
       },
+      {
+        source: '/rewrites-to-query/:name',
+        destination: '/other?key=:name',
+      },
     ]
   },
 }

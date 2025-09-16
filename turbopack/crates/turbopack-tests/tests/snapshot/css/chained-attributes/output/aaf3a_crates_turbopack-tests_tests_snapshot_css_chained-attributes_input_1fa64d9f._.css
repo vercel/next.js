@@ -1,0 +1,54 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/c.css [test] (css, layer(layer) layer(foo) print and (orientation: landscape) supports(not(display: inline-grid)) supports(font-format(woff2))) */
+@layer layer.foo {
+@media print and (orientation: landscape) {
+@supports not(display: inline-grid) and font-format(woff2) {
+.imported {
+  color: red;
+}
+
+}
+}
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/c.css [test] (css, layer(layer) layer(bar) print and (orientation: portrait) supports(not(display: inline-grid)) supports(font-format(woff2))) */
+@layer layer.bar {
+@media print and (orientation: portrait) {
+@supports not(display: inline-grid) and font-format(woff2) {
+.imported {
+  color: red;
+}
+
+}
+}
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/b.css [test] (css, layer(layer) print supports(not(display: inline-grid)) supports(font-format(woff2))) */
+@layer layer {
+@media print {
+@supports not(display: inline-grid) and font-format(woff2) {
+.imported {
+  color: orange;
+}
+
+}
+}
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/a.css [test] (css, layer(layer) print supports(not(display: inline-grid))) */
+@layer layer {
+@media print {
+@supports not(display: inline-grid) {
+.imported {
+  color: #0ff;
+}
+
+}
+}
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/style.css [test] (css) */
+.style {
+  color: #ff0;
+}
+
+/*# sourceMappingURL=aaf3a_crates_turbopack-tests_tests_snapshot_css_chained-attributes_input_1fa64d9f._.css.map*/

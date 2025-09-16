@@ -1,13 +1,9 @@
-// imports polyfill from `@next/polyfill-module` after build.
-import '../build/polyfills/polyfill-module'
-
-import './components/globals/patch-console'
-import './components/globals/handle-global-errors'
-
+import './app-globals'
 import ReactDOMClient from 'react-dom/client'
 import React, { use } from 'react'
+// TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
-import { createFromReadableStream } from 'react-server-dom-webpack/client'
+import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import {
@@ -21,13 +17,16 @@ import {
   createMutableActionQueue,
 } from './components/app-router-instance'
 import AppRouter from './components/app-router'
-import type { InitialRSCPayload } from '../server/app-render/types'
+import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
-import { isBot } from '../shared/lib/router/utils/is-bot'
+import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-app'
 
 /// <reference types="react-dom/experimental" />
+
+const createFromReadableStream =
+  createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
 const appElement: HTMLElement | Document = document
 
@@ -54,6 +53,10 @@ type NextFlight = Omit<Array<FlightSegment>, 'push'> & {
 declare global {
   // If you're working in a browser environment
   interface Window {
+    /**
+     * request ID, dev-only
+     */
+    __next_r?: string
     __next_f: NextFlight
   }
 }
@@ -155,25 +158,44 @@ const readable = new ReadableStream({
   },
 })
 
+let debugChannel:
+  | { readable?: ReadableStream; writable?: WritableStream }
+  | undefined
+
+if (
+  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_REACT_DEBUG_CHANNEL &&
+  typeof window !== 'undefined'
+) {
+  const { createDebugChannel } =
+    require('./dev/debug-channel') as typeof import('./dev/debug-channel')
+
+  debugChannel = createDebugChannel(undefined)
+}
+
 const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
   readable,
-  { callServer, findSourceMapURL }
+  { callServer, findSourceMapURL, debugChannel }
 )
 
 function ServerRoot({
   pendingActionQueue,
+  webSocket,
+  staticIndicatorState,
 }: {
   pendingActionQueue: Promise<AppRouterActionQueue>
+  webSocket: WebSocket | undefined
+  staticIndicatorState: StaticIndicatorState | undefined
 }): React.ReactNode {
   const initialRSCPayload = use(initialServerResponse)
   const actionQueue = use<AppRouterActionQueue>(pendingActionQueue)
 
   const router = (
     <AppRouter
-      gracefullyDegrade={isBot(window.navigator.userAgent)}
       actionQueue={actionQueue}
-      globalErrorComponentAndStyles={initialRSCPayload.G}
-      assetPrefix={initialRSCPayload.p}
+      globalErrorState={initialRSCPayload.G}
+      webSocket={webSocket}
+      staticIndicatorState={staticIndicatorState}
     />
   )
 
@@ -207,7 +229,14 @@ function Root({ children }: React.PropsWithChildren<{}>) {
   return children
 }
 
+function onDefaultTransitionIndicator() {
+  // TODO: Compose default with user-configureable (e.g. nprogress)
+  // TODO: Use React's default once we figure out hanging indicators: https://codesandbox.io/p/sandbox/charming-moon-hktkp6?file=%2Fsrc%2Findex.js%3A106%2C30
+  return () => {}
+}
+
 const reactRootOptions: ReactDOMClient.RootOptions = {
+  onDefaultTransitionIndicator: onDefaultTransitionIndicator,
   onRecoverableError,
   onCaughtError,
   onUncaughtError,
@@ -221,8 +250,20 @@ export type ClientInstrumentationHooks = {
 }
 
 export function hydrate(
-  instrumentationHooks: ClientInstrumentationHooks | null
+  instrumentationHooks: ClientInstrumentationHooks | null,
+  assetPrefix: string
 ) {
+  let staticIndicatorState: StaticIndicatorState | undefined
+  let webSocket: WebSocket | undefined
+
+  if (process.env.NODE_ENV !== 'production') {
+    const { createWebSocket } =
+      require('./dev/hot-reloader/app/web-socket') as typeof import('./dev/hot-reloader/app/web-socket')
+
+    staticIndicatorState = { pathname: null, appIsrManifest: {} }
+    webSocket = createWebSocket(assetPrefix, staticIndicatorState)
+  }
+
   // React overrides `.then` and doesn't return a new promise chain,
   // so we wrap the action queue in a promise to ensure that its value
   // is defined when the promise resolves.
@@ -262,7 +303,11 @@ export function hydrate(
     <StrictModeIfEnabled>
       <HeadManagerContext.Provider value={{ appDir: true }}>
         <Root>
-          <ServerRoot pendingActionQueue={pendingActionQueue} />
+          <ServerRoot
+            pendingActionQueue={pendingActionQueue}
+            webSocket={webSocket}
+            staticIndicatorState={staticIndicatorState}
+          />
         </Root>
       </HeadManagerContext.Provider>
     </StrictModeIfEnabled>
@@ -272,11 +317,13 @@ export function hydrate(
     let element = reactEl
     // Server rendering failed, fall back to client-side rendering
     if (process.env.NODE_ENV !== 'production') {
-      const { createRootLevelDevOverlayElement } =
-        require('./components/react-dev-overlay/app/client-entry') as typeof import('./components/react-dev-overlay/app/client-entry')
+      const { RootLevelDevOverlayElement } =
+        require('../next-devtools/userspace/app/client-entry') as typeof import('../next-devtools/userspace/app/client-entry')
 
       // Note this won't cause hydration mismatch because we are doing CSR w/o hydration
-      element = createRootLevelDevOverlayElement(element)
+      element = (
+        <RootLevelDevOverlayElement>{element}</RootLevelDevOverlayElement>
+      )
     }
 
     ReactDOMClient.createRoot(appElement, reactRootOptions).render(element)

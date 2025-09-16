@@ -48,11 +48,11 @@ tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 triomphe = { workspace = true, features = ["unsize", "unstable"] }
+turbo-dyn-eq-hash = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-macros = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 unsize = { workspace = true }
+inventory = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

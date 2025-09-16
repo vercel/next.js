@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/cjs/input/mod.cjs"],"sourcesContent":["console.log(import.meta.url);\n"],"names":[],"mappings":";;;;;AAAA,QAAQ,GAAG,CAAC,8BAAY,GAAG"}},
+    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/cjs/input/index.js"],"sourcesContent":["import './mod.cjs'\n"],"names":[],"mappings":";AAAA"}}]
+}

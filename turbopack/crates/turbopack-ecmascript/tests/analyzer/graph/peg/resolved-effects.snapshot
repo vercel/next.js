@@ -555,21 +555,17 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 157 conditional = ((???*0* | ???*1*) !== ???*6*)
+0 -> 157 conditional = ((???*0* | ???*1*) !== undefined)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
-- *1* (???*2* ? ???*5* : {})
+- *1* (???*2* ? ???*4* : {})
   ⚠️  nested operation
-- *2* (???*3* !== ???*4*)
+- *2* (???*3* !== undefined)
   ⚠️  nested operation
 - *3* options
   ⚠️  circular variable reference
-- *4* unsupported expression
-  ⚠️  This value might have side effects
-- *5* options
+- *4* options
   ⚠️  circular variable reference
-- *6* unsupported expression
-  ⚠️  This value might have side effects
 
 0 -> 158 unreachable = ???*0*
 - *0* unreachable
@@ -1153,10 +1149,8 @@
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 342 conditional = (???*0* !== ???*1*)
+0 -> 342 conditional = (???*0* !== undefined)
 - *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 342 -> 343 call = (...) => {
@@ -1190,10 +1184,8 @@
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 
-0 -> 348 conditional = (???*0* !== ???*1*)
+0 -> 348 conditional = (???*0* !== undefined)
 - *0* max number of linking steps reached
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 348 -> 349 call = (...) => {

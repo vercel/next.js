@@ -1,5 +1,6 @@
 use crate::{
-    NonLocalValue, ShrinkToFit, TraitTypeId, ValueTypeId, VcRead, vc::cell_mode::VcCellMode,
+    NonLocalValue, ShrinkToFit, TraitTypeId, ValueTypeId, VcRead, macro_helpers::VTableRegistry,
+    vc::cell_mode::VcCellMode,
 };
 
 /// A trait implemented on all values types that can be put into a Value Cell
@@ -26,7 +27,15 @@ pub unsafe trait VcValueType: ShrinkToFit + Sized + Send + Sync + 'static {
 /// A trait implemented on all values trait object references that can be put
 /// into a Value Cell ([`Vc<Box<dyn Trait>>`][crate::Vc]).
 pub trait VcValueTrait: NonLocalValue + Send + Sync + 'static {
+    // The concrete type of the value_trait implementing VcValueTrait
+    type ValueTrait: ?Sized;
+
+    /// Returns the type id of the trait object.
     fn get_trait_type_id() -> TraitTypeId;
+
+    /// Returns the vtable for an implementation of this trait.
+    /// Panics if ValueTypeId does not implement the trait.
+    fn get_impl_vtables() -> &'static VTableRegistry<Self::ValueTrait>;
 }
 
 /// Marker trait that indicates that a [`Vc<Self>`][crate::Vc] can be upcasted
@@ -37,6 +46,18 @@ pub trait VcValueTrait: NonLocalValue + Send + Sync + 'static {
 /// The implementor of this trait must ensure that `Self` implements the
 /// trait `T`.
 pub unsafe trait Upcast<T>
+where
+    T: VcValueTrait + ?Sized,
+{
+}
+
+/// A speialization of [`Upcast`] that ensures that the upcast is strict meaning that T !== Self
+///
+/// # Safety
+///
+/// The implementor of this trait must ensure that `Self` implements the
+/// trait `T` and that `Self` is not equal to `T`.
+pub unsafe trait UpcastStrict<T>: Upcast<T>
 where
     T: VcValueTrait + ?Sized,
 {
@@ -54,10 +75,3 @@ where
     T: VcValueTrait + ?Sized,
 {
 }
-
-/// Marker trait that a turbo_tasks::value is prepared for serialization as
-/// [`Value<...>`][crate::Value] input.
-///
-/// Either use [`#[turbo_tasks::value(serialization = "auto_for_input")]`][macro@crate::value] or
-/// avoid [`Value<...>`][crate::Value] in favor of a real [Vc][crate::Vc].
-pub trait TypedForInput: VcValueType {}

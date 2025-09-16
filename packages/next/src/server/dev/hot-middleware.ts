@@ -23,11 +23,13 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import type ws from 'next/dist/compiled/ws'
+import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 import { isMiddlewareFilename } from '../../build/utils'
 import type { VersionInfo } from './parse-version-info'
-import type { HMR_ACTION_TYPES } from './hot-reloader-types'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
+import type { HmrMessageSentToBrowser } from './hot-reloader-types'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { devIndicatorServerState } from './dev-indicator-server-state'
+import { createBinaryHmrMessageData } from './messages'
 
 function isMiddlewareStats(stats: webpack.Stats) {
   for (const key of stats.compilation.entrypoints.keys()) {
@@ -67,55 +69,31 @@ function getStatsForSyncEvent(
   return serverStats.ts > clientStats.ts ? serverStats.stats : clientStats.stats
 }
 
-class EventStream {
-  clients: Set<ws>
-  constructor() {
-    this.clients = new Set()
-  }
-
-  close() {
-    for (const wsClient of this.clients) {
-      // it's okay to not cleanly close these websocket connections, this is dev
-      wsClient.terminate()
-    }
-    this.clients.clear()
-  }
-
-  handler(client: ws) {
-    this.clients.add(client)
-    client.addEventListener('close', () => {
-      this.clients.delete(client)
-    })
-  }
-
-  publish(payload: any) {
-    for (const wsClient of this.clients) {
-      wsClient.send(JSON.stringify(payload))
-    }
-  }
-}
-
 export class WebpackHotMiddleware {
-  eventStream: EventStream
+  private clients = new Set<ws>()
+  private clientsByRequestId: Map<string, ws> = new Map()
+
   clientLatestStats: { ts: number; stats: webpack.Stats } | null
   middlewareLatestStats: { ts: number; stats: webpack.Stats } | null
   serverLatestStats: { ts: number; stats: webpack.Stats } | null
   closed: boolean
   versionInfo: VersionInfo
   devtoolsFrontendUrl: string | undefined
+  devToolsConfig: DevToolsConfig
 
   constructor(
     compilers: webpack.Compiler[],
     versionInfo: VersionInfo,
-    devtoolsFrontendUrl: string | undefined
+    devtoolsFrontendUrl: string | undefined,
+    devToolsConfig: DevToolsConfig
   ) {
-    this.eventStream = new EventStream()
     this.clientLatestStats = null
     this.middlewareLatestStats = null
     this.serverLatestStats = null
     this.closed = false
     this.versionInfo = versionInfo
     this.devtoolsFrontendUrl = devtoolsFrontendUrl
+    this.devToolsConfig = devToolsConfig || ({} as DevToolsConfig)
 
     compilers[0].hooks.invalid.tap(
       'webpack-hot-middleware',
@@ -137,7 +115,7 @@ export class WebpackHotMiddleware {
   onClientInvalid = () => {
     if (this.closed || this.serverLatestStats?.stats.hasErrors()) return
     this.publish({
-      action: HMR_ACTIONS_SENT_TO_BROWSER.BUILDING,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.BUILDING,
     })
   }
 
@@ -184,15 +162,32 @@ export class WebpackHotMiddleware {
     }
   }
 
+  public updateDevToolsConfig(newConfig: DevToolsConfig): void {
+    this.devToolsConfig = newConfig
+  }
+
   /**
    * To sync we use the most recent stats but also we append middleware
    * errors. This is because it is possible that middleware fails to compile
    * and we still want to show the client overlay with the error while
    * the error page should be rendered just fine.
    */
-  onHMR = (client: ws) => {
+  onHMR = (client: ws, requestId: string | null) => {
     if (this.closed) return
-    this.eventStream.handler(client)
+
+    this.clients.add(client)
+
+    if (requestId) {
+      this.clientsByRequestId.set(requestId, client)
+    }
+
+    client.addEventListener('close', () => {
+      this.clients.delete(client)
+
+      if (requestId) {
+        this.clientsByRequestId.delete(requestId)
+      }
+    })
 
     const syncStats = getStatsForSyncEvent(
       this.clientLatestStats,
@@ -208,7 +203,7 @@ export class WebpackHotMiddleware {
       }
 
       this.publish({
-        action: HMR_ACTIONS_SENT_TO_BROWSER.SYNC,
+        type: HMR_MESSAGE_SENT_TO_BROWSER.SYNC,
         hash: stats.hash!,
         errors: [...(stats.errors || []), ...(middlewareStats.errors || [])],
         warnings: [
@@ -220,6 +215,7 @@ export class WebpackHotMiddleware {
           devtoolsFrontendUrl: this.devtoolsFrontendUrl,
         },
         devIndicator: devIndicatorServerState,
+        devToolsConfig: this.devToolsConfig,
       })
     }
   }
@@ -234,22 +230,63 @@ export class WebpackHotMiddleware {
     })
 
     this.publish({
-      action: HMR_ACTIONS_SENT_TO_BROWSER.BUILT,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.BUILT,
       hash: stats.hash!,
       warnings: stats.warnings || [],
       errors: stats.errors || [],
     })
   }
 
-  publish = (payload: HMR_ACTION_TYPES) => {
-    if (this.closed) return
-    this.eventStream.publish(payload)
+  getClient = (requestId: string): ws | undefined => {
+    return this.clientsByRequestId.get(requestId)
   }
+
+  publishToClient = (client: ws, message: HmrMessageSentToBrowser) => {
+    if (this.closed) {
+      return
+    }
+
+    const data =
+      typeof message.type === 'number'
+        ? createBinaryHmrMessageData(message)
+        : JSON.stringify(message)
+
+    client.send(data)
+  }
+
+  publish = (message: HmrMessageSentToBrowser) => {
+    if (this.closed) {
+      return
+    }
+
+    for (const wsClient of this.clients) {
+      this.publishToClient(wsClient, message)
+    }
+  }
+
   close = () => {
-    if (this.closed) return
+    if (this.closed) {
+      return
+    }
+
     // Can't remove compiler plugins, so we just set a flag and noop if closed
     // https://github.com/webpack/tapable/issues/32#issuecomment-350644466
     this.closed = true
-    this.eventStream.close()
+
+    for (const wsClient of this.clients) {
+      // it's okay to not cleanly close these websocket connections, this is dev
+      wsClient.terminate()
+    }
+
+    this.clients.clear()
+    this.clientsByRequestId.clear()
+  }
+
+  deleteClient = (client: ws, requestId: string | null) => {
+    this.clients.delete(client)
+
+    if (requestId) {
+      this.clientsByRequestId.delete(requestId)
+    }
   }
 }

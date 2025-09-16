@@ -14,7 +14,7 @@ import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-ru
 import mitt from '../shared/lib/mitt'
 import type { MittEmitter } from '../shared/lib/mitt'
 import { RouterContext } from '../shared/lib/router-context.shared-runtime'
-import { handleSmoothScroll } from '../shared/lib/router/utils/handle-smooth-scroll'
+import { disableSmoothScrollDuringRouteTransition } from '../shared/lib/router/utils/disable-smooth-scroll'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import {
   urlQueryToSearchParams,
@@ -179,10 +179,11 @@ class Container extends React.Component<{
     if (process.env.NODE_ENV === 'production') {
       return this.props.children
     } else {
-      const {
-        PagesDevOverlay,
-      }: typeof import('./components/react-dev-overlay/pages/pages-dev-overlay') = require('./components/react-dev-overlay/pages/pages-dev-overlay')
-      return <PagesDevOverlay>{this.props.children}</PagesDevOverlay>
+      const { PagesDevOverlayBridge } =
+        require('../next-devtools/userspace/pages/pages-dev-overlay-setup') as typeof import('../next-devtools/userspace/pages/pages-dev-overlay-setup')
+      return (
+        <PagesDevOverlayBridge>{this.props.children}</PagesDevOverlayBridge>
+      )
     }
   }
 }
@@ -269,7 +270,8 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   }
 
   if (initialData.scriptLoader) {
-    const { initScriptLoader } = require('./script')
+    const { initScriptLoader } =
+      require('./script') as typeof import('./script')
     initScriptLoader(initialData.scriptLoader)
   }
 
@@ -768,7 +770,7 @@ function doRender(input: RenderRouteInfo): Promise<any> {
 
     if (input.scroll) {
       const { x, y } = input.scroll
-      handleSmoothScroll(() => {
+      disableSmoothScrollDuringRouteTransition(() => {
         window.scrollTo(x, y)
       })
     }
@@ -901,7 +903,8 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     CachedComponent = pageEntrypoint.component
 
     if (process.env.NODE_ENV !== 'production') {
-      const { isValidElementType } = require('next/dist/compiled/react-is')
+      const { isValidElementType } =
+        require('next/dist/compiled/react-is') as typeof import('next/dist/compiled/react-is')
       if (!isValidElementType(CachedComponent)) {
         throw new Error(
           `The default export is not a React Component in page: "${initialData.page}"`
@@ -914,8 +917,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    const getServerError: typeof import('./components/react-dev-overlay/pages/client').getServerError =
-      require('./components/react-dev-overlay/pages/client').getServerError
+    const getServerError = (
+      require('../server/dev/node-stack-frames') as typeof import('../server/dev/node-stack-frames')
+    ).getServerError
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {

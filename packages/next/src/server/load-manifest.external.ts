@@ -115,6 +115,7 @@ export function loadManifestFromRelativePath<T extends object>({
   cache,
   skipParse,
   handleMissing,
+  useEval,
 }: {
   projectDir: string
   distDir: string
@@ -123,14 +124,19 @@ export function loadManifestFromRelativePath<T extends object>({
   cache?: Map<string, unknown>
   skipParse?: boolean
   handleMissing?: boolean
+  useEval?: boolean
 }): DeepReadonly<T> {
   try {
-    return loadManifest<T>(
-      join(/* turbopackIgnore: true */ projectDir, distDir, manifest),
-      shouldCache,
-      cache,
-      skipParse
+    const manifestPath = join(
+      /* turbopackIgnore: true */ projectDir,
+      distDir,
+      manifest
     )
+
+    if (useEval) {
+      return evalManifest<T>(manifestPath, shouldCache, cache)
+    }
+    return loadManifest<T>(manifestPath, shouldCache, cache, skipParse)
   } catch (err) {
     if (handleMissing) {
       // TODO: should this be undefined

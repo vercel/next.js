@@ -1,5 +1,4 @@
 use anyhow::Result;
-use indoc::writedoc;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, rope::RopeBuilder};
 use turbopack_core::{
@@ -55,30 +54,24 @@ impl EcmascriptBuildNodeChunkContent {
 
         let mut code = CodeBuilder::default();
 
-        writedoc!(
-            code,
-            r#"
-                module.exports = {{
-
-            "#,
-        )?;
+        write!(code, "module.exports = [")?;
 
         let content = this.content.await?;
         let chunk_items = content.chunk_item_code_and_ids().await?;
         for item in chunk_items {
             for (id, item_code) in item {
-                write!(code, "{}: ", StringifyJs(&id))?;
+                write!(code, "\n{}, ", StringifyJs(&id))?;
                 code.push_code(item_code);
-                writeln!(code, ",")?;
+                write!(code, ",")?;
             }
         }
 
-        write!(code, "\n}};")?;
+        write!(code, "\n];")?;
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
-            code = minify(&code, source_maps, mangle)?;
+        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
+            code = minify(code, source_maps, mangle)?;
         }
 
         Ok(code.cell())
@@ -87,10 +80,10 @@ impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBuildNodeChunkVersion>> {
         Ok(EcmascriptBuildNodeChunkVersion::new(
-            self.chunking_context.output_root(),
-            self.chunk.path(),
+            self.chunking_context.output_root().owned().await?,
+            self.chunk.path().owned().await?,
             *self.content,
-            self.chunking_context.await?.minify_type(),
+            *self.chunking_context.minify_type().await?,
         ))
     }
 }

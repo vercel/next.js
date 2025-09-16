@@ -6,7 +6,7 @@ import { isAbsolute, join } from 'path'
 import loadConfig from '../server/config'
 import { printAndExit } from '../server/lib/utils'
 import { Telemetry } from '../telemetry/storage'
-import { green } from '../lib/picocolors'
+import { green, yellow, bold } from '../lib/picocolors'
 import { ESLINT_DEFAULT_DIRS } from '../lib/constants'
 import { runLintCheck } from '../lib/eslint/runLintCheck'
 import { CompileError } from '../lib/compile-error'
@@ -64,6 +64,17 @@ const eslintOptions = (
 })
 
 const nextLint = async (options: NextLintOptions, directory?: string) => {
+  // Show deprecation warning
+  console.warn(
+    yellow('`next lint` is deprecated and will be removed in Next.js 16.\n') +
+      'For new projects, use ' +
+      bold('create-next-app') +
+      ' to choose your preferred linter.\n' +
+      'For existing projects, migrate to the ESLint CLI:\n' +
+      bold('npx @next/codemod@canary next-lint-to-eslint-cli .') +
+      '\n'
+  )
+
   const baseDir = getProjectDir(directory)
 
   // Check if the provided directory exists

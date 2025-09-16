@@ -19,6 +19,7 @@ import {
   FLIGHT_HEADERS,
   NEXT_REWRITTEN_PATH_HEADER,
   NEXT_REWRITTEN_QUERY_HEADER,
+  NEXT_RSC_UNION_QUERY,
   RSC_HEADER,
 } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
@@ -71,6 +72,8 @@ export type AdapterOptions = {
   page: string
   request: RequestData
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
+  incrementalCacheHandler?: typeof import('../lib/incremental-cache').CacheHandler
+  bypassNextUrl?: boolean
 }
 
 let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
@@ -87,10 +90,9 @@ function ensureTestApisIntercepted() {
   if (!testApisIntercepted) {
     testApisIntercepted = true
     if (process.env.NEXT_PRIVATE_TEST_PROXY === 'true') {
-      const {
-        interceptTestApis,
-        wrapRequestHandler,
-      } = require('next/dist/experimental/testmode/server-edge')
+      const { interceptTestApis, wrapRequestHandler } =
+        // eslint-disable-next-line @next/internal/typechecked-require -- experimental/testmode is not built ins next/dist/esm
+        require('next/dist/experimental/testmode/server-edge') as typeof import('../../experimental/testmode/server-edge')
       interceptTestApis()
       propagator = wrapRequestHandler(propagator)
     }
@@ -109,10 +111,12 @@ export async function adapter(
 
   params.request.url = normalizeRscURL(params.request.url)
 
-  const requestURL = new NextURL(params.request.url, {
-    headers: params.request.headers,
-    nextConfig: params.request.nextConfig,
-  })
+  const requestURL = params.bypassNextUrl
+    ? new URL(params.request.url)
+    : new NextURL(params.request.url, {
+        headers: params.request.headers,
+        nextConfig: params.request.nextConfig,
+      })
 
   // Iterator uses an index to keep track of the current iteration. Because of deleting and appending below we can't just use the iterator.
   // Instead we use the keys before iteration.
@@ -131,8 +135,11 @@ export async function adapter(
   }
 
   // Ensure users only see page requests, never data requests.
-  const buildId = requestURL.buildId
-  requestURL.buildId = ''
+  let buildId = process.env.__NEXT_BUILD_ID || ''
+  if ('buildId' in requestURL) {
+    buildId = (requestURL as NextURL).buildId || ''
+    requestURL.buildId = ''
+  }
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
   const isNextDataRequest = requestHeaders.has('x-nextjs-data')
@@ -147,11 +154,10 @@ export async function adapter(
   // Headers should only be stripped for middleware
   if (!isEdgeRendering) {
     for (const header of FLIGHT_HEADERS) {
-      const key = header.toLowerCase()
-      const value = requestHeaders.get(key)
+      const value = requestHeaders.get(header)
       if (value !== null) {
-        flightHeaders.set(key, value)
-        requestHeaders.delete(key)
+        flightHeaders.set(header, value)
+        requestHeaders.delete(header)
       }
     }
   }
@@ -159,6 +165,8 @@ export async function adapter(
   const normalizeURL = process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
     ? new URL(params.request.url)
     : requestURL
+
+  const rscHash = normalizeURL.searchParams.get(NEXT_RSC_UNION_QUERY)
 
   const request = new NextRequestHint({
     page: params.page,
@@ -193,15 +201,16 @@ export async function adapter(
     (params as any).IncrementalCache
   ) {
     ;(globalThis as any).__incrementalCache = new (
-      params as any
+      params as {
+        IncrementalCache: typeof import('../lib/incremental-cache').IncrementalCache
+      }
     ).IncrementalCache({
-      appDir: true,
-      fetchCache: true,
+      CurCacheHandler: params.incrementalCacheHandler,
       minimalMode: process.env.NODE_ENV !== 'development',
       fetchCacheKeyPrefix: process.env.__NEXT_FETCH_CACHE_KEY_PREFIX,
       dev: process.env.NODE_ENV === 'development',
       requestHeaders: params.request.headers as any,
-      requestProtocol: 'https',
+
       getPrerenderManifest: () => {
         return {
           version: -1 as any, // letting us know this doesn't conform to spec
@@ -274,13 +283,12 @@ export async function adapter(
 
             const workStore = createWorkStore({
               page,
-              fallbackRouteParams,
               renderOpts: {
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,
                 experimental: {
                   isRoutePPREnabled: false,
-                  dynamicIO: false,
+                  cacheComponents: false,
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
                 },
@@ -289,10 +297,8 @@ export async function adapter(
                 onClose: closeController.onClose.bind(closeController),
                 onAfterTaskError: undefined,
               },
-              requestEndedState: { ended: false },
-              isPrefetchRequest: request.headers.has(
-                NEXT_ROUTER_PREFETCH_HEADER
-              ),
+              isPrefetchRequest:
+                request.headers.get(NEXT_ROUTER_PREFETCH_HEADER) === '1',
               buildId: buildId ?? '',
               previouslyRevalidatedTags: [],
             })
@@ -374,10 +380,19 @@ export async function adapter(
       response.headers.set('x-nextjs-rewrite', relativeDestination)
     }
 
+    // Check to see if this is a non-relative rewrite. If it is, we need
+    // to check to see if it's an allowed origin to receive the rewritten
+    // headers.
+    const isAllowedOrigin = !isRelative
+      ? params.request.nextConfig?.experimental?.clientParamParsingOrigins?.some(
+          (origin) => new RegExp(origin).test(destination.origin)
+        )
+      : false
+
     // If this is an RSC request, and the pathname or search has changed, and
     // this isn't an external rewrite, we need to set the rewritten pathname and
     // query headers.
-    if (isRSCRequest && isRelative) {
+    if (isRSCRequest && (isRelative || isAllowedOrigin)) {
       if (requestURL.pathname !== destination.pathname) {
         response.headers.set(NEXT_REWRITTEN_PATH_HEADER, destination.pathname)
       }
@@ -388,6 +403,24 @@ export async function adapter(
           destination.search.slice(1)
         )
       }
+    }
+  }
+
+  /**
+   * Always forward the `_rsc` search parameter to the rewritten URL for RSC requests,
+   * unless it's already present. This is necessary to ensure that RSC hash validation
+   * works correctly after a rewrite. For internal rewrites, the server can validate the
+   * RSC hash using the original URL, so forwarding the `_rsc` parameter is less critical.
+   * However, for external rewrites (where the request is proxied to another Next.js server),
+   * the external server does not have access to the original URL or its search parameters.
+   * In these cases, forwarding the `_rsc` parameter is essential so that the external server
+   * can perform the correct RSC hash validation.
+   */
+  if (response && rewrite && isRSCRequest && rscHash) {
+    const rewriteURL = new URL(rewrite)
+    if (!rewriteURL.searchParams.has(NEXT_RSC_UNION_QUERY)) {
+      rewriteURL.searchParams.set(NEXT_RSC_UNION_QUERY, rscHash)
+      response.headers.set('x-middleware-rewrite', rewriteURL.toString())
     }
   }
 

@@ -20,11 +20,13 @@ workspace = true
 [target.'cfg(all(target_os = "windows", target_arch = "aarch64"))'.dependencies]
 reqwest = { workspace = true, features = ["native-tls"] }
 
+# If you modify this cfg, make sure you update `FetchClient::try_build_uncached_reqwest_client`.
 [target.'cfg(not(any(all(target_os = "windows", target_arch = "aarch64"), target_arch="wasm32")))'.dependencies]
-reqwest = { workspace = true, features = ["rustls-tls"] }
+reqwest = { workspace = true, features = ["rustls-tls-webpki-roots", "rustls-tls-native-roots"] }
 
 [dependencies]
 anyhow = { workspace = true }
+quick_cache = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
@@ -34,10 +36,8 @@ turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 
 [dev-dependencies]
-httpmock = { workspace = true }
+mockito = { version = "1.7.0", default-features = false }
 tokio = { workspace = true, features = ["full"] }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

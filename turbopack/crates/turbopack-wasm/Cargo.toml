@@ -14,7 +14,6 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-indexmap = { workspace = true }
 indoc = { workspace = true }
 serde = { workspace = true }
 turbo-rcstr = { workspace = true }
@@ -23,8 +22,6 @@ turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
-wasmparser = "0.110.0"
+wasmparser = "0.235.0"
 wat = "1.0.69"
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

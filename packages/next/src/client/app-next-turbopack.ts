@@ -1,19 +1,23 @@
-// TODO-APP: hydration warning
-
 import { appBootstrap } from './app-bootstrap'
+import { isRecoverableError } from './react-client-callbacks/on-recoverable-error'
 
-window.next.version += '-turbo'
+window.next.turbopack = true
 ;(self as any).__webpack_hash__ = ''
 
+// eslint-disable-next-line @next/internal/typechecked-require
 const instrumentationHooks = require('../lib/require-instrumentation-client')
 
-appBootstrap(() => {
-  const { hydrate } = require('./app-index')
-  hydrate(instrumentationHooks)
-
-  if (process.env.NODE_ENV !== 'production') {
-    const { initializeDevBuildIndicatorForAppRouter } =
-      require('./dev/dev-build-indicator/initialize-for-app-router') as typeof import('./dev/dev-build-indicator/initialize-for-app-router')
-    initializeDevBuildIndicatorForAppRouter()
+appBootstrap((assetPrefix) => {
+  const { hydrate } = require('./app-index') as typeof import('./app-index')
+  try {
+    hydrate(instrumentationHooks, assetPrefix)
+  } finally {
+    if (process.env.NODE_ENV !== 'production') {
+      const { getOwnerStack } =
+        require('../next-devtools/userspace/app/errors/stitched-error') as typeof import('../next-devtools/userspace/app/errors/stitched-error')
+      const { renderAppDevOverlay } =
+        require('next/dist/compiled/next-devtools') as typeof import('next/dist/compiled/next-devtools')
+      renderAppDevOverlay(getOwnerStack, isRecoverableError)
+    }
   }
 })

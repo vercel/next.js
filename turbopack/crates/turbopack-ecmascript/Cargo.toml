@@ -15,21 +15,24 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+auto-hash-map = { workspace = true }
+bytes-str = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
-lazy_static = { workspace = true }
+itertools = { workspace = true }
 num-bigint = "0.4"
 num-traits = "0.2.15"
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
 petgraph = { workspace = true }
+dashmap = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true }
-sourcemap = { workspace = true }
+serde_json = { workspace = true, features = ["raw_value"] }
+swc_sourcemap = { workspace = true }
 smallvec = { workspace = true }
 strsim = { workspace = true }
 tokio = { workspace = true }
@@ -43,7 +46,6 @@ turbopack-core = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-swc-utils = { workspace = true }
 url = { workspace = true }
-urlencoding = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",
@@ -55,7 +57,6 @@ swc_core = { workspace = true, features = [
   "ecma_codegen",
   "ecma_lints",
   "ecma_minifier",
-  "ecma_minifier_concurrent",
   "ecma_parser",
   "ecma_preset_env",
   "ecma_transforms",
@@ -72,15 +73,14 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
-par-core = { workspace = true, features = ["rayon"] }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 turbo-tasks-backend = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
 turbo-tasks-testing = { workspace = true }
+turbopack-test-utils = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
 
 [[bench]]
 name = "mod"

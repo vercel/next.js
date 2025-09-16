@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{Result, bail};
 use indoc::writedoc;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -22,7 +22,7 @@ use crate::NodeJsChunkingContext;
 /// runtime entries.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptBuildNodeEntryChunk {
-    path: ResolvedVc<FileSystemPath>,
+    path: FileSystemPath,
     other_chunks: ResolvedVc<OutputAssets>,
     evaluatable_assets: ResolvedVc<EvaluatableAssets>,
     exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
@@ -35,7 +35,7 @@ impl EcmascriptBuildNodeEntryChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeEntryChunk>`].
     #[turbo_tasks::function]
     pub fn new(
-        path: ResolvedVc<FileSystemPath>,
+        path: FileSystemPath,
         other_chunks: ResolvedVc<OutputAssets>,
         evaluatable_assets: ResolvedVc<EvaluatableAssets>,
         exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
@@ -57,10 +57,10 @@ impl EcmascriptBuildNodeEntryChunk {
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
 
-        let output_root = this.chunking_context.output_root().await?;
-        let chunk_path = self.path().await?;
-        let chunk_directory = self.path().parent().await?;
-        let runtime_path = self.runtime_chunk().path().await?;
+        let output_root = this.chunking_context.output_root().owned().await?;
+        let chunk_path = self.path().owned().await?;
+        let chunk_directory = self.path().await?.parent();
+        let runtime_path = self.runtime_chunk().path().owned().await?;
         let runtime_relative_path =
             if let Some(path) = chunk_directory.get_relative_path_to(&runtime_path) {
                 path
@@ -86,11 +86,10 @@ impl EcmascriptBuildNodeEntryChunk {
         writedoc!(
             code,
             r#"
-                const CHUNK_PUBLIC_PATH = {};
-                const runtime = require({});
+                var R=require({})({})
             "#,
+            StringifyJs(&*runtime_relative_path),
             StringifyJs(chunk_public_path),
-            StringifyJs(&*runtime_relative_path)
         )?;
 
         let other_chunks = this.other_chunks.await?;
@@ -102,7 +101,7 @@ impl EcmascriptBuildNodeEntryChunk {
                     // TODO(WEB-1112) This should call `require()` directly, perhaps as an argument
                     // to `loadChunk`.
                     r#"
-                        runtime.loadChunk({});
+                        R.c({})
                     "#,
                     StringifyJs(&other_chunk_public_path)
                 )?;
@@ -121,7 +120,7 @@ impl EcmascriptBuildNodeEntryChunk {
                 writedoc!(
                     code,
                     r#"
-                        runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH);
+                        R.m({})
                     "#,
                     StringifyJs(&*runtime_module_id),
                 )?;
@@ -136,8 +135,8 @@ impl EcmascriptBuildNodeEntryChunk {
         writedoc!(
             code,
             r#"
-                    module.exports = runtime.getOrInstantiateRuntimeModule({}, CHUNK_PUBLIC_PATH).exports;
-                "#,
+                module.exports=R.m({}).exports
+            "#,
             StringifyJs(&*runtime_module_id),
         )?;
 
@@ -152,7 +151,10 @@ impl EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     async fn source_map(self: Vc<Self>) -> Result<Vc<SourceMapAsset>> {
         let this = self.await?;
-        Ok(SourceMapAsset::new_fixed(*this.path, Vc::upcast(self)))
+        Ok(SourceMapAsset::new_fixed(
+            this.path.clone(),
+            Vc::upcast(self),
+        ))
     }
 }
 
@@ -160,25 +162,15 @@ impl EcmascriptBuildNodeEntryChunk {
 impl ValueToString for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell("Ecmascript Build Node Evaluate Chunk".into())
+        Vc::cell(rcstr!("Ecmascript Build Node Evaluate Chunk"))
     }
-}
-
-#[turbo_tasks::function]
-fn modifier() -> Vc<RcStr> {
-    Vc::cell("ecmascript build node evaluate chunk".into())
-}
-
-#[turbo_tasks::function]
-fn chunk_reference_description() -> Vc<RcStr> {
-    Vc::cell("chunk".into())
 }
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     fn path(&self) -> Vc<FileSystemPath> {
-        *self.path
+        self.path.clone().cell()
     }
 
     #[turbo_tasks::function]
@@ -197,9 +189,7 @@ impl OutputAsset for EcmascriptBuildNodeEntryChunk {
         }
 
         let other_chunks = this.other_chunks.await?;
-        for &other_chunk in &*other_chunks {
-            references.push(ResolvedVc::upcast(other_chunk));
-        }
+        references.extend(other_chunks.iter().copied());
 
         Ok(Vc::cell(references))
     }

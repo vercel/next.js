@@ -46,14 +46,14 @@ async function main() {
   config.set('token', githubToken)
 
   await execa(
-    `git remote set-url origin https://vercel-release-bot:${githubToken}@github.com/vercel/next.js.git`,
+    `git remote set-url origin https://nextjs-bot:${githubToken}@github.com/vercel/next.js.git`,
     { stdio: 'inherit', shell: true }
   )
-  await execa(`git config user.name "vercel-release-bot"`, {
+  await execa(`git config user.name "nextjs-bot"`, {
     stdio: 'inherit',
     shell: true,
   })
-  await execa(`git config user.email "infra+release@vercel.com"`, {
+  await execa(`git config user.email "it+nextjs-bot@vercel.com"`, {
     stdio: 'inherit',
     shell: true,
   })

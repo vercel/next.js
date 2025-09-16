@@ -1,7 +1,7 @@
 ---
 title: Project structure and organization
 nav_title: Project Structure
-description: An overview of the folder and file conventions in Next.js, and how to organize your project.
+description: Learn the folder and file conventions in Next.js, and how to organize your project.
 ---
 
 This page provides an overview of **all** the folder and file conventions in Next.js, and recommendations for organizing your project.
@@ -22,7 +22,7 @@ Top-level folders are used to organize your application's code and static assets
 
 |                                                                    |                                    |
 | ------------------------------------------------------------------ | ---------------------------------- |
-| [`app`](/docs/app/building-your-application/routing)               | App Router                         |
+| [`app`](/docs/app)                                                 | App Router                         |
 | [`pages`](/docs/pages/building-your-application/routing)           | Pages Router                       |
 | [`public`](/docs/app/api-reference/file-conventions/public-folder) | Static assets to be served         |
 | [`src`](/docs/app/api-reference/file-conventions/src-folder)       | Optional application source folder |
@@ -37,7 +37,7 @@ Top-level files are used to configure your application, manage dependencies, run
 | [`next.config.js`](/docs/app/api-reference/config/next-config-js)            | Configuration file for Next.js          |
 | [`package.json`](/docs/app/getting-started/installation#manual-installation) | Project dependencies and scripts        |
 | [`instrumentation.ts`](/docs/app/guides/instrumentation)                     | OpenTelemetry and Instrumentation file  |
-| [`middleware.ts`](/docs/app/building-your-application/routing/middleware)    | Next.js request middleware              |
+| [`middleware.ts`](/docs/app/api-reference/file-conventions/middleware)       | Next.js request middleware              |
 | [`.env`](/docs/app/guides/environment-variables)                             | Environment variables                   |
 | [`.env.local`](/docs/app/guides/environment-variables)                       | Local environment variables             |
 | [`.env.production`](/docs/app/guides/environment-variables)                  | Production environment variables        |
@@ -51,6 +51,8 @@ Top-level files are used to configure your application, manage dependencies, run
 <AppOnly>
 
 ### Routing Files
+
+Add `page` to expose a route, `layout` for shared UI such as header, nav, or footer, `loading` for skeletons, `error` for error boundaries and `route` for APIs.
 
 |                                                                               |                     |                              |
 | ----------------------------------------------------------------------------- | ------------------- | ---------------------------- |
@@ -66,35 +68,50 @@ Top-level files are used to configure your application, manage dependencies, run
 
 ### Nested routes
 
-|                 |                      |
-| --------------- | -------------------- |
-| `folder`        | Route segment        |
-| `folder/folder` | Nested route segment |
+Folders define URL segments. Nesting folders nests segments. Layouts at any level wrap their child segments. A route becomes public when a `page` or `route` file exists.
+
+| Path                        | URL pattern     | Notes                         |
+| --------------------------- | --------------- | ----------------------------- |
+| `app/layout.tsx`            | —               | Root layout wraps all routes  |
+| `app/blog/layout.tsx`       | —               | Wraps `/blog` and descendants |
+| `app/page.tsx`              | `/`             | Public route                  |
+| `app/blog/page.tsx`         | `/blog`         | Public route                  |
+| `app/blog/authors/page.tsx` | `/blog/authors` | Public route                  |
 
 ### Dynamic routes
 
-|                                                                                                        |                                  |
-| ------------------------------------------------------------------------------------------------------ | -------------------------------- |
-| [`[folder]`](/docs/app/api-reference/file-conventions/dynamic-routes#convention)                       | Dynamic route segment            |
-| [`[...folder]`](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments)            | Catch-all route segment          |
-| [`[[...folder]]`](/docs/app/api-reference/file-conventions/dynamic-routes#optional-catch-all-segments) | Optional catch-all route segment |
+Parameterize segments with square brackets. Use `[segment]` for a single param, `[...segment]` for catch‑all, and `[[...segment]]` for optional catch‑all. Access values via the [`params`](/docs/app/api-reference/file-conventions/page#params-optional) prop.
+
+| Path                            | URL pattern                                                          |
+| ------------------------------- | -------------------------------------------------------------------- |
+| `app/blog/[slug]/page.tsx`      | `/blog/my-first-post`                                                |
+| `app/shop/[...slug]/page.tsx`   | `/shop/clothing/shoes`, `/shop/clothing/shirts`                      |
+| `app/docs/[[...slug]]/page.tsx` | `/docs`, `/docs/layouts-and-pages`, `/docs/api-reference/use-router` |
 
 ### Route Groups and private folders
 
-|                                                                                |                                                  |
-| ------------------------------------------------------------------------------ | ------------------------------------------------ |
-| [`(folder)`](/docs/app/api-reference/file-conventions/route-groups#convention) | Group routes without affecting routing           |
-| [`_folder`](#private-folders)                                                  | Opt folder and all child segments out of routing |
+Organize code without changing URLs with route groups [`(group)`](/docs/app/api-reference/file-conventions/route-groups#convention), and colocate non-routable files with private folders [`_folder`](#private-folders).
+
+| Path                            | URL pattern | Notes                                     |
+| ------------------------------- | ----------- | ----------------------------------------- |
+| `app/(marketing)/page.tsx`      | `/`         | Group omitted from URL                    |
+| `app/(shop)/cart/page.tsx`      | `/cart`     | Share layouts within `(shop)`             |
+| `app/blog/_components/Post.tsx` | —           | Not routable; safe place for UI utilities |
+| `app/blog/_lib/data.ts`         | —           | Not routable; safe place for utils        |
 
 ### Parallel and Intercepted Routes
 
-|                                                                                             |                            |
-| ------------------------------------------------------------------------------------------- | -------------------------- |
-| [`@folder`](/docs/app/api-reference/file-conventions/parallel-routes#slots)                 | Named slot                 |
-| [`(.)folder`](/docs/app/api-reference/file-conventions/intercepting-routes#convention)      | Intercept same level       |
-| [`(..)folder`](/docs/app/api-reference/file-conventions/intercepting-routes#convention)     | Intercept one level above  |
-| [`(..)(..)folder`](/docs/app/api-reference/file-conventions/intercepting-routes#convention) | Intercept two levels above |
-| [`(...)folder`](/docs/app/api-reference/file-conventions/intercepting-routes#convention)    | Intercept from root        |
+These features fit specific UI patterns, such as slot-based layouts or modal routing.
+
+Use `@slot` for named slots rendered by a parent layout. Use intercept patterns to render another route inside the current layout without changing the URL, for example, to show a details view as a modal over a list.
+
+| Pattern (docs)                                                                              | Meaning              | Typical use case                     |
+| ------------------------------------------------------------------------------------------- | -------------------- | ------------------------------------ |
+| [`@folder`](/docs/app/api-reference/file-conventions/parallel-routes#slots)                 | Named slot           | Sidebar + main content               |
+| [`(.)folder`](/docs/app/api-reference/file-conventions/intercepting-routes#convention)      | Intercept same level | Preview sibling route in a modal     |
+| [`(..)folder`](/docs/app/api-reference/file-conventions/intercepting-routes#convention)     | Intercept parent     | Open parent child as overlay         |
+| [`(..)(..)folder`](/docs/app/api-reference/file-conventions/intercepting-routes#convention) | Intercept two levels | Deeply nested overlay                |
+| [`(...)folder`](/docs/app/api-reference/file-conventions/intercepting-routes#convention)    | Intercept from root  | Show arbitrary route in current view |
 
 ### Metadata file conventions
 
@@ -375,7 +392,7 @@ To opt specific routes into a layout, create a new route group (e.g. `(shop)`) a
 
 ### Opting for loading skeletons on a specific route
 
-To apply a [loading skeleton](/docs/app/building-your-application/routing/loading-ui-and-streaming) via a `loading.js` file to a specific route, create a new route group (e.g., `/(overview)`) and then move your `loading.tsx` inside that route group.
+To apply a [loading skeleton](/docs/app/api-reference/file-conventions/loading) via a `loading.js` file to a specific route, create a new route group (e.g., `/(overview)`) and then move your `loading.tsx` inside that route group.
 
 <Image
   alt="Folder structure showing a loading.tsx and a page.tsx inside the route group"

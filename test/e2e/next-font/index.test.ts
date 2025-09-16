@@ -310,21 +310,21 @@ describe('next/font', () => {
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-classname")).fontFamily'
         )
-      ).toMatch(/^"Open Sans", system-ui, Arial$/)
+      ).toMatch(/^"Open Sans", .*system-ui.*, Arial$/)
 
       // .style
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-style")).fontFamily'
         )
-      ).toMatch(/^"Open Sans", system-ui, Arial$/)
+      ).toMatch(/^"Open Sans", .*system-ui.*, Arial$/)
 
       // .variable
       expect(
         await browser.eval(
           'getComputedStyle(document.querySelector("#with-fallback-fonts-variable")).fontFamily'
         )
-      ).toMatch(/^"Open Sans", system-ui, Arial$/)
+      ).toMatch(/^"Open Sans", .*system-ui.*, Arial$/)
     })
   })
 

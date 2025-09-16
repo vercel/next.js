@@ -29,17 +29,23 @@ export function getMaybePagePath(
   // If we have a cached path, we can return it directly.
   if (pagePath) return pagePath
 
-  const serverBuildPath = path.join(distDir, SERVER_DIRECTORY)
+  const serverBuildPath = path.join(
+    /* turbopackIgnore: true */ distDir,
+    SERVER_DIRECTORY
+  )
   let appPathsManifest: undefined | PagesManifest
 
   if (isAppPath) {
     appPathsManifest = loadManifest(
-      path.join(serverBuildPath, APP_PATHS_MANIFEST),
+      path.join(
+        /* turbopackIgnore: true */ serverBuildPath,
+        APP_PATHS_MANIFEST
+      ),
       !isDev
     ) as PagesManifest
   }
   const pagesManifest = loadManifest(
-    path.join(serverBuildPath, PAGES_MANIFEST),
+    path.join(/* turbopackIgnore: true */ serverBuildPath, PAGES_MANIFEST),
     !isDev
   ) as PagesManifest
 
@@ -78,7 +84,14 @@ export function getMaybePagePath(
     return null
   }
 
-  pagePath = path.join(serverBuildPath, pagePath)
+  // Handle absolute paths (e.g., built-in components)
+  if (path.isAbsolute(pagePath)) {
+    // Use the absolute path as-is
+    pagePathCache?.set(cacheKey, pagePath)
+    return pagePath
+  }
+
+  pagePath = path.join(/* turbopackIgnore: true */ serverBuildPath, pagePath)
 
   pagePathCache?.set(cacheKey, pagePath)
   return pagePath
@@ -106,14 +119,16 @@ export async function requirePage(
 ): Promise<any> {
   const pagePath = getPagePath(page, distDir, undefined, isAppPath)
   if (pagePath.endsWith('.html')) {
-    return promises.readFile(pagePath, 'utf8').catch((err) => {
-      throw new MissingStaticPage(page, err.message)
-    })
+    return promises
+      .readFile(/* turbopackIgnore: true */ pagePath, 'utf8')
+      .catch((err) => {
+        throw new MissingStaticPage(page, err.message)
+      })
   }
 
   const mod = process.env.NEXT_MINIMAL
     ? // @ts-ignore
       __non_webpack_require__(pagePath)
-    : require(pagePath)
+    : require(/* turbopackIgnore: true */ pagePath)
   return mod
 }

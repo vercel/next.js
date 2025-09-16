@@ -219,7 +219,7 @@ impl DevServerBuilder {
                             handle_issues(
                                 source_op,
                                 issue_reporter,
-                                IssueSeverity::Fatal.cell(),
+                                IssueSeverity::Fatal,
                                 Some(&path),
                                 Some("get source"),
                             )
@@ -300,14 +300,4 @@ impl DevServerBuilder {
             }),
         }
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_bytes::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_cli_utils::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

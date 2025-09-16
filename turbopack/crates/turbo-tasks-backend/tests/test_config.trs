@@ -1,8 +1,6 @@
 |name, initial| {
-  let path = std::path::PathBuf::from(format!(concat!(
-    env!("OUT_DIR"),
-    "/.cache/{}",
-  ), name));
+  let path = std::path::PathBuf::from(
+    format!("{}/.cache/{}", env!("CARGO_TARGET_TMPDIR"), name));
   if initial {
     let _ = std::fs::remove_dir_all(&path);
   }
@@ -16,7 +14,9 @@
           describe: "test-unversioned",
           dirty: false,
         },
-      ).unwrap()
+        false,
+        true,
+      ).unwrap().0
     )
   )
 }
