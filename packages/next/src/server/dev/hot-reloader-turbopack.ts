@@ -619,10 +619,12 @@ export async function createHotReloaderTurbopack(
       const newRoutes = [...entrypoints.routes.keys()]
 
       const addedRoutes = newRoutes.filter(
-        (route) => !existingRoutes.includes(route)
+        (route) =>
+          !currentEntrypoints.app.has(route) &&
+          !currentEntrypoints.page.has(route)
       )
       const removedRoutes = existingRoutes.filter(
-        (route) => !newRoutes.includes(route)
+        (route) => !entrypoints.routes.has(route)
       )
 
       processTopLevelIssues(currentTopLevelIssues, entrypoints)
