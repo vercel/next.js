@@ -243,7 +243,7 @@ where
     /// Returns `None` if the underlying value type does not implement `K`.
     ///
     /// **Note:** if the trait `T` is required to implement `K`, use [`ResolvedVc::upcast`] instead.
-    /// This provides stronger guarantees, removing the need for a [`Option`] return type.
+    /// That method provides stronger guarantees, removing the need for a [`Option`] return type.
     ///
     /// See also: [`Vc::try_resolve_sidecast`].
     pub fn try_sidecast<K>(this: Self) -> Option<ResolvedVc<K>>

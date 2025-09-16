@@ -84,7 +84,7 @@ pub use transform::{
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxDashMap, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+    TryFlatJoinIterExt, TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -367,15 +367,28 @@ pub trait EcmascriptAnalyzable: Module + Asset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContentOptions>>;
+}
 
-    #[turbo_tasks::function]
+pub trait EcmascriptAnalyzableExt {
     fn module_content(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Result<Vc<EcmascriptModuleContent>> {
-        let own_options = self.module_content_options(chunking_context, async_module_info);
-        Ok(EcmascriptModuleContent::new(own_options))
+    ) -> Vc<EcmascriptModuleContent>;
+}
+
+impl<T> EcmascriptAnalyzableExt for T
+where
+    T: EcmascriptAnalyzable + Upcast<Box<dyn EcmascriptAnalyzable>>,
+{
+    fn module_content(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+    ) -> Vc<EcmascriptModuleContent> {
+        let analyzable = Vc::upcast_non_strict::<Box<dyn EcmascriptAnalyzable>>(self);
+        let own_options = analyzable.module_content_options(chunking_context, async_module_info);
+        EcmascriptModuleContent::new(own_options)
     }
 }
 
