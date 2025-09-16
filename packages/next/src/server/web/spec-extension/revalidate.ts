@@ -203,27 +203,23 @@ function revalidate(tags: string[], expression: string, profile?: string) {
     }
 
     // Also store with profile information
-    const existingIndex = store.pendingRevalidatedTagsWithProfile.findIndex(
-      (item) => item.tag === tag
-    )
-    if (existingIndex >= 0) {
-      // Update existing entry with new profile if provided
-      store.pendingRevalidatedTagsWithProfile[existingIndex] = {
-        tag,
-        profile,
+    if (profile) {
+      const existingIndex = store.pendingRevalidatedTagsWithProfile.findIndex(
+        (item) => item.tag === tag && item.profile === profile
+      )
+      if (existingIndex === -1) {
+        store.pendingRevalidatedTagsWithProfile.push({
+          tag,
+          profile,
+        })
       }
-    } else {
-      store.pendingRevalidatedTagsWithProfile.push({
-        tag,
-        profile,
-      })
     }
   }
 
   // if profile is provided and this is a stale-while-revalidate
   // update we do not mark the path as revalidated so that server
   // actions don't pull their own writes
-  if (!profile || store.cacheLifeProfiles?.[profile].expire === 0) {
+  if (!profile) {
     // TODO: only revalidate if the path matches
     store.pathWasRevalidated = true
   }

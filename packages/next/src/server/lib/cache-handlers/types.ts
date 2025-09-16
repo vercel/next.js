@@ -63,7 +63,7 @@ export interface CacheHandler {
    * Next.js will call this method when `revalidateTag` or `revalidatePath()` is
    * called. It should update the tags manifest accordingly.
    */
-  expireTags(...tags: string[]): Promise<void>
+  expireTags(tags: string[]): Promise<void>
 
   /**
    * The `receiveExpiredTags` method is called when an action request sends the
@@ -112,7 +112,10 @@ export interface CacheHandlerV2 {
    * This function is called when tags are revalidated/expired. If applicable,
    * it should update the tags manifest accordingly.
    */
-  expireTags(...tags: string[]): Promise<void>
+  expireTags(
+    tags: string[],
+    durations?: { stale?: number; expire?: number }
+  ): Promise<void>
 }
 
 /**

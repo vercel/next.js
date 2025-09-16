@@ -29,9 +29,9 @@ const cacheHandler = {
     return Infinity
   },
 
-  async expireTags(...tags) {
+  async expireTags(tags) {
     console.log('ModernCustomCacheHandler::expireTags', JSON.stringify(tags))
-    return defaultCacheHandler.expireTags(...tags)
+    return defaultCacheHandler.expireTags(tags)
   },
 }
 

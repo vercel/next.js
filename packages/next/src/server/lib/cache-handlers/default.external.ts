@@ -12,6 +12,7 @@ import type { CacheEntry, CacheHandlerV2 } from './types'
 import {
   areTagsExpired,
   tagsManifest,
+  type TagManifestEntry,
 } from '../incremental-cache/tags-manifest.external'
 
 type PrivateCacheEntry = {
@@ -153,15 +154,31 @@ const DefaultCacheHandler: CacheHandlerV2 = {
     return expiration
   },
 
-  async expireTags(...tags) {
-    const timestamp = Math.round(performance.timeOrigin + performance.now())
-    debug?.('expireTags', { tags, timestamp })
+  async expireTags(tags, durations) {
+    const now = Math.round(performance.timeOrigin + performance.now())
+    debug?.('expireTags', { tags, timestamp: now })
 
     for (const tag of tags) {
       // TODO: update file-system-cache?
       const existingEntry = tagsManifest.get(tag) || {}
-      // For expireTags, we set expired to immediate expiration
-      tagsManifest.set(tag, { ...existingEntry, expired: timestamp })
+
+      if (durations) {
+        // Use provided durations directly
+        const updates: TagManifestEntry = { ...existingEntry }
+
+        if (durations.stale !== undefined) {
+          updates.stale = now + durations.stale * 1000 // Convert seconds to ms
+        }
+
+        if (durations.expire !== undefined) {
+          updates.expired = now + durations.expire * 1000 // Convert seconds to ms
+        }
+
+        tagsManifest.set(tag, updates)
+      } else {
+        // Update expired field for immediate expiration (default behavior when no durations provided)
+        tagsManifest.set(tag, { ...existingEntry, expired: now })
+      }
     }
   },
 }

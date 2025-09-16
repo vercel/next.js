@@ -1397,14 +1397,6 @@ export const defaultConfig = Object.freeze({
         revalidate: 60 * 60 * 24 * 30, // 1 month
         expire: INFINITE_CACHE, // Unbounded.
       },
-      // replaces revalidateTag(tag1) purge case for route handler
-      // advanced profile should not be used instead of updateTag
-      // for most cases
-      never: {
-        stale: 0,
-        expire: 0,
-        revalidate: 0,
-      },
     },
     cacheHandlers: {
       default: process.env.NEXT_DEFAULT_CACHE_HANDLER_PATH,

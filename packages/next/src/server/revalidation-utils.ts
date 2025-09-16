@@ -90,9 +90,10 @@ async function revalidateTags(
     return
   }
 
+  const handlers = getCacheHandlers()
   const promises: Promise<void>[] = []
 
-  if (incrementalCache && tagsWithProfile && tagsWithProfile.length > 0) {
+  if (tagsWithProfile && tagsWithProfile.length > 0) {
     // Group tags by profile for batch processing
     const tagsByProfile = new Map<string | undefined, string[]>()
 
@@ -126,17 +127,24 @@ async function revalidateTags(
       // If profile is not found and not 'max', durations will be undefined
       // which will trigger immediate expiration in the cache handler
 
-      promises.push(incrementalCache.revalidateTag(tagsForProfile, durations))
+      for (const handler of handlers || []) {
+        promises.push(handler.expireTags(tagsForProfile, durations))
+      }
+
+      if (incrementalCache) {
+        promises.push(incrementalCache.revalidateTag(tagsForProfile, durations))
+      }
     }
-  } else if (incrementalCache && tags.length > 0) {
+  }
+
+  if (incrementalCache && tags.length > 0) {
     // Fallback to old behavior for compatibility
     promises.push(incrementalCache.revalidateTag(tags))
   }
 
-  const handlers = getCacheHandlers()
   if (handlers) {
     for (const handler of handlers) {
-      promises.push(handler.expireTags(...tags))
+      promises.push(handler.expireTags(tags))
     }
   }
 
