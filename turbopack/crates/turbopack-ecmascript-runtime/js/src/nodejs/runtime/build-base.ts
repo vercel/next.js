@@ -93,7 +93,7 @@ function getOrInstantiateModuleFromParent(
  * Instantiates a runtime module.
  */
 function instantiateRuntimeModule(
-  chunkPath: ChunkPath,
+  chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
 ): ModuleWithDirection {
   return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
@@ -104,7 +104,7 @@ function instantiateRuntimeModule(
  */
 // @ts-ignore TypeScript doesn't separate this module space from the browser runtime
 function getOrInstantiateRuntimeModule(
-  chunkPath: ChunkPath,
+  chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
 ): ModuleWithDirection {
   const module = moduleCache[moduleId]

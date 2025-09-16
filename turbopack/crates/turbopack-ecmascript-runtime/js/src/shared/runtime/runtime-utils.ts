@@ -102,7 +102,7 @@ type GetOrInstantiateModuleFromParent<M extends Module> = (
 ) => M
 
 declare function getOrInstantiateRuntimeModule(
-  chunkPath: ChunkPath,
+  chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
 ): Module
 

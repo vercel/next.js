@@ -51,7 +51,7 @@ type ChunkRegistrationChunk =
   | undefined
 
 type ChunkRegistration = [
-  chunkPath: ChunkRegistrationChunk,
+  chunkPath: ChunkRegistrationChunk | undefined,
   ...([RuntimeParams] | CompressedModuleFactories),
 ]
 
@@ -63,7 +63,7 @@ type ChunkList = {
 
 interface RuntimeBackend {
   registerChunk: (
-    chunkPath: ChunkPath | ChunkScript,
+    chunkPath: ChunkPath | ChunkScript | undefined,
     params?: RuntimeParams
   ) => void
   /**

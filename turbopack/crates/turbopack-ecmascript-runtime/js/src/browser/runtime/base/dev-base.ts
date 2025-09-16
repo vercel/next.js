@@ -86,7 +86,7 @@ const chunkChunkListsMap: Map<ChunkPath, Set<ChunkListPath>> = new Map()
  */
 // @ts-ignore
 function getOrInstantiateRuntimeModule(
-  chunkPath: ChunkPath,
+  chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
 ): Module {
   const module = devModuleCache[moduleId]
@@ -542,21 +542,26 @@ function markChunkListAsRuntime(chunkListPath: ChunkListPath) {
 }
 
 function registerChunk(registration: ChunkRegistration) {
-  const chunk = getChunkFromRegistration(registration[0]) as
-    | ChunkPath
-    | ChunkScript
+  const chunk =
+    registration[0] === undefined
+      ? undefined
+      : (getChunkFromRegistration(registration[0]) as ChunkPath | ChunkScript)
   let runtimeParams: RuntimeParams | undefined
   // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
   if (registration.length === 2) {
     runtimeParams = registration[1] as RuntimeParams
   } else {
-    let chunkPath = getPathFromScript(chunk)
+    let chunkPath = chunk ? getPathFromScript(chunk) : undefined
     runtimeParams = undefined
     installCompressedModuleFactories(
       registration as CompressedModuleFactories,
       /* offset= */ 1,
       moduleFactories,
-      (id: ModuleId) => addModuleToChunk(id, chunkPath)
+      (id: ModuleId) => {
+        if (chunkPath) {
+          addModuleToChunk(id, chunkPath)
+        }
+      }
     )
   }
   return BACKEND.registerChunk(chunk, runtimeParams)

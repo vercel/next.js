@@ -36,6 +36,9 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 ;(() => {
   BACKEND = {
     async registerChunk(chunk, params) {
+      if (chunk === undefined) {
+        throw new Error('Missing chunkPath')
+      }
       let chunkPath = getPathFromScript(chunk)
       let chunkUrl = getUrlFromScript(chunk)
 
