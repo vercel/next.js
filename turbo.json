@@ -23,7 +23,8 @@
     "//#typescript": {},
     "//#get-test-timings": {
       "inputs": ["run-tests.js"],
-      "outputs": ["test-timings.json"]
+      "outputs": ["test-timings.json"],
+      "env": ["KV_REST_API_URL", "KV_REST_API_TOKEN"]
     }
   },
   "ui": "tui"

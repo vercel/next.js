@@ -17,31 +17,6 @@ export function getRspackCore() {
   }
 }
 
-export function getRspackReactRefresh() {
-  warnRspack()
-  try {
-    const paths = [require.resolve('next-rspack')]
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    const plugin = require(
-      require.resolve('@rspack/plugin-react-refresh', { paths })
-    )
-    const entry = require.resolve(
-      '@rspack/plugin-react-refresh/react-refresh-entry',
-      { paths }
-    )
-    plugin.entry = entry
-    return plugin
-  } catch (e) {
-    if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
-      throw new Error(
-        '@rspack/plugin-react-refresh is not available. Please make sure `next-rspack` is correctly installed.'
-      )
-    }
-
-    throw e
-  }
-}
-
 function warnRspack() {
   if (process.env.__NEXT_TEST_MODE) {
     return

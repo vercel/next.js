@@ -26,6 +26,12 @@ describe('font-loader-in-document-error', () => {
         next/font: error:
         Cannot be used within _document.js"
       `)
+    } else if (process.env.NEXT_RSPACK) {
+      expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
+       "pages/_document.js
+         × \`next/font\` error:
+         │ Cannot be used within pages/_document.js."
+      `)
     } else {
       expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
               "pages/_document.js

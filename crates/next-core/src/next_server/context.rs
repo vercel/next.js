@@ -46,7 +46,6 @@ use crate::{
     app_structure::CollectedRootParams,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
-    next_client::RuntimeEntries,
     next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
@@ -86,9 +85,6 @@ pub enum ServerContextType {
         pages_dir: FileSystemPath,
     },
     PagesApi {
-        pages_dir: FileSystemPath,
-    },
-    PagesData {
         pages_dir: FileSystemPath,
     },
     AppSSR {
@@ -252,8 +248,7 @@ pub async fn get_server_resolve_options_context(
                 ResolvedVc::upcast(module_feature_report_resolve_plugin),
             ]
         }
-        ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. }
+        ServerContextType::PagesApi { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {
@@ -262,9 +257,7 @@ pub async fn get_server_resolve_options_context(
     };
 
     let after_resolve_plugins = match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesApi { .. }
-        | ServerContextType::PagesData { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             vec![
                 ResolvedVc::upcast(next_node_shared_runtime_plugin),
                 ResolvedVc::upcast(external_cjs_modules_plugin),
@@ -300,8 +293,7 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             //noop
         }
-        ServerContextType::PagesData { .. }
-        | ServerContextType::AppRSC { .. }
+        ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {
@@ -615,9 +607,7 @@ pub async fn get_server_module_options_context(
     };
 
     let module_options_context = match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             let mut custom_source_transform_rules: Vec<ModuleRule> =
                 vec![styled_components_transform_rule, styled_jsx_transform_rule]
                     .into_iter()
@@ -1007,15 +997,6 @@ pub async fn get_server_module_options_context(
     .cell();
 
     Ok(module_options_context)
-}
-
-#[turbo_tasks::function]
-pub fn get_server_runtime_entries(
-    _ty: ServerContextType,
-    _mode: Vc<NextMode>,
-) -> Vc<RuntimeEntries> {
-    let runtime_entries = vec![];
-    Vc::cell(runtime_entries)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]
