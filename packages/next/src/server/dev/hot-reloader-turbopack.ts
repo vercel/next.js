@@ -612,6 +612,19 @@ export async function createHotReloaderTurbopack(
         )
       }
 
+      const existingRoutes = [
+        ...currentEntrypoints.app.keys(),
+        ...currentEntrypoints.page.keys(),
+      ]
+      const newRoutes = [...entrypoints.routes.keys()]
+
+      const addedRoutes = newRoutes.filter(
+        (route) => !existingRoutes.includes(route)
+      )
+      const removedRoutes = existingRoutes.filter(
+        (route) => !newRoutes.includes(route)
+      )
+
       processTopLevelIssues(currentTopLevelIssues, entrypoints)
 
       await handleEntrypoints({
@@ -646,6 +659,35 @@ export async function createHotReloaderTurbopack(
           },
         },
       })
+
+      // Reload matchers when the files have been compiled
+      await propagateServerField(opts, 'reloadMatchers', undefined)
+
+      if (addedRoutes.length > 0 || removedRoutes.length > 0) {
+        // When the list of routes changes a new manifest should be fetched for Pages Router.
+        hotReloader.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
+          data: [
+            {
+              devPagesManifest: true,
+            },
+          ],
+        })
+      }
+
+      for (const route of addedRoutes) {
+        hotReloader.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
+          data: [route],
+        })
+      }
+
+      for (const route of removedRoutes) {
+        hotReloader.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
+          data: [route],
+        })
+      }
 
       currentEntriesHandlingResolve!()
       currentEntriesHandlingResolve = undefined

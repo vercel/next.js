@@ -212,44 +212,56 @@ export async function writeConfigurationDefaults(
 
   if (!('include' in rawConfig)) {
     userTsConfig.include = hasAppDir
-      ? ['next-env.d.ts', nextAppTypes, '**/*.ts', '**/*.tsx']
-      : ['next-env.d.ts', '**/*.ts', '**/*.tsx']
+      ? ['next-env.d.ts', nextAppTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
+      : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
     suggestedActions.push(
       cyan('include') +
         ' was set to ' +
         bold(
           hasAppDir
-            ? `['next-env.d.ts', '${nextAppTypes}', '**/*.ts', '**/*.tsx']`
-            : `['next-env.d.ts', '**/*.ts', '**/*.tsx']`
+            ? `['next-env.d.ts', '${nextAppTypes}', '**/*.mts', '**/*.ts', '**/*.tsx']`
+            : `['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']`
         )
     )
-  } else if (hasAppDir && !rawConfig.include.includes(nextAppTypes)) {
-    if (!Array.isArray(userTsConfig.include)) {
-      userTsConfig.include = []
+  } else if (hasAppDir) {
+    const missingFromResolved = []
+    if (!rawConfig.include.includes(nextAppTypes)) {
+      missingFromResolved.push(nextAppTypes)
     }
-    // rawConfig will resolve all extends and include paths (ex: tsconfig.json, tsconfig.base.json, etc.)
-    // if it doesn't match userTsConfig then update the userTsConfig to add the
-    // rawConfig's includes in addition to nextAppTypes
-    if (
-      rawConfig.include.length !== userTsConfig.include.length ||
-      JSON.stringify(rawConfig.include.sort()) !==
-        JSON.stringify(userTsConfig.include.sort())
-    ) {
-      userTsConfig.include.push(...rawConfig.include, nextAppTypes)
-      suggestedActions.push(
-        cyan('include') +
-          ' was set to ' +
-          bold(
-            `[${[...rawConfig.include, nextAppTypes]
-              .map((i) => `'${i}'`)
-              .join(', ')}]`
+    if (!rawConfig.include.includes('**/*.mts')) {
+      missingFromResolved.push('**/*.mts')
+    }
+
+    if (missingFromResolved.length > 0) {
+      if (!Array.isArray(userTsConfig.include)) {
+        userTsConfig.include = []
+      }
+      // rawConfig will resolve all extends and include paths (ex: tsconfig.json, tsconfig.base.json, etc.)
+      // if it doesn't match userTsConfig then update the userTsConfig to add the
+      // rawConfig's includes in addition to missing items
+      if (
+        rawConfig.include.length !== userTsConfig.include.length ||
+        JSON.stringify(rawConfig.include.sort()) !==
+          JSON.stringify(userTsConfig.include.sort())
+      ) {
+        userTsConfig.include.push(...rawConfig.include, ...missingFromResolved)
+        suggestedActions.push(
+          cyan('include') +
+            ' was set to ' +
+            bold(
+              `[${[...rawConfig.include, ...missingFromResolved]
+                .map((i) => `'${i}'`)
+                .join(', ')}]`
+            )
+        )
+      } else {
+        missingFromResolved.forEach((item) => {
+          userTsConfig.include.push(item)
+          suggestedActions.push(
+            cyan('include') + ' was updated to add ' + bold(`'${item}'`)
           )
-      )
-    } else {
-      userTsConfig.include.push(nextAppTypes)
-      suggestedActions.push(
-        cyan('include') + ' was updated to add ' + bold(`'${nextAppTypes}'`)
-      )
+        })
+      }
     }
   }
 

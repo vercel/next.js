@@ -9402,11 +9402,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-experimental-8a8e9a7e-20250912" !== isomorphicReactPackageVersion)
+      if ("19.2.0-experimental-5e0c951b-20250916" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-experimental-8a8e9a7e-20250912\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-experimental-5e0c951b-20250916\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -11535,5 +11535,5 @@
         }
       };
     };
-    exports.version = "19.2.0-experimental-8a8e9a7e-20250912";
+    exports.version = "19.2.0-experimental-5e0c951b-20250916";
   })();
