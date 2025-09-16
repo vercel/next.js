@@ -92,10 +92,13 @@ impl ChunkableModule for RawEcmascriptModule {
         _module_graph: Vc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(RawEcmascriptChunkItem::cell(RawEcmascriptChunkItem {
-            module: self,
-            chunking_context,
-        }))
+        Vc::upcast(
+            RawEcmascriptChunkItem {
+                module: self,
+                chunking_context,
+            }
+            .cell(),
+        )
     }
 }
 
