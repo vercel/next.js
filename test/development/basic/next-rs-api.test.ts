@@ -237,13 +237,20 @@ async function main() {
   const route = entrypoints.routes.get('/app-nodejs');
 
   if (route.type === 'app-page') {
-    console.log('first run');
-    await route.pages[0].htmlEndpoint.writeToDisk();
-    let old = process.memoryUsage();
-    for (let i = 1; i < 100000; i++) {
+    console.log('first runs');
+    for (let i = 0; i < 1000; i++) {
       await route.pages[0].htmlEndpoint.writeToDisk();
+    }
+    gc(true);
+    let old = process.memoryUsage();
+    const initial = old;
+    for (let j = 0; j < 500; j++) {
+      for (let i = 0; i < 1000; i++) {
+        await route.pages[0].htmlEndpoint.writeToDisk();
+      }
+      gc(true);
       const newMemory = process.memoryUsage();
-      console.log(i, newMemory.rss - old.rss);
+      console.log(\`#\${j} 1000 runs add \${newMemory.rss - old.rss} bytes of memory, memory since first run \${newMemory.rss - initial.rss} bytes\`);
       old = newMemory;
     }
   }
@@ -262,7 +269,7 @@ main()
       },
     })
 
-    spawnSync('node', [join(next.testDir, 'server.js')], {
+    spawnSync('node', ['--expose-gc', join(next.testDir, 'server.js')], {
       stdio: 'inherit',
       env: {
         ...process.env,
