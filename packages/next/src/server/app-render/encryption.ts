@@ -88,7 +88,7 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
   const encrypted = await encrypt(
     key,
     randomBytes,
-    Uint8Array.from(textEncoder.encode(actionId + arg))
+    textEncoder.encode(actionId + arg)
   )
 
   return btoa(ivValue + arrayBufferToString(encrypted))

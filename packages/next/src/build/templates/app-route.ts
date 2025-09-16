@@ -437,7 +437,8 @@ export async function handler(
       await sendResponse(
         nodeNextReq,
         nodeNextRes,
-        new Response(Uint8Array.from(cacheEntry.value.body), {
+        // @ts-expect-error - Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BodyInit | null | undefined'.
+        new Response(cacheEntry.value.body, {
           headers,
           status: cacheEntry.value.status || 200,
         })

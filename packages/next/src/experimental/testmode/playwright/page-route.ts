@@ -51,7 +51,8 @@ export async function handleRoute(
         ([name]) => !name.toLowerCase().startsWith('next-test-')
       )
     ),
-    body: postData ? Uint8Array.from(postData) : null,
+    // @ts-expect-error - Type 'Buffer<ArrayBufferLike> | null' is not assignable to type 'BodyInit | null | undefined'.
+    body: postData ?? null,
   })
 
   const proxyResponse = await fetchHandler(fetchRequest)
