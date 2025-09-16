@@ -8,9 +8,10 @@
  */
 
 import { LRUCache } from '../lru-cache'
-import type { CacheEntry, CacheHandlerV2 } from './types'
+import type { CacheEntry, CacheHandler } from './types'
 import {
   areTagsExpired,
+  areTagsStale,
   tagsManifest,
   type TagManifestEntry,
 } from '../incremental-cache/tags-manifest.external'
@@ -46,7 +47,7 @@ const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
   ? console.debug.bind(console, 'DefaultCacheHandler:')
   : undefined
 
-const DefaultCacheHandler: CacheHandlerV2 = {
+const DefaultCacheHandler: CacheHandler = {
   async get(cacheKey) {
     const pendingPromise = pendingSets.get(cacheKey)
 
@@ -75,23 +76,31 @@ const DefaultCacheHandler: CacheHandlerV2 = {
       return undefined
     }
 
+    let revalidate = entry.revalidate
+
     if (areTagsExpired(entry.tags, entry.timestamp)) {
       debug?.('get', cacheKey, 'had expired tag')
-
       return undefined
     }
+
+    if (areTagsStale(entry.tags, entry.timestamp)) {
+      debug?.('get', cacheKey, 'had stale tag')
+      revalidate = -1
+    }
+
     const [returnStream, newSaved] = entry.value.tee()
     entry.value = newSaved
 
     debug?.('get', cacheKey, 'found', {
       tags: entry.tags,
       timestamp: entry.timestamp,
-      revalidate: entry.revalidate,
       expire: entry.expire,
+      revalidate,
     })
 
     return {
       ...entry,
+      revalidate,
       value: returnStream,
     }
   },
@@ -139,7 +148,7 @@ const DefaultCacheHandler: CacheHandlerV2 = {
     // Nothing to do for an in-memory cache handler.
   },
 
-  async getExpiration(...tags) {
+  async getExpiration(tags) {
     const expirations = tags.map((tag) => {
       const entry = tagsManifest.get(tag)
       if (!entry) return 0
@@ -154,9 +163,9 @@ const DefaultCacheHandler: CacheHandlerV2 = {
     return expiration
   },
 
-  async expireTags(tags, durations) {
+  async updateTags(tags, durations) {
     const now = Math.round(performance.timeOrigin + performance.now())
-    debug?.('expireTags', { tags, timestamp: now })
+    debug?.('updateTags', { tags, timestamp: now })
 
     for (const tag of tags) {
       // TODO: update file-system-cache?
@@ -166,9 +175,8 @@ const DefaultCacheHandler: CacheHandlerV2 = {
         // Use provided durations directly
         const updates: TagManifestEntry = { ...existingEntry }
 
-        if (durations.stale !== undefined) {
-          updates.stale = now + durations.stale * 1000 // Convert seconds to ms
-        }
+        // mark as stale immediately
+        updates.stale = now
 
         if (durations.expire !== undefined) {
           updates.expired = now + durations.expire * 1000 // Convert seconds to ms

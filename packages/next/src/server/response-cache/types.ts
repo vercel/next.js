@@ -291,6 +291,6 @@ export interface IncrementalCache extends IncrementalResponseCache {
   ): Promise<void>
   revalidateTag(
     tags: string | string[],
-    durations?: { stale?: number; expire?: number }
+    durations?: { expire?: number }
   ): Promise<void>
 }

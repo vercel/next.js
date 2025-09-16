@@ -75,7 +75,7 @@ export class CacheHandler {
 
   public async revalidateTag(
     _tags: string | string[],
-    _durations?: { stale?: number; expire?: number }
+    _durations?: { expire?: number }
   ): Promise<void> {}
 
   public resetRequestCache(): void {}
@@ -281,7 +281,7 @@ export class IncrementalCache implements IncrementalCacheType {
 
   async revalidateTag(
     tags: string | string[],
-    durations?: { stale?: number; expire?: number }
+    durations?: { expire?: number }
   ): Promise<void> {
     return this.cacheHandler?.revalidateTag(tags, durations)
   }

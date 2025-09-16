@@ -62,7 +62,7 @@ function createTagsExpirationsByCacheKind(
       if ('getExpiration' in cacheHandler) {
         expirationsByCacheKind.set(
           kind,
-          createLazyResult(async () => cacheHandler.getExpiration(...tags))
+          createLazyResult(async () => cacheHandler.getExpiration(tags))
         )
       }
     }

@@ -72,46 +72,6 @@ describe('use-cache-custom-handler', () => {
 
     expect(cliOutput).not.toContain('ModernCustomCacheHandler::refreshTags')
     expect(cliOutput).not.toContain(`ModernCustomCacheHandler::getExpiration`)
-
-    // We don't optimize for legacy cache handlers though:
-    expect(cliOutput).toContain(
-      `LegacyCustomCacheHandler::receiveExpiredTags []`
-    )
-  })
-
-  it('should use a legacy custom cache handler if provided', async () => {
-    const browser = await next.browser(`/legacy`)
-    const initialData = await browser.elementById('data').text()
-    expect(initialData).toMatch(isoDateRegExp)
-
-    expect(next.cliOutput.slice(outputIndex)).toContain(
-      'LegacyCustomCacheHandler::receiveExpiredTags []'
-    )
-
-    expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /LegacyCustomCacheHandler::get \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\] \["_N_T_\/layout","_N_T_\/legacy\/layout","_N_T_\/legacy\/page","_N_T_\/legacy"\]/
-    )
-
-    expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /LegacyCustomCacheHandler::set \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\]/
-    )
-
-    // The data should be cached initially.
-
-    await browser.refresh()
-    let data = await browser.elementById('data').text()
-    expect(data).toMatch(isoDateRegExp)
-    expect(data).toEqual(initialData)
-
-    // Because we use a low `revalidate` value for the "use cache" function, new
-    // data should be returned eventually.
-
-    await retry(async () => {
-      await browser.refresh()
-      data = await browser.elementById('data').text()
-      expect(data).toMatch(isoDateRegExp)
-      expect(data).not.toEqual(initialData)
-    }, 5000)
   })
 
   it('should revalidate after redirect using a modern custom cache handler', async () => {
@@ -123,7 +83,7 @@ describe('use-cache-custom-handler', () => {
 
     await retry(async () => {
       expect(next.cliOutput.slice(outputIndex)).toContain(
-        'ModernCustomCacheHandler::expireTags ["modern"]'
+        'ModernCustomCacheHandler::updateTags ["modern"]'
       )
 
       const data = await browser.elementById('data').text()
@@ -132,39 +92,13 @@ describe('use-cache-custom-handler', () => {
     }, 5000)
   })
 
-  it('should revalidate after redirect using a legacy custom cache handler', async () => {
-    const browser = await next.browser(`/legacy`)
-    const initialData = await browser.elementById('data').text()
-    expect(initialData).toMatch(isoDateRegExp)
-
-    expect(next.cliOutput.slice(outputIndex)).toContain(
-      'LegacyCustomCacheHandler::receiveExpiredTags []'
-    )
-
-    await browser.elementById('revalidate').click()
-
-    await retry(async () => {
-      expect(next.cliOutput.slice(outputIndex)).toContain(
-        'LegacyCustomCacheHandler::expireTags ["legacy"]'
-      )
-
-      expect(next.cliOutput.slice(outputIndex)).toContain(
-        'LegacyCustomCacheHandler::receiveExpiredTags ["legacy"]'
-      )
-
-      const data = await browser.elementById('data').text()
-      expect(data).toMatch(isoDateRegExp)
-      expect(data).not.toEqual(initialData)
-    }, 5000)
-  })
-
-  it('should not call expireTags for a normal invocation', async () => {
+  it('should not call updateTags for a normal invocation', async () => {
     await next.fetch(`/`)
 
     await retry(async () => {
       const cliOutput = next.cliOutput.slice(outputIndex)
       expect(cliOutput).toInclude('ModernCustomCacheHandler::refreshTags')
-      expect(cliOutput).not.toInclude('ModernCustomCacheHandler::expireTags')
+      expect(cliOutput).not.toInclude('ModernCustomCacheHandler::updateTags')
     })
   })
 
@@ -179,7 +113,7 @@ describe('use-cache-custom-handler', () => {
       const cliOutput = next.cliOutput.slice(outputIndex)
       expect(cliOutput).not.toInclude('ModernCustomCacheHandler::getExpiration')
       expect(cliOutput).toIncludeRepeated(
-        `ModernCustomCacheHandler::expireTags`,
+        `ModernCustomCacheHandler::updateTags`,
         1
       )
     })

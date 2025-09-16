@@ -108,19 +108,17 @@ async function revalidateTags(
     // Process each profile group
     for (const [profile, tagsForProfile] of tagsByProfile) {
       // Look up the cache profile from workStore if available
-      let durations: { stale?: number; expire?: number } | undefined
+      let durations: { expire?: number } | undefined
 
       if (profile && workStore?.cacheLifeProfiles?.[profile]) {
         const cacheLife = workStore.cacheLifeProfiles[profile]
         durations = {
-          stale: cacheLife.stale,
           expire: cacheLife.expire,
         }
       } else if (profile === 'max') {
         // Default 'max' profile: stale immediately, expire in 1 year
         const oneYearInSeconds = 365 * 24 * 60 * 60
         durations = {
-          stale: 0,
           expire: oneYearInSeconds,
         }
       }
@@ -128,7 +126,7 @@ async function revalidateTags(
       // which will trigger immediate expiration in the cache handler
 
       for (const handler of handlers || []) {
-        promises.push(handler.expireTags(tagsForProfile, durations))
+        promises.push(handler.updateTags(tagsForProfile, durations))
       }
 
       if (incrementalCache) {
@@ -144,7 +142,7 @@ async function revalidateTags(
 
   if (handlers) {
     for (const handler of handlers) {
-      promises.push(handler.expireTags(tags))
+      promises.push(handler.updateTags(tags))
     }
   }
 

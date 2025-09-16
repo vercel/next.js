@@ -67,7 +67,7 @@ export default class FileSystemCache implements CacheHandler {
 
   public async revalidateTag(
     tags: string | string[],
-    durations?: { stale?: number; expire?: number }
+    durations?: { expire?: number }
   ) {
     tags = typeof tags === 'string' ? [tags] : tags
 
@@ -88,9 +88,8 @@ export default class FileSystemCache implements CacheHandler {
         // Use provided durations directly
         const updates: TagManifestEntry = { ...existingEntry }
 
-        if (durations.stale !== undefined) {
-          updates.stale = now + durations.stale * 1000 // Convert seconds to ms
-        }
+        // mark as stale immediately
+        updates.stale = now
 
         if (durations.expire !== undefined) {
           updates.expired = now + durations.expire * 1000 // Convert seconds to ms
