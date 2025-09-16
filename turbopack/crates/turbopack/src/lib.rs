@@ -622,6 +622,10 @@ async fn process_default_internal(
                                 analyze_types,
                                 options,
                             }),
+                            Some(ModuleType::Custom(_)) => {
+                                // TODO
+                                current_module_type
+                            }
                             Some(module_type) => {
                                 ModuleIssue::new(
                                     *ident,
