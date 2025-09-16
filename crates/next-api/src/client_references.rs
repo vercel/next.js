@@ -194,9 +194,10 @@ pub async fn map_client_references(
         })
         .collect();
 
-    Ok(ClientReferenceManifest::cell(ClientReferenceManifest {
+    Ok(ClientReferenceManifest {
         manifest,
         server_components,
         server_components_for_client_references,
-    }))
+    }
+    .cell())
 }
