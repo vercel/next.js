@@ -3,18 +3,10 @@ use turbo_tasks::{ResolvedVc, TaskInput, Vc};
 use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
 
 #[derive(Clone, Copy, Debug, TaskInput, Hash)]
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub enum StyleType {
     IsolatedStyle,
     GlobalStyle,
-}
-
-#[turbo_tasks::value_impl]
-impl StyleType {
-    #[turbo_tasks::function]
-    pub fn new(style_type: StyleType) -> Vc<Self> {
-        style_type.cell()
-    }
 }
 
 /// A module. This usually represents parsed source code, which has references

@@ -155,8 +155,8 @@ impl StyleModule for CssModuleAsset {
     #[turbo_tasks::function]
     fn style_type(&self) -> Vc<StyleType> {
         match self.ty {
-            CssModuleAssetType::Default => StyleType::new(StyleType::GlobalStyle),
-            CssModuleAssetType::Module => StyleType::new(StyleType::IsolatedStyle),
+            CssModuleAssetType::Default => StyleType::GlobalStyle.cell(),
+            CssModuleAssetType::Module => StyleType::IsolatedStyle.cell(),
         }
     }
 }
