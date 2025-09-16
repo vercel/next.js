@@ -606,6 +606,10 @@ export default abstract class Server<
     this.responseCache = this.getResponseCache({ dev })
   }
 
+  protected reloadMatchers() {
+    return this.matchers.reload()
+  }
+
   private handleRSCRequest: RouteHandler<ServerRequest, ServerResponse> = (
     req,
     _res,

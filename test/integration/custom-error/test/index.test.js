@@ -10,6 +10,7 @@ import {
   killApp,
   launchApp,
   retry,
+  waitFor,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -47,6 +48,8 @@ describe('Custom _error', () => {
         })
       } finally {
         await fs.remove(page404)
+        // Matches `next-dev.ts` patchFileDelay
+        await waitFor(1000)
       }
     })
   })
@@ -76,6 +79,8 @@ describe('Custom _error', () => {
         })
       } finally {
         await fs.remove(page404)
+        // Matches `next-dev.ts` patchFileDelay
+        await waitFor(1000)
       }
     })
 
