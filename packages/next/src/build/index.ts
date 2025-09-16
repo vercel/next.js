@@ -3087,6 +3087,8 @@ export default async function build(
             const appConfig = appDefaultConfigs.get(originalAppPath)
             if (!appConfig) throw new InvariantError('App config not found')
 
+            const ssgPageRoutesSet = new Set(pageInfos.get(page)?.ssgPageRoutes)
+
             let hasRevalidateZero =
               appConfig.revalidate === 0 ||
               getCacheControl(page).revalidate === 0
@@ -3282,13 +3284,28 @@ export default async function build(
                 }
               } else {
                 hasRevalidateZero = true
-                // we might have determined during prerendering that this page
-                // used dynamic data
-                pageInfos.set(route.pathname, {
-                  ...(pageInfos.get(route.pathname) as PageInfo),
-                  isSSG: false,
-                  isStatic: false,
-                })
+                const pageInfo = pageInfos.get(page) as PageInfo
+                
+                if (ssgPageRoutesSet.has(route.pathname)) {
+                  // Remove the route from the SSG page routes if it bailed out
+                  // during prerendering.
+                  ssgPageRoutesSet.delete(route.pathname)
+
+                  pageInfos.set(page, {
+                    ...pageInfo,
+                    ssgPageRoutes: Array.from(ssgPageRoutesSet),
+                    // If there are no SSG page routes left, then the page is not SSG.
+                    isSSG: ssgPageRoutesSet.size === 0 ? false : pageInfo.isSSG,
+                  })
+                } else {
+                  // we might have determined during prerendering that this page
+                  // used dynamic data
+                  pageInfos.set(route.pathname, {
+                    ...pageInfo,
+                    isSSG: false,
+                    isStatic: false,
+                  })
+                }
               }
             }
 
