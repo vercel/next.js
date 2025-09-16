@@ -52,7 +52,6 @@ jobs:
                 }
               )
 
-              let requireJobsConclusion = null
               for await (const { data: jobs } of result) {
                 for (const job of jobs) {
                   if (job.name === requiredJobName) {
