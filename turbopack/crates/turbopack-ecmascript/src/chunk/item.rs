@@ -222,38 +222,37 @@ async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<Code>> {
-    Ok(
-        match {
-            chunk_item
-                .content_with_async_module_info(async_module_info)
-                .await?
-                .module_factory()
-                .await
-        } {
-            Ok(factory) => *factory,
-            Err(error) => {
-                let id = chunk_item.asset_ident().to_string().await;
-                let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
-                let error = error.context(format!(
-                    "An error occurred while generating the chunk item {id}"
-                ));
-                let error_message = format!("{}", PrettyPrintError(&error)).into();
-                let js_error_message = serde_json::to_string(&error_message)?;
-                CodeGenerationIssue {
-                    severity: IssueSeverity::Error,
-                    path: chunk_item.asset_ident().path().owned().await?,
-                    title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
-                        .resolved_cell(),
-                    message: StyledString::Text(error_message).resolved_cell(),
-                }
-                .resolved_cell()
-                .emit();
-                let mut code = CodeBuilder::default();
-                code += "(() => {{\n\n";
-                writeln!(code, "throw new Error({error});", error = &js_error_message)?;
-                code += "\n}})";
-                code.build().cell()
+    let content = match chunk_item
+        .content_with_async_module_info(async_module_info)
+        .await
+    {
+        Ok(item) => item.module_factory().await,
+        Err(err) => Err(err),
+    };
+    Ok(match content {
+        Ok(factory) => *factory,
+        Err(error) => {
+            let id = chunk_item.asset_ident().to_string().await;
+            let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
+            let error = error.context(format!(
+                "An error occurred while generating the chunk item {id}"
+            ));
+            let error_message = format!("{}", PrettyPrintError(&error)).into();
+            let js_error_message = serde_json::to_string(&error_message)?;
+            CodeGenerationIssue {
+                severity: IssueSeverity::Error,
+                path: chunk_item.asset_ident().path().owned().await?,
+                title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
+                    .resolved_cell(),
+                message: StyledString::Text(error_message).resolved_cell(),
             }
-        },
-    )
+            .resolved_cell()
+            .emit();
+            let mut code = CodeBuilder::default();
+            code += "(() => {{\n\n";
+            writeln!(code, "throw new Error({error});", error = &js_error_message)?;
+            code += "\n}})";
+            code.build().cell()
+        }
+    })
 }
