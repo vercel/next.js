@@ -19852,15 +19852,14 @@
   },
   "test/production/app-dir/build-output-prerender/build-output-prerender.test.ts": {
     "passed": [
-      "build-output-prerender with a next config file with --debug-prerender shows all prerender errors with readable stacks and code frames",
-      "build-output-prerender with a next config file without --debug-prerender shows only a single prerender error with a mangled stack"
-    ],
-    "failed": [
       "build-output-prerender with a next config file with --debug-prerender prints a warning and the customized experimental flags",
+      "build-output-prerender with a next config file with --debug-prerender shows all prerender errors with readable stacks and code frames",
       "build-output-prerender with a next config file without --debug-prerender prints only the user-selected experimental flags (and the ones enabled via env variable)",
+      "build-output-prerender with a next config file without --debug-prerender shows only a single prerender error with a mangled stack",
       "build-output-prerender without a next config file with --debug-prerender prints a warning and the customized experimental flags",
       "build-output-prerender without a next config file without --debug-prerender prints no experimental flags (unless enabled via env variable)"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -20221,6 +20220,15 @@
       "unexpected-error cannot change response status when streaming has started",
       "unexpected-error should set response status to 500 for unexpected errors in isr app route",
       "unexpected-error should set response status to 500 for unexpected errors in ssr app route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/unstable-cache-foreground-revalidate/unstable-cache-foreground-revalidate.test.ts": {
+    "passed": [
+      "unstable-cache-foreground-revalidate should block and wait for fresh data when ISR page revalidate time is greater than unstable_cache TTL"
     ],
     "failed": [],
     "pending": [],
