@@ -580,22 +580,27 @@ async fn validate_pages_css_imports(
         .into_iter()
         .map(async |issue| {
             // We allow imports of global CSS files which are inside of `node_modules`.
-            if !issue
-                .module
-                .ident()
-                .path()
-                .await?
-                .path
-                .contains("/node_modules/")
-            {
-                // TODO this is suboptimal because it's celling in a loop with a somewhat arbitrary
-                // order
-                issue.resolved_cell().emit();
-            }
-            Ok(())
+            Ok(
+                if !issue
+                    .module
+                    .ident()
+                    .path()
+                    .await?
+                    .path
+                    .contains("/node_modules/")
+                {
+                    Some(issue)
+                } else {
+                    None
+                },
+            )
         })
-        .try_join()
-        .await?;
+        .try_flat_join()
+        .await?
+        .into_iter()
+        .for_each(|issue| {
+            issue.resolved_cell().emit();
+        });
 
     Ok(())
 }
