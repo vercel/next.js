@@ -439,6 +439,11 @@ async function run(): Promise<void> {
               description: 'Fast formatter and linter (fewer rules)',
             },
             {
+              title: 'Oxlint',
+              value: 'oxlint',
+              description: 'Fast Rust-based linter with comprehensive rules',
+            },
+            {
               title: 'None',
               value: 'none',
               description: 'Skip linter configuration',
