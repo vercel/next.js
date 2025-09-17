@@ -1,10 +1,6 @@
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import {
-  formatIssue,
-  isPersistentCachingEnabledForBuild,
-  isRelevantWarning,
-} from '../../shared/lib/turbopack/utils'
+import { isPersistentCachingEnabledForBuild } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, loadBindings } from '../swc'
 import {
@@ -20,9 +16,8 @@ import { Telemetry } from '../../telemetry/storage'
 import { setGlobal } from '../../trace'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers } from '../utils'
+import { getSupportedBrowsers, printBuildErrors } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
-import type { TurbopackResult, RawEntrypoints } from '../swc/types'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -109,45 +104,19 @@ export async function turbopackBuild(): Promise<{
 
     let appDirOnly = NextBuildContext.appDirOnly!
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
+    printBuildErrors(entrypoints)
 
-    const topLevelErrors = []
-    const topLevelWarnings = []
-    for (const issue of entrypoints.issues) {
-      if (
-        issue.severity === 'bug' ||
-        issue.severity === 'error' ||
-        issue.severity === 'fatal'
-      ) {
-        topLevelErrors.push(formatIssue(issue))
-      } else if (isRelevantWarning(issue)) {
-        topLevelWarnings.push(formatIssue(issue))
-      }
-    }
-
-    if (topLevelWarnings.length > 0) {
-      console.warn(
-        `Turbopack build encountered ${
-          topLevelWarnings.length
-        } warnings:\n${topLevelWarnings.join('\n')}`
-      )
-    }
-
-    if (topLevelErrors.length > 0) {
-      throw new Error(
-        `Turbopack build failed with ${
-          topLevelErrors.length
-        } errors:\n${topLevelErrors.join('\n')}`
-      )
-    }
-
-    if (!entrypoints.routes) {
-      // This should never ever happen, there should be an error issue, or the bindings call should
-      // have thrown.
-      throw new Error(`Turbopack build failed`)
+    if (!('routes' in entrypoints)) {
+      throw new Error('Turbopack build failed')
     }
 
     const hasPagesEntries = Array.from(entrypoints.routes.values()).some(
-      (route) => route.type === 'page' || route.type === 'page-api'
+      (route) => {
+        if (route.type === 'page' || route.type === 'page-api') {
+          return true
+        }
+        return false
+      }
     )
     // If there's no pages entries, then we are in app-dir-only mode
     if (!hasPagesEntries) {
@@ -160,11 +129,15 @@ export async function turbopackBuild(): Promise<{
       encryptionKey,
     })
 
-    const currentEntrypoints = await rawEntrypointsToEntrypoints(
-      entrypoints as TurbopackResult<RawEntrypoints>
-    )
+    if (!('routes' in entrypoints)) {
+      // This should never ever happen, there should be an error issue, or the bindings call should
+      // have thrown.
+      throw new Error(`Turbopack build failed`)
+    }
 
-    const promises: Promise<void>[] = []
+    const currentEntrypoints = await rawEntrypointsToEntrypoints(entrypoints)
+
+    const promises: Promise<any>[] = []
 
     if (!appDirOnly) {
       for (const [page, route] of currentEntrypoints.page) {

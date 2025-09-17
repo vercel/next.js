@@ -677,14 +677,23 @@ function bindingToApi(
     }
 
     entrypointsSubscribe() {
-      const subscription = subscribe<TurbopackResult<NapiEntrypoints>>(
+      const subscription = subscribe<TurbopackResult<NapiEntrypoints | {}>>(
         false,
         async (callback) =>
           binding.projectEntrypointsSubscribe(this._nativeProject, callback)
       )
       return (async function* () {
         for await (const entrypoints of subscription) {
-          yield napiEntrypointsToRawEntrypoints(entrypoints)
+          if ('routes' in (entrypoints as TurbopackResult<NapiEntrypoints>)) {
+            yield napiEntrypointsToRawEntrypoints(
+              entrypoints as TurbopackResult<NapiEntrypoints>
+            )
+          } else {
+            yield {
+              issues: entrypoints.issues,
+              diagnostics: entrypoints.diagnostics,
+            } as TurbopackResult<RawEntrypoints>
+          }
         }
       })()
     }

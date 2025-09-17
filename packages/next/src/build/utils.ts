@@ -72,6 +72,8 @@ import type { PrerenderedRoute } from './static-paths/types'
 import type { CacheControl } from '../server/lib/cache-control'
 import { formatExpire, formatRevalidate } from './output/format'
 import type { AppRouteRouteModule } from '../server/route-modules/app-route/module'
+import { formatIssue, isRelevantWarning } from '../shared/lib/turbopack/utils'
+import type { RawEntrypoints, TurbopackResult } from './swc/types'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -169,6 +171,40 @@ export function collectRoutesUsingEdgeRuntime(
   }
 
   return routesUsingEdgeRuntime
+}
+
+export function printBuildErrors(
+  entrypoints: TurbopackResult<{} | RawEntrypoints>
+) {
+  const topLevelErrors = []
+  const topLevelWarnings = []
+  for (const issue of entrypoints.issues) {
+    if (
+      issue.severity === 'bug' ||
+      issue.severity === 'error' ||
+      issue.severity === 'fatal'
+    ) {
+      topLevelErrors.push(formatIssue(issue))
+    } else if (isRelevantWarning(issue)) {
+      topLevelWarnings.push(formatIssue(issue))
+    }
+  }
+
+  if (topLevelWarnings.length > 0) {
+    console.warn(
+      `Turbopack build encountered ${
+        topLevelWarnings.length
+      } warnings:\n${topLevelWarnings.join('\n')}`
+    )
+  }
+
+  if (topLevelErrors.length > 0) {
+    throw new Error(
+      `Turbopack build failed with ${
+        topLevelErrors.length
+      } errors:\n${topLevelErrors.join('\n')}`
+    )
+  }
 }
 
 export async function printTreeView(

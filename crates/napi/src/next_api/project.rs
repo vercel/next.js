@@ -1012,25 +1012,28 @@ pub fn project_entrypoints_subscribe(
         func,
         move || {
             async move {
-                let entrypoints_with_issues_op = get_entrypoints_with_issues_operation(container);
-                let EntrypointsWithIssues {
-                    entrypoints,
-                    issues,
-                    diagnostics,
-                    effects,
-                } = &*entrypoints_with_issues_op
-                    .read_strongly_consistent()
-                    .await?;
+                let entrypoints_with_issues_op = project_container_entrypoints_operation(container);
+                let entrypoints_operation = EntrypointsOperation::new(entrypoints_with_issues_op);
+                let (entrypoints, issues, diagnostics, effects) =
+                    strongly_consistent_catch_collectables(entrypoints_operation).await?;
+
                 effects.apply().await?;
-                Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
+                Ok((entrypoints, issues.clone(), diagnostics.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
         },
         move |ctx| {
             let (entrypoints, issues, diags) = ctx.value;
+            let result = match entrypoints {
+                Some(entrypoints) => Some(NapiEntrypoints::from_entrypoints_op(
+                    &entrypoints,
+                    &turbopack_ctx,
+                )?),
+                None => None,
+            };
 
             Ok(vec![TurbopackResult {
-                result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &turbopack_ctx)?,
+                result,
                 issues: issues
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))

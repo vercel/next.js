@@ -96,7 +96,7 @@ import { devIndicatorServerState } from './dev-indicator-server-state'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
-import { getSupportedBrowsers } from '../../build/utils'
+import { getSupportedBrowsers, printBuildErrors } from '../../build/utils'
 import {
   receiveBrowserLogsTurbopack,
   handleClientFileLogs,
@@ -627,25 +627,35 @@ export async function createHotReloaderTurbopack(
         )
       }
 
+      // Always process issues/diagnostics, even if there are no entrypoints yet
+      processTopLevelIssues(currentTopLevelIssues, entrypoints)
+
+      // When the first value is optional, routes may be missing. In that case we
+      // only surface issues and skip handling entrypoints until they exist.
+      const routes = (entrypoints as any).routes as Map<string, any> | undefined
+      if (!routes) {
+        printBuildErrors(entrypoints)
+
+        currentEntriesHandlingResolve!()
+        currentEntriesHandlingResolve = undefined
+        continue
+      }
+
       const existingRoutes = [
         ...currentEntrypoints.app.keys(),
         ...currentEntrypoints.page.keys(),
       ]
-      const newRoutes = [...entrypoints.routes.keys()]
+      const newRoutes = [...routes.keys()]
 
       const addedRoutes = newRoutes.filter(
         (route) =>
           !currentEntrypoints.app.has(route) &&
           !currentEntrypoints.page.has(route)
       )
-      const removedRoutes = existingRoutes.filter(
-        (route) => !entrypoints.routes.has(route)
-      )
-
-      processTopLevelIssues(currentTopLevelIssues, entrypoints)
+      const removedRoutes = existingRoutes.filter((route) => !routes.has(route))
 
       await handleEntrypoints({
-        entrypoints,
+        entrypoints: entrypoints as any,
 
         currentEntrypoints,
 
