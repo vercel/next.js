@@ -379,17 +379,6 @@ export interface ProjectOptions {
   nextConfig: NextConfigComplete
 
   /**
-   * Jsconfig, or tsconfig contents.
-   *
-   * Next.js implicitly requires to read it to support few options
-   * https://nextjs.org/docs/architecture/nextjs-compiler#legacy-decorators
-   * https://nextjs.org/docs/architecture/nextjs-compiler#importsource
-   */
-  jsConfig: {
-    compilerOptions: object
-  }
-
-  /**
    * A map of environment variables to use when compiling code.
    */
   env: Record<string, string>

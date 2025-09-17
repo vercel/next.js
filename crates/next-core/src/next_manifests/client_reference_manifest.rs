@@ -169,7 +169,7 @@ impl ClientReferenceManifest {
                 let server_path = client_reference_module_ref.server_ident.to_string().await?;
                 let client_module = client_reference_module_ref.client_module;
                 let client_chunk_item_id = client_module
-                    .chunk_item_id(*ResolvedVc::upcast(client_chunking_context))
+                    .chunk_item_id(*client_chunking_context)
                     .await?;
 
                 let (client_chunks_paths, client_is_async) =
@@ -213,12 +213,10 @@ impl ClientReferenceManifest {
 
                 if let Some(ssr_chunking_context) = ssr_chunking_context {
                     let ssr_module = client_reference_module_ref.ssr_module;
-                    let ssr_chunk_item_id = ssr_module
-                        .chunk_item_id(*ResolvedVc::upcast(ssr_chunking_context))
-                        .await?;
+                    let ssr_chunk_item_id = ssr_module.chunk_item_id(*ssr_chunking_context).await?;
 
                     let rsc_chunk_item_id = client_reference_module
-                        .chunk_item_id(*ResolvedVc::upcast(ssr_chunking_context))
+                        .chunk_item_id(*ssr_chunking_context)
                         .await?;
 
                     let (ssr_chunks_paths, ssr_is_async) = if runtime == NextRuntime::Edge {

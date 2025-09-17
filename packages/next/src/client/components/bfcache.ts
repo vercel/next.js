@@ -1,4 +1,4 @@
-import type { FlightRouterState } from '../../server/app-render/types'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import { useState } from 'react'
 
 // When the flag is disabled, only track the currently active tree

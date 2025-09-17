@@ -923,7 +923,7 @@ function runTests(mode) {
         .join('\n')
       await assertNoRedbox(browser)
       expect(warnings).toMatch(
-        /Image with src (.*)jpg(.*) is using quality "50" which is not configured in images.qualities. This config will be required starting in Next.js 16./gm
+        /Image with src (.*)jpg(.*) is using quality "50" which is not configured in images.qualities \[75\]. Please update your config to \[50, 75\]./gm
       )
     })
 

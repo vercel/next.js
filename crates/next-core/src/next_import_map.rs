@@ -129,7 +129,6 @@ pub async fn get_next_client_import_map(
             let react_flavor = if *next_config.enable_ppr().await?
                 || *next_config.enable_taint().await?
                 || *next_config.enable_view_transition().await?
-                || *next_config.enable_router_bfcache().await?
             {
                 "-experimental"
             } else {
@@ -345,9 +344,7 @@ pub async fn get_next_server_import_map(
 
     import_map.insert_exact_alias(rcstr!("next/dist/server/require-hook"), external);
     match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             import_map.insert_exact_alias(rcstr!("react"), external);
             import_map.insert_wildcard_alias(rcstr!("react/"), external);
             import_map.insert_exact_alias(rcstr!("react-dom"), external);
@@ -494,7 +491,6 @@ pub async fn get_next_edge_import_map(
 
     match &ty {
         ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {}
@@ -547,7 +543,6 @@ pub async fn get_next_edge_import_map(
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. }
         | ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
         | ServerContextType::PagesApi { .. } => {
             insert_unsupported_node_internal_aliases(&mut import_map).await?;
         }
@@ -705,7 +700,6 @@ async fn insert_next_server_special_aliases(
 
     match &ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {}
-        ServerContextType::PagesData { .. } => {}
         // the logic closely follows the one in createRSCAliases in webpack-config.ts
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir, .. }
@@ -759,8 +753,7 @@ async fn insert_next_server_special_aliases(
                 },
             );
         }
-        ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. }
+        ServerContextType::PagesApi { .. }
         | ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
@@ -806,6 +799,14 @@ async fn insert_next_server_special_aliases(
         ),
     );
 
+    import_map.insert_exact_alias(
+        rcstr!("next/dist/compiled/next-devtools"),
+        request_to_import_mapping(
+            project_path.clone(),
+            rcstr!("next/dist/next-devtools/dev-overlay.shim.js"),
+        ),
+    );
+
     Ok(())
 }
 
@@ -831,9 +832,8 @@ async fn apply_vendored_react_aliases_server(
 ) -> Result<()> {
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
-    let router_bfcache = *next_config.enable_router_bfcache().await?;
     let view_transition = *next_config.enable_view_transition().await?;
-    let react_channel = if ppr || taint || view_transition || router_bfcache {
+    let react_channel = if ppr || taint || view_transition {
         "-experimental"
     } else {
         ""
@@ -1235,11 +1235,12 @@ async fn insert_next_shared_aliases(
 
 #[turbo_tasks::function]
 pub async fn get_next_package(context_directory: FileSystemPath) -> Result<Vc<FileSystemPath>> {
+    let root = context_directory.root().owned().await?;
     let result = resolve(
-        context_directory.clone(),
+        context_directory,
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
-        node_cjs_resolve_options(context_directory.root().owned().await?),
+        node_cjs_resolve_options(root),
     );
     let source = result
         .first_source()

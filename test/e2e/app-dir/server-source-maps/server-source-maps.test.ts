@@ -27,6 +27,7 @@ describe('app-dir - server source maps', () => {
     // Manually verify that the runtime logs match.
     skipDeployment: true,
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) return
 
@@ -484,7 +485,30 @@ describe('app-dir - server source maps', () => {
              "{module evaluation} app/module-evaluation/module.js (1:22)",
              "{module evaluation} app/module-evaluation/page.js (1:1)",
              "{module evaluation} app/module-evaluation/page.js (6:1)",
-             "<FIXME-next-dist-dir>",
+             "Array.map <anonymous>",
+             "Function.all <anonymous>",
+             "Page <anonymous>",
+           ],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "module-evaluation",
+           "environmentLabel": "Prerender",
+           "label": "Console Error",
+           "source": "app/module-evaluation/module.js (1:22) @ eval
+         > 1 | export const error = new Error('module-evaluation')
+             |                      ^",
+           "stack": [
+             "eval app/module-evaluation/module.js (1:22)",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+             "eval about:/Prerender/webpack-internal:///(rsc)/app/module-evaluation/page.js (5:60)",
+             "<FIXME-file-protocol>",
+             "<FIXME-file-protocol>",
+             "Function.all <anonymous>",
+             "Function.all <anonymous>",
              "Page <anonymous>",
            ],
          }
@@ -515,9 +539,8 @@ describe('app-dir - server source maps', () => {
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
             '\nError: module-evaluation' +
-            '\n    at __TURBOPACK__module__evaluation__ (bundler:///app/module-evaluation/module.js:1:22)' +
             // TODO(veil): Turbopack internals. Feel free to update. Tracked in https://linear.app/vercel/issue/NEXT-4362
-            '\n    at Object.<anonymous>'
+            '\n    at __TURBOPACK__module__evaluation__ (bundler:///app/module-evaluation/module.js:1:22)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
@@ -573,6 +596,45 @@ describe('app-dir - server source maps', () => {
              "stack": [
                "Set.forEach <anonymous>",
                "Set.forEach <anonymous>",
+               "Page app/rsc-anonymous-stack-frame-sandwich/page.js (6:29)",
+               "Page <anonymous>",
+             ],
+           },
+         ]
+        `)
+      } else if (isRspack) {
+        // 2nd error from runHiddenSetOfSetsInternal hits https://linear.app/vercel/issue/NEXT-4412
+        await expect(browser).toDisplayCollapsedRedbox(`
+         [
+           {
+             "description": "rsc-anonymous-stack-frame-sandwich: external",
+             "environmentLabel": "Prerender",
+             "label": "Console Error",
+             "source": "app/rsc-anonymous-stack-frame-sandwich/page.js (5:29) @ Page
+         > 5 |   runHiddenSetOfSetsExternal('rsc-anonymous-stack-frame-sandwich: external')
+             |                             ^",
+             "stack": [
+               "Set.forEach <anonymous>",
+               "Set.forEach <anonymous>",
+               "Page app/rsc-anonymous-stack-frame-sandwich/page.js (5:29)",
+               "Page <anonymous>",
+             ],
+           },
+           {
+             "description": "rsc-anonymous-stack-frame-sandwich: internal",
+             "environmentLabel": "Prerender",
+             "label": "Console Error",
+             "source": "app/rsc-anonymous-stack-frame-sandwich/page.js (6:29) @ Page
+         > 6 |   runHiddenSetOfSetsInternal('rsc-anonymous-stack-frame-sandwich: internal')
+             |                             ^",
+             "stack": [
+               "eval webpack-internal:/(ssr)/internal-pkg/ignored.ts (18:54)",
+               "eval webpack-internal:/(ssr)/internal-pkg/ignored.ts (12:7)",
+               "Set.forEach <anonymous>",
+               "eval webpack-internal:/(ssr)/internal-pkg/ignored.ts (11:9)",
+               "Set.forEach <anonymous>",
+               "runSetOfSets webpack-internal:/(ssr)/internal-pkg/ignored.ts (10:13)",
+               "runHiddenSetOfSets webpack-internal:/(ssr)/internal-pkg/ignored.ts (18:3)",
                "Page app/rsc-anonymous-stack-frame-sandwich/page.js (6:29)",
                "Page <anonymous>",
              ],

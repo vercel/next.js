@@ -53,6 +53,16 @@ export default async function Page() {
           />
         </li>
       </ul>
+
+      <h2>shared layout prefetching - segment config</h2>
+      <ul>
+        <li>
+          This link deliberately doesn't specify a `prefetch` prop, because the
+          page has a segment-level prefetch config:
+          <br />
+          <DebugLinkAccordion href="/segment-config/runtime-prefetchable" />
+        </li>
+      </ul>
     </main>
   )
 }

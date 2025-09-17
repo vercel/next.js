@@ -14,7 +14,7 @@ use crate::{
     ident::AssetIdent,
     module::Module,
     module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroup, export_usage::ModuleExportUsageInfo,
+        ModuleGraph, chunk_group_info::ChunkGroup, export_usage::ModuleExportUsage,
         module_batches::BatchingConfig,
     },
     output::{OutputAsset, OutputAssets},
@@ -295,7 +295,7 @@ pub trait ChunkingContext {
     async fn module_export_usage(
         self: Vc<Self>,
         module: Vc<Box<dyn Module>>,
-    ) -> Result<Vc<ModuleExportUsageInfo>>;
+    ) -> Result<Vc<ModuleExportUsage>>;
 }
 
 pub trait ChunkingContextExt {
@@ -385,7 +385,12 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssets> {
-        root_chunk_group_assets(Vc::upcast(self), ident, chunk_group, module_graph)
+        root_chunk_group_assets(
+            Vc::upcast_non_strict(self),
+            ident,
+            chunk_group,
+            module_graph,
+        )
     }
 
     fn evaluated_chunk_group_assets(
@@ -396,7 +401,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         availability_info: AvailabilityInfo,
     ) -> Vc<OutputAssets> {
         evaluated_chunk_group_assets(
-            Vc::upcast(self),
+            Vc::upcast_non_strict(self),
             ident,
             chunk_group,
             module_graph,
@@ -413,7 +418,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         availability_info: AvailabilityInfo,
     ) -> Vc<Box<dyn OutputAsset>> {
         entry_chunk_group_asset(
-            Vc::upcast(self),
+            Vc::upcast_non_strict(self),
             path,
             evaluatable_assets,
             module_graph,
@@ -446,7 +451,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         extra_chunks: Vc<OutputAssets>,
     ) -> Vc<Box<dyn OutputAsset>> {
         entry_chunk_group_asset(
-            Vc::upcast(self),
+            Vc::upcast_non_strict(self),
             path,
             evaluatable_assets,
             module_graph,
@@ -463,7 +468,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         availability_info: AvailabilityInfo,
     ) -> Vc<OutputAssets> {
         chunk_group_assets(
-            Vc::upcast(self),
+            Vc::upcast_non_strict(self),
             ident,
             chunk_group,
             module_graph,

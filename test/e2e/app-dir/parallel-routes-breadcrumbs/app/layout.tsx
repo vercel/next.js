@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 
 export default function Root({
   children,
@@ -10,8 +10,12 @@ export default function Root({
   return (
     <html>
       <body>
-        <div id="slot">{slot}</div>
-        <div id="children">{children}</div>
+        <Suspense>
+          <div id="slot">{slot}</div>
+        </Suspense>
+        <Suspense>
+          <div id="children">{children}</div>
+        </Suspense>
       </body>
     </html>
   )

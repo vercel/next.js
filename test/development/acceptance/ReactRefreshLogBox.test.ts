@@ -17,6 +17,7 @@ describe('ReactRefreshLogBox', () => {
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
     skipStart: true,
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   test('should strip whitespace correctly with newline', async () => {
     await using sandbox = await createSandbox(next)
@@ -173,6 +174,32 @@ describe('ReactRefreshLogBox', () => {
            ],
          }
         `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "no",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "index.js (3:7) @ eval
+         > 3 | throw new Error('no')
+             |       ^",
+           "stack": [
+             "eval index.js (3:7)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "eval ./pages/index.js",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
+           ],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
@@ -286,6 +313,33 @@ describe('ReactRefreshLogBox', () => {
          },
        ]
       `)
+    } else if (isReact18 && isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "description": "no",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "FunctionDefault.js (1:51) @ FunctionDefault
+       > 1 | export default function FunctionDefault() { throw new Error('no'); }
+           |                                                   ^",
+           "stack": [
+             "FunctionDefault FunctionDefault.js (1:51)",
+           ],
+         },
+         {
+           "description": "no",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "FunctionDefault.js (1:51) @ FunctionDefault
+       > 1 | export default function FunctionDefault() { throw new Error('no'); }
+           |                                                   ^",
+           "stack": [
+             "FunctionDefault FunctionDefault.js (1:51)",
+           ],
+         },
+       ]
+      `)
     } else {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
@@ -300,6 +354,22 @@ describe('ReactRefreshLogBox', () => {
              "FunctionDefault FunctionDefault.js (1:51)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
+           ],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "no",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "FunctionDefault.js (1:51) @ FunctionDefault
+         > 1 | export default function FunctionDefault() { throw new Error('no'); }
+             |                                                   ^",
+           "stack": [
+             "FunctionDefault FunctionDefault.js (1:51)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
            ],
          }
         `)
@@ -389,6 +459,39 @@ describe('ReactRefreshLogBox', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.js
+         × Module build failed:
+         ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+               │    ,-[7:1]
+               │  4 |       <p>lol</p>
+               │  5 |     div
+               │  6 |   )
+               │  7 | }
+               │    : ^
+               │    \`----
+               │   x Expected '</', got '<eof>'
+               │    ,-[7:1]
+               │  4 |       <p>lol</p>
+               │  5 |     div
+               │  6 |   )
+               │  7 | }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
+       Import trace for requested module:
+       ./index.js
+       ./pages/index.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect(browser).toDisplayRedbox(`
        {
@@ -404,7 +507,7 @@ describe('ReactRefreshLogBox', () => {
         7 | }
           : ^
           \`----
-         x Unexpected eof
+         x Expected '</', got '<eof>'
           ,-[7:1]
         4 |       <p>lol</p>
         5 |     div
@@ -499,6 +602,33 @@ describe('ReactRefreshLogBox', () => {
          },
        ]
       `)
+    } else if (isReact18 && isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       [
+         {
+           "description": "",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
+       > 4 |     throw new Error()
+           |           ^",
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
+           ],
+         },
+         {
+           "description": "",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
+       > 4 |     throw new Error()
+           |           ^",
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
+           ],
+         },
+       ]
+      `)
     } else {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
@@ -513,6 +643,22 @@ describe('ReactRefreshLogBox', () => {
              "ClickCount.render Child.js (4:11)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
+           ],
+         }
+        `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "Child.js (4:11) @ ClickCount.render
+         > 4 |     throw new Error()
+             |           ^",
+           "stack": [
+             "ClickCount.render Child.js (4:11)",
+             "<FIXME-next-dist-dir>",
+             "<FIXME-next-dist-dir>",
            ],
          }
         `)
@@ -588,6 +734,28 @@ describe('ReactRefreshLogBox', () => {
          "stack": [],
        }
       `)
+    } else if (isRspack) {
+      await expect({ browser, next }).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.module.css
+         × Module build failed:
+         ╰─▶   × SyntaxError
+               │
+               │ (1:1) <FIXME-project-root>/index.module.css Unknown word
+               │
+               │ > 1 | .button
+               │     | ^
+               │
+       Import trace for requested module:
+       ./index.module.css
+       ./index.js
+       ./pages/index.js",
+         "stack": [],
+       }
+      `)
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
@@ -625,6 +793,28 @@ describe('ReactRefreshLogBox', () => {
            ./index.module.css
            ./index.js
            ./pages/index.js",
+         "stack": [],
+       }
+      `)
+    } else if (isRspack) {
+      await expect(browser).toDisplayRedbox(`
+       {
+         "description": "  × Module build failed:",
+         "environmentLabel": null,
+         "label": "Build Error",
+         "source": "./index.module.css
+         × Module build failed:
+         ╰─▶   × CssSyntaxError
+               │
+               │ (1:1) Selector "button" is not pure (pure selectors must contain at least one local class or id)
+               │
+               │ > 1 | button {}
+               │     | ^
+               │
+       Import trace for requested module:
+       ./index.module.css
+       ./index.js
+       ./pages/index.js",
          "stack": [],
        }
       `)

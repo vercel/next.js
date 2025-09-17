@@ -142,6 +142,6 @@ export const imageConfigDefault: ImageConfigComplete = {
   contentDispositionType: 'attachment',
   localPatterns: undefined, // default: allow all local images
   remotePatterns: [], // default: allow no remote images
-  qualities: undefined, // default: allow all qualities
+  qualities: [75],
   unoptimized: false,
 }

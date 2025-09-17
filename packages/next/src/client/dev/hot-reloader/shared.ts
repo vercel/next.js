@@ -1,4 +1,4 @@
-import type { HMR_ACTION_TYPES } from '../../../server/dev/hot-reloader-types'
+import type { HmrMessageSentToBrowser } from '../../../server/dev/hot-reloader-types'
 
 export const REACT_REFRESH_FULL_RELOAD =
   '[Fast Refresh] performing full reload\n\n' +
@@ -12,7 +12,7 @@ export const REACT_REFRESH_FULL_RELOAD_FROM_ERROR =
   '[Fast Refresh] performing full reload because your application had an unrecoverable error'
 
 export function reportInvalidHmrMessage(
-  message: HMR_ACTION_TYPES | MessageEvent<unknown>,
+  message: HmrMessageSentToBrowser | MessageEvent<unknown>,
   err: unknown
 ) {
   console.warn(

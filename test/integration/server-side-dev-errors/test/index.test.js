@@ -38,9 +38,6 @@ describe('server-side dev errors', () => {
           ''
         )
       },
-      env: {
-        __NEXT_TEST_WITH_DEVTOOL: 1,
-      },
     })
   })
   afterAll(() => killApp(app))

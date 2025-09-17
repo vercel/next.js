@@ -13,7 +13,7 @@ use turbo_tasks_testing::{Registration, register, run_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_simple_task() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         enable_stats();
@@ -39,7 +39,7 @@ async fn test_simple_task() -> Result<()> {
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_await_same_vc_multiple_times() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         enable_stats();
@@ -61,7 +61,7 @@ async fn test_await_same_vc_multiple_times() -> Result<()> {
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_vc_receiving_task() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         enable_stats();
@@ -93,7 +93,7 @@ async fn test_vc_receiving_task() -> Result<()> {
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_methods() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         enable_stats();
@@ -130,7 +130,7 @@ async fn test_trait_methods() -> Result<()> {
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_dyn_trait_methods() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         enable_stats();
@@ -174,7 +174,7 @@ async fn test_dyn_trait_methods() -> Result<()> {
 }
 
 // creates Vcs, but doesn't ever execute them
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_no_execution() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         enable_stats();
@@ -254,12 +254,11 @@ fn enable_stats() {
 
 fn stats_json() -> serde_json::Value {
     let tt = turbo_tasks::turbo_tasks();
-    remove_crate_and_hashes(serde_json::to_value(tt.task_statistics().get()).unwrap())
+    remove_crate(serde_json::to_value(tt.task_statistics().get()).unwrap())
 }
 
-// Global task identifiers can contain a hash of the crate and dependencies.
-// Remove that so that we can compare against a stable value in tests.
-fn remove_crate_and_hashes(mut json: serde_json::Value) -> serde_json::Value {
+// Global task identifiers can contain the crate name, remove it to simplify test assertions
+fn remove_crate(mut json: serde_json::Value) -> serde_json::Value {
     static HASH_RE: Lazy<Regex> = Lazy::new(|| Regex::new("^[^:@]+@[^:]+:+").unwrap());
     match &mut json {
         serde_json::Value::Object(map) => {

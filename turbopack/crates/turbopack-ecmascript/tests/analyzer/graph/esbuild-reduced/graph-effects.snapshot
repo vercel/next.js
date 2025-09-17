@@ -39,9 +39,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -128,9 +126,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -272,9 +268,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "platformKey",
-        ),
+        var: "platformKey",
         ast_path: [
             Program(
                 Script,
@@ -497,9 +491,7 @@
         in_try: true,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,

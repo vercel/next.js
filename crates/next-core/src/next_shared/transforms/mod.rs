@@ -1,7 +1,6 @@
 pub(crate) mod debug_fn_name;
 pub(crate) mod emotion;
 pub(crate) mod modularize_imports;
-pub(crate) mod next_amp_attributes;
 pub(crate) mod next_cjs_optimizer;
 pub(crate) mod next_disallow_re_export_all_in_page;
 pub(crate) mod next_dynamic;
@@ -10,11 +9,8 @@ pub(crate) mod next_font;
 pub(crate) mod next_lint;
 pub(crate) mod next_middleware_dynamic_assert;
 pub(crate) mod next_optimize_server_react;
-pub(crate) mod next_page_config;
-pub(crate) mod next_page_static_info;
 pub(crate) mod next_pure;
 pub(crate) mod next_react_server_components;
-pub(crate) mod next_shake_exports;
 pub(crate) mod next_strip_page_exports;
 pub(crate) mod next_track_dynamic_imports;
 pub(crate) mod react_remove_properties;
@@ -75,7 +71,7 @@ pub async fn get_next_image_rule() -> Result<ModuleRule> {
     ))
 }
 
-fn match_js_extension(enable_mdx_rs: bool) -> Vec<RuleCondition> {
+fn match_js_extension(enable_mdx_rs: bool) -> RuleCondition {
     let mut conditions = vec![
         RuleCondition::ResourcePathEndsWith(".js".to_string()),
         RuleCondition::ResourcePathEndsWith(".jsx".to_string()),
@@ -102,20 +98,18 @@ fn match_js_extension(enable_mdx_rs: bool) -> Vec<RuleCondition> {
             .as_mut(),
         );
     }
-    conditions
+    RuleCondition::any(conditions)
 }
 
 /// Returns a module rule condition matches to any ecmascript (with mdx if
 /// enabled) except url reference type. This is a typical custom rule matching
 /// condition for custom ecma specific transforms.
 pub(crate) fn module_rule_match_js_no_url(enable_mdx_rs: bool) -> RuleCondition {
-    let conditions = match_js_extension(enable_mdx_rs);
-
     RuleCondition::all(vec![
         RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
             UrlReferenceSubType::Undefined,
         ))),
-        RuleCondition::any(conditions),
+        match_js_extension(enable_mdx_rs),
     ])
 }
 
@@ -123,14 +117,9 @@ pub(crate) fn module_rule_match_pages_page_file(
     enable_mdx_rs: bool,
     pages_directory: FileSystemPath,
 ) -> RuleCondition {
-    let conditions = match_js_extension(enable_mdx_rs);
-
     RuleCondition::all(vec![
-        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
-            UrlReferenceSubType::Undefined,
-        ))),
+        module_rule_match_js_no_url(enable_mdx_rs),
         RuleCondition::ResourcePathInExactDirectory(pages_directory),
-        RuleCondition::any(conditions),
     ])
 }
 

@@ -2,7 +2,7 @@ import React from 'react'
 import type {
   FlightData,
   FlightRouterState,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
 import { shouldHardNavigate } from './should-hard-navigate'
 
 describe('shouldHardNavigate', () => {

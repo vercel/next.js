@@ -353,7 +353,7 @@ where
     T: Upcast<Box<dyn Issue>>,
 {
     fn emit(self) {
-        let issue = ResolvedVc::upcast::<Box<dyn Issue>>(self);
+        let issue = ResolvedVc::upcast_non_strict::<Box<dyn Issue>>(self);
         emit(issue);
         emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
             RootIssueProcessingPath::resolved_cell(RootIssueProcessingPath(issue)),

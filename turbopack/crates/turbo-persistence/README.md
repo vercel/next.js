@@ -45,7 +45,6 @@ A meta file can contain metadata about multiple SST files. The metadata is store
   - foreach described SST file
     - 4 bytes sequence number of the SST file
     - 2 bytes key Compression Dictionary length
-    - 2 bytes value Compression Dictionary length
     - 2 bytes block count
     - 8 bytes min hash
     - 8 bytes max hash
@@ -59,7 +58,6 @@ A meta file can contain metadata about multiple SST files. The metadata is store
 The SST file contains only data without any header.
 
 - serialized key Compression Dictionary
-- serialized value Compression Dictionary
 - foreach block
   - 4 bytes uncompressed block length
   - compressed data

@@ -112,6 +112,7 @@ export interface ExportAppOptions {
   nextConfig?: NextConfigComplete
   hasOutdirFromCli?: boolean
   numWorkers: number
+  appDirOnly: boolean
 }
 
 export type ExportPageMetadata = {

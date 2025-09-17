@@ -80,7 +80,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
             let async_chunk_group = async_loader.references().to_resolved().await?;
 
             let module_id = dynamic_entry
-                .chunk_item_id(Vc::upcast(chunking_context))
+                .chunk_item_id(chunking_context)
                 .to_resolved()
                 .await?;
 

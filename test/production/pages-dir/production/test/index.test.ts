@@ -783,7 +783,8 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      // Just wait for google.com to be revealed. We can't control which input we get.
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -800,7 +801,7 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -820,7 +821,7 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 

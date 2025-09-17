@@ -1,8 +1,6 @@
 [
     FreeVar {
-        var: FreeVar(
-            "f",
-        ),
+        var: "f",
         ast_path: [
             Program(
                 Script,

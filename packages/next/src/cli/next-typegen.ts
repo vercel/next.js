@@ -89,6 +89,7 @@ const nextTypegen = async (
       pageExtensions: nextConfig.pageExtensions,
       pagesDir,
       appDir,
+      appDirOnly: !!appDir && !pagesDir,
     })
 
   const validFileMatcher = createValidFileMatcher(

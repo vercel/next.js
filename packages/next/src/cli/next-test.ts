@@ -93,7 +93,7 @@ async function checkRequiredDeps(
   baseDir: string,
   testRunner: SupportedTestRunners
 ) {
-  const deps = await hasNecessaryDependencies(
+  const deps = hasNecessaryDependencies(
     baseDir,
     requiredPackagesByTestRunner[testRunner]
   )

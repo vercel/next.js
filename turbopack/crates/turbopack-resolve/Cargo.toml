@@ -24,5 +24,3 @@ turbo-tasks-fs = { workspace = true }
 turbopack-core = { workspace = true }
 next-taskless = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }

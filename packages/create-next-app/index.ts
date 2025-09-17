@@ -291,6 +291,11 @@ async function run(): Promise<void> {
         opts.biome = preferredLinter === 'biome'
         // No need to set noLinter flag since we check args at runtime
       } else {
+        const linterIndexMap = {
+          eslint: 0,
+          biome: 1,
+          none: 2,
+        }
         const { linter } = await prompts({
           onState: onPromptState,
           type: 'select',
@@ -313,7 +318,10 @@ async function run(): Promise<void> {
               description: 'Skip linter configuration',
             },
           ],
-          initial: 0,
+          initial:
+            linterIndexMap[
+              getPrefOrDefault('linter') as keyof typeof linterIndexMap
+            ],
         })
 
         opts.eslint = linter === 'eslint'

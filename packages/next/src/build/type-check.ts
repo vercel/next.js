@@ -23,7 +23,7 @@ function verifyTypeScriptSetup(
   distDir: string,
   intentDirs: string[],
   typeCheckPreflight: boolean,
-  tsconfigPath: string,
+  tsconfigPath: string | undefined,
   disableStaticImages: boolean,
   cacheDir: string | undefined,
   enableWorkerThreads: boolean | undefined,

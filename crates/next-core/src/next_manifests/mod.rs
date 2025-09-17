@@ -329,11 +329,11 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub filename: &'a str,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum ActionManifestModuleId<'a> {
     String(&'a str),
-    Number(f64),
+    Number(u64),
 }
 
 #[derive(

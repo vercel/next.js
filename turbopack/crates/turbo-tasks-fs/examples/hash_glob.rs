@@ -15,14 +15,11 @@ use turbo_tasks::{ReadConsistency, TurboTasks, UpdateInfo, Vc, util::FormatDurat
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{
     DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemPath, ReadGlobResult,
-    glob::Glob, register,
+    glob::{Glob, GlobOptions},
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    register();
-    include!(concat!(env!("OUT_DIR"), "/register_example_hash_glob.rs"));
-
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions::default(),
         noop_backing_storage(),
@@ -38,7 +35,7 @@ async fn main() -> Result<()> {
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
             let input = fs.root().await?.join("crates")?;
-            let glob = Glob::new(rcstr!("**/*.rs"));
+            let glob = Glob::new(rcstr!("**/*.rs"), GlobOptions::default());
             let glob_result = input.read_glob(glob);
             let dir_hash = hash_glob_result(glob_result);
             print_hash(dir_hash).await?;

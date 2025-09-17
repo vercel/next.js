@@ -15,6 +15,8 @@ export type RequestMatcher =
   | RequestMatcherObject
   | ((request: PlaywrightRequest) => Promise<boolean>)
 
+export type RequestTracker = ReturnType<typeof createRequestTracker>
+
 /** Allows capturing responses to requests that happened as a result of running a callback. */
 export function createRequestTracker(browser: Playwright) {
   /** Run a callback and capture requests with the given `method` and `pathname`. */

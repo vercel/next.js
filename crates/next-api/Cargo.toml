@@ -52,5 +52,4 @@ turbo-tasks-backend = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
-turbo-tasks-build = { workspace = true }
 vergen = { workspace = true }

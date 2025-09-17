@@ -19,7 +19,6 @@ export async function buildConfiguration(
     isEdgeRuntime,
     targetWeb,
     assetPrefix,
-    deploymentId,
     sassOptions,
     productionBrowserSourceMaps,
     future,
@@ -37,7 +36,6 @@ export async function buildConfiguration(
     isEdgeRuntime: boolean
     targetWeb: boolean
     assetPrefix: string
-    deploymentId: string | undefined
     sassOptions: any
     productionBrowserSourceMaps: boolean
     transpilePackages: NextConfigComplete['transpilePackages']
@@ -63,7 +61,6 @@ export async function buildConfiguration(
         ? assetPrefix.slice(0, -1)
         : assetPrefix
       : '',
-    deploymentId,
     sassOptions,
     productionBrowserSourceMaps,
     transpilePackages,

@@ -105,6 +105,7 @@ For type completion of `params` and `searchParams`, you can type the first argum
 > - You cannot export both the `metadata` object and `generateMetadata` function from the same route segment.
 > - `fetch` requests inside `generateMetadata` are automatically [memoized](/docs/app/guides/caching#request-memoization) for the same data across `generateMetadata`, `generateStaticParams`, Layouts, Pages, and Server Components.
 > - Resolving `generateMetadata` is part of rendering the page. If the page can be pre-rendered and `generateMetadata` doesn't introduce dynamic behavior, its result is included in the page’s initial HTML.
+> - `generateMetadata` [can stream results](/docs/app/api-reference/functions/generate-metadata#streaming-metadata) to improve page load performance.
 > - React [`cache` can be used](/docs/app/guides/caching#react-cache-function) if `fetch` is unavailable.
 > - [File-based metadata](/docs/app/api-reference/file-conventions/metadata) has the higher priority and will override the `metadata` object and `generateMetadata` function.
 
@@ -115,7 +116,6 @@ For type completion of `params` and `searchParams`, you can type the first argum
 `generateMetadata` function accepts the following parameters:
 
 - `props` - An object containing the parameters of the current route:
-
   - `params` - An object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `generateMetadata` is called from. Examples:
 
     | Route                           | URL         | `params`                  |
@@ -232,11 +232,9 @@ export const metadata = {
 > **Good to know**:
 >
 > - `title.template` applies to **child** route segments and **not** the segment it's defined in. This means:
->
 >   - `title.default` is **required** when you add a `title.template`.
 >   - `title.template` defined in `layout.js` will not apply to a `title` defined in a `page.js` of the same route segment.
 >   - `title.template` defined in `page.js` has no effect because a page is always the terminating segment (it doesn't have any children route segments).
->
 > - `title.template` has **no effect** if a route has not defined a `title` or `title.default`.
 
 ##### `absolute`
@@ -286,11 +284,9 @@ export const metadata = {
 > **Good to know**:
 >
 > - `layout.js`
->
 >   - `title` (string) and `title.default` define the default title for child segments (that do not define their own `title`). It will augment `title.template` from the closest parent segment if it exists.
 >   - `title.absolute` defines the default title for child segments. It ignores `title.template` from parent segments.
 >   - `title.template` defines a new title template for child segments.
->
 > - `page.js`
 >   - If a page does not define its own title the closest parents resolved title will be used.
 >   - `title` (string) defines the routes title. It will augment `title.template` from the closest parent segment if it exists.

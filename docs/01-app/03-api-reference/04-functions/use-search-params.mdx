@@ -173,7 +173,13 @@ export default function Page() {
 }
 ```
 
-> **Good to know**: In development, all pages are rendered on-demand, so `useSearchParams` doesn't suspend. However, pre-rendering a [static page](/docs/app/getting-started/partial-prerendering#static-rendering) that worked in development will fail the build if `useSearchParams` is used in a Client Component that isn’t directly or indirectly wrapped in a `Suspense` boundary.
+> **Good to know**:
+>
+> - In development, routes are rendered on-demand, so `useSearchParams` doesn't suspend and things may appear to work without `Suspense`.
+> - During production builds, a [static page](/docs/app/getting-started/partial-prerendering#static-rendering) that calls `useSearchParams` from a Client Component must be wrapped in a `Suspense` boundary, otherwise the build fails with the [Missing Suspense boundary with useSearchParams](/docs/messages/missing-suspense-with-csr-bailout) error.
+> - If you intend the route to be dynamically rendered, prefer using the [`connection`](/docs/app/api-reference/functions/connection) function first in a Server Component to wait for an incoming request, this excludes everything below from prerendering. See what makes a route dynamic in the [Dynamic Rendering guide](/docs/app/getting-started/partial-prerendering#dynamic-rendering).
+> - If you're already in a Server Component Page, consider using the [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional) and passing the values to Client Components.
+> - You can also pass the Page [`searchParams` prop](/docs/app/api-reference/file-conventions/page#searchparams-optional) directly to a Client Component and unwrap it with React's `use()`. Although this will suspend, so the Client Component should be wrapped with a `Suspense` boundary.
 
 ### Dynamic Rendering
 
@@ -218,11 +224,11 @@ export default function SearchBar() {
 ```
 
 ```tsx filename="app/dashboard/page.tsx" switcher
+import { connection } from 'next/server'
 import SearchBar from './search-bar'
 
-export const dynamic = 'force-dynamic'
-
-export default function Page() {
+export default async function Page() {
+  await connection()
   return (
     <>
       <nav>
@@ -235,11 +241,11 @@ export default function Page() {
 ```
 
 ```jsx filename="app/dashboard/page.js" switcher
+import { connection } from 'next/server'
 import SearchBar from './search-bar'
 
-export const dynamic = 'force-dynamic'
-
-export default function Page() {
+export default async function Page() {
+  await connection()
   return (
     <>
       <nav>
@@ -251,7 +257,9 @@ export default function Page() {
 }
 ```
 
-> **Good to know**: Setting the [`dynamic` route segment config option](/docs/app/api-reference/file-conventions/route-segment-config#dynamic) to `force-dynamic` can be used to force dynamic rendering.
+> **Good to know**:
+>
+> - Previously, setting `export const dynamic = 'force-dynamic'` on the page was used to force dynamic rendering. Prefer using [`connection()`](/docs/app/api-reference/functions/connection) instead, as it semantically ties dynamic rendering to the incoming request.
 
 ### Server Components
 

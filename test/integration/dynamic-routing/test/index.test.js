@@ -1456,6 +1456,7 @@ function runTests({ dev }) {
            {
              "destination": "/:path+",
              "internal": true,
+             "priority": true,
              "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$",
              "source": "/:path+/",
              "statusCode": 308,
@@ -1471,8 +1472,10 @@ function runTests({ dev }) {
            "fallback": [],
          },
          "rsc": {
+           "clientParamParsing": false,
            "contentTypeHeader": "text/x-component",
            "didPostponeHeader": "x-nextjs-postponed",
+           "dynamicRSCPrerender": false,
            "header": "rsc",
            "prefetchHeader": "next-router-prefetch",
            "prefetchSegmentDirSuffix": ".segments",

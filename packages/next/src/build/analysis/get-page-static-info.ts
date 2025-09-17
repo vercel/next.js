@@ -547,6 +547,17 @@ export async function getAppPageStaticInfo({
     )
   }
 
+  if (
+    'unstable_prefetch' in config &&
+    (!nextConfig.experimental?.cacheComponents ||
+      // don't allow in `clientSegmentCache: 'client-only'` mode
+      nextConfig.experimental?.clientSegmentCache !== true)
+  ) {
+    throw new Error(
+      `Page "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`experimental.cacheComponents\` and \`experimental.clientSegmentCache\`.`
+    )
+  }
+
   return {
     type: PAGE_TYPES.APP,
     rsc,

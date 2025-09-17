@@ -2,6 +2,8 @@ import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 
+export const unstable_prefetch = 'unstable_runtime'
+
 export default async function Page() {
   return (
     <main>

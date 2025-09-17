@@ -23,13 +23,13 @@ import { useIntersection } from '../use-intersection'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
+import { findClosestQuality } from '../../shared/lib/find-closest-quality'
 
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
 
 const supportsFloat = typeof ReactDOM.preload === 'function'
-const DEFAULT_Q = 75
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -188,21 +188,9 @@ function defaultLoader({
         }
       }
     }
-
-    if (quality && config.qualities && !config.qualities.includes(quality)) {
-      throw new Error(
-        `Invalid quality prop (${quality}) on \`next/image\` does not match \`images.qualities\` configured in your \`next.config.js\`\n` +
-          `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
-      )
-    }
   }
 
-  const q =
-    quality ||
-    config.qualities?.reduce((prev, cur) =>
-      Math.abs(cur - DEFAULT_Q) < Math.abs(prev - DEFAULT_Q) ? cur : prev
-    ) ||
-    DEFAULT_Q
+  const q = findClosestQuality(quality, config)
 
   if (!config.dangerouslyAllowSVG && src.split('?', 1)[0].endsWith('.svg')) {
     // Special case to make svg serve as-is to avoid proxying
@@ -859,9 +847,13 @@ export default function Image({
         )
       }
 
-      if (qualityInt && qualityInt !== 75 && !config.qualities) {
+      if (
+        qualityInt &&
+        config.qualities &&
+        !config.qualities.includes(qualityInt)
+      ) {
         warnOnce(
-          `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities. This config will be required starting in Next.js 16.` +
+          `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(', ')}].` +
             `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
         )
       }

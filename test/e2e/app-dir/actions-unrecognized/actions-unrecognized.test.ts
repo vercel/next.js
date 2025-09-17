@@ -159,7 +159,18 @@ describe('unrecognized server actions', () => {
             // FIXME: Currently, an unrecognized id in an MPA action results in a 500.
             // This is not ideal, and ignores all nested `error.js` files, only showing the topmost one.
             expect(response.status()).toBe(500)
-            expect(response.headers()['content-type']).toStartWith('text/html')
+            if (isNextDev) {
+              expect(response.headers()['content-type']).toStartWith(
+                'text/html'
+              )
+            } else {
+              const responseText = await response.text()
+              expect(responseText).toBe('Internal Server Error')
+              expect(response.headers()['content-type']).toStartWith(
+                'text/plain'
+              )
+            }
+
             // In dev, the 500 page doesn't have any SSR'd html, so it won't show anything without JS.
             if (!isNextDev) {
               expect(await browser.elementByCss('body').text()).toContain(

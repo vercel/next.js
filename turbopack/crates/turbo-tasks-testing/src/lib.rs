@@ -324,6 +324,10 @@ impl TurboTasksApi for VcStorage {
     fn send_compilation_event(&self, _event: Arc<dyn CompilationEvent>) {
         unimplemented!()
     }
+
+    fn is_tracking_dependencies(&self) -> bool {
+        false
+    }
 }
 
 impl VcStorage {

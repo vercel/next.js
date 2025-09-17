@@ -26,6 +26,10 @@ function runTests({ isDev }) {
       const description = await getRedboxDescription(browser)
       if (process.env.IS_TURBOPACK_TEST) {
         expect(description).toMatchInlineSnapshot(`"Processing image failed"`)
+      } else if (process.env.NEXT_RSPACK) {
+        expect(description).toMatchInlineSnapshot(
+          `"  × Error: Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format."`
+        )
       } else {
         expect(description).toMatchInlineSnapshot(
           `"Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format."`
@@ -49,6 +53,11 @@ function runTests({ isDev }) {
            SSR:
              ./test/integration/next-image-new/invalid-image-import/public/invalid.svg
              ./test/integration/next-image-new/invalid-image-import/pages/index.js"
+        `)
+      } else if (process.env.NEXT_RSPACK) {
+        expect(source).toMatchInlineSnapshot(`
+          "./pages/index.js:3
+            × Error: Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format."
         `)
       } else {
         expect(source).toMatchInlineSnapshot(`

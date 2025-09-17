@@ -14,7 +14,6 @@ import {
 import type { EntryKey } from './entry-key'
 import * as Log from '../../../build/output/log'
 import type { NextConfigComplete } from '../../../server/config-shared'
-import loadJsConfig from '../../../build/load-jsconfig'
 
 type IssueKey = `${Issue['severity']}-${Issue['filePath']}-${string}-${string}`
 export type IssuesMap = Map<IssueKey, Issue>
@@ -51,14 +50,6 @@ export function getIssueKey(issue: Issue): IssueKey {
   return `${issue.severity}-${issue.filePath}-${JSON.stringify(
     issue.title
   )}-${JSON.stringify(issue.description)}`
-}
-
-export async function getTurbopackJsConfig(
-  dir: string,
-  nextConfig: NextConfigComplete
-) {
-  const { jsConfig } = await loadJsConfig(dir, nextConfig)
-  return jsConfig ?? { compilerOptions: {} }
 }
 
 export function processIssues(
@@ -172,7 +163,7 @@ export function formatIssue(issue: Issue) {
       message +=
         "To use Next.js' built-in Sass support, you first need to install `sass`.\n"
       message += 'Run `npm i sass` or `yarn add sass` inside your workspace.\n'
-      message += '\nLearn more: https://nextjs.org/docs/messages/install-sass'
+      message += '\nLearn more: https://nextjs.org/docs/messages/install-sass\n'
     } else {
       message += renderStyledStringToErrorAnsi(description) + '\n\n'
     }

@@ -14,10 +14,3 @@ pub use crate::{
     error::{FetchError, FetchErrorKind, FetchIssue},
     response::{FetchResult, HttpResponse, HttpResponseBody},
 };
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

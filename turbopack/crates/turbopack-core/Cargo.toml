@@ -45,8 +45,6 @@ turbo-unix-path = { workspace = true }
 urlencoding = { workspace = true }
 bytes-str = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
 
 [dev-dependencies]
 rstest = { workspace = true }

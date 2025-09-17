@@ -40,8 +40,8 @@ import {
 } from '../build/turborepo-access-trace'
 import type { Params } from '../server/request/params'
 import {
-  getFallbackRouteParams,
-  type FallbackRouteParams,
+  createOpaqueFallbackRouteParams,
+  type OpaqueFallbackRouteParams,
 } from '../server/request/fallback-params'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import type { AppRouteRouteModule } from '../server/route-modules/app-route/module.compiled'
@@ -119,8 +119,8 @@ async function exportPageImpl(
     query: originalQuery = {},
   } = exportPath
 
-  const fallbackRouteParams: FallbackRouteParams | null =
-    getFallbackRouteParams(_fallbackRouteParams)
+  const fallbackRouteParams: OpaqueFallbackRouteParams | null =
+    createOpaqueFallbackRouteParams(_fallbackRouteParams)
 
   let query = { ...originalQuery }
   const pathname = normalizeAppPath(page)
@@ -240,6 +240,7 @@ async function exportPageImpl(
     isAppPath: isAppDir,
     isDev: false,
     sriEnabled,
+    needsManifestsForLegacyReasons: true,
   })
 
   // Handle App Routes.
@@ -279,10 +280,6 @@ async function exportPageImpl(
       isRoutePPREnabled,
     },
     renderResumeDataCache,
-  }
-
-  if (hasNextSupport) {
-    renderOpts.isRevalidate = true
   }
 
   // Handle App Pages

@@ -5,7 +5,7 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn ignored_indexes() {
     #[allow(dead_code)]
     #[derive(ValueDebugFormat)]

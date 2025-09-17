@@ -76,9 +76,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "Math",
-        ),
+        var: "Math",
         ast_path: [
             Program(
                 Script,
@@ -290,9 +288,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "JSON",
-        ),
+        var: "JSON",
         ast_path: [
             Program(
                 Script,

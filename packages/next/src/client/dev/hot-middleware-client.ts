@@ -1,3 +1,4 @@
+import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
 import type {
   NextRouter,
   PrivateRouteInfo,
@@ -23,7 +24,7 @@ let reloading = false
 export default () => {
   const devClient = connect()
 
-  devClient.subscribeToHmrEvent((obj: any) => {
+  devClient.subscribeToHmrEvent((message) => {
     if (reloading) return
 
     // Retrieve the router if it's available
@@ -33,8 +34,8 @@ export default () => {
     const isOnErrorPage =
       !router || router.pathname === '/404' || router.pathname === '/_error'
 
-    switch (obj.action) {
-      case 'reloadPage': {
+    switch (message.type) {
+      case HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE: {
         sendMessage(
           JSON.stringify({
             event: 'client-reload-page',
@@ -44,8 +45,8 @@ export default () => {
         reloading = true
         return window.location.reload()
       }
-      case 'removedPage': {
-        const [page] = obj.data
+      case HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE: {
+        const [page] = message.data
 
         // Check if the removed page is the current page
         const isCurrentPage = page === router?.pathname
@@ -64,15 +65,15 @@ export default () => {
         }
         return
       }
-      case 'addedPage': {
-        const [page] = obj.data
+      case HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE: {
+        const [page] = message.data
 
         // Check if the added page is the current page
         const isCurrentPage = page === router?.pathname
 
         // Check if the page component is not yet loaded
         const isPageNotLoaded =
-          typeof router?.components?.[page] === 'undefined'
+          page !== null && typeof router?.components?.[page] === 'undefined'
 
         // We enter this block if the newly added page is the one currently being viewed
         // but hasn't been loaded yet, or if we're on an error page.
@@ -88,15 +89,11 @@ export default () => {
         }
         return
       }
-      case 'serverError':
-      case 'devPagesManifestUpdate':
-      case 'isrManifest':
-      case 'building':
-      case 'finishBuilding': {
+      case HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
         return
       }
       default: {
-        throw new Error('Unexpected action ' + obj.action)
+        message satisfies never
       }
     }
   })

@@ -110,9 +110,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "performance",
-        ),
+        var: "performance",
         ast_path: [
             Program(
                 Module,
@@ -902,9 +900,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "performance",
-        ),
+        var: "performance",
         ast_path: [
             Program(
                 Module,
@@ -1203,9 +1199,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "undefined",
-                        ),
+                        var: "undefined",
                         ast_path: [
                             Program(
                                 Module,
