@@ -194,7 +194,7 @@ async function main() {
   const bindings = await loadBindings();
   const rootPath = __dirname;
   const distDir = '.next';
-  project = await bindings.turbo.createProject({
+  const project = await bindings.turbo.createProject({
     env: {},
     nextConfig: nextConfig,
     rootPath,
