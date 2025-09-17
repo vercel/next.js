@@ -107,8 +107,8 @@ export class NextFontManifestPlugin {
                       nextFontManifest.app[chunkEntryName] = []
                     }
                     nextFontManifest.app[chunkEntryName].push(
-                      ...preloadedFontFiles.map(
-                        (file) => `/_next/${file.replace(/\\/g, '/')}`
+                      ...preloadedFontFiles.map((file) =>
+                        file.replace(/\\/g, '/')
                       )
                     )
                   }
@@ -139,7 +139,7 @@ export class NextFontManifestPlugin {
 
             if (fontFiles.length > 0) {
               nextFontManifest.pages[pagePath] = preloadedFontFiles.map(
-                (file) => `/_next/${file.replace(/\\/g, '/')}`
+                (file) => file.replace(/\\/g, '/')
               )
             }
           }
