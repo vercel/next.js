@@ -1185,7 +1185,7 @@ async fn realpath(
             .try_join()
             .await?,
     );
-    match &result.path_or_error {
+    match &result.path_result {
         Ok(path) => Ok(path.clone()),
         Err(e) => bail!(e.as_error_message(fs_path, &result)),
     }
@@ -1520,7 +1520,7 @@ pub async fn resolve_raw(
 ) -> Result<Vc<ResolveResult>> {
     async fn to_result(request: RcStr, path: FileSystemPath) -> Result<Vc<ResolveResult>> {
         let result = &*path.realpath_with_links().await?;
-        let path = match &result.path_or_error {
+        let path = match &result.path_result {
             Ok(path) => path,
             Err(e) => bail!(e.as_error_message(&path, result)),
         };
@@ -2873,7 +2873,7 @@ async fn resolved(
     fragment: RcStr,
 ) -> Result<Vc<ResolveResult>> {
     let result = &*fs_path.realpath_with_links().await?;
-    let path = match &result.path_or_error {
+    let path = match &result.path_result {
         Ok(path) => path,
         Err(e) => bail!(e.as_error_message(&fs_path, result)),
     };

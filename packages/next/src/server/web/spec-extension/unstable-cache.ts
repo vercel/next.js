@@ -238,18 +238,19 @@ export function unstable_cache<T extends Callback>(
                 cacheEntry.value.data.body !== undefined
                   ? JSON.parse(cacheEntry.value.data.body)
                   : undefined
+
               if (cacheEntry.isStale) {
-                // In App Router we return the stale result and revalidate in the background
                 if (!workStore.pendingRevalidates) {
                   workStore.pendingRevalidates = {}
                 }
 
-                // We run the cache function asynchronously and save the result when it completes
-                workStore.pendingRevalidates[invocationKey] =
-                  workUnitAsyncStorage
+                // Check if there's already a pending revalidation to avoid duplicate work
+                if (!workStore.pendingRevalidates[invocationKey]) {
+                  // Create the revalidation promise
+                  const revalidationPromise = workUnitAsyncStorage
                     .run(innerCacheStore, cb, ...args)
-                    .then((result) => {
-                      return cacheNewResult(
+                    .then(async (result) => {
+                      await cacheNewResult(
                         result,
                         incrementalCache,
                         cacheKey,
@@ -258,15 +259,37 @@ export function unstable_cache<T extends Callback>(
                         fetchIdx,
                         fetchUrl
                       )
+                      return result
                     })
-                    // @TODO This error handling seems wrong. We swallow the error?
-                    .catch((err) =>
+                    .catch((err) => {
+                      // @TODO This error handling seems wrong. We swallow the error?
                       console.error(
                         `revalidating cache with key: ${invocationKey}`,
                         err
                       )
-                    )
+                      // Return the stale value on error for foreground revalidation
+                      return cachedResponse
+                    })
+
+                  // Attach the empty catch here so we don't get a "unhandled promise
+                  // rejection" warning. (Behavior is matched with patch-fetch)
+                  if (workStore.isStaticGeneration) {
+                    revalidationPromise.catch(() => {})
+                  }
+
+                  workStore.pendingRevalidates[invocationKey] =
+                    revalidationPromise
+                }
+
+                // Check if we need to do foreground revalidation
+                if (workStore.isStaticGeneration) {
+                  // When the page is revalidating and the cache entry is stale,
+                  // we need to wait for fresh data (blocking revalidate)
+                  return workStore.pendingRevalidates[invocationKey]
+                }
+                // Otherwise, we're doing background revalidation - return stale immediately
               }
+
               // We had a valid cache entry so we return it here
               return cachedResponse
             }

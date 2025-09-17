@@ -138,7 +138,6 @@ async function requestHandler(
       dir: pageRouteModule.relativeProjectDir,
       botType,
       isDraftMode: false,
-      isRevalidate: false,
       isOnDemandRevalidate,
       isPossibleServerAction,
       assetPrefix: nextConfig.assetPrefix,

@@ -1045,37 +1045,49 @@ async function startWatcher(
         }
         opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
 
-        if (!prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])) {
-          const addedRoutes = sortedRoutes.filter(
-            (route) => !prevSortedRoutes.includes(route)
-          )
-          const removedRoutes = prevSortedRoutes.filter(
-            (route) => !sortedRoutes.includes(route)
-          )
+        // For Turbopack ADDED_PAGE and REMOVED_PAGE are implemented in hot-reloader-turbopack.ts
+        // in order to avoid a race condition where ADDED_PAGE and REMOVED_PAGE are sent before Turbopack picked up the file change.
+        if (!opts.turbo) {
+          // Reload the matchers. The filesystem would have been written to,
+          // and the matchers need to re-scan it to update the router.
+          // Reloading the matchers should happen before `ADDED_PAGE` or `REMOVED_PAGE` is sent over the websocket
+          // otherwise it sends the event too early.
+          await propagateServerField(opts, 'reloadMatchers', undefined)
 
-          // emit the change so clients fetch the update
-          hotReloader.send({
-            type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
-            data: [
-              {
-                devPagesManifest: true,
-              },
-            ],
-          })
+          if (
+            !prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
+          ) {
+            const addedRoutes = sortedRoutes.filter(
+              (route) => !prevSortedRoutes.includes(route)
+            )
+            const removedRoutes = prevSortedRoutes.filter(
+              (route) => !sortedRoutes.includes(route)
+            )
 
-          addedRoutes.forEach((route) => {
+            // emit the change so clients fetch the update
             hotReloader.send({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
-              data: [route],
+              type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
+              data: [
+                {
+                  devPagesManifest: true,
+                },
+              ],
             })
-          })
 
-          removedRoutes.forEach((route) => {
-            hotReloader.send({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
-              data: [route],
+            addedRoutes.forEach((route) => {
+              hotReloader.send({
+                type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
+                data: [route],
+              })
             })
-          })
+
+            removedRoutes.forEach((route) => {
+              hotReloader.send({
+                type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
+                data: [route],
+              })
+            })
+          }
         }
         prevSortedRoutes = sortedRoutes
 
@@ -1114,10 +1126,6 @@ async function startWatcher(
         } else {
           Log.warn('Failed to reload dynamic routes:', e)
         }
-      } finally {
-        // Reload the matchers. The filesystem would have been written to,
-        // and the matchers need to re-scan it to update the router.
-        await propagateServerField(opts, 'reloadMatchers', undefined)
       }
     })
 

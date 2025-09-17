@@ -65,7 +65,6 @@ pub trait ExecuteContext<'e>: Sized {
     fn suspending_requested(&self) -> bool;
     fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static;
     fn get_task_description(&self, task_id: TaskId) -> String;
-    fn should_track_children(&self) -> bool;
     fn should_track_dependencies(&self) -> bool;
     fn should_track_activeness(&self) -> bool;
 }
@@ -287,10 +286,6 @@ where
 
     fn get_task_description(&self, task_id: TaskId) -> String {
         self.backend.get_task_description(task_id)
-    }
-
-    fn should_track_children(&self) -> bool {
-        self.backend.should_track_children()
     }
 
     fn should_track_dependencies(&self) -> bool {

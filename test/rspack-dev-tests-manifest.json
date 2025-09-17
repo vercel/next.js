@@ -440,12 +440,12 @@
     "passed": [
       "pages/ error recovery logbox: can recover from a component error",
       "pages/ error recovery logbox: can recover from a event handler error",
-      "pages/ error recovery stuck error"
+      "pages/ error recovery render error not shown right after syntax error",
+      "pages/ error recovery stuck error",
+      "pages/ error recovery syntax > runtime error"
     ],
     "failed": [
-      "pages/ error recovery logbox: can recover from a syntax error without losing state",
-      "pages/ error recovery render error not shown right after syntax error",
-      "pages/ error recovery syntax > runtime error"
+      "pages/ error recovery logbox: can recover from a syntax error without losing state"
     ],
     "pending": [],
     "flakey": [],
@@ -651,6 +651,60 @@
   "test/development/app-dir/devtool-copy-button/devtool-copy-button.test.ts": {
     "passed": [
       "app-dir - devtool-copy-button should has inspect url copy button"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/devtools-position/bottom-left.test.ts": {
+    "passed": [
+      "devtools-position-bottom-left should devtools indicator position initially be bottom-left when configured"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/devtools-position/bottom-right-position.test.ts": {
+    "passed": [
+      "devtools-position-bottom-right should devtools indicator position initially be bottom-right when configured"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/devtools-position/default-position.test.ts": {
+    "passed": [
+      "devtools-position-default should devtools indicator position initially be bottom-left by default"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/devtools-position/position-persistence.test.ts": {
+    "passed": [
+      "devtools-position-persistence should maintain devtools indicator position after navigation"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/devtools-position/top-left-position.test.ts": {
+    "passed": [
+      "devtools-position-top-left should devtools indicator position initially be top-left when configured"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/devtools-position/top-right-position.test.ts": {
+    "passed": [
+      "devtools-position-top-right should devtools indicator position initially be top-right when configured"
     ],
     "failed": [],
     "pending": [],
@@ -1114,10 +1168,10 @@
     "runtimeError": false
   },
   "test/development/basic/barrel-optimization/barrel-optimization-mui.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "Skipped in Turbopack optimizePackageImports - mui should support MUI"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1780,7 +1834,8 @@
       "DevErrorOverlay can get error code from RSC error thrown by framework",
       "DevErrorOverlay loads fonts successfully",
       "DevErrorOverlay sends feedback when clicking helpful button",
-      "DevErrorOverlay sends feedback when clicking not helpful button"
+      "DevErrorOverlay sends feedback when clicking not helpful button",
+      "DevErrorOverlay should load dev overlay styles successfully"
     ],
     "failed": [],
     "pending": [],
@@ -3620,6 +3675,7 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -3634,7 +3690,6 @@
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
-      "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
       "app dir - basic server components should not serve .client.js as a path",
@@ -3678,7 +3733,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
+      "app dir - basic server components next/router should support router.back and router.forward"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -3945,6 +4000,7 @@
       "Cache Components Errors Dev Sync IO - Random - Math.random() should show a collapsed redbox error",
       "Cache Components Errors Dev Sync IO - Web Crypto - getRandomValue() should show a collapsed redbox error",
       "Cache Components Errors Dev Sync IO - Web Crypto - randomUUID() should show a collapsed redbox error",
+      "Cache Components Errors Dev Unhandled Rejection Suppression should suppress unhandled rejections during prerender validation in dev",
       "Cache Components Errors Dev With `use cache: private` in `unstable_cache` should show a redbox error",
       "Cache Components Errors Dev With `use cache: private` in `use cache` should show a redbox error",
       "Cache Components Errors Dev With `use cache: private` with `connection()` should show a redbox error",
@@ -5533,6 +5589,66 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/metadata-static-file/metadata-static-file-dynamic-route.test.ts": {
+    "passed": [
+      "metadata-files-static-output-dynamic-route should have correct link tags for dynamic page",
+      "metadata-files-static-output-dynamic-route should serve static files when requested to its route for dynamic page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-static-file/metadata-static-file-group-route.test.ts": {
+    "passed": [
+      "metadata-files-static-output-group-route should have correct link tags for group page",
+      "metadata-files-static-output-group-route should serve static files when requested to its route for group page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-static-file/metadata-static-file-intercepting-route.test.ts": {
+    "passed": [
+      "metadata-files-static-output-intercepting-route should have correct link tags for intercepting page",
+      "metadata-files-static-output-intercepting-route should serve static files when requested to its route for intercepting page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-static-file/metadata-static-file-parallel-route.test.ts": {
+    "passed": [
+      "metadata-files-static-output-parallel-route should have correct link tags for parallel slot page",
+      "metadata-files-static-output-parallel-route should serve static files when requested to its route for parallel slot page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-static-file/metadata-static-file-root-route.test.ts": {
+    "passed": [
+      "metadata-files-static-output-root-route should have correct link tags for root page",
+      "metadata-files-static-output-root-route should serve static files when requested to its route"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-static-file/metadata-static-file-static-route.test.ts": {
+    "passed": [
+      "metadata-files-static-output-static-route should have correct link tags for static page",
+      "metadata-files-static-output-static-route should serve static files when requested to its route for static page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/metadata-static-generation/metadata-static-generation.test.ts": {
     "passed": [
       "app-dir - metadata-static-generation should contain async generated metadata in body for dynamic page",
@@ -6035,6 +6151,186 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/async-function/async-function-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-async-function-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/async-function/async-function-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-async-function-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/dynamic-import-esm/next-config-ts-dynamic-import-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-dynamic-import-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/export-as-default/next-config-ts-export-as-default-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-as-default-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/export-as-default/next-config-ts-export-as-default-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-as-default-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/export-default/next-config-ts-export-default-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-default-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/export-default/next-config-ts-export-default-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-default-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/import-from-node-modules/next-config-ts-import-from-node-modules-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-from-node-modules-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/import-from-node-modules/next-config-ts-import-from-node-modules-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-from-node-modules-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/import-js-extensions-cjs/next-config-ts-import-js-extensions-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-js-extensions-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/import-js-extensions-esm/next-config-ts-import-js-extensions-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-js-extensions-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/import-json/next-config-ts-import-json-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-json-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/import-json/next-config-ts-import-json-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-json-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/nested-imports/next-config-ts-nested-imports-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-nested-imports-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/nested-imports/next-config-ts-nested-imports-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-nested-imports-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/node-api-cjs/next-config-ts-node-api-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-node-api-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/node-api-esm/next-config-ts-node-api-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-node-api-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/top-level-await-esm/next-config-ts-top-level-await-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-top-level-await-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/type-error/next-config-ts-type-error-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-type-error-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-ts/type-error/next-config-ts-type-error-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-type-error-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -8956,6 +9252,19 @@
     "pending": [
       "default browserslist target should apply default browserslist target"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/build-indicator/test/index.test.ts": {
+    "passed": [
+      "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
+      "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation",
+      "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
+      "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
+      "Build Activity Indicator Invalid position config should validate position config"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -12354,19 +12663,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/build-indicator/test/index.test.js": {
-    "passed": [
-      "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation",
-      "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
-      "Build Activity Indicator should validate position config"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/build-output/test/index.test.js": {
     "passed": [],
     "failed": [],
@@ -12469,7 +12765,6 @@
   },
   "test/integration/cli/test/index.test.js": {
     "passed": [
-      "CLI Usage dev --experimental-https",
       "CLI Usage dev --experimental-https with provided key/cert",
       "CLI Usage dev --help",
       "CLI Usage dev --hostname",
@@ -12505,7 +12800,7 @@
       "CLI Usage no command detects command typos",
       "CLI Usage no command invalid directory"
     ],
-    "failed": [],
+    "failed": ["CLI Usage dev --experimental-https"],
     "pending": [
       "CLI Usage production mode build --help",
       "CLI Usage production mode build -h",
