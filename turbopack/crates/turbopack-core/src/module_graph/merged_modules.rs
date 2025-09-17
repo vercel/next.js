@@ -3,9 +3,7 @@ use std::collections::hash_map::Entry;
 use anyhow::{Context, Result, bail};
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
-use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
-};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::{
