@@ -92,7 +92,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let module_depth = {
             let _inner_span = tracing::info_span!("compute depth").entered();
 
-            let mut module_depth = FxHashMap::default();
+            let mut module_depth =
+                FxHashMap::with_capacity_and_hasher(module_count, Default::default());
             module_graph.traverse_edges_from_entries_bfs(
                 entries.iter().copied(),
                 |parent, node| {
