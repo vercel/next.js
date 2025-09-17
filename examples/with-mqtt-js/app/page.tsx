@@ -5,18 +5,18 @@ import type { MqttClient } from "mqtt";
 import useMqtt from "@/lib/useMqtt";
 
 export default function Home() {
-  const [incommingMessages, setIncommingMessages] = useState<any[]>([]);
+  const [incomingMessages, setIncomingMessages] = useState<any[]>([]);
   const addMessage = (message: any) => {
-    setIncommingMessages((incommingMessages) => [
-      ...incommingMessages,
+    setIncomingMessages((incomingMessages) => [
+      ...incomingMessages,
       message,
     ]);
   };
   const clearMessages = () => {
-    setIncommingMessages(() => []);
+    setIncomingMessages(() => []);
   };
 
-  const incommingMessageHandlers = useRef([
+  const incomingMessageHandlers = useRef([
     {
       topic: "topic1",
       handler: (msg: string) => {
@@ -36,7 +36,7 @@ export default function Home() {
       password: process.env.NEXT_PUBLIC_MQTT_PASSWORD,
       clientId: process.env.NEXT_PUBLIC_MQTT_CLIENTID,
     },
-    topicHandlers: incommingMessageHandlers.current,
+    topicHandlers: incomingMessageHandlers.current,
     onConnectedHandler: (client) => setMqttClient(client),
   });
 
@@ -52,11 +52,11 @@ export default function Home() {
   return (
     <div>
       <h2>Subscribed Topics</h2>
-      {incommingMessageHandlers.current.map((i) => (
+      {incomingMessageHandlers.current.map((i) => (
         <p key={Math.random()}>{i.topic}</p>
       ))}
-      <h2>Incomming Messages:</h2>
-      {incommingMessages.map((m) => (
+      <h2>Incoming Messages:</h2>
+      {incomingMessages.map((m) => (
         <p key={Math.random()}>{m.payload.toString()}</p>
       ))}
       <button onClick={() => publishMessages(mqttClientRef.current)}>
