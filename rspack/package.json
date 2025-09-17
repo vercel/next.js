@@ -23,7 +23,8 @@
     "lib"
   ],
   "scripts": {
-    "build": "pnpm run --filter @next/rspack-binding build"
+    "build": "pnpm run --filter @next/rspack-binding build",
+    "build:debug": "pnpm run --filter @next/rspack-binding build:debug"
   },
   "dependencies": {
     "@rspack/core": "1.4.10",

@@ -8,9 +8,9 @@ importers:
 
   .:
     dependencies:
-      '@next/rspack-core':
+      '@next/rspack-binding':
         specifier: workspace:*
-        version: 'link:'
+        version: link:crates/binding
       '@rspack/core':
         specifier: 1.4.10
         version: 1.4.10
