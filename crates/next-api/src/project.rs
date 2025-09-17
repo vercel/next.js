@@ -58,7 +58,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{
-        Issue, IssueDescriptionExt, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
+        CollectibleIssuesExt, Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
         StyledString,
     },
     module::Module,
@@ -960,7 +960,7 @@ impl Project {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
             let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
-            let _ = module_graphs_op.take_issues_with_path().await?;
+            let _ = module_graphs_op.take_issues().await?;
 
             // At this point all modules have been computed and we can get rid of the node.js
             // process pools
