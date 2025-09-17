@@ -15,15 +15,14 @@ use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 use tokio::{select, sync::mpsc::Receiver, task_local};
 use tokio_util::task::TaskTracker;
-use tracing::{Instrument, Level, instrument, trace_span};
+use tracing::{Instrument, Level, instrument};
 
 use crate::{
     Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
-    ResolvedVc, SharedReference, TaskId, TaskIdSet, TraitMethod, ValueTypeId, Vc, VcRead,
-    VcValueTrait, VcValueType,
+    ResolvedVc, SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait,
+    VcValueType,
     backend::{
         Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent,
@@ -101,10 +100,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
 
     fn invalidate_serialization(&self, task: TaskId);
-
-    /// Eagerly notifies all tasks that were scheduled for notifications via
-    /// `schedule_notify_tasks_set()`
-    fn notify_scheduled_tasks(&self);
 
     fn try_read_task_output(
         &self,
@@ -264,14 +259,6 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
     /// idle even with active background jobs.
     fn schedule_backend_background_job(&self, job: B::BackendJob);
 
-    /// Enqueues tasks for notification of changed dependencies. This will
-    /// eventually call `invalidate_tasks()` on all tasks.
-    fn schedule_notify_tasks(&self, tasks: &[TaskId]);
-
-    /// Enqueues tasks for notification of changed dependencies. This will
-    /// eventually call `invalidate_tasks()` on all tasks.
-    fn schedule_notify_tasks_set(&self, tasks: &TaskIdSet);
-
     /// Returns the duration from the start of the program to the given instant.
     fn program_duration_until(&self, instant: Instant) -> Duration;
 
@@ -403,11 +390,6 @@ struct CurrentTaskState {
     task_id: TaskId,
     execution_id: ExecutionId,
 
-    /// Affected tasks, that are tracked during task execution. These tasks will
-    /// be invalidated when the execution finishes or before reading a cell
-    /// value.
-    tasks_to_notify: SmallVec<[TaskId; 4]>,
-
     /// True if the current task has state in cells
     stateful: bool,
 
@@ -439,7 +421,6 @@ impl CurrentTaskState {
         Self {
             task_id,
             execution_id,
-            tasks_to_notify: SmallVec::new(),
             stateful: false,
             has_invalidator: false,
             cell_counters: Some(AutoMap::default()),
@@ -749,7 +730,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                         } = this.finish_current_task_state();
                         let cell_counters = CURRENT_TASK_STATE
                             .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
-                        let schedule_again = this.backend.task_execution_completed(
+                        this.backend.task_execution_completed(
                             task_id,
                             duration,
                             alloc_info.memory_usage(),
@@ -757,10 +738,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             stateful,
                             has_invalidator,
                             &*this,
-                        );
-                        // task_execution_completed might need to notify tasks
-                        this.notify_scheduled_tasks();
-                        schedule_again
+                        )
                     }
                     .instrument(span)
                     .await
@@ -1123,19 +1101,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     fn finish_current_task_state(&self) -> FinishedTaskState {
-        let (stateful, has_invalidator, tasks) = CURRENT_TASK_STATE.with(|cell| {
+        let (stateful, has_invalidator) = CURRENT_TASK_STATE.with(|cell| {
             let CurrentTaskState {
-                tasks_to_notify,
                 stateful,
                 has_invalidator,
                 ..
             } = &mut *cell.write().unwrap();
-            (*stateful, *has_invalidator, take(tasks_to_notify))
+            (*stateful, *has_invalidator)
         });
 
-        if !tasks.is_empty() {
-            self.backend.invalidate_tasks(&tasks, self);
-        }
         FinishedTaskState {
             stateful,
             has_invalidator,
@@ -1243,21 +1217,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn invalidate_serialization(&self, task: TaskId) {
         self.backend.invalidate_serialization(task, self);
-    }
-
-    fn notify_scheduled_tasks(&self) {
-        let _ = CURRENT_TASK_STATE.try_with(|cell| {
-            let tasks = {
-                let CurrentTaskState {
-                    tasks_to_notify, ..
-                } = &mut *cell.write().unwrap();
-                take(tasks_to_notify)
-            };
-            if tasks.is_empty() {
-                return;
-            }
-            self.backend.invalidate_tasks(&tasks, self);
-        });
     }
 
     fn try_read_task_output(
@@ -1473,36 +1432,6 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
             this.backend.run_backend_job(job, &*this).await;
             this
         })
-    }
-
-    /// Enqueues tasks for notification of changed dependencies. This will
-    /// eventually call `dependent_cell_updated()` on all tasks.
-    fn schedule_notify_tasks(&self, tasks: &[TaskId]) {
-        let result = CURRENT_TASK_STATE.try_with(|cell| {
-            let CurrentTaskState {
-                tasks_to_notify, ..
-            } = &mut *cell.write().unwrap();
-            tasks_to_notify.extend(tasks.iter().copied());
-        });
-        if result.is_err() {
-            let _guard = trace_span!("schedule_notify_tasks", count = tasks.len()).entered();
-            self.backend.invalidate_tasks(tasks, self);
-        }
-    }
-
-    /// Enqueues tasks for notification of changed dependencies. This will
-    /// eventually call `dependent_cell_updated()` on all tasks.
-    fn schedule_notify_tasks_set(&self, tasks: &TaskIdSet) {
-        let result = CURRENT_TASK_STATE.try_with(|cell| {
-            let CurrentTaskState {
-                tasks_to_notify, ..
-            } = &mut *cell.write().unwrap();
-            tasks_to_notify.extend(tasks.iter().copied());
-        });
-        if result.is_err() {
-            let _guard = trace_span!("schedule_notify_tasks_set", count = tasks.len()).entered();
-            self.backend.invalidate_tasks_set(tasks, self);
-        };
     }
 
     #[track_caller]
@@ -1728,11 +1657,6 @@ pub fn mark_invalidator() {
 pub fn prevent_gc() {
     // There is a hack in UpdateCellOperation that need to be updated when this is changed.
     mark_stateful();
-}
-
-/// Notifies scheduled tasks for execution.
-pub fn notify_scheduled_tasks() {
-    with_turbo_tasks(|tt| tt.notify_scheduled_tasks())
 }
 
 pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {

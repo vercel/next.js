@@ -166,7 +166,6 @@ impl RawVc {
         conditional: impl FnOnce(ValueTypeId) -> (bool, Option<&'static ValueType>),
     ) -> Result<Option<RawVc>, ResolveTypeError> {
         let tt = turbo_tasks();
-        tt.notify_scheduled_tasks();
         let mut current = self;
         loop {
             match current {
@@ -211,14 +210,9 @@ impl RawVc {
     async fn resolve_inner(self, mut consistency: ReadConsistency) -> Result<RawVc> {
         let tt = turbo_tasks();
         let mut current = self;
-        let mut notified = false;
         loop {
             match current {
                 RawVc::TaskOutput(task) => {
-                    if !notified {
-                        tt.notify_scheduled_tasks();
-                        notified = true;
-                    }
                     current = read_task_output(&*tt, task, consistency).await?;
                     // We no longer need to read strongly consistent, as any Vc returned
                     // from the first task will be inside of the scope of the first
@@ -302,7 +296,6 @@ impl CollectiblesSource for RawVc {
             );
         };
         let tt = turbo_tasks();
-        tt.notify_scheduled_tasks();
         let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
         map.into_iter()
             .filter_map(|(raw, count)| (count > 0).then_some(raw.try_into().unwrap()))
@@ -317,7 +310,6 @@ impl CollectiblesSource for RawVc {
             );
         };
         let tt = turbo_tasks();
-        tt.notify_scheduled_tasks();
         let map = tt.read_task_collectibles(task_id, T::get_trait_type_id());
         tt.unemit_collectibles(T::get_trait_type_id(), &map);
         map.into_iter()
@@ -368,7 +360,6 @@ impl Future for ReadRawVcFuture {
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         with_turbo_tasks(|tt| {
-            tt.notify_scheduled_tasks();
             // SAFETY: we are not moving this
             let this = unsafe { self.get_unchecked_mut() };
             'outer: loop {
