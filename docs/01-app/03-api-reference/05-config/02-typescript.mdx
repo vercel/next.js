@@ -143,7 +143,7 @@ export default nextConfig
 
 #### For ESM Projects
 
-If your project is configured as an ESM project by adding `"type": "module"` to your `package.json` (see [Node.js documentation](https://nodejs.org/api/packages.html#type)), you can use `next.config.ts` directly with ESM syntax:
+When `"type"` is set to `"module"` in `package.json`, your project uses ESM. Learn more about this setting [in the Node.js docs](https://nodejs.org/api/packages.html#type). In this case, you can write `next.config.ts` directly with ESM syntax.
 
 ```json filename="package.json"
 {
