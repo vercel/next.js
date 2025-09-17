@@ -1729,6 +1729,15 @@ export default class NextNodeServer extends BaseServer<
           },
           page: 'middleware',
         })
+      } catch (err) {
+        await this.instrumentationOnRequestError(err, params.request, {
+          routePath: params.request.url || '/middleware',
+          routerKind: 'Pages Router',
+          routeType: 'middleware',
+          // middleware is not part of ISR logic
+          revalidateReason: undefined,
+        })
+        throw err
       } finally {
         if (hasRequestBody) {
           requestData.body.finalize()
