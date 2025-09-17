@@ -363,8 +363,6 @@ pub async fn chunk_group_content(
             })
             .try_flat_join()
             .await?
-            .into_iter()
-            .collect::<Vec<_>>()
     } else {
         state.chunkable_items.into_iter().collect()
     };
