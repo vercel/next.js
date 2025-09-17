@@ -299,8 +299,8 @@ export const installTemplate = async ({
   if (oxlint) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      oxlint: "2.2.0", // TODO Versioning
-      "oxlint-tsoglint": "2.2.0", // TODO Versioning
+      oxlint: "^1.16.0",
+      "oxlint-tsoglint": "~0.2.0",
     };
   }
 
