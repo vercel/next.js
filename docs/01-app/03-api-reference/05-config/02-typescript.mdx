@@ -145,13 +145,6 @@ export default nextConfig
 
 When `"type"` is set to `"module"` in `package.json`, your project uses ESM. Learn more about this setting [in the Node.js docs](https://nodejs.org/api/packages.html#type). In this case, you can write `next.config.ts` directly with ESM syntax.
 
-```json filename="package.json"
-{
-  "type": "module"
-  // ... other package.json fields
-}
-```
-
 > **Good to know**: When using `"type": "module"` in your `package.json`, all `.js` and `.ts` files in your project are treated as ESM modules by default. You may need to rename files with CommonJS syntax to `.cjs` or `.cts` extensions if needed.
 
 ### Statically Typed Links
