@@ -1,37 +1,39 @@
 /// <reference types="webpack/module.d.ts" />
 
 import type { ReactNode } from 'react'
-import { useEffect, startTransition, useRef } from 'react'
+import { useEffect, startTransition } from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../../../../shared/lib/format-webpack-messages'
-import { useRouter } from '../../../components/navigation'
 import {
   REACT_REFRESH_FULL_RELOAD,
   REACT_REFRESH_FULL_RELOAD_FROM_ERROR,
-  reportInvalidHmrMessage,
 } from '../shared'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
 import { ReplaySsrOnlyErrors } from '../../../../next-devtools/userspace/app/errors/replay-ssr-only-errors'
 import { AppDevOverlayErrorBoundary } from '../../../../next-devtools/userspace/app/app-dev-overlay-error-boundary'
 import { useErrorHandler } from '../../../../next-devtools/userspace/app/errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../runtime-error-handler'
-import {
-  useSendMessage,
-  useTurbopack,
-  useWebsocket,
-  useWebsocketPing,
-} from './use-websocket'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
+import { useWebSocketPing } from './web-socket'
+import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 import type {
-  HMR_ACTION_TYPES,
-  TurbopackMsgToBrowser,
+  HmrMessageSentToBrowser,
+  TurbopackMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import reportHmrLatency from '../../report-hmr-latency'
 import { TurbopackHmr } from '../turbopack-hot-reloader-common'
 import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../../components/app-router-headers'
-import type { GlobalErrorState } from '../../../components/app-router-instance'
-import { useForwardConsoleLog } from '../../../../next-devtools/userspace/app/errors/use-forward-console-log'
+import {
+  publicAppRouterInstance,
+  type GlobalErrorState,
+} from '../../../components/app-router-instance'
+import { InvariantError } from '../../../../shared/lib/invariant-error'
+import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
+
+export interface StaticIndicatorState {
+  pathname: string | null
+  appIsrManifest: Record<string, true>
+}
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
@@ -95,7 +97,10 @@ function afterApplyUpdates(fn: any) {
   }
 }
 
-function performFullReload(err: any, sendMessage: any) {
+export function performFullReload(
+  err: any,
+  sendMessage: (data: string) => void
+) {
   const stackTrace =
     err &&
     ((err.stack && err.stack.split('\n').slice(0, 5).join('\n')) ||
@@ -192,18 +197,12 @@ function tryApplyUpdatesWebpack(sendMessage: (message: string) => void) {
 }
 
 /** Handles messages from the server for the App Router. */
-function processMessage(
-  obj: HMR_ACTION_TYPES,
+export function processMessage(
+  message: HmrMessageSentToBrowser,
   sendMessage: (message: string) => void,
-  processTurbopackMessage: (msg: TurbopackMsgToBrowser) => void,
-  router: ReturnType<typeof useRouter>,
-  appIsrManifestRef: ReturnType<typeof useRef>,
-  pathnameRef: ReturnType<typeof useRef>
+  processTurbopackMessage: (msg: TurbopackMessageSentToBrowser) => void,
+  staticIndicatorState: StaticIndicatorState
 ) {
-  if (!('action' in obj)) {
-    return
-  }
-
   function handleErrors(errors: ReadonlyArray<unknown>) {
     // "Massage" webpack messages.
     const formatted = formatWebpackMessages({
@@ -248,26 +247,27 @@ function processMessage(
     }
   }
 
-  switch (obj.action) {
-    case HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST: {
+  switch (message.type) {
+    case HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST: {
       if (process.env.__NEXT_DEV_INDICATOR) {
-        if (appIsrManifestRef) {
-          appIsrManifestRef.current = obj.data
+        staticIndicatorState.appIsrManifest = message.data
 
-          // handle initial status on receiving manifest
-          // navigation is handled in useEffect for pathname changes
-          // as we'll receive the updated manifest before usePathname
-          // triggers for new value
-          if ((pathnameRef.current as string) in obj.data) {
-            dispatcher.onStaticIndicator(true)
-          } else {
-            dispatcher.onStaticIndicator(false)
-          }
+        // handle initial status on receiving manifest
+        // navigation is handled in useEffect for pathname changes
+        // as we'll receive the updated manifest before usePathname
+        // triggers for new value
+        if (
+          staticIndicatorState.pathname &&
+          staticIndicatorState.pathname in message.data
+        ) {
+          dispatcher.onStaticIndicator(true)
+        } else {
+          dispatcher.onStaticIndicator(false)
         }
       }
       break
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.BUILDING: {
       dispatcher.buildingIndicatorShow()
 
       if (process.env.TURBOPACK) {
@@ -279,22 +279,25 @@ function processMessage(
       }
       break
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
-    case HMR_ACTIONS_SENT_TO_BROWSER.SYNC: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.BUILT:
+    case HMR_MESSAGE_SENT_TO_BROWSER.SYNC: {
       dispatcher.buildingIndicatorHide()
 
-      if (obj.hash) {
-        handleAvailableHash(obj.hash)
+      if (message.hash) {
+        handleAvailableHash(message.hash)
       }
 
-      const { errors, warnings } = obj
+      const { errors, warnings } = message
 
       // Is undefined when it's a 'built' event
-      if ('versionInfo' in obj) dispatcher.onVersionInfo(obj.versionInfo)
-      if ('debug' in obj && obj.debug) dispatcher.onDebugInfo(obj.debug)
-      if ('devIndicator' in obj) dispatcher.onDevIndicator(obj.devIndicator)
-      if ('devToolsConfig' in obj)
-        dispatcher.onDevToolsConfig(obj.devToolsConfig)
+      if ('versionInfo' in message)
+        dispatcher.onVersionInfo(message.versionInfo)
+      if ('debug' in message && message.debug)
+        dispatcher.onDebugInfo(message.debug)
+      if ('devIndicator' in message)
+        dispatcher.onDevIndicator(message.devIndicator)
+      if ('devToolsConfig' in message)
+        dispatcher.onDevToolsConfig(message.devToolsConfig)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -348,26 +351,26 @@ function processMessage(
         })
       )
 
-      if (obj.action === HMR_ACTIONS_SENT_TO_BROWSER.BUILT) {
+      if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.BUILT) {
         handleHotUpdate()
       }
       return
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED: {
       processTurbopackMessage({
-        type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
+        type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
         data: {
-          sessionId: obj.data.sessionId,
+          sessionId: message.data.sessionId,
         },
       })
       break
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
-      turbopackHmr!.onTurbopackMessage(obj)
+    case HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE: {
+      turbopackHmr!.onTurbopackMessage(message)
       dispatcher.onBeforeRefresh()
       processTurbopackMessage({
-        type: HMR_ACTIONS_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
-        data: obj.data,
+        type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
+        data: message.data,
       })
       if (RuntimeErrorHandler.hadRuntimeError) {
         console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
@@ -377,28 +380,31 @@ function processMessage(
       break
     }
     // TODO-APP: make server component change more granular
-    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
       turbopackHmr?.onServerComponentChanges()
       sendMessage(
         JSON.stringify({
           event: 'server-component-reload-page',
           clientId: __nextDevClientId,
-          hash: obj.hash,
+          hash: message.hash,
         })
       )
 
       // Store the latest hash in a session cookie so that it's sent back to the
       // server with any subsequent requests.
-      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${obj.hash}`
+      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${message.hash};path=/`
 
-      if (RuntimeErrorHandler.hadRuntimeError) {
+      if (
+        RuntimeErrorHandler.hadRuntimeError ||
+        document.documentElement.id === '__next_error__'
+      ) {
         if (reloading) return
         reloading = true
         return window.location.reload()
       }
 
       startTransition(() => {
-        router.hmrRefresh()
+        publicAppRouterInstance.hmrRefresh()
         dispatcher.onRefresh()
       })
 
@@ -411,7 +417,7 @@ function processMessage(
 
       return
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE: {
       turbopackHmr?.onReloadPage()
       sendMessage(
         JSON.stringify({
@@ -423,126 +429,96 @@ function processMessage(
       reloading = true
       return window.location.reload()
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
-    case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE:
+    case HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE: {
       turbopackHmr?.onPageAddRemove()
       // TODO-APP: potentially only refresh if the currently viewed page was added/removed.
-      return router.hmrRefresh()
+      return publicAppRouterInstance.hmrRefresh()
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
-      const { errorJSON } = obj
+    case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR: {
+      const { errorJSON } = message
       if (errorJSON) {
-        const { message, stack } = JSON.parse(errorJSON)
-        const error = new Error(message)
-        error.stack = stack
+        const errorObject = JSON.parse(errorJSON)
+        const error = new Error(errorObject.message)
+        error.stack = errorObject.stack
         handleErrors([error])
       }
       return
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE: {
       return
     }
-    case HMR_ACTIONS_SENT_TO_BROWSER.DEVTOOLS_CONFIG: {
-      dispatcher.onDevToolsConfig(obj.data)
+    case HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG: {
+      dispatcher.onDevToolsConfig(message.data)
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
+      const { requestId, chunk } = message
+      const { writer } = getOrCreateDebugChannelReadableWriterPair(requestId)
+
+      if (chunk) {
+        writer.ready.then(() => writer.write(chunk)).catch(console.error)
+      } else {
+        // A null chunk signals that no more chunks will be sent, which allows
+        // us to close the writer.
+        // TODO: Revisit this cleanup logic when we integrate the return channel
+        // that keeps the connection open to be able to lazily retrieve debug
+        // objects.
+        writer.ready.then(() => writer.close()).catch(console.error)
+      }
+
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:
+    case HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES:
+    case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:
+      // These action types are handled in src/client/page-bootstrap.ts
+      break
     default: {
-      obj satisfies never
+      message satisfies never
     }
   }
 }
 
 export default function HotReload({
-  assetPrefix,
   children,
   globalError,
+  webSocket,
+  staticIndicatorState,
 }: {
-  assetPrefix: string
   children: ReactNode
   globalError: GlobalErrorState
+  webSocket: WebSocket | undefined
+  staticIndicatorState: StaticIndicatorState | undefined
 }) {
   useErrorHandler(dispatcher.onUnhandledError, dispatcher.onUnhandledRejection)
-
-  const webSocketRef = useWebsocket(assetPrefix)
-
-  useWebsocketPing(webSocketRef)
-  const sendMessage = useSendMessage(webSocketRef)
-  useForwardConsoleLog(webSocketRef)
-  const processTurbopackMessage = useTurbopack(sendMessage, (err) =>
-    performFullReload(err, sendMessage)
-  )
-
-  const router = useRouter()
+  useWebSocketPing(webSocket)
 
   // We don't want access of the pathname for the dev tools to trigger a dynamic
   // access (as the dev overlay will never be present in production).
   const pathname = useUntrackedPathname()
-  const appIsrManifestRef = useRef<Record<string, false | number>>({})
-  const pathnameRef = useRef(pathname)
 
   if (process.env.__NEXT_DEV_INDICATOR) {
     // this conditional is only for dead-code elimination which
     // isn't a runtime conditional only build-time so ignore hooks rule
     // eslint-disable-next-line react-hooks/rules-of-hooks
     useEffect(() => {
-      pathnameRef.current = pathname
-
-      const appIsrManifest = appIsrManifestRef.current
-
-      if (appIsrManifest) {
-        if (pathname && pathname in appIsrManifest) {
-          try {
-            dispatcher.onStaticIndicator(true)
-          } catch (reason) {
-            let message = ''
-
-            if (reason instanceof DOMException) {
-              // Most likely a SecurityError, because of an unavailable localStorage
-              message = reason.stack ?? reason.message
-            } else if (reason instanceof Error) {
-              message = 'Error: ' + reason.message + '\n' + (reason.stack ?? '')
-            } else {
-              message = 'Unexpected Exception: ' + reason
-            }
-
-            console.warn('[HMR] ' + message)
-          }
-        } else {
-          dispatcher.onStaticIndicator(false)
-        }
+      if (!staticIndicatorState) {
+        throw new InvariantError(
+          'Expected staticIndicatorState to be defined in dev mode.'
+        )
       }
-    }, [pathname])
+
+      staticIndicatorState.pathname = pathname
+
+      if (pathname && pathname in staticIndicatorState.appIsrManifest) {
+        dispatcher.onStaticIndicator(true)
+      } else {
+        dispatcher.onStaticIndicator(false)
+      }
+    }, [pathname, staticIndicatorState])
   }
 
-  useEffect(() => {
-    const websocket = webSocketRef.current
-    if (!websocket) return
-
-    const handler = (event: MessageEvent<any>) => {
-      try {
-        const obj = JSON.parse(event.data)
-        processMessage(
-          obj,
-          sendMessage,
-          processTurbopackMessage,
-          router,
-          appIsrManifestRef,
-          pathnameRef
-        )
-      } catch (err: unknown) {
-        reportInvalidHmrMessage(event, err)
-      }
-    }
-
-    websocket.addEventListener('message', handler)
-    return () => websocket.removeEventListener('message', handler)
-  }, [
-    sendMessage,
-    router,
-    webSocketRef,
-    processTurbopackMessage,
-    appIsrManifestRef,
-  ])
   return (
     <AppDevOverlayErrorBoundary globalError={globalError}>
       <ReplaySsrOnlyErrors onBlockingError={dispatcher.openErrorOverlay} />

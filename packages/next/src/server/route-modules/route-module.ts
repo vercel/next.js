@@ -152,6 +152,7 @@ export abstract class RouteModule<
     } else {
       const { join } = require('node:path') as typeof import('node:path')
       const absoluteProjectDir = join(
+        /* turbopackIgnore: true */
         process.cwd(),
         getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
       )
@@ -390,6 +391,7 @@ export abstract class RouteModule<
 
         const { join } = require('node:path') as typeof import('node:path')
         const absoluteProjectDir = join(
+          /* turbopackIgnore: true */
           process.cwd(),
           getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
         )
@@ -432,6 +434,7 @@ export abstract class RouteModule<
       }
       const { join } = require('node:path') as typeof import('node:path')
       const projectDir = join(
+        /* turbopackIgnore: true */
         process.cwd(),
         getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
       )
@@ -508,6 +511,7 @@ export abstract class RouteModule<
         pageIsDynamic: boolean
         isDraftMode: boolean
         resolvedPathname: string
+        encodedResolvedPathname: string
         isNextDataRequest: boolean
         buildManifest: DeepReadonly<BuildManifest>
         fallbackBuildManifest: DeepReadonly<BuildManifest>
@@ -538,6 +542,7 @@ export abstract class RouteModule<
         require('node:path') as typeof import('node:path')
 
       absoluteProjectDir = join(
+        /* turbopackIgnore: true */
         process.cwd(),
         getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
       )
@@ -597,8 +602,13 @@ export abstract class RouteModule<
       }
     }
 
+    // Normalize the page path for route matching. The srcPage contains the
+    // internal page path (e.g., /app/[slug]/page), but route matchers expect
+    // the pathname format (e.g., /app/[slug]).
+    const normalizedSrcPage = normalizeAppPath(srcPage)
+
     const serverUtils = getServerUtils({
-      page: srcPage,
+      page: normalizedSrcPage,
       i18n,
       basePath,
       rewrites,
@@ -624,15 +634,24 @@ export abstract class RouteModule<
     const locale =
       getRequestMeta(req, 'locale') || detectedLocale || defaultLocale
 
+    // we apply rewrites against cloned URL so that we don't
+    // modify the original with the rewrite destination
+    const clonedParsedUrl = structuredClone(parsedUrl)
     const rewriteParamKeys = Object.keys(
-      serverUtils.handleRewrites(req, parsedUrl)
+      serverUtils.handleRewrites(req, clonedParsedUrl)
     )
+    Object.assign(parsedUrl.query, clonedParsedUrl.query)
 
     // after processing rewrites we want to remove locale
     // from parsedUrl pathname
     if (i18n) {
       parsedUrl.pathname = normalizeLocalePath(
         parsedUrl.pathname || '/',
+        i18n.locales
+      ).pathname
+
+      clonedParsedUrl.pathname = normalizeLocalePath(
+        clonedParsedUrl.pathname || '/',
         i18n.locales
       ).pathname
     }
@@ -643,7 +662,9 @@ export abstract class RouteModule<
     // attempt parsing from pathname
     if (!params && serverUtils.dynamicRouteMatcher) {
       const paramsMatch = serverUtils.dynamicRouteMatcher(
-        normalizeDataPath(localeResult?.pathname || parsedUrl.pathname || '/')
+        normalizeDataPath(
+          clonedParsedUrl?.pathname || parsedUrl.pathname || '/'
+        )
       )
       const paramsResult = serverUtils.normalizeDynamicRouteParams(
         paramsMatch || {},
@@ -795,7 +816,6 @@ export abstract class RouteModule<
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest.config
 
-    const normalizedSrcPage = normalizeAppPath(srcPage)
     let resolvedPathname =
       getRequestMeta(req, 'rewroteURL') || normalizedSrcPage
 
@@ -809,6 +829,10 @@ export abstract class RouteModule<
     if (resolvedPathname === '/index') {
       resolvedPathname = '/'
     }
+    const encodedResolvedPathname = resolvedPathname
+
+    // we decode for cache key/manifest usage encoded is
+    // for URL building
     try {
       resolvedPathname = decodePathParams(resolvedPathname)
     } catch (_) {}
@@ -829,6 +853,7 @@ export abstract class RouteModule<
       previewData,
       pageIsDynamic,
       resolvedPathname,
+      encodedResolvedPathname,
       isOnDemandRevalidate,
       revalidateOnlyGenerated,
       ...manifests,

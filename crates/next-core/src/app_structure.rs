@@ -16,6 +16,7 @@ use turbopack_core::issue::{
 };
 
 use crate::{
+    mode::NextMode,
     next_app::{
         AppPage, AppPath, PageSegment, PageType,
         metadata::{
@@ -753,12 +754,14 @@ pub fn get_entrypoints(
     app_dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
     is_global_not_found_enabled: Vc<bool>,
+    next_mode: Vc<NextMode>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints(
         app_dir.clone(),
         get_directory_tree(app_dir.clone(), page_extensions),
         get_global_metadata(app_dir, page_extensions),
         is_global_not_found_enabled,
+        next_mode,
         Default::default(),
         Default::default(),
     )
@@ -786,6 +789,7 @@ fn directory_tree_to_entrypoints(
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
+    next_mode: Vc<NextMode>,
     root_layouts: Vc<FileSystemPathVec>,
     root_params: Vc<RootParamVecOption>,
 ) -> Vc<Entrypoints> {
@@ -793,6 +797,7 @@ fn directory_tree_to_entrypoints(
         app_dir,
         global_metadata,
         is_global_not_found_enabled,
+        next_mode,
         rcstr!(""),
         directory_tree,
         AppPage::new(),
@@ -1247,6 +1252,7 @@ async fn directory_tree_to_entrypoints_internal(
     app_dir: FileSystemPath,
     global_metadata: ResolvedVc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
+    next_mode: Vc<NextMode>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
@@ -1258,6 +1264,7 @@ async fn directory_tree_to_entrypoints_internal(
         app_dir,
         global_metadata,
         is_global_not_found_enabled,
+        next_mode,
         directory_name,
         directory_tree,
         app_page,
@@ -1272,6 +1279,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     app_dir: FileSystemPath,
     global_metadata: ResolvedVc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
+    next_mode: Vc<NextMode>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
     app_page: AppPage,
@@ -1454,16 +1462,13 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             parallel_routes: FxIndexMap::default(),
                             modules: if use_global_not_found {
                                 // if global-not-found.js is present:
-                                // we use it for the page and no layout, since layout is included in global-not-found.js;
+                                // leaf module only keeps page pointing to empty-stub
                                 AppDirModules {
-                                    layout: None,
-                                    page: match modules.global_not_found {
-                                        Some(v) => Some(v),
-                                        None =>  Some(get_next_package(app_dir.clone())
-                                            .await?
-                                            .join("dist/client/components/builtin/global-not-found.js")?,
-                                        ),
-                                    },
+                                    // page is built-in/empty-stub
+                                    page: Some(get_next_package(app_dir.clone())
+                                        .await?
+                                        .join("dist/client/components/builtin/empty-stub.js")?,
+                                    ),
                                     ..Default::default()
                                 }
                             } else {
@@ -1495,7 +1500,14 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 // Otherwise, we need to compose it with the root layout to compose with
                 // not-found.js boundary.
                 layout: if use_global_not_found {
-                    None
+                    match modules.global_not_found {
+                        Some(v) => Some(v),
+                        None => Some(
+                            get_next_package(app_dir.clone())
+                                .await?
+                                .join("dist/client/components/builtin/global-not-found.js")?,
+                        ),
+                    }
                 } else {
                     modules.layout
                 },
@@ -1503,7 +1515,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             },
             global_metadata,
         }
-            .resolved_cell();
+        .resolved_cell();
 
         {
             let app_page = app_page
@@ -1515,6 +1527,46 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 &mut result,
                 app_page,
                 not_found_tree,
+                root_params,
+            );
+        }
+
+        // Create production global error page only in build mode
+        // This aligns with webpack: default Pages entries (including /_error) are only added when
+        // the build isn't app-only. If the build is app-only (no user pages/api), we should still
+        // expose the app global error so runtime errors render, but we shouldn't emit it otherwise.
+        if matches!(*next_mode.await?, NextMode::Build) {
+            // Use built-in global-error.js to create a `_global-error/page` route.
+            let global_error_tree = AppPageLoaderTree {
+                page: app_page.clone(),
+                segment: directory_name.clone(),
+                parallel_routes: fxindexmap! {
+                    rcstr!("children") => AppPageLoaderTree {
+                        page: app_page.clone(),
+                        segment: rcstr!("__PAGE__"),
+                        parallel_routes: FxIndexMap::default(),
+                        modules: AppDirModules {
+                            page: Some(get_next_package(app_dir.clone())
+                                .await?
+                                .join("dist/client/components/builtin/app-error.js")?),
+                            ..Default::default()
+                        },
+                        global_metadata,
+                    }
+                },
+                modules: AppDirModules::default(),
+                global_metadata,
+            }
+            .resolved_cell();
+
+            let app_global_error_page = app_page
+                .clone_push_str("_global-error")?
+                .complete(PageType::Page)?;
+            add_app_page(
+                app_dir.clone(),
+                &mut result,
+                app_global_error_page,
+                global_error_tree,
                 root_params,
             );
         }
@@ -1542,6 +1594,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     app_dir.clone(),
                     *global_metadata,
                     is_global_not_found_enabled,
+                    next_mode,
                     subdir_name.clone(),
                     *subdirectory,
                     child_app_page.clone(),

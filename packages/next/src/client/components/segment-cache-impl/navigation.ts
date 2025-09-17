@@ -2,12 +2,12 @@ import type {
   CacheNodeSeedData,
   FlightRouterState,
   FlightSegmentPath,
-} from '../../../server/app-render/types'
+} from '../../../shared/lib/app-router-types'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import type {
-  CacheNode,
   HeadData,
   LoadingModuleData,
-} from '../../../shared/lib/app-router-context.shared-runtime'
+} from '../../../shared/lib/app-router-types'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
 import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
@@ -358,6 +358,9 @@ function readRenderSnapshotFromCache(
     Object.fromEntries(new URLSearchParams(route.renderedSearch))
   )
 
+  // We don't need this information in a render snapshot, so this can just be a placeholder.
+  const hasRuntimePrefetch = false
+
   return {
     flightRouterState: [
       segment,
@@ -366,7 +369,14 @@ function readRenderSnapshotFromCache(
       null,
       tree.isRootLayout,
     ],
-    seedData: [segment, rsc, childSeedDatas, loading, isPartial],
+    seedData: [
+      segment,
+      rsc,
+      childSeedDatas,
+      loading,
+      isPartial,
+      hasRuntimePrefetch,
+    ],
   }
 }
 

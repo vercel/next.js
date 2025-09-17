@@ -9,6 +9,7 @@ use napi::{
 };
 use next_api::{
     entrypoints::Entrypoints,
+    next_server_nft::next_server_nft_assets,
     operation::{
         EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, OptionEndpoint,
         RouteOperation,
@@ -41,7 +42,7 @@ use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons}
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemPath, util::uri_from_file,
 };
-use turbo_unix_path::get_relative_path_to;
+use turbo_unix_path::{get_relative_path_to, sys_to_unix};
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
     diagnostics::PlainDiagnostic,
@@ -72,7 +73,6 @@ use crate::{
             get_issues, subscribe,
         },
     },
-    register,
     util::DhatProfilerGuard,
 };
 
@@ -146,9 +146,6 @@ pub struct NapiProjectOptions {
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: RcStr,
 
-    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: RcStr,
-
     /// A map of environment variables to use when compiling code.
     pub env: Vec<NapiEnvVar>,
 
@@ -203,9 +200,6 @@ pub struct NapiPartialProjectOptions {
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: Option<RcStr>,
-
-    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: Option<RcStr>,
 
     /// A map of environment variables to use when compiling code.
     pub env: Option<Vec<NapiEnvVar>>,
@@ -276,7 +270,6 @@ impl From<NapiProjectOptions> for ProjectOptions {
             project_path: val.project_path,
             watch: val.watch.into(),
             next_config: val.next_config,
-            js_config: val.js_config,
             env: val
                 .env
                 .into_iter()
@@ -301,7 +294,6 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             project_path: val.project_path,
             watch: val.watch.map(From::from),
             next_config: val.next_config,
-            js_config: val.js_config,
             env: val
                 .env
                 .map(|env| env.into_iter().map(|var| (var.name, var.value)).collect()),
@@ -351,7 +343,6 @@ pub fn project_new(
 ) -> napi::Result<JsObject> {
     let napi_callbacks = NapiNextTurbopackCallbacks::from_js(napi_callbacks)?;
     env.spawn_future(async move {
-        register();
         let (exit, exit_receiver) = ExitHandler::new_receiver();
 
         if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
@@ -447,8 +438,7 @@ pub fn project_new(
         )?;
         let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 
-        let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
-        if let Some(stats_path) = stats_path {
+        if let Some(stats_path) = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS") {
             let task_stats = turbo_tasks.task_statistics().enable().clone();
             exit.on_exit(async move {
                 tokio::task::spawn_blocking(move || {
@@ -534,8 +524,7 @@ async fn benchmark_file_io(
     directory: FileSystemPath,
 ) -> Result<Vc<Completion>> {
     // try to get the real file path on disk so that we can use it with tokio
-    let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())
-        .await?
+    let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(directory.fs)
         .context(anyhow!(
             "expected node_root to be a DiskFileSystem, cannot benchmark"
         ))?
@@ -988,7 +977,14 @@ async fn output_assets_operation(
         .flat_map(|assets| assets.iter().copied())
         .collect();
 
-    Ok(Vc::cell(output_assets.into_iter().collect()))
+    let nft = next_server_nft_assets(container.project()).await?;
+
+    Ok(Vc::cell(
+        output_assets
+            .into_iter()
+            .chain(nft.iter().copied())
+            .collect(),
+    ))
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
@@ -1409,12 +1405,17 @@ pub struct OptionStackFrame(Option<StackFrame>);
 #[turbo_tasks::function]
 pub async fn get_source_map_rope(
     container: Vc<ProjectContainer>,
-    file_path: RcStr,
+    source_url: RcStr,
 ) -> Result<Vc<OptionStringifiedSourceMap>> {
-    let (file, module) = match Url::parse(&file_path) {
+    let (file_path_sys, module) = match Url::parse(&source_url) {
         Ok(url) => match url.scheme() {
             "file" => {
-                let path = urlencoding::decode(url.path())?.to_string();
+                let path = match url.to_file_path() {
+                    Ok(path) => path.to_string_lossy().into(),
+                    Err(_) => {
+                        bail!("Failed to convert file URL to file path: {url}");
+                    }
+                };
                 let module = url.query_pairs().find(|(k, _)| k == "id");
                 (
                     path,
@@ -1426,23 +1427,29 @@ pub async fn get_source_map_rope(
             }
             _ => bail!("Unknown url scheme '{}'", url.scheme()),
         },
-        Err(_) => (file_path.to_string(), None),
+        Err(_) => (source_url.to_string(), None),
     };
 
-    let Some(chunk_base) =
-        file.strip_prefix(container.project().dist_dir_absolute().await?.as_str())
-    else {
-        // File doesn't exist within the dist dir
-        return Ok(OptionStringifiedSourceMap::none());
-    };
+    let chunk_base_unix =
+        match file_path_sys.strip_prefix(container.project().dist_dir_absolute().await?.as_str()) {
+            Some(relative_path) => sys_to_unix(relative_path),
+            None => {
+                // File doesn't exist within the dist dir
+                return Ok(OptionStringifiedSourceMap::none());
+            }
+        };
 
-    let server_path = container.project().node_root().await?.join(chunk_base)?;
+    let server_path = container
+        .project()
+        .node_root()
+        .await?
+        .join(&chunk_base_unix)?;
 
     let client_path = container
         .project()
         .client_relative_path()
         .await?
-        .join(chunk_base)?;
+        .join(&chunk_base_unix)?;
 
     let mut map = container.get_source_map(server_path, module.clone());
 
@@ -1453,7 +1460,7 @@ pub async fn get_source_map_rope(
         // chunks.
         map = container.get_source_map(client_path, module);
         if map.await?.is_none() {
-            bail!("chunk/module '{}' is missing a sourcemap", file_path);
+            bail!("chunk/module '{}' is missing a sourcemap", source_url);
         }
     }
 

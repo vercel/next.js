@@ -17,7 +17,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
 import path from 'path'
 import type { NextConfigComplete } from '../server/config-shared'
-import { setGlobal, traceGlobals } from '../trace/shared'
+import { traceGlobals } from '../trace/shared'
 import { Telemetry } from '../telemetry/storage'
 import loadConfig from '../server/config'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -56,6 +56,7 @@ type PortSource = 'cli' | 'default' | 'env'
 
 let dir: string
 let child: undefined | ChildProcess
+// The config in next-dev is only used to access config.distDir for telemetry and trace.
 let config: NextConfigComplete
 let isTurboSession = false
 let traceUploadUrl: string
@@ -74,6 +75,10 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   if (signal != null && child?.pid) child.kill(signal)
   if (sessionStopHandled) return
   sessionStopHandled = true
+
+  // Capture the child's exit code if it has already exited and caused the
+  // session stop (via the 'exit' event), otherwise assume success (0).
+  const exitCode = child?.exitCode || 0
 
   if (
     signal != null &&
@@ -95,16 +100,6 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
     const { eventCliSessionStopped } =
       require('../telemetry/events/session-stopped') as typeof import('../telemetry/events/session-stopped')
 
-    config = config || (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir))
-
-    let telemetry =
-      (traceGlobals.get('telemetry') as InstanceType<
-        typeof import('../telemetry/storage').Telemetry
-      >) ||
-      new Telemetry({
-        distDir: path.join(dir, config.distDir),
-      })
-
     let pagesDir: boolean = !!traceGlobals.get('pagesDir')
     let appDir: boolean = !!traceGlobals.get('appDir')
 
@@ -116,6 +111,18 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       appDir = !!pagesResult.appDir
       pagesDir = !!pagesResult.pagesDir
     }
+
+    config =
+      config ||
+      (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, { silent: true }))
+
+    let telemetry =
+      (traceGlobals.get('telemetry') as InstanceType<
+        typeof import('../telemetry/storage').Telemetry
+      >) ||
+      new Telemetry({
+        distDir: path.join(dir, config.distDir),
+      })
 
     telemetry.record(
       eventCliSessionStopped({
@@ -147,7 +154,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   // the program, or the cursor could remain hidden
   process.stdout.write('\x1B[?25h')
   process.stdout.write('\n')
-  process.exit(0)
+  process.exit(exitCode)
 }
 
 process.on('SIGINT', () => handleSessionStop('SIGINT'))
@@ -228,10 +235,6 @@ const nextDev = async (
   // some set-ups that rely on listening on other interfaces
   const host = options.hostname
 
-  config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
-    silent: false,
-  })
-
   if (
     options.experimentalUploadTrace &&
     !process.env.NEXT_TRACE_UPLOAD_DISABLED
@@ -246,10 +249,6 @@ const nextDev = async (
     isDev: true,
     hostname: host,
   }
-
-  const distDir = path.join(dir, config.distDir ?? '.next')
-  setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-  setGlobal('distDir', distDir)
 
   const startServerPath = require.resolve('../server/lib/start-server')
 
@@ -330,6 +329,13 @@ const nextDev = async (
           // must upload the existing contents before restarting the server to
           // preserve the metrics.
           if (traceUploadUrl) {
+            // Postpone loading next config when we need to get
+            //  config.distDir for upload trace.
+            config =
+              config ||
+              (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
+                silent: true,
+              }))
             uploadTrace({
               traceUploadUrl,
               mode: 'dev',

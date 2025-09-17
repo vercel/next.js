@@ -1,7 +1,6 @@
 use anyhow::{Context, Result, bail};
 use next_core::{
     all_assets_from_entries,
-    app_segment_config::NextSegmentConfig,
     app_structure::{
         AppPageLoaderTree, CollectedRootParams, Entrypoint as AppEntrypoint,
         Entrypoints as AppEntrypoints, FileSystemPathVec, MetadataItem, collect_root_params,
@@ -13,8 +12,8 @@ use next_core::{
         get_app_page_entry, get_app_route_entry, metadata::route::get_app_metadata_route_entry,
     },
     next_client::{
-        ClientContextType, RuntimeEntries, get_client_module_options_context,
-        get_client_resolve_options_context, get_client_runtime_entries,
+        ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
+        get_client_runtime_entries,
     },
     next_client_reference::{
         ClientReferenceGraphResult, NextCssClientReferenceTransition,
@@ -30,14 +29,11 @@ use next_core::{
     },
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
-        get_server_runtime_entries,
     },
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
-    util::{
-        NextRuntime, app_middleware_function_name, module_styles_rule_condition,
-        styles_rule_condition,
-    },
+    segment_config::{NextSegmentConfig, ParseSegmentMode},
+    util::{NextRuntime, app_function_name, module_styles_rule_condition, styles_rule_condition},
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -171,6 +167,7 @@ impl AppProject {
             self.app_dir.clone(),
             conf.page_extensions(),
             conf.is_global_not_found_enabled(),
+            self.project.next_mode(),
         )
     }
 
@@ -220,6 +217,7 @@ impl AppProject {
             NextRuntime::NodeJs,
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
+            self.project().client_compile_time_info().environment(),
         ))
     }
 
@@ -234,6 +232,7 @@ impl AppProject {
             NextRuntime::Edge,
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
+            self.project().client_compile_time_info().environment(),
         ))
     }
 
@@ -248,6 +247,7 @@ impl AppProject {
             NextRuntime::NodeJs,
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
+            self.project().client_compile_time_info().environment(),
         ))
     }
 
@@ -262,6 +262,7 @@ impl AppProject {
             NextRuntime::Edge,
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
+            self.project().client_compile_time_info().environment(),
         ))
     }
 
@@ -385,7 +386,7 @@ impl AppProject {
                         )),
                         module_styles_rule_condition(),
                     ]),
-                    ResolvedVc::upcast(self.css_client_reference_transition().to_resolved().await?),
+                    self.css_client_reference_transition().to_resolved().await?,
                 ),
                 // Don't wrap in marker module but change context, this is used to determine
                 // the list of CSS module classes.
@@ -401,7 +402,7 @@ impl AppProject {
                 // Mark as client reference all regular CSS imports
                 TransitionRule::new(
                     styles_rule_condition(),
-                    ResolvedVc::upcast(self.css_client_reference_transition().to_resolved().await?),
+                    self.css_client_reference_transition().to_resolved().await?,
                 ),
             ],
             ..Default::default()
@@ -415,7 +416,7 @@ impl AppProject {
             self.get_rsc_transitions(
                 self.ecmascript_client_reference_transition(),
                 Vc::upcast(self.ssr_transition()),
-                Vc::upcast(self.shared_transition()),
+                self.shared_transition(),
             ),
             self.project().server_compile_time_info(),
             self.rsc_module_options_context(),
@@ -430,7 +431,7 @@ impl AppProject {
             self.get_rsc_transitions(
                 self.edge_ecmascript_client_reference_transition(),
                 Vc::upcast(self.edge_ssr_transition()),
-                Vc::upcast(self.edge_shared_transition()),
+                self.edge_shared_transition(),
             ),
             self.project().edge_compile_time_info(),
             self.edge_rsc_module_options_context(),
@@ -469,7 +470,7 @@ impl AppProject {
             ),
             (
                 rcstr!("next-shared"),
-                ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
+                self.shared_transition().to_resolved().await?,
             ),
             (
                 rcstr!("next-server-utility"),
@@ -520,7 +521,7 @@ impl AppProject {
             ),
             (
                 rcstr!("next-shared"),
-                ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
+                self.edge_shared_transition().to_resolved().await?,
             ),
             (
                 rcstr!("next-server-utility"),
@@ -584,6 +585,7 @@ impl AppProject {
             NextRuntime::NodeJs,
             self.project().encryption_key(),
             self.project().server_compile_time_info().environment(),
+            self.project().client_compile_time_info().environment(),
         ))
     }
 
@@ -598,6 +600,7 @@ impl AppProject {
             NextRuntime::Edge,
             self.project().encryption_key(),
             self.project().edge_compile_time_info().environment(),
+            self.project().client_compile_time_info().environment(),
         ))
     }
 
@@ -642,7 +645,7 @@ impl AppProject {
             ),
             (
                 rcstr!("next-shared"),
-                ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
+                self.shared_transition().to_resolved().await?,
             ),
         ]
         .into_iter()
@@ -714,7 +717,7 @@ impl AppProject {
             ),
             (
                 rcstr!("next-shared"),
-                ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
+                self.edge_shared_transition().to_resolved().await?,
             ),
         ]
         .into_iter()
@@ -772,26 +775,6 @@ impl AppProject {
         Vc::upcast(FullContextTransition::new(
             self.edge_shared_module_context(),
         ))
-    }
-
-    #[turbo_tasks::function]
-    async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        Ok(get_server_runtime_entries(
-            self.rsc_ty().owned().await?,
-            self.project().next_mode(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn rsc_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
-        self.runtime_entries()
-            .resolve_entries(Vc::upcast(self.rsc_module_context()))
-    }
-
-    #[turbo_tasks::function]
-    fn edge_rsc_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
-        self.runtime_entries()
-            .resolve_entries(Vc::upcast(self.edge_rsc_module_context()))
     }
 
     #[turbo_tasks::function]
@@ -879,8 +862,7 @@ impl AppProject {
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
             async move {
-                let rsc_entry_chunk_group =
-                    ChunkGroupEntry::Entry(vec![ResolvedVc::upcast(rsc_entry)]);
+                let rsc_entry_chunk_group = ChunkGroupEntry::Entry(vec![rsc_entry]);
 
                 let mut graphs = vec![];
                 let mut visited_modules = if has_layout_segments {
@@ -1108,7 +1090,7 @@ impl AppEndpoint {
 
             for layout in root_layouts.iter().rev() {
                 let source = Vc::upcast(FileSource::new(layout.clone()));
-                let layout_config = parse_segment_config_from_source(source);
+                let layout_config = parse_segment_config_from_source(source, ParseSegmentMode::App);
                 config.apply_parent_config(&*layout_config.await?);
             }
 
@@ -1133,8 +1115,8 @@ impl AppEndpoint {
         next_config: Vc<NextConfig>,
     ) -> Result<Vc<AppEntry>> {
         Ok(get_app_metadata_route_entry(
-            self.app_project.rsc_module_context(),
-            self.app_project.edge_rsc_module_context(),
+            self.app_project.route_module_context(),
+            self.app_project.edge_route_module_context(),
             self.app_project.project().project_path().owned().await?,
             self.page.clone(),
             *self.app_project.project().next_mode().await?,
@@ -1193,11 +1175,7 @@ impl AppEndpoint {
                 AppEndpointType::Metadata { metadata } => (
                     false,
                     false,
-                    if matches!(metadata, MetadataItem::Dynamic { .. }) {
-                        EmitManifests::Full
-                    } else {
-                        EmitManifests::Minimal
-                    },
+                    EmitManifests::Minimal,
                     matches!(metadata, MetadataItem::Dynamic { .. }),
                 ),
             };
@@ -1214,13 +1192,21 @@ impl AppEndpoint {
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
         let rsc_entry = app_entry.rsc_entry;
+
+        let is_app_page = matches!(this.ty, AppEndpointType::Page { .. });
+
         let module_graphs = this
             .app_project
             .app_module_graphs(
                 self,
                 *rsc_entry,
-                this.app_project.client_runtime_entries(),
-                matches!(this.ty, AppEndpointType::Page { .. }),
+                // We only need the client runtime entries for pages not for Route Handlers
+                if is_app_page {
+                    this.app_project.client_runtime_entries()
+                } else {
+                    EvaluatableAssets::empty()
+                },
+                is_app_page,
             )
             .await?;
 
@@ -1242,25 +1228,34 @@ impl AppEndpoint {
             None
         };
 
-        let client_shared_chunk_group = get_app_client_shared_chunk_group(
-            AssetIdent::from_path(project.project_path().owned().await?)
-                .with_modifier(rcstr!("client-shared-chunks")),
-            this.app_project.client_runtime_entries(),
-            *module_graphs.full,
-            *client_chunking_context,
-        )
-        .await?;
+        // We only need the client runtime entries for pages not for Route Handlers
+        let (availability_info, client_shared_chunks) = if is_app_page {
+            let client_shared_chunk_group = get_app_client_shared_chunk_group(
+                AssetIdent::from_path(project.project_path().owned().await?)
+                    .with_modifier(rcstr!("client-shared-chunks")),
+                this.app_project.client_runtime_entries(),
+                *module_graphs.full,
+                *client_chunking_context,
+            )
+            .await?;
 
-        let mut client_shared_chunks = vec![];
-        for chunk in client_shared_chunk_group.assets.await?.iter().copied() {
-            client_assets.insert(chunk);
+            let mut client_shared_chunks = vec![];
+            for chunk in client_shared_chunk_group.assets.await?.iter().copied() {
+                client_assets.insert(chunk);
 
-            let chunk_path = chunk.path().await?;
-            if chunk_path.has_extension(".js") {
-                client_shared_chunks.push(chunk);
+                let chunk_path = chunk.path().await?;
+                if chunk_path.has_extension(".js") {
+                    client_shared_chunks.push(chunk);
+                }
             }
-        }
-        let client_shared_availability_info = client_shared_chunk_group.availability_info;
+
+            (
+                client_shared_chunk_group.availability_info,
+                client_shared_chunks,
+            )
+        } else {
+            (AvailabilityInfo::Root, vec![])
+        };
 
         let global_information = get_global_information_for_endpoint(
             *module_graphs.base,
@@ -1283,7 +1278,7 @@ impl AppEndpoint {
             *client_references,
             *module_graphs.full,
             *client_chunking_context,
-            client_shared_availability_info,
+            availability_info,
             ssr_chunking_context.map(|ctx| *ctx),
         )
         .to_resolved()
@@ -1395,18 +1390,16 @@ impl AppEndpoint {
                 polyfill_files: vec![polyfill_output_asset],
                 ..Default::default()
             };
-            let build_manifest_output = ResolvedVc::upcast(
-                build_manifest
-                    .build_output(
-                        node_root.join(&format!(
-                            "server/app{manifest_path_prefix}/build-manifest.json",
-                        ))?,
-                        client_relative_path.clone(),
-                    )
-                    .await?
-                    .to_resolved()
-                    .await?,
-            );
+            let build_manifest_output = build_manifest
+                .build_output(
+                    node_root.join(&format!(
+                        "server/app{manifest_path_prefix}/build-manifest.json",
+                    ))?,
+                    client_relative_path.clone(),
+                )
+                .await?
+                .to_resolved()
+                .await?;
             server_assets.insert(build_manifest_output);
         }
 
@@ -1554,7 +1547,7 @@ impl AppEndpoint {
                 if emit_manifests == EmitManifests::Full {
                     let dynamic_import_entries = collect_next_dynamic_chunks(
                         *module_graphs.full,
-                        *ResolvedVc::upcast(client_chunking_context),
+                        *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
                             &*(client_references_chunks.await?),
@@ -1590,7 +1583,7 @@ impl AppEndpoint {
                         files: file_paths_from_root.into_iter().collect(),
                         wasm: wasm_paths_to_bindings(wasm_paths_from_root).await?,
                         assets: paths_to_bindings(all_assets),
-                        name: app_middleware_function_name(&app_entry.original_name).into(),
+                        name: app_function_name(&app_entry.original_name).into(),
                         page: app_entry.original_name.clone(),
                         regions: app_entry
                             .config
@@ -1669,7 +1662,7 @@ impl AppEndpoint {
                     // create react-loadable-manifest for next/dynamic
                     let dynamic_import_entries = collect_next_dynamic_chunks(
                         *module_graphs.full,
-                        *ResolvedVc::upcast(client_chunking_context),
+                        *client_chunking_context,
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
                             &*(client_references_chunks.await?),
@@ -1701,11 +1694,10 @@ impl AppEndpoint {
                     .await?
                     .is_production()
                 {
-                    let page_name = app_entry.pathname.clone();
                     server_assets.insert(ResolvedVc::upcast(
                         NftJsonAsset::new(
                             project,
-                            Some(page_name),
+                            Some(app_function_name(&app_entry.original_name).into()),
                             *rsc_chunk,
                             client_reference_manifest
                                 .iter()
@@ -1755,7 +1747,7 @@ impl AppEndpoint {
                     assets,
                     availability_info,
                 } = *chunking_context
-                    .evaluated_chunk_group(
+                    .chunk_group(
                         server_action_manifest_loader.ident(),
                         ChunkGroup::Entry(
                             [ResolvedVc::upcast(server_action_manifest_loader)]
@@ -1767,17 +1759,11 @@ impl AppEndpoint {
                     )
                     .await?;
 
-                let edge_rsc_runtime_entries = this.app_project.edge_rsc_runtime_entries().await?;
-                let evaluatable_assets = edge_rsc_runtime_entries
-                    .iter()
-                    .map(|m| ResolvedVc::upcast(*m))
-                    .chain(std::iter::once(app_entry.rsc_entry));
-
                 assets.concatenate(
                     chunking_context
                         .evaluated_chunk_group_assets(
                             app_entry.rsc_entry.ident(),
-                            ChunkGroup::Entry(evaluatable_assets.collect()),
+                            ChunkGroup::Entry(vec![app_entry.rsc_entry]),
                             module_graph,
                             availability_info,
                         )
@@ -1786,14 +1772,11 @@ impl AppEndpoint {
                 )
             }
             NextRuntime::NodeJs => {
-                let mut evaluatable_assets = this.app_project.rsc_runtime_entries().owned().await?;
-
                 let Some(rsc_entry) = ResolvedVc::try_downcast(app_entry.rsc_entry) else {
                     bail!("rsc_entry must be evaluatable");
                 };
 
-                evaluatable_assets.push(server_action_manifest_loader);
-                evaluatable_assets.push(rsc_entry);
+                let evaluatable_assets = Vc::cell(vec![rsc_entry]);
 
                 async {
                     let mut current_chunks = OutputAssets::empty();
@@ -1871,6 +1854,25 @@ impl AppEndpoint {
                         .await?;
                     }
 
+                    {
+                        let chunk_group = chunking_context
+                            .chunk_group(
+                                server_action_manifest_loader.ident(),
+                                ChunkGroup::Entry(vec![ResolvedVc::upcast(
+                                    server_action_manifest_loader,
+                                )]),
+                                module_graph,
+                                current_availability_info,
+                            )
+                            .await?;
+
+                        current_chunks = current_chunks
+                            .concatenate(*chunk_group.assets)
+                            .resolve()
+                            .await?;
+                        current_availability_info = chunk_group.availability_info;
+                    }
+
                     anyhow::Ok(Vc::cell(vec![
                         chunking_context
                             .entry_chunk_group_asset(
@@ -1878,7 +1880,7 @@ impl AppEndpoint {
                                     "app{original_name}.js",
                                     original_name = app_entry.original_name
                                 ))?,
-                                Vc::cell(evaluatable_assets),
+                                evaluatable_assets,
                                 module_graph,
                                 current_chunks,
                                 current_availability_info,
@@ -1984,7 +1986,7 @@ impl Endpoint for AppEndpoint {
                     server_entry_path: node_root
                         .get_path_to(&*rsc_chunk.path().await?)
                         .context("Node.js chunk entry path must be inside the node root")?
-                        .to_string(),
+                        .into(),
                     server_paths,
                     client_paths,
                 },

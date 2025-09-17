@@ -17,6 +17,7 @@ import { install } from './helpers/install'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { getOnline } from './helpers/is-online'
 import { isWriteable } from './helpers/is-writeable'
+import { runTypegen } from './helpers/typegen'
 
 import type { TemplateMode, TemplateType } from './templates'
 import { getTemplateFile, installTemplate } from './templates'
@@ -31,6 +32,7 @@ export async function createApp({
   typescript,
   tailwind,
   eslint,
+  biome,
   app,
   srcDir,
   importAlias,
@@ -48,6 +50,7 @@ export async function createApp({
   typescript: boolean
   tailwind: boolean
   eslint: boolean
+  biome: boolean
   app: boolean
   srcDir: boolean
   importAlias: string
@@ -220,6 +223,14 @@ export async function createApp({
 
       await install(packageManager, isOnline)
       console.log()
+      try {
+        console.log()
+        await runTypegen(packageManager)
+        console.log()
+      } catch (err) {
+        // Best effort: do not fail app creation if typegen fails
+        console.error('Error running typegen:', err)
+      }
     }
   } else {
     /**
@@ -235,6 +246,7 @@ export async function createApp({
       isOnline,
       tailwind,
       eslint,
+      biome,
       srcDir,
       importAlias,
       skipInstall,

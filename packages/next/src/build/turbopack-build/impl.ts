@@ -2,7 +2,6 @@ import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
   formatIssue,
-  getTurbopackJsConfig,
   isPersistentCachingEnabled,
   isRelevantWarning,
 } from '../../shared/lib/turbopack/utils'
@@ -60,7 +59,6 @@ export async function turbopackBuild(): Promise<{
       projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
       distDir,
       nextConfig: config,
-      jsConfig: await getTurbopackJsConfig(dir, config),
       watch: {
         enable: false,
       },
@@ -179,14 +177,19 @@ export async function turbopackBuild(): Promise<{
     await Promise.all(promises)
 
     await Promise.all([
-      manifestLoader.loadBuildManifest('_app'),
-      manifestLoader.loadPagesManifest('_app'),
-      manifestLoader.loadFontManifest('_app'),
-      manifestLoader.loadPagesManifest('_document'),
-      manifestLoader.loadClientBuildManifest('_error'),
-      manifestLoader.loadBuildManifest('_error'),
-      manifestLoader.loadPagesManifest('_error'),
-      manifestLoader.loadFontManifest('_error'),
+      // Only load pages router manifests if not app-only
+      ...(!appDirOnly
+        ? [
+            manifestLoader.loadBuildManifest('_app'),
+            manifestLoader.loadPagesManifest('_app'),
+            manifestLoader.loadFontManifest('_app'),
+            manifestLoader.loadPagesManifest('_document'),
+            manifestLoader.loadClientBuildManifest('_error'),
+            manifestLoader.loadBuildManifest('_error'),
+            manifestLoader.loadPagesManifest('_error'),
+            manifestLoader.loadFontManifest('_error'),
+          ]
+        : []),
       entrypoints.instrumentation &&
         manifestLoader.loadMiddlewareManifest(
           'instrumentation',
@@ -199,7 +202,7 @@ export async function turbopackBuild(): Promise<{
         )),
     ])
 
-    await manifestLoader.writeManifests({
+    manifestLoader.writeManifests({
       devRewrites: undefined,
       productionRewrites: rewrites,
       entrypoints: currentEntrypoints,

@@ -748,9 +748,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "alert",
-                            ),
+                            var: "alert",
                             ast_path: [
                                 Program(
                                     Module,

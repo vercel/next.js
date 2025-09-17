@@ -409,7 +409,7 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             ref={forwardedRef}
           />
         }
-        {imgMeta.priority ? (
+        {imgMeta.preload ? (
           <ImagePreload
             isAppRouter={isAppRouter}
             imgAttributes={imgAttributes}

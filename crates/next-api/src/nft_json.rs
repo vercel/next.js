@@ -2,12 +2,16 @@ use std::collections::{BTreeSet, VecDeque};
 
 use anyhow::{Result, bail};
 use serde_json::json;
+use tracing::{Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
-    graph::{AdjacencyMap, GraphTraversal},
+    FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
 };
-use turbo_tasks_fs::{DirectoryEntry, File, FileSystem, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    DirectoryEntry, File, FileSystem, FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     output::{OutputAsset, OutputAssets},
@@ -32,7 +36,8 @@ pub struct NftJsonAsset {
     /// An example of this is the two-phase approach used by the `ClientReferenceManifest` in
     /// next.js.
     additional_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
-    page_name: Option<RcStr>,
+    // The page name, e.g. `pages/index` or `app/route1`
+    page_name: Option<String>,
 }
 
 #[turbo_tasks::value_impl]
@@ -48,7 +53,7 @@ impl NftJsonAsset {
             chunk,
             project,
             additional_assets,
-            page_name,
+            page_name: page_name.map(|page_name| format!("/{page_name}")),
         }
         .cell()
     }
@@ -174,7 +179,11 @@ impl Asset for NftJsonAsset {
                 if let Some(excludes_obj) = excludes_config.as_object() {
                     for (glob_pattern, exclude_patterns) in excludes_obj {
                         // Check if the route matches the glob pattern
-                        let glob = Glob::new(RcStr::from(glob_pattern.clone())).await?;
+                        let glob = Glob::new(
+                            RcStr::from(glob_pattern.clone()),
+                            GlobOptions { contains: true },
+                        )
+                        .await?;
                         if glob.matches(route)
                             && let Some(patterns) = exclude_patterns.as_array()
                         {
@@ -207,6 +216,7 @@ impl Asset for NftJsonAsset {
                                 .join(",")
                         )
                         .into(),
+                        GlobOptions { contains: true },
                     );
 
                     Some(glob)
@@ -220,7 +230,8 @@ impl Asset for NftJsonAsset {
 
         // Collect base assets first
         for referenced_chunk in
-            all_assets_from_entries_filtered(Vc::cell(entries), client_root, exclude_glob).await?
+            all_assets_from_entries_filtered(Vc::cell(entries), Some(client_root), exclude_glob)
+                .await?
         {
             if chunk.eq(referenced_chunk) {
                 continue;
@@ -229,6 +240,38 @@ impl Asset for NftJsonAsset {
             let referenced_chunk_path = referenced_chunk.path().await?;
             if referenced_chunk_path.has_extension(".map") {
                 continue;
+            }
+
+            #[cfg(debug_assertions)]
+            {
+                // Verify that we there are no entries where a file is created inside of a symlink,
+                // as this can result in invalid ZIP files and deployment failures.
+                // For example
+                // node_modules/.pnpm/node_modules/@libsql/client/package.json
+                // where
+                // node_modules/.pnpm/node_modules/@libsql/client is a symlink
+                let mut current_path = referenced_chunk_path.parent();
+                loop {
+                    use turbo_tasks_fs::FileSystemEntryType;
+
+                    if current_path.is_root() {
+                        break;
+                    }
+
+                    if matches!(
+                        &*current_path.get_type().await?,
+                        FileSystemEntryType::Symlink
+                    ) {
+                        bail!(
+                            "Encountered file inside of symlink in NFT list: {} is a symlink, but \
+                             {} was created inside of it",
+                            current_path.value_to_string().await?,
+                            referenced_chunk_path.value_to_string().await?
+                        );
+                    }
+
+                    current_path = current_path.parent();
+                }
             }
 
             let Some(specifier) = get_output_specifier(
@@ -241,6 +284,7 @@ impl Asset for NftJsonAsset {
             else {
                 continue;
             };
+
             result.insert(specifier);
         }
 
@@ -256,7 +300,9 @@ impl Asset for NftJsonAsset {
             {
                 for (glob_pattern, include_patterns) in includes_obj {
                     // Check if the route matches the glob pattern
-                    let glob = Glob::new(glob_pattern.as_str().into()).await?;
+                    let glob =
+                        Glob::new(glob_pattern.as_str().into(), GlobOptions { contains: true })
+                            .await?;
                     if glob.matches(route)
                         && let Some(patterns) = include_patterns.as_array()
                     {
@@ -278,7 +324,10 @@ impl Asset for NftJsonAsset {
             let includes = combined_includes_by_root
                 .into_iter()
                 .map(|(root, globs)| {
-                    let glob = Glob::new(format!("{{{}}}", globs.join(",")).into());
+                    let glob = Glob::new(
+                        format!("{{{}}}", globs.join(",")).into(),
+                        GlobOptions { contains: true },
+                    );
                     apply_includes(root, glob, &ident_folder_in_project_fs)
                 })
                 .try_join()
@@ -301,7 +350,10 @@ impl Asset for NftJsonAsset {
 /// traversal doesn't need to consider them and can just traverse 'down' the tree.
 /// The main alternative is to merge glob evaluation with directory traversal which is what the npm
 /// `glob` package does, but this would be a substantial rewrite.`
-fn relativize_glob(glob: &str, relative_to: FileSystemPath) -> Result<(&str, FileSystemPath)> {
+pub(crate) fn relativize_glob(
+    glob: &str,
+    relative_to: FileSystemPath,
+) -> Result<(&str, FileSystemPath)> {
     let mut relative_to = relative_to;
     let mut processed_glob = glob;
     loop {
@@ -326,9 +378,9 @@ fn relativize_glob(glob: &str, relative_to: FileSystemPath) -> Result<(&str, Fil
 /// Walks the asset graph from multiple assets and collect all referenced
 /// assets, but filters out all client assets and glob matches.
 #[turbo_tasks::function]
-async fn all_assets_from_entries_filtered(
+pub async fn all_assets_from_entries_filtered(
     entries: Vc<OutputAssets>,
-    client_root: FileSystemPath,
+    client_root: Option<FileSystemPath>,
     exclude_glob: Option<Vc<Glob>>,
 ) -> Result<Vc<OutputAssets>> {
     let exclude_glob = if let Some(exclude_glob) = exclude_glob {
@@ -336,35 +388,95 @@ async fn all_assets_from_entries_filtered(
     } else {
         None
     };
+    let emit_spans = tracing::enabled!(Level::INFO);
     Ok(Vc::cell(
         AdjacencyMap::new()
             .skip_duplicates()
             .visit(
-                entries.await?.iter().copied().map(ResolvedVc::upcast),
-                |asset| get_referenced_server_assets(asset, &client_root, &exclude_glob),
+                entries
+                    .await?
+                    .iter()
+                    .map(async |asset| {
+                        Ok((
+                            *asset,
+                            if emit_spans {
+                                Some(asset.path().to_string().await?)
+                            } else {
+                                None
+                            },
+                        ))
+                    })
+                    .try_join()
+                    .await?,
+                OutputAssetFilteredVisit {
+                    client_root,
+                    exclude_glob,
+                    emit_spans,
+                },
             )
             .await
             .completed()?
             .into_inner()
             .into_postorder_topological()
+            .map(|n| n.0)
             .collect(),
     ))
+}
+
+struct OutputAssetFilteredVisit {
+    client_root: Option<FileSystemPath>,
+    exclude_glob: Option<ReadRef<Glob>>,
+    emit_spans: bool,
+}
+impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>
+    for OutputAssetFilteredVisit
+{
+    type Edge = (ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>);
+    type EdgesIntoIter = Vec<Self::Edge>;
+    type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
+
+    fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<Self::Edge> {
+        VisitControlFlow::Continue(edge)
+    }
+
+    fn edges(
+        &mut self,
+        node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
+    ) -> Self::EdgesFuture {
+        let client_root = self.client_root.clone();
+        let exclude_glob = self.exclude_glob.clone();
+        get_referenced_server_assets(self.emit_spans, node.0, client_root, exclude_glob)
+    }
+
+    fn span(
+        &mut self,
+        node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
+    ) -> tracing::Span {
+        if let Some(ident) = &node.1 {
+            tracing::info_span!("asset", name = display(ident))
+        } else {
+            Span::current()
+        }
+    }
 }
 
 /// Computes the list of all chunk children of a given chunk, but filters out all client assets and
 /// glob matches.
 async fn get_referenced_server_assets(
+    emit_spans: bool,
     asset: ResolvedVc<Box<dyn OutputAsset>>,
-    client_root: &FileSystemPath,
-    exclude_glob: &Option<ReadRef<Glob>>,
-) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
+    client_root: Option<FileSystemPath>,
+    exclude_glob: Option<ReadRef<Glob>>,
+) -> Result<Vec<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)>> {
     asset
         .references()
         .await?
         .iter()
         .map(async |asset| {
             let asset_path = asset.path().await?;
-            if asset_path.is_inside_ref(client_root) {
+            if let Some(client_root) = &client_root
+                && asset_path.is_inside_ref(client_root)
+            {
                 return Ok(None);
             }
 
@@ -375,7 +487,14 @@ async fn get_referenced_server_assets(
                 return Ok(None);
             }
 
-            Ok(Some(*asset))
+            Ok(Some((
+                *asset,
+                if emit_spans {
+                    Some(asset.path().to_string().await?)
+                } else {
+                    None
+                },
+            )))
         })
         .try_flat_join()
         .await
@@ -390,15 +509,13 @@ mod tests {
     use super::*;
 
     fn create_test_fs_path(path: &str) -> FileSystemPath {
-        crate::register();
-
         FileSystemPath {
             fs: ResolvedVc::upcast(NullFileSystem {}.resolved_cell()),
             path: path.into(),
         }
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_relativize_glob_normal_patterns() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -425,7 +542,7 @@ mod tests {
         .unwrap();
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_relativize_glob_current_directory_prefix() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -454,7 +571,7 @@ mod tests {
         .unwrap();
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_relativize_glob_parent_directory_navigation() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -484,7 +601,7 @@ mod tests {
         .unwrap();
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_relativize_glob_mixed_prefixes() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
@@ -514,7 +631,7 @@ mod tests {
         .unwrap();
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_relativize_glob_error_navigation_out_of_root() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),

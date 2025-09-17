@@ -120,8 +120,6 @@ export interface NapiProjectOptions {
   watch: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
   nextConfig: RcStr
-  /** The contents of ts/config read by load-jsconfig, serialized to JSON. */
-  jsConfig: RcStr
   /** A map of environment variables to use when compiling code. */
   env: Array<NapiEnvVar>
   /**
@@ -172,8 +170,6 @@ export interface NapiPartialProjectOptions {
   watch?: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
   nextConfig?: RcStr
-  /** The contents of ts/config read by load-jsconfig, serialized to JSON. */
-  jsConfig?: RcStr
   /** A map of environment variables to use when compiling code. */
   env?: Array<NapiEnvVar>
   /**

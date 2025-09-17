@@ -39,7 +39,11 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
 
         for (const link of links) {
           if (link.attribs.href && link.attribs.rel !== 'expect') {
-            expect(link.attribs.href).toContain('dpl=' + deploymentId)
+            if (link.attribs.as === 'font') {
+              expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
+            } else {
+              expect(link.attribs.href).toContain('dpl=' + deploymentId)
+            }
           }
         }
 
@@ -169,7 +173,11 @@ describe('deployment-id-handling disabled', () => {
 
       for (const link of links) {
         if (link.attribs.href) {
-          expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
+          if (link.attribs.as === 'font') {
+            expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
+          } else {
+            expect(link.attribs.href).not.toContain('dpl=' + deploymentId)
+          }
         }
       }
 

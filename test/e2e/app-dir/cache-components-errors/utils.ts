@@ -1,7 +1,11 @@
 // Used to deterministically stub out minified local names in stack traces.
 const abc = 'abcdefghijklmnopqrstuvwxyz'
 const hostElementsUsedInFixtures = ['html', 'body', 'main', 'div']
-const ignoredLines = ['Generating static pages', 'Inlining static env']
+const ignoredLines = [
+  'Generating static pages',
+  'Inlining static env',
+  'Finalizing page optimization',
+]
 
 /**
  * Converts a module function sequence expression, e.g.:
@@ -47,6 +51,10 @@ export function getPrerenderOutput(
     }
 
     if (line.includes('Next.js build worker exited')) {
+      break
+    }
+
+    if (line.includes('Route (app)')) {
       break
     }
 

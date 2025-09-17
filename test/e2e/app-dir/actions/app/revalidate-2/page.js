@@ -34,7 +34,9 @@ export default async function Page() {
       </form>
       <p>
         random cookie:{' '}
-        <span id="random-cookie">{JSON.stringify(randomCookie)}</span>
+        <span id="random-cookie">
+          {JSON.stringify({ cookie: randomCookie })}
+        </span>
       </p>
     </>
   )

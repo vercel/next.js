@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from '../router-act'
 
-describe('<Link prefetch={true}> (runtime prefetch)', () => {
+describe('runtime prefetching', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
@@ -1008,7 +1008,7 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
         path: '/errors/sync-io-after-runtime-api/quickly-expiring-public-cache',
       },
     ])(
-      'aborts the prerender and logs an error $description',
+      'aborts the prerender without logging an error $description',
       async ({ path }) => {
         // In a runtime prefetch, we might encounter sync IO usages that weren't caught during build,
         // because they were hidden behind e.g. a cookies() call.
@@ -1047,9 +1047,7 @@ describe('<Link prefetch={true}> (runtime prefetch)', () => {
         ])
 
         if (!isNextDeploy) {
-          expect(getCliOutput()).toMatch(
-            /Error: Route ".*?" used `Date\.now\(\)` instead of using `performance` or without explicitly calling `await connection\(\)` beforehand\./
-          )
+          expect(getCliOutput()).not.toMatch(`Date.now()`)
         }
 
         // Navigate to the page

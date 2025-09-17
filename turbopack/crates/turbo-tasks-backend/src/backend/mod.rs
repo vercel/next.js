@@ -4,10 +4,12 @@ mod storage;
 
 use std::{
     borrow::Cow,
+    cmp::min,
     fmt::{self, Write},
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
+    ops::Range,
     pin::Pin,
     sync::{
         Arc,
@@ -23,22 +25,22 @@ use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
-use tracing::field::Empty;
+use tracing::{field::Empty, info_span};
 use turbo_tasks::{
-    CellId, FxDashMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency, SessionId,
-    TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId, TurboTasksBackendApi,
+    CellId, FxDashMap, FxIndexMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
+    SessionId, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId, TurboTasksBackendApi,
     ValueTypeId,
     backend::{
-        Backend, BackendJobId, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
+        Backend, CachedTaskType, CellContent, TaskExecutionSpec, TransientTaskRoot,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent,
     },
     event::{Event, EventListener},
     message_queue::TimingEvent,
-    registry::{self, get_value_type_global_name},
+    registry::get_value_type,
     task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     turbo_tasks,
-    util::IdFactoryWithReuse,
+    util::{IdFactoryWithReuse, good_chunk_size},
 };
 
 pub use self::{operation::AnyOperation, storage::TaskDataCategory};
@@ -64,12 +66,10 @@ use crate::{
         InProgressCellState, InProgressState, InProgressStateInner, OutputValue, RootType,
     },
     utils::{
-        bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded, swap_retain,
+        bi_map::BiMap, chunked_vec::ChunkedVec, dash_map_drop_contents::drop_contents,
+        ptr_eq_arc::PtrEqArc, sharded::Sharded, swap_retain,
     },
 };
-
-const BACKEND_JOB_INITIAL_SNAPSHOT: BackendJobId = unsafe { BackendJobId::new_unchecked(1) };
-const BACKEND_JOB_FOLLOW_UP_SNAPSHOT: BackendJobId = unsafe { BackendJobId::new_unchecked(2) };
 
 const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
 
@@ -124,12 +124,6 @@ pub struct BackendOptions {
     /// forever.
     pub dependency_tracking: bool,
 
-    /// Enables children tracking.
-    ///
-    /// When disabled: Strongly consistent reads are only eventually consistent. All tasks are
-    /// considered as active. Collectibles are disabled.
-    pub children_tracking: bool,
-
     /// Enables active tracking.
     ///
     /// Automatically disabled when `dependency_tracking` is disabled.
@@ -148,12 +142,20 @@ impl Default for BackendOptions {
     fn default() -> Self {
         Self {
             dependency_tracking: true,
-            children_tracking: true,
             active_tracking: true,
             storage_mode: Some(StorageMode::ReadWrite),
             small_preallocation: false,
         }
     }
+}
+
+pub enum TurboTasksBackendJob {
+    InitialSnapshot,
+    FollowUpSnapshot,
+    Prefetch {
+        data: Arc<FxIndexMap<TaskId, bool>>,
+        range: Option<Range<usize>>,
+    },
 }
 
 pub struct TurboTasksBackend<B: BackingStorage>(Arc<TurboTasksBackendInner<B>>);
@@ -174,6 +176,9 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     transient_tasks: FxDashMap<TaskId, Arc<TransientTask>>,
 
     storage: Storage,
+
+    /// When true, the backing_storage has data that is not in the local storage.
+    local_is_partial: AtomicBool,
 
     /// Number of executing operations + Highest bit is set when snapshot is
     /// requested. When that bit is set, operations should pause until the
@@ -230,6 +235,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             options.active_tracking = false;
         }
         let small_preallocation = options.small_preallocation;
+        let next_task_id = backing_storage
+            .next_free_task_id()
+            .expect("Failed to get task id");
         Self {
             options,
             start_time: Instant::now(),
@@ -237,9 +245,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 .next_session_id()
                 .expect("Failed get session id"),
             persisted_task_id_factory: IdFactoryWithReuse::new(
-                backing_storage
-                    .next_free_task_id()
-                    .expect("Failed to get task id"),
+                next_task_id,
                 TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
             ),
             transient_task_id_factory: IdFactoryWithReuse::new(
@@ -249,6 +255,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             persisted_task_cache_log: need_log.then(|| Sharded::new(shard_amount)),
             task_cache: BiMap::new(),
             transient_tasks: FxDashMap::default(),
+            local_is_partial: AtomicBool::new(next_task_id != TaskId::MIN),
             storage: Storage::new(small_preallocation),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
@@ -372,10 +379,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.options.active_tracking
     }
 
-    fn should_track_children(&self) -> bool {
-        self.options.children_tracking
-    }
-
     fn track_cache_hit(&self, task_type: &CachedTaskType) {
         self.task_statistics
             .map(|stats| stats.increment_cache_hit(task_type.native_fn));
@@ -495,7 +498,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        if self.should_track_children() && matches!(consistency, ReadConsistency::Strong) {
+        if matches!(consistency, ReadConsistency::Strong) {
             // Ensure it's an root node
             loop {
                 let aggregation_number = get_aggregation_number(&task);
@@ -738,7 +741,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // It's not possible that the task is InProgress at this point. If it is InProgress {
         // done: true } it must have Output and would early return.
         task.add_new(item);
-        turbo_tasks.schedule(task_id);
+        ctx.schedule_task(task);
 
         Ok(Err(listener))
     }
@@ -853,7 +856,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let _span = tracing::trace_span!(
             "recomputation",
-            cell_type = registry::get_value_type_global_name(cell.type_id),
+            cell_type = get_value_type(cell.type_id).global_name,
             cell_index = cell.index
         )
         .entered();
@@ -867,7 +870,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 || self.get_task_desc_fn(task_id),
             ))
         {
-            turbo_tasks.schedule(task_id);
+            ctx.schedule_task(task);
         }
 
         Ok(Err(listener))
@@ -909,6 +912,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return Some(task_type);
         }
         if self.should_restore()
+            && self.local_is_partial.load(Ordering::Acquire)
             && !task_id.is_transient()
             && let Some(task_type) = unsafe {
                 self.backing_storage
@@ -1200,7 +1204,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         if self.should_persist() {
             // Schedule the snapshot job
-            turbo_tasks.schedule_backend_background_job(BACKEND_JOB_INITIAL_SNAPSHOT);
+            turbo_tasks.schedule_backend_background_job(TurboTasksBackendJob::InitialSnapshot);
         }
     }
 
@@ -1216,6 +1220,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             self.is_idle.store(false, Ordering::Release);
             self.verify_aggregation_graph(turbo_tasks, false);
         }
+        if self.should_persist() {
+            self.snapshot();
+        }
+        self.task_cache.drop_contents();
+        drop_contents(&self.transient_tasks);
+        self.storage.drop_contents();
         if let Err(err) = self.backing_storage.shutdown() {
             println!("Shutting down failed: {err}");
         }
@@ -1267,18 +1277,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return task_id;
         }
 
-        self.track_cache_miss(&task_type);
-        let tx = self
-            .should_restore()
+        let check_backing_storage =
+            self.should_restore() && self.local_is_partial.load(Ordering::Acquire);
+        let tx = check_backing_storage
             .then(|| self.backing_storage.start_read_transaction())
             .flatten();
         let task_id = {
             // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
             if let Some(task_id) = unsafe {
-                self.backing_storage
-                    .forward_lookup_task_cache(tx.as_ref(), &task_type)
-                    .expect("Failed to lookup task id")
+                check_backing_storage
+                    .then(|| {
+                        self.backing_storage
+                            .forward_lookup_task_cache(tx.as_ref(), &task_type)
+                            .expect("Failed to lookup task id")
+                    })
+                    .flatten()
             } {
+                self.track_cache_hit(&task_type);
                 let _ = self.task_cache.try_insert(Arc::new(task_type), task_id);
                 task_id
             } else {
@@ -1287,12 +1302,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let task_id = if let Err(existing_task_id) =
                     self.task_cache.try_insert(task_type.clone(), task_id)
                 {
+                    self.track_cache_hit(&task_type);
                     // Safety: We just created the id and failed to insert it.
                     unsafe {
                         self.persisted_task_id_factory.reuse(task_id);
                     }
                     existing_task_id
                 } else {
+                    self.track_cache_miss(&task_type);
                     task_id
                 };
                 if let Some(log) = &self.persisted_task_cache_log {
@@ -1327,10 +1344,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return task_id;
         }
 
-        self.track_cache_miss(&task_type);
         let task_type = Arc::new(task_type);
         let task_id = self.transient_task_id_factory.get();
-        if let Err(existing_task_id) = self.task_cache.try_insert(task_type, task_id) {
+        if let Err(existing_task_id) = self.task_cache.try_insert(task_type.clone(), task_id) {
+            self.track_cache_hit(&task_type);
             // Safety: We just created the id and failed to insert it.
             unsafe {
                 self.transient_task_id_factory.reuse(task_id);
@@ -1339,6 +1356,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return existing_task_id;
         }
 
+        self.track_cache_miss(&task_type);
         self.connect_child(parent_task, task_id, turbo_tasks);
 
         task_id
@@ -1568,27 +1586,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 })),
             });
 
-            if self.should_track_children() {
-                // Make all current collectibles outdated (remove left-over outdated collectibles)
-                enum Collectible {
-                    Current(CollectibleRef, i32),
-                    Outdated(CollectibleRef),
-                }
-                let collectibles = iter_many!(task, Collectible { collectible } value => Collectible::Current(collectible, *value))
+            // Make all current collectibles outdated (remove left-over outdated collectibles)
+            enum Collectible {
+                Current(CollectibleRef, i32),
+                Outdated(CollectibleRef),
+            }
+            let collectibles = iter_many!(task, Collectible { collectible } value => Collectible::Current(collectible, *value))
                     .chain(iter_many!(task, OutdatedCollectible { collectible } => Collectible::Outdated(collectible)))
                     .collect::<Vec<_>>();
-                for collectible in collectibles {
-                    match collectible {
-                        Collectible::Current(collectible, value) => {
-                            let _ = task
-                                .insert(CachedDataItem::OutdatedCollectible { collectible, value });
-                        }
-                        Collectible::Outdated(collectible) => {
-                            if !task.has_key(&CachedDataItemKey::Collectible { collectible }) {
-                                task.remove(&CachedDataItemKey::OutdatedCollectible {
-                                    collectible,
-                                });
-                            }
+            for collectible in collectibles {
+                match collectible {
+                    Collectible::Current(collectible, value) => {
+                        let _ =
+                            task.insert(CachedDataItem::OutdatedCollectible { collectible, value });
+                    }
+                    Collectible::Outdated(collectible) => {
+                        if !task.has_key(&CachedDataItemKey::Collectible { collectible }) {
+                            task.remove(&CachedDataItemKey::OutdatedCollectible { collectible });
                         }
                     }
                 }
@@ -1854,18 +1868,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
             }));
         }
-        if self.should_track_children() {
-            old_edges.extend(
-                task.iter(CachedDataItemType::OutdatedCollectible)
-                    .filter_map(|(key, value)| match (key, value) {
-                        (
-                            CachedDataItemKey::OutdatedCollectible { collectible },
-                            CachedDataItemValueRef::OutdatedCollectible { value },
-                        ) => Some(OutdatedEdge::Collectible(collectible, *value)),
-                        _ => None,
-                    }),
-            );
-        }
+
+        old_edges.extend(
+            task.iter(CachedDataItemType::OutdatedCollectible)
+                .filter_map(|(key, value)| match (key, value) {
+                    (
+                        CachedDataItemKey::OutdatedCollectible { collectible },
+                        CachedDataItemValueRef::OutdatedCollectible { value },
+                    ) => Some(OutdatedEdge::Collectible(collectible, *value)),
+                    _ => None,
+                }),
+        );
+
         if self.should_track_dependencies() {
             old_edges.extend(iter_many!(task, OutdatedCellDependency { target } => OutdatedEdge::CellDependency(target)));
             old_edges.extend(iter_many!(task, OutdatedOutputDependency { target } => OutdatedEdge::OutputDependency(target)));
@@ -2051,9 +2065,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task.remove(&CachedDataItemKey::Dirty {});
             }
 
-            if self.should_track_children()
-                && (old_dirty_state.is_some() || new_dirty_state.is_some())
-            {
+            if old_dirty_state.is_some() || new_dirty_state.is_some() {
                 let mut dirty_containers = get!(task, AggregatedDirtyContainerCount)
                     .cloned()
                     .unwrap_or_default();
@@ -2114,30 +2126,33 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn run_backend_job<'a>(
         self: &'a Arc<Self>,
-        id: BackendJobId,
+        job: TurboTasksBackendJob,
         turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
-            if id == BACKEND_JOB_INITIAL_SNAPSHOT || id == BACKEND_JOB_FOLLOW_UP_SNAPSHOT {
-                debug_assert!(self.should_persist());
+            match job {
+                TurboTasksBackendJob::InitialSnapshot | TurboTasksBackendJob::FollowUpSnapshot => {
+                    debug_assert!(self.should_persist());
 
-                let last_snapshot = self.last_snapshot.load(Ordering::Relaxed);
-                let mut last_snapshot = self.start_time + Duration::from_millis(last_snapshot);
-                loop {
-                    const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(300);
-                    const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
-                    const IDLE_TIMEOUT: Duration = Duration::from_secs(2);
+                    let last_snapshot = self.last_snapshot.load(Ordering::Relaxed);
+                    let mut last_snapshot = self.start_time + Duration::from_millis(last_snapshot);
+                    loop {
+                        const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(300);
+                        const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
+                        const IDLE_TIMEOUT: Duration = Duration::from_secs(2);
 
-                    let time = if id == BACKEND_JOB_INITIAL_SNAPSHOT {
-                        FIRST_SNAPSHOT_WAIT
-                    } else {
-                        SNAPSHOT_INTERVAL
-                    };
+                        let time = if matches!(job, TurboTasksBackendJob::InitialSnapshot) {
+                            FIRST_SNAPSHOT_WAIT
+                        } else {
+                            SNAPSHOT_INTERVAL
+                        };
 
-                    let until = last_snapshot + time;
-                    if until > Instant::now() {
-                        let mut stop_listener = self.stopping_event.listen();
-                        if !self.stopping.load(Ordering::Acquire) {
+                        let until = last_snapshot + time;
+                        if until > Instant::now() {
+                            let mut stop_listener = self.stopping_event.listen();
+                            if self.stopping.load(Ordering::Acquire) {
+                                return;
+                            }
                             let mut idle_start_listener = self.idle_start_event.listen();
                             let mut idle_end_listener = self.idle_end_event.listen();
                             let mut idle_time = if turbo_tasks.is_idle() {
@@ -2148,7 +2163,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             loop {
                                 tokio::select! {
                                     _ = &mut stop_listener => {
-                                        break;
+                                        return;
                                     },
                                     _ = &mut idle_start_listener => {
                                         idle_time = Instant::now() + IDLE_TIMEOUT;
@@ -2169,23 +2184,60 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 }
                             }
                         }
-                    }
 
-                    let this = self.clone();
-                    let snapshot = this.snapshot();
-                    if let Some((snapshot_start, new_data)) = snapshot {
-                        last_snapshot = snapshot_start;
-                        if new_data {
-                            continue;
+                        let this = self.clone();
+                        let snapshot = this.snapshot();
+                        if let Some((snapshot_start, new_data)) = snapshot {
+                            last_snapshot = snapshot_start;
+                            if new_data {
+                                continue;
+                            }
+                            let last_snapshot = last_snapshot.duration_since(self.start_time);
+                            self.last_snapshot.store(
+                                last_snapshot.as_millis().try_into().unwrap(),
+                                Ordering::Relaxed,
+                            );
+
+                            turbo_tasks.schedule_backend_background_job(
+                                TurboTasksBackendJob::FollowUpSnapshot,
+                            );
+                            return;
                         }
-                        let last_snapshot = last_snapshot.duration_since(self.start_time);
-                        self.last_snapshot.store(
-                            last_snapshot.as_millis().try_into().unwrap(),
-                            Ordering::Relaxed,
-                        );
+                    }
+                }
+                TurboTasksBackendJob::Prefetch { data, range } => {
+                    let range = if let Some(range) = range {
+                        range
+                    } else {
+                        if data.len() > 128 {
+                            let chunk_size = good_chunk_size(data.len());
+                            let chunks = data.len().div_ceil(chunk_size);
+                            for i in 0..chunks {
+                                turbo_tasks.schedule_backend_background_job(
+                                    TurboTasksBackendJob::Prefetch {
+                                        data: data.clone(),
+                                        range: Some(
+                                            (i * chunk_size)..min(data.len(), (i + 1) * chunk_size),
+                                        ),
+                                    },
+                                );
+                            }
+                            return;
+                        }
+                        0..data.len()
+                    };
 
-                        turbo_tasks.schedule_backend_background_job(BACKEND_JOB_FOLLOW_UP_SNAPSHOT);
-                        return;
+                    let _span = info_span!("prefetching").entered();
+                    let mut ctx = self.execute_context(turbo_tasks);
+                    for i in range {
+                        let (&task, &with_data) = data.get_index(i).unwrap();
+                        let category = if with_data {
+                            TaskDataCategory::All
+                        } else {
+                            TaskDataCategory::Meta
+                        };
+                        // Prefetch the task
+                        drop(ctx.task(task, category));
                     }
                 }
             }
@@ -2215,10 +2267,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         reader_id: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
-        if !self.should_track_children() {
-            return AutoMap::default();
-        }
-
         let mut ctx = self.execute_context(turbo_tasks);
         let mut collectibles = AutoMap::default();
         {
@@ -2294,9 +2342,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         self.assert_valid_collectible(task_id, collectible);
-        if !self.should_track_children() {
-            return;
-        }
 
         let RawVc::TaskCell(collectible_task, cell) = collectible else {
             panic!("Collectibles need to be resolved");
@@ -2325,9 +2370,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         self.assert_valid_collectible(task_id, collectible);
-        if !self.should_track_children() {
-            return;
-        }
 
         let RawVc::TaskCell(collectible_task, cell) = collectible else {
             panic!("Collectibles need to be resolved");
@@ -2876,12 +2918,14 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         )
     }
 
+    type BackendJob = TurboTasksBackendJob;
+
     fn run_backend_job<'a>(
         &'a self,
-        id: BackendJobId,
+        job: Self::BackendJob,
         turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
-        self.0.run_backend_job(id, turbo_tasks)
+        self.0.run_backend_job(job, turbo_tasks)
     }
 
     fn try_read_task_output(
@@ -3033,6 +3077,10 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn task_statistics(&self) -> &TaskStatisticsApi {
         &self.0.task_statistics
     }
+
+    fn is_tracking_dependencies(&self) -> bool {
+        self.0.options.dependency_tracking
+    }
 }
 
 enum DebugTraceTransientTask {
@@ -3062,7 +3110,7 @@ impl DebugTraceTransientTask {
             cell_type_id: Option<ValueTypeId>,
         ) -> fmt::Result {
             if let Some(ty) = cell_type_id {
-                write!(f, " (read cell of type {})", get_value_type_global_name(ty))
+                write!(f, " (read cell of type {})", get_value_type(ty).global_name)
             } else {
                 Ok(())
             }

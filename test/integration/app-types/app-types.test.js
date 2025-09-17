@@ -70,6 +70,21 @@ describe('app type checking - production mode', () => {
     )
   })
 
+  it('should generate route types correctly and report redirect errors', async () => {
+    // Make sure all errors were reported and other redirect functions passed type checking
+    const errorLines = [
+      ...errors.matchAll(
+        /\.\/src\/app\/type-checks\/redirect\/page\.tsx:(\d+):/g
+      ),
+    ].map(([, line]) => +line)
+
+    const ST = 7
+    const ED = 11
+    expect(errorLines).toEqual(
+      Array.from({ length: ED - ST + 1 }, (_, i) => i + ST)
+    )
+  })
+
   // Type validation is not supported in Turbopack yet.
   if (!process.env.IS_TURBOPACK_TEST && !process.env.TURBOPACK_DEV) {
     it('should type check invalid entry exports', () => {

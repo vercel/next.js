@@ -94,7 +94,7 @@ import {
   NEXT_PROJECT_ROOT,
   NEXT_PROJECT_ROOT_DIST_CLIENT,
 } from './next-dir-paths'
-import { getRspackCore, getRspackReactRefresh } from '../shared/lib/get-rspack'
+import { getRspackCore } from '../shared/lib/get-rspack'
 import { RspackProfilingPlugin } from './webpack/plugins/rspack-profiling-plugin'
 import getWebpackBundler from '../shared/lib/get-webpack-bundler'
 import type { NextBuildContext } from './build-context'
@@ -178,7 +178,7 @@ const reactRefreshLoaderName =
 
 function getReactRefreshLoader() {
   return process.env.NEXT_RSPACK
-    ? getRspackReactRefresh().loader
+    ? 'builtin:react-refresh-loader'
     : require.resolve(reactRefreshLoaderName)
 }
 
@@ -698,7 +698,9 @@ export default async function getBaseWebpackConfig(
   ]
 
   const reactRefreshEntry = isRspack
-    ? getRspackReactRefresh().entry
+    ? require.resolve(
+        `next/dist/compiled/@next/react-refresh-utils/dist/rspack-runtime`
+      )
     : require.resolve(
         `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
       )
@@ -1188,7 +1190,7 @@ export default async function getBaseWebpackConfig(
           chunks: isRspack
             ? // using a function here causes noticable slowdown
               // in rspack
-              /(?!polyfills|main|pages\/_app)/
+              /^(?!(polyfills|main|pages\/_app)$).*$/
             : (chunk: any) =>
                 !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
 
@@ -1198,7 +1200,9 @@ export default async function getBaseWebpackConfig(
                   chunks: 'all' as const,
                   name: 'framework',
                   layer: RSPACK_DEFAULT_LAYERS_REGEX,
-                  test: /[/]node_modules[/](react|react-dom|next[/]dist[/]compiled[/](react|react-dom)(-experimental)?)[/]/,
+                  test: new RegExp(
+                    `^(${topLevelFrameworkPaths.map((p) => `(${escapeStringRegexp(p)})`).join('|')})`
+                  ),
                   priority: 40,
                   enforce: true,
                 },
@@ -1988,11 +1992,7 @@ export default async function getBaseWebpackConfig(
         isClient &&
         (isRspack
           ? // eslint-disable-next-line
-            new (getRspackReactRefresh() as any)({
-              injectLoader: false,
-              injectEntry: false,
-              overlay: false,
-            })
+            new (require('next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshRspackPlugin').default)()
           : new ReactRefreshWebpackPlugin(webpack)),
       // Makes sure `Buffer` and `process` are polyfilled in client and flight bundles (same behavior as webpack 4)
       (isClient || isEdgeServer) &&
@@ -2128,7 +2128,7 @@ export default async function getBaseWebpackConfig(
             minimized: true,
           },
         }),
-      hasAppDir && isClient && new AppBuildManifestPlugin({ dev }),
+      hasAppDir && isClient && new AppBuildManifestPlugin(),
       hasAppDir &&
         (isClient
           ? new ClientReferenceManifestPlugin({
@@ -2244,6 +2244,15 @@ export default async function getBaseWebpackConfig(
         : undefined,
   }
 
+  if (isRspack) {
+    // @ts-ignore
+    // Disable Rspack's incremental buildChunkGraph due to Next.js compatibility issues
+    // TODO: Remove this workaround after Rspack 1.5.1 release
+    webpack5Config.experiments.incremental = {
+      buildChunkGraph: false,
+    }
+  }
+
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
@@ -2301,7 +2310,7 @@ export default async function getBaseWebpackConfig(
     crossOrigin: config.crossOrigin,
     pageExtensions: pageExtensions,
     trailingSlash: config.trailingSlash,
-    buildActivityPosition:
+    devIndicatorsPosition:
       config.devIndicators === false
         ? undefined
         : config.devIndicators.position,
@@ -2310,7 +2319,6 @@ export default async function getBaseWebpackConfig(
     optimizeCss: config.experimental.optimizeCss,
     nextScriptWorkers: config.experimental.nextScriptWorkers,
     scrollRestoration: config.experimental.scrollRestoration,
-    typedRoutes: config.experimental.typedRoutes,
     basePath: config.basePath,
     excludeDefaultMomentLocales: config.excludeDefaultMomentLocales,
     assetPrefix: config.assetPrefix,
@@ -2452,7 +2460,6 @@ export default async function getBaseWebpackConfig(
     isEdgeRuntime: isEdgeServer,
     targetWeb: isClient || isEdgeServer,
     assetPrefix: config.assetPrefix || '',
-    deploymentId: config.deploymentId,
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
     future: config.future,

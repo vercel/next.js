@@ -4,7 +4,7 @@ import { retry } from 'next-test-utils'
 const isoDateRegExp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 
 describe('use-cache-custom-handler', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isNextStart } = nextTestSetup({
     files: __dirname,
     // Skip deployment so we can test the custom cache handlers log output
     skipDeployment: true,
@@ -184,4 +184,12 @@ describe('use-cache-custom-handler', () => {
       )
     })
   })
+
+  if (isNextStart) {
+    it('should save a short-lived cache during prerendering at buildtime', async () => {
+      expect(next.cliOutput).toMatch(
+        /ModernCustomCacheHandler::set \["[A-Za-z0-9_-]{21}","([0-9a-f]{2})+",\[{"id":"dynamic-cache"},"\$undefined"\]\]/
+      )
+    })
+  }
 })

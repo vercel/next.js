@@ -1,6 +1,6 @@
 import React from 'react'
 import { invalidateCacheBelowFlightSegmentPath } from './invalidate-cache-below-flight-segmentpath'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../shared/lib/app-router-types'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
 
@@ -11,7 +11,7 @@ const getFlightData = (): NormalizedFlightData[] => {
       segmentPath: ['children', 'linking', 'children', 'about'],
       segment: 'about',
       tree: ['about', { children: ['', {}] }],
-      seedData: ['about', <h1>About Page!</h1>, {}, null, false],
+      seedData: ['about', <h1>About Page!</h1>, {}, null, false, false],
       head: null,
       isHeadPartial: false,
       isRootRender: false,

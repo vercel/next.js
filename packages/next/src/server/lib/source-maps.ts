@@ -6,7 +6,7 @@ function noSourceMap(): SourceMap | undefined {
 }
 
 // Edge runtime does not implement `module`
-const nativeFindSourceMap =
+const findSourceMap =
   process.env.NEXT_RUNTIME === 'edge'
     ? noSourceMap
     : (require('module') as typeof import('module')).findSourceMap
@@ -103,13 +103,6 @@ export function findApplicableSourceMapPayload(
 }
 
 const didWarnAboutInvalidSourceMapDEV = new Set<string>()
-
-const findSourceMap: (scriptNameOrSourceURL: string) => SourceMap | undefined =
-  process.env.NEXT_RUNTIME === 'nodejs' &&
-  process.versions.node?.startsWith('18')
-    ? // Node.js 18 has a horribly slow `findSourceMap` implementation
-      noSourceMap
-    : nativeFindSourceMap
 
 export function filterStackFrameDEV(
   sourceURL: string,

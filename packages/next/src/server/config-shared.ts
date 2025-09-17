@@ -1,11 +1,6 @@
 import os from 'os'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import type {
-  Header,
-  Redirect,
-  Rewrite,
-  RouteHas,
-} from '../lib/load-custom-routes'
+import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
 import { imageConfigDefault } from '../shared/lib/image-config'
 import type {
   ImageConfig,
@@ -18,21 +13,12 @@ import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
-import type {
-  ManifestRewriteRoute,
-  ManifestHeaderRoute,
-  ManifestRedirectRoute,
-  ManifestRoute,
-} from '../build'
 import { isStableBuild } from '../shared/lib/canary-only'
-import type { RenderingMode } from '../build/rendering-mode'
-import type { Revalidate } from './lib/cache-control'
-import type { AdapterOutputType } from '../shared/lib/constants'
-import type { MiddlewareMatcher } from '../build/analysis/get-page-static-info'
+import type { FallbackRouteParam } from '../build/static-paths/types'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
-  typescript: Required<TypeScriptConfig>
+  typescript: TypeScriptConfig
   configOrigin?: string
   configFile?: string
   configFileName: string
@@ -40,146 +26,6 @@ export type NextConfigComplete = Required<NextConfig> & {
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
   experimental: Omit<ExperimentalConfig, 'turbo'>
-}
-
-export type AdapterOutputs = Array<{
-  /**
-   * id is a unique identifier for the output
-   */
-  id: string
-  /**
-   * pathname is the URL path that the output is meant to
-   * be routable to at e.g. /blog/[slug] or /_next/static/chunks/chunk.js
-   */
-  pathname: string
-  /**
-   * runtime for the route, this doesn't apply for prerender or static
-   */
-  runtime?: 'nodejs' | 'edge'
-  /**
-   * config related to the route
-   */
-  config?: {
-    /**
-     * maxDuration is a segment config to signal the max
-     * execution duration a route should be allowed before
-     * it's timed out
-     */
-    maxDuration?: number
-    /**
-     * preferredRegion is a segment config to signal deployment
-     * region preferences to the provider being used
-     */
-    preferredRegion?: string | string[]
-
-    /**
-     * allowQuery is the allowed query values to be passed
-     * to an ISR function and what should be considered for the cacheKey
-     * e.g. for /blog/[slug], "slug" is the only allowQuery
-     */
-    allowQuery?: string[]
-    /**
-     * allowHeader is the allowed headers to be passed to an
-     * ISR function to prevent accidentally poisoning the cache
-     * from leaking additional information that can impact the render
-     */
-    allowHeader?: string[]
-    /**
-     * bypass for is a list of has conditions the cache
-     * should be bypassed and invoked directly e.g. action header
-     */
-    bypassFor?: RouteHas[]
-    /**
-     * renderingMode signals PPR or not for a prerender
-     */
-    renderingMode?: RenderingMode
-
-    /**
-     * matchers are the configured matchers for middleware
-     */
-    matchers?: MiddlewareMatcher[]
-
-    /**
-     * bypassToken is the generated token that signals a prerender cache
-     * should be bypassed
-     */
-    bypassToken?: string
-
-    /**
-     * postponed is the PPR state when it postponed and is used for resuming
-     */
-    postponed?: string
-  }
-  /**
-   * For prerenders the parent output is the originating
-   * page that the prerender is created from
-   */
-  parentOutputId?: string
-  /**
-   * fallback is initial cache data generated during build for a prerender
-   */
-  fallback?: {
-    /**
-     * path to the fallback file can be HTML/JSON/RSC
-     */
-    filePath: string
-    /**
-     * initialStatus is the status code that should be applied
-     * when serving the fallback
-     */
-    initialStatus?: number
-    /**
-     * initialHeaders are the headers that should be sent when
-     * serving the fallback
-     */
-    initialHeaders?: Record<string, string | string[]>
-    /**
-     * initial expiration is how long until the fallback entry
-     * is considered expired and no longer valid to serve
-     */
-    initialExpiration?: number
-    /**
-     * initial revalidate is how long until the fallback is
-     * considered stale and should be revalidated
-     */
-    initialRevalidate?: Revalidate
-  }
-  /**
-   * assets are all necessary traced assets that could be
-   * loaded by the output to handle a request e.g. traced
-   * node_modules or necessary manifests for Next.js
-   */
-  assets?: Record<string, string>
-  /**
-   * filePath is present for all cases except a Prerender
-   * which may or may not have a fallback (initial cache entry).
-   * The parent output will have a filePath for a prerender though
-   */
-  filePath?: string
-  /**
-   * type of output
-   */
-  type: AdapterOutputType
-}>
-
-export interface NextAdapter {
-  name: string
-  modifyConfig?: (
-    config: NextConfigComplete
-  ) => Promise<NextConfigComplete> | NextConfigComplete
-  onBuildComplete?: (ctx: {
-    routes: {
-      headers: Array<ManifestHeaderRoute>
-      redirects: Array<ManifestRedirectRoute>
-      rewrites: {
-        beforeFiles: Array<ManifestRewriteRoute>
-        afterFiles: Array<ManifestRewriteRoute>
-        fallback: Array<ManifestRewriteRoute>
-      }
-      dynamicRoutes: ReadonlyArray<ManifestRoute>
-    }
-    outputs: AdapterOutputs
-  }) => Promise<void> | void
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -250,41 +96,57 @@ type JSONValue =
   | JSONValue[]
   | { [k: string]: JSONValue }
 
-/**
- * @deprecated Use `TurbopackRuleConfigItem` instead.
- */
 export type TurbopackLoaderItem =
   | string
   | {
       loader: string
       // At the moment, Turbopack options must be JSON-serializable, so restrict values.
-      options: Record<string, JSONValue>
+      options?: Record<string, JSONValue>
     }
 
-export type TurbopackRuleCondition = {
-  path?: string | RegExp
-  content?: RegExp
-}
+export type TurbopackLoaderBuiltinCondition =
+  | 'default'
+  | 'browser'
+  | 'foreign'
+  | 'development'
+  | 'production'
+  | 'node'
+  | 'edge-light'
 
-export type TurbopackRuleConfigItemOrShortcut =
-  | TurbopackLoaderItem[]
-  | TurbopackRuleConfigItem
+export type TurbopackRuleCondition =
+  | { all: TurbopackRuleCondition[] }
+  | { any: TurbopackRuleCondition[] }
+  | { not: TurbopackRuleCondition }
+  | TurbopackLoaderBuiltinCondition
+  | {
+      path?: string | RegExp
+      content?: RegExp
+    }
 
-export type TurbopackRuleConfigItemOptions = {
+export type TurbopackRuleConfigItem = {
   loaders: TurbopackLoaderItem[]
   as?: string
+  condition?: TurbopackRuleCondition
 }
 
-export type TurbopackRuleConfigItem =
-  | TurbopackRuleConfigItemOptions
-  | { [condition: string]: TurbopackRuleConfigItem }
-  | false
+/**
+ * This can be an object representing a single configuration, or a list of
+ * loaders and/or rule configuration objects.
+ *
+ * - A list of loader path strings or objects is the "shorthand" syntax.
+ * - A list of rule configuration objects can be useful when each configuration
+ *   object has different `condition` fields, but still match the same top-level
+ *   path glob.
+ */
+export type TurbopackRuleConfigCollection =
+  | TurbopackRuleConfigItem
+  | (TurbopackLoaderItem | TurbopackRuleConfigItem)[]
 
 export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A mapping of aliased imports to modules to load in their place.
    *
-   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-alias)
+   * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#resolving-aliases)
    */
   resolveAlias?: Record<
     string,
@@ -294,23 +156,16 @@ export interface TurbopackOptions {
   /**
    * (`next --turbopack` only) A list of extensions to resolve when importing files.
    *
-   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
+   * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#resolving-custom-extensions)
    */
   resolveExtensions?: string[]
 
   /**
    * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)
    */
-  rules?: Record<string, TurbopackRuleConfigItemOrShortcut>
-
-  /**
-   * (`next --turbopack` only) A list of conditions to apply when running webpack loaders with Turbopack.
-   *
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
-   */
-  conditions?: Record<string, TurbopackRuleCondition>
+  rules?: Record<string, TurbopackRuleConfigCollection>
 
   /**
    * The module ID strategy to use for Turbopack.
@@ -331,7 +186,7 @@ export interface DeprecatedExperimentalTurboOptions extends TurbopackOptions {
    * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @deprecated Use `rules` instead.
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
+   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)
    */
   loaders?: Record<string, TurbopackLoaderItem[]>
 
@@ -444,9 +299,22 @@ export interface ExperimentalConfig {
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
   clientSegmentCache?: boolean | 'client-only'
+
+  /**
+   * Enables RDC for Dynamic Navigations. This is only supported for App Router
+   * when Partial Prerendering is also enabled. This is enabled by default when
+   * Partial Prerendering is enabled.
+   */
+  rdcForNavigations?: boolean
   clientParamParsing?: boolean
+
+  /**
+   * The origins that are allowed to write the rewritten headers when
+   * performing a non-relative rewrite. When undefined, no non-relative
+   * rewrites will get the rewrite headers.
+   */
+  clientParamParsingOrigins?: string[]
   dynamicOnHover?: boolean
-  appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
   clientRouterFilter?: boolean
   clientRouterFilterRedirects?: boolean
@@ -554,6 +422,7 @@ export interface ExperimentalConfig {
 
   /**
    * @deprecated Use `config.turbopack` instead.
+   * Run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .` to migrate automatically.
    */
   turbo?: DeprecatedExperimentalTurboOptions
 
@@ -593,6 +462,43 @@ export interface ExperimentalConfig {
   turbopackRemoveUnusedExports?: boolean
 
   /**
+   * Use the system-provided CA roots instead of bundled CA roots for external HTTPS requests
+   * made by Turbopack. Currently this is only used for fetching data from Google Fonts.
+   *
+   * This may be useful in cases where you or an employer are MITMing traffic.
+   *
+   * This option is experimental because:
+   * - This may cause small performance problems, as it uses [`rustls-native-certs`](
+   *   https://github.com/rustls/rustls-native-certs).
+   * - In the future, this may become the default, and this option may be eliminated, once
+   *   <https://github.com/seanmonstar/reqwest/issues/2159> is resolved.
+   *
+   * Users who need to configure this behavior system-wide can override the project
+   * configuration using the `NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS=1` environment
+   * variable.
+   *
+   * This option is ignored on Windows on ARM, where the native TLS implementation is always
+   * used.
+   *
+   * If you need to set a proxy, Turbopack [respects the common `HTTP_PROXY` and `HTTPS_PROXY`
+   * environment variable convention](https://docs.rs/reqwest/latest/reqwest/#proxies). HTTP
+   * proxies are supported, SOCKS proxies are not currently supported.
+   */
+  turbopackUseSystemTlsCerts?: boolean
+
+  /**
+   * Set this to `false` to disable the automatic configuration of the babel loader when a babel
+   * configuration file is present. The babel loader configuration is enabled by default.
+   */
+  turbopackUseBuiltinBabel?: boolean
+
+  /**
+   * Set this to `false` to disable the automatic configuration of the sass loader. The sass loader
+   * configuration is enabled by default.
+   */
+  turbopackUseBuiltinSass?: boolean
+
+  /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
    * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
    */
@@ -608,8 +514,9 @@ export interface ExperimentalConfig {
       }
 
   /**
-   * Generate Route types and enable type checking for Link and Router.push, etc.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes
+   * Enable type checking for Link and Router.push, etc.
+   * @deprecated Use `typedRoutes` instead — this feature is now stable.
+   * @see https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links
    */
   typedRoutes?: boolean
 
@@ -788,6 +695,12 @@ export interface ExperimentalConfig {
   reactCompiler?: boolean | ReactCompilerOptions
 
   /**
+   * When enabled, in dev mode, Next.js will send React's debug info through the
+   * WebSocket connection, instead of including it in the main RSC payload.
+   */
+  reactDebugChannel?: boolean
+
+  /**
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
@@ -854,11 +767,6 @@ export interface ExperimentalConfig {
    *
    */
   globalNotFound?: boolean
-
-  /**
-   * Enable segment viewer for the app directory in Next.js DevTools.
-   */
-  devtoolSegmentExplorer?: boolean
 
   /**
    * Enable debug information to be forwarded from browser to dev server stdout/stderr
@@ -930,7 +838,7 @@ export type ExportPathMap = {
      *
      * @internal
      */
-    _fallbackRouteParams?: readonly string[]
+    _fallbackRouteParams?: readonly FallbackRouteParam[]
 
     /**
      * @internal
@@ -1000,32 +908,47 @@ export interface NextConfig extends Record<string, any> {
   typescript?: TypeScriptConfig
 
   /**
+   * Enable type checking for Link and Router.push, etc.
+   * This feature requires TypeScript in your project.
+   *
+   * @see [Typed Links documentation](https://nextjs.org/docs/app/api-reference/config/typescript#statically-typed-links)
+   */
+  typedRoutes?: boolean
+
+  /**
    * Headers allow you to set custom HTTP headers for an incoming request path.
    *
    * @see [Headers configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/headers)
    */
-  headers?: () => Promise<Header[]>
+  headers?: () => Promise<Header[]> | Header[]
 
   /**
    * Rewrites allow you to map an incoming request path to a different destination path.
    *
    * @see [Rewrites configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites)
    */
-  rewrites?: () => Promise<
+  rewrites?: () =>
+    | Promise<
+        | Rewrite[]
+        | {
+            beforeFiles?: Rewrite[]
+            afterFiles?: Rewrite[]
+            fallback?: Rewrite[]
+          }
+      >
     | Rewrite[]
     | {
         beforeFiles?: Rewrite[]
         afterFiles?: Rewrite[]
         fallback?: Rewrite[]
       }
-  >
 
   /**
    * Redirects allow you to redirect an incoming request path to a different destination path.
    *
    * @see [Redirects configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/redirects)
    */
-  redirects?: () => Promise<Redirect[]>
+  redirects?: () => Promise<Redirect[]> | Redirect[]
 
   /**
    * @see [Moment.js locales excluded by default](https://nextjs.org/docs/upgrading#momentjs-locales-excluded-by-default)
@@ -1119,28 +1042,6 @@ export interface NextConfig extends Record<string, any> {
   devIndicators?:
     | false
     | {
-        /**
-         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
-         * */
-        appIsrStatus?: boolean
-
-        /**
-         * Show "building..." indicator in development
-         * @deprecated The dev tools indicator has it enabled by default. To disable, set `devIndicators` to `false`.
-         */
-        buildActivity?: boolean
-
-        /**
-         * Position of "building..." indicator in browser
-         * @default "bottom-right"
-         * @deprecated Renamed as `position`.
-         */
-        buildActivityPosition?:
-          | 'top-left'
-          | 'top-right'
-          | 'bottom-left'
-          | 'bottom-right'
-
         /**
          * Position of the development tools indicator in the browser window.
          * @default "bottom-left"
@@ -1413,8 +1314,9 @@ export const defaultConfig = Object.freeze({
   },
   typescript: {
     ignoreBuildErrors: false,
-    tsconfigPath: 'tsconfig.json',
+    tsconfigPath: undefined,
   },
+  typedRoutes: false,
   distDir: '.next',
   cleanDistDir: true,
   assetPrefix: '',
@@ -1519,9 +1421,10 @@ export const defaultConfig = Object.freeze({
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
     clientSegmentCache: false,
+    rdcForNavigations: false,
     clientParamParsing: false,
+    clientParamParsingOrigins: undefined,
     dynamicOnHover: false,
-    appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -1560,7 +1463,6 @@ export const defaultConfig = Object.freeze({
     amp: undefined,
     urlImports: undefined,
     turbo: undefined,
-    typedRoutes: false,
     typedEnv: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
@@ -1582,6 +1484,7 @@ export const defaultConfig = Object.freeze({
     },
     allowDevelopmentBuild: undefined,
     reactCompiler: undefined,
+    reactDebugChannel: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
@@ -1591,7 +1494,6 @@ export const defaultConfig = Object.freeze({
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
-    devtoolSegmentExplorer: true,
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
   },

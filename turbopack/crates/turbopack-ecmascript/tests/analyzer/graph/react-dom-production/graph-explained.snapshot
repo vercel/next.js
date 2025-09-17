@@ -158,9 +158,7 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 28108* = (...) => (a["timeStamp"] || FreeVar(Date)["now"]())
 
-*anonymous function 28404* = (...) => ((???*0* === a["relatedTarget"]) ? ((a["fromElement"] === a["srcElement"]) ? a["toElement"] : a["fromElement"]) : a["relatedTarget"])
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+*anonymous function 28404* = (...) => ((undefined === a["relatedTarget"]) ? ((a["fromElement"] === a["srcElement"]) ? a["toElement"] : a["fromElement"]) : a["relatedTarget"])
 
 *anonymous function 28530* = (...) => (a["movementX"] | wd)
 
@@ -568,9 +566,7 @@ Fd = rd(Ed)
 
 Fe = (...) => (undefined | te(b))
 
-Ff = (("function" === typeof(FreeVar(setTimeout))) ? FreeVar(setTimeout) : ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+Ff = (("function" === typeof(FreeVar(setTimeout))) ? FreeVar(setTimeout) : undefined)
 
 Fg = (...) => undefined
 
@@ -612,9 +608,7 @@ Ge = (...) => (((a === b) && ((0 !== a) || (???*0* === ???*1*))) || ((a !== a) &
 - *1* unsupported expression
   ⚠️  This value might have side effects
 
-Gf = (("function" === typeof(FreeVar(clearTimeout))) ? FreeVar(clearTimeout) : ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+Gf = (("function" === typeof(FreeVar(clearTimeout))) ? FreeVar(clearTimeout) : undefined)
 
 Gg = (...) => (!(1) | ???*0* | !(0))
 - *0* !(1)
@@ -643,9 +637,7 @@ Hd = rd(Gd)
 
 He = (("function" === typeof(FreeVar(Object)["is"])) ? FreeVar(Object)["is"] : Ge)
 
-Hf = (("function" === typeof(FreeVar(Promise))) ? FreeVar(Promise) : ???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+Hf = (("function" === typeof(FreeVar(Promise))) ? FreeVar(Promise) : undefined)
 
 Hg = (...) => undefined
 
@@ -1367,18 +1359,12 @@ Ya = (...) => A(
     {},
     b,
     {
-        "defaultChecked": ???*0*,
-        "defaultValue": ???*1*,
-        "value": ???*2*,
+        "defaultChecked": undefined,
+        "defaultValue": undefined,
+        "value": undefined,
         "checked": ((null != c) ? c : a["_wrapperState"]["initialChecked"])
     }
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
-- *2* unsupported expression
-  ⚠️  This value might have side effects
 
 Yb = (...) => (((b !== a) ? null : a) | ???*0* | ((c["stateNode"]["current"] === c) ? a : b))
 - *0* a
@@ -1451,9 +1437,7 @@ Ze = (...) => (Xe[a] | a | ???*0*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-Zf = (...) => ((null !== a) && (???*0* !== a))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+Zf = (...) => ((null !== a) && (undefined !== a))
 
 Zg = (...) => ((3 === c["tag"]) ? c["stateNode"] : null)
 
@@ -2280,11 +2264,9 @@ a#65 = (
   | arguments[0]
   | (
      || a
-     || (("undefined" !== typeof(FreeVar(document))) ? FreeVar(document) : ???*0*)
+     || (("undefined" !== typeof(FreeVar(document))) ? FreeVar(document) : undefined)
     )
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
 
 a#665 = (arguments[0] | b["flags"] | b["memoizedState"])
 
@@ -2350,9 +2332,7 @@ a#785 = arguments[0]
 
 a#8 = arguments[0]
 
-a#801 = (arguments[0] | C | FreeVar(window)["event"] | ((???*0* === a) ? 16 : jd(a["type"])))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+a#801 = (arguments[0] | C | FreeVar(window)["event"] | ((undefined === a) ? 16 : jd(a["type"])))
 
 a#802 = arguments[0]
 
@@ -2973,13 +2953,9 @@ b#528 = arguments[1]
 
 b#53 = a["type"]
 
-b#530 = (arguments[1] | ((???*0* === b) ? null : b))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+b#530 = (arguments[1] | ((undefined === b) ? null : b))
 
-b#531 = (arguments[1] | ((???*0* === b) ? null : b))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+b#531 = (arguments[1] | ((undefined === b) ? null : b))
 
 b#532 = arguments[1]
 
@@ -3005,13 +2981,9 @@ b#551 = arguments[1]
 
 b#552 = arguments[1]
 
-b#553 = (arguments[1] | ((???*0* === b) ? null : b))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+b#553 = (arguments[1] | ((undefined === b) ? null : b))
 
-b#554 = (arguments[1] | ((???*0* !== c) ? c(b) : b))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+b#554 = (arguments[1] | ((undefined !== c) ? c(b) : b))
 
 b#555 = ci()
 
@@ -3343,11 +3315,8 @@ ba = (
   | undefined
   | "onCompositionEnd"
   | "onCompositionUpdate"
-  | ???*0*
   | new Ld(ba, a, null, c, e)
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
 
 bb = (...) => (undefined | FreeVar(undefined))
 
@@ -3384,10 +3353,8 @@ c#1004 = (
 
 c#101 = arguments[2]
 
-c#1012 = ((???*0* && (???*1* !== FreeVar(arguments)[2])) ? FreeVar(arguments)[2] : null)
+c#1012 = ((???*0* && (undefined !== FreeVar(arguments)[2])) ? FreeVar(arguments)[2] : null)
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 c#1013 = (!(1) | !(0))
@@ -3484,9 +3451,7 @@ c#25 = (
 
 c#251 = FreeVar(Object)["keys"](a)
 
-c#254 = (Je(a) | c["nextSibling"] | c["parentNode"] | ???*0* | Je(c))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+c#254 = (Je(a) | c["nextSibling"] | c["parentNode"] | undefined | Je(c))
 
 c#261 = (
   | ("string" === typeof(b["contentWindow"]["location"]["href"]))
@@ -3606,10 +3571,8 @@ c#412 = arguments[2]
 c#415 = (
   | arguments[2]
   | c(d, b)
-  | (((null === c) || (???*0* === c)) ? b : A({}, b, c))
+  | (((null === c) || (undefined === c)) ? b : A({}, b, c))
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
 
 c#417 = arguments[2]
 
@@ -3688,10 +3651,8 @@ c#52 = ???*0*
 
 c#528 = (
   | arguments[2]
-  | (((null !== c) && (???*0* !== c)) ? c["concat"]([a]) : null)
+  | (((null !== c) && (undefined !== c)) ? c["concat"]([a]) : null)
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
 
 c#530 = di()
 
@@ -3717,10 +3678,8 @@ c#547 = (arguments[2] | ???*0*)
 
 c#550 = (
   | arguments[2]
-  | (((null !== c) && (???*0* !== c)) ? c["concat"]([a]) : null)
+  | (((null !== c) && (undefined !== c)) ? c["concat"]([a]) : null)
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
 
 c#553 = ci()
 
@@ -4113,11 +4072,9 @@ d#264 = ???*0*
 
 d#266 = (
   | a["selectionRange"]
-  | ((???*0* === d["end"]) ? f : FreeVar(Math)["min"](d["end"], e))
+  | ((undefined === d["end"]) ? f : FreeVar(Math)["min"](d["end"], e))
   | f
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
 
 d#269 = (
   | ((c["window"] === c) ? c["document"] : ((9 === c["nodeType"]) ? c : c["ownerDocument"]))
@@ -4204,9 +4161,7 @@ d#419 = lh(a)
 
 d#420 = arguments[3]
 
-d#421 = (!(1) | b["contextTypes"] | ((null !== d) && (???*0* !== d)))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+d#421 = (!(1) | b["contextTypes"] | ((null !== d) && (undefined !== d)))
 
 d#422 = arguments[3]
 
@@ -4274,9 +4229,7 @@ d#515 = (arguments[3] | c["next"])
 
 d#517 = arguments[3]
 
-d#518 = (arguments[3] | ((???*0* === d) ? null : d))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+d#518 = (arguments[3] | ((undefined === d) ? null : d))
 
 d#530 = c["memoizedState"]
 
@@ -4349,12 +4302,10 @@ d#614 = (
   | qj({"mode": "visible", "children": d["children"]}, e, 0, null)
   | (e["nextSibling"] && e["nextSibling"]["dataset"])
   | h
-  | Li(f, d, ???*0*)
+  | Li(f, d, undefined)
   | R
   | Li(FreeVar(Error)(p(421)))
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
 
 d#619 = a["alternate"]
 
@@ -4370,9 +4321,7 @@ d#631 = (b["type"]["_context"] | b["memoizedState"] | (0 !== ???*0*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-d#639 = (arguments[3] | Ya(a, d) | A({}, d, {"value": ???*0*}) | gb(a, d))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+d#639 = (arguments[3] | Ya(a, d) | A({}, d, {"value": undefined}) | gb(a, d))
 
 d#64 = (
   | ""
@@ -4526,17 +4475,13 @@ d#952 = arguments[3]
 
 d#953 = arguments[3]
 
-d#954 = ((???*0* && (???*1* !== FreeVar(arguments)[3])) ? FreeVar(arguments)[3] : null)
+d#954 = ((???*0* && (undefined !== FreeVar(arguments)[3])) ? FreeVar(arguments)[3] : null)
 - *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 d#960 = (arguments[3] | L())
 
-d#961 = (arguments[3] | ((???*0* === d) ? null : d))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+d#961 = (arguments[3] | ((undefined === d) ? null : d))
 
 d#979 = (arguments[3] | *anonymous function 127055* | *anonymous function 127285*)
 
@@ -4635,9 +4580,7 @@ e#266 = (c["textContent"]["length"] | undefined | d | Ke(c, f))
 
 e#275 = (d["event"] | undefined)
 
-e#285 = (ed | gd | fd | ???*0* | !(0))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+e#285 = (ed | gd | fd | undefined | !(0))
 
 e#286 = arguments[4]
 
@@ -4769,9 +4712,7 @@ e#621 = (d["revealOrder"] | null | c | b["child"] | c["sibling"] | a)
 
 e#631 = (b["memoizedProps"]["value"] | b["memoizedState"])
 
-e#639 = (a["memoizedProps"] | Ya(a, e) | A({}, e, {"value": ???*0*}) | gb(a, e))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+e#639 = (a["memoizedProps"] | Ya(a, e) | A({}, e, {"value": undefined}) | gb(a, e))
 
 e#646 = (a["child"] | e["sibling"])
 
@@ -4784,12 +4725,10 @@ e#647 = (
   | ["children", `${h}`]
   | d
   | Ya(a, d)
-  | A({}, d, {"value": ???*1*})
+  | A({}, d, {"value": undefined})
   | gb(a, d)
 )
 - *0* updated with update expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
   ⚠️  This value might have side effects
 
 e#673 = (d["anchorOffset"] | undefined)
@@ -4948,9 +4887,7 @@ f#212 = arguments[3]
 
 f#266 = (FreeVar(Math)["min"](d["start"], e) | undefined | e)
 
-f#275 = (???*0* | undefined | k)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+f#275 = (undefined | k)
 
 f#286 = (d | g)
 
@@ -5012,9 +4949,7 @@ f#501 = (b["memoizedState"] | a(f, g["action"]))
 
 f#504 = !(He(d["memoizedState"], e))
 
-f#518 = (???*0* | g["destroy"])
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+f#518 = (undefined | g["destroy"])
 
 f#539 = (a["alternate"] | undefined | b["lastRenderedReducer"])
 
@@ -5303,10 +5238,8 @@ g#721 = (
   | undefined
   | 0
   | (g + 2)
-  | (((???*0* !== k) && (null !== k) && k["hasOwnProperty"]("display")) ? k["display"] : null)
+  | (((undefined !== k) && (null !== k) && k["hasOwnProperty"]("display")) ? k["display"] : null)
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
 
 g#756 = (d["stateNode"]["containerInfo"] | undefined)
 
@@ -5364,15 +5297,11 @@ gb = (...) => A(
     {},
     b,
     {
-        "value": ???*0*,
-        "defaultValue": ???*1*,
+        "value": undefined,
+        "defaultValue": undefined,
         "children": `${a["_wrapperState"]["initialValue"]}`
     }
 )
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
 
 gc = ca["unstable_UserBlockingPriority"]
 
@@ -5486,11 +5415,7 @@ h#614 = (d["dgst"] | undefined | (0 !== ???*0*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-h#639 = (e[l] | undefined | ((null != e) ? e[l] : ???*0*) | (h ? h["__html"] : ???*1*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* unsupported expression
-  ⚠️  This value might have side effects
+h#639 = (e[l] | undefined | ((null != e) ? e[l] : undefined) | (h ? h["__html"] : undefined))
 
 h#647 = (f[g] | undefined | e)
 
@@ -5692,13 +5617,9 @@ k#601 = (
 
 k#609 = ({"mode": "hidden", "children": d["children"]} | undefined)
 
-k#639 = (d[l] | undefined | (k ? k["__html"] : ???*0*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+k#639 = (d[l] | undefined | (k ? k["__html"] : undefined))
 
-k#647 = (h[f] | undefined | (k ? k["__html"] : ???*0*))
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+k#647 = (h[f] | undefined | (k ? k["__html"] : undefined))
 
 k#673 = (???*0* | undefined | (g + d) | g)
 - *0* unsupported expression
@@ -5987,14 +5908,12 @@ mb = (???*0* | (mb || FreeVar(document)["createElement"]("div")))
 
 mc = (...) => undefined
 
-md = (null | e["slice"](a, (???*0* ? ???*1* : ???*2*)) | ???*3*)
+md = (null | e["slice"](a, (???*0* ? ???*1* : undefined)) | ???*2*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* unsupported expression
   ⚠️  This value might have side effects
 - *2* unsupported expression
-  ⚠️  This value might have side effects
-- *3* unsupported expression
   ⚠️  This value might have side effects
 
 me = (...) => (("input" === b) ? !(!(le[a["type"]])) : (("textarea" === b) ? !(0) : !(1)))

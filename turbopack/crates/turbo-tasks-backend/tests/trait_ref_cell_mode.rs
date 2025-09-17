@@ -9,7 +9,7 @@ static REGISTRATION: Registration = register!();
 
 // Test that with `cell = "shared"`, the cell will be re-used as long as the
 // value is equal.
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_ref_shared_cell_mode() {
     run(&REGISTRATION, || async {
         let input = CellIdSelector {
@@ -44,7 +44,7 @@ async fn test_trait_ref_shared_cell_mode() {
 
 // Test that with `cell = "new"`, the cell will is never re-used, even if the
 // value is equal.
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_ref_new_cell_mode() {
     run(&REGISTRATION, || async {
         let input = CellIdSelector {
@@ -125,7 +125,7 @@ where
     // contain the same value
     let mut upcast_vcs = Vec::new();
     for _idx in 0..2 {
-        upcast_vcs.push(Vc::upcast((cell_fn)(input.value)));
+        upcast_vcs.push(Vc::upcast_non_strict((cell_fn)(input.value)));
     }
 
     // pick a different cell idx upon each invalidation/execution

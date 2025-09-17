@@ -14,7 +14,7 @@ import {
   type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
-import type { FallbackRouteParams } from './fallback-params'
+import type { OpaqueFallbackRouteParams } from './fallback-params'
 import type { Params, ParamValue } from './params'
 import {
   describeStringPropertyAccess,
@@ -136,7 +136,7 @@ function createPrerenderRootParams(
 
 function makeErroringRootParams(
   underlyingParams: Params,
-  fallbackParams: FallbackRouteParams,
+  fallbackParams: OpaqueFallbackRouteParams,
   workStore: WorkStore,
   prerenderStore: PrerenderStorePPR | PrerenderStoreLegacy
 ): Promise<Params> {

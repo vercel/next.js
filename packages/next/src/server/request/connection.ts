@@ -1,12 +1,18 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  throwForMissingRequestStore,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeHangingPromise,
+  makeDevtoolsIOAwarePromise,
+} from '../dynamic-rendering-utils'
 import { isRequestAPICallableInsideAfter } from './utils'
 
 /**
@@ -15,6 +21,7 @@ import { isRequestAPICallableInsideAfter } from './utils'
  * During prerendering it will never resolve and during rendering it resolves immediately.
  */
 export function connection(): Promise<void> {
+  const callingExpression = 'connection'
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 
@@ -94,12 +101,20 @@ export function connection(): Promise<void> {
           )
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
-          break
+          if (process.env.NODE_ENV === 'development') {
+            // Semantically we only need the dev tracking when running in `next dev`
+            // but since you would never use next dev with production NODE_ENV we use this
+            // as a proxy so we can statically exclude this code from production builds.
+            return makeDevtoolsIOAwarePromise(undefined)
+          } else {
+            return Promise.resolve(undefined)
+          }
         default:
           workUnitStore satisfies never
       }
     }
   }
 
-  return Promise.resolve(undefined)
+  // If we end up here, there was no work store or work unit store present.
+  throwForMissingRequestStore(callingExpression)
 }

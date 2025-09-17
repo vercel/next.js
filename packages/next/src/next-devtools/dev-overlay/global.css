@@ -1,4 +1,7 @@
 @import './normalize.css';
+@import './styles/default-theme.css';
+@import './styles/dark-theme.css';
+@import './styles/colors.css';
 
 /* devtool global css variables */
 :host {

@@ -1,5 +1,3 @@
-'use client'
-
 import React, {
   useEffect,
   useMemo,
@@ -12,7 +10,10 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import type { CacheNode } from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  CacheNode,
+  FlightRouterState,
+} from '../../shared/lib/app-router-types'
 import { ACTION_RESTORE } from './router-reducer/router-reducer-types'
 import type { AppRouterState } from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
@@ -22,8 +23,6 @@ import {
   PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
-import { isBot } from '../../shared/lib/router/utils/is-bot'
-import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
@@ -31,7 +30,6 @@ import { unresolvedThenable } from './unresolved-thenable'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
 import { getSelectedParams } from './router-reducer/compute-changed-path'
-import type { FlightRouterState } from '../../server/app-render/types'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,
@@ -45,51 +43,11 @@ import { pingVisibleLinks } from './links'
 import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
+import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
 
 const globalMutable: {
   pendingMpaPath?: string
 } = {}
-
-export function isExternalURL(url: URL) {
-  return url.origin !== window.location.origin
-}
-
-/**
- * Given a link href, constructs the URL that should be prefetched. Returns null
- * in cases where prefetching should be disabled, like external URLs, or
- * during development.
- * @param href The href passed to <Link>, router.prefetch(), or similar
- * @returns A URL object to prefetch, or null if prefetching should be disabled
- */
-export function createPrefetchURL(href: string): URL | null {
-  // Don't prefetch for bots as they don't navigate.
-  if (isBot(window.navigator.userAgent)) {
-    return null
-  }
-
-  let url: URL
-  try {
-    url = new URL(addBasePath(href), window.location.href)
-  } catch (_) {
-    // TODO: Does this need to throw or can we just console.error instead? Does
-    // anyone rely on this throwing? (Seems unlikely.)
-    throw new Error(
-      `Cannot prefetch '${href}' because it cannot be converted to a URL.`
-    )
-  }
-
-  // Don't prefetch during development (improves compilation performance)
-  if (process.env.NODE_ENV === 'development') {
-    return null
-  }
-
-  // External urls can't be prefetched in the same way.
-  if (isExternalURL(url)) {
-    return null
-  }
-
-  return url
-}
 
 function HistoryUpdater({
   appRouterState,
@@ -194,12 +152,14 @@ function Head({
  */
 function Router({
   actionQueue,
-  assetPrefix,
   globalError,
+  webSocket,
+  staticIndicatorState,
 }: {
   actionQueue: AppRouterActionQueue
-  assetPrefix: string
   globalError: GlobalErrorState
+  webSocket: WebSocket | undefined
+  staticIndicatorState: StaticIndicatorState | undefined
 }) {
   const state = useActionQueue(actionQueue)
   const { canonicalUrl } = state
@@ -522,7 +482,11 @@ function Router({
       ).default
 
     content = (
-      <HotReloader assetPrefix={assetPrefix} globalError={globalError}>
+      <HotReloader
+        globalError={globalError}
+        webSocket={webSocket}
+        staticIndicatorState={staticIndicatorState}
+      >
         {content}
       </HotReloader>
     )
@@ -568,19 +532,22 @@ function Router({
 export default function AppRouter({
   actionQueue,
   globalErrorState,
-  assetPrefix,
+  webSocket,
+  staticIndicatorState,
 }: {
   actionQueue: AppRouterActionQueue
   globalErrorState: GlobalErrorState
-  assetPrefix: string
+  webSocket?: WebSocket
+  staticIndicatorState?: StaticIndicatorState
 }) {
   useNavFailureHandler()
 
   const router = (
     <Router
       actionQueue={actionQueue}
-      assetPrefix={assetPrefix}
       globalError={globalErrorState}
+      webSocket={webSocket}
+      staticIndicatorState={staticIndicatorState}
     />
   )
 

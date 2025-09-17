@@ -7,10 +7,6 @@ import {
 import { getEntrypointFiles } from './build-manifest-plugin'
 import getAppRouteFromEntrypoint from '../../../server/get-app-route-from-entrypoint'
 
-type Options = {
-  dev: boolean
-}
-
 export type AppBuildManifest = {
   pages: Record<string, string[]>
 }
@@ -18,12 +14,6 @@ export type AppBuildManifest = {
 const PLUGIN_NAME = 'AppBuildManifestPlugin'
 
 export class AppBuildManifestPlugin {
-  private readonly dev: boolean
-
-  constructor(options: Options) {
-    this.dev = options.dev
-  }
-
   public apply(compiler: any) {
     compiler.hooks.make.tap(PLUGIN_NAME, (compilation: any) => {
       compilation.hooks.processAssets.tap(

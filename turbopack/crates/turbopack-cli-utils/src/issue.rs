@@ -4,11 +4,10 @@ use std::{
     collections::hash_map::Entry,
     fmt::Write as _,
     path::{Path, PathBuf},
-    str::FromStr,
     sync::{Arc, Mutex},
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use crossterm::style::{StyledContent, Stylize};
 use owo_colors::{OwoColorize as _, Style};
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -21,50 +20,6 @@ use turbopack_core::issue::{
 };
 
 use crate::source_context::format_source_context_lines;
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct IssueSeverityCliOption(pub IssueSeverity);
-
-impl serde::Serialize for IssueSeverityCliOption {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serializer.serialize_str(&self.0.to_string())
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for IssueSeverityCliOption {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let s = String::deserialize(deserializer)?;
-        IssueSeverityCliOption::from_str(&s).map_err(serde::de::Error::custom)
-    }
-}
-
-impl clap::ValueEnum for IssueSeverityCliOption {
-    fn value_variants<'a>() -> &'a [Self] {
-        const VARIANTS: [IssueSeverityCliOption; 8] = [
-            IssueSeverityCliOption(IssueSeverity::Bug),
-            IssueSeverityCliOption(IssueSeverity::Fatal),
-            IssueSeverityCliOption(IssueSeverity::Error),
-            IssueSeverityCliOption(IssueSeverity::Warning),
-            IssueSeverityCliOption(IssueSeverity::Hint),
-            IssueSeverityCliOption(IssueSeverity::Note),
-            IssueSeverityCliOption(IssueSeverity::Suggestion),
-            IssueSeverityCliOption(IssueSeverity::Info),
-        ];
-        &VARIANTS
-    }
-
-    fn to_possible_value<'a>(&self) -> Option<clap::builder::PossibleValue> {
-        Some(clap::builder::PossibleValue::new(self.0.as_str()).help(self.0.as_help_str()))
-    }
-}
-
-impl FromStr for IssueSeverityCliOption {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        <IssueSeverityCliOption as clap::ValueEnum>::from_str(s, true).map_err(|s| anyhow!("{}", s))
-    }
-}
 
 fn severity_to_style(severity: IssueSeverity) -> Style {
     match severity {

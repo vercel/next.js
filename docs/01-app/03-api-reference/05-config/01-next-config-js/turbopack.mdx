@@ -7,6 +7,10 @@ description: Configure Next.js with Turbopack-specific options
 
 The `turbopack` option lets you customize [Turbopack](/docs/app/api-reference/turbopack) to transform different files and change how modules are resolved.
 
+> **Good to know**: The `turbopack` option was previously named `experimental.turbo` in Next.js versions 13.0.0 to 15.2.x. The `experimental.turbo` option will be removed in Next.js 16.
+>
+> If you are using an older version of Next.js, run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .` to automatically migrate your configuration.
+
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 

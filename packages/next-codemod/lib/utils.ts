@@ -121,4 +121,9 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'next-experimental-turbo-to-turbopack',
     version: '10.0.0',
   },
+  {
+    title: 'Migrate from `next lint` to the ESLint CLI',
+    value: 'next-lint-to-eslint-cli',
+    version: '16.0.0',
+  },
 ]

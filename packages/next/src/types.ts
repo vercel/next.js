@@ -29,7 +29,7 @@ export type ServerRuntime = 'nodejs' | 'experimental-edge' | 'edge' | undefined
 // @ts-ignore This path is generated at build time and conflicts otherwise
 export { NextConfig } from './server/config'
 
-export type { NextAdapter } from './server/config-shared'
+export type { NextAdapter, AdapterOutput } from './build/adapter/build-complete'
 
 export type {
   Metadata,
@@ -55,7 +55,7 @@ export type { Instrumentation } from './server/instrumentation/types'
  */
 
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
-// isn't generated yet. It will be replaced when the webpack plugin runs.
+// isn't generated yet. It will be replaced when type generation runs.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type Route<RouteInferType = any> = string & {}
 

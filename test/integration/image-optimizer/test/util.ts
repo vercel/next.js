@@ -28,6 +28,7 @@ type SetupTestsCtx = {
 
 type RunTestsCtx = SetupTestsCtx & {
   w: number
+  q: number
   app?: import('child_process').ChildProcess
   appDir?: string
   appPort?: number
@@ -174,7 +175,7 @@ export function runTests(ctx: RunTestsCtx) {
   if (domains.length > 0) {
     it('should normalize invalid status codes', async () => {
       const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${1}&status=308`
-      const query = { url, w: ctx.w, q: 39 }
+      const query = { url, w: ctx.w, q: ctx.q }
       const opts: RequestInit = {
         headers: { accept: 'image/webp' },
         redirect: 'manual',
@@ -186,7 +187,7 @@ export function runTests(ctx: RunTestsCtx) {
 
     it('should timeout for upstream image exceeding 7 seconds', async () => {
       const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${8000}`
-      const query = { url, w: ctx.w, q: 100 }
+      const query = { url, w: ctx.w, q: ctx.q }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(504)
     })
@@ -198,13 +199,13 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should handle non-ascii characters in image url', async () => {
-    const query = { w: ctx.w, q: 90, url: '/äöüščří.png' }
+    const query = { w: ctx.w, q: ctx.q, url: '/äöüščří.png' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
   })
 
   it('should maintain icns', async () => {
-    const query = { w: ctx.w, q: 90, url: '/test.icns' }
+    const query = { w: ctx.w, q: ctx.q, url: '/test.icns' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/x-icns')
@@ -220,7 +221,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should maintain jxl', async () => {
-    const query = { w: ctx.w, q: 90, url: '/test.jxl' }
+    const query = { w: ctx.w, q: ctx.q, url: '/test.jxl' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/jxl')
@@ -236,7 +237,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should maintain heic', async () => {
-    const query = { w: ctx.w, q: 90, url: '/test.heic' }
+    const query = { w: ctx.w, q: ctx.q, url: '/test.heic' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/heic')
@@ -252,7 +253,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should maintain jp2', async () => {
-    const query = { w: ctx.w, q: 90, url: '/test.jp2' }
+    const query = { w: ctx.w, q: ctx.q, url: '/test.jp2' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
     expect(res.headers.get('Content-Type')).toContain('image/jp2')
@@ -268,7 +269,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should maintain animated gif', async () => {
-    const query = { w: ctx.w, q: 90, url: '/animated.gif' }
+    const query = { w: ctx.w, q: ctx.q, url: '/animated.gif' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/gif')
@@ -285,7 +286,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should maintain animated png', async () => {
-    const query = { w: ctx.w, q: 90, url: '/animated.png' }
+    const query = { w: ctx.w, q: ctx.q, url: '/animated.png' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/png')
@@ -302,7 +303,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should maintain animated png 2', async () => {
-    const query = { w: ctx.w, q: 90, url: '/animated2.png' }
+    const query = { w: ctx.w, q: ctx.q, url: '/animated2.png' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/png')
@@ -319,7 +320,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should maintain animated webp', async () => {
-    const query = { w: ctx.w, q: 90, url: '/animated.webp' }
+    const query = { w: ctx.w, q: ctx.q, url: '/animated.webp' }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toContain('image/webp')
@@ -336,7 +337,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should not forward cookie header', async () => {
-    const query = { w: ctx.w, q: 30, url: '/api/conditional-cookie' }
+    const query = { w: ctx.w, q: ctx.q, url: '/api/conditional-cookie' }
     const opts = { headers: { accept: 'image/webp', cookie: '1' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
@@ -344,7 +345,7 @@ export function runTests(ctx: RunTestsCtx) {
 
   if (ctx.nextConfigImages?.dangerouslyAllowSVG) {
     it('should maintain vector svg', async () => {
-      const query = { w: ctx.w, q: 90, url: '/test.svg' }
+      const query = { w: ctx.w, q: ctx.q, url: '/test.svg' }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
@@ -369,7 +370,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
   } else {
     it('should not allow vector svg', async () => {
-      const query = { w: ctx.w, q: 35, url: '/test.svg' }
+      const query = { w: ctx.w, q: ctx.q, url: '/test.svg' }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(400)
@@ -377,7 +378,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
 
     it('should not allow svg with application header', async () => {
-      const query = { w: ctx.w, q: 45, url: '/api/application.svg' }
+      const query = { w: ctx.w, q: ctx.q, url: '/api/application.svg' }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(400)
@@ -387,7 +388,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
 
     it('should not allow svg with comma header', async () => {
-      const query = { w: ctx.w, q: 55, url: '/api/comma.svg' }
+      const query = { w: ctx.w, q: ctx.q, url: '/api/comma.svg' }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(400)
@@ -397,7 +398,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
 
     it('should not allow svg with uppercase header', async () => {
-      const query = { w: ctx.w, q: 65, url: '/api/uppercase.svg' }
+      const query = { w: ctx.w, q: ctx.q, url: '/api/uppercase.svg' }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(400)
@@ -407,7 +408,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
 
     it('should not allow svg with wrong header', async () => {
-      const query = { w: ctx.w, q: 65, url: '/api/wrong-header.svg' }
+      const query = { w: ctx.w, q: ctx.q, url: '/api/wrong-header.svg' }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(400)
@@ -418,7 +419,7 @@ export function runTests(ctx: RunTestsCtx) {
   }
 
   it('should not allow pdf format', async () => {
-    const query = { w: ctx.w, q: 90, url: '/test.pdf' }
+    const query = { w: ctx.w, q: ctx.q, url: '/test.pdf' }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
@@ -428,7 +429,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should maintain ico format', async () => {
-    const query = { w: ctx.w, q: 90, url: `/test.ico` }
+    const query = { w: ctx.w, q: ctx.q, url: `/test.ico` }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -452,7 +453,7 @@ export function runTests(ctx: RunTestsCtx) {
   it('should maintain jpg format for old Safari', async () => {
     const accept =
       'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
-    const query = { w: ctx.w, q: 90, url: '/test.jpg' }
+    const query = { w: ctx.w, q: ctx.q, url: '/test.jpg' }
     const opts = { headers: { accept } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -470,7 +471,7 @@ export function runTests(ctx: RunTestsCtx) {
   it('should maintain png format for old Safari', async () => {
     const accept =
       'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
-    const query = { w: ctx.w, q: 75, url: '/test.png' }
+    const query = { w: ctx.w, q: ctx.q, url: '/test.png' }
     const opts = { headers: { accept } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -488,7 +489,7 @@ export function runTests(ctx: RunTestsCtx) {
   it('should downlevel webp format to jpeg for old Safari', async () => {
     const accept =
       'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
-    const query = { w: ctx.w, q: 74, url: '/test.webp' }
+    const query = { w: ctx.w, q: ctx.q, url: '/test.webp' }
     const opts = { headers: { accept } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -507,7 +508,7 @@ export function runTests(ctx: RunTestsCtx) {
   it('should downlevel avif format to jpeg for old Safari', async () => {
     const accept =
       'image/png,image/svg+xml,image/*;q=0.8,video/*;q=0.8,*/*;q=0.5'
-    const query = { w: ctx.w, q: 74, url: '/test.avif' }
+    const query = { w: ctx.w, q: ctx.q, url: '/test.avif' }
     const opts = { headers: { accept } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -524,14 +525,14 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should fail when url is missing', async () => {
-    const query = { w: ctx.w, q: 100 }
+    const query = { w: ctx.w, q: ctx.q }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(`"url" parameter is required`)
   })
 
   it('should fail when w is missing', async () => {
-    const query = { url: '/test.png', q: 100 }
+    const query = { url: '/test.png', q: ctx.q }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(`"w" parameter (width) is required`)
@@ -562,8 +563,19 @@ export function runTests(ctx: RunTestsCtx) {
     )
   })
 
+  if (ctx?.nextConfigImages?.qualities) {
+    it('should fail when q is not in config', async () => {
+      const query = { url: '/test.png', w: ctx.w, q: 13 }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+      expect(res.status).toBe(400)
+      expect(await res.text()).toBe(
+        `"q" parameter (quality) of 13 is not allowed`
+      )
+    })
+  }
+
   it('should fail when w is 0', async () => {
-    const query = { url: '/test.png', w: 0, q: 100 }
+    const query = { url: '/test.png', w: 0, q: ctx.q }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
@@ -572,7 +584,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should fail when w is less than 0', async () => {
-    const query = { url: '/test.png', w: -100, q: 100 }
+    const query = { url: '/test.png', w: -100, q: ctx.q }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
@@ -581,7 +593,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should fail when w is not a number', async () => {
-    const query = { url: '/test.png', w: 'foo', q: 100 }
+    const query = { url: '/test.png', w: 'foo', q: ctx.q }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
@@ -590,7 +602,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should fail when w is not an integer', async () => {
-    const query = { url: '/test.png', w: 99.9, q: 100 }
+    const query = { url: '/test.png', w: 99.9, q: ctx.q }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
@@ -618,7 +630,7 @@ export function runTests(ctx: RunTestsCtx) {
 
   it('should fail when domain is not defined in next.config.js', async () => {
     const url = `http://vercel.com/button`
-    const query = { url, w: ctx.w, q: 100 }
+    const query = { url, w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
@@ -626,7 +638,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should fail when width is not in next.config.js', async () => {
-    const query = { url: '/test.png', w: 1000, q: 100 }
+    const query = { url: '/test.png', w: 1000, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
@@ -668,7 +680,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should resize relative url and webp Firefox accept header', async () => {
-    const query = { url: '/test.png', w: ctx.w, q: 80 }
+    const query = { url: '/test.png', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp,*/*' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -685,7 +697,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should resize relative url and png accept header', async () => {
-    const query = { url: '/test.png', w: ctx.w, q: 80 }
+    const query = { url: '/test.png', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/png' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -702,7 +714,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should resize relative url with invalid accept header as png', async () => {
-    const query = { url: '/test.png', w: ctx.w, q: 80 }
+    const query = { url: '/test.png', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -719,7 +731,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should resize relative url with invalid accept header as gif', async () => {
-    const query = { url: '/test.gif', w: ctx.w, q: 80 }
+    const query = { url: '/test.gif', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -736,7 +748,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should resize relative url with invalid accept header as tiff', async () => {
-    const query = { url: '/test.tiff', w: ctx.w, q: 80 }
+    const query = { url: '/test.tiff', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -753,7 +765,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should resize gif (not animated)', async () => {
-    const query = { url: '/test.gif', w: ctx.w, q: 75 }
+    const query = { url: '/test.gif', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -770,7 +782,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should resize tiff', async () => {
-    const query = { url: '/test.tiff', w: ctx.w, q: 75 }
+    const query = { url: '/test.tiff', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -787,7 +799,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should resize avif', async () => {
-    const query = { url: '/test.avif', w: ctx.w, q: 75 }
+    const query = { url: '/test.avif', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -804,7 +816,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should resize relative url and old Chrome accept header as webp', async () => {
-    const query = { url: '/test.png', w: ctx.w, q: 80 }
+    const query = { url: '/test.png', w: ctx.w, q: ctx.q }
     const opts = {
       headers: { accept: 'image/webp,image/apng,image/*,*/*;q=0.8' },
     }
@@ -824,7 +836,7 @@ export function runTests(ctx: RunTestsCtx) {
 
   if (avifEnabled) {
     it('should resize relative url and new Chrome accept header as avif', async () => {
-      const query = { url: '/test.png', w: ctx.w, q: 80 }
+      const query = { url: '/test.png', w: ctx.w, q: ctx.q }
       const opts = {
         headers: {
           accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
@@ -845,7 +857,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
 
     it('should resize avif and maintain format', async () => {
-      const query = { url: '/test.avif', w: ctx.w, q: 75 }
+      const query = { url: '/test.avif', w: ctx.w, q: ctx.q }
       const opts = { headers: { accept: 'image/avif' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
@@ -877,7 +889,7 @@ export function runTests(ctx: RunTestsCtx) {
   if (domains.length > 0) {
     it('should resize absolute url from localhost', async () => {
       const url = `http://localhost:${ctx.appPort}/test.png`
-      const query = { url, w: ctx.w, q: 80 }
+      const query = { url, w: ctx.w, q: ctx.q }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
@@ -900,7 +912,7 @@ export function runTests(ctx: RunTestsCtx) {
       expect(resOrig.headers.get('Content-Type')).toBe(
         'application/octet-stream'
       )
-      const query = { url, w: ctx.w, q: 80 }
+      const query = { url, w: ctx.w, q: ctx.q }
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
       expect(res.status).toBe(200)
@@ -923,14 +935,8 @@ export function runTests(ctx: RunTestsCtx) {
       await cleanImagesDir(ctx)
       const delay = 500
 
-      if (globalThis.isrImgQuality) {
-        globalThis.isrImgQuality++
-      } else {
-        globalThis.isrImgQuality = 40
-      }
-
       const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${delay}`
-      const query = { url, w: ctx.w, q: globalThis.isrImgQuality }
+      const query = { url, w: ctx.w, q: ctx.q }
       const opts = { headers: { accept: 'image/webp' } }
 
       const one = await fetchWithDuration(
@@ -1037,7 +1043,7 @@ export function runTests(ctx: RunTestsCtx) {
 
   it('should fail when url has file protocol', async () => {
     const url = `file://localhost:${ctx.appPort}/test.png`
-    const query = { url, w: ctx.w, q: 80 }
+    const query = { url, w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
@@ -1046,7 +1052,7 @@ export function runTests(ctx: RunTestsCtx) {
 
   it('should fail when url has ftp protocol', async () => {
     const url = `ftp://localhost:${ctx.appPort}/test.png`
-    const query = { url, w: ctx.w, q: 80 }
+    const query = { url, w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
@@ -1054,14 +1060,14 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should fail when url is too long', async () => {
-    const query = { url: `/${'a'.repeat(4000)}`, w: ctx.w, q: 1 }
+    const query = { url: `/${'a'.repeat(4000)}`, w: ctx.w, q: ctx.q }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(`"url" parameter is too long`)
   })
 
   it('should fail when url is protocol relative', async () => {
-    const query = { url: `//example.com`, w: ctx.w, q: 1 }
+    const query = { url: `//example.com`, w: ctx.w, q: ctx.q }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
@@ -1071,7 +1077,11 @@ export function runTests(ctx: RunTestsCtx) {
 
   describe('recursive url is not allowed', () => {
     it('should fail with relative next image url', async () => {
-      const query = { url: `/_next/image?url=test.pngw=1&q=1`, w: ctx.w, q: 1 }
+      const query = {
+        url: `/_next/image?url=test.pngw=1&q=75`,
+        w: ctx.w,
+        q: ctx.q,
+      }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(400)
       expect(await res.text()).toBe(`"url" parameter cannot be recursive`)
@@ -1081,7 +1091,7 @@ export function runTests(ctx: RunTestsCtx) {
       const query = {
         url: '%2F_next%2Fimage%3Furl%3Dtest.pngw%3D1%26q%3D1',
         w: ctx.w,
-        q: 1,
+        q: ctx.q,
       }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(400)
@@ -1092,7 +1102,7 @@ export function runTests(ctx: RunTestsCtx) {
       it('should pass with absolute next image url', async () => {
         const fullUrl =
           'https://image-optimization-test.vercel.app/_next/image?url=%2Ffrog.jpg&w=1024&q=75'
-        const query = { url: fullUrl, w: ctx.w, q: 1 }
+        const query = { url: fullUrl, w: ctx.w, q: ctx.q }
         const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
         expect(res.status).toBe(200)
         await expectWidth(res, ctx.w)
@@ -1101,7 +1111,7 @@ export function runTests(ctx: RunTestsCtx) {
       it('should fail with absolute next image url', async () => {
         const fullUrl =
           'https://image-optimization-test.vercel.app/_next/image?url=%2Ffrog.jpg&w=1024&q=75'
-        const query = { url: fullUrl, w: ctx.w, q: 1 }
+        const query = { url: fullUrl, w: ctx.w, q: ctx.q }
         const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
         expect(res.status).toBe(400)
         expect(await res.text()).toBe(`"url" parameter is not allowed`)
@@ -1110,7 +1120,7 @@ export function runTests(ctx: RunTestsCtx) {
 
     it('should fail with relative image url with assetPrefix', async () => {
       const fullUrl = '/assets/_next/image?url=%2Ftest.png&w=128&q=75'
-      const query = { url: fullUrl, w: ctx.w, q: 1 }
+      const query = { url: fullUrl, w: ctx.w, q: ctx.q }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(400)
       expect(await res.text()).toBe(`"url" parameter cannot be recursive`)
@@ -1119,7 +1129,7 @@ export function runTests(ctx: RunTestsCtx) {
 
   it('should fail when internal url is not an image', async () => {
     const url = `/api/no-header`
-    const query = { url, w: ctx.w, q: 39 }
+    const query = { url, w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
@@ -1131,7 +1141,7 @@ export function runTests(ctx: RunTestsCtx) {
   if (domains.length > 0) {
     it('should fail when url fails to load an image', async () => {
       const url = `http://localhost:${ctx.appPort}/not-an-image`
-      const query = { w: ctx.w, url, q: 100 }
+      const query = { w: ctx.w, url, q: ctx.q }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(404)
       expect(await res.text()).toBe(
@@ -1146,16 +1156,10 @@ export function runTests(ctx: RunTestsCtx) {
     }
     await cleanImagesDir(ctx)
 
-    if (globalThis.isrImgQuality) {
-      globalThis.isrImgQuality++
-    } else {
-      globalThis.isrImgQuality = 80
-    }
-
     const query = {
       url: '/api/stateful/test.png',
       w: ctx.w,
-      q: globalThis.isrImgQuality,
+      q: ctx.q,
     }
     const opts = { headers: { accept: 'image/webp' } }
 
@@ -1259,7 +1263,7 @@ export function runTests(ctx: RunTestsCtx) {
     it('should use cached image file when parameters are the same for svg', async () => {
       await cleanImagesDir(ctx)
 
-      const query = { url: '/test.svg', w: ctx.w, q: 80 }
+      const query = { url: '/test.svg', w: ctx.w, q: ctx.q }
       const opts = { headers: { accept: 'image/webp' } }
 
       const res1 = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
@@ -1299,7 +1303,7 @@ export function runTests(ctx: RunTestsCtx) {
     }
     await cleanImagesDir(ctx)
 
-    const query = { url: '/animated.gif', w: ctx.w, q: 80 }
+    const query = { url: '/animated.gif', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
 
     const res1 = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
@@ -1328,7 +1332,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should set 304 status without body when etag matches if-none-match', async () => {
-    const query = { url: '/test.jpg', w: ctx.w, q: 80 }
+    const query = { url: '/test.jpg', w: ctx.w, q: ctx.q }
     const opts1 = { headers: { accept: 'image/webp' } }
 
     const res1 = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts1)
@@ -1357,27 +1361,35 @@ export function runTests(ctx: RunTestsCtx) {
     expect(res2.headers.get('Content-Disposition')).toBeFalsy()
     expect((await res2.buffer()).length).toBe(0)
 
-    const query3 = { url: '/test.jpg', w: ctx.w, q: 25 }
-    const res3 = await fetchViaHTTP(ctx.appPort, '/_next/image', query3, opts2)
-    expect(res3.status).toBe(200)
-    expect(res3.headers.get('Content-Type')).toBe('image/webp')
-    expect(res3.headers.get('Cache-Control')).toBe(
-      `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
-    )
-    expect(res3.headers.get('Vary')).toBe('Accept')
-    expect(res3.headers.get('Etag')).toBeTruthy()
-    expect(res3.headers.get('Etag')).not.toBe(etag)
-    expect(res3.headers.get('Content-Disposition')).toBe(
-      `${contentDispositionType}; filename="test.webp"`
-    )
-    await expectWidth(res3, ctx.w)
+    if (ctx?.nextConfigImages?.qualities) {
+      const q = ctx.nextConfigImages.qualities[0]
+      const query3 = { url: '/test.jpg', w: ctx.w, q }
+      const res3 = await fetchViaHTTP(
+        ctx.appPort,
+        '/_next/image',
+        query3,
+        opts2
+      )
+      expect(res3.status).toBe(200)
+      expect(res3.headers.get('Content-Type')).toBe('image/webp')
+      expect(res3.headers.get('Cache-Control')).toBe(
+        `public, max-age=${isDev ? 0 : minimumCacheTTL}, must-revalidate`
+      )
+      expect(res3.headers.get('Vary')).toBe('Accept')
+      expect(res3.headers.get('Etag')).toBeTruthy()
+      expect(res3.headers.get('Etag')).not.toBe(etag)
+      expect(res3.headers.get('Content-Disposition')).toBe(
+        `${contentDispositionType}; filename="test.webp"`
+      )
+      await expectWidth(res3, ctx.w)
+    }
   })
 
   it('should maintain bmp', async () => {
     const json1 = await fsToJson(ctx.imagesDir)
     expect(json1).toBeTruthy()
 
-    const query = { url: '/test.bmp', w: ctx.w, q: 80 }
+    const query = { url: '/test.bmp', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/invalid' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -1409,7 +1421,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should not resize if requested width is larger than original source image', async () => {
-    const query = { url: '/test.jpg', w: largeSize, q: 80 }
+    const query = { url: '/test.jpg', w: largeSize, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(200)
@@ -1431,7 +1443,7 @@ export function runTests(ctx: RunTestsCtx) {
       const query = {
         url: `/_next/static/media/${filename}.fab2915d.jpg`,
         w: ctx.w,
-        q: 100,
+        q: ctx.q,
       }
       const opts = { headers: { accept: 'image/webp' } }
 
@@ -1461,7 +1473,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it("should error if the resource isn't a valid image", async () => {
-    const query = { url: '/test.txt', w: ctx.w, q: 80 }
+    const query = { url: '/test.txt', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
@@ -1469,7 +1481,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should error if the image file does not exist', async () => {
-    const query = { url: '/does_not_exist.jpg', w: ctx.w, q: 80 }
+    const query = { url: '/does_not_exist.jpg', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
     expect(res.status).toBe(400)
@@ -1483,7 +1495,7 @@ export function runTests(ctx: RunTestsCtx) {
       const query = {
         url: `http://localhost:${slowImageServer.port}/slow.png?delay=${delay}`,
         w: ctx.w,
-        q: 80,
+        q: ctx.q,
       }
       const opts = { headers: { accept: 'image/webp,*/*' } }
       const [res1, res2, res3] = await Promise.all([
@@ -1549,6 +1561,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
+      q: 75,
       isDev: true,
     }
 
@@ -1582,6 +1595,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
+      q: 100,
       isDev: true,
       nextConfigImages: {
         domains: [
@@ -1594,6 +1608,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         formats: ['image/avif', 'image/webp'] as any,
         deviceSizes: [largeSize],
         imageSizes: [size],
+        qualities: [50, 75, 100],
         ...ctx.nextConfigImages,
       },
     }
@@ -1633,6 +1648,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
+      q: 75,
       isDev: false,
     }
     beforeAll(async () => {
@@ -1667,6 +1683,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
+      q: 100,
       isDev: false,
       nextConfigImages: {
         domains: [
@@ -1678,6 +1695,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         ],
         formats: ['image/avif', 'image/webp'] as any,
         deviceSizes: [size, largeSize],
+        qualities: [50, 75, 100],
         ...ctx.nextConfigImages,
       },
     }

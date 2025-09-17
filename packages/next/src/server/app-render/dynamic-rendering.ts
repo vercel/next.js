@@ -36,6 +36,7 @@ import { DynamicServerError } from '../../client/components/hooks-server-context
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
   getRuntimeStagePromise,
+  throwForMissingRequestStore,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
@@ -341,21 +342,6 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
   )
 }
 
-/**
- * Use this function when dynamically prerendering with dynamicIO.
- * We don't want to error, because it's better to return something
- * (and we've already aborted the render at the point where the sync dynamic error occured),
- * but we should log an error server-side.
- * @internal
- */
-export function warnOnSyncDynamicError(dynamicTracking: DynamicTrackingState) {
-  if (dynamicTracking.syncDynamicErrorWithStack) {
-    // the server did something sync dynamic, likely
-    // leading to an early termination of the prerender.
-    console.error(dynamicTracking.syncDynamicErrorWithStack)
-  }
-}
-
 // For now these implementations are the same so we just reexport
 export const trackSynchronousRequestDataAccessInDev =
   trackSynchronousPlatformIOAccessInDev
@@ -610,6 +596,7 @@ export function useDynamicRouteParams(expression: string) {
       case 'prerender-client':
       case 'prerender': {
         const fallbackParams = workUnitStore.fallbackRouteParams
+
         if (fallbackParams && fallbackParams.size > 0) {
           // We are in a prerender with cacheComponents semantics. We are going to
           // hang here and never resolve. This will cause the currently
@@ -651,6 +638,55 @@ export function useDynamicRouteParams(expression: string) {
       default:
         workUnitStore satisfies never
     }
+  }
+}
+
+export function useDynamicSearchParams(expression: string) {
+  const workStore = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  if (!workStore) {
+    // We assume pages router context and just return
+    return
+  }
+
+  if (!workUnitStore) {
+    throwForMissingRequestStore(expression)
+  }
+
+  switch (workUnitStore.type) {
+    case 'prerender-client': {
+      React.use(
+        makeHangingPromise(
+          workUnitStore.renderSignal,
+          workStore.route,
+          expression
+        )
+      )
+      break
+    }
+    case 'prerender-legacy':
+    case 'prerender-ppr': {
+      if (workStore.forceStatic) {
+        return
+      }
+      throw new BailoutToCSRError(expression)
+    }
+    case 'prerender':
+    case 'prerender-runtime':
+      throw new InvariantError(
+        `\`${expression}\` was called from a Server Component. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+      )
+    case 'cache':
+    case 'unstable-cache':
+    case 'private-cache':
+      throw new InvariantError(
+        `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+      )
+    case 'request':
+      return
+    default:
+      workUnitStore satisfies never
   }
 }
 
@@ -778,23 +814,20 @@ export function throwIfDisallowedDynamic(
   dynamicValidation: DynamicValidationState,
   serverDynamic: DynamicTrackingState
 ): void {
+  if (serverDynamic.syncDynamicErrorWithStack) {
+    logDisallowedDynamicError(
+      workStore,
+      serverDynamic.syncDynamicErrorWithStack
+    )
+    throw new StaticGenBailoutError()
+  }
+
   if (prelude !== PreludeState.Full) {
     if (dynamicValidation.hasSuspenseAboveBody) {
       // This route has opted into allowing fully dynamic rendering
       // by including a Suspense boundary above the body. In this case
       // a lack of a shell is not considered disallowed so we simply return
       return
-    }
-
-    if (serverDynamic.syncDynamicErrorWithStack) {
-      // There is no shell and the server did something sync dynamic likely
-      // leading to an early termination of the prerender before the shell
-      // could be completed. We terminate the build/validating render.
-      logDisallowedDynamicError(
-        workStore,
-        serverDynamic.syncDynamicErrorWithStack
-      )
-      throw new StaticGenBailoutError()
     }
 
     // We didn't have any sync bailouts but there may be user code which

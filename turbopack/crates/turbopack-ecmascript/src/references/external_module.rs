@@ -360,12 +360,6 @@ pub struct CachedExternalModuleChunkItem {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
-// Without this wrapper, VirtualFileSystem::new_with_name always returns a new filesystem
-#[turbo_tasks::function]
-fn external_fs() -> Vc<VirtualFileSystem> {
-    VirtualFileSystem::new_with_name(rcstr!("externals"))
-}
-
 #[turbo_tasks::value_impl]
 impl ChunkItem for CachedExternalModuleChunkItem {
     #[turbo_tasks::function]

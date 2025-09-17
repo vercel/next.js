@@ -61,20 +61,24 @@ function getEditorLinks(content: string) {
 export const Terminal: React.FC<TerminalProps> = function Terminal({
   content,
 }) {
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- compiler bug
   const { file, source, importTraceFiles } = React.useMemo(
     () => getEditorLinks(content),
     [content]
   )
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- compiler bug
   const decoded = React.useMemo(() => {
     return Anser.ansiToJson(source, {
       json: true,
       use_classes: true,
       remove_empty: true,
     })
-  }, [source])
+  }, [
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- it's not modified but dangerous to rely on disable directives. Talk to Compiler team once the other manual memo issues are fixed.
+    source,
+  ])
 
-  console.log({ file })
   const open = useOpenInEditor({
     file: file?.fileName,
     line1: file?.location?.line1 ?? 1,

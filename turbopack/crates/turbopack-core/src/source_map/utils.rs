@@ -5,7 +5,7 @@ use const_format::concatcp;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::Vc;
+use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystemPath, rope::Rope, util::uri_from_file,
 };
@@ -174,9 +174,8 @@ pub async fn fileify_source_map(
         return Ok(None);
     };
 
-    let context_fs = context_path.fs();
-    let context_fs = &*Vc::try_resolve_downcast_type::<DiskFileSystem>(context_fs)
-        .await?
+    let context_fs = context_path.fs;
+    let context_fs = &*ResolvedVc::try_downcast_type::<DiskFileSystem>(context_fs)
         .context("Expected the chunking context to have a DiskFileSystem")?
         .await?;
     let prefix = format!("{}///[{}]/", SOURCE_URL_PROTOCOL, context_fs.name());

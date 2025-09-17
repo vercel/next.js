@@ -16,6 +16,7 @@ type CodeFrameProps = {
 }
 
 export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- compiler bug
   const parsedLineStates = useMemo(() => {
     const decodedLines = groupCodeFrameLines(formatCodeFrame(codeFrame))
 

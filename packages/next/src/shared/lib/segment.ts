@@ -1,4 +1,4 @@
-import type { Segment } from '../../server/app-render/types'
+import type { Segment } from './app-router-types'
 
 export function isGroupSegment(segment: string) {
   // Use array[0] for performant purpose

@@ -9,7 +9,7 @@ use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn all_in_one() {
     run(&REGISTRATION, || async {
         let a: Vc<u32> = Vc::cell(4242);
@@ -182,8 +182,8 @@ struct Number(u32);
 #[turbo_tasks::value_impl]
 impl Add for Number {
     #[turbo_tasks::function]
-    async fn add(self: Vc<Self>, other: Vc<Box<dyn Add>>) -> Result<Vc<Self>> {
-        let Some(other) = Vc::try_resolve_downcast_type::<Number>(other).await? else {
+    async fn add(self: Vc<Self>, other: ResolvedVc<Box<dyn Add>>) -> Result<Vc<Self>> {
+        let Some(other) = ResolvedVc::try_downcast_type::<Number>(other) else {
             bail!("Expected Number");
         };
         Ok(Vc::cell(*self.await? + *other.await?))
@@ -196,8 +196,8 @@ struct NumberB(u32);
 #[turbo_tasks::value_impl]
 impl Add for NumberB {
     #[turbo_tasks::function]
-    async fn add(self: Vc<Self>, other: Vc<Box<dyn Add>>) -> Result<Vc<Self>> {
-        let Some(other) = Vc::try_resolve_downcast_type::<NumberB>(other).await? else {
+    async fn add(self: Vc<Self>, other: ResolvedVc<Box<dyn Add>>) -> Result<Vc<Self>> {
+        let Some(other) = ResolvedVc::try_downcast_type::<NumberB>(other) else {
             bail!("Expected NumberB");
         };
         Ok(Vc::cell(*self.await? + *other.await?))

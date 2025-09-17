@@ -5,7 +5,6 @@
 #![feature(iter_intersperse)]
 
 mod app_page_loader_tree;
-pub mod app_segment_config;
 pub mod app_structure;
 mod base_loader_tree;
 mod bootstrap;
@@ -36,14 +35,12 @@ mod next_shared;
 pub mod next_telemetry;
 mod page_loader;
 pub mod pages_structure;
+pub mod segment_config;
 pub mod tracing_presets;
 mod transform_options;
 pub mod url_node;
 pub mod util;
 
-pub use app_segment_config::{
-    parse_segment_config_from_loader_tree, parse_segment_config_from_source,
-};
 pub use emit::{all_assets_from_entries, emit_all_assets, emit_assets};
 pub use next_edge::context::{
     get_edge_chunking_context, get_edge_chunking_context_with_client_assets,
@@ -51,18 +48,5 @@ pub use next_edge::context::{
 };
 pub use next_import_map::get_next_package;
 pub use page_loader::{PageLoaderAsset, create_page_loader_entry_module};
+pub use segment_config::{parse_segment_config_from_loader_tree, parse_segment_config_from_source};
 pub use util::{PathType, get_asset_path_from_pathname, pathname_for_path};
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_bytes::register();
-    turbo_tasks_fs::register();
-    turbo_tasks_fetch::register();
-    turbopack_browser::register();
-    turbopack_node::register();
-    turbopack::register();
-    turbopack_image::register();
-    turbopack_ecmascript::register();
-    turbopack_ecmascript_plugins::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

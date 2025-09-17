@@ -7,9 +7,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "a1",
-                        ),
+                        var: "a1",
                         ast_path: [
                             Program(
                                 Module,
@@ -229,9 +227,7 @@
             else: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "a2",
-                        ),
+                        var: "a2",
                         ast_path: [
                             Program(
                                 Module,
@@ -417,9 +413,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "b1",
-                            ),
+                            var: "b1",
                             ast_path: [
                                 Program(
                                     Module,
@@ -641,9 +635,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "b2",
-                            ),
+                            var: "b2",
                             ast_path: [
                                 Program(
                                     Module,
@@ -814,9 +806,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "b3",
-                            ),
+                            var: "b3",
                             ast_path: [
                                 Program(
                                     Module,
@@ -1093,9 +1083,7 @@
             else: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "c1",
-                        ),
+                        var: "c1",
                         ast_path: [
                             Program(
                                 Module,
@@ -1374,9 +1362,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "d1",
-                            ),
+                            var: "d1",
                             ast_path: [
                                 Program(
                                     Module,
@@ -1547,9 +1533,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "d2",
-                            ),
+                            var: "d2",
                             ast_path: [
                                 Program(
                                     Module,
@@ -1736,9 +1720,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "e1",
-                            ),
+                            var: "e1",
                             ast_path: [
                                 Program(
                                     Module,
@@ -1909,9 +1891,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "e2",
-                            ),
+                            var: "e2",
                             ast_path: [
                                 Program(
                                     Module,
@@ -2190,9 +2170,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "f1",
-                        ),
+                        var: "f1",
                         ast_path: [
                             Program(
                                 Module,
@@ -2469,9 +2447,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "g1",
-                            ),
+                            var: "g1",
                             ast_path: [
                                 Program(
                                     Module,
@@ -2642,9 +2618,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "g3",
-                            ),
+                            var: "g3",
                             ast_path: [
                                 Program(
                                     Module,
@@ -2786,9 +2760,7 @@
                 EffectsBlock {
                     effects: [
                         FreeVar {
-                            var: FreeVar(
-                                "g2",
-                            ),
+                            var: "g2",
                             ast_path: [
                                 Program(
                                     Module,
@@ -3054,9 +3026,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "h2",
-                        ),
+                        var: "h2",
                         ast_path: [
                             Program(
                                 Module,
@@ -3196,9 +3166,7 @@
             else: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "h1",
-                        ),
+                        var: "h1",
                         ast_path: [
                             Program(
                                 Module,
@@ -3456,9 +3424,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "i1",
-        ),
+        var: "i1",
         ast_path: [
             Program(
                 Module,
@@ -3621,9 +3587,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "i2",
-        ),
+        var: "i2",
         ast_path: [
             Program(
                 Module,
@@ -3768,9 +3732,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "i1",
-        ),
+        var: "i1",
         ast_path: [
             Program(
                 Module,
@@ -3957,9 +3919,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "i2",
-        ),
+        var: "i2",
         ast_path: [
             Program(
                 Module,

@@ -25,6 +25,7 @@ too_many_arguments = "allow"
 unexpected_cfgs = { level = "warn", check-cfg = [
   'cfg(rust_analyzer)',
   'cfg(fuzzing)',
+  'cfg(codspeed)',
 ] }
 
 # This crate is particularly sensitive to compiler optimizations
@@ -269,7 +270,6 @@ turbo-unix-path = { path = "turbopack/crates/turbo-unix-path" }
 turbo-tasks-malloc = { path = "turbopack/crates/turbo-tasks-malloc", default-features = false }
 turbo-tasks = { path = "turbopack/crates/turbo-tasks" }
 turbo-tasks-backend = { path = "turbopack/crates/turbo-tasks-backend" }
-turbo-tasks-build = { path = "turbopack/crates/turbo-tasks-build" }
 turbo-tasks-bytes = { path = "turbopack/crates/turbo-tasks-bytes" }
 turbo-tasks-env = { path = "turbopack/crates/turbo-tasks-env" }
 turbo-tasks-fetch = { path = "turbopack/crates/turbo-tasks-fetch" }
@@ -305,24 +305,24 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "35.0.0", features = [
+swc_core = { version = "36.0.1", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
-swc_plugin_backend_wasmer = { version = "1.0.0" }
+swc_plugin_backend_wasmer = { version = "2.0.0" }
 testing = "15.0.0"
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = "0.19.0"
 mdxjs = "1.0.3"
-modularize_imports = "0.93.1"
-styled_components = "0.121.1"
-styled_jsx = "0.97.1"
-swc_emotion = "0.97.1"
-swc_relay = "0.67.1"
-react_remove_properties = "0.47.1"
-remove_console = "0.48.1"
+modularize_imports = "0.94.0"
+styled_components = "0.122.0"
+styled_jsx = "0.98.0"
+swc_emotion = "0.98.0"
+swc_relay = "0.68.0"
+react_remove_properties = "0.48.0"
+remove_console = "0.49.0"
 preset_env_base = "5.0.0"
 
 
@@ -352,11 +352,11 @@ clap = { version = "4.5.2", features = ["derive"] }
 concurrent-queue = "2.5.0"
 console-subscriber = "0.4.1"
 const_format = "0.2.30"
-criterion = { package = "codspeed-criterion-compat", version = "2.10.1" }
+criterion = { package = "codspeed-criterion-compat", version = "3.0.5" }
 crossbeam-channel = "0.5.8"
 dashmap = "6.1.0"
 data-encoding = "2.3.3"
-divan = { version = "2.10.1", package = "codspeed-divan-compat" }
+divan = { package = "codspeed-divan-compat", version = "3.0.5" }
 dhat = { version = "0.3.2" }
 dunce = "1.0.3"
 either = "1.9.0"
@@ -392,7 +392,7 @@ napi = { version = "2", default-features = false, features = [
 ] }
 notify = "8.1.0"
 once_cell = "1.17.1"
-owo-colors = "3.5.0"
+owo-colors = "4.2.2"
 parcel_selectors = "0.28.2"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
@@ -406,7 +406,7 @@ quote = "1.0.23"
 rand = "0.9.0"
 rayon = "1.10.0"
 regex = "1.10.6"
-regress = "0.10.3"
+regress = "0.10.4"
 reqwest = { version = "0.12.22", default-features = false }
 ringmap = "0.1.3"
 roaring = "0.10.10"
@@ -444,6 +444,7 @@ urlencoding = "2.1.2"
 vergen = { version = "9.0.6", features = ["cargo"] }
 vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "0.8.7"
+inventory = "0.3.21"
 
 [patch.crates-io]
 hyper = { git = "https://github.com/bgw/hyper-rs.git", branch = "v1.6.0-with-macos-intel-miscompilation-workaround" }

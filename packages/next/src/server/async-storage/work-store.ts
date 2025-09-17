@@ -20,6 +20,7 @@ export type WorkStoreContext = {
   page: string
 
   isPrefetchRequest?: boolean
+  nonce?: string
   renderOpts: {
     cacheLifeProfiles?: { [profile: string]: CacheLife }
     incrementalCache?: IncrementalCache
@@ -53,7 +54,6 @@ export type WorkStoreContext = {
     | 'assetPrefix'
     | 'supportsDynamicResponse'
     | 'shouldWaitOnAllReady'
-    | 'isRevalidate'
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
@@ -79,6 +79,7 @@ export function createWorkStore({
   isPrefetchRequest,
   buildId,
   previouslyRevalidatedTags,
+  nonce,
 }: WorkStoreContext): WorkStore {
   /**
    * Rules of Static & Dynamic HTML:
@@ -123,7 +124,6 @@ export function createWorkStore({
       // so that it can access the fs cache without mocks
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
-    isRevalidate: renderOpts.isRevalidate,
     isBuildTimePrerendering: renderOpts.nextExport,
     hasReadableErrorStacks: renderOpts.hasReadableErrorStacks,
     fetchCache: renderOpts.fetchCache,
@@ -135,6 +135,7 @@ export function createWorkStore({
     buildId,
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
+    nonce,
 
     afterContext: createAfterContext(renderOpts),
     cacheComponentsEnabled: renderOpts.experimental.cacheComponents,

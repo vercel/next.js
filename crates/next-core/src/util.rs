@@ -1,17 +1,10 @@
-use std::{fmt::Display, future::Future, str::FromStr};
+use std::{fmt::Display, str::FromStr};
 
 use anyhow::{Result, bail};
 use next_taskless::expand_next_js_template;
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
-use swc_core::{
-    common::{GLOBALS, Spanned, source_map::SmallPos},
-    ecma::ast::{Expr, Lit, Program},
-};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, ValueDefault, Vc, trace::TraceRawVcs,
-    util::WrapFuture,
-};
+use turbo_tasks::{FxIndexMap, NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, json::parse_json_rope_with_source_context,
     rope::Rope,
@@ -21,25 +14,13 @@ use turbopack_core::{
     asset::AssetContent,
     compile_time_info::{CompileTimeDefineValue, CompileTimeDefines, DefinableNameSegment},
     condition::ContextCondition,
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
-    module::Module,
     source::Source,
     virtual_source::VirtualSource,
 };
-use turbopack_ecmascript::{
-    EcmascriptParsable,
-    analyzer::{ConstantValue, JsValue, ObjectPart},
-    parse::ParseResult,
-};
 
 use crate::{
-    embed_js::next_js_fs,
-    next_config::{NextConfig, RouteHas},
-    next_import_map::get_next_package,
-    next_manifests::MiddlewareMatcher,
+    embed_js::next_js_fs, next_config::NextConfig, next_import_map::get_next_package,
+    next_manifests::MiddlewareMatcher, next_shared::webpack_rules::WebpackLoaderBuiltinCondition,
 };
 
 const NEXT_TEMPLATE_PATH: &str = "dist/esm/build/templates";
@@ -196,10 +177,10 @@ pub async fn internal_assets_conditions() -> Result<ContextCondition> {
     ]))
 }
 
-pub fn app_middleware_function_name(page: impl Display) -> String {
+pub fn app_function_name(page: impl Display) -> String {
     format!("app{page}")
 }
-pub fn pages_middleware_function_name(page: impl Display) -> String {
+pub fn pages_function_name(page: impl Display) -> String {
     format!("pages{page}")
 }
 
@@ -228,505 +209,30 @@ pub enum NextRuntime {
 }
 
 impl NextRuntime {
-    pub fn conditions(&self) -> &'static [&'static str] {
+    /// Returns conditions that can be used in the Next.js config's turbopack "rules" section for
+    /// defining webpack loader configuration.
+    pub fn webpack_loader_conditions(&self) -> impl Iterator<Item = WebpackLoaderBuiltinCondition> {
         match self {
-            NextRuntime::NodeJs => &["node"],
-            NextRuntime::Edge => &["edge-light"],
+            NextRuntime::NodeJs => [WebpackLoaderBuiltinCondition::Node],
+            NextRuntime::Edge => [WebpackLoaderBuiltinCondition::EdgeLight],
         }
+        .into_iter()
+    }
+
+    /// Returns conditions used by `ResolveOptionsContext`.
+    pub fn custom_resolve_conditions(&self) -> impl Iterator<Item = RcStr> {
+        match self {
+            NextRuntime::NodeJs => [rcstr!("node")],
+            NextRuntime::Edge => [rcstr!("edge-light")],
+        }
+        .into_iter()
     }
 }
 
-#[turbo_tasks::value]
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum MiddlewareMatcherKind {
     Str(String),
     Matcher(MiddlewareMatcher),
-}
-
-#[turbo_tasks::value]
-#[derive(Default, Clone)]
-pub struct NextSourceConfig {
-    pub runtime: NextRuntime,
-
-    /// Middleware router matchers
-    pub matcher: Option<Vec<MiddlewareMatcherKind>>,
-
-    pub regions: Option<Vec<RcStr>>,
-}
-
-#[turbo_tasks::value_impl]
-impl ValueDefault for NextSourceConfig {
-    #[turbo_tasks::function]
-    pub fn value_default() -> Vc<Self> {
-        NextSourceConfig::default().cell()
-    }
-}
-
-/// An issue that occurred while parsing the page config.
-#[turbo_tasks::value(shared)]
-pub struct NextSourceConfigParsingIssue {
-    source: IssueSource,
-    detail: ResolvedVc<StyledString>,
-}
-
-#[turbo_tasks::value_impl]
-impl NextSourceConfigParsingIssue {
-    #[turbo_tasks::function]
-    pub fn new(source: IssueSource, detail: ResolvedVc<StyledString>) -> Vc<Self> {
-        Self { source, detail }.cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for NextSourceConfigParsingIssue {
-    fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Warning
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!(
-            "Next.js can't recognize the exported `config` field in route"
-        ))
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.into()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(
-                "The exported configuration object in a source file need to have a very specific \
-                 format from which some properties can be statically parsed at compiled-time."
-                    .into(),
-            )
-            .resolved_cell(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.detail))
-    }
-
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
-    }
-}
-
-async fn emit_invalid_config_warning(
-    source: IssueSource,
-    detail: &str,
-    value: &JsValue,
-) -> Result<()> {
-    let (explainer, hints) = value.explain(2, 0);
-    NextSourceConfigParsingIssue::new(
-        source,
-        StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
-    )
-    .to_resolved()
-    .await?
-    .emit();
-    Ok(())
-}
-
-async fn parse_route_matcher_from_js_value(
-    source: IssueSource,
-    value: &JsValue,
-) -> Result<Option<Vec<MiddlewareMatcherKind>>> {
-    let parse_matcher_kind_matcher = |value: &JsValue| {
-        let mut route_has = vec![];
-        if let JsValue::Array { items, .. } = value {
-            for item in items {
-                if let JsValue::Object { parts, .. } = item {
-                    let mut route_type = None;
-                    let mut route_key = None;
-                    let mut route_value = None;
-
-                    for matcher_part in parts {
-                        if let ObjectPart::KeyValue(part_key, part_value) = matcher_part {
-                            match part_key.as_str() {
-                                Some("type") => {
-                                    route_type = part_value.as_str().map(|v| v.to_string())
-                                }
-                                Some("key") => {
-                                    route_key = part_value.as_str().map(|v| v.to_string())
-                                }
-                                Some("value") => {
-                                    route_value = part_value.as_str().map(|v| v.to_string())
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                    let r = match route_type.as_deref() {
-                        Some("header") => route_key.map(|route_key| RouteHas::Header {
-                            key: route_key.into(),
-                            value: route_value.map(From::from),
-                        }),
-                        Some("cookie") => route_key.map(|route_key| RouteHas::Cookie {
-                            key: route_key.into(),
-                            value: route_value.map(From::from),
-                        }),
-                        Some("query") => route_key.map(|route_key| RouteHas::Query {
-                            key: route_key.into(),
-                            value: route_value.map(From::from),
-                        }),
-                        Some("host") => route_value.map(|route_value| RouteHas::Host {
-                            value: route_value.into(),
-                        }),
-                        _ => None,
-                    };
-
-                    if let Some(r) = r {
-                        route_has.push(r);
-                    }
-                }
-            }
-        }
-
-        route_has
-    };
-
-    let mut matchers = vec![];
-
-    match value {
-        JsValue::Constant(matcher) => {
-            if let Some(matcher) = matcher.as_str() {
-                matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
-            } else {
-                emit_invalid_config_warning(
-                    source,
-                    "The matcher property must be a string or array of strings",
-                    value,
-                )
-                .await?;
-            }
-        }
-        JsValue::Array { items, .. } => {
-            for item in items {
-                if let Some(matcher) = item.as_str() {
-                    matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
-                } else if let JsValue::Object { parts, .. } = item {
-                    let mut matcher = MiddlewareMatcher::default();
-                    for matcher_part in parts {
-                        if let ObjectPart::KeyValue(key, value) = matcher_part {
-                            match key.as_str() {
-                                Some("source") => {
-                                    if let Some(value) = value.as_str() {
-                                        matcher.original_source = value.into();
-                                    }
-                                }
-                                Some("locale") => {
-                                    matcher.locale = value.as_bool().unwrap_or_default();
-                                }
-                                Some("missing") => {
-                                    matcher.missing = Some(parse_matcher_kind_matcher(value))
-                                }
-                                Some("has") => {
-                                    matcher.has = Some(parse_matcher_kind_matcher(value))
-                                }
-                                _ => {
-                                    //noop
-                                }
-                            }
-                        }
-                    }
-
-                    matchers.push(MiddlewareMatcherKind::Matcher(matcher));
-                } else {
-                    emit_invalid_config_warning(
-                        source,
-                        "The matcher property must be a string or array of strings",
-                        value,
-                    )
-                    .await?;
-                }
-            }
-        }
-        _ => {
-            emit_invalid_config_warning(
-                source,
-                "The matcher property must be a string or array of strings",
-                value,
-            )
-            .await?
-        }
-    }
-
-    Ok(if matchers.is_empty() {
-        None
-    } else {
-        Some(matchers)
-    })
-}
-
-#[turbo_tasks::function]
-pub async fn parse_config_from_source(
-    source: ResolvedVc<Box<dyn Source>>,
-    module: ResolvedVc<Box<dyn Module>>,
-    default_runtime: NextRuntime,
-) -> Result<Vc<NextSourceConfig>> {
-    if let Some(ecmascript_asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module)
-        && let ParseResult::Ok {
-            program: Program::Module(module_ast),
-            globals,
-            eval_context,
-            ..
-        } = &*ecmascript_asset.parse_original().await?
-    {
-        for item in &module_ast.body {
-            if let Some(decl) = item
-                .as_module_decl()
-                .and_then(|mod_decl| mod_decl.as_export_decl())
-                .and_then(|export_decl| export_decl.decl.as_var())
-            {
-                for decl in &decl.decls {
-                    let decl_ident = decl.name.as_ident();
-
-                    // Check if there is exported config object `export const config = {...}`
-                    // https://nextjs.org/docs/app/building-your-application/routing/middleware#matcher
-                    if let Some(ident) = decl_ident
-                        && ident.sym == "config"
-                    {
-                        if let Some(init) = decl.init.as_ref() {
-                            return WrapFuture::new(
-                                async {
-                                    let value = eval_context.eval(init);
-                                    Ok(parse_config_from_js_value(
-                                        IssueSource::from_swc_offsets(
-                                            source,
-                                            init.span_lo().to_u32(),
-                                            init.span_hi().to_u32(),
-                                        ),
-                                        &value,
-                                        default_runtime,
-                                    )
-                                    .await?
-                                    .cell())
-                                },
-                                |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
-                            )
-                            .await;
-                        } else {
-                            NextSourceConfigParsingIssue::new(
-                                IssueSource::from_swc_offsets(
-                                    source,
-                                    ident.span_lo().to_u32(),
-                                    ident.span_hi().to_u32(),
-                                ),
-                                StyledString::Text(rcstr!(
-                                    "The exported config object must contain an variable \
-                                     initializer."
-                                ))
-                                .cell(),
-                            )
-                            .to_resolved()
-                            .await?
-                            .emit();
-                        }
-                    }
-                    // Or, check if there is segment runtime option
-                    // https://nextjs.org/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes#segment-runtime-Option
-                    else if let Some(ident) = decl_ident
-                        && ident.sym == "runtime"
-                    {
-                        let runtime_value_issue = NextSourceConfigParsingIssue::new(
-                            IssueSource::from_swc_offsets(
-                                source,
-                                ident.span_lo().to_u32(),
-                                ident.span_hi().to_u32(),
-                            ),
-                            StyledString::Text(rcstr!(
-                                "The runtime property must be either \"nodejs\" or \"edge\"."
-                            ))
-                            .cell(),
-                        )
-                        .to_resolved()
-                        .await?;
-                        if let Some(init) = decl.init.as_ref() {
-                            // skipping eval and directly read the expr's value, as we know it
-                            // should be a const string
-                            if let Expr::Lit(Lit::Str(str_value)) = &**init {
-                                let mut config = NextSourceConfig::default();
-
-                                let runtime = &str_value.value;
-                                match runtime.as_str() {
-                                    "edge" | "experimental-edge" => {
-                                        config.runtime = NextRuntime::Edge;
-                                    }
-                                    "nodejs" => {
-                                        config.runtime = NextRuntime::NodeJs;
-                                    }
-                                    _ => {
-                                        runtime_value_issue.emit();
-                                    }
-                                }
-
-                                return Ok(config.cell());
-                            } else {
-                                runtime_value_issue.emit();
-                            }
-                        } else {
-                            NextSourceConfigParsingIssue::new(
-                                IssueSource::from_swc_offsets(
-                                    source,
-                                    ident.span_lo().to_u32(),
-                                    ident.span_hi().to_u32(),
-                                ),
-                                StyledString::Text(rcstr!(
-                                    "The exported segment runtime option must contain an variable \
-                                     initializer."
-                                ))
-                                .cell(),
-                            )
-                            .to_resolved()
-                            .await?
-                            .emit();
-                        }
-                    }
-                }
-            }
-        }
-    }
-    let config = NextSourceConfig {
-        runtime: default_runtime,
-        ..Default::default()
-    };
-
-    Ok(config.cell())
-}
-
-async fn parse_config_from_js_value(
-    source: IssueSource,
-    value: &JsValue,
-    default_runtime: NextRuntime,
-) -> Result<NextSourceConfig> {
-    let mut config = NextSourceConfig {
-        runtime: default_runtime,
-        ..Default::default()
-    };
-
-    if let JsValue::Object { parts, .. } = value {
-        for part in parts {
-            match part {
-                ObjectPart::Spread(_) => {
-                    emit_invalid_config_warning(
-                        source,
-                        "Spread properties are not supported in the config export.",
-                        value,
-                    )
-                    .await?
-                }
-                ObjectPart::KeyValue(key, value) => {
-                    if let Some(key) = key.as_str() {
-                        match key {
-                            "runtime" => {
-                                if let JsValue::Constant(runtime) = value {
-                                    if let Some(runtime) = runtime.as_str() {
-                                        match runtime {
-                                            "edge" | "experimental-edge" => {
-                                                config.runtime = NextRuntime::Edge;
-                                            }
-                                            "nodejs" => {
-                                                config.runtime = NextRuntime::NodeJs;
-                                            }
-                                            _ => {
-                                                emit_invalid_config_warning(
-                                                    source,
-                                                    "The runtime property must be either \
-                                                     \"nodejs\" or \"edge\".",
-                                                    value,
-                                                )
-                                                .await?;
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    emit_invalid_config_warning(
-                                        source,
-                                        "The runtime property must be a constant string.",
-                                        value,
-                                    )
-                                    .await?;
-                                }
-                            }
-                            "matcher" => {
-                                config.matcher =
-                                    parse_route_matcher_from_js_value(source, value).await?;
-                            }
-                            "regions" => {
-                                config.regions = match value {
-                                    // Single value is turned into a single-element Vec.
-                                    JsValue::Constant(ConstantValue::Str(str)) => {
-                                        Some(vec![str.to_string().into()])
-                                    }
-                                    // Array of strings is turned into a Vec. If one of the values
-                                    // in not a String it will
-                                    // error.
-                                    JsValue::Array { items, .. } => {
-                                        let mut regions: Vec<RcStr> = Vec::new();
-                                        for item in items {
-                                            if let JsValue::Constant(ConstantValue::Str(str)) = item
-                                            {
-                                                regions.push(str.to_string().into());
-                                            } else {
-                                                emit_invalid_config_warning(
-                                                    source,
-                                                    "Values of the `config.regions` array need to \
-                                                     static strings",
-                                                    item,
-                                                )
-                                                .await?;
-                                            }
-                                        }
-                                        Some(regions)
-                                    }
-                                    _ => {
-                                        emit_invalid_config_warning(
-                                            source,
-                                            "`config.regions` needs to be a static string or \
-                                             array of static strings",
-                                            value,
-                                        )
-                                        .await?;
-                                        None
-                                    }
-                                };
-                            }
-                            _ => {}
-                        }
-                    } else {
-                        emit_invalid_config_warning(
-                            source,
-                            "The exported config object must not contain non-constant strings.",
-                            key,
-                        )
-                        .await?;
-                    }
-                }
-            }
-        }
-    } else {
-        emit_invalid_config_warning(
-            source,
-            "The exported config object must be a valid object literal.",
-            value,
-        )
-        .await?;
-    }
-
-    Ok(config)
 }
 
 /// Loads a next.js template, replaces `replacements` and `injections` and makes

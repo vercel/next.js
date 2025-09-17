@@ -76,11 +76,14 @@ import {
   MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
-  UNDERSCORE_NOT_FOUND_ROUTE,
-  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   DYNAMIC_CSS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../shared/lib/constants'
+import {
+  UNDERSCORE_NOT_FOUND_ROUTE,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+} from '../shared/lib/entry-constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig from '../server/config'
@@ -109,8 +112,6 @@ import { Telemetry } from '../telemetry/storage'
 import {
   createPagesMapping,
   collectAppFiles,
-  getStaticInfoIncludingLayouts,
-  sortByPageExts,
   processPageRoutes,
   processAppRoutes,
   processLayoutRoutes,
@@ -121,6 +122,8 @@ import {
   type SlotInfo,
   collectPagesFiles,
 } from './entries'
+import { sortByPageExts } from './sort-by-page-exts'
+import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
@@ -135,12 +138,12 @@ import {
   printTreeView,
   copyTracedFiles,
   isReservedPage,
-  isAppBuiltinNotFoundPage,
+  isAppBuiltinPage,
   collectRoutesUsingEdgeRuntime,
   collectMeta,
 } from './utils'
 import type { PageInfo, PageInfos } from './utils'
-import type { PrerenderedRoute } from './static-paths/types'
+import type { FallbackRouteParam, PrerenderedRoute } from './static-paths/types'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -321,6 +324,12 @@ export interface DynamicPrerenderManifestRoute {
   fallbackRootParams: readonly string[] | undefined
 
   /**
+   * The fallback route params for this route that were parsed from the loader
+   * tree.
+   */
+  fallbackRouteParams: readonly FallbackRouteParam[] | undefined
+
+  /**
    * The source route that this fallback route is based on. This is a reference
    * so that we can associate this dynamic route with the correct source.
    */
@@ -382,8 +391,8 @@ export type ManifestHeaderRoute = ManifestBuiltRoute & Header
 
 export type ManifestRoute = ManifestBuiltRoute & {
   page: string
-  namedRegex?: string
-  routeKeys?: { [key: string]: string }
+  namedRegex: string
+  routeKeys: { [key: string]: string }
 
   /**
    * If true, this indicates that the route has fallback root params. This is
@@ -458,6 +467,20 @@ export type RoutesManifest = {
     prefetchSegmentHeader: typeof NEXT_ROUTER_SEGMENT_PREFETCH_HEADER
     prefetchSegmentDirSuffix: typeof RSC_SEGMENTS_DIR_SUFFIX
     prefetchSegmentSuffix: typeof RSC_SEGMENT_SUFFIX
+
+    /**
+     * Whether the client param parsing is enabled. This is only relevant for
+     * app pages when PPR is enabled.
+     */
+    clientParamParsing: boolean
+
+    /**
+     * The origins that are allowed to write the rewritten headers when
+     * performing a non-relative rewrite. When undefined, no non-relative
+     * rewrites will get the rewrite headers.
+     */
+    clientParamParsingOrigins: string[] | undefined
+    dynamicRSCPrerender: boolean
   }
   rewriteHeaders: {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
@@ -839,7 +862,8 @@ async function writeFullyStaticExport(
   dir: string,
   enabledDirectories: NextEnabledDirectories,
   configOutDir: string,
-  nextBuildSpan: Span
+  nextBuildSpan: Span,
+  appDirOnly: boolean
 ): Promise<void> {
   const exportApp = (require('../export') as typeof import('../export'))
     .default as typeof import('../export').default
@@ -853,6 +877,7 @@ async function writeFullyStaticExport(
       silent: true,
       outdir: path.join(dir, configOutDir),
       numWorkers: getNumberOfWorkers(config),
+      appDirOnly,
     },
     nextBuildSpan
   )
@@ -999,6 +1024,11 @@ export default async function build(
 
       const publicDir = path.join(dir, 'public')
       const { pagesDir, appDir } = findPagesDir(dir)
+
+      if (!appDirOnly && !pagesDir) {
+        appDirOnly = true
+      }
+
       NextBuildContext.pagesDir = pagesDir
       NextBuildContext.appDir = appDir
 
@@ -1021,7 +1051,7 @@ export default async function build(
       const hasPublicDir = existsSync(publicDir)
 
       telemetry.record(
-        eventCliSession(dir, config, {
+        eventCliSession(config, {
           webpackVersion: 5,
           cliCommand: 'build',
           isSrcDir,
@@ -1053,6 +1083,7 @@ export default async function build(
         appUrl: null,
         envInfo,
         experimentalFeatures,
+        logBundler: true,
       })
 
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
@@ -1175,6 +1206,7 @@ export default async function build(
             pagePaths: pagesPaths,
             pagesDir,
             appDir,
+            appDirOnly,
           })
         )
       NextBuildContext.mappedPages = mappedPages
@@ -1216,6 +1248,7 @@ export default async function build(
               pageExtensions: config.pageExtensions,
               pagesDir,
               appDir,
+              appDirOnly,
             })
           )
 
@@ -1229,6 +1262,7 @@ export default async function build(
               pageExtensions: config.pageExtensions,
               pagesDir,
               appDir,
+              appDirOnly,
             })
           )
 
@@ -1242,6 +1276,7 @@ export default async function build(
         pagesType: PAGE_TYPES.ROOT,
         pagesDir: pagesDir,
         appDir,
+        appDirOnly,
       })
       NextBuildContext.mappedRootPaths = mappedRootPaths
 
@@ -1320,6 +1355,7 @@ export default async function build(
                     pageExtensions: config.pageExtensions,
                     pagesDir,
                     appDir,
+                    appDirOnly,
                   })
                 )
               slotsFromDefaults =
@@ -1385,8 +1421,15 @@ export default async function build(
       const conflictingPublicFiles: string[] = []
       const hasPages404 = mappedPages['/404']?.startsWith(PAGES_DIR_ALIAS)
       const hasApp404 = !!mappedAppPages?.[UNDERSCORE_NOT_FOUND_ROUTE_ENTRY]
+      const hasAppGlobalError =
+        !!mappedAppPages?.[UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY]
       const hasCustomErrorPage =
-        mappedPages['/_error'].startsWith(PAGES_DIR_ALIAS)
+        mappedPages['/_error']?.startsWith(PAGES_DIR_ALIAS)
+
+      // Check if there are any user pages (non-reserved pages) in the pages router
+      const hasUserPagesRoutes = Object.keys(mappedPages).some(
+        (route) => !isReservedPage(route)
+      )
 
       if (hasPublicDir) {
         const hasPublicUnderScoreNextDir = existsSync(
@@ -1519,6 +1562,24 @@ export default async function build(
               prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
               prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
               prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
+              clientParamParsing:
+                // NOTE: once this is the default for `clientSegmentCache`, this
+                // should exclusively be based on the `clientSegmentCache` flag.
+                config.experimental.clientParamParsing ?? false,
+              clientParamParsingOrigins: config.experimental.clientParamParsing
+                ? config.experimental.clientParamParsingOrigins
+                : undefined,
+              dynamicRSCPrerender:
+                // Only enable RDC for Navigations if the feature is enabled.
+                // Once we've made RDC for Navigations the default for PPR, we
+                // can remove the check for `config.experimental.rdcForNavigations`.
+                isAppPPREnabled &&
+                config.experimental.rdcForNavigations === true &&
+                // Temporarily we require that clientParamParsing is enabled for
+                // RDC for Navigations. This is due to a builder configuration
+                // bug that manifests as invalid query params being passed to
+                // the resume lambdas.
+                config.experimental.clientParamParsing === true,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
@@ -1688,7 +1749,6 @@ export default async function build(
                     hasSsrAmpPages: false,
                     buildTraceContext,
                     outputFileTracingRoot,
-                    isTurbopack: false,
                   })
                   .catch((err) => {
                     console.error(err)
@@ -1847,7 +1907,7 @@ export default async function build(
             namedExports: [],
             isNextImageImported: true,
             hasSsrAmpPages: !!pagesDir,
-            hasNonStaticErrorPage: true,
+            hasNonStaticErrorPage: hasUserPagesRoutes,
           }
         }
 
@@ -1896,22 +1956,24 @@ export default async function build(
 
         const appPageToCheck = '/_app'
 
-        const customAppGetInitialPropsPromise = worker.hasCustomGetInitialProps(
-          {
-            page: appPageToCheck,
-            distDir,
-            runtimeEnvConfig,
-            checkingApp: true,
-            sriEnabled,
-          }
-        )
+        const customAppGetInitialPropsPromise = hasUserPagesRoutes
+          ? worker.hasCustomGetInitialProps({
+              page: appPageToCheck,
+              distDir,
+              runtimeEnvConfig,
+              checkingApp: true,
+              sriEnabled,
+            })
+          : Promise.resolve(false)
 
-        const namedExportsPromise = worker.getDefinedNamedExports({
-          page: appPageToCheck,
-          distDir,
-          runtimeEnvConfig,
-          sriEnabled,
-        })
+        const namedExportsPromise = hasUserPagesRoutes
+          ? worker.getDefinedNamedExports({
+              page: appPageToCheck,
+              distDir,
+              runtimeEnvConfig,
+              sriEnabled,
+            })
+          : Promise.resolve([])
 
         // eslint-disable-next-line @typescript-eslint/no-shadow
         let isNextImageImported: boolean | undefined
@@ -2026,10 +2088,8 @@ export default async function build(
                   }
                 }
 
-                const pageFilePath = isAppBuiltinNotFoundPage(pagePath)
-                  ? require.resolve(
-                      'next/dist/client/components/builtin/not-found'
-                    )
+                const pageFilePath = isAppBuiltinPage(pagePath)
+                  ? pagePath
                   : path.join(
                       (pageType === 'pages' ? pagesDir : appDir) || '',
                       pagePath
@@ -2582,7 +2642,7 @@ export default async function build(
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
 
-      if (!isGenerateMode && !buildTracesPromise) {
+      if (!isTurbopack && !isGenerateMode && !buildTracesPromise) {
         buildTracesPromise = collectBuildTraces({
           dir,
           config,
@@ -2593,7 +2653,6 @@ export default async function build(
           hasSsrAmpPages,
           buildTraceContext,
           outputFileTracingRoot,
-          isTurbopack: true,
         }).catch((err) => {
           console.error(err)
           process.exit(1)
@@ -2739,13 +2798,18 @@ export default async function build(
         }
       })
 
-      const hasPages500 = usedStaticStatusPages.includes('/500')
+      const hasPages500 = !appDirOnly && usedStaticStatusPages.includes('/500')
       const useDefaultStatic500 =
         !hasPages500 && !hasNonStaticErrorPage && !customAppGetInitialProps
 
       const combinedPages = [...staticPages, ...ssgPages]
       const isApp404Static = staticPaths.has(UNDERSCORE_NOT_FOUND_ROUTE_ENTRY)
       const hasStaticApp404 = hasApp404 && isApp404Static
+      const isAppGlobalErrorStatic = staticPaths.has(
+        UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
+      )
+      const hasStaticAppGlobalError =
+        hasAppGlobalError && isAppGlobalErrorStatic
 
       await updateBuildDiagnostics({
         buildStage: 'static-generation',
@@ -2833,13 +2897,13 @@ export default async function build(
                 })
               })
 
-              if (useStaticPages404) {
+              if (useStaticPages404 && !appDirOnly) {
                 defaultMap['/404'] = {
                   page: hasPages404 ? '/404' : '/_error',
                 }
               }
 
-              if (useDefaultStatic500) {
+              if (useDefaultStatic500 && !appDirOnly) {
                 defaultMap['/500'] = {
                   page: '/_error',
                 }
@@ -2859,9 +2923,19 @@ export default async function build(
                   // If the route has any dynamic root segments, we need to skip
                   // rendering the route. This is because we don't support
                   // revalidating the shells without the parameters present.
+                  // Note that we only have fallback root params if we also have
+                  // PPR enabled for this route/app already.
                   if (
                     route.fallbackRootParams &&
-                    route.fallbackRootParams.length > 0
+                    route.fallbackRootParams.length > 0 &&
+                    // We don't skip rendering the route if we have the
+                    // following enabled. This is because the flight data now
+                    // does not contain any of the route params and is instead
+                    // completely static.
+                    !(
+                      config.experimental.clientSegmentCache &&
+                      config.experimental.clientParamParsing
+                    )
                   ) {
                     return
                   }
@@ -2926,6 +3000,7 @@ export default async function build(
               outdir,
               statusMessage: 'Generating static pages',
               numWorkers: getNumberOfWorkers(exportConfig),
+              appDirOnly,
             },
             nextBuildSpan
           )
@@ -3158,12 +3233,25 @@ export default async function build(
                   dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
                 }
 
-                let prefetchDataRoute: string | null | undefined
+                let prefetchDataRoute: string | null = null
                 // While we may only write the `.rsc` when the route does not
                 // have PPR enabled, we still want to generate the route when
                 // deployed so it doesn't 404. If the app has PPR enabled, we
                 // should add this key.
-                if (!isAppRouteHandler && isAppPPREnabled) {
+                if (
+                  !isAppRouteHandler &&
+                  isAppPPREnabled &&
+                  // Don't add a prefetch data route if we have both
+                  // clientSegmentCache and clientParamParsing enabled. This is
+                  // because we don't actually use the prefetch data route in
+                  // this case. This only applies if we have PPR enabled for
+                  // this route.
+                  !(
+                    config.experimental.clientSegmentCache &&
+                    config.experimental.clientParamParsing &&
+                    isRoutePPREnabled
+                  )
+                ) {
                   prefetchDataRoute = path.posix.join(
                     `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
                   )
@@ -3236,14 +3324,25 @@ export default async function build(
                   dataRoute = path.posix.join(`${normalizedRoute}${RSC_SUFFIX}`)
                 }
 
-                let prefetchDataRoute: string | undefined
+                let prefetchDataRoute: string | null = null
                 let dynamicRoute = routesManifest.dynamicRoutes.find(
                   (r) => r.page === route.pathname
                 )
                 if (!isAppRouteHandler && isAppPPREnabled) {
-                  prefetchDataRoute = path.posix.join(
-                    `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
-                  )
+                  if (
+                    // Don't add a prefetch data route if we have both
+                    // clientSegmentCache and clientParamParsing enabled. This is
+                    // because we don't actually use the prefetch data route in
+                    // this case. This only applies if we have PPR enabled for
+                    // this route.
+                    !config.experimental.clientSegmentCache ||
+                    !config.experimental.clientParamParsing ||
+                    !isRoutePPREnabled
+                  ) {
+                    prefetchDataRoute = path.posix.join(
+                      `${normalizedRoute}${RSC_PREFETCH_SUFFIX}`
+                    )
+                  }
 
                   // If the dynamic route wasn't found, then we need to create
                   // it. This ensures that for each fallback shell there's an
@@ -3388,9 +3487,12 @@ export default async function build(
                   fallbackRootParams: fallback
                     ? route.fallbackRootParams
                     : undefined,
-                  fallbackSourceRoute: route.fallbackRouteParams?.length
-                    ? page
-                    : undefined,
+                  fallbackSourceRoute:
+                    route.fallbackRouteParams &&
+                    route.fallbackRouteParams.length > 0
+                      ? page
+                      : undefined,
+                  fallbackRouteParams: route.fallbackRouteParams,
                   dataRouteRegex: !dataRoute
                     ? null
                     : normalizeRouteRegex(
@@ -3551,6 +3653,13 @@ export default async function build(
                   .replace(/\\/g, '/')
 
                 if (existsSync(orig)) {
+                  // if 404.html folder doesn't exist, create it
+                  await fs.mkdir(
+                    path.dirname(
+                      path.join(distDir, 'server', updatedRelativeDest)
+                    ),
+                    { recursive: true }
+                  )
                   await fs.copyFile(
                     orig,
                     path.join(distDir, 'server', updatedRelativeDest)
@@ -3570,18 +3679,71 @@ export default async function build(
               })
           }
 
+          async function moveExportedAppGlobalErrorTo500() {
+            return staticGenerationSpan
+              .traceChild('move-exported-app-global-error-')
+              .traceAsyncFn(async () => {
+                // If static 500.html exists in pages router, don't move it
+                if (
+                  existsSync(path.join(distDir, 'server', 'pages', '500.html'))
+                ) {
+                  return
+                }
+
+                // Only handle 500.html generation for static export
+                const orig = path.join(
+                  distDir,
+                  'server',
+                  'app',
+                  '_global-error.html'
+                )
+                if (existsSync(orig)) {
+                  const error500Html = path.join(
+                    distDir,
+                    'server',
+                    'pages',
+                    '500.html'
+                  )
+
+                  // if 500.html folder doesn't exist, create it
+                  await fs.mkdir(path.dirname(error500Html), {
+                    recursive: true,
+                  })
+                  await fs.copyFile(orig, error500Html)
+
+                  pagesManifest['/500'] = path
+                    .join('pages', '500.html')
+                    .replace(/\\/g, '/')
+                }
+              })
+          }
+
           // If there's /not-found inside app, we prefer it over the pages 404
           if (hasStaticApp404) {
             await moveExportedAppNotFoundTo404()
           } else {
             // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
-            if (!hasPages404 && !hasApp404 && useStaticPages404) {
+            if (
+              !hasPages404 &&
+              !hasApp404 &&
+              useStaticPages404 &&
+              !appDirOnly
+            ) {
               await moveExportedPage('/_error', '/404', '/404', false, 'html')
             }
           }
 
-          if (useDefaultStatic500) {
+          if (useDefaultStatic500 && !appDirOnly) {
             await moveExportedPage('/_error', '/500', '/500', false, 'html')
+          }
+
+          // If there's app router and no pages router, use app router built-in 500.html
+          if (
+            hasStaticAppGlobalError &&
+            mappedAppPages &&
+            Object.keys(mappedAppPages).length > 0
+          ) {
+            await moveExportedAppGlobalErrorTo500()
           }
 
           for (const page of combinedPages) {
@@ -3772,7 +3934,10 @@ export default async function build(
       }
 
       const postBuildSpinner = createSpinner('Finalizing page optimization')
-      let buildTracesSpinner = createSpinner(`Collecting build traces`)
+      let buildTracesSpinner
+      if (buildTracesPromise) {
+        buildTracesSpinner = createSpinner('Collecting build traces')
+      }
 
       // ensure the worker is not left hanging
       worker.end()
@@ -3857,6 +4022,7 @@ export default async function build(
             fallbackExpire: undefined,
             fallbackSourceRoute: undefined,
             fallbackRootParams: undefined,
+            fallbackRouteParams: undefined,
             dataRouteRegex: normalizeRouteRegex(
               getNamedRouteRegex(dataRoute, {
                 prefixRouteKeys: true,
@@ -3937,7 +4103,8 @@ export default async function build(
           dir,
           enabledDirectories,
           configOutDir,
-          nextBuildSpan
+          nextBuildSpan,
+          appDirOnly
         )
       }
 
@@ -3945,6 +4112,9 @@ export default async function build(
         await handleBuildComplete({
           dir,
           distDir,
+          config,
+          staticPages,
+          nextVersion: process.env.__NEXT_VERSION as string,
           tracingRoot: outputFileTracingRoot,
           hasNodeMiddleware,
           hasInstrumentationHook,
@@ -4022,10 +4192,6 @@ export default async function build(
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur
 
-    if (isTurbopack && !process.env.__NEXT_TEST_MODE) {
-      warnAboutTurbopackBuilds()
-    }
-
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
     teardownTraceSubscriber()
@@ -4048,14 +4214,6 @@ function errorFromUnsupportedSegmentConfig(): never {
     `Invalid segment configuration export detected. This can cause unexpected behavior from the configs not being applied. You should see the relevant failures in the logs above. Please fix them to continue.`
   )
   process.exit(1)
-}
-
-function warnAboutTurbopackBuilds() {
-  Log.ready(
-    `Turbopack builds are ${bold('beta')}.\n\n` +
-      '   Please see our docs https://nextjs.org/docs/app/api-reference/turbopack for information on known differences with webpack builds.\n\n' +
-      '   Provide feedback for Turbopack builds at https://github.com/vercel/next.js/discussions/77721'
-  )
 }
 
 function getBundlerForTelemetry(isTurbopack: boolean) {

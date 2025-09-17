@@ -124,7 +124,6 @@ pub async fn get_edge_resolve_options_context(
         ty,
         ServerContextType::AppRSC { .. }
             | ServerContextType::AppRoute { .. }
-            | ServerContextType::PagesData { .. }
             | ServerContextType::Middleware { .. }
             | ServerContextType::Instrumentation { .. }
     ) {
@@ -147,14 +146,8 @@ pub async fn get_edge_resolve_options_context(
     )];
 
     // https://github.com/vercel/next.js/blob/bf52c254973d99fed9d71507a2e818af80b8ade7/packages/next/src/build/webpack-config.ts#L96-L102
-    let mut custom_conditions = vec![mode.await?.condition().into()];
-    custom_conditions.extend(
-        NextRuntime::Edge
-            .conditions()
-            .iter()
-            .map(ToString::to_string)
-            .map(RcStr::from),
-    );
+    let mut custom_conditions: Vec<_> = mode.await?.custom_resolve_conditions().collect();
+    custom_conditions.extend(NextRuntime::Edge.custom_resolve_conditions());
 
     if ty.should_use_react_server_condition() {
         custom_conditions.push(rcstr!("react-server"));
@@ -184,6 +177,9 @@ pub async fn get_edge_resolve_options_context(
             .typescript_tsconfig_path()
             .await?
             .as_ref()
+            // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
+            // resolve tsconfig.json relative to the file being compiled.
+            .or(Some(&RcStr::from("tsconfig.json")))
             .map(|p| project_path.join(p))
             .transpose()?,
         rules: vec![(

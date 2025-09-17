@@ -1,8 +1,8 @@
-import type { CacheNode } from '../../../../shared/lib/app-router-context.shared-runtime'
+import type { CacheNode } from '../../../../shared/lib/app-router-types'
 import type {
   FlightRouterState,
   FlightSegmentPath,
-} from '../../../../server/app-render/types'
+} from '../../../../shared/lib/app-router-types'
 import { fetchServerResponse } from '../fetch-server-response'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { invalidateCacheBelowFlightSegmentPath } from '../invalidate-cache-below-flight-segmentpath'
@@ -48,7 +48,7 @@ export function handleExternalUrl(
   return handleMutable(state, mutable)
 }
 
-function generateSegmentsFromPatch(
+export function generateSegmentsFromPatch(
   flightRouterPatch: FlightRouterState
 ): FlightSegmentPath[] {
   const segments: FlightSegmentPath[] = []

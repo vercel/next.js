@@ -48,9 +48,7 @@
         span: 95..113,
     },
     FreeVar {
-        var: FreeVar(
-            "EdgeRuntime",
-        ),
+        var: "EdgeRuntime",
         ast_path: [
             Program(
                 Module,
@@ -124,9 +122,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "require",
-                        ),
+                        var: "require",
                         ast_path: [
                             Program(
                                 Module,

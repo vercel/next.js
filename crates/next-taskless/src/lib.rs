@@ -30,7 +30,7 @@ pub fn expand_next_js_template<'a>(
     fn replace_all<E>(
         re: &regex::Regex,
         haystack: &str,
-        mut replacement: impl FnMut(&regex::Captures) -> Result<String, E>,
+        mut replacement: impl FnMut(&regex::Captures<'_>) -> Result<String, E>,
     ) -> Result<String, E> {
         let mut new = String::with_capacity(haystack.len());
         let mut last_match = 0;

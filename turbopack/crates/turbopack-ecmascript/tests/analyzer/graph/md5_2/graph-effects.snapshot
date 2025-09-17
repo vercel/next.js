@@ -1,8 +1,6 @@
 [
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -247,9 +245,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -418,9 +414,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -665,9 +659,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -941,9 +933,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "String",
-        ),
+        var: "String",
         ast_path: [
             Program(
                 Script,
@@ -2632,9 +2622,7 @@
                                         in_try: false,
                                     },
                                     FreeVar {
-                                        var: FreeVar(
-                                            "Array",
-                                        ),
+                                        var: "Array",
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -3134,9 +3122,7 @@
                                         in_try: false,
                                     },
                                     FreeVar {
-                                        var: FreeVar(
-                                            "Array",
-                                        ),
+                                        var: "Array",
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -28703,9 +28689,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "module",
-        ),
+        var: "module",
         ast_path: [
             Program(
                 Script,
@@ -28779,9 +28763,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "undefined",
-        ),
+        var: "undefined",
         ast_path: [
             Program(
                 Script,
@@ -28914,9 +28896,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "Error",
-                        ),
+                        var: "Error",
                         ast_path: [
                             Program(
                                 Script,

@@ -257,6 +257,157 @@ function runTests(mode) {
     }
   })
 
+  it('should work with preload prop', async () => {
+    let browser
+    try {
+      browser = await webdriver(appPort, '/preload')
+
+      await check(async () => {
+        const result = await browser.eval(
+          `document.getElementById('basic-image').naturalWidth`
+        )
+
+        if (result === 0) {
+          throw new Error('Incorrectly loaded image')
+        }
+
+        return 'result-correct'
+      }, /result-correct/)
+
+      const links = await browser.elementsByCss('link[rel=preload][as=image]')
+      const entries = []
+      for (const link of links) {
+        const fetchpriority = await link.getAttribute('fetchpriority')
+        const imagesrcset = await link.getAttribute('imagesrcset')
+        const imagesizes = await link.getAttribute('imagesizes')
+        const crossorigin = await link.getAttribute('crossorigin')
+        const referrerpolicy = await link.getAttribute('referrerPolicy')
+        entries.push({
+          fetchpriority,
+          imagesrcset,
+          imagesizes,
+          crossorigin,
+          referrerpolicy,
+        })
+      }
+
+      expect(
+        entries.find(
+          (item) =>
+            item.imagesrcset ===
+            '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x'
+        )
+      ).toEqual({
+        fetchpriority: '',
+        imagesizes: '',
+        imagesrcset:
+          '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x',
+        crossorigin: 'use-credentials',
+        referrerpolicy: '',
+      })
+
+      expect(
+        entries.find(
+          (item) =>
+            item.imagesrcset ===
+            '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+        )
+      ).toEqual({
+        fetchpriority: '',
+        imagesizes: '100vw',
+        imagesrcset:
+          '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
+        crossorigin: '',
+        referrerpolicy: '',
+      })
+
+      expect(
+        entries.find(
+          (item) =>
+            item.imagesrcset ===
+            '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x'
+        )
+      ).toEqual({
+        fetchpriority: '',
+        imagesizes: '',
+        imagesrcset:
+          '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x',
+        crossorigin: '',
+        referrerpolicy: 'no-referrer',
+      })
+
+      expect(
+        entries.find(
+          (item) =>
+            item.imagesrcset ===
+            '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x'
+        )
+      ).toEqual({
+        fetchpriority: '',
+        imagesizes: '',
+        imagesrcset:
+          '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x',
+        crossorigin: '',
+        referrerpolicy: '',
+      })
+
+      // When preload={true}, we should _not_ set loading="lazy"
+      expect(
+        await browser.elementById('basic-image').getAttribute('loading')
+      ).toBe(null)
+      expect(
+        await browser.elementById('load-eager').getAttribute('loading')
+      ).toBe('eager')
+      expect(
+        await browser.elementById('responsive1').getAttribute('loading')
+      ).toBe(null)
+      expect(
+        await browser.elementById('responsive2').getAttribute('loading')
+      ).toBe(null)
+
+      // When preload={true}, we not should set fetchpriority="high"
+      expect(
+        await browser.elementById('basic-image').getAttribute('fetchpriority')
+      ).toBe(null)
+      expect(
+        await browser.elementById('load-eager').getAttribute('fetchpriority')
+      ).toBe(null)
+      expect(
+        await browser.elementById('responsive1').getAttribute('fetchpriority')
+      ).toBe(null)
+      expect(
+        await browser.elementById('responsive2').getAttribute('fetchpriority')
+      ).toBe(null)
+
+      // Setting fetchPriority="low" directly should pass-through to <img>
+      expect(
+        await browser.elementById('pri-low').getAttribute('fetchpriority')
+      ).toBe('low')
+      expect(await browser.elementById('pri-low').getAttribute('loading')).toBe(
+        'lazy'
+      )
+
+      expect(
+        await browser.elementById('belowthefold').getAttribute('fetchpriority')
+      ).toBe(null)
+      expect(
+        await browser.elementById('belowthefold').getAttribute('loading')
+      ).toBe(null)
+
+      const warnings = (await browser.log())
+        .map((log) => log.message)
+        .join('\n')
+      expect(warnings).not.toMatch(
+        /was detected as the Largest Contentful Paint/gm
+      )
+      expect(warnings).not.toMatch(/React does not recognize the (.+) prop/gm)
+    } finally {
+      if (browser) {
+        await browser.close()
+      }
+    }
+  })
+
   it('should not pass through user-provided srcset (causing a flash)', async () => {
     const html = await renderViaHTTP(appPort, '/drop-srcset')
     const $html = cheerio.load(html)
@@ -794,10 +945,10 @@ function runTests(mode) {
     expect(await img.getAttribute('data-nimg')).toBe('fill')
     expect(await img.getAttribute('sizes')).toBe('200px')
     expect(await img.getAttribute('src')).toBe(
-      '/_next/image?url=%2Ftest.jpg&w=3840&q=50'
+      '/_next/image?url=%2Ftest.jpg&w=3840&q=75'
     )
     expect(await img.getAttribute('srcset')).toContain(
-      '/_next/image?url=%2Ftest.jpg&w=640&q=50 640w,'
+      '/_next/image?url=%2Ftest.jpg&w=640&q=75 640w,'
     )
     expect(await img.getAttribute('style')).toBe(
       'position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;object-position:10% 10%;color:transparent'
@@ -1062,7 +1213,7 @@ function runTests(mode) {
         .join('\n')
       await assertNoRedbox(browser)
       expect(warnings).toMatch(
-        /Image with src (.*)jpg(.*) is using quality "50" which is not configured in images.qualities. This config will be required starting in Next.js 16./gm
+        /Image with src (.*)jpg(.*) is using quality "50" which is not configured in images.qualities \[75\]. Please update your config to \[50, 75\]/gm
       )
     })
 
@@ -1079,8 +1230,8 @@ function runTests(mode) {
       expect(warnings).not.toMatch(/cannot appear as a descendant/gm)
     })
 
-    it('should warn when priority prop is missing on LCP image', async () => {
-      let browser = await webdriver(appPort, '/priority-missing-warning')
+    it('should warn when preload prop is missing on LCP image', async () => {
+      let browser = await webdriver(appPort, '/preload-missing-warning')
       try {
         // Wait for image to load:
         await check(async () => {

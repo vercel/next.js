@@ -76,13 +76,9 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
         let module = this.module.await?;
 
         let id = if let Some(placeable) =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(*module.inner).await?
+            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module.inner)
         {
-            Some(
-                placeable
-                    .chunk_item_id(*ResolvedVc::upcast(this.chunking_context))
-                    .await?,
-            )
+            Some(placeable.chunk_item_id(*this.chunking_context).await?)
         } else {
             None
         };
@@ -171,7 +167,7 @@ impl ChunkItem for AsyncLoaderChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
