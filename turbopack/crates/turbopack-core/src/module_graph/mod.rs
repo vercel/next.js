@@ -1109,7 +1109,7 @@ impl ModuleGraph {
         let graphs = &graph_ref.graphs;
         let async_modules_info = self.async_module_info().await?;
 
-        let entry = graph_ref.get_entry(module).await?;
+        let entry = graph_ref.get_entry(module)?;
         let referenced_modules =
             iter_neighbors_rev(&graphs[entry.graph_idx()].graph, entry.node_idx)
                 .filter(|(edge_idx, _)| {
@@ -1206,7 +1206,7 @@ pub struct ModuleGraphRef {
 }
 
 impl ModuleGraphRef {
-    async fn get_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<GraphNodeIndex> {
+    fn get_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<GraphNodeIndex> {
         let Some(idx) = self
             .graphs
             .iter()
@@ -1218,17 +1218,7 @@ impl ModuleGraphRef {
                 })
             })
         else {
-            bail!(
-                "Couldn't find entry module {} in module graph (potential entries: {:?})",
-                entry.ident().to_string().await?,
-                self.graphs
-                    .iter()
-                    .flat_map(|g| g.entries.iter())
-                    .flat_map(|e| e.entries())
-                    .map(|e| e.ident().to_string())
-                    .try_join()
-                    .await?
-            );
+            bail!("Couldn't find entry module in module graph");
         };
         Ok(idx)
     }
@@ -1271,8 +1261,7 @@ impl ModuleGraphRef {
             entries
                 .into_iter()
                 .map(|e| self.get_entry(e))
-                .try_join()
-                .await?,
+                .collect::<Result<Vec<_>>>()?,
         );
         let mut visited = HashSet::new();
         for entry_node in &queue {
@@ -1325,7 +1314,7 @@ impl ModuleGraphRef {
         let entries = entries.into_iter();
         let mut stack = Vec::with_capacity(entries.size_hint().0);
         for entry in entries {
-            stack.push(self.get_entry(entry).await?);
+            stack.push(self.get_entry(entry)?);
         }
         let mut visited = HashSet::new();
         for entry_node in &stack {
@@ -1436,7 +1425,7 @@ impl ModuleGraphRef {
         let mut stack: Vec<(Pass, Option<(GraphNodeIndex, EdgeIndex)>, GraphNodeIndex)> =
             Vec::with_capacity(entries.len());
         for entry in entries.into_iter().rev() {
-            stack.push((Pass::ExpandAndVisit, None, self.get_entry(entry).await?));
+            stack.push((Pass::ExpandAndVisit, None, self.get_entry(entry)?));
         }
         let mut expanded = HashSet::new();
         while let Some((pass, parent, current)) = stack.pop() {
@@ -1566,15 +1555,15 @@ impl ModuleGraphRef {
         let mut queue = BinaryHeap::from_iter(
             entries
                 .into_iter()
-                .map(async |(m, priority)| {
+                .map(|(m, priority)| {
                     Ok(NodeWithPriority {
-                        node: self.get_entry(m).await?,
+                        node: self.get_entry(m)?,
                         priority,
                     })
                 })
-                .try_join()
-                .await?,
+                .collect::<Result<Vec<_>>>()?,
         );
+
         for entry_node in &queue {
             visit(None, get_node!(graphs, entry_node.node)?, state)?;
         }
