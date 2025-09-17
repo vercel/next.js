@@ -366,7 +366,10 @@ export async function writeRouteTypesManifest(
   // Write the link.d.ts file if typedRoutes is enabled
   if (config.typedRoutes === true) {
     const linkTypesPath = path.join(dirname, 'link.d.ts')
-    await fs.promises.writeFile(linkTypesPath, generateLinkTypesFile(manifest))
+    await fs.promises.writeFile(
+      linkTypesPath,
+      generateLinkTypesFile(manifest, config)
+    )
   }
 }
 

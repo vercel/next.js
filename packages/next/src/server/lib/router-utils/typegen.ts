@@ -1,5 +1,6 @@
 import type { RouteTypesManifest } from './route-types-utils'
 import { isDynamicRoute } from '../../../shared/lib/router/utils/is-dynamic'
+import type { NextConfigComplete } from '../../config-shared'
 
 function generateRouteTypes(routesManifest: RouteTypesManifest): string {
   const appRoutes = Object.keys(routesManifest.appRoutes).sort()
@@ -198,7 +199,8 @@ function serializeRouteTypes(routeTypes: string[]) {
 }
 
 export function generateLinkTypesFile(
-  routesManifest: RouteTypesManifest
+  routesManifest: RouteTypesManifest,
+  config: NextConfigComplete
 ): string {
   // Generate serialized static and dynamic routes for the internal namespace
   // Build a unified set of routes across app/pages/redirect/rewrite as well as
@@ -223,7 +225,9 @@ export function generateLinkTypesFile(
     if (isDynamic) {
       dynamicRouteTypes.push(routeType)
     } else {
-      staticRouteTypes.push(routeType)
+      staticRouteTypes.push(
+        config.trailingSlash && route !== '/' ? `${routeType}/` : routeType
+      )
     }
   }
 
