@@ -522,7 +522,8 @@ async fn process_default_internal(
 
             match ty {
                 ImportWithType::Json => Some(ModuleType::Json),
-                ImportWithType::Bytes => Some(ModuleType::InlinedBytesJs),
+                // Reenable this once `import {type: "bytes"}` is stabilized
+                ImportWithType::Bytes => None,
             }
         }
         _ => None,

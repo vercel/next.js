@@ -472,6 +472,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         turbopackTreeShaking: z.boolean().optional(),
         turbopackRemoveUnusedExports: z.boolean().optional(),
         turbopackScopeHoisting: z.boolean().optional(),
+        turbopackImportTypeBytes: z.boolean().optional(),
         turbopackUseSystemTlsCerts: z.boolean().optional(),
         turbopackUseBuiltinBabel: z.boolean().optional(),
         turbopackUseBuiltinSass: z.boolean().optional(),
