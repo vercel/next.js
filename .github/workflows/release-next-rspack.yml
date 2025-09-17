@@ -25,7 +25,7 @@ env:
 jobs:
   build:
     name: Build
-    uses: rspack-contrib/rspack-toolchain/.github/workflows/build.yml@v1
+    uses: rspack-contrib/rspack-toolchain/.github/workflows/build.yml@v1.0.3
     with:
       package-json-path: rspack/crates/binding/package.json
       napi-build-command: pnpm build --release
@@ -78,12 +78,12 @@ jobs:
 
       - name: Get NAPI info
         id: napi-info
-        uses: rspack-contrib/rspack-toolchain/get-napi-info@v1
+        uses: rspack-contrib/rspack-toolchain/get-napi-info@v1.0.3
         with:
           package-json-path: rspack/crates/binding/package.json
 
       - name: Download rspack binding
-        uses: rspack-contrib/rspack-toolchain/download-rspack-binding@v1
+        uses: rspack-contrib/rspack-toolchain/download-rspack-binding@v1.0.3
         with:
           path: ${{ steps.napi-info.outputs.binding-directory }}/artifacts
 
@@ -113,7 +113,7 @@ jobs:
         run: |
           npm config set access public
           npm config set provenance true
-          pnpm napi pre-publish --no-gh-release -t npm
+          pnpm napi pre-publish --no-gh-release -t npm ${{ inputs.dry-run && '--dry-run' || '' }}
         working-directory: ${{ steps.napi-info.outputs.binding-directory }}
 
       - name: Release npm packages
