@@ -492,9 +492,12 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     let after_index = lists.len();
                     lists.push(after_list.clone());
                     for (i, &m) in after_list.iter().enumerate() {
-                        let occurrences = lists_reverse_indices
-                            .get_mut(&m)
-                            .context(format!("{:?}", m.ident().to_string().await?))?;
+                        let Some(occurrences) = lists_reverse_indices.get_mut(&m) else {
+                            bail!(
+                                "Couldn't find module in list {:?}",
+                                m.ident().to_string().await?,
+                            );
+                        };
 
                         let removed = occurrences.swap_remove(&ListOccurrence {
                             list: common_occurrence.list,
