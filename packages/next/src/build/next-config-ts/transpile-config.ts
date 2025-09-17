@@ -158,10 +158,7 @@ export async function transpileConfig({
 
     return handleCJS({ cwd, nextConfigPath, compilerOptions })
   } catch (cause) {
-    throw new Error(
-      `Failed to transpile "${configFileName}". Learn more: https://nextjs.org/docs/app/api-reference/config/typescript#using-nodejs-native-typescript-resolver-for-nextconfigts`,
-      { cause }
-    )
+    throw new Error(`Failed to transpile "${configFileName}".`, { cause })
   }
 }
 
