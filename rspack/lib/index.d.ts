@@ -1,5 +1,5 @@
 import * as RspackCore from '@rspack/core'
-import { NapiNextExternalsPluginOptions } from '@next-rspack/binding'
+import { NapiNextExternalsPluginOptions } from '@next/rspack-binding'
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 declare class NextExternalsPlugin {

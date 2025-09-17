@@ -1,5 +1,5 @@
 {
-  "name": "@next-rspack/binding",
+  "name": "@next/rspack-binding",
   "version": "0.0.1-canary.2",
   "homepage": "https://nextjs.org",
   "bugs": {

@@ -1,5 +1,5 @@
 {
-  "name": "@next-rspack/core",
+  "name": "@next/rspack-core",
   "version": "0.0.1-canary.2",
   "homepage": "https://nextjs.org",
   "bugs": {
@@ -23,10 +23,10 @@
     "lib"
   ],
   "scripts": {
-    "build": "pnpm run --filter @next-rspack/binding build"
+    "build": "pnpm run --filter @next/rspack-binding build"
   },
   "dependencies": {
     "@rspack/core": "1.4.10",
-    "@next-rspack/binding": "workspace:*"
+    "@next/rspack-core": "workspace:*"
   }
 }

@@ -1,8 +1,8 @@
 process.env.RSPACK_BINDING = require('node:path').dirname(
-  require.resolve('@next-rspack/binding')
+  require.resolve('@next/rspack-binding')
 )
 
-const binding = require('@next-rspack/binding')
+const binding = require('@next/rspack-binding')
 
 // Register the plugin `NextExternalsPlugin` exported by `crates/binding/src/lib.rs`.
 binding.registerNextExternalsPlugin()
