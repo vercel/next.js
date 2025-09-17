@@ -437,7 +437,7 @@ export interface ExperimentalConfig {
   turbopackMinify?: boolean
 
   /**
-   * Enable minification. Defaults to true in build mode and false in dev mode.
+   * Enable support for `with {type: "module"}` for ESM imports.
    */
   turbopackImportTypeBytes?: boolean
 
