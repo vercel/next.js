@@ -471,9 +471,9 @@ pub fn project_new(
                     benchmark_file_io(tt, container.project().node_root().owned().await?).await
                 };
                 if let Err(err) = future.await {
-                    // TODO this tracing warn will go into the void. Should we change this to
-                    // stdout?
-                    tracing::warn!(%err, "failed to benchmark file IO");
+                    // TODO Not ideal to print directly to stdout.
+                    // We should use a compilation event instead to report async errors.
+                    println!("Failed to benchmark file IO: {err}");
                 }
             })
         });
