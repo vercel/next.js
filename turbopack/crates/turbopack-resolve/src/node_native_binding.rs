@@ -14,7 +14,10 @@ use turbopack_core::{
     file_source::FileSource,
     raw_module::RawModule,
     reference::ModuleReference,
-    resolve::{ModuleResolveResult, RequestKey, ResolveResultItem, pattern::Pattern, resolve_raw},
+    resolve::{
+        ModuleResolveResult, RequestKey, ResolveResultItem, options::ResolveOptions,
+        pattern::Pattern, resolve_raw,
+    },
     source::Source,
     target::{CompileTarget, Platform},
 };
@@ -222,15 +225,21 @@ pub async fn resolve_node_pre_gyp_files(
 #[derive(Hash, Clone, Debug)]
 pub struct NodeGypBuildReference {
     pub context_dir: FileSystemPath,
+    pub resolve_options: ResolvedVc<ResolveOptions>,
     pub compile_target: ResolvedVc<CompileTarget>,
 }
 
 #[turbo_tasks::value_impl]
 impl NodeGypBuildReference {
     #[turbo_tasks::function]
-    pub fn new(context_dir: FileSystemPath, compile_target: ResolvedVc<CompileTarget>) -> Vc<Self> {
+    pub fn new(
+        context_dir: FileSystemPath,
+        resolve_options: ResolvedVc<ResolveOptions>,
+        compile_target: ResolvedVc<CompileTarget>,
+    ) -> Vc<Self> {
         Self::cell(NodeGypBuildReference {
             context_dir,
+            resolve_options,
             compile_target,
         })
     }
@@ -240,7 +249,11 @@ impl NodeGypBuildReference {
 impl ModuleReference for NodeGypBuildReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        resolve_node_gyp_build_files(self.context_dir.clone(), *self.compile_target)
+        resolve_node_gyp_build_files(
+            self.context_dir.clone(),
+            *self.resolve_options,
+            *self.compile_target,
+        )
     }
 }
 
@@ -259,6 +272,7 @@ impl ValueToString for NodeGypBuildReference {
 #[turbo_tasks::function]
 pub async fn resolve_node_gyp_build_files(
     context_dir: FileSystemPath,
+    resolve_options: Vc<ResolveOptions>,
     compile_target: Vc<CompileTarget>,
 ) -> Result<Vc<ModuleResolveResult>> {
     // TODO Proper parser
@@ -266,11 +280,15 @@ pub async fn resolve_node_gyp_build_files(
         Regex::new(r#"['"]target_name['"]\s*:\s*(?:"(.*?)"|'(.*?)')"#)
             .expect("create napi_build_version regex failed")
     });
+    let collect_affecting_sources = resolve_options.await?.collect_affecting_sources;
     let binding_gyp_pat = Pattern::new(Pattern::Constant(rcstr!("binding.gyp")));
     let gyp_file = resolve_raw(context_dir.clone(), binding_gyp_pat, true);
     if let [binding_gyp] = &gyp_file.primary_sources().await?[..] {
-        let mut merged_affecting_sources =
-            gyp_file.await?.get_affecting_sources().collect::<Vec<_>>();
+        let mut merged_affecting_sources = if collect_affecting_sources {
+            gyp_file.await?.get_affecting_sources().collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
         if let AssetContent::File(file) = &*binding_gyp.content().await?
             && let FileContent::Content(config_file) = &*file.await?
             && let Some(captured) = GYP_BUILD_TARGET_NAME.captures(&config_file.content().to_str()?)
@@ -290,8 +308,10 @@ pub async fn resolve_node_gyp_build_files(
                     resolved_prebuilt_file.primary.first()
                 {
                     resolved.insert(format!("build/Release/{name}.node").into(), *source);
-                    merged_affecting_sources
-                        .extend(resolved_prebuilt_file.affecting_sources.iter().copied());
+                    if collect_affecting_sources {
+                        merged_affecting_sources
+                            .extend(resolved_prebuilt_file.affecting_sources.iter().copied());
+                    }
                 }
             }
             if !resolved.is_empty() {

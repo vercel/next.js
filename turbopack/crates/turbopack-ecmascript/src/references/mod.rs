@@ -554,7 +554,7 @@ pub async fn analyse_ecmascript_module_internal(
     if analyze_types {
         let span = tracing::info_span!("tsconfig reference");
         async {
-            match &*find_context_file(path.parent(), tsconfig()).await? {
+            match &*find_context_file(path.parent(), tsconfig(), false).await? {
                 FindContextFileResult::Found(tsconfig, _) => {
                     analysis.add_reference(
                         TsConfigReference::new(*origin, tsconfig.clone())
@@ -2218,6 +2218,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     analysis.add_reference(
                         NodeGypBuildReference::new(
                             current_context,
+                            origin.resolve_options(ReferenceType::Undefined).await?,
                             compile_time_info.environment().compile_target(),
                         )
                         .to_resolved()

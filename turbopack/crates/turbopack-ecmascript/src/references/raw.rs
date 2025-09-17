@@ -35,6 +35,7 @@ impl ModuleReference for FileSourceReference {
             pattern = display(self.path.to_string().await?)
         );
         async {
+            // `resolve_raw` does not collect affecting sources, is that correct?
             resolve_raw(context_dir, *self.path, false)
                 .as_raw_module_result()
                 .resolve()

@@ -688,6 +688,7 @@ pub async fn externals_tracing_module_context(
         enable_node_native_modules: true,
         emulate_environment: Some(compile_time_info.await?.environment),
         loose_errors: true,
+        collect_affecting_sources: true,
         custom_conditions: match ty {
             ExternalType::CommonJs => vec![rcstr!("require"), rcstr!("node")],
             ExternalType::EcmaScriptModule => vec![rcstr!("import"), rcstr!("node")],
