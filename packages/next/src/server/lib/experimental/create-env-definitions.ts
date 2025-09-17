@@ -41,7 +41,7 @@ export {}`
     // we expect the types directory to already exist
     const envDtsPath = join(distDir, 'types', 'env.d.ts')
     // do not await, this is not essential for further process
-    writeFile(envDtsPath, definitionStr, 'utf-8')
+    await writeFile(envDtsPath, definitionStr, 'utf-8')
   } catch (e) {
     console.error('Failed to write env.d.ts:', e)
   }
