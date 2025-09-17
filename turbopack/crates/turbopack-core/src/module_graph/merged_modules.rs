@@ -73,8 +73,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         included_modules = tracing::field::Empty
     );
 
-    let start = std::time::Instant::now();
-
     let span = span_outer.clone();
     async move {
         let async_module_info = module_graph.async_module_info().await?;
@@ -206,8 +204,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         drop(inner_span);
         let inner_span = tracing::info_span!("chunk group collection").entered();
 
-        let after_fixed_point = std::time::Instant::now();
-
         span.record("visit_count", visit_count);
 
         #[derive(Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -326,8 +322,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         drop(inner_span);
         let inner_span = tracing::info_span!("exposed computation").entered();
-
-        let after_chunk_groups = std::time::Instant::now();
 
         // We use list.pop() below, so reverse order using negation
         lists_reverse_indices
@@ -524,8 +518,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         // Dedupe the lists
         let lists = lists.into_iter().collect::<FxHashSet<_>>();
 
-        let after_reconcile = std::time::Instant::now();
-
         drop(inner_span);
         let inner_span = tracing::info_span!("merging");
         // Call MergeableModule impl to merge the modules.
@@ -612,23 +604,6 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         span.record("merged_groups", replacements.len());
         span.record("included_modules", included.len());
-
-        let end = std::time::Instant::now();
-
-        println!(
-            "Merged modules groups in {} ms (fixed_point: {}, chunk_groups: {}, reconcile: {}), \
-             {} modules, {} visits",
-            after_fixed_point.duration_since(start).as_millis(),
-            after_chunk_groups
-                .duration_since(after_fixed_point)
-                .as_millis(),
-            after_reconcile
-                .duration_since(after_chunk_groups)
-                .as_millis(),
-            end.duration_since(start).as_millis(),
-            module_count,
-            visit_count
-        );
 
         Ok(MergedModuleInfo {
             replacements,
