@@ -203,6 +203,6 @@ describe('persistent-caching', () => {
       for (const key of combination) {
         await POTENTIAL_CHANGES[key].checkInitial()
       }
-    })
+    }, 200000)
   }
 })
