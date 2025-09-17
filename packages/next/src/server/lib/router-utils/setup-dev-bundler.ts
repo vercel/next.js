@@ -732,7 +732,7 @@ async function startWatcher(
           writeEnvDefinitions = true
 
           await propagateServerField(opts, 'loadEnvConfig', [
-            { dev: true, forceReload: true, silent: true },
+            { dev: true, forceReload: true },
           ])
         }
 
@@ -1075,11 +1075,9 @@ async function startWatcher(
             const { loadedEnvFiles } = loadEnvConfig(
               dir,
               process.env.NODE_ENV === 'development',
-              Log,
-              true,
-              (envFilePath) => {
-                Log.info(`Reload env: ${envFilePath}`)
-              }
+              // Silent as it's the second time `loadEnvConfig` is called in this pass.
+              undefined,
+              true
             )
 
             await createEnvDefinitions({
