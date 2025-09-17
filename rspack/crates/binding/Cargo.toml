@@ -23,6 +23,9 @@ rustc-hash   = { version = "2.1.1" }
 napi        = { version = "=3.2.2" }
 napi-derive = { version = "=3.2.2" }
 
+anyhow     = { version = "1.0.95" }
+serde_json = { version = "1.0.134" }
+
 next-taskless = { path = "../../../crates/next-taskless" }
 
 # Enable SWC plugin feature for targets that support it
