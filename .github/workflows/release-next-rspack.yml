@@ -25,12 +25,11 @@ env:
 jobs:
   build:
     name: Build
-    uses: SyMind/rspack-toolchain/.github/workflows/build.yml@d86e48f6095dd7c2dfd71d0cb95761641a78d734
+    uses: SyMind/rspack-toolchain/.github/workflows/build.yml@9253af6151b394a3ad70a603f1380e601ed3aba5
     with:
       package-json-path: rspack/crates/binding/package.json
       napi-build-command: pnpm build --release
       working-directory: rspack
-      rust-toolchain: nightly-2025-05-30
 
   release:
     runs-on: ubuntu-latest
