@@ -11,15 +11,6 @@ const nextConfig = {
         {
           source: '/:first/~/overview/:path*',
           destination: '/404',
-          missing: [
-            // Ensure that during static page revalidations, we don't consider
-            // this rule. The presence of this header indicates that the request
-            // is being revalidated by Vercel.
-            {
-              type: 'header',
-              key: 'x-now-route-matches',
-            },
-          ],
         },
         {
           source: '/:first',

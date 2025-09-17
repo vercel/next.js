@@ -816,9 +816,7 @@ export abstract class RouteModule<
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest.config
 
-    let resolvedPathname =
-      getRequestMeta(req, 'rewroteURL') || normalizedSrcPage
-
+    let resolvedPathname = normalizedSrcPage
     if (isDynamicRoute(resolvedPathname) && params) {
       resolvedPathname = serverUtils.interpolateDynamicPath(
         resolvedPathname,
