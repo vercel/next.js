@@ -19,7 +19,7 @@ use turbo_tasks::{
 use crate::{
     chunk::ChunkingType,
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph, RefData, SingleModuleGraphModuleNode},
+    module_graph::{GraphTraversalAction, ModuleGraphRef, RefData, SingleModuleGraphModuleNode},
 };
 
 #[derive(
@@ -368,7 +368,7 @@ impl Ord for TraversalPriority {
     }
 }
 
-pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGroupInfo>> {
+pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<ChunkGroupInfo>> {
     let span_outer = tracing::info_span!(
         "compute chunk group info",
         module_count = tracing::field::Empty,
@@ -389,12 +389,16 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
             FxHashMap::default();
 
-        let graphs = graph.graphs.iter().try_join().await?;
-        let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
+        let module_count = graph
+            .graphs
+            .iter()
+            .map(|g| g.graph.node_count())
+            .sum::<usize>();
         span.record("module_count", module_count);
 
         // use all entries from all graphs
-        let entries = graphs
+        let entries = graph
+            .graphs
             .iter()
             .flat_map(|g| g.entries.iter())
             .collect::<Vec<_>>();
@@ -476,7 +480,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
         }
 
-        let entry_chunk_group_keys = graphs
+        let entry_chunk_group_keys = graph
+            .graphs
             .iter()
             .flat_map(|g| g.entries.iter())
             .flat_map(|chunk_group| {

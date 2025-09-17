@@ -1060,8 +1060,8 @@ impl ModuleGraph {
     }
 
     #[turbo_tasks::function]
-    pub async fn chunk_group_info(&self) -> Result<Vc<ChunkGroupInfo>> {
-        compute_chunk_group_info(self).await
+    pub async fn chunk_group_info(self: Vc<Self>) -> Result<Vc<ChunkGroupInfo>> {
+        compute_chunk_group_info(&self.read_graphs().await?).await
     }
 
     #[turbo_tasks::function]
@@ -1105,11 +1105,11 @@ impl ModuleGraph {
         self: Vc<Self>,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<AsyncModuleInfo>> {
-        let this = self.await?;
-        let graphs = this.get_graphs().await?;
+        let graph_ref = self.read_graphs().await?;
+        let graphs = &graph_ref.graphs;
         let async_modules_info = self.async_module_info().await?;
 
-        let entry = ModuleGraph::get_entry(&graphs, module).await?;
+        let entry = graph_ref.get_entry(module).await?;
         let referenced_modules =
             iter_neighbors_rev(&graphs[entry.graph_idx()].graph, entry.node_idx)
                 .filter(|(edge_idx, _)| {
@@ -1192,24 +1192,36 @@ macro_rules! get_node_idx {
 pub(crate) use get_node_idx;
 
 impl ModuleGraph {
-    pub async fn get_graphs(&self) -> Result<Vec<ReadRef<SingleModuleGraph>>> {
-        self.graphs.iter().try_join().await
+    pub async fn read_graphs(self: Vc<ModuleGraph>) -> Result<ModuleGraphRef> {
+        Ok(ModuleGraphRef {
+            graphs: self.await?.graphs.iter().try_join().await?,
+        })
     }
+}
 
-    async fn get_entry(
-        graphs: &[ReadRef<SingleModuleGraph>],
-        entry: ResolvedVc<Box<dyn Module>>,
-    ) -> Result<GraphNodeIndex> {
-        let Some(idx) = graphs.iter().enumerate().find_map(|(graph_idx, graph)| {
-            graph.modules.get(&entry).map(|node_idx| GraphNodeIndex {
-                graph_idx: u32::try_from(graph_idx).unwrap(),
-                node_idx: *node_idx,
+/// The ReadRef version of ModuleGraph. This is better for eventual consistency, as the graphs
+/// aren't awaited multiple times within the same task.
+pub struct ModuleGraphRef {
+    pub graphs: Vec<ReadRef<SingleModuleGraph>>,
+}
+
+impl ModuleGraphRef {
+    async fn get_entry(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<GraphNodeIndex> {
+        let Some(idx) = self
+            .graphs
+            .iter()
+            .enumerate()
+            .find_map(|(graph_idx, graph)| {
+                graph.modules.get(&entry).map(|node_idx| GraphNodeIndex {
+                    graph_idx: u32::try_from(graph_idx).unwrap(),
+                    node_idx: *node_idx,
+                })
             })
-        }) else {
+        else {
             bail!(
                 "Couldn't find entry module {} in module graph (potential entries: {:?})",
                 entry.ident().to_string().await?,
-                graphs
+                self.graphs
                     .iter()
                     .flat_map(|g| g.entries.iter())
                     .flat_map(|e| e.entries())
@@ -1225,8 +1237,7 @@ impl ModuleGraph {
     /// This is primarily useful for debugging.
     pub async fn get_ids(&self) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>>> {
         Ok(self
-            .get_graphs()
-            .await?
+            .graphs
             .iter()
             .flat_map(|g| g.iter_nodes())
             .map(async |n| Ok((n.module, n.module.ident().to_string().await?)))
@@ -1254,12 +1265,12 @@ impl ModuleGraph {
             &'_ SingleModuleGraphModuleNode,
         ) -> Result<GraphTraversalAction>,
     ) -> Result<()> {
-        let graphs = self.get_graphs().await?;
+        let graphs = &self.graphs;
 
         let mut queue = VecDeque::from(
             entries
                 .into_iter()
-                .map(|e| ModuleGraph::get_entry(&graphs, e))
+                .map(|e| self.get_entry(e))
                 .try_join()
                 .await?,
         );
@@ -1309,12 +1320,12 @@ impl ModuleGraph {
             &'_ SingleModuleGraphModuleNode,
         ) -> GraphTraversalAction,
     ) -> Result<()> {
-        let graphs = self.get_graphs().await?;
+        let graphs = &self.graphs;
 
         let entries = entries.into_iter();
         let mut stack = Vec::with_capacity(entries.size_hint().0);
         for entry in entries {
-            stack.push(ModuleGraph::get_entry(&graphs, entry).await?);
+            stack.push(self.get_entry(entry).await?);
         }
         let mut visited = HashSet::new();
         for entry_node in &stack {
@@ -1359,9 +1370,9 @@ impl ModuleGraph {
             &'_ SingleModuleGraphModuleNode,
         ) -> Result<()>,
     ) -> Result<()> {
-        let graphs = self.get_graphs().await?;
+        let graphs = &self.graphs;
 
-        for graph in &graphs {
+        for graph in graphs {
             let graph = &graph.graph;
             for edge in graph.edge_references() {
                 let source = match graph.node_weight(edge.source()).unwrap() {
@@ -1413,7 +1424,7 @@ impl ModuleGraph {
             &mut S,
         ) -> Result<()>,
     ) -> Result<()> {
-        let graphs = self.get_graphs().await?;
+        let graphs = &self.graphs;
 
         let entries = entries.into_iter().collect::<Vec<_>>();
 
@@ -1425,11 +1436,7 @@ impl ModuleGraph {
         let mut stack: Vec<(Pass, Option<(GraphNodeIndex, EdgeIndex)>, GraphNodeIndex)> =
             Vec::with_capacity(entries.len());
         for entry in entries.into_iter().rev() {
-            stack.push((
-                Pass::ExpandAndVisit,
-                None,
-                ModuleGraph::get_entry(&graphs, entry).await?,
-            ));
+            stack.push((Pass::ExpandAndVisit, None, self.get_entry(entry).await?));
         }
         let mut expanded = HashSet::new();
         while let Some((pass, parent, current)) = stack.pop() {
@@ -1495,7 +1502,7 @@ impl ModuleGraph {
         mut visit_cycle: impl FnMut(&[&SingleModuleGraphModuleNode]),
     ) -> Result<()> {
         for graph in &self.graphs {
-            graph.await?.traverse_cycles(&edge_filter, &mut visit_cycle);
+            graph.traverse_cycles(&edge_filter, &mut visit_cycle);
         }
         Ok(())
     }
@@ -1532,7 +1539,7 @@ impl ModuleGraph {
         ) -> Result<GraphTraversalAction>,
         priority: impl Fn(&'_ SingleModuleGraphModuleNode, &mut S) -> Result<P>,
     ) -> Result<usize> {
-        let graphs = self.get_graphs().await?;
+        let graphs = &self.graphs;
 
         #[derive(PartialEq, Eq)]
         struct NodeWithPriority<T: Ord> {
@@ -1561,7 +1568,7 @@ impl ModuleGraph {
                 .into_iter()
                 .map(async |(m, priority)| {
                     Ok(NodeWithPriority {
-                        node: ModuleGraph::get_entry(&graphs, m).await?,
+                        node: self.get_entry(m).await?,
                         priority,
                     })
                 })

@@ -13,7 +13,7 @@ pub async fn compute_export_usage_info(
     graph: ResolvedVc<ModuleGraph>,
 ) -> Result<Vc<ExportUsageInfo>> {
     let mut used_exports = FxHashMap::<_, ModuleExportUsageInfo>::default();
-    let graph = graph.await?;
+    let graph = graph.read_graphs().await?;
     graph
         .traverse_all_edges_unordered(|(_, ref_data), target| {
             let e = used_exports.entry(target.module).or_default();
