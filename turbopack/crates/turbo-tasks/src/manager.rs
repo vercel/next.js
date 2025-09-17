@@ -727,7 +727,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                         } = this.finish_current_task_state();
                         let cell_counters = CURRENT_TASK_STATE
                             .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
-                        let schedule_again = this.backend.task_execution_completed(
+                        this.backend.task_execution_completed(
                             task_id,
                             duration,
                             alloc_info.memory_usage(),
@@ -735,8 +735,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             stateful,
                             has_invalidator,
                             &*this,
-                        );
-                        schedule_again
+                        )
                     }
                     .instrument(span)
                     .await
