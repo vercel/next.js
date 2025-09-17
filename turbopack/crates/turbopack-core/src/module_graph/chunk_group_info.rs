@@ -476,17 +476,27 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
         }
 
-        let entry_chunk_group_keys = graphs
-            .iter()
-            .flat_map(|g| g.entries.iter())
-            .flat_map(|chunk_group| {
+        let entry_chunk_group_keys = {
+            let mut entry_chunk_group_keys: FxHashMap<
+                ResolvedVc<Box<dyn Module>>,
+                Vec<ChunkGroupKey>,
+            > = FxHashMap::with_capacity_and_hasher(
+                graphs.iter().map(|g| g.entries.len()).sum(),
+                Default::default(),
+            );
+
+            for chunk_group in graphs.iter().flat_map(|g| g.entries.iter()) {
                 let chunk_group_key =
                     entry_to_chunk_group_id(chunk_group.clone(), &mut chunk_groups_map);
-                chunk_group
-                    .entries()
-                    .map(move |e| (e, chunk_group_key.clone()))
-            })
-            .collect::<FxHashMap<_, _>>();
+                for entry in chunk_group.entries() {
+                    entry_chunk_group_keys
+                        .entry(entry)
+                        .or_default()
+                        .push(chunk_group_key.clone());
+                }
+            }
+            entry_chunk_group_keys
+        };
 
         let visit_count = graph
             .traverse_edges_fixed_point_with_priority(
@@ -511,28 +521,39 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     RoaringBitmapWrapper,
                 >|
                  -> Result<GraphTraversalAction> {
-                    enum ChunkGroupInheritance<It: Iterator<Item = ChunkGroupKey>> {
+                    enum ChunkGroupInheritance<
+                        IterA: Iterator<Item = ChunkGroupKey>,
+                        IterB: Iterator<Item = ChunkGroupKey>,
+                        IterC: Iterator<Item = ChunkGroupKey>,
+                        IterD: Iterator<Item = ChunkGroupKey>,
+                    > {
                         Inherit(ResolvedVc<Box<dyn Module>>),
-                        ChunkGroup(It),
+                        ChunkGroup(ChunkGroupInheritanceIterator<IterA, IterB, IterC, IterD>),
                     }
                     let chunk_groups = if let Some((parent, ref_data)) = parent_info {
                         match &ref_data.chunking_type {
                             ChunkingType::Parallel { .. } => {
                                 ChunkGroupInheritance::Inherit(parent.module)
                             }
-                            ChunkingType::Async => ChunkGroupInheritance::ChunkGroup(Either::Left(
-                                std::iter::once(ChunkGroupKey::Async(node.module)),
-                            )),
+                            ChunkingType::Async => {
+                                ChunkGroupInheritance::ChunkGroup(ChunkGroupInheritanceIterator::A(
+                                    std::iter::once(ChunkGroupKey::Async(node.module)),
+                                ))
+                            }
                             ChunkingType::Isolated {
                                 merge_tag: None, ..
-                            } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                                ChunkGroupKey::Isolated(node.module),
-                            ))),
+                            } => {
+                                ChunkGroupInheritance::ChunkGroup(ChunkGroupInheritanceIterator::A(
+                                    std::iter::once(ChunkGroupKey::Isolated(node.module)),
+                                ))
+                            }
                             ChunkingType::Shared {
                                 merge_tag: None, ..
-                            } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                                ChunkGroupKey::Shared(node.module),
-                            ))),
+                            } => {
+                                ChunkGroupInheritance::ChunkGroup(ChunkGroupInheritanceIterator::A(
+                                    std::iter::once(ChunkGroupKey::Shared(node.module)),
+                                ))
+                            }
                             ChunkingType::Isolated {
                                 merge_tag: Some(merge_tag),
                                 ..
@@ -545,9 +566,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                         parent: ChunkGroupId(parent),
                                         merge_tag: merge_tag.clone(),
                                     });
-                                ChunkGroupInheritance::ChunkGroup(Either::Right(Either::Left(
+                                ChunkGroupInheritance::ChunkGroup(ChunkGroupInheritanceIterator::B(
                                     chunk_groups,
-                                )))
+                                ))
                             }
                             ChunkingType::Shared {
                                 merge_tag: Some(merge_tag),
@@ -561,9 +582,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                         parent: ChunkGroupId(parent),
                                         merge_tag: merge_tag.clone(),
                                     });
-                                ChunkGroupInheritance::ChunkGroup(Either::Right(Either::Right(
+                                ChunkGroupInheritance::ChunkGroup(ChunkGroupInheritanceIterator::C(
                                     chunk_groups,
-                                )))
+                                ))
                             }
                             ChunkingType::Traced => {
                                 // Traced modules are not placed in chunk groups
@@ -571,13 +592,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             }
                         }
                     } else {
-                        ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                        ChunkGroupInheritance::ChunkGroup(ChunkGroupInheritanceIterator::D(
                             // TODO remove clone
                             entry_chunk_group_keys
                                 .get(&node.module)
                                 .context("Module chunk group not found")?
-                                .clone(),
-                        )))
+                                .clone()
+                                .into_iter(),
+                        ))
                     };
 
                     Ok(match chunk_groups {
@@ -762,4 +784,180 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
     }
     .instrument(span_outer)
     .await
+}
+
+enum ChunkGroupInheritanceIterator<
+    IterA: Iterator<Item = ChunkGroupKey>,
+    IterB: Iterator<Item = ChunkGroupKey>,
+    IterC: Iterator<Item = ChunkGroupKey>,
+    IterD: Iterator<Item = ChunkGroupKey>,
+> {
+    A(IterA),
+    B(IterB),
+    C(IterC),
+    D(IterD),
+}
+
+impl<
+    IterA: Iterator<Item = ChunkGroupKey>,
+    IterB: Iterator<Item = ChunkGroupKey>,
+    IterC: Iterator<Item = ChunkGroupKey>,
+    IterD: Iterator<Item = ChunkGroupKey>,
+> Iterator for ChunkGroupInheritanceIterator<IterA, IterB, IterC, IterD>
+{
+    type Item = ChunkGroupKey;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.next(),
+            ChunkGroupInheritanceIterator::B(iter) => iter.next(),
+            ChunkGroupInheritanceIterator::C(iter) => iter.next(),
+            ChunkGroupInheritanceIterator::D(iter) => iter.next(),
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.size_hint(),
+            ChunkGroupInheritanceIterator::B(iter) => iter.size_hint(),
+            ChunkGroupInheritanceIterator::C(iter) => iter.size_hint(),
+            ChunkGroupInheritanceIterator::D(iter) => iter.size_hint(),
+        }
+    }
+
+    fn fold<Acc, G>(self, init: Acc, f: G) -> Acc
+    where
+        G: FnMut(Acc, Self::Item) -> Acc,
+    {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.fold(init, f),
+            ChunkGroupInheritanceIterator::B(iter) => iter.fold(init, f),
+            ChunkGroupInheritanceIterator::C(iter) => iter.fold(init, f),
+            ChunkGroupInheritanceIterator::D(iter) => iter.fold(init, f),
+        }
+    }
+
+    fn for_each<F>(self, f: F)
+    where
+        F: FnMut(Self::Item),
+    {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.for_each(f),
+            ChunkGroupInheritanceIterator::B(iter) => iter.for_each(f),
+            ChunkGroupInheritanceIterator::C(iter) => iter.for_each(f),
+            ChunkGroupInheritanceIterator::D(iter) => iter.for_each(f),
+        }
+    }
+
+    fn count(self) -> usize {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.count(),
+            ChunkGroupInheritanceIterator::B(iter) => iter.count(),
+            ChunkGroupInheritanceIterator::C(iter) => iter.count(),
+            ChunkGroupInheritanceIterator::D(iter) => iter.count(),
+        }
+    }
+
+    fn last(self) -> Option<Self::Item> {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.last(),
+            ChunkGroupInheritanceIterator::B(iter) => iter.last(),
+            ChunkGroupInheritanceIterator::C(iter) => iter.last(),
+            ChunkGroupInheritanceIterator::D(iter) => iter.last(),
+        }
+    }
+
+    fn nth(&mut self, n: usize) -> Option<Self::Item> {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.nth(n),
+            ChunkGroupInheritanceIterator::B(iter) => iter.nth(n),
+            ChunkGroupInheritanceIterator::C(iter) => iter.nth(n),
+            ChunkGroupInheritanceIterator::D(iter) => iter.nth(n),
+        }
+    }
+
+    fn collect<B>(self) -> B
+    where
+        B: std::iter::FromIterator<Self::Item>,
+    {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.collect(),
+            ChunkGroupInheritanceIterator::B(iter) => iter.collect(),
+            ChunkGroupInheritanceIterator::C(iter) => iter.collect(),
+            ChunkGroupInheritanceIterator::D(iter) => iter.collect(),
+        }
+    }
+
+    fn partition<B, F>(self, f: F) -> (B, B)
+    where
+        B: Default + Extend<Self::Item>,
+        F: FnMut(&Self::Item) -> bool,
+    {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.partition(f),
+            ChunkGroupInheritanceIterator::B(iter) => iter.partition(f),
+            ChunkGroupInheritanceIterator::C(iter) => iter.partition(f),
+            ChunkGroupInheritanceIterator::D(iter) => iter.partition(f),
+        }
+    }
+
+    fn all<F>(&mut self, f: F) -> bool
+    where
+        F: FnMut(Self::Item) -> bool,
+    {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.all(f),
+            ChunkGroupInheritanceIterator::B(iter) => iter.all(f),
+            ChunkGroupInheritanceIterator::C(iter) => iter.all(f),
+            ChunkGroupInheritanceIterator::D(iter) => iter.all(f),
+        }
+    }
+
+    fn any<F>(&mut self, f: F) -> bool
+    where
+        F: FnMut(Self::Item) -> bool,
+    {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.any(f),
+            ChunkGroupInheritanceIterator::B(iter) => iter.any(f),
+            ChunkGroupInheritanceIterator::C(iter) => iter.any(f),
+            ChunkGroupInheritanceIterator::D(iter) => iter.any(f),
+        }
+    }
+
+    fn find<P>(&mut self, predicate: P) -> Option<Self::Item>
+    where
+        P: FnMut(&Self::Item) -> bool,
+    {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.find(predicate),
+            ChunkGroupInheritanceIterator::B(iter) => iter.find(predicate),
+            ChunkGroupInheritanceIterator::C(iter) => iter.find(predicate),
+            ChunkGroupInheritanceIterator::D(iter) => iter.find(predicate),
+        }
+    }
+
+    fn find_map<B, F>(&mut self, f: F) -> Option<B>
+    where
+        F: FnMut(Self::Item) -> Option<B>,
+    {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.find_map(f),
+            ChunkGroupInheritanceIterator::B(iter) => iter.find_map(f),
+            ChunkGroupInheritanceIterator::C(iter) => iter.find_map(f),
+            ChunkGroupInheritanceIterator::D(iter) => iter.find_map(f),
+        }
+    }
+
+    fn position<P>(&mut self, predicate: P) -> Option<usize>
+    where
+        P: FnMut(Self::Item) -> bool,
+    {
+        match self {
+            ChunkGroupInheritanceIterator::A(iter) => iter.position(predicate),
+            ChunkGroupInheritanceIterator::B(iter) => iter.position(predicate),
+            ChunkGroupInheritanceIterator::C(iter) => iter.position(predicate),
+            ChunkGroupInheritanceIterator::D(iter) => iter.position(predicate),
+        }
+    }
 }

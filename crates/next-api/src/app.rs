@@ -65,12 +65,10 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
-    reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceType},
-    resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
+    reference_type::{CssReferenceSubType, ReferenceType},
     source::Source,
     virtual_output::VirtualOutputAsset,
 };
-use turbopack_ecmascript::resolve::cjs_resolve;
 
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
@@ -817,31 +815,6 @@ impl AppProject {
                 .into_iter()
                 .collect(),
         ))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn client_main_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
-        let client_module_context = Vc::upcast(self.client_module_context());
-
-        let client_main_module = cjs_resolve(
-            Vc::upcast(PlainResolveOrigin::new(
-                client_module_context,
-                self.project().project_path().await?.join("_")?,
-            )),
-            Request::parse(Pattern::Constant(rcstr!(
-                "next/dist/client/app-next-turbopack.js"
-            ))),
-            CommonJsReferenceSubType::Undefined,
-            None,
-            false,
-        )
-        .resolve()
-        .await?
-        .first_module()
-        .await?
-        .context("expected Next.js client runtime to resolve to a module")?;
-
-        Ok(*client_main_module)
     }
 
     #[turbo_tasks::function]
