@@ -234,24 +234,44 @@ async function main() {
 
   const entrypointsSubscription = project.entrypointsSubscribe();
   const entrypoints = (await entrypointsSubscription.next()).value;
-  const route = entrypoints.routes.get('/app-nodejs');
 
-  if (route.type === 'app-page') {
-    console.log('first runs');
-    for (let i = 0; i < 1000; i++) {
-      await route.pages[0].htmlEndpoint.writeToDisk();
+  const RUNS = 10000;
+  async function compileRoute(route) {
+    const endpoint = route.endpoint ?? route.htmlEndpoint ?? route.pages[0].htmlEndpoint;
+    if (!endpoint) {
+      console.log('unexpected route', route);
+      process.exit(1);
     }
+    for (let i = 0; i < RUNS; i++) {
+      await endpoint.writeToDisk();
+    }
+  }
+
+  for (const [name, route] of entrypoints.routes) {
+    console.log(name, route.type);
+
+    console.log('first runs');
+    await compileRoute(route);
     gc(true);
     let old = process.memoryUsage();
     const initial = old;
-    for (let j = 0; j < 500; j++) {
-      for (let i = 0; i < 1000; i++) {
-        await route.pages[0].htmlEndpoint.writeToDisk();
-      }
+    let stabilized = false;
+    for (let j = 0; j < 10; j++) {
+      await compileRoute(route);
       gc(true);
       const newMemory = process.memoryUsage();
-      console.log(\`#\${j} 1000 runs add \${newMemory.rss - old.rss} bytes of memory, memory since first run \${newMemory.rss - initial.rss} bytes\`);
+      const addedMemory = newMemory.rss - old.rss;
+      console.log(\`#\${j} \${RUNS} runs add \${addedMemory} bytes of memory, memory since first runs \${newMemory.rss - initial.rss} bytes\`);
       old = newMemory;
+      if (addedMemory === 0) {
+        console.log('memory usage stabilized');
+        stabilized = true;
+        break;
+      }
+    }
+    if (!stabilized) {
+      console.log('memory usage did not stabilize, failing');
+      process.exit(1);
     }
   }
 }
@@ -269,12 +289,17 @@ main()
       },
     })
 
-    spawnSync('node', ['--expose-gc', join(next.testDir, 'server.js')], {
-      stdio: 'inherit',
-      env: {
-        ...process.env,
-      },
-    })
+    const result = spawnSync(
+      'node',
+      ['--expose-gc', join(next.testDir, 'server.js')],
+      {
+        stdio: 'inherit',
+        env: {
+          ...process.env,
+        },
+      }
+    )
+    expect(result.status).toBe(0)
 
     await next.destroy()
   })
