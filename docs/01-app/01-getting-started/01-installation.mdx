@@ -95,7 +95,7 @@ If you choose to `customize settings`, you'll see the following prompts:
 
 ```txt filename="Terminal"
 Would you like to use TypeScript? No / Yes
-Which linter would you like to use? ESLint / Biome / None
+Which linter would you like to use? ESLint / Biome / Oxlint / None
 Would you like to use React Compiler? No / Yes
 Would you like to use Tailwind CSS? No / Yes
 Would you like your code inside a `src/` directory? No / Yes
@@ -346,7 +346,7 @@ See the [TypeScript reference](/docs/app/api-reference/config/typescript) page f
 
 ## Set up linting
 
-Next.js supports linting with either ESLint or Biome. Choose a linter and run it directly via `package.json` scripts.
+Next.js supports linting with either ESLint, Oxlint or Biome. Choose a linter and run it directly via `package.json` scripts.
 
 - Use **ESLint** (comprehensive rules):
 
@@ -355,6 +355,17 @@ Next.js supports linting with either ESLint or Biome. Choose a linter and run it
   "scripts": {
     "lint": "eslint",
     "lint:fix": "eslint --fix"
+  }
+}
+```
+
+- Use **Oxlint** (fast linter with comprehensive rules):
+
+```json filename="package.json"
+{
+  "scripts": {
+    "lint": "oxlint --type-aware",
+    "lint:fix": "oxlint --type-aware --fix"
   }
 }
 ```

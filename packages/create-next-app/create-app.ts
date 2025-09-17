@@ -53,6 +53,7 @@ export async function createApp({
   tailwind: boolean
   eslint: boolean
   biome: boolean
+  oxlint: boolean
   app: boolean
   srcDir: boolean
   importAlias: string

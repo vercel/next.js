@@ -53,6 +53,7 @@ const program = new Command(packageJson.name)
   .option('--react-compiler', 'Initialize with React Compiler enabled.')
   .option('--eslint', 'Initialize with ESLint config.')
   .option('--biome', 'Initialize with Biome config.')
+  .option('--oxlint', 'Initialize with Oxlint config.')
   .option('--app', 'Initialize as an App Router project.')
   .option('--src-dir', "Initialize inside a 'src/' directory.")
   .option('--rspack', 'Enable Rspack as the bundler.')
@@ -407,17 +408,19 @@ async function run(): Promise<void> {
     const noLinter =
       args.includes('--no-linter') || args.includes('--no-eslint')
 
-    if (!opts.eslint && !opts.biome && !noLinter && !opts.api) {
+    if (!opts.eslint && !opts.biome && !opts.oxlint && !noLinter && !opts.api) {
       if (skipPrompt) {
         const preferredLinter = getPrefOrDefault('linter')
         opts.eslint = preferredLinter === 'eslint'
         opts.biome = preferredLinter === 'biome'
+        opts.oxlint = preferredLinter === 'oxlint'
         // No need to set noLinter flag since we check args at runtime
       } else {
         const linterIndexMap = {
           eslint: 0,
           biome: 1,
-          none: 2,
+          oxlint: 2,
+          none: 3,
         }
         const { linter } = await prompts({
           onState: onPromptState,
@@ -449,6 +452,7 @@ async function run(): Promise<void> {
 
         opts.eslint = linter === 'eslint'
         opts.biome = linter === 'biome'
+        opts.oxlint = linter === 'oxlint'
         preferences.linter = linter
 
         // Keep backwards compatibility with old eslint preference
@@ -456,11 +460,18 @@ async function run(): Promise<void> {
       }
     } else if (opts.eslint) {
       opts.biome = false
+      opts.oxlint = false
       preferences.linter = 'eslint'
       preferences.eslint = true
     } else if (opts.biome) {
       opts.eslint = false
+      opts.oxlint = false
       preferences.linter = 'biome'
+      preferences.eslint = false
+    } else if (opts.oxlint) {
+      opts.eslint = false
+      opts.biome = false
+      preferences.linter = 'oxlint'
       preferences.eslint = false
     } else if (noLinter) {
       opts.eslint = false
@@ -634,6 +645,7 @@ async function run(): Promise<void> {
       tailwind: opts.tailwind,
       eslint: opts.eslint,
       biome: opts.biome,
+      oxlint: opts.oxlint,
       app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
@@ -669,6 +681,7 @@ async function run(): Promise<void> {
       typescript: opts.typescript,
       eslint: opts.eslint,
       biome: opts.biome,
+      oxlint: opts.oxlint,
       tailwind: opts.tailwind,
       app: opts.app,
       srcDir: opts.srcDir,

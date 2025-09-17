@@ -52,6 +52,7 @@ export const installTemplate = async ({
   tailwind,
   eslint,
   biome,
+  oxlint,
   srcDir,
   importAlias,
   skipInstall,
@@ -69,6 +70,7 @@ export const installTemplate = async ({
   const copySource = ["**"];
   if (!eslint) copySource.push("!eslint.config.mjs");
   if (!biome) copySource.push("!biome.json");
+  if (!oxlint) copySource.push("!.oxlintrc.json");
   if (!tailwind) copySource.push("!postcss.config.mjs");
 
   await copy(copySource, root, {
@@ -222,6 +224,8 @@ export const installTemplate = async ({
       start: "next start",
       ...(eslint && { lint: "eslint" }),
       ...(biome && { lint: "biome check", format: "biome format --write" }),
+      // TODO: If js, don't add type-aware
+      ...(oxlint && { lint: "oxlint --type-aware" }),
     },
     /**
      * Default dependencies.
@@ -289,6 +293,15 @@ export const installTemplate = async ({
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
       "@biomejs/biome": "2.2.0",
+    };
+  }
+
+  /* Oxlint dependencies. */
+  if (oxlint) {
+    packageJson.devDependencies = {
+      ...packageJson.devDependencies,
+      oxlint: "2.2.0", // TODO Versioning
+      "oxlint-tsoglint": "2.2.0", // TODO Versioning
     };
   }
 
