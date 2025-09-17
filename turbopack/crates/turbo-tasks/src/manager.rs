@@ -556,13 +556,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     ltt.close();
                     ltt.wait().await;
 
-                    let result = match result {
+                    match result {
                         Ok(Ok(raw_vc)) => Ok(raw_vc),
                         Ok(Err(err)) => Err(err.into()),
                         Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
-                    };
-
-                    result
+                    }
                 }),
             )
             .await
