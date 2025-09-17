@@ -224,7 +224,6 @@ export const installTemplate = async ({
       start: "next start",
       ...(eslint && { lint: "eslint" }),
       ...(biome && { lint: "biome check", format: "biome format --write" }),
-      // TODO: If js, don't add type-aware
       ...(oxlint && { lint: "oxlint --type-aware" }),
     },
     /**
