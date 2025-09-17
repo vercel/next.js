@@ -636,11 +636,12 @@ export abstract class RouteModule<
 
     // we apply rewrites against cloned URL so that we don't
     // modify the original with the rewrite destination
-    const clonedParsedUrl = structuredClone(parsedUrl)
-    const rewriteParamKeys = Object.keys(
-      serverUtils.handleRewrites(req, clonedParsedUrl)
+    const { rewriteParams, rewrittenParsedUrl } = serverUtils.handleRewrites(
+      req,
+      parsedUrl
     )
-    Object.assign(parsedUrl.query, clonedParsedUrl.query)
+    const rewriteParamKeys = Object.keys(rewriteParams)
+    Object.assign(parsedUrl.query, rewrittenParsedUrl.query)
 
     // after processing rewrites we want to remove locale
     // from parsedUrl pathname
@@ -650,8 +651,8 @@ export abstract class RouteModule<
         i18n.locales
       ).pathname
 
-      clonedParsedUrl.pathname = normalizeLocalePath(
-        clonedParsedUrl.pathname || '/',
+      rewrittenParsedUrl.pathname = normalizeLocalePath(
+        rewrittenParsedUrl.pathname || '/',
         i18n.locales
       ).pathname
     }
@@ -663,7 +664,7 @@ export abstract class RouteModule<
     if (!params && serverUtils.dynamicRouteMatcher) {
       const paramsMatch = serverUtils.dynamicRouteMatcher(
         normalizeDataPath(
-          clonedParsedUrl?.pathname || parsedUrl.pathname || '/'
+          rewrittenParsedUrl?.pathname || parsedUrl.pathname || '/'
         )
       )
       const paramsResult = serverUtils.normalizeDynamicRouteParams(

@@ -1183,19 +1183,21 @@ export default abstract class Server<
           const originQueryParams = { ...parsedUrl.query }
 
           const pathnameBeforeRewrite = parsedUrl.pathname
-          const clonedParsedUrl = structuredClone(parsedUrl)
-          const rewriteParamKeys = Object.keys(
-            utils.handleRewrites(req, clonedParsedUrl)
+          const { rewriteParams, rewrittenParsedUrl } = utils.handleRewrites(
+            req,
+            parsedUrl
           )
+          const rewriteParamKeys = Object.keys(rewriteParams)
 
           // Create a copy of the query params to avoid mutating the original
           // object. This prevents any overlapping query params that have the
           // same normalized key from causing issues.
           const queryParams = { ...parsedUrl.query }
-          const didRewrite = pathnameBeforeRewrite !== clonedParsedUrl.pathname
+          const didRewrite =
+            pathnameBeforeRewrite !== rewrittenParsedUrl.pathname
 
-          if (didRewrite && clonedParsedUrl.pathname) {
-            addRequestMeta(req, 'rewroteURL', clonedParsedUrl.pathname)
+          if (didRewrite && rewrittenParsedUrl.pathname) {
+            addRequestMeta(req, 'rewroteURL', rewrittenParsedUrl.pathname)
           }
 
           const routeParamKeys = new Set<string>()
