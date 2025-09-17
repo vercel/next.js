@@ -14,6 +14,7 @@ pub mod async_chunk;
 pub mod chunk;
 pub mod code_gen;
 mod errors;
+pub mod inlined_bytes_module;
 pub mod magic_identifier;
 pub mod manifest;
 mod merged_module;
