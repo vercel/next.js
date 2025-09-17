@@ -1,9 +1,9 @@
-use std::io::Read;
+use std::io::{Read, Write};
 
 use anyhow::{Result, bail};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, glob::Glob};
+use turbo_tasks_fs::{FileContent, glob::Glob, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
@@ -119,14 +119,27 @@ impl EcmascriptChunkItem for InlinedBytesJsChunkItem {
         let content = self.module.content().file_content().await?;
         match &*content {
             FileContent::Content(data) => {
+                let mut inner_code = RopeBuilder::default();
+                inner_code += "
+var decode = Uint8Array.fromBase64 || function Uint8Array_fromBase64(base64) {
+  var binaryString = atob(base64);
+  var buffer = new Uint8Array(binaryString.length);
+  for (var i = 0; i < binaryString.length; i++) {
+    buffer[i] = binaryString.charCodeAt(i)
+  }
+  return buffer
+};\n";
+
                 let encoded = data_encoding::BASE64_NOPAD
                     .encode(&data.read().bytes().collect::<std::io::Result<Vec<u8>>>()?);
-                let inner_code = format!(
-                    "{TURBOPACK_EXPORT_VALUE}(Uint8Array.fromBase64({}));",
+                write!(
+                    inner_code,
+                    "{TURBOPACK_EXPORT_VALUE}(decode({}));",
                     StringifyJs(&encoded)
-                );
+                )?;
+
                 Ok(EcmascriptChunkItemContent {
-                    inner_code: inner_code.into(),
+                    inner_code: inner_code.build(),
                     ..Default::default()
                 }
                 .into())
