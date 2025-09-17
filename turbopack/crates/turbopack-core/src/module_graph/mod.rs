@@ -1247,7 +1247,7 @@ impl ModuleGraphRef {
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub async fn traverse_edges_from_entries_bfs(
+    pub fn traverse_edges_from_entries_bfs(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         mut visitor: impl FnMut(
@@ -1301,7 +1301,7 @@ impl ModuleGraphRef {
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub async fn traverse_edges_from_entry(
+    pub fn traverse_edges_from_entry(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         mut visitor: impl FnMut(
@@ -1352,7 +1352,7 @@ impl ModuleGraphRef {
     /// * `visitor` - Called before visiting the children of a node.
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode
-    pub async fn traverse_all_edges_unordered(
+    pub fn traverse_all_edges_unordered(
         &self,
         mut visitor: impl FnMut(
             (&'_ SingleModuleGraphModuleNode, &'_ RefData),
@@ -1398,7 +1398,7 @@ impl ModuleGraphRef {
     ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub async fn traverse_edges_from_entries_dfs<S>(
+    pub fn traverse_edges_from_entries_dfs<S>(
         &self,
         entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
@@ -1485,7 +1485,7 @@ impl ModuleGraphRef {
 
     /// Traverse all cycles in the graph (where the edge filter returns true for the whole cycle)
     /// and call the visitor with the nodes in the cycle.
-    pub async fn traverse_cycles(
+    pub fn traverse_cycles(
         &self,
         edge_filter: impl Fn(&RefData) -> bool,
         mut visit_cycle: impl FnMut(&[&SingleModuleGraphModuleNode]),
@@ -1517,7 +1517,7 @@ impl ModuleGraphRef {
     ///
     /// Returns the number of node visits (i.e. higher than the node count if there are
     /// retraversals).
-    pub async fn traverse_edges_fixed_point_with_priority<S, P: Ord>(
+    pub fn traverse_edges_fixed_point_with_priority<S, P: Ord>(
         &self,
         entries: impl IntoIterator<Item = (ResolvedVc<Box<dyn Module>>, P)>,
         state: &mut S,
