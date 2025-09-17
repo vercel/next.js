@@ -27,6 +27,6 @@
   },
   "dependencies": {
     "@rspack/core": "1.4.10",
-    "@next/rspack-core": "workspace:*"
+    "@next/rspack-binding": "workspace:*"
   }
 }

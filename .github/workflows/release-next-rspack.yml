@@ -75,6 +75,7 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+        working-directory: ./rspack
 
       - name: Get NAPI info
         id: napi-info
@@ -119,4 +120,5 @@ jobs:
       - name: Release npm packages
         run: |
           pnpm publish -r --tag ${{ inputs.npm-tag }} --no-git-checks --provenance --access public ${{ inputs.dry-run && '--dry-run' || '' }}
+        working-directory: ./rspack
 
