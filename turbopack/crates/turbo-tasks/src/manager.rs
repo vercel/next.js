@@ -1,5 +1,4 @@
 use std::{
-    any::Any,
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
@@ -262,52 +261,11 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
     /// Returns the duration from the start of the program to the given instant.
     fn program_duration_until(&self, instant: Instant) -> Duration;
 
-    /// An untyped object-safe version of [`TurboTasksBackendApiExt::read_task_state`]. Callers
-    /// should prefer the extension trait's version of this method.
-    fn read_task_state_dyn(&self, func: &mut dyn FnMut(&B::TaskState));
-
-    /// An untyped object-safe version of [`TurboTasksBackendApiExt::write_task_state`]. Callers
-    /// should prefer the extension trait's version of this method.
-    fn write_task_state_dyn(&self, func: &mut dyn FnMut(&mut B::TaskState));
-
     /// Returns true if the system is idle.
     fn is_idle(&self) -> bool;
 
     /// Returns a reference to the backend.
     fn backend(&self) -> &B;
-}
-
-/// An extension trait for methods of [`TurboTasksBackendApi`] that are not object-safe. This is
-/// automatically implemented for all [`TurboTasksBackendApi`]s using a blanket impl.
-pub trait TurboTasksBackendApiExt<B: Backend + 'static>: TurboTasksBackendApi<B> {
-    /// Allows modification of the [`Backend::TaskState`].
-    ///
-    /// This function holds open a non-exclusive read lock that blocks writes, so `func` is expected
-    /// to execute quickly in order to release the lock.
-    fn read_task_state<T>(&self, func: impl FnOnce(&B::TaskState) -> T) -> T {
-        let mut func = Some(func);
-        let mut out = None;
-        self.read_task_state_dyn(&mut |ts| out = Some((func.take().unwrap())(ts)));
-        out.expect("read_task_state_dyn must call `func`")
-    }
-
-    /// Allows modification of the [`Backend::TaskState`].
-    ///
-    /// This function holds open a write lock, so `func` is expected to execute quickly in order to
-    /// release the lock.
-    fn write_task_state<T>(&self, func: impl FnOnce(&mut B::TaskState) -> T) -> T {
-        let mut func = Some(func);
-        let mut out = None;
-        self.write_task_state_dyn(&mut |ts| out = Some((func.take().unwrap())(ts)));
-        out.expect("write_task_state_dyn must call `func`")
-    }
-}
-
-impl<TT, B> TurboTasksBackendApiExt<B> for TT
-where
-    TT: TurboTasksBackendApi<B> + ?Sized,
-    B: Backend + 'static,
-{
 }
 
 #[allow(clippy::manual_non_exhaustive)]
@@ -408,16 +366,10 @@ struct CurrentTaskState {
     /// Tracks currently running local tasks, and defers cleanup of the global task until those
     /// complete. Also used by `detached_for_testing`.
     local_task_tracker: TaskTracker,
-
-    backend_state: Box<dyn Any + Send + Sync>,
 }
 
 impl CurrentTaskState {
-    fn new(
-        task_id: TaskId,
-        execution_id: ExecutionId,
-        backend_state: Box<dyn Any + Send + Sync>,
-    ) -> Self {
+    fn new(task_id: TaskId, execution_id: ExecutionId) -> Self {
         Self {
             task_id,
             execution_id,
@@ -426,7 +378,6 @@ impl CurrentTaskState {
             cell_counters: Some(AutoMap::default()),
             local_tasks: Vec::new(),
             local_task_tracker: TaskTracker::new(),
-            backend_state,
         }
     }
 
@@ -688,14 +639,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let future = async move {
             let mut schedule_again = true;
             while schedule_again {
-                let backend_state = this.backend.new_task_state(task_id);
                 // it's okay for execution ids to overflow and wrap, they're just used for an assert
                 let execution_id = this.execution_id_factory.wrapping_get();
-                let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new(
-                    task_id,
-                    execution_id,
-                    Box::new(backend_state),
-                )));
+                let current_task_state =
+                    Arc::new(RwLock::new(CurrentTaskState::new(task_id, execution_id)));
                 let single_execution_future = async {
                     if this.stopped.load(Ordering::Acquire) {
                         this.backend.task_execution_canceled(task_id, &*this);
@@ -1461,16 +1408,6 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
         unsafe { self.transient_task_id_factory.reuse(id.into()) }
     }
 
-    fn read_task_state_dyn(&self, func: &mut dyn FnMut(&B::TaskState)) {
-        CURRENT_TASK_STATE
-            .with(move |ts| func(ts.read().unwrap().backend_state.downcast_ref().unwrap()))
-    }
-
-    fn write_task_state_dyn(&self, func: &mut dyn FnMut(&mut B::TaskState)) {
-        CURRENT_TASK_STATE
-            .with(move |ts| func(ts.write().unwrap().backend_state.downcast_mut().unwrap()))
-    }
-
     fn is_idle(&self) -> bool {
         self.currently_scheduled_foreground_jobs
             .load(Ordering::Acquire)
@@ -1588,7 +1525,6 @@ pub fn with_turbo_tasks_for_testing<T>(
             Arc::new(RwLock::new(CurrentTaskState::new(
                 current_task,
                 execution_id,
-                Box::new(()),
             ))),
             f,
         ),
