@@ -6,7 +6,7 @@ Linting via Oxlint in this example includes type-aware linting through the `oxli
 
 In [`.oxlintrc.json`](./.oxlintrc.json), the plugins `eslint`, `react`, `unicorn`, `typescript`, `nextjs`, and `oxc` are enabled.
 
-The first five are [Rust-based Oxlint plugins](https://oxc.rs/docs/guide/usage/linter/plugins.html#supported-plugins) that port rules from the corresponding ESLint plugins.
+The first five are [Rust-based Oxlint plugins](https://oxc.rs/docs/guide/usage/linter/plugins.html#supported-plugins) that port rules from the ESLint core and the corresponding ESLint plugins.
 
 The `oxc` plugin provides Oxc-specific rules along with some rules ported from Deepscan.
 
