@@ -518,7 +518,7 @@ export default async function getConfig(
     filename
   )
 
-  if (loaderOptions.transformMode === 'default' && loaderOptions.configFile) {
+  if (loaderOptions.configFile) {
     // Ensures webpack invalidates the cache for this loader when the config file changes
     ctx.addDependency(loaderOptions.configFile)
   }
