@@ -1221,6 +1221,21 @@ impl ModuleGraph {
         Ok(idx)
     }
 
+    /// Returns a map of all modules in the graphs to their identifiers.
+    /// This is primarily useful for debugging.
+    pub async fn get_ids(&self) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>>> {
+        Ok(self
+            .get_graphs()
+            .await?
+            .iter()
+            .flat_map(|g| g.iter_nodes())
+            .map(async |n| Ok((n.module, n.module.ident().to_string().await?)))
+            .try_join()
+            .await?
+            .into_iter()
+            .collect::<FxHashMap<_, _>>())
+    }
+
     /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
     /// target.
     ///

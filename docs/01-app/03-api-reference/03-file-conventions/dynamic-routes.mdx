@@ -113,12 +113,32 @@ The difference between **catch-all** and **optional catch-all** segments is that
 
 When using TypeScript, you can add types for `params` depending on your configured route segment — use [`PageProps<'/route'>`](/docs/app/api-reference/file-conventions/page#page-props-helper), [`LayoutProps<'/route'>`](/docs/app/api-reference/file-conventions/layout#layout-props-helper), or [`RouteContext<'/route'>`](/docs/app/api-reference/file-conventions/route#route-context-helper) to type `params` in `page`, `layout`, and `route` respectively.
 
+Route `params` values are typed as `string`, `string[]`, or `undefined` (for optional catch-all segments), because their values aren't known until runtime. Users can enter any URL into the address bar, and these broad types help ensure that your application code handles all these possible cases.
+
 | Route                               | `params` Type Definition                 |
 | ----------------------------------- | ---------------------------------------- |
 | `app/blog/[slug]/page.js`           | `{ slug: string }`                       |
 | `app/shop/[...slug]/page.js`        | `{ slug: string[] }`                     |
 | `app/shop/[[...slug]]/page.js`      | `{ slug?: string[] }`                    |
 | `app/[categoryId]/[itemId]/page.js` | `{ categoryId: string, itemId: string }` |
+
+If you're working on a route where `params` can only have a fixed number of valid values, such as a `[locale]` param with a known set of language codes, you can use runtime validation to handle any invalid params a user may enter, and let the rest of your application work with the narrower type from your known set.
+
+```tsx filename="/app/[locale]/page.tsx"
+import { notFound } from 'next/navigation'
+import type { Locale } from '@i18n/types'
+import { isValidLocale } from '@i18n/utils'
+
+function assertValidLocale(value: string): asserts value is Locale {
+  if (!isValidLocale(value)) notFound()
+}
+
+export default async function Page(props: PageProps<'/[locale]'>) {
+  const { locale } = await props.params // locale is typed as string
+  assertValidLocale(locale)
+  // locale is now typed as Locale
+}
+```
 
 ## Behavior
 

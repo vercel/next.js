@@ -497,44 +497,48 @@ impl EvaluateContext for WebpackLoaderContext {
                 directories,
                 build_file_paths,
             } => {
-                // Track dependencies of the loader task
-                // TODO: Because these are reported _after_ the loader actually read the dependency
-                // there is a race condition where we may miss updates that race
-                // with the loader execution.
+                // We only process these dependencies to help with tracking, so if it is disabled
+                // dont bother.
+                if turbo_tasks::turbo_tasks().is_tracking_dependencies() {
+                    // Track dependencies of the loader task
+                    // TODO: Because these are reported _after_ the loader actually read the
+                    // dependency there is a race condition where we may miss
+                    // updates that race with the loader execution.
 
-                // Track all the subscriptions in parallel, since certain loaders like tailwind
-                // might add thousands of subscriptions.
-                let env_subscriptions = env_variables
-                    .iter()
-                    .map(|e| self.env.read(e.clone()))
-                    .try_join();
-                let file_subscriptions = file_paths
-                    .iter()
-                    .map(|p| async move { self.cwd.join(p)?.read().await })
-                    .try_join();
-                let directory_subscriptions = directories
-                    .iter()
-                    .map(|(dir, glob)| async move {
-                        self.cwd
-                            .join(dir)?
-                            .track_glob(Glob::new(glob.clone(), GlobOptions::default()), false)
-                            .await
-                    })
-                    .try_join();
-                try_join!(
-                    env_subscriptions,
-                    file_subscriptions,
-                    directory_subscriptions
-                )?;
+                    // Track all the subscriptions in parallel, since certain loaders like tailwind
+                    // might add thousands of subscriptions.
+                    let env_subscriptions = env_variables
+                        .iter()
+                        .map(|e| self.env.read(e.clone()))
+                        .try_join();
+                    let file_subscriptions = file_paths
+                        .iter()
+                        .map(|p| async move { self.cwd.join(p)?.read().await })
+                        .try_join();
+                    let directory_subscriptions = directories
+                        .iter()
+                        .map(|(dir, glob)| async move {
+                            self.cwd
+                                .join(dir)?
+                                .track_glob(Glob::new(glob.clone(), GlobOptions::default()), false)
+                                .await
+                        })
+                        .try_join();
+                    try_join!(
+                        env_subscriptions,
+                        file_subscriptions,
+                        directory_subscriptions
+                    )?;
 
-                for build_path in build_file_paths {
-                    let build_path = self.cwd.join(&build_path)?;
-                    BuildDependencyIssue {
-                        source: IssueSource::from_source_only(self.context_source_for_issue),
-                        path: build_path,
+                    for build_path in build_file_paths {
+                        let build_path = self.cwd.join(&build_path)?;
+                        BuildDependencyIssue {
+                            source: IssueSource::from_source_only(self.context_source_for_issue),
+                            path: build_path,
+                        }
+                        .resolved_cell()
+                        .emit();
                     }
-                    .resolved_cell()
-                    .emit();
                 }
             }
             InfoMessage::EmittedError { error, severity } => {

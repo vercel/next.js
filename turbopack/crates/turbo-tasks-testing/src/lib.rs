@@ -157,10 +157,6 @@ impl TurboTasksApi for VcStorage {
         // ignore
     }
 
-    fn notify_scheduled_tasks(&self) {
-        // ignore
-    }
-
     fn try_read_task_output(
         &self,
         id: TaskId,
@@ -323,6 +319,10 @@ impl TurboTasksApi for VcStorage {
     /// structs with access to a `MessageQueue` like `TurboTasks`.
     fn send_compilation_event(&self, _event: Arc<dyn CompilationEvent>) {
         unimplemented!()
+    }
+
+    fn is_tracking_dependencies(&self) -> bool {
+        false
     }
 }
 
