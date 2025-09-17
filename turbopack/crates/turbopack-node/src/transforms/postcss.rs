@@ -164,16 +164,9 @@ impl Source for PostCssTransformedAsset {
 #[turbo_tasks::value_impl]
 impl Asset for PostCssTransformedAsset {
     #[turbo_tasks::function]
-    async fn content(self: ResolvedVc<Self>) -> Result<Vc<AssetContent>> {
-        Ok(*transform_process_operation(self).connect().await?.content)
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        Ok(*self.process().await?.content)
     }
-}
-
-#[turbo_tasks::function(operation)]
-fn transform_process_operation(
-    asset: ResolvedVc<PostCssTransformedAsset>,
-) -> Vc<ProcessPostCssResult> {
-    asset.process()
 }
 
 #[turbo_tasks::value]
