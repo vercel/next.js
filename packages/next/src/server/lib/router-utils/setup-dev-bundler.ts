@@ -1082,7 +1082,6 @@ async function startWatcher(
               }
             )
 
-            // do not await, this is not essential for further process
             await createEnvDefinitions({
               distDir,
               loadedEnvFiles: [
