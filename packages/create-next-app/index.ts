@@ -476,6 +476,7 @@ async function run(): Promise<void> {
     } else if (noLinter) {
       opts.eslint = false
       opts.biome = false
+      opts.oxlint = false
       preferences.linter = 'none'
       preferences.eslint = false
     }
