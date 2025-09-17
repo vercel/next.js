@@ -119,7 +119,7 @@ impl EcmascriptChunkItem for InlinedBytesJsChunkItem {
         let content = self.module.content().file_content().await?;
         match &*content {
             FileContent::Content(data) => {
-                let encoded = data_encoding::BASE64
+                let encoded = data_encoding::BASE64_NOPAD
                     .encode(&data.read().bytes().collect::<std::io::Result<Vec<u8>>>()?);
                 let inner_code = format!(
                     "{TURBOPACK_EXPORT_VALUE}(Uint8Array.fromBase64({}));",
