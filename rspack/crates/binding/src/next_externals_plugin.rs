@@ -6,7 +6,7 @@ use std::{
 use next_taskless::{BUN_EXTERNALS, EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use rspack_core::{
     ApplyContext, CompilerOptions, DependencyCategory, ExternalItem, ExternalItemFnCtx,
-    ExternalItemFnResult, ExternalItemObject, ExternalItemValue, Plugin, PluginContext,
+    ExternalItemFnResult, ExternalItemObject, ExternalItemValue, Plugin,
     ResolveOptionsWithDependencyType, ResolveResult,
 };
 use rspack_error::ToStringResultToRspackResultExt;
@@ -140,7 +140,7 @@ impl Plugin for NextExternalsPlugin {
 
     fn apply(
         &self,
-        ctx: PluginContext<&mut ApplyContext>,
+        ctx: &mut ApplyContext<'_>,
         options: &CompilerOptions,
     ) -> rspack_error::Result<()> {
         let is_client = self.compiler_type == "client";
@@ -266,8 +266,7 @@ impl Plugin for NextExternalsPlugin {
                 .collect::<Vec<_>>()
         };
 
-        ExternalsPlugin::new(external_type, externals)
-            .apply(PluginContext::with_context(ctx.context), options)?;
+        ExternalsPlugin::new(external_type, externals).apply(&mut ctx, options)?;
 
         Ok(())
     }
