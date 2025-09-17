@@ -1,4 +1,4 @@
-import bytes from './data.bin' with { type: 'turbopack-bytes' }
+import bytes from './data.bin' with { type: 'bytes' }
 
 it('import type:bytes should work', () => {
   expect(bytes).toBeInstanceOf(Uint8Array)
