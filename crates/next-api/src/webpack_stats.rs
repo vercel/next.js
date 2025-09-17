@@ -56,7 +56,7 @@ where
     };
 
     let asset_reasons = {
-        let module_graph = module_graph.await?;
+        let module_graph = module_graph.read_graphs().await?;
         let mut edges = vec![];
         module_graph
             .traverse_all_edges_unordered(|(parent_node, r), current| {
