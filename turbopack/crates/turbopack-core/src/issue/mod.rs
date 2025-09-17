@@ -213,7 +213,7 @@ where
 pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
 /// A list of issues captured with [`Issue::peek_issues_with_path`] and
-/// [`Issue::take_issues_with_path`].
+/// [`Issue::take_issues`].
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct CapturedIssues {
@@ -798,7 +798,7 @@ pub trait IssueReporter {
     /// # Arguments:
     ///
     /// * `issues` - A [ReadRef] of [CapturedIssues]. Typically obtained with
-    ///   `source.peek_issues_with_path()`.
+    ///   `source.peek_issues()`.
     /// * `source` - The root [Vc] from which issues are traced. Can be used by implementers to
     ///   determine which issues are new.
     /// * `min_failing_severity` - The minimum Vc<[IssueSeverity]>
