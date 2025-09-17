@@ -539,7 +539,6 @@ export async function handler(
                 )
               : `${process.cwd()}/${routeModule.relativeProjectDir}`,
           isDraftMode,
-          isRevalidate: isSSG && !postponed && !isDynamicRSCRequest,
           botType,
           isOnDemandRevalidate,
           isPossibleServerAction,
@@ -566,7 +565,6 @@ export async function handler(
                 nextExport: true,
                 supportsDynamicResponse: false,
                 isStaticGeneration: true,
-                isRevalidate: true,
                 isDebugDynamicAccesses: isDebugDynamicAccesses,
               }
             : {}),
@@ -612,7 +610,6 @@ export async function handler(
       if (isDebugStaticShell || isDebugDynamicAccesses) {
         context.renderOpts.nextExport = true
         context.renderOpts.supportsDynamicResponse = false
-        context.renderOpts.isRevalidate = true
         context.renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
       }
 
@@ -1417,7 +1414,7 @@ export async function handler(
           routePath: srcPage,
           routeType: 'render',
           revalidateReason: getRevalidateReason({
-            isRevalidate: isSSG,
+            isStaticGeneration: isSSG,
             isOnDemandRevalidate,
           }),
         },

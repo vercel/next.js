@@ -726,4 +726,6 @@ pub trait Backend: Sync + Send {
     fn dispose_root_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
 
     fn task_statistics(&self) -> &TaskStatisticsApi;
+
+    fn is_tracking_dependencies(&self) -> bool;
 }

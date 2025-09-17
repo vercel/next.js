@@ -3077,6 +3077,10 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn task_statistics(&self) -> &TaskStatisticsApi {
         &self.0.task_statistics
     }
+
+    fn is_tracking_dependencies(&self) -> bool {
+        self.0.options.dependency_tracking
+    }
 }
 
 enum DebugTraceTransientTask {

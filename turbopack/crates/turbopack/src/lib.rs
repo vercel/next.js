@@ -71,14 +71,13 @@ use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySo
 use self::transition::{Transition, TransitionOptions};
 use crate::module_options::{CssOptionsContext, CustomModuleType, EcmascriptOptionsContext};
 
-#[turbo_tasks::function]
 async fn apply_module_type(
     source: ResolvedVc<Box<dyn Source>>,
     module_asset_context: Vc<ModuleAssetContext>,
     module_type: Vc<ModuleType>,
     part: Option<ModulePart>,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
-    css_import_context: Option<Vc<ImportContext>>,
+    css_import_context: Option<ResolvedVc<ImportContext>>,
     runtime_code: bool,
 ) -> Result<Vc<ProcessResult>> {
     let module_type = &*module_type.await?;
@@ -206,12 +205,14 @@ async fn apply_module_type(
                                             part,
                                             side_effect_free_packages,
                                         )
+                                        .await?
                                     } else {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(*module),
                                             part,
                                             side_effect_free_packages,
                                         )
+                                        .await?
                                     }
                                 }
                                 _ => bail!(
@@ -251,7 +252,7 @@ async fn apply_module_type(
                 *source,
                 Vc::upcast(module_asset_context),
                 *ty,
-                css_import_context,
+                css_import_context.map(|c| *c),
                 environment.as_deref().copied(),
             )
             .to_resolved()
@@ -281,7 +282,6 @@ async fn apply_module_type(
     .cell())
 }
 
-#[turbo_tasks::function]
 async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
@@ -656,19 +656,20 @@ async fn process_default_internal(
         return Ok(ProcessResult::Unknown(current_source).cell());
     };
 
-    Ok(apply_module_type(
-        *current_source,
+    apply_module_type(
+        current_source,
         module_asset_context,
         module_type.cell(),
         part,
-        inner_assets.map(|v| *v),
+        inner_assets,
         if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) = reference_type {
-            import.map(|v| *v)
+            import
         } else {
             None
         },
         matches!(reference_type, ReferenceType::Runtime),
-    ))
+    )
+    .await
 }
 
 #[turbo_tasks::function]
