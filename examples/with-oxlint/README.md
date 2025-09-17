@@ -4,7 +4,7 @@ This example shows how to configure [Oxlint](https://oxc.rs/docs/guide/usage/lin
 
 Linting via Oxlint in this example includes type-aware linting through the `oxlint-tsgolint` integration, which is [in technical preview](https://oxc.rs/blog/2025-08-17-oxlint-type-aware.html) at the time of writing.
 
-In Oxlint's config, the [`.oxlintrc.json`](./.oxlintrc.json), the plugins `react`, `unicorn`, `oxc`, `typescript`, and `nextjs` are enabled, which are [rust-based Oxlint plugins](https://oxc.rs/docs/guide/usage/linter/plugins.html#supported-plugins) that ported rules from the corresponding ESLint plugins to Oxlint.
+In Oxlint's config, the [`.oxlintrc.json`](./.oxlintrc.json), the plugins `react`, `unicorn`, `typescript`, and `nextjs` are enabled, which are [rust-based Oxlint plugins](https://oxc.rs/docs/guide/usage/linter/plugins.html#supported-plugins) that ported rules from the corresponding ESLint plugins to Oxlint. Also, the `oxc` plugin is enabled, which provides additional rules specific to Oxc, as well as some rules ported over from deepscan.
 
 
 ## Deploy your own
