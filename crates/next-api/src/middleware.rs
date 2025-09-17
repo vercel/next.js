@@ -6,7 +6,6 @@ use next_core::{
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, Regions},
-    next_server::{ServerContextType, get_server_runtime_entries},
     parse_segment_config_from_source,
     segment_config::ParseSegmentMode,
     util::{MiddlewareMatcherKind, NextRuntime},
@@ -111,26 +110,10 @@ impl MiddlewareEndpoint {
 
         let module_graph = this.project.module_graph(*module);
 
-        let evaluatable_assets = get_server_runtime_entries(
-            ServerContextType::Middleware {
-                app_dir: this.app_dir.clone(),
-                ecmascript_client_reference_transition_name: this
-                    .ecmascript_client_reference_transition_name
-                    .clone(),
-            },
-            this.project.next_mode(),
-        )
-        .resolve_entries(*this.asset_context)
-        .await?
-        .iter()
-        .map(|m| ResolvedVc::upcast(*m))
-        .chain(std::iter::once(module))
-        .collect();
-
         let edge_chunking_context = this.project.edge_chunking_context(false);
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            ChunkGroup::Entry(evaluatable_assets),
+            ChunkGroup::Entry(vec![module]),
             module_graph,
             AvailabilityInfo::Root,
         );
@@ -156,17 +139,7 @@ impl MiddlewareEndpoint {
                     .node_root()
                     .await?
                     .join("server/middleware.js")?,
-                get_server_runtime_entries(
-                    ServerContextType::Middleware {
-                        app_dir: this.app_dir.clone(),
-                        ecmascript_client_reference_transition_name: this
-                            .ecmascript_client_reference_transition_name
-                            .clone(),
-                    },
-                    this.project.next_mode(),
-                )
-                .resolve_entries(*this.asset_context)
-                .with_entry(*module),
+                Vc::cell(vec![module]),
                 module_graph,
                 OutputAssets::empty(),
                 AvailabilityInfo::Root,

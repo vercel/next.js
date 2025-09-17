@@ -7,6 +7,7 @@ use std::{
     future::Future,
     mem::replace,
     panic::AssertUnwindSafe,
+    pin::Pin,
     sync::{Arc, Mutex, Weak},
 };
 
@@ -120,7 +121,11 @@ impl TurboTasksCallApi for VcStorage {
     fn run_once(
         &self,
         _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
+    ) -> Pin<
+        Box<
+            (dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static),
+        >,
+    > {
         unreachable!()
     }
 
@@ -128,14 +133,18 @@ impl TurboTasksCallApi for VcStorage {
         &self,
         _reason: StaticOrArc<dyn InvalidationReason>,
         _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
+    ) -> Pin<
+        Box<
+            (dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static),
+        >,
+    > {
         unreachable!()
     }
 
-    fn run_once_process(
+    fn start_once_process(
         &self,
-        _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
+        _future: std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>>,
+    ) {
         unreachable!()
     }
 }
@@ -154,10 +163,6 @@ impl TurboTasksApi for VcStorage {
     }
 
     fn invalidate_serialization(&self, _task: TaskId) {
-        // ignore
-    }
-
-    fn notify_scheduled_tasks(&self) {
         // ignore
     }
 
@@ -323,6 +328,10 @@ impl TurboTasksApi for VcStorage {
     /// structs with access to a `MessageQueue` like `TurboTasks`.
     fn send_compilation_event(&self, _event: Arc<dyn CompilationEvent>) {
         unimplemented!()
+    }
+
+    fn is_tracking_dependencies(&self) -> bool {
+        false
     }
 }
 

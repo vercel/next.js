@@ -243,7 +243,7 @@ export async function handleRouteType({
           await manifestLoader.loadWebpackStats(page, 'pages')
         }
 
-        await manifestLoader.writeManifests({
+        manifestLoader.writeManifests({
           devRewrites,
           productionRewrites,
           entrypoints,
@@ -334,7 +334,7 @@ export async function handleRouteType({
         manifestLoader.deleteMiddlewareManifest(key)
       }
 
-      await manifestLoader.writeManifests({
+      manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
         entrypoints,
@@ -382,22 +382,22 @@ export async function handleRouteType({
       const type = writtenEndpoint.type
 
       if (type === 'edge') {
-        await manifestLoader.loadMiddlewareManifest(page, 'app')
+        manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
       }
 
-      await manifestLoader.loadAppBuildManifest(page)
-      await manifestLoader.loadBuildManifest(page, 'app')
-      await manifestLoader.loadAppPathsManifest(page)
-      await manifestLoader.loadActionManifest(page)
-      await manifestLoader.loadFontManifest(page, 'app')
+      manifestLoader.loadAppBuildManifest(page)
+      manifestLoader.loadBuildManifest(page, 'app')
+      manifestLoader.loadAppPathsManifest(page)
+      manifestLoader.loadActionManifest(page)
+      manifestLoader.loadFontManifest(page, 'app')
 
       if (shouldCreateWebpackStats) {
-        await manifestLoader.loadWebpackStats(page, 'app')
+        manifestLoader.loadWebpackStats(page, 'app')
       }
 
-      await manifestLoader.writeManifests({
+      manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
         entrypoints,
@@ -415,15 +415,15 @@ export async function handleRouteType({
 
       const type = writtenEndpoint.type
 
-      await manifestLoader.loadAppPathsManifest(page)
+      manifestLoader.loadAppPathsManifest(page)
 
       if (type === 'edge') {
-        await manifestLoader.loadMiddlewareManifest(page, 'app')
+        manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
       }
 
-      await manifestLoader.writeManifests({
+      manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
         entrypoints,
@@ -690,7 +690,7 @@ export async function handleEntrypoints({
       'instrumentation',
       'instrumentation'
     )
-    await manifestLoader.writeManifests({
+    manifestLoader.writeManifests({
       devRewrites,
       productionRewrites: undefined,
       entrypoints: currentEntrypoints,
@@ -758,7 +758,7 @@ export async function handleEntrypoints({
             'middleware',
             dev.serverFields.middleware
           )
-          await manifestLoader.writeManifests({
+          manifestLoader.writeManifests({
             devRewrites,
             productionRewrites: undefined,
             entrypoints: currentEntrypoints,
@@ -956,7 +956,7 @@ export async function handlePagesErrorRoute({
   await manifestLoader.loadPagesManifest('_error')
   await manifestLoader.loadFontManifest('_error')
 
-  await manifestLoader.writeManifests({
+  manifestLoader.writeManifests({
     devRewrites,
     productionRewrites,
     entrypoints,

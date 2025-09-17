@@ -1401,7 +1401,8 @@ function resolveBuffer(response, id, buffer) {
   var chunk = response.get(id);
   chunk && "pending" !== chunk.status
     ? chunk.reason.enqueueValue(buffer)
-    : response.set(id, new ReactPromise("fulfilled", buffer, null));
+    : ((buffer = new ReactPromise("fulfilled", buffer, null)),
+      response.set(id, buffer));
 }
 function resolveModule(response, id, model) {
   var chunks = response._chunks,
@@ -1431,22 +1432,21 @@ function resolveModule(response, id, model) {
   } else
     chunk
       ? resolveModuleChunk(response, chunk, clientReference)
-      : chunks.set(
-          id,
-          new ReactPromise("resolved_module", clientReference, null)
-        );
+      : ((chunk = new ReactPromise("resolved_module", clientReference, null)),
+        chunks.set(id, chunk));
 }
 function resolveStream(response, id, stream, controller) {
-  var chunks = response._chunks;
-  response = chunks.get(id);
-  response
-    ? "pending" === response.status &&
-      ((id = response.value),
-      (response.status = "fulfilled"),
-      (response.value = stream),
-      (response.reason = controller),
-      null !== id && wakeChunk(id, response.value))
-    : chunks.set(id, new ReactPromise("fulfilled", stream, controller));
+  response = response._chunks;
+  var chunk = response.get(id);
+  chunk
+    ? "pending" === chunk.status &&
+      ((id = chunk.value),
+      (chunk.status = "fulfilled"),
+      (chunk.value = stream),
+      (chunk.reason = controller),
+      null !== id && wakeChunk(id, chunk.value))
+    : ((stream = new ReactPromise("fulfilled", stream, controller)),
+      response.set(id, stream));
 }
 function startReadableStream(response, id, type) {
   var controller = null;
@@ -1663,7 +1663,7 @@ function resolveTypedArray(
   );
   resolveBuffer(response, id, constructor);
 }
-function processFullBinaryRow(response, id, tag, buffer, chunk) {
+function processFullBinaryRow(response, streamState, id, tag, buffer, chunk) {
   switch (tag) {
     case 65:
       resolveBuffer(response, id, mergeBuffer(buffer, chunk).buffer);
@@ -1716,9 +1716,9 @@ function processFullBinaryRow(response, id, tag, buffer, chunk) {
   )
     row += stringDecoder.decode(buffer[i], decoderOptions);
   row += stringDecoder.decode(chunk);
-  processFullStringRow(response, id, tag, row);
+  processFullStringRow(response, streamState, id, tag, row);
 }
-function processFullStringRow(response, id, tag, row) {
+function processFullStringRow(response, streamState, id, tag, row) {
   switch (tag) {
     case 73:
       resolveModule(response, id, row);
@@ -1739,8 +1739,10 @@ function processFullStringRow(response, id, tag, row) {
           break;
         case "L":
           id = response[0];
-          tag = response[1];
-          3 === response.length ? row.L(id, tag, response[2]) : row.L(id, tag);
+          streamState = response[1];
+          3 === response.length
+            ? row.L(id, streamState, response[2])
+            : row.L(id, streamState);
           break;
         case "m":
           "string" === typeof response
@@ -1768,20 +1770,22 @@ function processFullStringRow(response, id, tag, row) {
       }
       break;
     case 69:
-      tag = response._chunks;
-      var chunk = tag.get(id);
+      streamState = response._chunks;
+      tag = streamState.get(id);
       row = JSON.parse(row);
       var error = resolveErrorProd();
       error.digest = row.digest;
-      chunk
-        ? triggerErrorOnChunk(response, chunk, error)
-        : tag.set(id, createErrorChunk(response, error));
+      tag
+        ? triggerErrorOnChunk(response, tag, error)
+        : ((response = createErrorChunk(response, error)),
+          streamState.set(id, response));
       break;
     case 84:
       response = response._chunks;
-      (tag = response.get(id)) && "pending" !== tag.status
-        ? tag.reason.enqueueValue(row)
-        : response.set(id, new ReactPromise("fulfilled", row, null));
+      (streamState = response.get(id)) && "pending" !== streamState.status
+        ? streamState.reason.enqueueValue(row)
+        : ((row = new ReactPromise("fulfilled", row, null)),
+          response.set(id, row));
       break;
     case 78:
     case 68:
@@ -1803,26 +1807,28 @@ function processFullStringRow(response, id, tag, row) {
       startAsyncIterable(response, id, !0);
       break;
     case 67:
-      (response = response._chunks.get(id)) &&
-        "fulfilled" === response.status &&
-        response.reason.close("" === row ? '"$undefined"' : row);
+      (id = response._chunks.get(id)) &&
+        "fulfilled" === id.status &&
+        id.reason.close("" === row ? '"$undefined"' : row);
       break;
     case 80:
-      row = Error(
+      streamState = Error(
         "A Server Component was postponed. The reason is omitted in production builds to avoid leaking sensitive details."
       );
-      row.$$typeof = REACT_POSTPONE_TYPE;
-      row.stack = "Error: " + row.message;
-      tag = response._chunks;
-      (chunk = tag.get(id))
-        ? triggerErrorOnChunk(response, chunk, row)
-        : tag.set(id, createErrorChunk(response, row));
+      streamState.$$typeof = REACT_POSTPONE_TYPE;
+      streamState.stack = "Error: " + streamState.message;
+      row = response._chunks;
+      (tag = row.get(id))
+        ? triggerErrorOnChunk(response, tag, streamState)
+        : ((response = createErrorChunk(response, streamState)),
+          row.set(id, response));
       break;
     default:
-      (tag = response._chunks),
-        (chunk = tag.get(id))
-          ? resolveModelChunk(response, chunk, row)
-          : tag.set(id, new ReactPromise("resolved_model", row, response));
+      (streamState = response._chunks),
+        (tag = streamState.get(id))
+          ? resolveModelChunk(response, tag, row)
+          : ((response = new ReactPromise("resolved_model", row, response)),
+            streamState.set(id, response));
   }
 }
 function processBinaryChunk(weakResponse, streamState, chunk) {
@@ -1886,7 +1892,14 @@ function processBinaryChunk(weakResponse, streamState, chunk) {
     var offset = chunk.byteOffset + i;
     if (-1 < lastIdx)
       (rowLength = new Uint8Array(chunk.buffer, offset, lastIdx - i)),
-        processFullBinaryRow(weakResponse, rowID, rowTag, buffer, rowLength),
+        processFullBinaryRow(
+          weakResponse,
+          streamState,
+          rowID,
+          rowTag,
+          buffer,
+          rowLength
+        ),
         (i = lastIdx),
         3 === rowState && i++,
         (rowLength = rowID = rowTag = rowState = 0),
@@ -2053,7 +2066,7 @@ function startReadingFromStream(response, stream, onEnd) {
               "String chunks need to be passed in their original shape. Not split into smaller string chunks. This is a bug in the wiring of the React streams."
             );
           i = chunk.slice(i, lastIdx);
-          processFullStringRow(response, rowID, rowTag, i);
+          processFullStringRow(response, streamState, rowID, rowTag, i);
           i = lastIdx;
           3 === rowState && i++;
           rowLength = rowID = rowTag = rowState = 0;

@@ -21,7 +21,7 @@ import {
 } from './segment-cache'
 import { dispatchAppRouterAction } from './use-action-queue'
 import { addBasePath } from '../add-base-path'
-import { createPrefetchURL, isExternalURL } from './app-router'
+import { createPrefetchURL, isExternalURL } from './app-router-utils'
 import { prefetchReducer } from './router-reducer/reducers/prefetch-reducer'
 import type {
   AppRouterInstance,

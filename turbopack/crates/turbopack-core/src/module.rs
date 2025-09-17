@@ -1,16 +1,13 @@
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, TaskInput, Vc};
 
 use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Copy, Debug, TaskInput, Hash)]
+#[turbo_tasks::value(shared)]
 pub enum StyleType {
     IsolatedStyle,
     GlobalStyle,
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionStyleType(Option<StyleType>);
 
 /// A module. This usually represents parsed source code, which has references
 /// to other modules.
@@ -33,12 +30,13 @@ pub trait Module: Asset {
     fn is_self_async(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
+}
 
+#[turbo_tasks::value_trait]
+pub trait StyleModule: Module + Asset {
     /// The style type of the module.
     #[turbo_tasks::function]
-    fn style_type(self: Vc<Self>) -> Vc<OptionStyleType> {
-        Vc::cell(None)
-    }
+    fn style_type(&self) -> Vc<StyleType>;
 }
 
 #[turbo_tasks::value(transparent)]

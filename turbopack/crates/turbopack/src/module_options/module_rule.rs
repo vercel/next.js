@@ -21,7 +21,8 @@ pub struct ModuleRule {
 
 impl ModuleRule {
     /// Creates a new module rule. Will not match internal references.
-    pub fn new(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    pub fn new(mut condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+        condition.flatten();
         ModuleRule {
             condition,
             effects,
@@ -30,7 +31,8 @@ impl ModuleRule {
     }
 
     /// Creates a new module rule. Will only match internal references.
-    pub fn new_internal(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    pub fn new_internal(mut condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+        condition.flatten();
         ModuleRule {
             condition,
             effects,
@@ -39,7 +41,8 @@ impl ModuleRule {
     }
 
     /// Creates a new module rule. Will match all references.
-    pub fn new_all(condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+    pub fn new_all(mut condition: RuleCondition, effects: Vec<ModuleRuleEffect>) -> Self {
+        condition.flatten();
         ModuleRule {
             condition,
             effects,

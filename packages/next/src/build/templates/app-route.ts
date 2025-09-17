@@ -162,7 +162,7 @@ export async function handler(
   // page and it is not being resumed from a postponed render and
   // it is not a dynamic RSC request then it is a revalidation
   // request.
-  const isRevalidate = isIsr && !supportsDynamicResponse
+  const isStaticGeneration = isIsr && !supportsDynamicResponse
 
   // Before rendering (which initializes component tree modules), we have to
   // set the reference manifests to our global store so Server Action's
@@ -193,7 +193,6 @@ export async function handler(
       supportsDynamicResponse,
       incrementalCache: getRequestMeta(req, 'incrementalCache'),
       cacheLifeProfiles: nextConfig.experimental?.cacheLife,
-      isRevalidate,
       waitUntil: ctx.waitUntil,
       onClose: (cb) => {
         res.on('close', cb)
@@ -258,7 +257,7 @@ export async function handler(
           })
           span.updateName(name)
         } else {
-          span.updateName(`${method} ${req.url}`)
+          span.updateName(`${method}`)
         }
       })
     }
@@ -358,7 +357,7 @@ export async function handler(
                 routePath: srcPage,
                 routeType: 'route',
                 revalidateReason: getRevalidateReason({
-                  isRevalidate,
+                  isStaticGeneration,
                   isOnDemandRevalidate,
                 }),
               },
@@ -437,6 +436,7 @@ export async function handler(
       await sendResponse(
         nodeNextReq,
         nodeNextRes,
+        // @ts-expect-error - Argument of type 'Buffer<ArrayBufferLike>' is not assignable to parameter of type 'BodyInit | null | undefined'.
         new Response(cacheEntry.value.body, {
           headers,
           status: cacheEntry.value.status || 200,
@@ -454,7 +454,7 @@ export async function handler(
         tracer.trace(
           BaseServerSpan.handleRequest,
           {
-            spanName: `${method} ${req.url}`,
+            spanName: `${method}`,
             kind: SpanKind.SERVER,
             attributes: {
               'http.method': method,
@@ -472,7 +472,7 @@ export async function handler(
         routePath: normalizedSrcPage,
         routeType: 'route',
         revalidateReason: getRevalidateReason({
-          isRevalidate,
+          isStaticGeneration,
           isOnDemandRevalidate,
         }),
       })

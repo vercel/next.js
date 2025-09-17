@@ -1,5 +1,4 @@
 use std::{
-    any::Any,
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
@@ -15,15 +14,14 @@ use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 use tokio::{select, sync::mpsc::Receiver, task_local};
 use tokio_util::task::TaskTracker;
-use tracing::{Instrument, Level, instrument, trace_span};
+use tracing::{Instrument, Level, instrument};
 
 use crate::{
     Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
-    ResolvedVc, SharedReference, TaskId, TaskIdSet, TraitMethod, ValueTypeId, Vc, VcRead,
-    VcValueTrait, VcValueType,
+    ResolvedVc, SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait,
+    VcValueType,
     backend::{
         Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent,
@@ -79,16 +77,13 @@ pub trait TurboTasksCallApi: Sync + Send {
     fn run_once(
         &self,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId;
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
     fn run_once_with_reason(
         &self,
         reason: StaticOrArc<dyn InvalidationReason>,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId;
-    fn run_once_process(
-        &self,
-        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId;
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>>;
+    fn start_once_process(&self, future: Pin<Box<dyn Future<Output = ()> + Send + 'static>>);
 }
 
 /// A type-erased subset of [`TurboTasks`] stored inside a thread local when we're in a turbo task
@@ -101,10 +96,6 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>);
 
     fn invalidate_serialization(&self, task: TaskId);
-
-    /// Eagerly notifies all tasks that were scheduled for notifications via
-    /// `schedule_notify_tasks_set()`
-    fn notify_scheduled_tasks(&self);
 
     fn try_read_task_output(
         &self,
@@ -202,6 +193,9 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         event_types: Option<Vec<String>>,
     ) -> Receiver<Arc<dyn CompilationEvent>>;
     fn send_compilation_event(&self, event: Arc<dyn CompilationEvent>);
+
+    // Returns true if TurboTasks is configured to track dependencies.
+    fn is_tracking_dependencies(&self) -> bool;
 }
 
 /// A wrapper around a value that is unused.
@@ -261,63 +255,14 @@ pub trait TurboTasksBackendApi<B: Backend + 'static>: TurboTasksCallApi + Sync +
     /// idle even with active background jobs.
     fn schedule_backend_background_job(&self, job: B::BackendJob);
 
-    /// Enqueues tasks for notification of changed dependencies. This will
-    /// eventually call `invalidate_tasks()` on all tasks.
-    fn schedule_notify_tasks(&self, tasks: &[TaskId]);
-
-    /// Enqueues tasks for notification of changed dependencies. This will
-    /// eventually call `invalidate_tasks()` on all tasks.
-    fn schedule_notify_tasks_set(&self, tasks: &TaskIdSet);
-
     /// Returns the duration from the start of the program to the given instant.
     fn program_duration_until(&self, instant: Instant) -> Duration;
-
-    /// An untyped object-safe version of [`TurboTasksBackendApiExt::read_task_state`]. Callers
-    /// should prefer the extension trait's version of this method.
-    fn read_task_state_dyn(&self, func: &mut dyn FnMut(&B::TaskState));
-
-    /// An untyped object-safe version of [`TurboTasksBackendApiExt::write_task_state`]. Callers
-    /// should prefer the extension trait's version of this method.
-    fn write_task_state_dyn(&self, func: &mut dyn FnMut(&mut B::TaskState));
 
     /// Returns true if the system is idle.
     fn is_idle(&self) -> bool;
 
     /// Returns a reference to the backend.
     fn backend(&self) -> &B;
-}
-
-/// An extension trait for methods of [`TurboTasksBackendApi`] that are not object-safe. This is
-/// automatically implemented for all [`TurboTasksBackendApi`]s using a blanket impl.
-pub trait TurboTasksBackendApiExt<B: Backend + 'static>: TurboTasksBackendApi<B> {
-    /// Allows modification of the [`Backend::TaskState`].
-    ///
-    /// This function holds open a non-exclusive read lock that blocks writes, so `func` is expected
-    /// to execute quickly in order to release the lock.
-    fn read_task_state<T>(&self, func: impl FnOnce(&B::TaskState) -> T) -> T {
-        let mut func = Some(func);
-        let mut out = None;
-        self.read_task_state_dyn(&mut |ts| out = Some((func.take().unwrap())(ts)));
-        out.expect("read_task_state_dyn must call `func`")
-    }
-
-    /// Allows modification of the [`Backend::TaskState`].
-    ///
-    /// This function holds open a write lock, so `func` is expected to execute quickly in order to
-    /// release the lock.
-    fn write_task_state<T>(&self, func: impl FnOnce(&mut B::TaskState) -> T) -> T {
-        let mut func = Some(func);
-        let mut out = None;
-        self.write_task_state_dyn(&mut |ts| out = Some((func.take().unwrap())(ts)));
-        out.expect("write_task_state_dyn must call `func`")
-    }
-}
-
-impl<TT, B> TurboTasksBackendApiExt<B> for TT
-where
-    TT: TurboTasksBackendApi<B> + ?Sized,
-    B: Backend + 'static,
-{
 }
 
 #[allow(clippy::manual_non_exhaustive)]
@@ -400,11 +345,6 @@ struct CurrentTaskState {
     task_id: TaskId,
     execution_id: ExecutionId,
 
-    /// Affected tasks, that are tracked during task execution. These tasks will
-    /// be invalidated when the execution finishes or before reading a cell
-    /// value.
-    tasks_to_notify: SmallVec<[TaskId; 4]>,
-
     /// True if the current task has state in cells
     stateful: bool,
 
@@ -423,26 +363,18 @@ struct CurrentTaskState {
     /// Tracks currently running local tasks, and defers cleanup of the global task until those
     /// complete. Also used by `detached_for_testing`.
     local_task_tracker: TaskTracker,
-
-    backend_state: Box<dyn Any + Send + Sync>,
 }
 
 impl CurrentTaskState {
-    fn new(
-        task_id: TaskId,
-        execution_id: ExecutionId,
-        backend_state: Box<dyn Any + Send + Sync>,
-    ) -> Self {
+    fn new(task_id: TaskId, execution_id: ExecutionId) -> Self {
         Self {
             task_id,
             execution_id,
-            tasks_to_notify: SmallVec::new(),
             stateful: false,
             has_invalidator: false,
             cell_counters: Some(AutoMap::default()),
             local_tasks: Vec::new(),
             local_task_tracker: TaskTracker::new(),
-            backend_state,
         }
     }
 
@@ -558,7 +490,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     /// Creates a new root task, that is only executed once.
     /// Dependencies will not invalidate the task.
     #[track_caller]
-    pub fn spawn_once_task<T, Fut>(&self, future: Fut) -> TaskId
+    fn spawn_once_task<T, Fut>(&self, future: Fut) -> TaskId
     where
         T: ?Sized,
         Fut: Future<Output = Result<Vc<T>>> + Send + 'static,
@@ -596,6 +528,21 @@ impl<B: Backend + 'static> TurboTasks<B> {
         .await?;
 
         Ok(rx.await?)
+    }
+
+    pub fn start_once_process(&self, future: impl Future<Output = ()> + Send + 'static) {
+        let this = self.pin();
+        tokio::spawn(async move {
+            this.pin()
+                .run_once(async move {
+                    this.finish_foreground_job();
+                    future.await;
+                    this.begin_foreground_job();
+                    Ok(())
+                })
+                .await
+                .unwrap()
+        });
     }
 
     pub(crate) fn native_call(
@@ -704,14 +651,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let future = async move {
             let mut schedule_again = true;
             while schedule_again {
-                let backend_state = this.backend.new_task_state(task_id);
                 // it's okay for execution ids to overflow and wrap, they're just used for an assert
                 let execution_id = this.execution_id_factory.wrapping_get();
-                let current_task_state = Arc::new(RwLock::new(CurrentTaskState::new(
-                    task_id,
-                    execution_id,
-                    Box::new(backend_state),
-                )));
+                let current_task_state =
+                    Arc::new(RwLock::new(CurrentTaskState::new(task_id, execution_id)));
                 let single_execution_future = async {
                     if this.stopped.load(Ordering::Acquire) {
                         this.backend.task_execution_canceled(task_id, &*this);
@@ -746,7 +689,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                         } = this.finish_current_task_state();
                         let cell_counters = CURRENT_TASK_STATE
                             .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
-                        let schedule_again = this.backend.task_execution_completed(
+                        this.backend.task_execution_completed(
                             task_id,
                             duration,
                             alloc_info.memory_usage(),
@@ -754,10 +697,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             stateful,
                             has_invalidator,
                             &*this,
-                        );
-                        // task_execution_completed might need to notify tasks
-                        this.notify_scheduled_tasks();
-                        schedule_again
+                        )
                     }
                     .instrument(span)
                     .await
@@ -1120,19 +1060,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     fn finish_current_task_state(&self) -> FinishedTaskState {
-        let (stateful, has_invalidator, tasks) = CURRENT_TASK_STATE.with(|cell| {
+        let (stateful, has_invalidator) = CURRENT_TASK_STATE.with(|cell| {
             let CurrentTaskState {
-                tasks_to_notify,
                 stateful,
                 has_invalidator,
                 ..
             } = &mut *cell.write().unwrap();
-            (*stateful, *has_invalidator, take(tasks_to_notify))
+            (*stateful, *has_invalidator)
         });
 
-        if !tasks.is_empty() {
-            self.backend.invalidate_tasks(&tasks, self);
-        }
         FinishedTaskState {
             stateful,
             has_invalidator,
@@ -1185,11 +1121,9 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
     fn run_once(
         &self,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
-        self.spawn_once_task(async move {
-            future.await?;
-            Ok(Completion::new())
-        })
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
+        let this = self.pin();
+        Box::pin(async move { this.run_once(future).await })
     }
 
     #[track_caller]
@@ -1197,29 +1131,18 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         &self,
         reason: StaticOrArc<dyn InvalidationReason>,
         future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
+    ) -> Pin<Box<dyn Future<Output = Result<()>> + Send>> {
         {
             let (_, reason_set) = &mut *self.aggregated_update.lock().unwrap();
             reason_set.insert(reason);
         }
-        self.spawn_once_task(async move {
-            future.await?;
-            Ok(Completion::new())
-        })
+        let this = self.pin();
+        Box::pin(async move { this.run_once(future).await })
     }
 
     #[track_caller]
-    fn run_once_process(
-        &self,
-        future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
-    ) -> TaskId {
-        let this = self.pin();
-        self.spawn_once_task(async move {
-            this.finish_foreground_job();
-            future.await?;
-            this.begin_foreground_job();
-            Ok(Completion::new())
-        })
+    fn start_once_process(&self, future: Pin<Box<dyn Future<Output = ()> + Send + 'static>>) {
+        self.start_once_process(future)
     }
 }
 
@@ -1240,21 +1163,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
 
     fn invalidate_serialization(&self, task: TaskId) {
         self.backend.invalidate_serialization(task, self);
-    }
-
-    fn notify_scheduled_tasks(&self) {
-        let _ = CURRENT_TASK_STATE.try_with(|cell| {
-            let tasks = {
-                let CurrentTaskState {
-                    tasks_to_notify, ..
-                } = &mut *cell.write().unwrap();
-                take(tasks_to_notify)
-            };
-            if tasks.is_empty() {
-                return;
-            }
-            self.backend.invalidate_tasks(&tasks, self);
-        });
     }
 
     fn try_read_task_output(
@@ -1442,6 +1350,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
             tracing::warn!("Failed to send compilation event: {e}");
         }
     }
+
+    fn is_tracking_dependencies(&self) -> bool {
+        self.backend.is_tracking_dependencies()
+    }
 }
 
 impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
@@ -1466,36 +1378,6 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
             this.backend.run_backend_job(job, &*this).await;
             this
         })
-    }
-
-    /// Enqueues tasks for notification of changed dependencies. This will
-    /// eventually call `dependent_cell_updated()` on all tasks.
-    fn schedule_notify_tasks(&self, tasks: &[TaskId]) {
-        let result = CURRENT_TASK_STATE.try_with(|cell| {
-            let CurrentTaskState {
-                tasks_to_notify, ..
-            } = &mut *cell.write().unwrap();
-            tasks_to_notify.extend(tasks.iter().copied());
-        });
-        if result.is_err() {
-            let _guard = trace_span!("schedule_notify_tasks", count = tasks.len()).entered();
-            self.backend.invalidate_tasks(tasks, self);
-        }
-    }
-
-    /// Enqueues tasks for notification of changed dependencies. This will
-    /// eventually call `dependent_cell_updated()` on all tasks.
-    fn schedule_notify_tasks_set(&self, tasks: &TaskIdSet) {
-        let result = CURRENT_TASK_STATE.try_with(|cell| {
-            let CurrentTaskState {
-                tasks_to_notify, ..
-            } = &mut *cell.write().unwrap();
-            tasks_to_notify.extend(tasks.iter().copied());
-        });
-        if result.is_err() {
-            let _guard = trace_span!("schedule_notify_tasks_set", count = tasks.len()).entered();
-            self.backend.invalidate_tasks_set(tasks, self);
-        };
     }
 
     #[track_caller]
@@ -1525,16 +1407,6 @@ impl<B: Backend + 'static> TurboTasksBackendApi<B> for TurboTasks<B> {
         unsafe { self.transient_task_id_factory.reuse(id.into()) }
     }
 
-    fn read_task_state_dyn(&self, func: &mut dyn FnMut(&B::TaskState)) {
-        CURRENT_TASK_STATE
-            .with(move |ts| func(ts.read().unwrap().backend_state.downcast_ref().unwrap()))
-    }
-
-    fn write_task_state_dyn(&self, func: &mut dyn FnMut(&mut B::TaskState)) {
-        CURRENT_TASK_STATE
-            .with(move |ts| func(ts.write().unwrap().backend_state.downcast_mut().unwrap()))
-    }
-
     fn is_idle(&self) -> bool {
         self.currently_scheduled_foreground_jobs
             .load(Ordering::Acquire)
@@ -1555,18 +1427,13 @@ pub async fn run_once<T: Send + 'static>(
 ) -> Result<T> {
     let (tx, rx) = tokio::sync::oneshot::channel();
 
-    let task_id = tt.run_once(Box::pin(async move {
+    tt.run_once(Box::pin(async move {
         let result = future.await?;
         tx.send(result)
             .map_err(|_| anyhow!("unable to send result"))?;
         Ok(())
-    }));
-
-    // INVALIDATION: A Once task will never invalidate, therefore we don't need to
-    // track a dependency
-    let raw_result = read_task_output_untracked(&*tt, task_id, ReadConsistency::Eventual).await?;
-    let raw_future = raw_result.into_read().untracked();
-    turbo_tasks_future_scope(tt, ReadVcFuture::<Completion>::from(raw_future)).await?;
+    }))
+    .await?;
 
     Ok(rx.await?)
 }
@@ -1578,7 +1445,7 @@ pub async fn run_once_with_reason<T: Send + 'static>(
 ) -> Result<T> {
     let (tx, rx) = tokio::sync::oneshot::channel();
 
-    let task_id = tt.run_once_with_reason(
+    tt.run_once_with_reason(
         (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
         Box::pin(async move {
             let result = future.await?;
@@ -1586,13 +1453,8 @@ pub async fn run_once_with_reason<T: Send + 'static>(
                 .map_err(|_| anyhow!("unable to send result"))?;
             Ok(())
         }),
-    );
-
-    // INVALIDATION: A Once task will never invalidate, therefore we don't need to
-    // track a dependency
-    let raw_result = read_task_output_untracked(&*tt, task_id, ReadConsistency::Eventual).await?;
-    let raw_future = raw_result.into_read().untracked();
-    turbo_tasks_future_scope(tt, ReadVcFuture::<Completion>::from(raw_future)).await?;
+    )
+    .await?;
 
     Ok(rx.await?)
 }
@@ -1652,7 +1514,6 @@ pub fn with_turbo_tasks_for_testing<T>(
             Arc::new(RwLock::new(CurrentTaskState::new(
                 current_task,
                 execution_id,
-                Box::new(()),
             ))),
             f,
         ),
@@ -1721,11 +1582,6 @@ pub fn mark_invalidator() {
 pub fn prevent_gc() {
     // There is a hack in UpdateCellOperation that need to be updated when this is changed.
     mark_stateful();
-}
-
-/// Notifies scheduled tasks for execution.
-pub fn notify_scheduled_tasks() {
-    with_turbo_tasks(|tt| tt.notify_scheduled_tasks())
 }
 
 pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {

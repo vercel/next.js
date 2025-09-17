@@ -58,6 +58,7 @@ The following props can be passed to the `<Link>` component:
 | Prop                        | Example                  | Type              | Required |
 | --------------------------- | ------------------------ | ----------------- | -------- |
 | [`href`](#href-required)    | `href="/dashboard"`      | String or Object  | Yes      |
+| [`as`](#as)                 | `as="/post/abc"`         | String or Object  | -        |
 | [`replace`](#replace)       | `replace={false}`        | Boolean           | -        |
 | [`scroll`](#scroll)         | `scroll={false}`         | Boolean           | -        |
 | [`prefetch`](#prefetch)     | `prefetch={false}`       | Boolean           | -        |
@@ -437,6 +438,12 @@ export default function Home() {
   )
 }
 ```
+
+### `as`
+
+Optional decorator for the path that will be shown in the browser URL bar. Before Next.js 9.5.3 this was used for dynamic routes, check our [previous docs](https://github.com/vercel/next.js/blob/v9.5.2/docs/api-reference/next/link.md#dynamic-routes) to see how it worked.
+
+When this path differs from the one provided in `href` the previous `href`/`as` behavior is used as shown in the [previous docs](https://github.com/vercel/next.js/blob/v9.5.2/docs/api-reference/next/link.md#dynamic-routes).
 
 </PagesOnly>
 

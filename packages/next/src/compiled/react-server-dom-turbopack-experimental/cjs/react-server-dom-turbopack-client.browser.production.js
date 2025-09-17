@@ -1213,7 +1213,8 @@ function resolveBuffer(response, id, buffer) {
   var chunk = response.get(id);
   chunk && "pending" !== chunk.status
     ? chunk.reason.enqueueValue(buffer)
-    : response.set(id, new ReactPromise("fulfilled", buffer, null));
+    : ((buffer = new ReactPromise("fulfilled", buffer, null)),
+      response.set(id, buffer));
 }
 function resolveModule(response, id, model) {
   var chunks = response._chunks,
@@ -1238,22 +1239,21 @@ function resolveModule(response, id, model) {
   } else
     chunk
       ? resolveModuleChunk(response, chunk, clientReference)
-      : chunks.set(
-          id,
-          new ReactPromise("resolved_module", clientReference, null)
-        );
+      : ((chunk = new ReactPromise("resolved_module", clientReference, null)),
+        chunks.set(id, chunk));
 }
 function resolveStream(response, id, stream, controller) {
-  var chunks = response._chunks;
-  response = chunks.get(id);
-  response
-    ? "pending" === response.status &&
-      ((id = response.value),
-      (response.status = "fulfilled"),
-      (response.value = stream),
-      (response.reason = controller),
-      null !== id && wakeChunk(id, response.value))
-    : chunks.set(id, new ReactPromise("fulfilled", stream, controller));
+  response = response._chunks;
+  var chunk = response.get(id);
+  chunk
+    ? "pending" === chunk.status &&
+      ((id = chunk.value),
+      (chunk.status = "fulfilled"),
+      (chunk.value = stream),
+      (chunk.reason = controller),
+      null !== id && wakeChunk(id, chunk.value))
+    : ((stream = new ReactPromise("fulfilled", stream, controller)),
+      response.set(id, stream));
 }
 function startReadableStream(response, id, type) {
   var controller = null;
@@ -1470,7 +1470,7 @@ function resolveTypedArray(
   );
   resolveBuffer(response, id, constructor);
 }
-function processFullBinaryRow(response, id, tag, buffer, chunk) {
+function processFullBinaryRow(response, streamState, id, tag, buffer, chunk) {
   switch (tag) {
     case 65:
       resolveBuffer(response, id, mergeBuffer(buffer, chunk).buffer);
@@ -1516,13 +1516,10 @@ function processFullBinaryRow(response, id, tag, buffer, chunk) {
       resolveTypedArray(response, id, buffer, chunk, DataView, 1);
       return;
   }
-  for (
-    var stringDecoder = response._stringDecoder, row = "", i = 0;
-    i < buffer.length;
-    i++
-  )
-    row += stringDecoder.decode(buffer[i], decoderOptions);
-  buffer = row += stringDecoder.decode(chunk);
+  streamState = response._stringDecoder;
+  for (var row = "", i = 0; i < buffer.length; i++)
+    row += streamState.decode(buffer[i], decoderOptions);
+  buffer = row += streamState.decode(chunk);
   switch (tag) {
     case 73:
       resolveModule(response, id, buffer);
@@ -1577,17 +1574,19 @@ function processFullBinaryRow(response, id, tag, buffer, chunk) {
       tag = response._chunks;
       chunk = tag.get(id);
       buffer = JSON.parse(buffer);
-      stringDecoder = resolveErrorProd();
-      stringDecoder.digest = buffer.digest;
+      streamState = resolveErrorProd();
+      streamState.digest = buffer.digest;
       chunk
-        ? triggerErrorOnChunk(response, chunk, stringDecoder)
-        : tag.set(id, createErrorChunk(response, stringDecoder));
+        ? triggerErrorOnChunk(response, chunk, streamState)
+        : ((response = createErrorChunk(response, streamState)),
+          tag.set(id, response));
       break;
     case 84:
       response = response._chunks;
       (tag = response.get(id)) && "pending" !== tag.status
         ? tag.reason.enqueueValue(buffer)
-        : response.set(id, new ReactPromise("fulfilled", buffer, null));
+        : ((buffer = new ReactPromise("fulfilled", buffer, null)),
+          response.set(id, buffer));
       break;
     case 78:
     case 68:
@@ -1609,26 +1608,28 @@ function processFullBinaryRow(response, id, tag, buffer, chunk) {
       startAsyncIterable(response, id, !0);
       break;
     case 67:
-      (response = response._chunks.get(id)) &&
-        "fulfilled" === response.status &&
-        response.reason.close("" === buffer ? '"$undefined"' : buffer);
+      (id = response._chunks.get(id)) &&
+        "fulfilled" === id.status &&
+        id.reason.close("" === buffer ? '"$undefined"' : buffer);
       break;
     case 80:
-      buffer = Error(
+      tag = Error(
         "A Server Component was postponed. The reason is omitted in production builds to avoid leaking sensitive details."
       );
-      buffer.$$typeof = REACT_POSTPONE_TYPE;
-      buffer.stack = "Error: " + buffer.message;
-      tag = response._chunks;
-      (chunk = tag.get(id))
-        ? triggerErrorOnChunk(response, chunk, buffer)
-        : tag.set(id, createErrorChunk(response, buffer));
+      tag.$$typeof = REACT_POSTPONE_TYPE;
+      tag.stack = "Error: " + tag.message;
+      buffer = response._chunks;
+      (chunk = buffer.get(id))
+        ? triggerErrorOnChunk(response, chunk, tag)
+        : ((response = createErrorChunk(response, tag)),
+          buffer.set(id, response));
       break;
     default:
       (tag = response._chunks),
         (chunk = tag.get(id))
           ? resolveModelChunk(response, chunk, buffer)
-          : tag.set(id, new ReactPromise("resolved_model", buffer, response));
+          : ((response = new ReactPromise("resolved_model", buffer, response)),
+            tag.set(id, response));
   }
 }
 function createFromJSONCallback(response) {
@@ -1747,7 +1748,14 @@ function startReadingFromStream(response, stream, onDone) {
       var offset = value.byteOffset + i;
       if (-1 < lastIdx)
         (rowLength = new Uint8Array(value.buffer, offset, lastIdx - i)),
-          processFullBinaryRow(response, _ref2, rowTag, buffer, rowLength),
+          processFullBinaryRow(
+            response,
+            streamState,
+            _ref2,
+            rowTag,
+            buffer,
+            rowLength
+          ),
           (i = lastIdx),
           3 === rowState && i++,
           (rowLength = _ref2 = rowTag = rowState = 0),

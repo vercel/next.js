@@ -138,7 +138,6 @@ async function requestHandler(
       dir: pageRouteModule.relativeProjectDir,
       botType,
       isDraftMode: false,
-      isRevalidate: false,
       isOnDemandRevalidate,
       isPossibleServerAction,
       assetPrefix: nextConfig.assetPrefix,
@@ -317,7 +316,7 @@ async function requestHandler(
             })
             span.updateName(name)
           } else {
-            span.updateName(`${req.method} ${relativeUrl}`)
+            span.updateName(`${req.method}`)
           }
         })
 
@@ -340,7 +339,7 @@ async function requestHandler(
     tracer.trace(
       BaseServerSpan.handleRequest,
       {
-        spanName: `${req.method} ${relativeUrl}`,
+        spanName: `${req.method}`,
         kind: SpanKind.SERVER,
         attributes: {
           'http.method': req.method,

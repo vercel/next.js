@@ -61,7 +61,10 @@ import type { LazyRenderServerInstance } from '../router-server'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
-import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
+import {
+  isMetadataRouteFile,
+  isStaticMetadataFile,
+} from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
@@ -130,7 +133,6 @@ export type ServerFields = {
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
-  let usingTypeScript = false
   const verifyResult = await verifyTypeScriptSetup({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
@@ -143,9 +145,9 @@ async function verifyTypeScript(opts: SetupOpts) {
   })
 
   if (verifyResult.version) {
-    usingTypeScript = true
+    return true
   }
-  return usingTypeScript
+  return false
 }
 
 export async function propagateServerField(
@@ -238,8 +240,6 @@ async function startWatcher(
     path.join(distTypesDir, 'routes.d.ts'),
     opts.nextConfig
   )
-
-  const usingTypeScript = await verifyTypeScript(opts)
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {
@@ -345,7 +345,7 @@ async function startWatcher(
       },
     })
     const fileWatchTimes = new Map()
-    let enabledTypeScript = usingTypeScript
+    let enabledTypeScript = await verifyTypeScript(opts)
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
 
@@ -353,6 +353,7 @@ async function startWatcher(
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     wp.on('aggregated', async () => {
+      let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: MiddlewareMatcher[] | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
@@ -374,10 +375,11 @@ async function startWatcher(
       let conflictingPageChange = 0
       let hasRootAppNotFound = false
 
-      const { appFiles, pageFiles } = opts.fsChecker
+      const { appFiles, pageFiles, staticMetadataFiles } = opts.fsChecker
 
       appFiles.clear()
       pageFiles.clear()
+      staticMetadataFiles.clear()
       devPageFiles.clear()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
@@ -470,7 +472,7 @@ async function startWatcher(
             serverFields.actualMiddlewareFile
           )
           middlewareMatchers = staticInfo.middleware?.matchers || [
-            { regexp: '.*', originalSource: '/:path*' },
+            { regexp: '^/.*$', originalSource: '/:path*' },
           ]
           continue
         }
@@ -610,7 +612,12 @@ async function startWatcher(
           )
 
           if (useFileSystemPublicRoutes) {
-            appFiles.add(pageName)
+            // Static metadata files will be served from filesystem.
+            if (appDir && isStaticMetadataFile(fileName.replace(appDir, ''))) {
+              staticMetadataFiles.set(pageName, fileName)
+            } else {
+              appFiles.add(pageName)
+            }
           }
 
           if (validFileMatcher.isAppRouterRoute(fileName)) {
@@ -719,7 +726,8 @@ async function startWatcher(
         }
       }
 
-      if (!usingTypeScript && enabledTypeScript) {
+      // Using === false to make the check clearer.
+      if (typescriptStatusFromLastAggregation === false && enabledTypeScript) {
         // we tolerate the error here as this is best effort
         // and the manual install command will be shown
         await verifyTypeScript(opts)
@@ -744,7 +752,7 @@ async function startWatcher(
             }
           )
 
-          if (usingTypeScript && nextConfig.experimental?.typedEnv) {
+          if (enabledTypeScript && nextConfig.experimental?.typedEnv) {
             // do not await, this is not essential for further process
             createEnvDefinitions({
               distDir,
@@ -1036,41 +1044,53 @@ async function startWatcher(
         }
         opts.fsChecker.dynamicRoutes.unshift(...dataRoutes)
 
-        if (!prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])) {
-          const addedRoutes = sortedRoutes.filter(
-            (route) => !prevSortedRoutes.includes(route)
-          )
-          const removedRoutes = prevSortedRoutes.filter(
-            (route) => !sortedRoutes.includes(route)
-          )
+        // For Turbopack ADDED_PAGE and REMOVED_PAGE are implemented in hot-reloader-turbopack.ts
+        // in order to avoid a race condition where ADDED_PAGE and REMOVED_PAGE are sent before Turbopack picked up the file change.
+        if (!opts.turbo) {
+          // Reload the matchers. The filesystem would have been written to,
+          // and the matchers need to re-scan it to update the router.
+          // Reloading the matchers should happen before `ADDED_PAGE` or `REMOVED_PAGE` is sent over the websocket
+          // otherwise it sends the event too early.
+          await propagateServerField(opts, 'reloadMatchers', undefined)
 
-          // emit the change so clients fetch the update
-          hotReloader.send({
-            type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
-            data: [
-              {
-                devPagesManifest: true,
-              },
-            ],
-          })
+          if (
+            !prevSortedRoutes?.every((val, idx) => val === sortedRoutes[idx])
+          ) {
+            const addedRoutes = sortedRoutes.filter(
+              (route) => !prevSortedRoutes.includes(route)
+            )
+            const removedRoutes = prevSortedRoutes.filter(
+              (route) => !sortedRoutes.includes(route)
+            )
 
-          addedRoutes.forEach((route) => {
+            // emit the change so clients fetch the update
             hotReloader.send({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
-              data: [route],
+              type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
+              data: [
+                {
+                  devPagesManifest: true,
+                },
+              ],
             })
-          })
 
-          removedRoutes.forEach((route) => {
-            hotReloader.send({
-              type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
-              data: [route],
+            addedRoutes.forEach((route) => {
+              hotReloader.send({
+                type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
+                data: [route],
+              })
             })
-          })
+
+            removedRoutes.forEach((route) => {
+              hotReloader.send({
+                type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
+                data: [route],
+              })
+            })
+          }
         }
         prevSortedRoutes = sortedRoutes
 
-        if (usingTypeScript) {
+        if (enabledTypeScript) {
           const routeTypesManifest = await createRouteTypesManifest({
             dir,
             pageRoutes,
@@ -1105,10 +1125,6 @@ async function startWatcher(
         } else {
           Log.warn('Failed to reload dynamic routes:', e)
         }
-      } finally {
-        // Reload the matchers. The filesystem would have been written to,
-        // and the matchers need to re-scan it to update the router.
-        await propagateServerField(opts, 'reloadMatchers', undefined)
       }
     })
 

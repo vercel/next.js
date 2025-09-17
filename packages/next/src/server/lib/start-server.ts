@@ -465,7 +465,7 @@ export async function startServer(
         if (process.env.TURBOPACK) {
           await validateTurboNextConfig({
             dir: serverOptions.dir,
-            isDev: true,
+            isDev: serverOptions.isDev,
           })
         }
       } catch (err) {
