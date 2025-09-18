@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf, sync::Arc, time::Duration};
 
-use criterion::{Bencher, BenchmarkId, Criterion};
+use criterion::{Bencher, BenchmarkId, Criterion, criterion_group, criterion_main};
 use swc_core::{
     common::{FilePathMapping, GLOBALS, Mark, SourceMap},
     ecma::{
@@ -142,3 +142,6 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
         }
     });
 }
+
+criterion_group!(analyzer_benches, benchmark);
+criterion_main!(analyzer_benches);

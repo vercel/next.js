@@ -1,6 +1,6 @@
 use std::{path::PathBuf, sync::Arc, time::Duration};
 
-use criterion::{Bencher, BenchmarkId, Criterion};
+use criterion::{Bencher, BenchmarkId, Criterion, criterion_group, criterion_main};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TurboTasks};
 use turbo_tasks_backend::{
@@ -132,3 +132,6 @@ where
             .unwrap()
     });
 }
+
+criterion_group!(references_benches, benchmark);
+criterion_main!(references_benches);
