@@ -406,7 +406,7 @@ export default abstract class Server<
 
   protected abstract loadEnvConfig(params: {
     dev: boolean
-    forceReload?: boolean
+    forceReload: boolean
   }): void
 
   // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
@@ -448,7 +448,7 @@ export default abstract class Server<
     this.dir = path.resolve(/* turbopackIgnore: true */ dir)
 
     this.quiet = quiet
-    this.loadEnvConfig({ dev })
+    this.loadEnvConfig({ dev, forceReload: false })
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
