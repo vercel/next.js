@@ -415,7 +415,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     unsafe fn connect_child_with_tx<'l, 'tx: 'l>(
         &'l self,
         tx: Option<&'l B::ReadTransaction<'tx>>,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         child_task: TaskId,
         turbo_tasks: &'l dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
@@ -426,7 +426,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn connect_child(
         &self,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         child_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
@@ -444,9 +444,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<RawVc, EventListener>> {
-        if let Some(reader) = reader {
-            self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
-        }
+        self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
 
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -754,9 +752,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
-        if let Some(reader) = reader {
-            self.assert_not_persistent_calling_transient(reader, task_id, Some(cell));
-        }
+        self.assert_not_persistent_calling_transient(reader, task_id, Some(cell));
 
         fn add_cell_dependency<B: BackingStorage>(
             backend: &TurboTasksBackendInner<B>,
@@ -1268,7 +1264,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn get_or_create_persistent_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
@@ -1328,10 +1324,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn get_or_create_transient_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
-        if !parent_task.is_transient() {
+        if let Some(parent_task) = parent_task
+            && !parent_task.is_transient()
+        {
             self.panic_persistent_calling_transient(
                 self.lookup_task_type(parent_task).as_deref(),
                 Some(&task_type),
@@ -2264,7 +2262,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_id: TaskId,
         collectible_type: TraitTypeId,
-        reader_id: TaskId,
+        reader_id: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
         let mut ctx = self.execute_context(turbo_tasks);
@@ -2312,13 +2310,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .entry(RawVc::TaskCell(collectible.task, collectible.cell))
                     .or_insert(0) += count;
             }
-            let _ = task.add(CachedDataItem::CollectiblesDependent {
-                collectible_type,
-                task: reader_id,
-                value: (),
-            });
+            if let Some(reader_id) = reader_id {
+                let _ = task.add(CachedDataItem::CollectiblesDependent {
+                    collectible_type,
+                    task: reader_id,
+                    value: (),
+                });
+            }
         }
-        {
+        if let Some(reader_id) = reader_id {
             let mut reader = ctx.task(reader_id, TaskDataCategory::Data);
             let target = CollectiblesRef {
                 task: task_id,
@@ -2480,7 +2480,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn connect_task(
         &self,
         task: TaskId,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         self.assert_not_persistent_calling_transient(parent_task, task, None);
@@ -2737,13 +2737,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn assert_not_persistent_calling_transient(
         &self,
-        parent_id: TaskId,
+        parent_id: Option<TaskId>,
         child_id: TaskId,
         cell_id: Option<CellId>,
     ) {
-        if !parent_id.is_transient() && child_id.is_transient() {
+        if !parent_id.is_none_or(|id| id.is_transient()) && child_id.is_transient() {
             self.panic_persistent_calling_transient(
-                self.lookup_task_type(parent_id).as_deref(),
+                parent_id
+                    .and_then(|id| self.lookup_task_type(id))
+                    .as_deref(),
                 self.lookup_task_type(child_id).as_deref(),
                 cell_id,
             );
@@ -2828,7 +2830,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn get_or_create_persistent_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         self.0
@@ -2838,7 +2840,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn get_or_create_transient_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         self.0
@@ -2928,45 +2930,24 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn try_read_task_output(
         &self,
         task_id: TaskId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>> {
         self.0
-            .try_read_task_output(task_id, Some(reader), consistency, turbo_tasks)
-    }
-
-    fn try_read_task_output_untracked(
-        &self,
-        task_id: TaskId,
-        consistency: ReadConsistency,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<RawVc, EventListener>> {
-        self.0
-            .try_read_task_output(task_id, None, consistency, turbo_tasks)
+            .try_read_task_output(task_id, reader, consistency, turbo_tasks)
     }
 
     fn try_read_task_cell(
         &self,
         task_id: TaskId,
         cell: CellId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         self.0
-            .try_read_task_cell(task_id, Some(reader), cell, options, turbo_tasks)
-    }
-
-    fn try_read_task_cell_untracked(
-        &self,
-        task_id: TaskId,
-        cell: CellId,
-        options: ReadCellOptions,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
-        self.0
-            .try_read_task_cell(task_id, None, cell, options, turbo_tasks)
+            .try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
     }
 
     fn try_read_own_task_cell_untracked(
@@ -2984,7 +2965,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         task_id: TaskId,
         collectible_type: TraitTypeId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
         self.0
@@ -3056,7 +3037,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         parent_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        self.0.connect_task(task, parent_task, turbo_tasks);
+        self.0.connect_task(task, Some(parent_task), turbo_tasks);
     }
 
     fn create_transient_task(

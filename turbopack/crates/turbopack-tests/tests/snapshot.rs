@@ -11,7 +11,7 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ReadConsistency, ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects};
+use turbo_tasks::{ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -201,15 +201,14 @@ async fn run(resource: PathBuf) -> Result<()> {
         },
         noop_backing_storage(),
     ));
-    let task = tt.spawn_once_task(async move {
+    tt.run_once(async move {
         let emit_op = run_inner_operation(resource.to_str().unwrap().into());
         emit_op.read_strongly_consistent().await?;
         apply_effects(emit_op).await?;
 
-        Ok(Vc::<()>::default())
-    });
-    tt.wait_task_completion(task, ReadConsistency::Strong)
-        .await?;
+        Ok(())
+    })
+    .await?;
 
     Ok(())
 }
