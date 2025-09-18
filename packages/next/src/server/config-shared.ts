@@ -804,6 +804,13 @@ export interface ExperimentalConfig {
    * Enable accessing root params via the `next/root-params` module.
    */
   rootParams?: boolean
+
+  /**
+   * Use an isolated directory for development builds to prevent conflicts
+   * with production builds. Development builds will use `{distDir}/dev`
+   * instead of `{distDir}`.
+   */
+  isolatedDevBuild?: boolean
 }
 
 export type ExportPathMap = {
@@ -1496,6 +1503,7 @@ export const defaultConfig = Object.freeze({
     globalNotFound: false,
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
+    isolatedDevBuild: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

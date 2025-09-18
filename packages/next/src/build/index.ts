@@ -1123,7 +1123,7 @@ export default async function build(
       }
 
       if (config.cleanDistDir && !isGenerateMode) {
-        await recursiveDelete(distDir, /^cache/)
+        await recursiveDelete(distDir, /^(cache|dev)/)
       }
 
       if (appDir && 'exportPathMap' in config) {
