@@ -100,6 +100,7 @@ async function getCacheCharacteristics(
   reactCompilerPlugins ??= []
   const hasReactCompiler =
     reactCompilerPlugins.length !== 0 &&
+    !loaderOptions.isServer &&
     !/[/\\]node_modules[/\\]/.test(filename) &&
     !reactCompilerExclude?.(filename) &&
     (await isReactCompilerRequired(filename))

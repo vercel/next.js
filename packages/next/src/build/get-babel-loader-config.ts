@@ -104,6 +104,7 @@ const getReactCompilerLoader = (
     transformMode: 'standalone',
     cwd,
     reactCompilerPlugins,
+    isServer,
   }
   if (reactCompilerExclude) {
     babelLoaderOptions.reactCompilerExclude = reactCompilerExclude

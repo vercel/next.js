@@ -74,6 +74,9 @@ pub async fn get_babel_loader_rules(
     builtin_conditions: &BTreeSet<WebpackLoaderBuiltinCondition>,
     user_webpack_rules: &[(RcStr, LoaderRuleItem)],
 ) -> Result<Vec<(RcStr, LoaderRuleItem)>> {
+    // We never run babel over foreign code, under the assumption that `node_modules` code should
+    // not require any transforms that SWC does not provide. If somebody really needs this, they can
+    // manually configure a babel loader.
     if builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Foreign) {
         return Ok(Vec::new());
     }
@@ -112,7 +115,11 @@ pub async fn get_babel_loader_rules(
 
     let react_compiler_options = next_config.react_compiler_options().await?;
 
-    if babel_config_path.is_none() && react_compiler_options.is_none() {
+    // if there's no babel config and react-compiler shouldn't be enabled, bail out early
+    if babel_config_path.is_none()
+        && (react_compiler_options.is_none()
+            || !builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Browser))
+    {
         return Ok(Vec::new());
     }
 
@@ -125,6 +132,7 @@ pub async fn get_babel_loader_rules(
         // transforms using SWC, so use `standalone` instead.
         "transformMode": "standalone",
         "cwd": to_sys_path_str(project_path.clone()).await?,
+        "isServer": !builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Browser),
     }) else {
         unreachable!("is an object")
     };
@@ -136,7 +144,6 @@ pub async fn get_babel_loader_rules(
         );
     }
 
-    // NOTE: we already bail out at the top of this function is the `foreign` condition is set
     let mut loader_conditions = Vec::new();
     if let Some(react_compiler_options) = &*react_compiler_options
         && let Some(babel_plugin_path) =
@@ -155,9 +162,9 @@ pub async fn get_babel_loader_rules(
         if babel_config_path.is_none() {
             // We're only running react-compiler, so add some extra conditions to limit when babel
             // runs for performance reasons
-            loader_conditions.push(ConditionItem::Builtin(RcStr::from(
-                WebpackLoaderBuiltinCondition::Browser.as_str(),
-            )));
+            //
+            // NOTE: we already bail out at the earlier if `foreign` condition is set or if
+            // `browser` is not set.
             if react_compiler_options.compilation_mode == ReactCompilerCompilationMode::Annotation {
                 loader_conditions.push(ConditionItem::Base {
                     path: None,

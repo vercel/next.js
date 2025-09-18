@@ -68,6 +68,7 @@ export type NextBabelLoaderOptionDefaultPresets = NextBabelLoaderBaseOptions & {
  */
 export type NextBabelLoaderOptionStandalone = NextBabelLoaderBaseOptions & {
   transformMode: 'standalone'
+  isServer: boolean
 }
 
 export type NextBabelLoaderOptions =
