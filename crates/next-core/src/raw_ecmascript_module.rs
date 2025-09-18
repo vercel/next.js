@@ -24,6 +24,7 @@ use turbopack_core::{
     source_map::GenerateSourceMap,
 };
 use turbopack_ecmascript::{
+    EcmascriptInputTransforms,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
@@ -48,6 +49,17 @@ impl CustomModuleType for RawEcmascriptModuleType {
             source,
             module_asset_context.compile_time_info(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    fn extend_ecmascript_transforms(
+        self: Vc<Self>,
+        _preprocess: Vc<EcmascriptInputTransforms>,
+        _main: Vc<EcmascriptInputTransforms>,
+        _postprocess: Vc<EcmascriptInputTransforms>,
+    ) -> Vc<Box<dyn CustomModuleType>> {
+        // Just ignore them
+        Vc::upcast(self)
     }
 }
 

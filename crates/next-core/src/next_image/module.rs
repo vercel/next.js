@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, fxindexmap, trace::TraceRawVcs};
@@ -7,6 +7,7 @@ use turbopack_core::{
     context::AssetContext, module::Module, reference_type::ReferenceType, resolve::ModulePart,
     source::Source,
 };
+use turbopack_ecmascript::EcmascriptInputTransforms;
 use turbopack_static::ecma::StaticUrlJsModule;
 
 use super::source_asset::StructuredImageFileSource;
@@ -94,5 +95,15 @@ impl CustomModuleType for StructuredImageModuleType {
             self.blur_placeholder_mode,
             module_asset_context,
         )
+    }
+
+    #[turbo_tasks::function]
+    fn extend_ecmascript_transforms(
+        self: Vc<Self>,
+        _preprocess: Vc<EcmascriptInputTransforms>,
+        _main: Vc<EcmascriptInputTransforms>,
+        _postprocess: Vc<EcmascriptInputTransforms>,
+    ) -> Result<Vc<Box<dyn CustomModuleType>>> {
+        bail!("StructuredImageModuleType does not support adding Ecmascript transforms");
     }
 }
