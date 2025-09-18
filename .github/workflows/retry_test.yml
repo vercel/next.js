@@ -39,7 +39,7 @@ jobs:
             const requiredJobName = {
               'build-and-test': 'thank you, next',
               'build-and-deploy': 'thank you, build',
-            }[github.event.workflow_run.name]
+            }[context.payload.workflow_run.name]
 
             async function rerunIfRequiredNotSuccessful() {
               const result = await github.paginate.iterator(
@@ -105,7 +105,7 @@ jobs:
             const requiredJobName = {
               'build-and-test': 'thank you, next',
               'build-and-deploy': 'thank you, build',
-            }[github.event.workflow_run.name]
+            }[context.payload.workflow_run.name]
 
             async function rerunIfRequiredNotSuccessful() {
               const result = await github.paginate.iterator(
