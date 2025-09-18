@@ -94,6 +94,7 @@ static NODE_RESOLVE_OPTIONS: LazyLock<ResolveOptionsWithDependencyType> =
             description_files: Some(vec!["package.json".to_string()]),
             enforce_extension: Some(false),
             pnp: None,
+            builtin_modules: false,
         })),
         resolve_to_context: false,
         dependency_category: DependencyCategory::CommonJS,

@@ -2298,9 +2298,7 @@ dependencies = [
  "rspack_regex",
  "rspack_sources",
  "rustc-hash",
- "serde",
  "serde_json",
- "swc_core",
 ]
 
 [[package]]

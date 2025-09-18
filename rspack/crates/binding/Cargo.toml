@@ -26,7 +26,7 @@ napi-derive = { version = "=3.2.2" }
 anyhow     = { version = "1.0.95" }
 serde_json = { version = "1.0.134" }
 
-next-taskless = { path = "../../../crates/next-taskless" }
+next-taskless = { version = "0.0.1" }
 
 # Enable SWC plugin feature for targets that support it
 # Skip: wasm32-wasip1-threads, i686-pc-windows-msvc, aarch64-pc-windows-msvc, armv7-linux-androideabi, armv7-unknown-linux-gnueabihf
@@ -35,21 +35,4 @@ rspack_binding_builder = { version = "=0.5.4", features = ["plugin"] }
 
 [build-dependencies]
 rspack_binding_build = { version = "=0.5.4" }
-
-# Copied from https://github.com/web-infra-dev/rspack/blob/main/Cargo.toml
-
-[profile.dev]
-codegen-units = 16
-debug         = 2
-incremental   = true
-panic         = "abort"
-
-[profile.release]
-codegen-units = 1
-debug         = false
-# Performs “fat” LTO which attempts to perform optimizations across all crates within the dependency graph.
-lto       = "fat"
-opt-level = 3
-panic     = "abort"
-strip     = true
 
