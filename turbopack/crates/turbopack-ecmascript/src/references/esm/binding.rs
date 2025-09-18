@@ -92,7 +92,6 @@ impl EsmBinding {
                         visit_mut_prop,
                         |prop: &mut Prop| {
                             if let Prop::Shorthand(ident) = prop {
-                                // TODO: Merge with the above condition when https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands.
                                 match &imported_ident {
                                     ImportedIdent::Module(imported_ident) => {
                                         *prop = Prop::KeyValue(KeyValueProp {

@@ -46,7 +46,7 @@ impl UpdateOutputOperation {
     pub fn run(
         task_id: TaskId,
         output: Result<RawVc, TurboTasksExecutionError>,
-        mut ctx: impl ExecuteContext,
+        mut ctx: impl ExecuteContext<'_>,
     ) {
         let mut dependent_tasks = Default::default();
         let mut children = Default::default();
@@ -66,9 +66,7 @@ impl UpdateOutputOperation {
                 // Skip updating the output when the task is stale
                 break 'output;
             }
-            if ctx.should_track_children() {
-                children = new_children.iter().copied().collect();
-            }
+            children = new_children.iter().copied().collect();
 
             let current_output = get!(task, Output);
             let output_value = match output {
@@ -116,16 +114,15 @@ impl UpdateOutputOperation {
             }
 
             make_task_dirty_internal(
-                &mut task,
+                task,
                 task_id,
                 false,
                 #[cfg(feature = "trace_task_dirty")]
                 TaskDirtyCause::InitialDirty,
                 &mut queue,
-                &ctx,
+                &mut ctx,
             );
 
-            drop(task);
             drop(old_content);
         }
 
@@ -173,10 +170,10 @@ impl Operation for UpdateOutputOperation {
                     ref mut queue,
                 } => {
                     if let Some(child_id) = children.pop() {
-                        let mut child_task = ctx.task(child_id, TaskDataCategory::Meta);
+                        let child_task = ctx.task(child_id, TaskDataCategory::Meta);
                         if !child_task.has_key(&CachedDataItemKey::Output {}) {
                             make_task_dirty_internal(
-                                &mut child_task,
+                                child_task,
                                 child_id,
                                 false,
                                 #[cfg(feature = "trace_task_dirty")]

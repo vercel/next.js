@@ -311,6 +311,11 @@ pub struct ActionManifestEntry<'a> {
     pub workers: FxIndexMap<&'a str, ActionManifestWorkerEntry<'a>>,
 
     pub layer: FxIndexMap<&'a str, ActionLayer>,
+
+    #[serde(rename = "exportedName")]
+    pub exported_name: &'a str,
+
+    pub filename: &'a str,
 }
 
 #[derive(Serialize, Debug)]
@@ -319,13 +324,16 @@ pub struct ActionManifestWorkerEntry<'a> {
     pub module_id: ActionManifestModuleId<'a>,
     #[serde(rename = "async")]
     pub is_async: bool,
+    #[serde(rename = "exportedName")]
+    pub exported_name: &'a str,
+    pub filename: &'a str,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum ActionManifestModuleId<'a> {
     String(&'a str),
-    Number(f64),
+    Number(u64),
 }
 
 #[derive(
@@ -519,6 +527,8 @@ pub struct ClientBuildManifest<'a> {
 
 #[cfg(test)]
 mod tests {
+    use turbo_rcstr::rcstr;
+
     use super::*;
 
     #[test]
@@ -529,20 +539,20 @@ mod tests {
                 locale: false,
                 has: None,
                 missing: None,
-                original_source: "".into(),
+                original_source: rcstr!(""),
             },
             MiddlewareMatcher {
-                regexp: Some(".*".into()),
+                regexp: Some(rcstr!(".*")),
                 locale: true,
                 has: Some(vec![RouteHas::Query {
-                    key: "foo".into(),
+                    key: rcstr!("foo"),
                     value: None,
                 }]),
                 missing: Some(vec![RouteHas::Query {
-                    key: "bar".into(),
-                    value: Some("value".into()),
+                    key: rcstr!("bar"),
+                    value: Some(rcstr!("value")),
                 }]),
-                original_source: "source".into(),
+                original_source: rcstr!("source"),
             },
         ];
 

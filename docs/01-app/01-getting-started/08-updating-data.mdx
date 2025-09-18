@@ -172,6 +172,8 @@ There are two main ways you can invoke a Server Function:
 1. [Forms](#forms) in Server and Client Components
 2. [Event Handlers](#event-handlers) and [useEffect](#useeffect) in Client Components
 
+> **Good to know:** Server Functions are designed for server-side mutations. The client currently dispatches and awaits them one at a time. This is an implementation detail and may change. If you need parallel data fetching, use [data fetching](/docs/app/getting-started/fetching-data#server-components) in Server Components, or perform parallel work inside a single Server Function or [Route Handler](/docs/app/guides/backend-for-frontend#manipulating-data).
+
 ### Forms
 
 React extends the HTML [`<form>`](https://react.dev/reference/react-dom/components/form) element to allow Server Function to be invoked with the HTML `action` prop.
@@ -355,17 +357,19 @@ export async function createPost(formData) {
 
 ### Redirecting
 
-You may want to redirect the user to a different page after performing an update. You can do this by calling [`redirect`](/docs/app/api-reference/functions/redirect) within the Server Function:
+You may want to redirect the user to a different page after performing an update. You can do this by calling [`redirect`](/docs/app/api-reference/functions/redirect) within the Server Function.
 
 ```ts filename="app/lib/actions.ts" switcher
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 export async function createPost(formData: FormData) {
   // Update data
   // ...
 
+  revalidatePath('/posts')
   redirect('/posts')
 }
 ```
@@ -373,19 +377,27 @@ export async function createPost(formData: FormData) {
 ```js filename="app/actions.js" switcher
 'use server'
 
+import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 export async function createPost(formData) {
   // Update data
   // ...
 
+  revalidatePath('/posts')
   redirect('/posts')
 }
 ```
 
+Calling `redirect` [throws](/docs/app/api-reference/functions/redirect#behavior) a framework handled control-flow exception. Any code after it won't execute. If you need fresh data, call [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) beforehand.
+
 ### Cookies
 
-You can `get`, `set`, and `delete` cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) API:
+You can `get`, `set`, and `delete` cookies inside a Server Action using the [`cookies`](/docs/app/api-reference/functions/cookies) API.
+
+When you [set or delete](/docs/app/api-reference/functions/cookies#understanding-cookie-behavior-in-server-actions) a cookie in a Server Action, Next.js re-renders the current page and its layouts on the server so the **UI reflects the new cookie value**.
+
+> **Good to know**: The server update applies to the current React tree, re-rendering, mounting, or unmounting components, as needed. Client state is preserved for re-rendered components, and effects re-run if their dependencies changed.
 
 ```ts filename="app/actions.ts" switcher
 'use server'

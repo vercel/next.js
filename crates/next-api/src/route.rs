@@ -47,9 +47,6 @@ pub enum Route {
     Conflict,
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct ModuleGraphs(Vec<ResolvedVc<ModuleGraph>>);
-
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
     #[turbo_tasks::function]
@@ -68,8 +65,6 @@ pub trait Endpoint {
     fn additional_entries(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<GraphEntries> {
         GraphEntries::empty()
     }
-    #[turbo_tasks::function]
-    fn module_graphs(self: Vc<Self>) -> Vc<ModuleGraphs>;
 }
 
 #[turbo_tasks::value(transparent)]
@@ -152,7 +147,7 @@ pub struct EndpointOutput {
 pub enum EndpointOutputPaths {
     NodeJs {
         /// Relative to the root_path
-        server_entry_path: String,
+        server_entry_path: RcStr,
         server_paths: Vec<ServerPath>,
         client_paths: Vec<RcStr>,
     },

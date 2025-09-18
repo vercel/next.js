@@ -1,6 +1,6 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{context::AssetContext, module::Module, reference_type::ReferenceType};
 
@@ -33,17 +33,17 @@ pub async fn get_middleware_module(
     let source = load_next_js_template(
         "middleware.js",
         project_root,
-        fxindexmap! {
-            "VAR_USERLAND" => INNER.into(),
-            "VAR_DEFINITION_PAGE" => "/middleware".into(),
-        },
-        FxIndexMap::default(),
-        FxIndexMap::default(),
+        &[
+            ("VAR_USERLAND", INNER),
+            ("VAR_DEFINITION_PAGE", "/middleware"),
+        ],
+        &[],
+        &[],
     )
     .await?;
 
     let inner_assets = fxindexmap! {
-        INNER.into() => userland_module
+        rcstr!(INNER) => userland_module
     };
 
     let module = asset_context

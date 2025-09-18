@@ -50,11 +50,15 @@ struct FsWatcher {
     file_modifications: u32,
     #[arg(long, default_value_t = 2)]
     directory_modifications: u32,
+    #[arg(long)]
+    print_missing_invalidations: bool,
+    /// Call `start_watching` after the initial read of files instead of before (the default).
+    #[arg(long)]
+    start_watching_late: bool,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    register();
     let cli = Cli::parse();
 
     match cli.command {
@@ -89,7 +93,9 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
             .await?;
         create_directory_tree(&mut FxHashSet::default(), &fs_root, args.depth, args.width)?;
 
-        project_fs.await?.start_watching(None).await?;
+        if !args.start_watching_late {
+            project_fs.await?.start_watching(None).await?;
+        }
 
         let read_all_paths_op =
             read_all_paths_operation(invalidations.clone(), project_root, args.depth, args.width);
@@ -98,6 +104,10 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
             let mut invalidations = invalidations.0.lock().unwrap();
             println!("read all {} files", invalidations.len());
             invalidations.clear();
+        }
+
+        if args.start_watching_late {
+            project_fs.await?.start_watching(None).await?;
         }
 
         let mut rand_buf = [0; 16];
@@ -135,6 +145,19 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
                     modified_file_paths.len(),
                     invalidations.len()
                 );
+                if args.print_missing_invalidations {
+                    let absolute_path_invalidations = invalidations
+                        .iter()
+                        .map(|relative_path| fs_root.join(relative_path))
+                        .collect::<FxHashSet<PathBuf>>();
+                    let mut missing = modified_file_paths
+                        .difference(&absolute_path_invalidations)
+                        .collect::<Vec<_>>();
+                    missing.sort_unstable();
+                    for path in &missing {
+                        println!("  missing {path:?}");
+                    }
+                }
                 invalidations.clear();
             }
         }
@@ -144,7 +167,7 @@ async fn fuzz_fs_watcher(args: FsWatcher) -> anyhow::Result<()> {
 
 #[turbo_tasks::function(operation)]
 fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
-    DiskFileSystem::new(rcstr!("project"), fs_root, Vec::new())
+    DiskFileSystem::new(rcstr!("project"), fs_root)
 }
 
 #[turbo_tasks::function(operation)]
@@ -251,10 +274,4 @@ impl Drop for FsCleanup<'_> {
     fn drop(&mut self) {
         std::fs::remove_dir_all(self.path).unwrap();
     }
-}
-
-fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

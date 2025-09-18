@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::resolve::{ExternalTraced, ExternalType, options::ImportMapping};
@@ -12,10 +12,10 @@ pub async fn get_postcss_package_mapping(
 ) -> Result<Vc<ImportMapping>> {
     Ok(ImportMapping::Alternatives(vec![
         // Prefer the local installed version over the next.js version
-        ImportMapping::PrimaryAlternative("postcss".into(), Some(project_path.clone()))
+        ImportMapping::PrimaryAlternative(rcstr!("postcss"), Some(project_path.clone()))
             .resolved_cell(),
         ImportMapping::PrimaryAlternative(
-            "postcss".into(),
+            rcstr!("postcss"),
             Some(get_next_package(project_path.clone()).owned().await?),
         )
         .resolved_cell(),

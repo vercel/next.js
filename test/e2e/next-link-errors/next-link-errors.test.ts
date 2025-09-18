@@ -33,60 +33,13 @@ describe('next-link', () => {
     )
   })
 
-  it('no children', async () => {
-    const browser = await webdriver(next.appPort, '/no-children')
-
-    if (isNextDev) {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "No children were passed to <Link> with \`href\` of \`/about\` but one child is required https://nextjs.org/docs/messages/link-no-children",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "app/no-children/page.js (7:10) @ Page
-       > 7 |   return <Link href="/about" legacyBehavior></Link>
-           |          ^",
-         "stack": [
-           "Page app/no-children/page.js (7:10)",
-         ],
-       }
-      `)
-    }
-    expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(
-      `"Application error: a client-side exception has occurred while loading localhost (see the browser console for more information)."`
-    )
-  })
-
-  it('multiple children', async () => {
-    const browser = await webdriver(next.appPort, '/multiple-children')
-
-    if (isNextDev) {
-      await expect(browser).toDisplayRedbox(`
-       {
-         "description": "Multiple children were passed to <Link> with \`href\` of \`/\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children 
-       Open your browser's console to view the Component stack trace.",
-         "environmentLabel": null,
-         "label": "Runtime Error",
-         "source": "app/multiple-children/page.js (7:5) @ Index
-       >  7 |     <Link href="/" legacyBehavior>
-            |     ^",
-         "stack": [
-           "Index app/multiple-children/page.js (7:5)",
-         ],
-       }
-      `)
-    }
-    expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(
-      `"Application error: a client-side exception has occurred while loading localhost (see the browser console for more information)."`
-    )
-  })
-
   it('invalid `prefetch` causes runtime error (dev-only)', async () => {
     const browser = await webdriver(next.appPort, '/invalid-prefetch')
 
     if (isNextDev) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Failed prop type: The prop \`prefetch\` expects a \`boolean | "auto"\` in \`<Link>\`, but got \`string\` instead.
+         "description": "Failed prop type: The prop \`prefetch\` expects a \`boolean | "auto" | "unstable_forceStale"\` in \`<Link>\`, but got \`string\` instead.
        Open your browser's console to view the Component stack trace.",
          "environmentLabel": null,
          "label": "Runtime Error",

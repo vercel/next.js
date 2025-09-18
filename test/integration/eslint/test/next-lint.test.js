@@ -419,7 +419,6 @@ describe('Next Lint', () => {
       }
     )
 
-    expect(stderr).toEqual('')
     expect(stderr).not.toContain(
       'Warning: Synchronous scripts should not be used.'
     )

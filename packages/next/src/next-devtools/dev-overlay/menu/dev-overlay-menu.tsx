@@ -1,6 +1,7 @@
 import { useDevOverlayContext } from '../../dev-overlay.browser'
 import { useClickOutsideAndEscape } from '../components/errors/dev-tools-indicator/utils'
 import {
+  experimental_useEffectEvent as useEffectEvent,
   useLayoutEffect,
   useRef,
   createContext,
@@ -20,9 +21,9 @@ interface C {
   setSelectedIndex: Dispatch<SetStateAction<number>>
 }
 
-export const MenuContext = createContext({} as C)
+const MenuContext = createContext({} as C)
 
-export function MenuItem({
+function MenuItem({
   index,
   label,
   value,
@@ -134,15 +135,18 @@ export const DevtoolMenu = ({
       }
     }
   )
-  useLayoutEffect(() => {
-    menuRef.current?.focus() // allows keydown to be captured
+  const fireInitialSelectMenuItem = useEffectEvent(() => {
     selectMenuItem({
       index: selectedIndex === -1 ? 'first' : selectedIndex,
       menuRef,
       setSelectedIndex,
     })
-    // eslint-disable-next-line react-hooks/react-compiler
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  })
+
+  useLayoutEffect(() => {
+    menuRef.current?.focus() // allows keydown to be captured
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- eprh bug
+    fireInitialSelectMenuItem()
   }, [])
 
   const indicatorOffset = getIndicatorOffset(state)
@@ -288,7 +292,7 @@ export const DevtoolMenu = ({
   )
 }
 
-export function getAdjustedIndex(
+function getAdjustedIndex(
   items: Array<{ onClick?: () => void }>,
   targetIndex: number
 ): number {
@@ -306,7 +310,7 @@ export function getAdjustedIndex(
   return adjustedIndex
 }
 
-export function getClickableItemsCount(
+function getClickableItemsCount(
   items: Array<{ onClick?: () => void }>
 ): number {
   return items.filter((item) => item.onClick).length
@@ -343,7 +347,7 @@ export function ChevronRight() {
   )
 }
 
-export function selectMenuItem({
+function selectMenuItem({
   index,
   menuRef,
   setSelectedIndex,

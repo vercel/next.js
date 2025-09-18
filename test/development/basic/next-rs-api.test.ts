@@ -195,9 +195,6 @@ describe('next.rs api', () => {
     const distDir = '.next'
     project = await bindings.turbo.createProject({
       env: {},
-      jsConfig: {
-        compilerOptions: {},
-      },
       nextConfig: nextConfig,
       rootPath,
       projectPath: path.relative(rootPath, next.testDir) || '.',

@@ -22,7 +22,7 @@ describe('use-cache-private', () => {
   it('allows reading cookies in private caches', async () => {
     const browser = await next.browser('/cookies')
 
-    expect(await browser.elementById('test-cookie').text()).toBe('')
+    expect(await browser.elementById('test-cookie').text()).toBe('<empty>')
 
     await browser.addCookie({ name: 'test-cookie', value: 'foo' })
     await browser.refresh()

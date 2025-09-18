@@ -1,5 +1,5 @@
 import { NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
-import type { FallbackRouteParams } from '../request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import { getCacheHandlerEntries } from '../use-cache/handlers'
 import { createLazyResult, type LazyResult } from './lazy-result'
 
@@ -77,11 +77,9 @@ export async function getImplicitTags(
     pathname: string
     search?: string
   },
-  fallbackRouteParams: null | FallbackRouteParams
+  fallbackRouteParams: null | OpaqueFallbackRouteParams
 ): Promise<ImplicitTags> {
   const tags: string[] = []
-  const hasFallbackRouteParams =
-    fallbackRouteParams && fallbackRouteParams.size > 0
 
   // Add the derived tags from the page.
   const derivedTags = getDerivedTags(page)
@@ -92,7 +90,10 @@ export async function getImplicitTags(
 
   // Add the tags from the pathname. If the route has unknown params, we don't
   // want to add the pathname as a tag, as it will be invalid.
-  if (url.pathname && !hasFallbackRouteParams) {
+  if (
+    url.pathname &&
+    (!fallbackRouteParams || fallbackRouteParams.size === 0)
+  ) {
     const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${url.pathname}`
     tags.push(tag)
   }

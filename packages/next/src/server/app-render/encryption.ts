@@ -260,6 +260,7 @@ export async function decryptActionBoundArgs(
 
         switch (workUnitStore?.type) {
           case 'prerender':
+          case 'prerender-runtime':
             // Explicitly don't close the stream here (until prerendering is
             // complete) so that hanging promises are not rejected.
             if (workUnitStore.renderSignal.aborted) {

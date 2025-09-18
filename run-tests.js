@@ -4,10 +4,7 @@ const path = require('path')
 const _glob = require('glob')
 const { existsSync } = require('fs')
 const fsp = require('fs/promises')
-const nodeFetch = require('node-fetch')
-const vercelFetch = require('@vercel/fetch')
-// @ts-expect-error
-const fetch = vercelFetch(nodeFetch)
+const { createClient } = require('@vercel/kv')
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
@@ -33,6 +30,8 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .number('c')
   .boolean('related')
   .boolean('dry')
+  .boolean('print-tests')
+  .describe('print-tests', 'Prints the test files that will be run')
   .boolean('local')
   .alias('r', 'related')
   .alias('c', 'concurrency').argv
@@ -63,26 +62,53 @@ const shouldContinueTestsOnError = !!process.env.NEXT_TEST_CONTINUE_ON_ERROR
 const skipRetryTestManifest = process.env.NEXT_TEST_SKIP_RETRY_MANIFEST
   ? require(process.env.NEXT_TEST_SKIP_RETRY_MANIFEST)
   : []
-const TIMINGS_API = `https://api.github.com/gists/4500dd89ae2f5d70d9aaceb191f528d1`
-const TIMINGS_API_HEADERS = {
-  Accept: 'application/vnd.github.v3+json',
-  ...(process.env.TEST_TIMINGS_TOKEN
-    ? {
-        Authorization: `Bearer ${process.env.TEST_TIMINGS_TOKEN}`,
+const KV_TIMINGS_KEY = 'test-timings'
+
+const kvClient =
+  process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
+    ? createClient({
+        url: process.env.KV_REST_API_URL,
+        token: process.env.KV_REST_API_TOKEN,
+      })
+    : null
+
+/**
+ * Retry a KV operation with exponential backoff
+ * @param {() => Promise<any>} operation - The async operation to retry
+ * @param {string} operationName - Name of the operation for logging
+ * @param {number} maxRetries - Maximum number of retries (default: 3)
+ * @returns {Promise<any>} The result of the operation
+ */
+async function retryKVOperation(operation, operationName, maxRetries = 3) {
+  let lastError
+  let retries = maxRetries
+
+  while (retries > 0) {
+    try {
+      return await operation()
+    } catch (err) {
+      lastError = err
+      retries--
+      if (retries > 0) {
+        const delay = (maxRetries - retries + 1) * 5 // 5s, 10s, 15s backoff
+        console.log(
+          `KV ${operationName} failed, retrying in ${delay}s. Error:`,
+          err.message
+        )
+        await new Promise((resolve) => setTimeout(resolve, delay * 1000))
       }
-    : {}),
+    }
+  }
+
+  throw new Error(
+    `Failed to ${operationName} after ${maxRetries} retries: ${lastError?.message}`
+  )
 }
 
 const testFilters = {
-  development: new RegExp(
-    '^(test/(development|e2e)|packages/.*/src/.*|packages/next-codemod/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
-  ),
-  production: new RegExp(
-    '^(test/(production|e2e))/.*\\.test\\.(js|jsx|ts|tsx)$'
-  ),
-  unit: new RegExp(
-    '^test/unit|packages/.*/src/.*/.*\\.test\\.(js|jsx|ts|tsx)$'
-  ),
+  development: new RegExp('^(test/(development|e2e))'),
+  production: new RegExp('^(test/(production|e2e))'),
+  unit: new RegExp('^(test/unit|packages/.*/src|packages/next-codemod)'),
   examples: 'examples/',
   integration: 'test/integration/',
   e2e: 'test/e2e/',
@@ -172,28 +198,19 @@ const isMatchingPattern = (pattern, file) => {
 }
 
 async function getTestTimings() {
-  let timingsRes
-
-  const doFetch = () =>
-    fetch(TIMINGS_API, {
-      headers: {
-        ...TIMINGS_API_HEADERS,
-      },
-    })
-  timingsRes = await doFetch()
-
-  if (timingsRes.status === 403) {
-    const delay = 15
-    console.log(`Got 403 response waiting ${delay} seconds before retry`)
-    await new Promise((resolve) => setTimeout(resolve, delay * 1000))
-    timingsRes = await doFetch()
+  if (!kvClient) {
+    console.warn('KV client not configured, skipping timing fetch')
+    return null
   }
 
-  if (!timingsRes.ok) {
-    throw new Error(`request status: ${timingsRes.status}`)
-  }
-  const timingsData = await timingsRes.json()
-  return JSON.parse(timingsData.files['test-timings.json'].content)
+  const timings = await retryKVOperation(async () => {
+    const data = await kvClient.get(KV_TIMINGS_KEY)
+    if (!data) {
+      console.log('No timing data found in KV store')
+    }
+    return data
+  }, 'fetch timings')
+  return timings || null
 }
 
 async function main() {
@@ -217,6 +234,7 @@ async function main() {
     retries: argv.retries ?? DEFAULT_NUM_RETRIES,
     dry: argv.dry ?? false,
     local: argv.local ?? false,
+    printTests: argv.printTests ?? false,
   }
   let numRetries = options.retries
   const hideOutput = !options.debug && !options.dry
@@ -245,6 +263,10 @@ async function main() {
     'in test mode',
     process.env.NEXT_TEST_MODE
   )
+
+  // Only fetch/update shared timing data during grouped CI runs to avoid
+  // individual test runs from polluting the timing data
+  const shouldUseSharedTimings = options.timings && options.group
 
   /** @type TestFile[] */
   let tests = argv._.filter((arg) =>
@@ -301,32 +323,49 @@ async function main() {
         file,
         excludedCases: [],
       }))
+
+    //
   }
 
-  if (options.timings && options.group) {
+  if (shouldUseSharedTimings) {
     console.log('Fetching previous timings data')
+    const timingsFile = path.join(process.cwd(), 'test-timings.json')
+
     try {
-      const timingsFile = path.join(process.cwd(), 'test-timings.json')
+      prevTimings = JSON.parse(await fsp.readFile(timingsFile, 'utf8'))
+      console.log('Loaded test timings from disk successfully')
+    } catch (_) {
+      console.error(
+        'Failed to load test timings from disk. Proceeding to fetch from KV store. Original error: ',
+        _
+      )
+    }
+
+    if (!prevTimings) {
       try {
-        prevTimings = JSON.parse(await fsp.readFile(timingsFile, 'utf8'))
-        console.log('Loaded test timings from disk successfully')
-      } catch (_) {
-        console.error('failed to load from disk', _)
+        prevTimings = await getTestTimings()
+        if (prevTimings) {
+          console.log('Fetched previous timings data successfully from KV')
+        } else {
+          console.log('No previous timings data available')
+        }
+      } catch (kvError) {
+        console.warn(
+          'Failed to fetch timings from KV, continuing without timing data:',
+          kvError.message
+        )
+        prevTimings = null
       }
 
-      if (!prevTimings) {
-        prevTimings = await getTestTimings()
-        console.log('Fetched previous timings data successfully')
-
-        if (options.writeTimings) {
+      if (options.writeTimings) {
+        if (prevTimings) {
           await fsp.writeFile(timingsFile, JSON.stringify(prevTimings))
           console.log('Wrote previous timings data to', timingsFile)
-          await cleanUpAndExit(0)
+        } else {
+          console.log('No timings data to write')
         }
+        await cleanUpAndExit(0)
       }
-    } catch (err) {
-      console.log(`Failed to fetch timings data`, err)
-      await cleanUpAndExit(1)
     }
   }
 
@@ -390,6 +429,14 @@ async function main() {
       // tests tend not to get clustered together
       tests = tests.filter((_value, idx) => idx % groupTotal === groupPos - 1)
       console.log('Splitting without timings')
+
+      // Warn in CI that tests are not optimally distributed
+      if (process.env.GITHUB_ACTIONS) {
+        core.warning(
+          `Test timing data unavailable for group ${options.group}. Tests are being distributed round-robin, which may increase CI time. ` +
+            `Consider checking KV store connectivity if this persists.`
+        )
+      }
     }
   }
 
@@ -405,6 +452,10 @@ async function main() {
 ${tests.map((t) => t.file).join('\n')}
 ${ENDGROUP}`)
   console.log(`total: ${tests.length}`)
+
+  if (options.printTests) {
+    await cleanUpAndExit(0)
+  }
 
   if (
     !options.dry &&
@@ -460,7 +511,6 @@ ${ENDGROUP}`)
         '--runInBand',
         '--forceExit',
         '--verbose',
-        '--silent',
         ...(isTestJob
           ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
           : []),
@@ -771,43 +821,34 @@ ${ENDGROUP}`)
     // junitData += `</testsuites>`
     // console.log('output timing data to junit.xml')
 
-    if (prevTimings && process.env.TEST_TIMINGS_TOKEN) {
-      try {
-        const newTimings = {
-          ...(await getTestTimings()),
-          ...curTimings,
-        }
-
-        for (const test of Object.keys(newTimings)) {
-          if (!existsSync(path.join(__dirname, test))) {
-            console.log('removing stale timing', test)
-            delete newTimings[test]
+    if (shouldUseSharedTimings) {
+      if (kvClient) {
+        try {
+          // Fetch existing timings and merge with new ones
+          const existingTimings = (await getTestTimings()) || {}
+          const newTimings = {
+            ...existingTimings,
+            ...curTimings,
           }
-        }
 
-        const timingsRes = await fetch(TIMINGS_API, {
-          method: 'PATCH',
-          headers: {
-            ...TIMINGS_API_HEADERS,
-          },
-          body: JSON.stringify({
-            files: {
-              'test-timings.json': {
-                content: JSON.stringify(newTimings),
-              },
-            },
-          }),
-        })
+          // Clean up stale timings for deleted tests
+          for (const test of Object.keys(newTimings)) {
+            if (!existsSync(path.join(__dirname, test))) {
+              console.log('removing stale timing', test)
+              delete newTimings[test]
+            }
+          }
 
-        if (!timingsRes.ok) {
-          throw new Error(`request status: ${timingsRes.status}`)
+          // Update KV store with retries
+          await retryKVOperation(async () => {
+            await kvClient.set(KV_TIMINGS_KEY, newTimings)
+            console.log('Successfully updated test timings in KV store')
+          }, 'update timings')
+        } catch (err) {
+          console.log('Failed to update timings data', err)
         }
-        const result = await timingsRes.json()
-        console.log(
-          `Sent updated timings successfully. API URL: "${result?.url}" HTML URL: "${result?.html_url}"`
-        )
-      } catch (err) {
-        console.log('Failed to update timings data', err)
+      } else {
+        console.warn('KV client not configured, skipping timing update')
       }
     }
   }

@@ -624,6 +624,7 @@ impl ReactServerComponentValidator {
                         "useRouter",
                         "useServerInsertedHTML",
                         "ServerInsertedHTMLContext",
+                        "unstable_isUnrecognizedActionError",
                     ],
                 ),
                 ("next/link", vec!["useLinkStatus"]),
@@ -804,10 +805,10 @@ impl ReactServerComponentValidator {
             return;
         }
         static RE: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"[\\/](page|layout)\.(ts|js)x?$").unwrap());
-        let is_layout_or_page = RE.is_match(&self.filepath);
+            Lazy::new(|| Regex::new(r"[\\/](page|layout|route)\.(ts|js)x?$").unwrap());
+        let is_app_entry = RE.is_match(&self.filepath);
 
-        if is_layout_or_page {
+        if is_app_entry {
             let mut possibly_invalid_exports: FxIndexMap<Atom, (InvalidExportKind, Span)> =
                 FxIndexMap::default();
 

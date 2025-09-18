@@ -1,7 +1,10 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
-use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    FileJsonContent, FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack_core::{
     asset::Asset,
     chunk::ChunkableModule,
@@ -66,9 +69,13 @@ async fn side_effects_from_package_json(
                         if side_effect.contains('/') {
                             Some(Glob::new(
                                 side_effect.strip_prefix("./").unwrap_or(side_effect).into(),
+                                GlobOptions::default(),
                             ))
                         } else {
-                            Some(Glob::new(format!("**/{side_effect}").into()))
+                            Some(Glob::new(
+                                format!("**/{side_effect}").into(),
+                                GlobOptions::default(),
+                            ))
                         }
                     } else {
                         SideEffectsInPackageJsonIssue {
@@ -230,7 +237,7 @@ pub enum EcmascriptExports {
 #[turbo_tasks::value_impl]
 impl EcmascriptExports {
     #[turbo_tasks::function]
-    pub async fn needs_facade(&self) -> Result<Vc<bool>> {
+    pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
         Ok(match self {
             EcmascriptExports::EsmExports(exports) => {
                 let exports = exports.await?;

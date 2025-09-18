@@ -59,6 +59,3 @@ impl OutputAssets {
 /// A set of [OutputAsset]s
 #[turbo_tasks::value(transparent)]
 pub struct OutputAssetsSet(FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>);
-
-// TODO All Vc::try_resolve_downcast::<Box<dyn OutputAsset>> calls should be
-// removed

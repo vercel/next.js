@@ -12,8 +12,7 @@ export function isRecoverableError(error: Error): boolean {
 }
 
 export const onRecoverableError: HydrationOptions['onRecoverableError'] = (
-  error,
-  errorInfo
+  error
 ) => {
   // x-ref: https://github.com/facebook/react/pull/28736
   let cause = isError(error) && 'cause' in error ? error.cause : error
@@ -23,7 +22,7 @@ export const onRecoverableError: HydrationOptions['onRecoverableError'] = (
   if (process.env.NODE_ENV !== 'production') {
     const { decorateDevError } =
       require('../../next-devtools/userspace/app/errors/stitched-error') as typeof import('../../next-devtools/userspace/app/errors/stitched-error')
-    const causeError = decorateDevError(cause, errorInfo)
+    const causeError = decorateDevError(cause)
     recoverableErrors.add(causeError)
     cause = causeError
   }

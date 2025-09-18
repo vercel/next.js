@@ -4,13 +4,13 @@
 
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn basic() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let output1 = func_without_args();
         assert_eq!(output1.await?.value, 123);
 

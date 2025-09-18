@@ -334,7 +334,7 @@ describe('app dir - basic', () => {
     const res = await next.fetch('/dashboard')
     expect(res.headers.get('x-edge-runtime')).toBe('1')
     expect(res.headers.get('vary')).toBe(
-      'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch'
+      'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch'
     )
   })
 
@@ -346,8 +346,8 @@ describe('app dir - basic', () => {
     })
     expect(res.headers.get('vary')).toBe(
       isNextDeploy
-        ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch'
-        : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Accept-Encoding'
+        ? 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch'
+        : 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding'
     )
   })
 

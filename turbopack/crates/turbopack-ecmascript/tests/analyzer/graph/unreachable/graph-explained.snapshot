@@ -21,8 +21,7 @@ g = (...) => (undefined | FreeVar(undefined))
 h = (...) => undefined
 
 x#10 = ???*0*
-- *0* x
-  ⚠️  pattern without value
+- *0* for-in variable currently not analyzed
 
 x#17 = *arrow function 567*
 

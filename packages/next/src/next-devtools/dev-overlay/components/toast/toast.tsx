@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { cx } from '../../utils/cx'
-export type ToastProps = React.HTMLProps<HTMLDivElement> & {
+type ToastProps = React.HTMLProps<HTMLDivElement> & {
   children?: React.ReactNode
   onClick?: () => void
   className?: string

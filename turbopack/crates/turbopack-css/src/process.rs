@@ -1,6 +1,6 @@
 use std::sync::{Arc, RwLock};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use lightningcss::{
     css_modules::{CssModuleExport, CssModuleExports, Pattern, Segment},
     stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
@@ -466,8 +466,8 @@ async fn process_content(
 
                 // We need to collect here because we need to avoid holding the lock while calling
                 // `.await` in the loop.
-                let warngins = warnings.read().unwrap().iter().cloned().collect::<Vec<_>>();
-                for err in warngins.iter() {
+                let warnings = warnings.read().unwrap().iter().cloned().collect::<Vec<_>>();
+                for err in warnings.iter() {
                     match err.kind {
                         lightningcss::error::ParserError::UnexpectedToken(_)
                         | lightningcss::error::ParserError::UnexpectedImportRule
@@ -477,7 +477,7 @@ async fn process_content(
                                 Some(loc) => {
                                     let pos = SourcePos {
                                         line: loc.line as _,
-                                        column: loc.column as _,
+                                        column: (loc.column - 1) as _,
                                     };
                                     IssueSource::from_line_col(source, pos, pos)
                                 }
@@ -485,7 +485,8 @@ async fn process_content(
                             };
 
                             ParsingIssue {
-                                msg: err.to_string().into(),
+                                msg: err.kind.to_string().into(),
+                                stage: IssueStage::Parse,
                                 source,
                             }
                             .resolved_cell()
@@ -506,13 +507,30 @@ async fn process_content(
                 // minify() is actually transform, and it performs operations like CSS modules
                 // handling.
                 //
-                //
                 // See: https://github.com/parcel-bundler/lightningcss/issues/935#issuecomment-2739325537
-                ss.minify(MinifyOptions {
+                if let Err(e) = ss.minify(MinifyOptions {
                     targets,
                     ..Default::default()
-                })
-                .context("failed to transform css")?;
+                }) {
+                    let source = match &e.loc {
+                        Some(loc) => {
+                            let pos = SourcePos {
+                                line: loc.line as _,
+                                column: (loc.column - 1) as _,
+                            };
+                            IssueSource::from_line_col(source, pos, pos)
+                        }
+                        None => IssueSource::from_source_only(source),
+                    };
+                    ParsingIssue {
+                        msg: e.kind.to_string().into(),
+                        stage: IssueStage::Transform,
+                        source,
+                    }
+                    .resolved_cell()
+                    .emit();
+                    return Ok(ParseCssResult::Unparsable.cell());
+                }
 
                 stylesheet_into_static(&ss, without_warnings(config.clone()))
             }
@@ -521,14 +539,15 @@ async fn process_content(
                     Some(loc) => {
                         let pos = SourcePos {
                             line: loc.line as _,
-                            column: loc.column as _,
+                            column: (loc.column - 1) as _,
                         };
                         IssueSource::from_line_col(source, pos, pos)
                     }
                     None => IssueSource::from_source_only(source),
                 };
                 ParsingIssue {
-                    msg: e.to_string().into(),
+                    msg: e.kind.to_string().into(),
+                    stage: IssueStage::Parse,
                     source,
                 }
                 .resolved_cell()
@@ -581,6 +600,7 @@ impl CssError {
                          least one local class or id."
                     )
                     .into(),
+                    stage: IssueStage::Transform,
                     // TODO: This should include the location of the selector in the file.
                     source: IssueSource::from_source_only(source),
                 }
@@ -680,6 +700,7 @@ fn generate_css_source_map(source_map: &parcel_sourcemap::SourceMap) -> Result<R
 #[turbo_tasks::value]
 struct ParsingIssue {
     msg: RcStr,
+    stage: IssueStage,
     source: IssueSource,
 }
 
@@ -692,12 +713,17 @@ impl Issue for ParsingIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.cell()
+        self.stage.clone().cell()
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Parsing css source code failed")).cell()
+        StyledString::Text(match self.stage {
+            IssueStage::Parse => rcstr!("Parsing CSS source code failed"),
+            IssueStage::Transform => rcstr!("Transforming CSS failed"),
+            _ => rcstr!("CSS processing failed"),
+        })
+        .cell()
     }
 
     #[turbo_tasks::function]

@@ -44,6 +44,11 @@ import { durationToString } from '../duration-to-string'
 
 const debug = origDebug('next:build:webpack-build')
 
+function hrtimeToSeconds(hrtime: [number, number]): number {
+  // hrtime is a tuple of [seconds, nanoseconds]
+  return hrtime[0] + hrtime[1] / 1e9
+}
+
 type CompilerResult = {
   errors: webpack.StatsError[]
   warnings: webpack.StatsError[]
@@ -328,12 +333,12 @@ export async function webpackBuildImpl(
       throw err
     }
     const err = new Error(
-      `Build failed because of ${process.env.NEXT_RSPACK ? 'rspack' : 'webpack'} errors`
+      `Build failed because of ${process.env.NEXT_RSPACK ? 'Rspack' : 'webpack'} errors`
     ) as NextError
     err.code = 'WEBPACK_ERRORS'
     throw err
   } else {
-    const duration = webpackBuildEnd[0]
+    const duration = hrtimeToSeconds(webpackBuildEnd)
     const durationString = durationToString(duration)
 
     if (result.warnings.length > 0) {
@@ -345,7 +350,7 @@ export async function webpackBuildImpl(
     }
 
     return {
-      duration: webpackBuildEnd[0],
+      duration,
       buildTraceContext: traceEntryPointsPlugin?.buildTraceContext,
       pluginState: getPluginState(),
       telemetryState: {

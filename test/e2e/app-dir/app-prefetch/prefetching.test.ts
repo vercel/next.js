@@ -262,10 +262,10 @@ describe('app dir - prefetching', () => {
     )
     const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
       headers: {
-        RSC: '1',
-        'Next-Router-Prefetch': '1',
-        'Next-Router-State-Tree': stateTree,
-        'Next-Url': '/prefetch-auto/justputit',
+        rsc: '1',
+        'next-router-prefetch': '1',
+        'next-router-state-tree': stateTree,
+        'next-url': '/prefetch-auto/justputit',
       },
     })
 
@@ -297,18 +297,18 @@ describe('app dir - prefetching', () => {
     )
 
     const headers = {
-      RSC: '1',
-      'Next-Router-Prefetch': '1',
-      'Next-Router-State-Tree': stateTree,
-      'Next-Url': '/prefetch-auto/vercel',
+      rsc: '1',
+      'next-router-prefetch': '1',
+      'next-router-state-tree': stateTree,
+      'next-url': '/prefetch-auto/vercel',
     }
 
     const url = new URL('/prefetch-auto/justputit', 'http://localhost')
     const cacheBustingParam = computeCacheBustingSearchParam(
-      headers['Next-Router-Prefetch'],
+      headers['next-router-prefetch'] ? '1' : '0',
       undefined,
-      headers['Next-Router-State-Tree'],
-      headers['Next-Url']
+      headers['next-router-state-tree'],
+      headers['next-url']
     )
     if (cacheBustingParam) {
       url.searchParams.set('_rsc', cacheBustingParam)

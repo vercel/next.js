@@ -13,6 +13,7 @@ use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
     reference::ModuleReference,
+    reference_type::CommonJsReferenceSubType,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
@@ -61,6 +62,7 @@ impl ModuleReference for CjsAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
+            CommonJsReferenceSubType::Undefined,
             Some(self.issue_source),
             self.in_try,
         )
@@ -112,6 +114,7 @@ impl ModuleReference for CjsRequireAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
+            CommonJsReferenceSubType::Undefined,
             Some(self.issue_source),
             self.in_try,
         )
@@ -163,7 +166,7 @@ impl CjsRequireAssetReferenceCodeGen {
         let pm = PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
-            Vc::upcast(chunking_context),
+            chunking_context,
             self.reference.resolve_reference(),
             ResolveType::ChunkItem,
         )
@@ -236,6 +239,7 @@ impl ModuleReference for CjsRequireResolveAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
+            CommonJsReferenceSubType::Undefined,
             Some(self.issue_source),
             self.in_try,
         )
@@ -286,7 +290,7 @@ impl CjsRequireResolveAssetReferenceCodeGen {
         let pm = PatternMapping::resolve_request(
             *reference.request,
             *reference.origin,
-            Vc::upcast(chunking_context),
+            chunking_context,
             self.reference.resolve_reference(),
             ResolveType::ChunkItem,
         )

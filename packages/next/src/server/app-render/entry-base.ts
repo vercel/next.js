@@ -36,7 +36,8 @@ export {
   MetadataBoundary,
   ViewportBoundary,
   OutletBoundary,
-} from '../../client/components/metadata/metadata-boundary'
+  RootLayoutBoundary,
+} from '../../lib/framework/boundary-components'
 
 export { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
 export { Postpone } from './rsc/postpone'

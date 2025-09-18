@@ -31,6 +31,41 @@ export function prerenderAndAbortInSequentialTasks<R>(
   }
 }
 
+/**
+ * Like `prerenderAndAbortInSequentialTasks`, but with another task between `prerender` and `abort`,
+ * which allows us to move a part of the render into a separate task.
+ */
+export function prerenderAndAbortInSequentialTasksWithStages<R>(
+  prerender: () => Promise<R>,
+  advanceStage: () => void,
+  abort: () => void
+): Promise<R> {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      '`prerenderAndAbortInSequentialTasksWithStages` should not be called in edge runtime.'
+    )
+  } else {
+    return new Promise((resolve, reject) => {
+      let pendingResult: Promise<R>
+      setImmediate(() => {
+        try {
+          pendingResult = prerender()
+          pendingResult.catch(() => {})
+        } catch (err) {
+          reject(err)
+        }
+      })
+      setImmediate(() => {
+        advanceStage()
+      })
+      setImmediate(() => {
+        abort()
+        resolve(pendingResult)
+      })
+    })
+  }
+}
+
 // React's RSC prerender function will emit an incomplete flight stream when using `prerender`. If the connection
 // closes then whatever hanging chunks exist will be errored. This is because prerender (an experimental feature)
 // has not yet implemented a concept of resume. For now we will simulate a paused connection by wrapping the stream

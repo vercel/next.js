@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/shared.js"],"sourcesContent":["// shared package\n"],"names":[],"mappings":"AAAA,iBAAiB"}},
+    {"offset": {"line": 8, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/index.js"],"sourcesContent":["import { bar } from 'bar'\nimport './shared'\n\nbar(true)\n\nimport('./import').then(({ foo }) => {\n  foo(true)\n})\n"],"names":[],"mappings":";AAAA;AACA;;;AAEA,IAAA,sOAAG,EAAC;AAEJ,+JAAmB,IAAI,CAAC,CAAC,EAAE,GAAG,EAAE;IAC9B,IAAI;AACN"}},
+    {"offset": {"line": 21, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/node_modules/bar/index.js"],"sourcesContent":["export function bar(value) {\n  console.assert(value);\n}\n"],"names":[],"mappings":";;;;AAAO,SAAS,IAAI,KAAK;IACvB,QAAQ,MAAM,CAAC;AACjB","ignoreList":[0]}}]
+}

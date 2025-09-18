@@ -4,11 +4,11 @@ import { Terminal } from '../components/terminal'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 
-export interface BuildErrorProps extends ErrorBaseProps {
+interface BuildErrorProps extends ErrorBaseProps {
   message: string
 }
 
-export const getErrorTextFromBuildErrorMessage = (multiLineMessage: string) => {
+const getErrorTextFromBuildErrorMessage = (multiLineMessage: string) => {
   const lines = multiLineMessage.split('\n')
   // The multi-line build error message looks like:
   // <file path>:<line number>:<column number>

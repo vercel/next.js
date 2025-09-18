@@ -416,7 +416,7 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
     return
   }
 
-  if (apiRouteWarnings.has(apiRoute)) {
+  if (apiRoute && apiRouteWarnings.has(apiRoute)) {
     return
   }
 
@@ -425,7 +425,10 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
       ? `${apiRoute} provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
       : `You are using an experimental edge runtime, the API might change.`
   )
-  apiRouteWarnings.set(apiRoute, 1)
+
+  if (apiRoute) {
+    apiRouteWarnings.set(apiRoute, 1)
+  }
 }
 
 let hadUnsupportedValue = false
@@ -541,6 +544,17 @@ export async function getAppPageStaticInfo({
   if (directives?.has('client') && generateStaticParams) {
     throw new Error(
       `Page "${page}" cannot use both "use client" and export function "generateStaticParams()".`
+    )
+  }
+
+  if (
+    'unstable_prefetch' in config &&
+    (!nextConfig.experimental?.cacheComponents ||
+      // don't allow in `clientSegmentCache: 'client-only'` mode
+      nextConfig.experimental?.clientSegmentCache !== true)
+  ) {
+    throw new Error(
+      `Page "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`experimental.cacheComponents\` and \`experimental.clientSegmentCache\`.`
     )
   }
 

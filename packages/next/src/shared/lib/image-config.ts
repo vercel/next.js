@@ -83,7 +83,7 @@ export type ImageConfigComplete = {
   /** @see [Image loaders configuration](https://nextjs.org/docs/api-reference/next/legacy/image#loader) */
   loader: LoaderValue
 
-  /** @see [Image loader configuration](https://nextjs.org/docs/api-reference/next/legacy/image#loader-configuration) */
+  /** @see [Image loader configuration](https://nextjs.org/docs/app/api-reference/components/image#path) */
   path: string
 
   /** @see [Image loader configuration](https://nextjs.org/docs/api-reference/next/image#loader-configuration) */
@@ -142,6 +142,6 @@ export const imageConfigDefault: ImageConfigComplete = {
   contentDispositionType: 'attachment',
   localPatterns: undefined, // default: allow all local images
   remotePatterns: [], // default: allow no remote images
-  qualities: undefined, // default: allow all qualities
+  qualities: [75],
   unoptimized: false,
 }

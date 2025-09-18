@@ -123,7 +123,9 @@ describe(`app-dir-hmr`, () => {
       await browser
         .elementByCss('a')
         .click()
-        .waitForElementByCss('[data-testid="new-runtime-functionality-page"]')
+        .waitForElementByCss('[data-testid="new-runtime-functionality-page"]', {
+          state: 'attached',
+        })
 
       const logs = await browser.log()
       // TODO: Should assert on all logs but these are cluttered with logs from our test utils (e.g. playwright tracing or webdriver)

@@ -10,12 +10,13 @@ import {
   parseLineNumberFromCodeFrameLine,
 } from './parse-code-frame'
 
-export type CodeFrameProps = {
+type CodeFrameProps = {
   stackFrame: StackFrame
   codeFrame: string
 }
 
 export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- compiler bug
   const parsedLineStates = useMemo(() => {
     const decodedLines = groupCodeFrameLines(formatCodeFrame(codeFrame))
 
@@ -139,7 +140,6 @@ export const CODE_FRAME_STYLES = `
   }
 
   .code-frame-link [data-text] {
-    display: inline-flex;
     text-align: left;
     margin: auto 6px;
   }

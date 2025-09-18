@@ -60,14 +60,32 @@ test/e2e/async-modules/amp-validator-wasm.js
 /turbopack/crates/*/js/src/compiled
 /turbopack/crates/turbopack/bench.json
 /turbopack/crates/turbopack-ecmascript/tests/analyzer/graph
+/turbopack/crates/turbopack-ecmascript/tests/benches
 /turbopack/crates/turbopack-ecmascript/tests/tree-shaker
 /turbopack/crates/next-transform-strip-page-exports/tests
 /turbopack/crates/next-transform-dynamic/tests
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/broken.js
 /turbopack/crates/turbopack-tests/tests/execution/turbopack/exports/invalid-export-parse-error/input/invalid-export/broken.js
+/turbopack/crates/turbopack-tests/tests/execution/turbopack/**/not-compiled.js
 /turbopack/crates/turbopack-tests/tests/snapshot/import-meta/cjs/input/mod.cjs
 /turbopack/crates/turbopack-tests/tests/snapshot/source_maps/*
 /turbopack/crates/turbopack-tests/tests/**/output*
 /turbopack/crates/turbopack-tests/tests/**/static
+/turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/syntax-err/input.js
+/turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/tsx/lib.tsx
 
 /apps/docs/.source/*
+
+# Symlink files
+readme.md
+test/development/app-dir/hmr-symlink/app/symlink-chain/page.tsx
+test/development/app-dir/hmr-symlink/app/symlink-link/page.tsx
+test/development/app-dir/ssr-in-rsc/node_modules/random-react-library
+test/integration/build-trace-extra-entries/app/node_modules/pkg-behind-symlink
+test/integration/edge-runtime-configurable-guards/node_modules/lib
+test/production/app-dir/symbolic-file-links/src/i18n.ts
+test/production/app-dir/symbolic-file-links/src/app/layout.tsx
+test/production/app-dir/symbolic-file-links/src/app/page.tsx
+turbopack/crates/turbopack-tracing/tests/node-file-trace/integration/pnpm/node_modules/*
+turbopack/crates/turbopack-tracing/tests/node-file-trace/integration/symlink-to-file/linked.js
+turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/node_modules/component

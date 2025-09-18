@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/style.module.css [test] (css module)"],"sourcesContent":["__turbopack_context__.v({\n  \"module-style\": \"style-module__3oVw9q__module-style\",\n});\n"],"names":[],"mappings":"AAAA;AACA;AACA"}},
+    {"offset": {"line": 10, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/embed-url/input/index.js"],"sourcesContent":["import style from './style.module.css'\nimport './style.css'\n\nconsole.log(style, import('./style.module.css'), import('./style.css'))\n"],"names":[],"mappings":";AAAA;;;AAGA,QAAQ,GAAG,CAAC,wNAAK"}}]
+}

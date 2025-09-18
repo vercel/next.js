@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import { NextConfig } from 'next'
 import {
   assertHasRedbox,
   assertNoRedbox,
@@ -11,17 +10,6 @@ import stripAnsi from 'strip-ansi'
 import { createSandbox } from 'development-sandbox'
 
 const isRspack = !!process.env.NEXT_RSPACK
-
-const nextConfigWithCacheHandler: NextConfig = {
-  experimental: {
-    cacheComponents: true,
-    cacheHandlers: {
-      custom: require.resolve(
-        'next/dist/server/lib/cache-handlers/default.external'
-      ),
-    },
-  },
-}
 
 describe('use-cache-unknown-cache-kind', () => {
   const { next, isNextStart, isTurbopack, skipped } = nextTestSetup({
@@ -80,7 +68,7 @@ describe('use-cache-unknown-cache-kind', () => {
          ./app/page.tsx
 
 
-         > Build failed because of rspack errors
+         > Build failed because of Rspack errors
          "
         `)
       } else {
@@ -191,7 +179,16 @@ describe('use-cache-unknown-cache-kind', () => {
 
       await session.patch(
         'next.config.js',
-        `module.exports = ${JSON.stringify(nextConfigWithCacheHandler)}`
+        `module.exports = {
+          experimental: {
+            cacheComponents: true,
+            cacheHandlers: {
+              custom: require.resolve(
+                'next/dist/server/lib/cache-handlers/default.external'
+              ),
+            },
+          },
+        }`
       )
 
       await retry(async () => {

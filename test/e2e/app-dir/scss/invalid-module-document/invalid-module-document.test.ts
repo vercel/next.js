@@ -6,7 +6,7 @@ import { join } from 'path'
 // In order for the global isNextStart to be set
 import 'e2e-utils'
 
-// TODO: Implement warning for Turbopack
+// Importing module CSS in _document is allowed in Turbopack
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Invalid SCSS in _document',
   () => {
@@ -29,7 +29,10 @@ import 'e2e-utils'
           expect(stderr).toMatch(
             /CSS.*cannot.*be imported within.*pages[\\/]_document\.js/
           )
-          expect(stderr).toMatch(/Location:.*pages[\\/]_document\.js/)
+          // Skip: Rspack loaders cannot access module issuer info for location details
+          if (!process.env.NEXT_RSPACK) {
+            expect(stderr).toMatch(/Location:.*pages[\\/]_document\.js/)
+          }
         })
       }
     )

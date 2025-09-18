@@ -9,7 +9,7 @@ use turbopack_core::{
     context::AssetContext,
     environment::{ChunkLoading, Environment},
 };
-use turbopack_ecmascript::utils::StringifyJs;
+use turbopack_ecmascript::{magic_identifier, utils::StringifyJs};
 
 use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code};
 
@@ -35,6 +35,12 @@ pub async fn get_browser_runtime_code(
     match runtime_type {
         RuntimeType::Production => runtime_base_code.push("browser/runtime/base/build-base.ts"),
         RuntimeType::Development => {
+            debug_assert!(
+                // The dev runtime makes this assumption. If that's no longer true, we need to
+                // update the runtime code.
+                magic_identifier::mangle("module evaluation").as_str()
+                    == "__TURBOPACK__module__evaluation__"
+            );
             runtime_base_code.push("browser/runtime/base/dev-base.ts");
         }
         #[cfg(feature = "test")]
@@ -67,7 +73,6 @@ pub async fn get_browser_runtime_code(
             runtime_backend_code.push("browser/runtime/dom/dev-backend-dom.ts");
         }
         (ChunkLoading::Dom, RuntimeType::Production) => {
-            // TODO
             runtime_backend_code.push("browser/runtime/dom/runtime-backend-dom.ts");
         }
 
@@ -164,8 +169,8 @@ pub async fn get_browser_runtime_code(
             code,
             r#"
             const chunkListsToRegister = globalThis.TURBOPACK_CHUNK_LISTS || [];
-            chunkListsToRegister.forEach(registerChunkList);
             globalThis.TURBOPACK_CHUNK_LISTS = {{ push: registerChunkList }};
+            chunkListsToRegister.forEach(registerChunkList);
         "#
         )?;
     }

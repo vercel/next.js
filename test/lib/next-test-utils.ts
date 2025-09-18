@@ -6,7 +6,7 @@ import {
   writeFileSync,
   createReadStream,
 } from 'fs'
-import { promisify } from 'util'
+import { inspect, promisify } from 'util'
 import http from 'http'
 import path from 'path'
 
@@ -28,16 +28,33 @@ import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import { Playwright } from 'next-webdriver'
 
-import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
+import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
+import escapeRegex from 'escape-string-regexp'
+
 // TODO: Create dedicated Jest environment that sets up these matchers
 // Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
 import './add-redbox-matchers'
 
-export { shouldRunTurboDevTest }
+export { shouldUseTurbopack }
 
 export const nextServer = server
 export const pkg = _pkg
+
+// This goes straight to Node’s stdout, avoiding Jest's verbose output:
+export const debugPrint = (...args: unknown[]) => {
+  const prettyArgs = args
+    .map((arg) =>
+      typeof arg === 'string'
+        ? arg
+        : inspect(arg, { colors: process.stdout.isTTY })
+    )
+    .join(' ')
+
+  const timestamp = new Date().toISOString().split('T')[1]
+
+  return process.stdout.write(`[${timestamp}] ${prettyArgs}\n`)
+}
 
 export function initNextServerScript(
   scriptPath: string,
@@ -247,7 +264,7 @@ export function runNextCommand(
   }
 
   return new Promise((resolve, reject) => {
-    console.log(`Running command "next ${argv.join(' ')}"`)
+    debugPrint(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
       [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
@@ -272,7 +289,7 @@ export function runNextCommand(
         stderrOutput += chunk
 
         if (options.stderr === 'log') {
-          console.log(chunk.toString())
+          debugPrint(chunk.toString())
         }
         if (typeof options.onStderr === 'function') {
           options.onStderr(chunk.toString())
@@ -291,7 +308,7 @@ export function runNextCommand(
         stdoutOutput += chunk
 
         if (options.stdout === 'log') {
-          console.log(chunk.toString())
+          debugPrint(chunk.toString())
         }
         if (typeof options.onStdout === 'function') {
           options.onStdout(chunk.toString())
@@ -451,11 +468,11 @@ export function launchApp(
   opts?: NextDevOptions
 ) {
   const options = opts ?? {}
-  const useTurbo = shouldRunTurboDevTest()
+  const useTurbo = shouldUseTurbopack()
 
   return runNextCommandDev(
     [
-      useTurbo ? getTurbopackFlag() : undefined,
+      useTurbo ? '--turbopack' : undefined,
       dir,
       '-p',
       port as string,
@@ -818,7 +835,7 @@ export async function retry<T>(
         )
         throw err
       }
-      console.log(
+      debugPrint(
         `Retrying${description ? ` ${description}` : ''} in ${interval}ms`
       )
       await waitFor(interval)
@@ -966,6 +983,7 @@ export async function getSegmentExplorerRoute(browser: Playwright) {
   return await browser
     .elementByCss('.segment-explorer-page-route-bar-path')
     .text()
+    .catch(() => '<empty>')
 }
 
 export async function getSegmentExplorerContent(browser: Playwright) {
@@ -1435,7 +1453,7 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
     )
   }
 
-  const shouldRunTurboDev = shouldRunTurboDevTest()
+  const shouldRunTurboDev = shouldUseTurbopack()
   const shouldSkip =
     (runningEnv === 'turbo' && !shouldRunTurboDev) ||
     (runningEnv === 'default' && shouldRunTurboDev)
@@ -1493,7 +1511,7 @@ export async function getRedboxCallStack(
         // `innerText` will be "${methodName}\n${location}".
         // Ideally `innerText` would be "${methodName} ${location}"
         // so that c&p automatically does the right thing.
-        const frame = frameElement.innerText.replace('\n', ' ')
+        const frame = frameElement.innerText.replace(/\n+/g, ' ')
 
         // TODO: Special marker if source-mapping fails.
 
@@ -1579,7 +1597,7 @@ export function getUrlFromBackgroundImage(backgroundImage: string) {
 }
 
 export const getTitle = (browser: Playwright) =>
-  browser.elementByCss('title').text()
+  browser.elementByCss('title', { state: 'attached' }).text()
 
 async function checkMeta(
   browser: Playwright,
@@ -1829,4 +1847,42 @@ export function trimEndMultiline(str: string) {
     .split('\n')
     .map((line) => line.trimEnd())
     .join('\n')
+}
+
+/**
+ * Normalizes the manifest by applying the replacements to the manifest. This
+ * is useful for testing the manifest in a snapshot test.
+ *
+ * @param manifest - The manifest to normalize.
+ * @param replacements - The replacements to perform on the manifest.
+ * @returns The normalized manifest.
+ */
+export function normalizeManifest<T>(
+  manifest: unknown,
+  replacements: [search: string, replace: string][]
+): T {
+  return JSON.parse(
+    replacements.reduce(
+      (acc, [search, replace]) =>
+        acc.replace(
+          new RegExp(
+            // We want to match the literal string, so we need to escape it
+            // again
+            escapeRegex(
+              JSON.stringify(
+                // The output has already been escaped, so we need to escape our
+                // search string.
+                escapeRegex(search)
+              )
+                // Remove the quotes added by the JSON.stringify call.
+                .replace(/^"(.*)"/, '$1')
+            ),
+            'g'
+          ),
+          replace
+        ),
+      // We'll perform the replacements on the JSON stringified manifest.
+      JSON.stringify(manifest)
+    )
+  )
 }

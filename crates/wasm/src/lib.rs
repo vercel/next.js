@@ -1,8 +1,9 @@
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
-use anyhow::{Context, Error};
+use anyhow::Context;
 use js_sys::JsString;
 use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
+use rustc_hash::FxHashMap;
 use swc_core::{
     base::{
         config::{JsMinifyOptions, ParseOptions},
@@ -20,8 +21,8 @@ use wasm_bindgen_futures::future_to_promise;
 
 pub mod mdx;
 
-fn convert_err(err: Error) -> JsValue {
-    format!("{err:?}").into()
+fn convert_err(err: impl Debug) -> JsError {
+    JsError::new(&format!("{err:?}"))
 }
 
 #[wasm_bindgen(js_name = "minifySync")]
@@ -63,7 +64,7 @@ pub fn minify(s: JsString, opts: JsValue) -> js_sys::Promise {
 }
 
 #[wasm_bindgen(js_name = "transformSync")]
-pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
+pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsError> {
     console_error_panic_hook::set_once();
 
     let c = compiler();
@@ -136,11 +137,11 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
 pub fn transform(s: JsValue, opts: JsValue) -> js_sys::Promise {
     // TODO: This'll be properly scheduled once wasm have standard backed thread
     // support.
-    future_to_promise(async { transform_sync(s, opts) })
+    future_to_promise(async { Ok(transform_sync(s, opts)?) })
 }
 
 #[wasm_bindgen(js_name = "parseSync")]
-pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
+pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsError> {
     console_error_panic_hook::set_once();
 
     let c = swc_core::base::Compiler::new(Arc::new(SourceMap::new(FilePathMapping::empty())));
@@ -188,7 +189,7 @@ pub fn parse_sync(s: JsString, opts: JsValue) -> Result<JsValue, JsValue> {
 pub fn parse(s: JsString, opts: JsValue) -> js_sys::Promise {
     // TODO: This'll be properly scheduled once wasm have standard backed thread
     // support.
-    future_to_promise(async { parse_sync(s, opts) })
+    future_to_promise(async { Ok(parse_sync(s, opts)?) })
 }
 
 /// Get global sourcemap
@@ -196,4 +197,30 @@ fn compiler() -> Arc<Compiler> {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
 
     Arc::new(Compiler::new(cm))
+}
+
+#[wasm_bindgen(js_name = "expandNextJsTemplate")]
+pub fn expand_next_js_template(
+    content: Box<[u8]>,
+    template_path: &str,
+    next_package_dir_path: &str,
+    replacements: JsValue,
+    injections: JsValue,
+    imports: JsValue,
+) -> Result<String, JsError> {
+    next_taskless::expand_next_js_template(
+        str::from_utf8(&content).map_err(convert_err)?,
+        template_path,
+        next_package_dir_path,
+        serde_wasm_bindgen::from_value::<FxHashMap<String, String>>(replacements)?
+            .iter()
+            .map(|(k, v)| (&**k, &**v)),
+        serde_wasm_bindgen::from_value::<FxHashMap<String, String>>(injections)?
+            .iter()
+            .map(|(k, v)| (&**k, &**v)),
+        serde_wasm_bindgen::from_value::<FxHashMap<String, Option<String>>>(imports)?
+            .iter()
+            .map(|(k, v)| (&**k, v.as_deref())),
+    )
+    .map_err(convert_err)
 }

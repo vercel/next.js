@@ -79,7 +79,7 @@ export async function recursiveDelete(
       const isNotExcluded = !exclude || !exclude.test(pp)
 
       if (isNotExcluded) {
-        if (isDirectory) {
+        if (!isSymlink && isDirectory) {
           await recursiveDelete(absolutePath, exclude, pp)
         }
         return unlinkPath(absolutePath, !isSymlink && isDirectory)

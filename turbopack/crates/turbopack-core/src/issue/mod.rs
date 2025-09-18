@@ -353,7 +353,7 @@ where
     T: Upcast<Box<dyn Issue>>,
 {
     fn emit(self) {
-        let issue = ResolvedVc::upcast::<Box<dyn Issue>>(self);
+        let issue = ResolvedVc::upcast_non_strict::<Box<dyn Issue>>(self);
         emit(issue);
         emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
             RootIssueProcessingPath::resolved_cell(RootIssueProcessingPath(issue)),
@@ -767,8 +767,8 @@ async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<P
     Ok(plain_traces)
 }
 
-#[turbo_tasks::value(shared, serialization = "none")]
-#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash, Serialize)]
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash)]
 pub enum IssueStage {
     Config,
     AppStructure,
@@ -785,7 +785,7 @@ pub enum IssueStage {
     CodeGen,
     Unsupported,
     Misc,
-    Other(String),
+    Other(RcStr),
 }
 
 impl Display for IssueStage {

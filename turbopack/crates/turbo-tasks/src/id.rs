@@ -39,7 +39,13 @@ macro_rules! define_id {
             pub const unsafe fn new_unchecked(id: $primitive) -> Self {
                 Self { id: unsafe { NonZero::<$primitive>::new_unchecked(id) } }
             }
-
+            /// Constructs a wrapper type from the numeric identifier.
+            ///
+            /// Returns `None` if the provided `id` is zero, otherwise returns
+            /// `Some(Self)` containing the wrapped non-zero identifier.
+            pub fn new(id: $primitive) -> Option<Self> {
+                NonZero::<$primitive>::new(id).map(|id| Self{id})
+            }
             /// Allows `const` conversion to a [`NonZeroU64`], useful with
             /// [`crate::id_factory::IdFactory::new_const`].
             pub const fn to_non_zero_u64(self) -> NonZeroU64 {
@@ -113,9 +119,9 @@ macro_rules! define_id {
 }
 
 define_id!(TaskId: u32, derive(Serialize, Deserialize), serde(transparent));
-define_id!(ValueTypeId: u32);
-define_id!(TraitTypeId: u32);
-define_id!(BackendJobId: u32);
+define_id!(FunctionId: u16);
+define_id!(ValueTypeId: u16);
+define_id!(TraitTypeId: u16);
 define_id!(SessionId: u32, derive(Debug, Serialize, Deserialize), serde(transparent));
 define_id!(
     LocalTaskId: u32,
@@ -154,13 +160,13 @@ impl TaskId {
 }
 
 macro_rules! make_serializable {
-    ($ty:ty, $get_global_name:path, $get_id:path, $visitor_name:ident) => {
+    ($ty:ty, $get_object:path, $validate_type_id:path, $visitor_name:ident) => {
         impl Serialize for $ty {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
                 S: serde::Serializer,
             {
-                serializer.serialize_str($get_global_name(*self))
+                serializer.serialize_u16(self.id.into())
             }
         }
 
@@ -169,7 +175,7 @@ macro_rules! make_serializable {
             where
                 D: serde::Deserializer<'de>,
             {
-                deserializer.deserialize_str($visitor_name)
+                deserializer.deserialize_u16($visitor_name)
             }
         }
 
@@ -179,14 +185,23 @@ macro_rules! make_serializable {
             type Value = $ty;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str(concat!("a name of a registered ", stringify!($ty)))
+                formatter.write_str(concat!("an id of a registered ", stringify!($ty)))
             }
 
-            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            fn visit_u16<E>(self, v: u16) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                $get_id(v).ok_or_else(|| E::unknown_variant(v, &[]))
+                match Self::Value::new(v) {
+                    Some(value) => {
+                        if let Some(error) = $validate_type_id(value) {
+                            Err(E::custom(error))
+                        } else {
+                            Ok(value)
+                        }
+                    }
+                    None => Err(E::unknown_variant(&format!("{v}"), &["a non zero u16"])),
+                }
             }
         }
 
@@ -194,7 +209,7 @@ macro_rules! make_serializable {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 f.debug_struct(stringify!($ty))
                     .field("id", &self.id)
-                    .field("name", &$get_global_name(*self))
+                    .field("name", &$get_object(*self))
                     .finish()
             }
         }
@@ -203,13 +218,19 @@ macro_rules! make_serializable {
 
 make_serializable!(
     ValueTypeId,
-    registry::get_value_type_global_name,
-    registry::get_value_type_id_by_global_name,
+    registry::get_value_type,
+    registry::validate_value_type_id,
     ValueTypeVisitor
 );
 make_serializable!(
     TraitTypeId,
-    registry::get_trait_type_global_name,
-    registry::get_trait_type_id_by_global_name,
+    registry::get_trait,
+    registry::validate_trait_type_id,
     TraitTypeVisitor
+);
+make_serializable!(
+    FunctionId,
+    registry::get_native_function,
+    registry::validate_function_id,
+    FunctionTypeVisitor
 );

@@ -9,9 +9,7 @@ use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc, apply_effects,
-};
+use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks, Vc, apply_effects};
 use turbo_tasks_backend::{
     BackendOptions, NoopBackingStorage, TurboTasksBackend, noop_backing_storage,
 };
@@ -143,51 +141,47 @@ impl TurbopackBuildBuilder {
     }
 
     pub async fn build(self) -> Result<()> {
-        let task = self.turbo_tasks.spawn_once_task::<(), _>(async move {
-            let build_result_op = build_internal(
-                self.project_dir.clone(),
-                self.root_dir,
-                self.entry_requests.clone(),
-                self.browserslist_query,
-                self.source_maps_type,
-                self.minify_type,
-                self.target,
-                self.scope_hoist,
-            );
+        self.turbo_tasks
+            .run_once(async move {
+                let build_result_op = build_internal(
+                    self.project_dir.clone(),
+                    self.root_dir,
+                    self.entry_requests.clone(),
+                    self.browserslist_query,
+                    self.source_maps_type,
+                    self.minify_type,
+                    self.target,
+                    self.scope_hoist,
+                );
 
-            // Await the result to propagate any errors.
-            build_result_op.read_strongly_consistent().await?;
+                // Await the result to propagate any errors.
+                build_result_op.read_strongly_consistent().await?;
 
-            apply_effects(build_result_op)
-                .instrument(tracing::info_span!("apply effects"))
+                apply_effects(build_result_op)
+                    .instrument(tracing::info_span!("apply effects"))
+                    .await?;
+
+                let issue_reporter: Vc<Box<dyn IssueReporter>> =
+                    Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
+                        project_dir: PathBuf::from(self.project_dir),
+                        current_dir: current_dir().unwrap(),
+                        show_all: self.show_all,
+                        log_detail: self.log_detail,
+                        log_level: self.log_level,
+                    })));
+
+                handle_issues(
+                    build_result_op,
+                    issue_reporter,
+                    IssueSeverity::Error,
+                    None,
+                    None,
+                )
                 .await?;
 
-            let issue_reporter: Vc<Box<dyn IssueReporter>> =
-                Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
-                    project_dir: PathBuf::from(self.project_dir),
-                    current_dir: current_dir().unwrap(),
-                    show_all: self.show_all,
-                    log_detail: self.log_detail,
-                    log_level: self.log_level,
-                })));
-
-            handle_issues(
-                build_result_op,
-                issue_reporter,
-                IssueSeverity::Error,
-                None,
-                None,
-            )
-            .await?;
-
-            Ok(Default::default())
-        });
-
-        self.turbo_tasks
-            .wait_task_completion(task, ReadConsistency::Strong)
-            .await?;
-
-        Ok(())
+                Ok(())
+            })
+            .await
     }
 }
 
@@ -268,7 +262,7 @@ async fn build_internal(
                     false,
                 ),
                 EntryRequest::Module(m, p) => Request::module(
-                    m.clone(),
+                    m.clone().into(),
                     p.clone().into(),
                     Default::default(),
                     Default::default(),
@@ -470,7 +464,7 @@ async fn build_internal(
                                                     .unwrap(),
                                             )?
                                             .with_extension("entry.js"),
-                                        EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
+                                        EvaluatableAssets::one(*ecmascript),
                                         module_graph,
                                         OutputAssets::empty(),
                                         AvailabilityInfo::Root,

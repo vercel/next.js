@@ -441,6 +441,18 @@ module.exports = {
 }
 ```
 
+#### Customizing the Built-in Image Path
+
+If you want to change or prefix the default path for the built-in Next.js image optimization, you can do so with the `path` property. The default value for `path` is `/_next/image`.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    path: '/my-prefix/_next/image',
+  },
+}
+```
+
 ### Built-in Loaders
 
 The following Image Optimization cloud providers are included:
@@ -554,7 +566,7 @@ module.exports = {
 }
 ```
 
-You can increase the TTL to reduce the number of revalidations and potentionally lower cost:
+You can increase the TTL to reduce the number of revalidations and potentially lower cost:
 
 ```js filename="next.config.js"
 module.exports = {

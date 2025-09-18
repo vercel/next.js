@@ -17,6 +17,7 @@ plugin = [
     "swc_core/plugin_transform_host_native",
     "swc_core/plugin_transform_host_native_filesystem_cache",
     "swc_core/plugin_transform_host_native_shared_runtime",
+    "swc_core/plugin_backend_wasmer",
     "next-custom-transforms/plugin",
     "next-core/plugin",
     "turbopack-ecmascript-plugins",
@@ -63,6 +64,7 @@ owo-colors = { workspace = true }
 napi = { workspace = true }
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
+next-taskless = { workspace = true }
 rand = { workspace = true }
 rustc-hash = { workspace = true }
 serde = "1"
@@ -104,6 +106,7 @@ turbo-rcstr = { workspace = true, features = ["napi"] }
 turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-fs = { workspace = true }
+turbo-unix-path = { workspace = true }
 next-api = { workspace = true }
 next-build = { workspace = true }
 next-core = { workspace = true }
@@ -142,6 +145,3 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 vergen-gitcl = { workspace = true }
 
-# build-dependencies for the native, non-wasm32 build
-[target.'cfg(not(target_arch = "wasm32"))'.build-dependencies]
-turbo-tasks-build = { workspace = true }

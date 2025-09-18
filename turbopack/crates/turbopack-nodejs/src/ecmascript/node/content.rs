@@ -1,5 +1,4 @@
 use anyhow::Result;
-use indoc::writedoc;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, rope::RopeBuilder};
 use turbopack_core::{
@@ -55,25 +54,19 @@ impl EcmascriptBuildNodeChunkContent {
 
         let mut code = CodeBuilder::default();
 
-        writedoc!(
-            code,
-            r#"
-                module.exports = {{
-
-            "#,
-        )?;
+        write!(code, "module.exports = [")?;
 
         let content = this.content.await?;
         let chunk_items = content.chunk_item_code_and_ids().await?;
         for item in chunk_items {
             for (id, item_code) in item {
-                write!(code, "{}: ", StringifyJs(&id))?;
+                write!(code, "\n{}, ", StringifyJs(&id))?;
                 code.push_code(item_code);
-                writeln!(code, ",")?;
+                write!(code, ",")?;
             }
         }
 
-        write!(code, "\n}};")?;
+        write!(code, "\n];")?;
 
         let mut code = code.build();
 

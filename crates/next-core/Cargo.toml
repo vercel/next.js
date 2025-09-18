@@ -15,9 +15,7 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.21.0"
-either = { workspace = true }
-lazy-regex = "3.0.1"
-next-custom-transforms = { workspace = true }
+either = { workspace = true, features = ["serde"] }
 once_cell = { workspace = true }
 qstring = { workspace = true }
 regex = { workspace = true }
@@ -30,6 +28,7 @@ allsorts = { workspace = true }
 futures = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+regress = { workspace = true }
 rustc-hash = { workspace = true }
 react_remove_properties = { workspace = true }
 remove_console = { workspace = true }
@@ -56,6 +55,9 @@ swc_core = { workspace = true, features = [
 ] }
 modularize_imports = { workspace = true }
 
+next-custom-transforms = { workspace = true }
+next-taskless = { workspace = true }
+
 turbo-rcstr = { workspace = true }
 turbo-esregex = { workspace = true }
 turbo-tasks = { workspace = true }
@@ -77,9 +79,6 @@ turbopack-node = { workspace = true }
 turbopack-nodejs = { workspace = true }
 turbopack-static = { workspace = true }
 turbopack-trace-utils = { workspace = true }
-
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
 
 [features]
 next-font-local = []

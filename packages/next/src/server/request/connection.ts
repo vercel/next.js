@@ -1,12 +1,18 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import {
+  throwForMissingRequestStore,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeHangingPromise,
+  makeDevtoolsIOAwarePromise,
+} from '../dynamic-rendering-utils'
 import { isRequestAPICallableInsideAfter } from './utils'
 
 /**
@@ -15,6 +21,7 @@ import { isRequestAPICallableInsideAfter } from './utils'
  * During prerendering it will never resolve and during rendering it resolves immediately.
  */
 export function connection(): Promise<void> {
+  const callingExpression = 'connection'
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 
@@ -53,7 +60,7 @@ export function connection(): Promise<void> {
         }
         case 'private-cache': {
           // It might not be intuitive to throw for private caches as well, but
-          // we don't consider dynamic prefetches as "actual requests" (in the
+          // we don't consider runtime prefetches as "actual requests" (in the
           // navigation sense), despite allowing them to read cookies.
           const error = new Error(
             `Route ${workStore.route} used "connection" inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
@@ -68,10 +75,12 @@ export function connection(): Promise<void> {
           )
         case 'prerender':
         case 'prerender-client':
+        case 'prerender-runtime':
           // We return a promise that never resolves to allow the prerender to
           // stall at this point.
           return makeHangingPromise(
             workUnitStore.renderSignal,
+            workStore.route,
             '`connection()`'
           )
         case 'prerender-ppr':
@@ -92,12 +101,20 @@ export function connection(): Promise<void> {
           )
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)
-          break
+          if (process.env.NODE_ENV === 'development') {
+            // Semantically we only need the dev tracking when running in `next dev`
+            // but since you would never use next dev with production NODE_ENV we use this
+            // as a proxy so we can statically exclude this code from production builds.
+            return makeDevtoolsIOAwarePromise(undefined)
+          } else {
+            return Promise.resolve(undefined)
+          }
         default:
           workUnitStore satisfies never
       }
     }
   }
 
-  return Promise.resolve(undefined)
+  // If we end up here, there was no work store or work unit store present.
+  throwForMissingRequestStore(callingExpression)
 }

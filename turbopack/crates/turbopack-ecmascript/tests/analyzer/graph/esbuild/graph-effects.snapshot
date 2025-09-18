@@ -1,8 +1,6 @@
 [
     FreeVar {
-        var: FreeVar(
-            "ESBUILD_BINARY_PATH",
-        ),
+        var: "ESBUILD_BINARY_PATH",
         ast_path: [
             Program(
                 Script,
@@ -175,9 +173,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "__filename",
-        ),
+        var: "__filename",
         ast_path: [
             Program(
                 Script,
@@ -457,9 +453,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "__dirname",
-        ),
+        var: "__dirname",
         ast_path: [
             Program(
                 Script,
@@ -737,9 +731,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "Error",
-                        ),
+                        var: "Error",
                         ast_path: [
                             Program(
                                 Script,
@@ -811,9 +803,7 @@
                         in_try: false,
                     },
                     FreeVar {
-                        var: FreeVar(
-                            "__filename",
-                        ),
+                        var: "__filename",
                         ast_path: [
                             Program(
                                 Script,
@@ -1205,9 +1195,7 @@
                         in_try: false,
                     },
                     FreeVar {
-                        var: FreeVar(
-                            "__dirname",
-                        ),
+                        var: "__dirname",
                         ast_path: [
                             Program(
                                 Script,
@@ -1911,9 +1899,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -2000,9 +1986,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -2089,9 +2073,7 @@
         new: false,
     },
     FreeVar {
-        var: FreeVar(
-            "require",
-        ),
+        var: "require",
         ast_path: [
             Program(
                 Script,
@@ -2244,9 +2226,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "process",
-        ),
+        var: "process",
         ast_path: [
             Program(
                 Script,
@@ -2757,9 +2737,7 @@
         in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "Error",
-        ),
+        var: "Error",
         ast_path: [
             Program(
                 Script,
@@ -2944,9 +2922,7 @@
         ],
     },
     FreeVar {
-        var: FreeVar(
-            "ESBUILD_BINARY_PATH",
-        ),
+        var: "ESBUILD_BINARY_PATH",
         ast_path: [
             Program(
                 Script,
@@ -2994,9 +2970,7 @@
             then: EffectsBlock {
                 effects: [
                     FreeVar {
-                        var: FreeVar(
-                            "ESBUILD_BINARY_PATH",
-                        ),
+                        var: "ESBUILD_BINARY_PATH",
                         ast_path: [
                             Program(
                                 Script,
@@ -3268,9 +3242,7 @@
                         in_try: true,
                     },
                     FreeVar {
-                        var: FreeVar(
-                            "require",
-                        ),
+                        var: "require",
                         ast_path: [
                             Program(
                                 Script,
@@ -3439,9 +3411,7 @@
                         new: false,
                     },
                     FreeVar {
-                        var: FreeVar(
-                            "downloadedBinPath",
-                        ),
+                        var: "downloadedBinPath",
                         ast_path: [
                             Program(
                                 Script,
@@ -3672,9 +3642,7 @@
                         in_try: false,
                     },
                     FreeVar {
-                        var: FreeVar(
-                            "fs",
-                        ),
+                        var: "fs",
                         ast_path: [
                             Program(
                                 Script,
@@ -3957,9 +3925,7 @@
                                         in_try: true,
                                     },
                                     FreeVar {
-                                        var: FreeVar(
-                                            "require",
-                                        ),
+                                        var: "require",
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -4154,9 +4120,7 @@
                                         new: false,
                                     },
                                     FreeVar {
-                                        var: FreeVar(
-                                            "Error",
-                                        ),
+                                        var: "Error",
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -4462,9 +4426,7 @@
                         in_try: false,
                     },
                     FreeVar {
-                        var: FreeVar(
-                            "require",
-                        ),
+                        var: "require",
                         ast_path: [
                             Program(
                                 Script,
@@ -4777,9 +4739,7 @@
                                         in_try: false,
                                     },
                                     FreeVar {
-                                        var: FreeVar(
-                                            "require",
-                                        ),
+                                        var: "require",
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -5573,9 +5533,7 @@
                                         in_try: false,
                                     },
                                     FreeVar {
-                                        var: FreeVar(
-                                            "fs",
-                                        ),
+                                        var: "fs",
                                         ast_path: [
                                             Program(
                                                 Script,
@@ -5847,9 +5805,7 @@
                                                         in_try: false,
                                                     },
                                                     FreeVar {
-                                                        var: FreeVar(
-                                                            "fs",
-                                                        ),
+                                                        var: "fs",
                                                         ast_path: [
                                                             Program(
                                                                 Script,
@@ -6117,9 +6073,7 @@
                                                         in_try: false,
                                                     },
                                                     FreeVar {
-                                                        var: FreeVar(
-                                                            "fs",
-                                                        ),
+                                                        var: "fs",
                                                         ast_path: [
                                                             Program(
                                                                 Script,

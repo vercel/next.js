@@ -40,7 +40,8 @@ export default async function Page() {
         <span id="justputit">{data2}</span>
       </p>
       <p>
-        random cookie: <span id="random-cookie">{JSON.stringify(cookie)}</span>
+        random cookie:{' '}
+        <span id="random-cookie">{JSON.stringify({ cookie })}</span>
       </p>
       <form>
         <button

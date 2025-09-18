@@ -1,6 +1,8 @@
 import React from 'react'
-import type { FlightRouterState } from '../../../server/app-render/types'
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type {
+  FlightRouterState,
+  CacheNode,
+} from '../../../shared/lib/app-router-types'
 import { createInitialRouterState } from './create-initial-router-state'
 import { PrefetchCacheEntryStatus, PrefetchKind } from './router-reducer-types'
 

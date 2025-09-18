@@ -1,0 +1,84 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/a.css [test] (css) */
+.a {
+  content: "1";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b0.css [test] (css) */
+.b0 {
+  content: "2";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1a.css [test] (css) */
+.b1a {
+  content: "3";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1b.css [test] (css) */
+.b1b {
+  content: "4";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b1.css [test] (css) */
+.b1 {
+  content: "5";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b2.css [test] (css) */
+.b2 {
+  content: "6";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/shared1.css [test] (css) */
+.shared {
+  content: "7";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/shared.css [test] (css) */
+.shared {
+  content: "8";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b3a.css [test] (css) */
+.b3a {
+  content: "9";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b3b.css [test] (css) */
+.b3a {
+  content: "10";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b3.css [test] (css) */
+.b3 {
+  content: "11";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b4a.css [test] (css) */
+.b4a {
+  content: "12";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b4b.css [test] (css) */
+.b4b {
+  content: "13";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b4.css [test] (css) */
+.b4 {
+  content: "14";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/b.css [test] (css) */
+.b {
+  content: "16";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/c.css [test] (css) */
+.c {
+  content: "17";
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/split-shared/input/entry.css [test] (css) */
+
+
+/*# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_css_split-shared_input_d1c6b6d9._.css.map*/

@@ -3,12 +3,12 @@ import Link from 'next/link'
 
 class MyLink extends React.Component {
   render() {
-    return <a {...this.props}>Click me</a>
+    return <span {...this.props}>Click me</span>
   }
 }
 
 export default () => (
-  <Link href="/" passHref legacyBehavior>
+  <Link href="/">
     <MyLink />
   </Link>
 )

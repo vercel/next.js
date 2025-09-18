@@ -115,7 +115,7 @@ async function lint(
 > {
   try {
     // Load ESLint after we're sure it exists:
-    const deps = await hasNecessaryDependencies(baseDir, requiredPackages)
+    const deps = hasNecessaryDependencies(baseDir, requiredPackages)
     const packageManager = getPkgManager(baseDir)
 
     if (deps.missing.some((dep) => dep.pkg === 'eslint')) {

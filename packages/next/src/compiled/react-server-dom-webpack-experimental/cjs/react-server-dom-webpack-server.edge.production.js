@@ -416,6 +416,8 @@ var supportsRequestStorage = "function" === typeof AsyncLocalStorage,
           throw Error(
             "Cannot render a Client Context Provider on the Server. Instead, you can export a Client Component wrapper that itself renders a Client Context Provider."
           );
+        case "then":
+          return;
       }
       throw Error(
         "Cannot access " +
@@ -2114,7 +2116,7 @@ function abort(request, reason) {
             errorId$26 = request.nextChunkId++;
           request.fatalError = errorId$26;
           request.pendingChunks++;
-          emitErrorChunk(request, errorId$26, digest, error, !1);
+          emitErrorChunk(request, errorId$26, digest, error, !1, null);
           abortableTasks.forEach(function (task) {
             return abortTask(task, request, errorId$26);
           });

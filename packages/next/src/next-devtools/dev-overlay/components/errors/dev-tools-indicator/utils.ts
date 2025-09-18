@@ -1,9 +1,4 @@
-import { useEffect } from 'react'
-
-export const getShadowRoot = () => {
-  const portal = document.querySelector('nextjs-portal')
-  return portal?.shadowRoot
-}
+import { useEffect, experimental_useEffectEvent as useEffectEvent } from 'react'
 
 export function useFocusTrap(
   rootRef: React.RefObject<HTMLElement | null>,
@@ -11,6 +6,13 @@ export function useFocusTrap(
   active: boolean,
   onOpenFocus?: () => void
 ) {
+  const fireOpenFocus = useEffectEvent((rootNode: HTMLElement | null) => {
+    if (onOpenFocus) {
+      onOpenFocus()
+    } else {
+      rootNode?.focus()
+    }
+  })
   useEffect(() => {
     let rootNode: HTMLElement | null = null
 
@@ -40,11 +42,7 @@ export function useFocusTrap(
       // Grab this on next tick to ensure the content is mounted
       rootNode = rootRef.current
       if (active) {
-        if (onOpenFocus) {
-          onOpenFocus()
-        } else {
-          rootNode?.focus()
-        }
+        fireOpenFocus(rootNode)
         rootNode?.addEventListener('keydown', onTab)
       } else {
         const activeElement = getActiveElement(rootNode)
@@ -61,9 +59,7 @@ export function useFocusTrap(
       clearTimeout(id)
       rootNode?.removeEventListener('keydown', onTab)
     }
-    // eslint-disable-next-line react-hooks/react-compiler
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active])
+  }, [active, rootRef, triggerRef])
 }
 
 export function getActiveElement(node: HTMLElement | null) {

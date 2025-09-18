@@ -13,7 +13,7 @@ use next_core::{
     next_client::{
         ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
     },
-    next_config::{JsConfig, ModuleIds as ModuleIdStrategyConfig, NextConfig},
+    next_config::{ModuleIds as ModuleIdStrategyConfig, NextConfig},
     next_edge::context::EdgeChunkingContextOptions,
     next_server::{
         ServerChunkingContextOptions, ServerContextType, get_server_chunking_context,
@@ -21,7 +21,9 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
     },
     next_telemetry::NextFeatureTelemetry,
-    util::{NextRuntime, OptionEnvMap, parse_config_from_source},
+    parse_segment_config_from_source,
+    segment_config::ParseSegmentMode,
+    util::{NextRuntime, OptionEnvMap},
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -36,10 +38,8 @@ use turbo_tasks::{
     trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{
-    DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem, invalidation,
-    util::{join_path, unix_to_sys},
-};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem, invalidation};
+use turbo_unix_path::{join_path, unix_to_sys};
 use turbopack::{
     ModuleAssetContext, evaluate_context::node_build_environment,
     global_module_ids::get_global_module_id_strategy, transition::TransitionOptions,
@@ -68,7 +68,6 @@ use turbopack_core::{
         export_usage::{OptionExportUsageInfo, compute_export_usage_info},
     },
     output::{OutputAsset, OutputAssets},
-    reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
     source_map::OptionStringifiedSourceMap,
     version::{
@@ -161,9 +160,6 @@ pub struct ProjectOptions {
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: RcStr,
 
-    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: RcStr,
-
     /// A map of environment variables to use when compiling code.
     pub env: Vec<(RcStr, RcStr)>,
 
@@ -212,9 +208,6 @@ pub struct PartialProjectOptions {
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: Option<RcStr>,
-
-    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: Option<RcStr>,
 
     /// A map of environment variables to use when compiling code.
     pub env: Option<Vec<(RcStr, RcStr)>>,
@@ -323,14 +316,15 @@ impl ProjectContainer {
                 .await?;
         } else {
             project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                path: RcStr::from(path),
+                // this path is just used for display purposes
+                path: RcStr::from(path.to_string_lossy()),
             });
         }
         let output_fs = output_fs_operation(project)
             .read_strongly_consistent()
             .await?;
         output_fs.invalidate_with_reason(|path| invalidation::Initialize {
-            path: RcStr::from(path),
+            path: RcStr::from(path.to_string_lossy()),
         });
         Ok(())
     }
@@ -341,7 +335,6 @@ impl ProjectContainer {
             root_path,
             project_path,
             next_config,
-            js_config,
             env,
             define_env,
             watch,
@@ -367,9 +360,6 @@ impl ProjectContainer {
         }
         if let Some(next_config) = next_config {
             new_options.next_config = next_config;
-        }
-        if let Some(js_config) = js_config {
-            new_options.js_config = js_config;
         }
         if let Some(env) = env {
             new_options.env = env;
@@ -421,13 +411,14 @@ impl ProjectContainer {
                     .await?;
             } else {
                 project_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                    path: RcStr::from(path),
+                    // this path is just used for display purposes
+                    path: RcStr::from(path.to_string_lossy()),
                 });
             }
         }
         if !ReadRef::ptr_eq(&prev_output_fs, &output_fs) {
             prev_output_fs.invalidate_with_reason(|path| invalidation::Initialize {
-                path: RcStr::from(path),
+                path: RcStr::from(path.to_string_lossy()),
             });
         }
 
@@ -442,7 +433,6 @@ impl ProjectContainer {
         let env_map: Vc<EnvMap>;
         let next_config;
         let define_env;
-        let js_config;
         let root_path;
         let project_path;
         let watch;
@@ -466,7 +456,6 @@ impl ProjectContainer {
             }
             .cell();
             next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
-            js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
             root_path = options.root_path.clone();
             project_path = options.project_path.clone();
             watch = options.watch;
@@ -490,7 +479,6 @@ impl ProjectContainer {
             project_path,
             watch,
             next_config: next_config.to_resolved().await?,
-            js_config: js_config.to_resolved().await?,
             dist_dir,
             env: ResolvedVc::upcast(env_map.to_resolved().await?),
             define_env: define_env.to_resolved().await?,
@@ -560,9 +548,6 @@ pub struct Project {
 
     /// Next config.
     next_config: ResolvedVc<NextConfig>,
-
-    /// Js/Tsconfig read by load-jsconfig
-    js_config: ResolvedVc<JsConfig>,
 
     /// A map of environment variables to use when compiling code.
     env: ResolvedVc<Box<dyn ProcessEnv>>,
@@ -673,11 +658,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn project_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(
-            PROJECT_FILESYSTEM_NAME.into(),
-            self.root_path.clone(),
-            vec![],
-        )
+        DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), self.root_path.clone())
     }
 
     #[turbo_tasks::function]
@@ -688,7 +669,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn output_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(rcstr!("output"), self.root_path.clone(), vec![])
+        DiskFileSystem::new(rcstr!("output"), self.root_path.clone())
     }
 
     #[turbo_tasks::function]
@@ -768,6 +749,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub async fn ci_has_next_support(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.env.read(rcstr!("NOW_BUILDER")).await?.is_some(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn current_node_js_version(&self) -> Vc<NodeJsVersion> {
         NodeJsVersion::Static(ResolvedVc::cell(self.current_node_js_version.clone())).cell()
     }
@@ -790,11 +778,6 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn per_page_module_graph(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(*self.mode.await? == NextMode::Development))
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn js_config(&self) -> Vc<JsConfig> {
-        *self.js_config
     }
 
     #[turbo_tasks::function]
@@ -973,9 +956,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn whole_app_module_graphs(
-        self: ResolvedVc<Self>,
-    ) -> Result<Vc<BaseAndFullModuleGraph>> {
+    pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
             let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
@@ -1133,21 +1114,6 @@ impl Project {
         // This is different to webpack-config; when this is being called,
         // it is always using SWC so we don't check swc here.
         emit_event(env!("VERGEN_CARGO_TARGET_TRIPLE"), true);
-
-        // Go over jsconfig and report enabled features.
-        let compiler_options = self.js_config().compiler_options().await?;
-        let compiler_options = compiler_options.as_object();
-        let experimental_decorators_enabled = compiler_options
-            .as_ref()
-            .and_then(|compiler_options| compiler_options.get("experimentalDecorators"))
-            .is_some();
-        let jsx_import_source_enabled = compiler_options
-            .as_ref()
-            .and_then(|compiler_options| compiler_options.get("jsxImportSource"))
-            .is_some();
-
-        emit_event("swcExperimentalDecorators", experimental_decorators_enabled);
-        emit_event("swcImportSource", jsx_import_source_enabled);
 
         // Go over config and report enabled features.
         // [TODO]: useSwcLoader is not being reported as it is not directly corresponds (it checks babel config existence)
@@ -1328,6 +1294,7 @@ impl Project {
                 NextRuntime::Edge,
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1390,6 +1357,7 @@ impl Project {
                 NextRuntime::NodeJs,
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1412,20 +1380,16 @@ impl Project {
 
         let middleware = self.find_middleware();
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
-            return Ok(Vc::upcast(edge_module_context));
+            return Ok(edge_module_context);
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
 
-        let module = edge_module_context
-            .process(
-                source,
-                ReferenceType::Entry(EntryReferenceSubType::Middleware),
-            )
-            .module();
+        let runtime = parse_segment_config_from_source(source, ParseSegmentMode::Base)
+            .await?
+            .runtime
+            .unwrap_or(NextRuntime::Edge);
 
-        let config = parse_config_from_source(source, module, NextRuntime::Edge).await?;
-
-        if matches!(config.runtime, NextRuntime::NodeJs) {
+        if matches!(runtime, NextRuntime::NodeJs) {
             Ok(self.node_middleware_context())
         } else {
             Ok(edge_module_context)
@@ -1508,6 +1472,7 @@ impl Project {
                 NextRuntime::NodeJs,
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1570,6 +1535,7 @@ impl Project {
                 NextRuntime::Edge,
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1819,7 +1785,7 @@ impl Project {
 #[turbo_tasks::function(operation)]
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
-) -> Result<Vc<BaseAndFullModuleGraph>> {
+) -> Result<Vc<ModuleGraphs>> {
     mark_root();
 
     let should_trace = project.next_mode().await?.is_production();
@@ -1837,7 +1803,7 @@ async fn whole_app_module_graph_operation(
     );
 
     let full = ModuleGraph::from_graphs(vec![base_single_module_graph, additional_module_graph]);
-    Ok(BaseAndFullModuleGraph {
+    Ok(ModuleGraphs {
         base: base.to_resolved().await?,
         full: full.to_resolved().await?,
     }
@@ -1845,7 +1811,7 @@ async fn whole_app_module_graph_operation(
 }
 
 #[turbo_tasks::value(shared)]
-pub struct BaseAndFullModuleGraph {
+pub struct ModuleGraphs {
     pub base: ResolvedVc<ModuleGraph>,
     pub full: ResolvedVc<ModuleGraph>,
 }
@@ -1872,17 +1838,15 @@ async fn any_output_changed(
                     && (!server || !asset_path.path.ends_with(".css"))
                     && asset_path.is_inside_ref(&path)
                 {
-                    anyhow::Ok(Some(content_changed(*ResolvedVc::upcast(m))))
+                    anyhow::Ok(Some(
+                        content_changed(*ResolvedVc::upcast(m))
+                            .to_resolved()
+                            .await?,
+                    ))
                 } else {
                     Ok(None)
                 }
             }
-        })
-        .map(|v| async move {
-            Ok(match v.await? {
-                Some(v) => Some(v.to_resolved().await?),
-                None => None,
-            })
         })
         .try_flat_join()
         .await?;

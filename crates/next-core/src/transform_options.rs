@@ -1,4 +1,5 @@
 use anyhow::Result;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{self, FileJsonContent, FileSystemPath};
 use turbopack::{
@@ -19,18 +20,31 @@ use crate::{mode::NextMode, next_config::NextConfig};
 
 async fn get_typescript_options(
     project_path: FileSystemPath,
+    tsconfig_path: Option<FileSystemPath>,
 ) -> Result<Option<Vec<(Vc<FileJsonContent>, ResolvedVc<Box<dyn Source>>)>>> {
-    let tsconfig = find_context_file(project_path, tsconfig());
-    Ok(match tsconfig.await.ok().as_deref() {
-        Some(FindContextFileResult::Found(path, _)) => read_tsconfigs(
-            path.read(),
-            ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
-            node_cjs_resolve_options(path.root().owned().await?),
+    if let Some(tsconfig_path) = tsconfig_path {
+        let tsconfigs = read_tsconfigs(
+            tsconfig_path.read(),
+            ResolvedVc::upcast(FileSource::new(tsconfig_path.clone()).to_resolved().await?),
+            node_cjs_resolve_options(tsconfig_path.root().owned().await?),
         )
         .await
-        .ok(),
-        Some(FindContextFileResult::NotFound(_)) | None => None,
-    })
+        .ok();
+
+        Ok(tsconfigs)
+    } else {
+        let tsconfig = find_context_file(project_path, tsconfig());
+        Ok(match tsconfig.await.ok().as_deref() {
+            Some(FindContextFileResult::Found(path, _)) => read_tsconfigs(
+                path.read(),
+                ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
+                node_cjs_resolve_options(path.root().owned().await?),
+            )
+            .await
+            .ok(),
+            Some(FindContextFileResult::NotFound(_)) | None => None,
+        })
+    }
 }
 
 /// Build the transform options for specifically for the typescript's runtime
@@ -38,8 +52,9 @@ async fn get_typescript_options(
 #[turbo_tasks::function]
 pub async fn get_typescript_transform_options(
     project_path: FileSystemPath,
+    tsconfig_path: Option<FileSystemPath>,
 ) -> Result<Vc<TypescriptTransformOptions>> {
-    let tsconfig = get_typescript_options(project_path).await?;
+    let tsconfig = get_typescript_options(project_path, tsconfig_path).await?;
 
     let use_define_for_class_fields = if let Some(tsconfig) = tsconfig {
         read_from_tsconfigs(&tsconfig, |json, _| {
@@ -59,12 +74,13 @@ pub async fn get_typescript_transform_options(
 }
 
 /// Build the transform options for the decorators.
-/// **TODO** Currnently only typescript's legacy decorators are supported
+/// **TODO** Currently only typescript's legacy decorators are supported
 #[turbo_tasks::function]
 pub async fn get_decorators_transform_options(
     project_path: FileSystemPath,
+    tsconfig_path: Option<FileSystemPath>,
 ) -> Result<Vc<DecoratorsOptions>> {
-    let tsconfig = get_typescript_options(project_path).await?;
+    let tsconfig = get_typescript_options(project_path, tsconfig_path).await?;
 
     let experimental_decorators = if let Some(ref tsconfig) = tsconfig {
         read_from_tsconfigs(tsconfig, |json, _| {
@@ -134,8 +150,9 @@ pub async fn get_jsx_transform_options(
     resolve_options_context: Option<Vc<ResolveOptionsContext>>,
     is_rsc_context: bool,
     next_config: Vc<NextConfig>,
+    tsconfig_path: Option<FileSystemPath>,
 ) -> Result<Vc<JsxTransformOptions>> {
-    let tsconfig = get_typescript_options(project_path.clone()).await?;
+    let tsconfig = get_typescript_options(project_path.clone(), tsconfig_path).await?;
 
     let is_react_development = mode.await?.is_react_development();
     let enable_react_refresh = if is_react_development {
@@ -161,11 +178,11 @@ pub async fn get_jsx_transform_options(
         // https://github.com/vercel/next.js/blob/3dc2c1c7f8441cdee31da9f7e0986d654c7fd2e7/packages/next/src/build/swc/options.ts#L112
         // This'll be ignored if ts|jsconfig explicitly specifies importSource
         import_source: if is_emotion_enabled && !is_rsc_context {
-            Some("@emotion/react".into())
+            Some(rcstr!("@emotion/react"))
         } else {
             None
         },
-        runtime: Some("automatic".into()),
+        runtime: Some(rcstr!("automatic")),
         react_refresh: enable_react_refresh,
     };
 

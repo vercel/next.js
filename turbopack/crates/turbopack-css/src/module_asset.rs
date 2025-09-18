@@ -88,7 +88,7 @@ impl Module for ModuleCssAsset {
             .copied()
             .chain(
                 match *self
-                    .inner(ReferenceType::Css(CssReferenceSubType::Internal))
+                    .inner(ReferenceType::Css(CssReferenceSubType::Inner))
                     .try_into_module()
                     .await?
                 {
@@ -296,7 +296,7 @@ impl ChunkItem for ModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(*self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -368,9 +368,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         let placeable: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>> =
                             ResolvedVc::upcast(css_module);
 
-                        let module_id = placeable
-                            .chunk_item_id(Vc::upcast(*self.chunking_context))
-                            .await?;
+                        let module_id = placeable.chunk_item_id(*self.chunking_context).await?;
                         let module_id = StringifyJs(&*module_id);
                         let original_name = StringifyJs(&original_name);
                         exported_class_names
