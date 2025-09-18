@@ -80,12 +80,12 @@ jobs:
 
       - name: Get NAPI info
         id: napi-info
-        uses: rspack-contrib/rspack-toolchain/get-napi-info@v1.0.3
+        uses: rspack-contrib/rspack-toolchain/get-napi-info@f69dc04fcae6b38d97b87acef448ed7a285b01cc
         with:
           package-json-path: rspack/crates/binding/package.json
 
       - name: Download rspack binding
-        uses: rspack-contrib/rspack-toolchain/download-rspack-binding@v1.0.3
+        uses: rspack-contrib/rspack-toolchain/download-rspack-binding@f69dc04fcae6b38d97b87acef448ed7a285b01cc
         with:
           path: ${{ steps.napi-info.outputs.binding-directory }}/artifacts
 
@@ -122,4 +122,3 @@ jobs:
         run: |
           pnpm publish -r --tag ${{ inputs.npm-tag }} --no-git-checks --provenance --access public ${{ inputs.dry-run && '--dry-run' || '' }}
         working-directory: ./rspack
-
