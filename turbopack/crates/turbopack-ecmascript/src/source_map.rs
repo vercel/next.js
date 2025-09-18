@@ -38,11 +38,16 @@ impl GenerateSourceMap for InlineSourceMap {
 
 fn maybe_decode_data_url(url: &str) -> Option<Rope> {
     const DATA_PREAMBLE: &str = "data:application/json;base64,";
+    const DATA_PREAMBLE_CHARSET: &str = "data:application/json;charset=utf-8;base64,";
 
-    if !url.starts_with(DATA_PREAMBLE) {
+    let data_b64 = if let Some(data) = url.strip_prefix(DATA_PREAMBLE) {
+        data
+    } else if let Some(data) = url.strip_prefix(DATA_PREAMBLE_CHARSET) {
+        data
+    } else {
         return None;
-    }
-    let data_b64 = &url[DATA_PREAMBLE.len()..];
+    };
+
     data_encoding::BASE64
         .decode(data_b64.as_bytes())
         .ok()
