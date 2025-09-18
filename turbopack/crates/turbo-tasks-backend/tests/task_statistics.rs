@@ -31,8 +31,6 @@ async fn test_simple_task() -> Result<()> {
                 "double": {
                     "cache_miss": 10,
                     "cache_hit": 15,
-                    "executions": 10,
-                    "duration": 1234,
                 },
             })
         );
@@ -55,8 +53,6 @@ async fn test_await_same_vc_multiple_times() -> Result<()> {
                 "double": {
                     "cache_miss": 1,
                     "cache_hit": 0,
-                    "executions": 1,
-                    "duration": 1234,
                 },
             })
         );
@@ -85,14 +81,10 @@ async fn test_vc_receiving_task() -> Result<()> {
                 "double": {
                     "cache_miss": 10,
                     "cache_hit": 5,
-                    "executions": 10,
-                    "duration": 1234,
                 },
                 "double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 15,
-                    "executions": 10,
-                    "duration": 1234,
                 },
             })
         );
@@ -122,20 +114,14 @@ async fn test_trait_methods() -> Result<()> {
                 "wrap": {
                     "cache_miss": 10,
                     "cache_hit": 5,
-                    "executions": 10,
-                    "duration": 1234,
                 },
                 "WrappedU64::Doublable::double": {
                     "cache_miss": 10,
                     "cache_hit": 15,
-                    "executions": 10,
-                    "duration": 1234,
                 },
                 "WrappedU64::Doublable::double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 15,
-                    "executions": 10,
-                    "duration": 1234,
                 },
             })
         );
@@ -171,20 +157,14 @@ async fn test_dyn_trait_methods() -> Result<()> {
                 "wrap": {
                     "cache_miss": 10,
                     "cache_hit": 7,
-                    "executions": 10,
-                    "duration": 1234,
                 },
                 "WrappedU64::Doublable::double": {
                     "cache_miss": 10,
                     "cache_hit": 17,
-                    "executions": 10,
-                    "duration": 1234,
                 },
                 "WrappedU64::Doublable::double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 17,
-                    "executions": 10,
-                    "duration": 1234,
                 },
             })
         );
@@ -206,8 +186,6 @@ async fn test_no_execution() -> Result<()> {
                 "double": {
                     "cache_miss": 1,
                     "cache_hit": 0,
-                    "executions": 0,
-                    "duration": 1234,
                 },
             })
         );
@@ -276,11 +254,11 @@ fn enable_stats() {
 
 fn stats_json() -> serde_json::Value {
     let tt = turbo_tasks::turbo_tasks();
-    remove_crate(serde_json::to_value(tt.task_statistics().get()).unwrap())
+    make_stats_deterministic(serde_json::to_value(tt.task_statistics().get()).unwrap())
 }
 
 // Global task identifiers can contain the crate name, remove it to simplify test assertions
-fn remove_crate(mut json: serde_json::Value) -> serde_json::Value {
+fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
     static HASH_RE: Lazy<Regex> = Lazy::new(|| Regex::new("^[^:@]+@[^:]+:+").unwrap());
     match &mut json {
         serde_json::Value::Object(map) => {
@@ -288,9 +266,11 @@ fn remove_crate(mut json: serde_json::Value) -> serde_json::Value {
             for (k, v) in old_map {
                 // Replace `duration` with a fixed value to simplify test assertions
                 let mut v = v.clone();
-                v.as_object_mut()
-                    .unwrap()
-                    .insert("duration".into(), serde_json::Value::Number(1234.into()));
+                let object = v.as_object_mut().unwrap();
+                // These are only populated after the task has finalized execution so it racy to
+                // assert on it.
+                object.remove("duration");
+                object.remove("executions");
                 map.insert(HASH_RE.replace(&k, "").into_owned(), v);
             }
         }
