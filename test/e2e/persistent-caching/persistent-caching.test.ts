@@ -36,23 +36,29 @@ describe('persistent-caching', () => {
   }
 
   it('should persistent cache loaders', async () => {
-    let appTimestamp, appClientTimestamp, pagesTimestamp
+    let appTimestamp, unchangedTimestamp, appClientTimestamp, pagesTimestamp
     {
       const browser = await next.browser('/')
       appTimestamp = await browser.elementByCss('main').text()
-      expect(appTimestamp).toMatch(/Timestamp = \d+/)
+      expect(appTimestamp).toMatch(/Timestamp = \d+$/)
+      await browser.close()
+    }
+    {
+      const browser = await next.browser('/unchanged')
+      unchangedTimestamp = await browser.elementByCss('main').text()
+      expect(unchangedTimestamp).toMatch(/Timestamp = \d+$/)
       await browser.close()
     }
     {
       const browser = await next.browser('/client')
       appClientTimestamp = await browser.elementByCss('main').text()
-      expect(appClientTimestamp).toMatch(/Timestamp = \d+/)
+      expect(appClientTimestamp).toMatch(/Timestamp = \d+$/)
       await browser.close()
     }
     {
       const browser = await next.browser('/pages')
       pagesTimestamp = await browser.elementByCss('main').text()
-      expect(pagesTimestamp).toMatch(/Timestamp = \d+/)
+      expect(pagesTimestamp).toMatch(/Timestamp = \d+$/)
       await browser.close()
     }
     await restartCycle()
@@ -60,6 +66,11 @@ describe('persistent-caching', () => {
     {
       const browser = await next.browser('/')
       expect(await browser.elementByCss('main').text()).toBe(appTimestamp)
+      await browser.close()
+    }
+    {
+      const browser = await next.browser('/unchanged')
+      expect(await browser.elementByCss('main').text()).toBe(unchangedTimestamp)
       await browser.close()
     }
     {
@@ -125,6 +136,23 @@ describe('persistent-caching', () => {
       },
       checkChanged: makeTextCheck('/add-me', 'hello world'),
     },
+    // TODO fix this case with Turbopack
+    ...(isTurbopack
+      ? {}
+      : {
+          'loader change': {
+            async checkInitial() {
+              await textCheck('/loader', 'hello world')
+              await textCheck('/loader/client', 'hello world')
+            },
+            withChange: makeFileEdit('my-loader.js'),
+            async checkChanged() {
+              await textCheck('/loader', 'hello persistent caching')
+              await textCheck('/loader/client', 'hello persistent caching')
+            },
+            fullInvalidation: !isTurbopack,
+          },
+        }),
     'next config change': {
       async checkInitial() {
         await textCheck('/next-config', 'hello world')
@@ -169,13 +197,32 @@ describe('persistent-caching', () => {
     if (combination.length !== 1 && combination.length !== KEYS.length) continue
 
     it(`should allow to change files while stopped (${combination.join(', ')})`, async () => {
+      let fullInvalidation = false
       for (const key of combination) {
         await POTENTIAL_CHANGES[key].checkInitial()
+        if (POTENTIAL_CHANGES[key].fullInvalidation) {
+          fullInvalidation = true
+        }
+      }
+
+      let unchangedTimestamp
+      if (!fullInvalidation) {
+        const browser = await next.browser('/unchanged')
+        unchangedTimestamp = await browser.elementByCss('main').text()
+        expect(unchangedTimestamp).toMatch(/Timestamp = \d+$/)
+        await browser.close()
       }
 
       async function checkChanged() {
         for (const key of combination) {
           await POTENTIAL_CHANGES[key].checkChanged()
+        }
+
+        if (!fullInvalidation) {
+          const browser = await next.browser('/unchanged')
+          const timestamp = await browser.elementByCss('main').text()
+          expect(unchangedTimestamp).toEqual(timestamp)
+          await browser.close()
         }
       }
 
@@ -202,6 +249,13 @@ describe('persistent-caching', () => {
       await start()
       for (const key of combination) {
         await POTENTIAL_CHANGES[key].checkInitial()
+      }
+
+      if (!fullInvalidation) {
+        const browser = await next.browser('/unchanged')
+        const timestamp = await browser.elementByCss('main').text()
+        expect(unchangedTimestamp).toEqual(timestamp)
+        await browser.close()
       }
     }, 200000)
   }
