@@ -1,35 +1,12 @@
 import { traceGlobals, traceId } from '../shared'
 import fs from 'fs'
 import path from 'path'
-import { PHASE_DEVELOPMENT_SERVER } from '../../shared/lib/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from '../../shared/lib/constants'
 import type { TraceEvent } from '../types'
-
-// Batch events as zipkin allows for multiple events to be sent in one go
-export function batcher(reportEvents: (evts: TraceEvent[]) => Promise<void>) {
-  const events: TraceEvent[] = []
-  // Promise queue to ensure events are always sent on flushAll
-  const queue = new Set()
-  return {
-    flushAll: async () => {
-      await Promise.all(queue)
-      if (events.length > 0) {
-        await reportEvents(events)
-        events.length = 0
-      }
-    },
-    report: (event: TraceEvent) => {
-      events.push(event)
-
-      if (events.length > 100) {
-        const evts = events.slice()
-        events.length = 0
-        const report = reportEvents(evts)
-        queue.add(report)
-        report.then(() => queue.delete(report))
-      }
-    },
-  }
-}
+import { batcher } from './to-json'
 
 let writeStream: RotatingWriteStream
 let batch: ReturnType<typeof batcher> | undefined
@@ -97,10 +74,30 @@ class RotatingWriteStream {
   }
 }
 
-function reportToJson(event: TraceEvent) {
+const allowlistedEvents = new Set([
+  'next-build',
+  'run-turbopack',
+  'run-webpack',
+  'run-typescript',
+  'run-eslint',
+  'static-check',
+  'static-generation',
+  'output-export-full-static-export',
+])
+
+function reportToJsonBuild(event: TraceEvent) {
+  if (!allowlistedEvents.has(event.name)) {
+    return
+  }
+
   const distDir = traceGlobals.get('distDir')
   const phase = traceGlobals.get('phase')
   if (!distDir || !phase) {
+    return
+  }
+
+  // Only report in production builds
+  if (phase !== PHASE_PRODUCTION_BUILD) {
     return
   }
 
@@ -108,7 +105,7 @@ function reportToJson(event: TraceEvent) {
     batch = batcher(async (events: TraceEvent[]) => {
       if (!writeStream) {
         await fs.promises.mkdir(distDir, { recursive: true })
-        const file = path.join(distDir, 'trace')
+        const file = path.join(distDir, 'trace-build')
         writeStream = new RotatingWriteStream(
           file,
           // Development is limited to 50MB, production is unlimited
@@ -141,5 +138,5 @@ export default {
           }
         })
       : undefined,
-  report: reportToJson,
+  report: reportToJsonBuild,
 }

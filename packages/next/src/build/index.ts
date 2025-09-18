@@ -4098,14 +4098,18 @@ export default async function build(
       }
 
       if (config.output === 'export') {
-        await writeFullyStaticExport(
-          config,
-          dir,
-          enabledDirectories,
-          configOutDir,
-          nextBuildSpan,
-          appDirOnly
-        )
+        await nextBuildSpan
+          .traceChild('output-export-full-static-export')
+          .traceAsyncFn(async () => {
+            await writeFullyStaticExport(
+              config,
+              dir,
+              enabledDirectories,
+              configOutDir,
+              nextBuildSpan,
+              appDirOnly
+            )
+          })
       }
 
       if (config.experimental.adapterPath) {
