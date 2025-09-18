@@ -5,9 +5,8 @@ use std::{
 
 use next_taskless::{BUN_EXTERNALS, EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use rspack_core::{
-    ApplyContext, DependencyCategory, ExternalItem, ExternalItemFnCtx,
-    ExternalItemFnResult, ExternalItemObject, ExternalItemValue, Plugin,
-    ResolveOptionsWithDependencyType, ResolveResult,
+    ApplyContext, DependencyCategory, ExternalItem, ExternalItemFnCtx, ExternalItemFnResult,
+    ExternalItemObject, ExternalItemValue, Plugin, ResolveOptionsWithDependencyType, ResolveResult,
 };
 use rspack_error::ToStringResultToRspackResultExt;
 use rspack_hook::plugin;
