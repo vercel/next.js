@@ -1683,14 +1683,15 @@
   },
   "test/e2e/app-dir/back-forward-cache/back-forward-cache.test.ts": {
     "passed": [
-      "back/forward cache React state is preserved when navigating back to a page with different search params than before ",
       "back/forward cache React state is preserved when navigating back/forward with links",
       "back/forward cache React state is preserved when navigating with back/forward buttons",
       "back/forward cache bfcache only preserves up to N entries",
       "back/forward cache navigate back and forth repeatedly between the same pages without evicting"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "back/forward cache React state is preserved when navigating back to a page with different search params than before "
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -4016,6 +4017,186 @@
       "after() - pages invalid usages errors at compile time when used in pages dir errors when used in getStaticProps",
       "after() - pages invalid usages errors at compile time when used in pages dir errors when used in within a page component",
       "after() - pages runs in middleware"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/async-function/async-function-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-async-function-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/async-function/async-function-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-async-function-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/dynamic-import-esm/next-config-ts-dynamic-import-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-dynamic-import-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/export-as-default/next-config-ts-export-as-default-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-as-default-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/export-as-default/next-config-ts-export-as-default-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-as-default-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/export-default/next-config-ts-export-default-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-default-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/export-default/next-config-ts-export-default-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-export-default-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/import-from-node-modules/next-config-ts-import-from-node-modules-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-from-node-modules-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/import-from-node-modules/next-config-ts-import-from-node-modules-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-from-node-modules-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/import-js-extensions-cjs/next-config-ts-import-js-extensions-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-js-extensions-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/import-js-extensions-esm/next-config-ts-import-js-extensions-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-js-extensions-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/import-json/next-config-ts-import-json-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-json-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/import-json/next-config-ts-import-json-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-import-json-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/nested-imports/next-config-ts-nested-imports-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-nested-imports-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/nested-imports/next-config-ts-nested-imports-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-nested-imports-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/node-api-cjs/next-config-ts-node-api-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-node-api-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/node-api-esm/next-config-ts-node-api-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-node-api-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/top-level-await-esm/next-config-ts-top-level-await-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-top-level-await-esm requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/type-error/next-config-ts-type-error-cjs.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-type-error-cjs requires `process.features.typescript` to feature detect Node.js native TS"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/next-config-ts-native-mts/type-error/next-config-ts-type-error-esm.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "next-config-ts-type-error-esm requires `process.features.typescript` to feature detect Node.js native TS"
     ],
     "flakey": [],
     "runtimeError": false

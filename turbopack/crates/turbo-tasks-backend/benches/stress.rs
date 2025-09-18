@@ -1,6 +1,6 @@
 use anyhow::Result;
 use criterion::{BenchmarkId, Criterion};
-use turbo_tasks::{ReadConsistency, TryJoinIterExt, TurboTasks, Vc};
+use turbo_tasks::{TryJoinIterExt, TurboTasks, Vc};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
 pub fn fibonacci(c: &mut Criterion) {
@@ -37,18 +37,16 @@ pub fn fibonacci(c: &mut Criterion) {
                     noop_backing_storage(),
                 ));
                 async move {
-                    let task = tt.spawn_once_task(async move {
+                    tt.run_once(async move {
                         // Number of tasks:
                         // 1 root task
                         // size >= 1 => + fib(0) = 1
                         // size >= 2 => + fib(1) = 2
                         (0..size).map(|i| fib(i, i)).try_join().await?;
-                        Ok::<Vc<()>, _>(Default::default())
-                    });
-                    tt.wait_task_completion(task, ReadConsistency::Eventual)
-                        .await
-                        .unwrap();
-                    tt
+                        Ok(())
+                    })
+                    .await
+                    .unwrap();
                 }
             })
         });

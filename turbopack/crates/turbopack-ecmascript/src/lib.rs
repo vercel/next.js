@@ -516,7 +516,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             .await?;
 
         Ok(EcmascriptModuleContentOptions {
-            parsed,
+            parsed: Some(parsed),
             module: ResolvedVc::upcast(self),
             specified_module_type: module_type_result.module_type,
             chunking_context,
@@ -885,7 +885,7 @@ pub struct EcmascriptModuleContent {
 #[derive(Clone, Debug, Hash, TaskInput)]
 pub struct EcmascriptModuleContentOptions {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    parsed: ResolvedVc<ParseResult>,
+    parsed: Option<ResolvedVc<ParseResult>>,
     specified_module_type: SpecifiedModuleType,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     references: ResolvedVc<ModuleReferences>,
@@ -1030,7 +1030,7 @@ impl EcmascriptModuleContent {
         generate_source_map: bool,
     ) -> Result<Vc<Self>> {
         let content = process_parse_result(
-            parsed.to_resolved().await?,
+            Some(parsed.to_resolved().await?),
             ident,
             specified_module_type,
             generate_source_map,
@@ -1655,9 +1655,8 @@ struct ScopeHoistingOptions<'a> {
     modules: &'a FxIndexMap<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>, MergeableModuleExposure>,
 }
 
-#[instrument(level = Level::TRACE, skip_all, name = "process module")]
 async fn process_parse_result(
-    parsed: ResolvedVc<ParseResult>,
+    parsed: Option<ResolvedVc<ParseResult>>,
     ident: Vc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
     generate_source_map: bool,
@@ -1914,12 +1913,16 @@ async fn process_parse_result(
             })
         },
     )
+    .instrument(tracing::trace_span!(
+        "process parse result",
+        ident = display(ident.to_string().await?),
+    ))
     .await
 }
 
 /// Try to avoid cloning the AST and Globals by unwrapping the ReadRef (and cloning otherwise).
 async fn with_consumed_parse_result<T>(
-    parsed: ResolvedVc<ParseResult>,
+    parsed: Option<ResolvedVc<ParseResult>>,
     success: impl AsyncFnOnce(
         Program,
         &Arc<SourceMap>,
@@ -1929,6 +1932,24 @@ async fn with_consumed_parse_result<T>(
     ) -> Result<T>,
     error: impl AsyncFnOnce(&ParseResult) -> Result<T>,
 ) -> Result<T> {
+    let Some(parsed) = parsed else {
+        let globals = Globals::new();
+        let eval_context = GLOBALS.set(&globals, || EvalContext {
+            unresolved_mark: Mark::new(),
+            top_level_mark: Mark::new(),
+            imports: Default::default(),
+            force_free_values: Default::default(),
+        });
+        return success(
+            Program::Module(swc_core::ecma::ast::Module::dummy()),
+            &Default::default(),
+            &Default::default(),
+            Either::Left(eval_context),
+            Either::Left(Default::default()),
+        )
+        .await;
+    };
+
     let parsed = parsed.final_read_hint().await?;
     match &*parsed {
         ParseResult::Ok { .. } => {

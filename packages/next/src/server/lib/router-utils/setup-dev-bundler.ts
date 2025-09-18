@@ -133,7 +133,6 @@ export type ServerFields = {
 }
 
 async function verifyTypeScript(opts: SetupOpts) {
-  let usingTypeScript = false
   const verifyResult = await verifyTypeScriptSetup({
     dir: opts.dir,
     distDir: opts.nextConfig.distDir,
@@ -146,9 +145,9 @@ async function verifyTypeScript(opts: SetupOpts) {
   })
 
   if (verifyResult.version) {
-    usingTypeScript = true
+    return true
   }
-  return usingTypeScript
+  return false
 }
 
 export async function propagateServerField(
@@ -241,8 +240,6 @@ async function startWatcher(
     path.join(distTypesDir, 'routes.d.ts'),
     opts.nextConfig
   )
-
-  const usingTypeScript = await verifyTypeScript(opts)
 
   const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
   const routesManifest: DevRoutesManifest = {
@@ -348,7 +345,7 @@ async function startWatcher(
       },
     })
     const fileWatchTimes = new Map()
-    let enabledTypeScript = usingTypeScript
+    let enabledTypeScript = await verifyTypeScript(opts)
     let previousClientRouterFilters: any
     let previousConflictingPagePaths: Set<string> = new Set()
 
@@ -356,6 +353,7 @@ async function startWatcher(
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     wp.on('aggregated', async () => {
+      let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: MiddlewareMatcher[] | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
@@ -728,7 +726,8 @@ async function startWatcher(
         }
       }
 
-      if (!usingTypeScript && enabledTypeScript) {
+      // Using === false to make the check clearer.
+      if (typescriptStatusFromLastAggregation === false && enabledTypeScript) {
         // we tolerate the error here as this is best effort
         // and the manual install command will be shown
         await verifyTypeScript(opts)
@@ -753,7 +752,7 @@ async function startWatcher(
             }
           )
 
-          if (usingTypeScript && nextConfig.experimental?.typedEnv) {
+          if (enabledTypeScript && nextConfig.experimental?.typedEnv) {
             // do not await, this is not essential for further process
             createEnvDefinitions({
               distDir,
@@ -1091,7 +1090,7 @@ async function startWatcher(
         }
         prevSortedRoutes = sortedRoutes
 
-        if (usingTypeScript) {
+        if (enabledTypeScript) {
           const routeTypesManifest = await createRouteTypesManifest({
             dir,
             pageRoutes,
