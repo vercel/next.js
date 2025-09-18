@@ -2440,11 +2440,12 @@
         ),
         args: [
             Value(
-                Unknown {
-                    original_value: None,
-                    reason: "unsupported expression",
-                    has_side_effects: true,
-                },
+                Variable(
+                    (
+                        "moduleId",
+                        #6,
+                    ),
+                ),
             ),
         ],
         ast_path: [
