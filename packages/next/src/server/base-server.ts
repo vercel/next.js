@@ -149,6 +149,7 @@ import { setCacheBustingSearchParamWithHash } from '../client/components/router-
 import type { CacheControl } from './lib/cache-control'
 import type { PrerenderedRoute } from '../build/static-paths/types'
 import { createOpaqueFallbackRouteParams } from './request/fallback-params'
+import { RouteKind } from './route-kind'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -1132,23 +1133,21 @@ export default abstract class Server<
             hasValidParams: false,
           }
 
-          if (!pageIsDynamic) {
-            const match = await this.matchers.match(srcPathname, {
-              i18n: localeAnalysisResult,
-            })
+          const match = await this.matchers.match(srcPathname, {
+            i18n: localeAnalysisResult,
+          })
 
+          if (!pageIsDynamic && match) {
             // Update the source pathname to the matched page's pathname.
-            if (match) {
-              srcPathname = match.definition.pathname
+            srcPathname = match.definition.pathname
 
-              // The page is dynamic if the params are defined. We know at this
-              // stage that the matched path is not a static page if the params
-              // were parsed from the matched path header.
-              if (typeof match.params !== 'undefined') {
-                pageIsDynamic = true
-                paramsResult.params = match.params
-                paramsResult.hasValidParams = true
-              }
+            // The page is dynamic if the params are defined. We know at this
+            // stage that the matched path is not a static page if the params
+            // were parsed from the matched path header.
+            if (typeof match.params !== 'undefined') {
+              pageIsDynamic = true
+              paramsResult.params = match.params
+              paramsResult.hasValidParams = true
             }
           }
 
@@ -1192,7 +1191,7 @@ export default abstract class Server<
           // Create a copy of the query params to avoid mutating the original
           // object. This prevents any overlapping query params that have the
           // same normalized key from causing issues.
-          const queryParams = { ...parsedUrl.query }
+          const rewrittenQueryParams = { ...rewrittenParsedUrl.query }
           const didRewrite =
             pathnameBeforeRewrite !== rewrittenParsedUrl.pathname
 
@@ -1212,7 +1211,7 @@ export default abstract class Server<
 
             if (typeof value === 'undefined') continue
 
-            queryParams[normalizedKey] = Array.isArray(value)
+            rewrittenQueryParams[normalizedKey] = Array.isArray(value)
               ? value.map((v) => decodeQueryPathParameter(v))
               : decodeQueryPathParameter(value)
           }
@@ -1225,7 +1224,7 @@ export default abstract class Server<
             // the query params.
             if (!paramsResult.hasValidParams) {
               paramsResult = utils.normalizeDynamicRouteParams(
-                queryParams,
+                rewrittenQueryParams,
                 false
               )
             }
@@ -1305,7 +1304,7 @@ export default abstract class Server<
             // from the route matches but ignore missing optional params.
             if (!paramsResult.hasValidParams) {
               paramsResult = utils.normalizeDynamicRouteParams(
-                queryParams,
+                rewrittenQueryParams,
                 true
               )
 
@@ -1371,6 +1370,7 @@ export default abstract class Server<
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
           }
+
           // Remove the route `params` keys from `parsedUrl.query` if they are
           // not in the original query params.
           // If it's used in both route `params` and query `searchParams`, it should be kept.
@@ -1379,8 +1379,21 @@ export default abstract class Server<
               delete parsedUrl.query[key]
             }
           }
+
           parsedUrl.pathname = matchedPath
           url.pathname = parsedUrl.pathname
+
+          // For Pages Router routes, use the normalized queryParams from
+          // handleRewrites to ensure catch-all routes get proper array values.
+          // App Router routes should not include rewrite query params as they
+          // affect RSC payload.
+          if (
+            match?.definition.kind === RouteKind.PAGES ||
+            match?.definition.kind === RouteKind.PAGES_API
+          ) {
+            parsedUrl.query = rewrittenQueryParams
+          }
+
           finished = await this.normalizeAndAttachMetadata(req, res, parsedUrl)
           if (finished) return
         } catch (err) {

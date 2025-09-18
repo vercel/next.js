@@ -64,8 +64,7 @@ export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
 
 export type AppPageRouteModuleOptions = RouteModuleOptions<
   AppPageRouteDefinition,
-  AppPageUserlandModule,
-  'app'
+  AppPageUserlandModule
 >
 
 export class AppPageRouteModule extends RouteModule<

@@ -109,7 +109,6 @@ export const routeModule = new AppPageRouteModule({
   },
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
-  router: 'app',
 })
 
 export async function handler(

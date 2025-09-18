@@ -170,11 +170,7 @@ export type AppRouteUserlandModule = AppRouteHandlers &
  * module from the bundled code.
  */
 export interface AppRouteRouteModuleOptions
-  extends RouteModuleOptions<
-    AppRouteRouteDefinition,
-    AppRouteUserlandModule,
-    'app'
-  > {
+  extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
 }
@@ -224,9 +220,8 @@ export class AppRouteRouteModule extends RouteModule<
     relativeProjectDir,
     resolvedPagePath,
     nextConfigOutput,
-    router,
   }: AppRouteRouteModuleOptions) {
-    super({ userland, definition, distDir, relativeProjectDir, router })
+    super({ userland, definition, distDir, relativeProjectDir })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput

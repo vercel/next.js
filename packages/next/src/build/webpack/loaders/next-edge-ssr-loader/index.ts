@@ -58,7 +58,6 @@ function getRouteModuleOptions(page: string) {
     // edge runtime doesn't read from distDir or projectDir
     distDir: '',
     relativeProjectDir: '',
-    router: 'pages',
   }
 
   return options
