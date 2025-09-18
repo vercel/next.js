@@ -25,7 +25,7 @@ env:
 jobs:
   build:
     name: Build
-    uses: SyMind/rspack-toolchain/.github/workflows/build.yml@9253af6151b394a3ad70a603f1380e601ed3aba5
+    uses: rspack-contrib/rspack-toolchain/.github/workflows/build.yml@f69dc04fcae6b38d97b87acef448ed7a285b01cc
     with:
       package-json-path: rspack/crates/binding/package.json
       napi-build-command: pnpm build --release
