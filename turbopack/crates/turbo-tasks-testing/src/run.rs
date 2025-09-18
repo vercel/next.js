@@ -1,7 +1,7 @@
 use std::{fmt::Debug, future::Future, sync::Arc};
 
 use anyhow::Result;
-use turbo_tasks::{TurboTasksApi, run_once, trace::TraceRawVcs};
+use turbo_tasks::{TurboTasksApi, trace::TraceRawVcs};
 
 pub struct Registration {
     create_turbo_tasks: fn(&str, bool) -> Arc<dyn TurboTasksApi>,
@@ -35,6 +35,20 @@ macro_rules! register {
     }};
 }
 
+pub async fn run_once_without_cache_check<T>(
+    registration: &Registration,
+    fut: impl Future<Output = T> + Send + 'static,
+) -> T
+where
+    T: TraceRawVcs + Send + 'static,
+{
+    let name = closure_to_name(&fut);
+    let tt = registration.create_turbo_tasks(&name, true);
+    turbo_tasks::run_once(tt, async move { Ok(fut.await) })
+        .await
+        .unwrap()
+}
+
 pub async fn run_without_cache_check<T>(
     registration: &Registration,
     fut: impl Future<Output = T> + Send + 'static,
@@ -44,12 +58,25 @@ where
 {
     let name = closure_to_name(&fut);
     let tt = registration.create_turbo_tasks(&name, true);
-    run_once(tt, async move { Ok(fut.await) }).await.unwrap()
+    turbo_tasks::run(tt, async move { Ok(fut.await) })
+        .await
+        .unwrap()
 }
 
 fn closure_to_name<T>(value: &T) -> String {
     let name = std::any::type_name_of_val(value);
     name.replace("::{{closure}}", "").replace("::", "_")
+}
+
+pub async fn run_once<T, F>(
+    registration: &Registration,
+    fut: impl Fn() -> F + Send + 'static,
+) -> Result<()>
+where
+    F: Future<Output = Result<T>> + Send + 'static,
+    T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
+{
+    run_with_tt(registration, move |tt| turbo_tasks::run_once(tt, fut())).await
 }
 
 pub async fn run<T, F>(
@@ -60,7 +87,7 @@ where
     F: Future<Output = Result<T>> + Send + 'static,
     T: Debug + PartialEq + Eq + TraceRawVcs + Send + 'static,
 {
-    run_with_tt(registration, move |tt| run_once(tt, fut())).await
+    run_with_tt(registration, move |tt| turbo_tasks::run(tt, fut())).await
 }
 
 pub async fn run_with_tt<T, F>(

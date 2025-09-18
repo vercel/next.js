@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "15.6.0-canary.10",
+  "version": "15.6.0-canary.12",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -102,7 +102,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "15.6.0-canary.10",
+    "@next/env": "15.6.0-canary.12",
     "@swc/helpers": "0.5.15",
     "caniuse-lite": "^1.0.30001579",
     "postcss": "8.4.31",
@@ -131,7 +131,7 @@
     }
   },
   "optionalDependencies": {
-    "sharp": "^0.34.3"
+    "sharp": "^0.34.4"
   },
   "devDependencies": {
     "@ampproject/toolbox-optimizer": "2.8.3",
@@ -166,11 +166,11 @@
     "@jest/types": "29.5.0",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/font": "15.6.0-canary.10",
-    "@next/polyfill-module": "15.6.0-canary.10",
-    "@next/polyfill-nomodule": "15.6.0-canary.10",
-    "@next/react-refresh-utils": "15.6.0-canary.10",
-    "@next/swc": "15.6.0-canary.10",
+    "@next/font": "15.6.0-canary.12",
+    "@next/polyfill-module": "15.6.0-canary.12",
+    "@next/polyfill-nomodule": "15.6.0-canary.12",
+    "@next/react-refresh-utils": "15.6.0-canary.12",
+    "@next/swc": "15.6.0-canary.12",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.51.1",
     "@rspack/core": "1.5.0",

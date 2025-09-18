@@ -5,13 +5,13 @@
 use anyhow::{Result, bail};
 use rand::Rng;
 use turbo_tasks::{State, Vc};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn random_change() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let state = make_state();
         let value = rand::rng().random_range(0..100);
         state.await?.state.set(value);

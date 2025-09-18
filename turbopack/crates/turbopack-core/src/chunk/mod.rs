@@ -428,7 +428,7 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
 
 pub struct ChunkGroupContent {
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,
-    pub batch_groups: FxIndexSet<ResolvedVc<ModuleBatchGroup>>,
+    pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
     pub availability_info: AvailabilityInfo,

@@ -32,9 +32,8 @@ use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, ReadRef,
-    ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, UpdateInfo, Vc,
-    get_effects,
+    Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, ReadRef, ResolvedVc,
+    TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, UpdateInfo, Vc, get_effects,
     message_queue::{CompilationEvent, Severity, TimingEvent},
     trace::TraceRawVcs,
 };
@@ -465,13 +464,18 @@ pub fn project_new(
             .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e))
             .await?;
 
-        turbo_tasks.spawn_once_task({
+        turbo_tasks.start_once_process({
             let tt = turbo_tasks.clone();
-            async move {
-                benchmark_file_io(tt, container.project().node_root().owned().await?)
-                    .await
-                    .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
-            }
+            Box::pin(async move {
+                let future = async move {
+                    benchmark_file_io(tt, container.project().node_root().owned().await?).await
+                };
+                if let Err(err) = future.await {
+                    // TODO Not ideal to print directly to stdout.
+                    // We should use a compilation event instead to report async errors.
+                    println!("Failed to benchmark file IO: {err}");
+                }
+            })
         });
 
         Ok(External::new(ProjectInstance {
@@ -519,10 +523,7 @@ impl CompilationEvent for SlowFilesystemEvent {
 /// - https://x.com/jarredsumner/status/1637549427677364224
 /// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
 #[tracing::instrument(skip(turbo_tasks))]
-async fn benchmark_file_io(
-    turbo_tasks: NextTurboTasks,
-    directory: FileSystemPath,
-) -> Result<Vc<Completion>> {
+async fn benchmark_file_io(turbo_tasks: NextTurboTasks, directory: FileSystemPath) -> Result<()> {
     // try to get the real file path on disk so that we can use it with tokio
     let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(directory.fs)
         .context(anyhow!(
@@ -567,7 +568,7 @@ async fn benchmark_file_io(
         }));
     }
 
-    Ok(Completion::new())
+    Ok(())
 }
 
 #[napi]

@@ -14317,25 +14317,27 @@ function prepareFreshStack(root, lanes) {
       isSpawnedUpdate = 1 === blockingUpdateType,
       isPingedUpdate = 2 === blockingUpdateType,
       renderStartTime$jscomp$0 = renderStartTime;
-    if (supportsUserTiming) {
-      currentTrack = "Blocking";
-      var eventEndTime =
-        0 < previousRenderStartTime
-          ? previousRenderStartTime
-          : renderStartTime$jscomp$0;
-      0 < endTime &&
-        null !== eventType &&
-        eventEndTime > endTime &&
+    supportsUserTiming &&
+      ((currentTrack = "Blocking"),
+      0 < previousRenderStartTime
+        ? previousRenderStartTime > renderStartTime$jscomp$0 &&
+          (previousRenderStartTime = renderStartTime$jscomp$0)
+        : (previousRenderStartTime = renderStartTime$jscomp$0),
+      0 < endTime
+        ? endTime > previousRenderStartTime &&
+          (endTime = previousRenderStartTime)
+        : (endTime = previousRenderStartTime),
+      null !== eventType &&
+        previousRenderStartTime > endTime &&
         console.timeStamp(
-          eventIsRepeat ? "" : "Event: " + eventType,
+          eventIsRepeat ? "Consecutive" : "Event: " + eventType,
           endTime,
-          eventEndTime,
+          previousRenderStartTime,
           currentTrack,
           "Scheduler \u269b",
           eventIsRepeat ? "secondary-light" : "warning"
-        );
-      0 < previousRenderStartTime &&
-        renderStartTime$jscomp$0 > previousRenderStartTime &&
+        ),
+      renderStartTime$jscomp$0 > previousRenderStartTime &&
         console.timeStamp(
           isPingedUpdate
             ? "Promise Resolved"
@@ -14353,12 +14355,12 @@ function prepareFreshStack(root, lanes) {
             : (lanes & 738197653) === lanes
               ? "tertiary-light"
               : "primary-light"
-        );
-    }
+        ));
     blockingUpdateTime = -1.1;
     blockingUpdateType = 0;
     blockingSuspendedTime = -1.1;
     blockingEventIsRepeat = !0;
+    blockingClampTime = now();
   }
   0 !== (lanes & 4194048) &&
     ((previousRenderStartTime =
@@ -14369,7 +14371,7 @@ function prepareFreshStack(root, lanes) {
       0 <= transitionUpdateTime && transitionUpdateTime < transitionClampTime
         ? transitionClampTime
         : transitionUpdateTime),
-    (isSpawnedUpdate =
+    (eventType =
       0 <= transitionEventTime && transitionEventTime < transitionClampTime
         ? transitionClampTime
         : transitionEventTime),
@@ -14377,57 +14379,55 @@ function prepareFreshStack(root, lanes) {
       (setCurrentTrackFromLanes(lanes),
       logSuspendedWithDelayPhase(
         transitionSuspendedTime,
-        0 <= isSpawnedUpdate
-          ? isSpawnedUpdate
-          : 0 <= endTime
-            ? endTime
-            : renderStartTime,
+        0 <= eventType ? eventType : 0 <= endTime ? endTime : renderStartTime,
         lanes
       )),
-    (isPingedUpdate = transitionEventType),
-    (renderStartTime$jscomp$0 = transitionEventIsRepeat),
-    (eventType = 2 === transitionUpdateType),
-    (eventIsRepeat = renderStartTime),
+    (eventIsRepeat = transitionEventType),
+    (isSpawnedUpdate = transitionEventIsRepeat),
+    (isPingedUpdate = 2 === transitionUpdateType),
+    (renderStartTime$jscomp$0 = renderStartTime),
     supportsUserTiming &&
       ((currentTrack = "Transition"),
-      (eventEndTime =
-        0 < previousRenderStartTime
-          ? previousRenderStartTime
-          : 0 < endTime
-            ? endTime
-            : eventIsRepeat),
-      0 < isSpawnedUpdate &&
-        eventEndTime > isSpawnedUpdate &&
-        null !== isPingedUpdate &&
+      0 < endTime
+        ? endTime > renderStartTime$jscomp$0 &&
+          (endTime = renderStartTime$jscomp$0)
+        : (endTime = renderStartTime$jscomp$0),
+      0 < previousRenderStartTime
+        ? previousRenderStartTime > endTime &&
+          (previousRenderStartTime = endTime)
+        : (previousRenderStartTime = endTime),
+      0 < eventType
+        ? eventType > previousRenderStartTime &&
+          (eventType = previousRenderStartTime)
+        : (eventType = previousRenderStartTime),
+      previousRenderStartTime > eventType &&
+        null !== eventIsRepeat &&
         console.timeStamp(
-          renderStartTime$jscomp$0 ? "" : "Event: " + isPingedUpdate,
-          isSpawnedUpdate,
-          eventEndTime,
+          isSpawnedUpdate ? "Consecutive" : "Event: " + eventIsRepeat,
+          eventType,
+          previousRenderStartTime,
           currentTrack,
           "Scheduler \u269b",
-          renderStartTime$jscomp$0 ? "secondary-light" : "warning"
+          isSpawnedUpdate ? "secondary-light" : "warning"
         ),
-      (isSpawnedUpdate = 0 < endTime ? endTime : eventIsRepeat),
-      0 < previousRenderStartTime &&
-        isSpawnedUpdate > previousRenderStartTime &&
+      endTime > previousRenderStartTime &&
         console.timeStamp(
           "Action",
           previousRenderStartTime,
-          isSpawnedUpdate,
+          endTime,
           currentTrack,
           "Scheduler \u269b",
           "primary-dark"
         ),
-      0 < endTime &&
-        eventIsRepeat > endTime &&
+      renderStartTime$jscomp$0 > endTime &&
         console.timeStamp(
-          eventType
+          isPingedUpdate
             ? "Promise Resolved"
-            : 5 < eventIsRepeat - endTime
+            : 5 < renderStartTime$jscomp$0 - endTime
               ? "Update Blocked"
               : "Update",
           endTime,
-          eventIsRepeat,
+          renderStartTime$jscomp$0,
           currentTrack,
           "Scheduler \u269b",
           "primary-light"
@@ -14435,7 +14435,8 @@ function prepareFreshStack(root, lanes) {
     (transitionUpdateTime = transitionStartTime = -1.1),
     (transitionUpdateType = 0),
     (transitionSuspendedTime = -1.1),
-    (transitionEventIsRepeat = !0));
+    (transitionEventIsRepeat = !0),
+    (transitionClampTime = now()));
   previousRenderStartTime = root.timeoutHandle;
   -1 !== previousRenderStartTime &&
     ((root.timeoutHandle = -1), cancelTimeout(previousRenderStartTime));
@@ -15687,7 +15688,7 @@ function flushPassiveEffects(wasDelayedCommit) {
     !supportsUserTiming ||
       passiveEffectStartTime <= commitEndTime ||
       console.timeStamp(
-        wasDelayedCommit ? "Waiting for Paint" : "",
+        wasDelayedCommit ? "Waiting for Paint" : "Waiting",
         commitEndTime,
         passiveEffectStartTime,
         currentTrack,
@@ -16264,20 +16265,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_2038 = 0;
-  i$jscomp$inline_2038 < simpleEventPluginEvents.length;
-  i$jscomp$inline_2038++
+  var i$jscomp$inline_2035 = 0;
+  i$jscomp$inline_2035 < simpleEventPluginEvents.length;
+  i$jscomp$inline_2035++
 ) {
-  var eventName$jscomp$inline_2039 =
-      simpleEventPluginEvents[i$jscomp$inline_2038],
-    domEventName$jscomp$inline_2040 =
-      eventName$jscomp$inline_2039.toLowerCase(),
-    capitalizedEvent$jscomp$inline_2041 =
-      eventName$jscomp$inline_2039[0].toUpperCase() +
-      eventName$jscomp$inline_2039.slice(1);
+  var eventName$jscomp$inline_2036 =
+      simpleEventPluginEvents[i$jscomp$inline_2035],
+    domEventName$jscomp$inline_2037 =
+      eventName$jscomp$inline_2036.toLowerCase(),
+    capitalizedEvent$jscomp$inline_2038 =
+      eventName$jscomp$inline_2036[0].toUpperCase() +
+      eventName$jscomp$inline_2036.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_2040,
-    "on" + capitalizedEvent$jscomp$inline_2041
+    domEventName$jscomp$inline_2037,
+    "on" + capitalizedEvent$jscomp$inline_2038
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -21293,16 +21294,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2456 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2453 = React.version;
 if (
-  "19.2.0-experimental-5e0c951b-20250916" !==
-  isomorphicReactPackageVersion$jscomp$inline_2456
+  "19.2.0-experimental-128abcfa-20250917" !==
+  isomorphicReactPackageVersion$jscomp$inline_2453
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2456,
-      "19.2.0-experimental-5e0c951b-20250916"
+      isomorphicReactPackageVersion$jscomp$inline_2453,
+      "19.2.0-experimental-128abcfa-20250917"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -21322,24 +21323,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_3155 = {
+var internals$jscomp$inline_3152 = {
   bundleType: 0,
-  version: "19.2.0-experimental-5e0c951b-20250916",
+  version: "19.2.0-experimental-128abcfa-20250917",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-5e0c951b-20250916"
+  reconcilerVersion: "19.2.0-experimental-128abcfa-20250917"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_3156 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_3153 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_3156.isDisabled &&
-    hook$jscomp$inline_3156.supportsFiber
+    !hook$jscomp$inline_3153.isDisabled &&
+    hook$jscomp$inline_3153.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_3156.inject(
-        internals$jscomp$inline_3155
+      (rendererID = hook$jscomp$inline_3153.inject(
+        internals$jscomp$inline_3152
       )),
-        (injectedHook = hook$jscomp$inline_3156);
+        (injectedHook = hook$jscomp$inline_3153);
     } catch (err) {}
 }
 function getCrossOriginStringAs(as, input) {
@@ -21595,7 +21596,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.2.0-experimental-5e0c951b-20250916";
+exports.version = "19.2.0-experimental-128abcfa-20250917";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

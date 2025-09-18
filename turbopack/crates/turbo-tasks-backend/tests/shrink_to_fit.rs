@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
@@ -13,7 +13,7 @@ struct Wrapper(Vec<u32>);
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_shrink_to_fit() -> Result<()> {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         // `Vec::shrink_to_fit` is implicitly called when a cell is constructed.
         let a: Vc<Wrapper> = Vc::cell(Vec::with_capacity(100));
         assert_eq!(a.await?.capacity(), 0);

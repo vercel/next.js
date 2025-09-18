@@ -131,10 +131,10 @@ export async function transpileConfig({
           getNodeOptionsArgs().includes('--no-experimental-strip-types') ||
           process.execArgv.includes('--no-experimental-strip-types')
         ) {
-          // TODO: Add Next.js docs link.
           warnOnce(
             `Skipped resolving "${configFileName}" using Node.js native TypeScript resolution because it was disabled by the "--no-experimental-strip-types" flag.` +
-              ' Falling back to legacy resolution.'
+              ' Falling back to legacy resolution.' +
+              ' Learn more: https://nextjs.org/docs/app/api-reference/config/typescript#using-nodejs-native-typescript-resolver-for-nextconfigts'
           )
         }
 
@@ -143,7 +143,8 @@ export async function transpileConfig({
       } catch (cause) {
         warnOnce(
           `Failed to import "${configFileName}" using Node.js native TypeScript resolution.` +
-            ' Falling back to legacy resolution.',
+            ' Falling back to legacy resolution.' +
+            ' Learn more: https://nextjs.org/docs/app/api-reference/config/typescript#using-nodejs-native-typescript-resolver-for-nextconfigts',
           { cause }
         )
         // Once failed, fallback to legacy resolution for current session.
@@ -157,9 +158,7 @@ export async function transpileConfig({
 
     return handleCJS({ cwd, nextConfigPath, compilerOptions })
   } catch (cause) {
-    throw new Error(`Failed to transpile "${configFileName}".`, {
-      cause,
-    })
+    throw new Error(`Failed to transpile "${configFileName}".`, { cause })
   }
 }
 
