@@ -25,8 +25,7 @@ napi-derive = { version = "=3.2.2" }
 
 anyhow     = { version = "1.0.95" }
 serde_json = { version = "1.0.134" }
-
-next-taskless = { version = "0.0.1" }
+next-taskless = { version = "0.0.1", path = "../../../crates/next-taskless" }
 
 # Enable SWC plugin feature for targets that support it
 # Skip: wasm32-wasip1-threads, i686-pc-windows-msvc, aarch64-pc-windows-msvc, armv7-linux-androideabi, armv7-unknown-linux-gnueabihf

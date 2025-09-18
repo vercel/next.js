@@ -5,9 +5,6 @@ members = [
   "crates/binding"
 ]
 
-[patch.crates-io]
-next-taskless = { path = "../crates/next-taskless" }
-
 # Copied from https://github.com/web-infra-dev/rspack/blob/main/Cargo.toml
 
 [profile.dev]
