@@ -12,6 +12,55 @@ use super::{
 };
 use crate::analyzer::RequireContextValue;
 
+pub fn is_well_known_function_prop(value: &str) -> bool {
+    // TODO this separate list is very brittle
+    matches!(
+        value,
+        "arch"
+            | "argv"
+            | "assign"
+            | "cache"
+            | "context"
+            | "createReadStream"
+            | "cwd"
+            | "default"
+            | "dirname"
+            | "endianness"
+            | "env"
+            | "execFile"
+            | "execFileSync"
+            | "exists"
+            | "existsSync"
+            | "filter"
+            | "find"
+            | "forEach"
+            | "fork"
+            | "join"
+            | "keys"
+            | "load"
+            | "loadSync"
+            | "map"
+            | "meta"
+            | "open"
+            | "openSync"
+            | "pathToFileURL"
+            | "platform"
+            | "promises"
+            | "readFile"
+            | "readFileSync"
+            | "realpath"
+            | "realpathSync"
+            | "resolve"
+            | "set"
+            | "SetRootDir"
+            | "silent"
+            | "spawn"
+            | "spawnSync"
+            | "stat"
+            | "statSync"
+    )
+}
+
 pub async fn replace_well_known(
     value: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,

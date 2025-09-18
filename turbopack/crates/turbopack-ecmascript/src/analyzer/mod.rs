@@ -4199,6 +4199,7 @@ mod tests {
             link(
                 var_graph,
                 val,
+                &|v| v,
                 &super::test_utils::early_visitor,
                 &(|val| {
                     Box::pin(super::test_utils::visitor(

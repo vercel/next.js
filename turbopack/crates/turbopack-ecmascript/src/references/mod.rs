@@ -138,6 +138,7 @@ use crate::{
         imports::{ImportAnnotations, ImportAttributes, ImportedSymbol, Reexport},
         parse_require_context,
         top_level_await::has_top_level_await,
+        well_known::is_well_known_function_prop,
     },
     chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
@@ -449,6 +450,7 @@ impl AnalysisState<'_> {
         Ok(link(
             self.var_graph,
             value,
+            &|v| v,
             &early_value_visitor,
             &|value| {
                 value_visitor(
@@ -466,6 +468,85 @@ impl AnalysisState<'_> {
         )
         .await?
         .0)
+    }
+
+    /// Links a value to the graph, returning the linked value, but without recursing.
+    async fn unsafe_link_value_shallow(
+        &self,
+        value: JsValue,
+        attributes: &ImportAttributes,
+        earliest_toplevel_visitor: &impl Fn(JsValue) -> JsValue,
+    ) -> Result<(JsValue, u32)> {
+        link(
+            self.var_graph,
+            value,
+            earliest_toplevel_visitor,
+            &early_value_visitor,
+            &|value| {
+                value_visitor(
+                    *self.origin,
+                    value,
+                    *self.compile_time_info,
+                    &self.free_var_references,
+                    self.var_graph,
+                    attributes,
+                    self.define_process_cwd,
+                )
+            },
+            &self.fun_args_values,
+            &self.var_cache,
+        )
+        .await
+    }
+
+    async fn link_truthy(&self, value: JsValue, attributes: &ImportAttributes) -> Result<JsValue> {
+        self.link_value(value, attributes).await
+    }
+
+    async fn link_well_known_function(
+        &self,
+        value: JsValue,
+        attributes: &ImportAttributes,
+    ) -> Result<Vec<WellKnownFunctionKind>> {
+        // We are only interested in well-known functions, the only JsValues that can evaluated to
+        // that are WellKnownFunctions, FreeVars and Members, (and Variables) that point to them.
+        // Everything else can be short circuited.
+        // let original = value.clone();
+        let value = self
+            .unsafe_link_value_shallow(value, attributes, &|v| match v {
+                JsValue::Alternatives { .. }
+                | JsValue::WellKnownFunction { .. }
+                | JsValue::FreeVar { .. } => v,
+                JsValue::Member(_, _, ref prop) => {
+                    // Filter out `potentially_hugely_complex_value.startsWith`
+                    // This is unsafe because you could do `{foo: require}.foo("./file")` and this
+                    // skipping would miss it.
+                    if let Some(prop) = prop.as_str()
+                        && !is_well_known_function_prop(prop)
+                    {
+                        v.into_unknown(false, "earliest visitor well known function")
+                    } else {
+                        v
+                    }
+                }
+                _ => v.into_unknown(false, "earliest visitor well known function"),
+            })
+            .await?;
+        Ok(match value.0 {
+            JsValue::WellKnownFunction(kind) => vec![kind],
+            JsValue::Alternatives { values, .. } => values
+                .into_iter()
+                .flat_map(|v| match v {
+                    JsValue::WellKnownFunction(kind) => Some(kind),
+                    _ => None,
+                })
+                .collect(),
+            JsValue::Unknown { .. } => vec![],
+            _ => {
+                // println!(" {:04} {:?} {:?}", value.1, value.0, original);
+                vec![]
+            }
+        })
     }
 }
 
@@ -1093,7 +1174,7 @@ pub async fn analyse_ecmascript_module_internal(
                         let condition_has_side_effects = condition.has_side_effects();
 
                         let condition = analysis_state
-                            .link_value(*condition, ImportAttributes::empty_ref())
+                            .link_truthy(*condition, ImportAttributes::empty_ref())
                             .await?;
 
                         macro_rules! inactive {
@@ -1261,7 +1342,10 @@ pub async fn analyse_ecmascript_module_internal(
 
                     async move {
                         let func = analysis_state
-                            .link_value(*func, eval_context.imports.get_attributes(span))
+                            .link_well_known_function(
+                                *func,
+                                eval_context.imports.get_attributes(span),
+                            )
                             .await?;
 
                         handle_call(
@@ -1297,7 +1381,7 @@ pub async fn analyse_ecmascript_module_internal(
 
                     async move {
                         let func = analysis_state
-                            .link_value(
+                            .link_well_known_function(
                                 JsValue::member(obj.clone(), prop),
                                 eval_context.imports.get_attributes(span),
                             )
@@ -1305,12 +1389,10 @@ pub async fn analyse_ecmascript_module_internal(
 
                         if !new
                             && matches!(
-                                func,
-                                JsValue::WellKnownFunction(
-                                    WellKnownFunctionKind::ArrayFilter
-                                        | WellKnownFunctionKind::ArrayForEach
-                                        | WellKnownFunctionKind::ArrayMap
-                                )
+                                &*func,
+                                [WellKnownFunctionKind::ArrayFilter
+                                    | WellKnownFunctionKind::ArrayForEach
+                                    | WellKnownFunctionKind::ArrayMap]
                             )
                             && let [EffectArg::Closure(value, block)] = &mut args[..]
                             && let JsValue::Array {
@@ -1340,7 +1422,7 @@ pub async fn analyse_ecmascript_module_internal(
                                 &ast_path,
                                 span,
                                 func,
-                                args,
+                                args.clone(),
                                 analysis_state,
                                 &add_effects,
                                 analysis,
@@ -1673,7 +1755,7 @@ async fn compile_time_info_for_module_options(
 async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     ast_path: &[AstParentKind],
     span: Span,
-    func: JsValue,
+    func: Vec<WellKnownFunctionKind>,
     args: Vec<EffectArg>,
     state: &AnalysisState<'_>,
     add_effects: &G,
@@ -1715,9 +1797,39 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             .await
     };
 
+    let func = match func.len() {
+        0 => {
+            for arg in args {
+                if let EffectArg::Closure(_, block) = arg {
+                    add_effects(block.effects);
+                }
+            }
+            return Ok(());
+        }
+        1 => func.into_iter().next().unwrap(),
+        _ => {
+            // TODO this is going to call `add_effects(args)` multiple times though?
+            for alt in func {
+                Box::pin(handle_call(
+                    ast_path,
+                    span,
+                    vec![alt],
+                    args.clone(),
+                    state,
+                    add_effects,
+                    analysis,
+                    in_try,
+                    new,
+                ))
+                .await?;
+            }
+            return Ok(());
+        }
+    };
+
     if new {
         match func {
-            JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor) => {
+            WellKnownFunctionKind::URLConstructor => {
                 let args = linked_args(args).await?;
                 if let [
                     url,
@@ -1758,7 +1870,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 }
                 return Ok(());
             }
-            JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor) => {
+            WellKnownFunctionKind::WorkerConstructor => {
                 let args = linked_args(args).await?;
                 if let Some(url @ JsValue::Url(_, JsValueUrlKind::Relative)) = args.first() {
                     let pat = js_value_to_pattern(url);
@@ -1805,27 +1917,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     }
 
     match func {
-        JsValue::Alternatives {
-            total_nodes: _,
-            values,
-            logical_property: _,
-        } => {
-            for alt in values {
-                Box::pin(handle_call(
-                    ast_path,
-                    span,
-                    alt,
-                    args.clone(),
-                    state,
-                    add_effects,
-                    analysis,
-                    in_try,
-                    new,
-                ))
-                .await?;
-            }
-        }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::Import) => {
+        WellKnownFunctionKind::Import => {
             let args = linked_args(args).await?;
             if args.len() == 1 || args.len() == 2 {
                 let pat = js_value_to_pattern(&args[0]);
@@ -1887,7 +1979,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::Require) => {
+        WellKnownFunctionKind::Require => {
             let args = linked_args(args).await?;
             if args.len() == 1 {
                 let pat = js_value_to_pattern(&args[0]);
@@ -1923,7 +2015,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 DiagnosticId::Error(errors::failed_to_analyse::ecmascript::REQUIRE.to_string()),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::Define) => {
+        WellKnownFunctionKind::Define => {
             analyze_amd_define(
                 source,
                 analysis,
@@ -1937,7 +2029,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             .await?;
         }
 
-        JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve) => {
+        WellKnownFunctionKind::RequireResolve => {
             let args = linked_args(args).await?;
             if args.len() == 1 || args.len() == 2 {
                 // TODO error TP1003 require.resolve(???*0*, {"paths": [???*1*]}) is not statically
@@ -1978,7 +2070,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             )
         }
 
-        JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext) => {
+        WellKnownFunctionKind::RequireContext => {
             let args = linked_args(args).await?;
             let options = match parse_require_context(&args) {
                 Ok(options) => options,
@@ -2013,7 +2105,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             );
         }
 
-        JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(name)) => {
+        WellKnownFunctionKind::FsReadMethod(name) => {
             let args = linked_args(args).await?;
             if !args.is_empty() {
                 let pat = js_value_to_pattern(&args[0]);
@@ -2045,7 +2137,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             )
         }
 
-        JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(..)) => {
+        WellKnownFunctionKind::PathResolve(..) => {
             let parent_path = origin.origin_path().owned().await?.parent();
             let args = linked_args(args).await?;
 
@@ -2085,7 +2177,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             return Ok(());
         }
 
-        JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin) => {
+        WellKnownFunctionKind::PathJoin => {
             let context_path = source.ident().path().await?;
             // ignore path.join in `node-gyp`, it will includes too many files
             if context_path.path.contains("node_modules/node-gyp") {
@@ -2122,7 +2214,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             );
             return Ok(());
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(name)) => {
+        WellKnownFunctionKind::ChildProcessSpawnMethod(name) => {
             let args = linked_args(args).await?;
 
             // Is this specifically `spawn(process.argv[0], ['-e', ...])`?
@@ -2189,7 +2281,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessFork) => {
+        WellKnownFunctionKind::ChildProcessFork => {
             let args = linked_args(args).await?;
             if !args.is_empty() {
                 let first_arg = &args[0];
@@ -2228,7 +2320,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodePreGypFind) => {
+        WellKnownFunctionKind::NodePreGypFind => {
             use turbopack_resolve::node_native_binding::NodePreGypConfigReference;
 
             let args = linked_args(args).await?;
@@ -2270,7 +2362,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild) => {
+        WellKnownFunctionKind::NodeGypBuild => {
             use turbopack_resolve::node_native_binding::NodeGypBuildReference;
 
             let args = linked_args(args).await?;
@@ -2308,7 +2400,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings) => {
+        WellKnownFunctionKind::NodeBindings => {
             use turbopack_resolve::node_native_binding::NodeBindingsReference;
 
             let args = linked_args(args).await?;
@@ -2334,7 +2426,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpressSet) => {
+        WellKnownFunctionKind::NodeExpressSet => {
             let args = linked_args(args).await?;
             if args.len() == 2
                 && let Some(s) = args.first().and_then(|arg| arg.as_str())
@@ -2413,7 +2505,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir) => {
+        WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir => {
             let args = linked_args(args).await?;
             if let Some(p) = args.first().and_then(|arg| arg.as_str()) {
                 let abs_pattern = if p.starts_with("/ROOT/") {
@@ -2455,7 +2547,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom) => {
+        WellKnownFunctionKind::NodeResolveFrom => {
             let args = linked_args(args).await?;
             if args.len() == 2 && args.get(1).and_then(|arg| arg.as_str()).is_some() {
                 analysis.add_reference(
@@ -2479,7 +2571,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeProtobufLoad) => {
+        WellKnownFunctionKind::NodeProtobufLoad => {
             let args = linked_args(args).await?;
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)
