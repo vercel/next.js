@@ -227,6 +227,8 @@ Components only opt into dynamic rendering when the value is accessed. For examp
 import { Table, TableSkeleton } from './table'
 import { Suspense } from 'react'
 
+export const experimental_ppr = true
+
 export default function Page({
   searchParams,
 }: {
@@ -246,6 +248,8 @@ export default function Page({
 ```jsx filename="app/page.js" switcher
 import { Table, TableSkeleton } from './table'
 import { Suspense } from 'react'
+
+export const experimental_ppr = true
 
 export default function Page({ searchParams }) {
   return (
