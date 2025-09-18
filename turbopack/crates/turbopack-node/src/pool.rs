@@ -541,6 +541,10 @@ impl NodeJsPoolProcess {
             .write_all(&packet_data)
             .await
             .context("writing packet data")?;
+        self.connection
+            .flush()
+            .await
+            .context("flushing packet data")?;
         Ok(())
     }
 }
