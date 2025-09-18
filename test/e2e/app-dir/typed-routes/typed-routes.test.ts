@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { runNextCommand } from 'next-test-utils'
 
 const expectedDts = `
 type AppRoutes = "/" | "/_shop/[[...category]]" | "/dashboard" | "/dashboard/settings" | "/docs/[...slug]" | "/gallery/photo/[id]" | "/project/[slug]"
@@ -90,4 +91,12 @@ type InvalidRoute = RouteContext<'/api/users/invalid'>`
       )
     })
   }
+
+  it('should exit typegen successfully', async () => {
+    const { code } = await runNextCommand(['typegen'], {
+      cwd: next.testDir,
+    })
+
+    expect(code).toBe(0)
+  })
 })

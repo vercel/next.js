@@ -395,8 +395,10 @@ program
     )}`
   )
   .action((directory: string, options: NextTypegenOptions) =>
+    // ensure process exits after typegen completes so open handles/connections
+    // don't cause process to hang
     import('../cli/next-typegen.js').then((mod) =>
-      mod.nextTypegen(options, directory)
+      mod.nextTypegen(options, directory).then(() => process.exit(0))
     )
   )
   .usage('[directory] [options]')
