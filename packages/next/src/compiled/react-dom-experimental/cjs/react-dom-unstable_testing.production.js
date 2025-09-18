@@ -13723,7 +13723,7 @@ function commitRoot(
         ? ((root.callbackNode = null),
           (root.callbackPriority = 0),
           scheduleCallback$1(NormalPriority$1, function () {
-            flushPassiveEffects(!0);
+            flushPassiveEffects();
             return null;
           }))
         : ((root.callbackNode = null), (root.callbackPriority = 0));
@@ -14284,7 +14284,7 @@ function releaseRootPooledCache(root, remainingLanes) {
     null != remainingLanes &&
       ((root.pooledCache = null), releaseCache(remainingLanes)));
 }
-function flushPendingEffects(wasDelayedCommit) {
+function flushPendingEffects() {
   null !== pendingViewTransition &&
     (pendingViewTransition.skipTransition(), (pendingViewTransition = null));
   flushGestureMutations();
@@ -14292,7 +14292,7 @@ function flushPendingEffects(wasDelayedCommit) {
   flushMutationEffects();
   flushLayoutEffects();
   flushSpawnedWork();
-  return flushPassiveEffects(wasDelayedCommit);
+  return flushPassiveEffects();
 }
 function flushPassiveEffects() {
   if (5 !== pendingEffectsStatus) return !1;
@@ -14663,7 +14663,7 @@ function performWorkOnRootViaSchedulerTask(root, didTimeout) {
   if (0 !== pendingEffectsStatus && 5 !== pendingEffectsStatus)
     return (root.callbackNode = null), (root.callbackPriority = 0), null;
   var originalCallbackNode = root.callbackNode;
-  if (flushPendingEffects(!0) && root.callbackNode !== originalCallbackNode)
+  if (flushPendingEffects() && root.callbackNode !== originalCallbackNode)
     return null;
   var workInProgressRootRenderLanes$jscomp$0 = workInProgressRootRenderLanes;
   workInProgressRootRenderLanes$jscomp$0 = getNextLanes(
@@ -14834,20 +14834,20 @@ function debounceScrollEnd(targetInst, nativeEvent, nativeEventTarget) {
     (nativeEventTarget[internalScrollTimer] = targetInst));
 }
 for (
-  var i$jscomp$inline_1828 = 0;
-  i$jscomp$inline_1828 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1828++
+  var i$jscomp$inline_1827 = 0;
+  i$jscomp$inline_1827 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1827++
 ) {
-  var eventName$jscomp$inline_1829 =
-      simpleEventPluginEvents[i$jscomp$inline_1828],
-    domEventName$jscomp$inline_1830 =
-      eventName$jscomp$inline_1829.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1831 =
-      eventName$jscomp$inline_1829[0].toUpperCase() +
-      eventName$jscomp$inline_1829.slice(1);
+  var eventName$jscomp$inline_1828 =
+      simpleEventPluginEvents[i$jscomp$inline_1827],
+    domEventName$jscomp$inline_1829 =
+      eventName$jscomp$inline_1828.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1830 =
+      eventName$jscomp$inline_1828[0].toUpperCase() +
+      eventName$jscomp$inline_1828.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1830,
-    "on" + capitalizedEvent$jscomp$inline_1831
+    domEventName$jscomp$inline_1829,
+    "on" + capitalizedEvent$jscomp$inline_1830
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -19881,16 +19881,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2246 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2245 = React.version;
 if (
-  "19.2.0-experimental-128abcfa-20250917" !==
-  isomorphicReactPackageVersion$jscomp$inline_2246
+  "19.2.0-experimental-84af9085-20250917" !==
+  isomorphicReactPackageVersion$jscomp$inline_2245
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2246,
-      "19.2.0-experimental-128abcfa-20250917"
+      isomorphicReactPackageVersion$jscomp$inline_2245,
+      "19.2.0-experimental-84af9085-20250917"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19910,24 +19910,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2948 = {
+var internals$jscomp$inline_2947 = {
   bundleType: 0,
-  version: "19.2.0-experimental-128abcfa-20250917",
+  version: "19.2.0-experimental-84af9085-20250917",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-128abcfa-20250917"
+  reconcilerVersion: "19.2.0-experimental-84af9085-20250917"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2949 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2948 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2949.isDisabled &&
-    hook$jscomp$inline_2949.supportsFiber
+    !hook$jscomp$inline_2948.isDisabled &&
+    hook$jscomp$inline_2948.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2949.inject(
-        internals$jscomp$inline_2948
+      (rendererID = hook$jscomp$inline_2948.inject(
+        internals$jscomp$inline_2947
       )),
-        (injectedHook = hook$jscomp$inline_2949);
+        (injectedHook = hook$jscomp$inline_2948);
     } catch (err) {}
 }
 exports.createComponentSelector = function (component) {
@@ -20173,4 +20173,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.2.0-experimental-128abcfa-20250917";
+exports.version = "19.2.0-experimental-84af9085-20250917";

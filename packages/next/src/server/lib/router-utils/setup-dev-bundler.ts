@@ -353,6 +353,7 @@ async function startWatcher(
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     wp.on('aggregated', async () => {
+      let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: MiddlewareMatcher[] | undefined
       const routedPages: string[] = []
@@ -726,69 +727,13 @@ async function startWatcher(
         }
       }
 
-      // Using === false to make the check clearer.
-      if (typescriptStatusFromLastAggregation === false && enabledTypeScript) {
-        // we tolerate the error here as this is best effort
-        // and the manual install command will be shown
-        await verifyTypeScript(opts)
-          .then(() => {
-            tsconfigChange = true
-          })
-          .catch(() => {})
-      }
-
       if (envChange || tsconfigChange) {
         if (envChange) {
-          const loadEnvConfig = (
-            require('@next/env') as typeof import('@next/env')
-          ).loadEnvConfig
-          const { loadedEnvFiles } = loadEnvConfig(
-            dir,
-            process.env.NODE_ENV === 'development',
-            Log,
-            true,
-            (envFilePath) => {
-              Log.info(`Reload env: ${envFilePath}`)
-            }
-          )
-
-          if (enabledTypeScript && nextConfig.experimental?.typedEnv) {
-            // do not await, this is not essential for further process
-            createEnvDefinitions({
-              distDir,
-              loadedEnvFiles: [
-                ...loadedEnvFiles,
-                {
-                  path: nextConfig.configFileName,
-                  env: nextConfig.env,
-                  contents: '',
-                },
-              ],
-            })
-          }
+          writeEnvDefinitions = true
 
           await propagateServerField(opts, 'loadEnvConfig', [
-            { dev: true, forceReload: true, silent: true },
+            { dev: true, forceReload: true },
           ])
-        }
-        let tsconfigResult:
-          | UnwrapPromise<
-              ReturnType<typeof import('../../../build/load-jsconfig').default>
-            >
-          | undefined
-
-        // This is not relevant for Turbopack because tsconfig/jsconfig is handled internally.
-        if (!hotReloader.turbopackProject) {
-          if (tsconfigChange) {
-            try {
-              const loadJsConfig = (
-                require('../../../build/load-jsconfig') as typeof import('../../../build/load-jsconfig')
-              ).default
-              tsconfigResult = await loadJsConfig(dir, nextConfig)
-            } catch (_) {
-              /* do we want to log if there are syntax errors in tsconfig while editing? */
-            }
-          }
         }
 
         if (hotReloader.turbopackProject) {
@@ -819,92 +764,112 @@ async function startWatcher(
             rootPath,
             projectPath: normalizePath(path.relative(rootPath, dir)),
           })
-        }
-
-        hotReloader.activeWebpackConfigs?.forEach((config, idx) => {
-          const isClient = idx === 0
-          const isNodeServer = idx === 1
-          const isEdgeServer = idx === 2
-          const hasRewrites =
-            opts.fsChecker.rewrites.afterFiles.length > 0 ||
-            opts.fsChecker.rewrites.beforeFiles.length > 0 ||
-            opts.fsChecker.rewrites.fallback.length > 0
-
+        } else {
+          let tsconfigResult:
+            | UnwrapPromise<
+                ReturnType<
+                  typeof import('../../../build/load-jsconfig').default
+                >
+              >
+            | undefined
+          // This is not relevant for Turbopack because tsconfig/jsconfig is handled internally.
           if (tsconfigChange) {
-            config.resolve?.plugins?.forEach((plugin: any) => {
-              // look for the JsConfigPathsPlugin and update with
-              // the latest paths/baseUrl config
-              if (plugin instanceof JsConfigPathsPlugin && tsconfigResult) {
-                const { resolvedBaseUrl, jsConfig } = tsconfigResult
-                const currentResolvedBaseUrl = plugin.resolvedBaseUrl
-                const resolvedUrlIndex = config.resolve?.modules?.findIndex(
-                  (item) => item === currentResolvedBaseUrl?.baseUrl
-                )
+            try {
+              const loadJsConfig = (
+                require('../../../build/load-jsconfig') as typeof import('../../../build/load-jsconfig')
+              ).default
+              tsconfigResult = await loadJsConfig(dir, nextConfig)
+            } catch (_) {
+              /* do we want to log if there are syntax errors in tsconfig while editing? */
+            }
+          }
 
-                if (resolvedBaseUrl) {
-                  if (
-                    resolvedBaseUrl.baseUrl !== currentResolvedBaseUrl?.baseUrl
-                  ) {
-                    // remove old baseUrl and add new one
-                    if (resolvedUrlIndex && resolvedUrlIndex > -1) {
-                      config.resolve?.modules?.splice(resolvedUrlIndex, 1)
-                    }
+          hotReloader.activeWebpackConfigs?.forEach((config, idx) => {
+            const isClient = idx === 0
+            const isNodeServer = idx === 1
+            const isEdgeServer = idx === 2
+            const hasRewrites =
+              opts.fsChecker.rewrites.afterFiles.length > 0 ||
+              opts.fsChecker.rewrites.beforeFiles.length > 0 ||
+              opts.fsChecker.rewrites.fallback.length > 0
 
-                    // If the resolvedBaseUrl is implicit we only remove the previous value.
-                    // Only add the baseUrl if it's explicitly set in tsconfig/jsconfig
-                    if (!resolvedBaseUrl.isImplicit) {
-                      config.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
+            if (tsconfigChange) {
+              config.resolve?.plugins?.forEach((plugin: any) => {
+                // look for the JsConfigPathsPlugin and update with
+                // the latest paths/baseUrl config
+                if (plugin instanceof JsConfigPathsPlugin && tsconfigResult) {
+                  const { resolvedBaseUrl, jsConfig } = tsconfigResult
+                  const currentResolvedBaseUrl = plugin.resolvedBaseUrl
+                  const resolvedUrlIndex = config.resolve?.modules?.findIndex(
+                    (item) => item === currentResolvedBaseUrl?.baseUrl
+                  )
+
+                  if (resolvedBaseUrl) {
+                    if (
+                      resolvedBaseUrl.baseUrl !==
+                      currentResolvedBaseUrl?.baseUrl
+                    ) {
+                      // remove old baseUrl and add new one
+                      if (resolvedUrlIndex && resolvedUrlIndex > -1) {
+                        config.resolve?.modules?.splice(resolvedUrlIndex, 1)
+                      }
+
+                      // If the resolvedBaseUrl is implicit we only remove the previous value.
+                      // Only add the baseUrl if it's explicitly set in tsconfig/jsconfig
+                      if (!resolvedBaseUrl.isImplicit) {
+                        config.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
+                      }
                     }
                   }
-                }
 
-                if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
-                  Object.keys(plugin.paths).forEach((key) => {
-                    delete plugin.paths[key]
+                  if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
+                    Object.keys(plugin.paths).forEach((key) => {
+                      delete plugin.paths[key]
+                    })
+                    Object.assign(plugin.paths, jsConfig.compilerOptions.paths)
+                    plugin.resolvedBaseUrl = resolvedBaseUrl
+                  }
+                }
+              })
+            }
+
+            if (envChange) {
+              config.plugins?.forEach((plugin: any) => {
+                // we look for the DefinePlugin definitions so we can
+                // update them on the active compilers
+                if (
+                  plugin &&
+                  typeof plugin.definitions === 'object' &&
+                  plugin.definitions.__NEXT_DEFINE_ENV
+                ) {
+                  const newDefine = getDefineEnv({
+                    isTurbopack: false,
+                    clientRouterFilters,
+                    config: nextConfig,
+                    dev: true,
+                    distDir,
+                    fetchCacheKeyPrefix:
+                      opts.nextConfig.experimental.fetchCacheKeyPrefix,
+                    hasRewrites,
+                    isClient,
+                    isEdgeServer,
+                    isNodeServer,
+                    middlewareMatchers: undefined,
+                    projectPath: opts.dir,
+                    rewrites: opts.fsChecker.rewrites,
                   })
-                  Object.assign(plugin.paths, jsConfig.compilerOptions.paths)
-                  plugin.resolvedBaseUrl = resolvedBaseUrl
+
+                  Object.keys(plugin.definitions).forEach((key) => {
+                    if (!(key in newDefine)) {
+                      delete plugin.definitions[key]
+                    }
+                  })
+                  Object.assign(plugin.definitions, newDefine)
                 }
-              }
-            })
-          }
-
-          if (envChange) {
-            config.plugins?.forEach((plugin: any) => {
-              // we look for the DefinePlugin definitions so we can
-              // update them on the active compilers
-              if (
-                plugin &&
-                typeof plugin.definitions === 'object' &&
-                plugin.definitions.__NEXT_DEFINE_ENV
-              ) {
-                const newDefine = getDefineEnv({
-                  isTurbopack: false,
-                  clientRouterFilters,
-                  config: nextConfig,
-                  dev: true,
-                  distDir,
-                  fetchCacheKeyPrefix:
-                    opts.nextConfig.experimental.fetchCacheKeyPrefix,
-                  hasRewrites,
-                  isClient,
-                  isEdgeServer,
-                  isNodeServer,
-                  middlewareMatchers: undefined,
-                  projectPath: opts.dir,
-                  rewrites: opts.fsChecker.rewrites,
-                })
-
-                Object.keys(plugin.definitions).forEach((key) => {
-                  if (!(key in newDefine)) {
-                    delete plugin.definitions[key]
-                  }
-                })
-                Object.assign(plugin.definitions, newDefine)
-              }
-            })
-          }
-        })
+              })
+            }
+          })
+        }
         await hotReloader.invalidate({
           reloadAfterInvalidation: envChange,
         })
@@ -1091,6 +1056,43 @@ async function startWatcher(
         prevSortedRoutes = sortedRoutes
 
         if (enabledTypeScript) {
+          // Using === false to make the check clearer.
+          if (typescriptStatusFromLastAggregation === false) {
+            // we tolerate the error here as this is best effort
+            // and the manual install command will be shown
+            await verifyTypeScript(opts)
+              .then(() => {
+                tsconfigChange = true
+              })
+              .catch(() => {})
+          }
+
+          if (writeEnvDefinitions && nextConfig.experimental?.typedEnv) {
+            // TODO: The call to propagateServerField 'loadEnvConfig' causes the env to be loaded twice on env file changes.
+            const loadEnvConfig = (
+              require('@next/env') as typeof import('@next/env')
+            ).loadEnvConfig
+            const { loadedEnvFiles } = loadEnvConfig(
+              dir,
+              process.env.NODE_ENV === 'development',
+              // Silent as it's the second time `loadEnvConfig` is called in this pass.
+              undefined,
+              true
+            )
+
+            await createEnvDefinitions({
+              distDir,
+              loadedEnvFiles: [
+                ...loadedEnvFiles,
+                {
+                  path: nextConfig.configFileName,
+                  env: nextConfig.env,
+                  contents: '',
+                },
+              ],
+            })
+          }
+
           const routeTypesManifest = await createRouteTypesManifest({
             dir,
             pageRoutes,

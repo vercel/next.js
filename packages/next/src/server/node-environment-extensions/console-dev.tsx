@@ -1,5 +1,5 @@
 import { dim } from '../../lib/picocolors'
-import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import { devLogsAsyncStorage } from '../app-render/dev-logs-async-storage.external'
 
 type InterceptableConsoleMethod =
   | 'error'
@@ -163,25 +163,12 @@ function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
     const originalMethod = descriptor.value
     const originalName = Object.getOwnPropertyDescriptor(originalMethod, 'name')
     const wrapperMethod = function (this: typeof console, ...args: any[]) {
-      const workUnitStore = workUnitAsyncStorage.getStore()
+      const devLogsStore = devLogsAsyncStorage.getStore()
 
-      switch (workUnitStore?.type) {
-        case 'prerender':
-        case 'prerender-client':
-        case 'prerender-runtime':
-          originalMethod.apply(this, dimConsoleCall(methodName, args))
-          break
-        case 'prerender-ppr':
-        case 'prerender-legacy':
-        case 'request':
-        case 'cache':
-        case 'private-cache':
-        case 'unstable-cache':
-        case undefined:
-          originalMethod.apply(this, args)
-          break
-        default:
-          workUnitStore satisfies never
+      if (devLogsStore?.dim === true) {
+        return originalMethod.apply(this, dimConsoleCall(methodName, args))
+      } else {
+        return originalMethod.apply(this, args)
       }
     }
     if (originalName) {

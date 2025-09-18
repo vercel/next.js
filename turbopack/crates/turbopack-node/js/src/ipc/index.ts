@@ -80,6 +80,7 @@ function createIpc<TIncoming, TOutgoing>(
   let state: State = { type: 'waiting' }
   let buffer: Buffer = Buffer.alloc(0)
   socket.once('connect', () => {
+    socket.setNoDelay(true)
     socket.on('data', (chunk) => {
       buffer = Buffer.concat([buffer, chunk])
 

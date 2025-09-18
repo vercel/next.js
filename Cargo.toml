@@ -16,7 +16,10 @@ members = [
   "turbopack/xtask",
 ]
 
-exclude = ["crates/next-error-code-swc-plugin"]
+exclude = [
+  "crates/next-error-code-swc-plugin",
+  "rspack/crates/binding"
+]
 
 [workspace.lints.clippy]
 too_many_arguments = "allow"

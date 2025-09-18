@@ -300,6 +300,67 @@ pub enum ParseSegmentMode {
     App,
 }
 
+/// Parse the raw source code of a file to get the segment config local to that file.
+///
+/// See [the Next.js documentation for Route Segment
+/// Configs](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config).
+///
+/// Pages router and middleware use this directly. App router uses
+/// `parse_segment_config_from_loader_tree` instead, which aggregates configuration information
+/// across multiple files.
+///
+/// ## A Note on Parsing the Raw Source Code
+///
+/// A better API would use `ModuleAssetContext::process` to convert the `Source` to a `Module`,
+/// instead of parsing the raw source code. That would ensure that things like webpack loaders can
+/// run before SWC tries to parse the file, e.g. to strip unsupported syntax using Babel. However,
+/// because the config includes `runtime`, we can't know which context to use until after parsing
+/// the file.
+///
+/// This could be solved with speculative parsing:
+/// 1. Speculatively process files and extract route segment configs using the Node.js
+///    `ModuleAssetContext` first. This is the common/happy codepath.
+/// 2. If we get a config specifying `runtime = "edge"`, we should use the Edge runtime's
+///    `ModuleAssetContext` and re-process the file(s), extracting the segment config again.
+/// 3. If we failed to get a configuration (e.g. a parse error), we need speculatively process with
+///    the Edge runtime and look for a `runtime = "edge"` configuration key. If that also fails,
+///    then we should report any issues/errors from the first attempt using the Node.js context.
+///
+/// While a speculative parsing algorithm is straightforward, there are a few factors that make it
+/// impractical to implement:
+///
+/// - The app router config is loaded across many different files (page, layout, or route handler,
+///   including an arbitrary number of those files in parallel routes), and once we discover that
+///   something specified edge runtime, we must restart that entire loop, so try/reparse logic can't
+///   be cleanly encapsulated to an operation over a single file.
+///
+/// - There's a lot of tracking that needs to happen to later suppress `Issue` collectibles on
+///   speculatively-executed `OperationVc`s.
+///
+/// - Most things default to the node.js runtime and can be overridden to edge runtime, but
+///   middleware is an exception, so different codepaths have different defaults.
+///
+/// The `runtime` option is going to be deprecated, and we may eventually remove edge runtime
+/// completely (in Next 18?), so it doesn't make sense to spend a ton of time improving logic around
+/// that. In the future, doing this the right way with the `ModuleAssetContext` will be easy (there
+/// will only be one, no speculative parsing is needed), and I think it's okay to use a hacky
+/// solution for a couple years until that day comes.
+///
+/// ## What does webpack do?
+///
+/// The logic is in `packages/next/src/build/analysis/get-page-static-info.ts`, but it's very
+/// similar to what we do here.
+///
+/// There are a couple of notable differences:
+///
+/// - The webpack implementation uses a regexp (`PARSE_PATTERN`) to skip parsing some files, but
+///   this regexp is imperfect and may also suppress some lints that we have. The performance
+///   benefit is small, so we're not currently doing this (but we could revisit that decision in the
+///   future).
+///
+/// - The `parseModule` helper function swallows errors (!) returning a `null` ast value when
+///   parsing fails. This seems bad, as it may lead to silently-ignored segment configs, so we don't
+///   want to do this.
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_source(
     source: ResolvedVc<Box<dyn Source>>,
@@ -1229,6 +1290,8 @@ async fn parse_route_matcher_from_js_value(
     })
 }
 
+/// A wrapper around [`parse_segment_config_from_source`] that merges route segment configuration
+/// information from all relevant files (page, layout, parallel routes, etc).
 #[turbo_tasks::function]
 pub async fn parse_segment_config_from_loader_tree(
     loader_tree: Vc<AppPageLoaderTree>,
