@@ -1197,6 +1197,9 @@ importers:
       '@types/send':
         specifier: 0.14.4
         version: 0.14.4
+      '@types/sharp':
+        specifier: 0.32.0
+        version: 0.32.0
       '@types/shell-quote':
         specifier: 1.7.1
         version: 1.7.1
@@ -5804,6 +5807,10 @@ packages:
 
   '@types/serve-static@1.15.7':
     resolution: {integrity: sha512-W8Ym+h8nhuRwaKPaDw34QUkwsGi6Rc4yYqvKFo5rm2FUEhCFbzVWrxXUxuKK8TASjWsysJY0nsmNCGhCOIsrOw==}
+
+  '@types/sharp@0.32.0':
+    resolution: {integrity: sha512-OOi3kL+FZDnPhVzsfD37J88FNeZh6gQsGcLc95NbeURRGvmSjeXiDcyWzF2o3yh/gQAUn2uhh/e+CPCa5nwAxw==}
+    deprecated: This is a stub types definition. sharp provides its own type definitions, so you do not need this installed.
 
   '@types/shell-quote@1.7.1':
     resolution: {integrity: sha512-SWZ2Nom1pkyXCDohRSrkSKvDh8QOG9RfAsrt5/NsPQC4UQJ55eG0qClA40I+Gkez4KTQ0uDUT8ELRXThf3J5jw==}
@@ -19070,8 +19077,7 @@ snapshots:
 
   '@humanwhocodes/retry@0.4.3': {}
 
-  '@img/colour@1.0.0':
-    optional: true
+  '@img/colour@1.0.0': {}
 
   '@img/sharp-darwin-arm64@0.34.4':
     optionalDependencies:
@@ -21774,6 +21780,10 @@ snapshots:
       '@types/http-errors': 2.0.4
       '@types/node': 20.17.6(patch_hash=rvl3vkomen3tospgr67bzubfyu)
       '@types/send': 0.14.4
+
+  '@types/sharp@0.32.0':
+    dependencies:
+      sharp: 0.34.4
 
   '@types/shell-quote@1.7.1': {}
 
@@ -24765,8 +24775,7 @@ snapshots:
 
   detect-libc@2.0.3: {}
 
-  detect-libc@2.1.0:
-    optional: true
+  detect-libc@2.1.0: {}
 
   detect-newline@3.1.0: {}
 
@@ -33301,8 +33310,7 @@ snapshots:
 
   semver@7.6.3: {}
 
-  semver@7.7.2:
-    optional: true
+  semver@7.7.2: {}
 
   send@0.17.1:
     dependencies:
@@ -33481,7 +33489,6 @@ snapshots:
       '@img/sharp-win32-arm64': 0.34.4
       '@img/sharp-win32-ia32': 0.34.4
       '@img/sharp-win32-x64': 0.34.4
-    optional: true
 
   shebang-command@1.2.0:
     dependencies:
