@@ -300,7 +300,7 @@ export const installTemplate = async ({
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
       oxlint: "^1.16.0",
-      "oxlint-tsoglint": "~0.2.0",
+      "oxlint-tsgolint": "~0.2.0",
     };
   }
 
