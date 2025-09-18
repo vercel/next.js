@@ -23,6 +23,7 @@ mod path_visitor;
 pub mod references;
 pub mod runtime_functions;
 pub mod side_effect_optimization;
+pub mod source_map;
 pub(crate) mod special_cases;
 pub(crate) mod static_code;
 mod swc_comments;
