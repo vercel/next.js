@@ -48,14 +48,14 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
             .map((file: string) => {
               // Normalize sharp, different architectures have different files
               if (file.includes('/node_modules/@img/sharp-libvips-')) {
-                return '@img/sharp-libvips-*'
+                return '/node_modules/@img/sharp-libvips-*'
               }
               if (
                 file.match(
                   /\/node_modules\/@img\/sharp-\w+-\w+\/lib\/sharp-\w+-\w+.node$/
                 )
               ) {
-                return '@img/sharp-*/sharp-*.node'
+                return '/node_modules/@img/sharp-*/sharp-*.node'
               }
 
               // Strip double node_modules to simplify output
@@ -76,21 +76,32 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
     it('should not trace too many files in next-server.js.nft.json', async () => {
       let trace = await readNormalizedNFT('.next/next-server.js.nft.json')
 
-      //  Group the entries together so that the snapshot doesn't change too often.
+      // Group the entries together so that the snapshot doesn't change too often.
       // This trace contains quite a lot of files that aren't actually needed. But there isn't much
       // that Turbopack itself can do about that.
-
       let traceGrouped = [
         ...new Set(
           trace.map((file: string) => {
-            if (file.startsWith('/node_modules/next/dist/client/')) {
-              return '/node_modules/next/dist/client/*'
-            }
-            if (file.startsWith('/node_modules/next/dist/server/')) {
-              return '/node_modules/next/dist/server/*'
-            }
-            if (file.startsWith('/node_modules/next/dist/shared/')) {
-              return '/node_modules/next/dist/shared/*'
+            if (file.startsWith('/node_modules/next/')) {
+              if (file.startsWith('/node_modules/next/dist/client/')) {
+                return '/node_modules/next/dist/client/*'
+              }
+              if (file.startsWith('/node_modules/next/dist/server/')) {
+                return '/node_modules/next/dist/server/*'
+              }
+              if (file.startsWith('/node_modules/next/dist/shared/')) {
+                return '/node_modules/next/dist/shared/*'
+              }
+            } else if (
+              file.startsWith('/node_modules/react') ||
+              file.endsWith('.node')
+            ) {
+              return file
+            } else {
+              let match = /^\/node_modules\/(@[^/]+\/[^/]+|[^/]+)\//.exec(file)
+              if (match != null) {
+                return `/node_modules/${match[1]}/*`
+              }
             }
             return file
           })
@@ -99,18 +110,13 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
       expect(traceGrouped).toMatchInlineSnapshot(`
        [
-         "/node_modules/@img/colour/color.cjs",
-         "/node_modules/@img/colour/index.cjs",
-         "/node_modules/@next/env/dist/index.js",
-         "/node_modules/@swc/helpers/cjs/_class_private_field_loose_base.cjs",
-         "/node_modules/@swc/helpers/cjs/_class_private_field_loose_key.cjs",
-         "/node_modules/@swc/helpers/cjs/_interop_require_default.cjs",
-         "/node_modules/@swc/helpers/cjs/_interop_require_wildcard.cjs",
-         "/node_modules/client-only/index.js",
-         "/node_modules/detect-libc/lib/detect-libc.js",
-         "/node_modules/detect-libc/lib/elf.js",
-         "/node_modules/detect-libc/lib/filesystem.js",
-         "/node_modules/detect-libc/lib/process.js",
+         "/node_modules/@img/colour/*",
+         "/node_modules/@img/sharp-*/sharp-*.node",
+         "/node_modules/@img/*",
+         "/node_modules/@next/env/*",
+         "/node_modules/@swc/helpers/*",
+         "/node_modules/client-only/*",
+         "/node_modules/detect-libc/*",
          "/node_modules/next/dist/build/output/log.js",
          "/node_modules/next/dist/build/segment-config/app/app-segment-config.js",
          "/node_modules/next/dist/build/segment-config/app/app-segments.js",
@@ -221,44 +227,9 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/react/index.js",
          "/node_modules/react/jsx-dev-runtime.js",
          "/node_modules/react/jsx-runtime.js",
-         "/node_modules/semver/classes/comparator.js",
-         "/node_modules/semver/classes/range.js",
-         "/node_modules/semver/classes/semver.js",
-         "/node_modules/semver/functions/cmp.js",
-         "/node_modules/semver/functions/coerce.js",
-         "/node_modules/semver/functions/compare.js",
-         "/node_modules/semver/functions/eq.js",
-         "/node_modules/semver/functions/gt.js",
-         "/node_modules/semver/functions/gte.js",
-         "/node_modules/semver/functions/lt.js",
-         "/node_modules/semver/functions/lte.js",
-         "/node_modules/semver/functions/neq.js",
-         "/node_modules/semver/functions/parse.js",
-         "/node_modules/semver/functions/satisfies.js",
-         "/node_modules/semver/internal/constants.js",
-         "/node_modules/semver/internal/debug.js",
-         "/node_modules/semver/internal/identifiers.js",
-         "/node_modules/semver/internal/lrucache.js",
-         "/node_modules/semver/internal/parse-options.js",
-         "/node_modules/semver/internal/re.js",
-         "/node_modules/sharp/lib/channel.js",
-         "/node_modules/sharp/lib/colour.js",
-         "/node_modules/sharp/lib/composite.js",
-         "/node_modules/sharp/lib/constructor.js",
-         "/node_modules/sharp/lib/index.js",
-         "/node_modules/sharp/lib/input.js",
-         "/node_modules/sharp/lib/is.js",
-         "/node_modules/sharp/lib/libvips.js",
-         "/node_modules/sharp/lib/operation.js",
-         "/node_modules/sharp/lib/output.js",
-         "/node_modules/sharp/lib/resize.js",
-         "/node_modules/sharp/lib/sharp.js",
-         "/node_modules/sharp/lib/utility.js",
-         "/node_modules/styled-jsx/dist/index/index.js",
-         "/node_modules/styled-jsx/index.js",
-         "/node_modules/styled-jsx/style.js",
-         "@img/sharp-*/sharp-*.node",
-         "@img/sharp-libvips-*",
+         "/node_modules/semver/*",
+         "/node_modules/sharp/*",
+         "/node_modules/styled-jsx/*",
        ]
       `)
     })

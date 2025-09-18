@@ -3,9 +3,7 @@ use std::collections::hash_map::Entry;
 use anyhow::{Context, Result, bail};
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
-use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
-};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 
 use crate::{
     chunk::{
@@ -99,6 +97,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mut entry_modules =
             FxHashSet::with_capacity_and_hasher(module_count, Default::default());
 
+        let inner_span = tracing::info_span!("collect mergeable modules");
         let mergeable = graphs
             .iter()
             .flat_map(|g| g.iter_nodes())
@@ -113,9 +112,12 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 Ok(None)
             })
             .try_flat_join()
+            .instrument(inner_span)
             .await?
             .into_iter()
             .collect::<FxHashSet<_>>();
+
+        let inner_span = tracing::info_span!("fixed point traversal").entered();
 
         let mut next_index = 0u32;
         let visit_count = module_graph.traverse_edges_fixed_point_with_priority(
@@ -196,6 +198,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             },
             |_, _| Ok(0),
         )?;
+
+        drop(inner_span);
+        let inner_span = tracing::info_span!("chunk group collection").entered();
 
         span.record("visit_count", visit_count);
 
@@ -313,6 +318,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             )?;
         }
 
+        drop(inner_span);
+        let inner_span = tracing::info_span!("exposed computation").entered();
+
         // We use list.pop() below, so reverse order using negation
         lists_reverse_indices
             .sort_by_cached_key(|_, b| b.iter().map(|o| o.entry).min().map(|v| -(v as i64)));
@@ -363,6 +371,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             },
         )?;
 
+        drop(inner_span);
+        let inner_span = tracing::info_span!("reconciliation").entered();
         while let Some((_, common_occurrences)) = lists_reverse_indices.pop() {
             if common_occurrences.len() < 2 {
                 // Module exists only in one list, no need to split
@@ -485,10 +495,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     lists.push(after_list.clone());
                     for (i, &m) in after_list.iter().enumerate() {
                         let Some(occurrences) = lists_reverse_indices.get_mut(&m) else {
-                            bail!(
-                                "Couldn't find module in list {:?}",
-                                m.ident().to_string().await?,
-                            );
+                            bail!("Couldn't find module in reverse list");
                         };
 
                         let removed = occurrences.swap_remove(&ListOccurrence {
@@ -509,6 +516,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         // Dedupe the lists
         let lists = lists.into_iter().collect::<FxHashSet<_>>();
 
+        drop(inner_span);
+        let inner_span = tracing::info_span!("merging");
         // Call MergeableModule impl to merge the modules.
         let result = lists
             .into_iter()
@@ -570,6 +579,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 )))
             })
             .try_join()
+            .instrument(inner_span)
             .await?;
 
         #[allow(clippy::type_complexity)]

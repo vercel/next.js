@@ -316,7 +316,7 @@ async function requestHandler(
             })
             span.updateName(name)
           } else {
-            span.updateName(`${req.method}`)
+            span.updateName(`${req.method} ${srcPage}`)
           }
         })
 
@@ -339,7 +339,7 @@ async function requestHandler(
     tracer.trace(
       BaseServerSpan.handleRequest,
       {
-        spanName: `${req.method}`,
+        spanName: `${req.method} ${srcPage}`,
         kind: SpanKind.SERVER,
         attributes: {
           'http.method': req.method,
