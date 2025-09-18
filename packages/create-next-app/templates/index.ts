@@ -224,7 +224,8 @@ export const installTemplate = async ({
       start: "next start",
       ...(eslint && { lint: "eslint" }),
       ...(biome && { lint: "biome check", format: "biome format --write" }),
-      ...(oxlint && { lint: "oxlint --type-aware" }),
+      ...(oxlint &&
+        (mode === "ts" ? { lint: "oxlint --type-aware" } : { lint: "oxlint" })),
     },
     /**
      * Default dependencies.
@@ -300,7 +301,7 @@ export const installTemplate = async ({
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
       oxlint: "^1.16.0",
-      "oxlint-tsgolint": "~0.2.0",
+      ...(mode === "ts" ? { "oxlint-tsgolint": "~0.2.0" } : {}),
     };
   }
 
