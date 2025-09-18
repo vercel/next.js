@@ -26,7 +26,10 @@ describe('persistent-caching', () => {
   async function stop() {
     if (isNextDev) {
       // Give Persistent Cache time to write to disk
-      await waitFor(isTurbopack ? 2000 : 10000)
+      // Turbopack has an idle timeout of 2s
+      // Webpack has an idle timeout (after large changes) of 1s
+      // and we give time a bit more to allow writing to disk
+      await waitFor(3000)
     }
     await next.stop()
   }
