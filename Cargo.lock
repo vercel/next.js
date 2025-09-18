@@ -4291,6 +4291,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "swc_core",
+ "swc_sourcemap",
  "thiserror 1.0.69",
  "tracing",
  "turbo-esregex",

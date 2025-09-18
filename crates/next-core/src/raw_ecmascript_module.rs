@@ -1,15 +1,17 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
+use either::Either;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
-use turbo_tasks_fs::{FileContent, glob::Glob, rope::RopeBuilder};
+use turbo_tasks_fs::{FileContent, glob::Glob, rope::Rope};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    code_builder::CodeBuilder,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment, FreeVarReference,
     },
@@ -19,12 +21,14 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     resolve::ModulePart,
     source::Source,
+    source_map::GenerateSourceMap,
 };
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
+    source_map::parse_source_map_comment,
     utils::StringifyJs,
 };
 
@@ -150,7 +154,9 @@ impl ChunkItem for RawEcmascriptChunkItem {
 impl EcmascriptChunkItem for RawEcmascriptChunkItem {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let content = self.module.content().file_content().await?;
+        let module = self.module.await?;
+        let source = module.source;
+        let content = source.content().file_content().await?;
         let content = match &*content {
             FileContent::Content(file) => file.content(),
             FileContent::NotFound => bail!("RawEcmascriptModule content not found"),
@@ -166,19 +172,17 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
             env_vars.insert(name);
         }
 
-        let mut inner_code = RopeBuilder::default();
+        let mut code = CodeBuilder::default();
         if !env_vars.is_empty() {
-            let replacements = self
-                .module
-                .await?
+            let replacements = module
                 .compile_time_info
                 .await?
                 .free_var_references
                 .individual()
                 .await?;
-            inner_code += "var process = {env:\n";
+            code += "var process = {env:\n";
             writeln!(
-                inner_code,
+                code,
                 "{}",
                 StringifyJs(
                     &env_vars
@@ -225,14 +229,54 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
                         .collect::<FxIndexMap<_, _>>()
                 )
             )?;
-            inner_code += "};\n";
+            code += "};\n";
         }
-        inner_code += "{\n";
-        inner_code.concat(content);
+        code += "{\n";
+
+        let source_map = if let Some((source_map, _)) = parse_source_map_comment(
+            source,
+            Either::Right(&content_str),
+            &*self.module.ident().path().await?,
+        )
+        .await?
+        {
+            source_map.generate_source_map().owned().await?
+        } else {
+            None
+        };
+        code.push_source(content, source_map);
+
         // Add newline in case the raw code had a comment as the last line and no final newline.
-        inner_code += "\n}\n";
+        code += "\n}\n";
+
+        let code = code.build();
+        let source_map = if code.has_source_map() {
+            let source_map = code.generate_source_map_ref()?;
+
+            static SECTIONS_REGEX: Lazy<Regex> =
+                Lazy::new(|| Regex::new(r#"sections"[\s\n]*:"#).unwrap());
+            Some(if !SECTIONS_REGEX.is_match(&source_map.to_str()?) {
+                // This is definitely not an index source map
+                source_map
+            } else {
+                match swc_sourcemap::lazy::decode(&source_map.to_bytes())? {
+                    swc_sourcemap::lazy::DecodedMap::Regular(_) => source_map,
+                    // without flattening the index map, we would get nested index source maps in
+                    // the output chunks, which are apparently not supported
+                    swc_sourcemap::lazy::DecodedMap::Index(source_map) => {
+                        let source_map = source_map.flatten()?.into_raw_sourcemap();
+                        let result = serde_json::to_vec(&source_map)?;
+                        Rope::from(result)
+                    }
+                }
+            })
+        } else {
+            None
+        };
+
         Ok(EcmascriptChunkItemContent {
-            inner_code: inner_code.build(),
+            source_map,
+            inner_code: code.into_source_code(),
             options: EcmascriptChunkItemOptions {
                 module_and_exports: true,
                 ..Default::default()
