@@ -82,7 +82,11 @@ type PagesComponents = {
 }
 
 export interface PagesRouteModuleOptions
-  extends RouteModuleOptions<PagesRouteDefinition, PagesUserlandModule> {
+  extends RouteModuleOptions<
+    PagesRouteDefinition,
+    PagesUserlandModule,
+    'pages'
+  > {
   readonly components: PagesComponents
 }
 

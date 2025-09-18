@@ -103,7 +103,8 @@ type PagesAPIRouteHandlerContext = RouteModuleHandleContext & {
 
 export type PagesAPIRouteModuleOptions = RouteModuleOptions<
   PagesAPIRouteDefinition,
-  PagesAPIUserlandModule
+  PagesAPIUserlandModule,
+  'pages'
 >
 
 export class PagesAPIRouteModule extends RouteModule<

@@ -70,11 +70,13 @@ import { isInterceptionRouteRewrite } from '../../lib/generate-interception-rout
 export interface RouteModuleOptions<
   D extends RouteDefinition = RouteDefinition,
   U = unknown,
+  R = Router,
 > {
   readonly definition: Readonly<D>
   readonly userland: Readonly<U>
   readonly distDir: string
   readonly relativeProjectDir: string
+  readonly router: R
 }
 
 /**
@@ -93,6 +95,8 @@ const dynamicImportEsmDefault = (id: string) =>
     (mod) => mod.default || mod
   )
 
+export type Router = 'pages' | 'app'
+
 /**
  * RouteModule is the base class for all route modules. This class should be
  * extended by all route modules.
@@ -100,6 +104,7 @@ const dynamicImportEsmDefault = (id: string) =>
 export abstract class RouteModule<
   D extends RouteDefinition = RouteDefinition,
   U = unknown,
+  R = Router,
 > {
   /**
    * The userland module. This is the module that is exported from the user's
@@ -120,22 +125,24 @@ export abstract class RouteModule<
 
   public isDev: boolean
   public distDir: string
-  public isAppRouter?: boolean
   public relativeProjectDir: string
   public incrementCache?: IncrementalCache
   public responseCache?: ResponseCache
+  public readonly router: R
 
   constructor({
     userland,
     definition,
     distDir,
     relativeProjectDir,
-  }: RouteModuleOptions<D, U>) {
+    router,
+  }: RouteModuleOptions<D, U, R>) {
     this.userland = userland
     this.definition = definition
     this.isDev = process.env.NODE_ENV === 'development'
     this.distDir = distDir
     this.relativeProjectDir = relativeProjectDir
+    this.router = router
   }
 
   public async instrumentationOnRequestError(
@@ -290,7 +297,7 @@ export abstract class RouteModule<
           projectDir,
           distDir: this.distDir,
           manifest: process.env.TURBOPACK
-            ? `server/${this.isAppRouter ? 'app' : 'pages'}${normalizedPagePath}/${REACT_LOADABLE_MANIFEST}`
+            ? `server/${this.router === 'app' ? 'app' : 'pages'}${normalizedPagePath}/${REACT_LOADABLE_MANIFEST}`
             : REACT_LOADABLE_MANIFEST,
           handleMissing: true,
           shouldCache: !this.isDev,
@@ -301,7 +308,7 @@ export abstract class RouteModule<
           manifest: `server/${NEXT_FONT_MANIFEST}.json`,
           shouldCache: !this.isDev,
         }),
-        this.isAppRouter && !isStaticMetadataRoute(srcPage)
+        this.router === 'app' && !isStaticMetadataRoute(srcPage)
           ? loadManifestFromRelativePath({
               distDir: this.distDir,
               projectDir,
@@ -311,7 +318,7 @@ export abstract class RouteModule<
               shouldCache: !this.isDev,
             })
           : undefined,
-        this.isAppRouter
+        this.router === 'app'
           ? loadManifestFromRelativePath<any>({
               distDir: this.distDir,
               projectDir,
@@ -690,6 +697,12 @@ export abstract class RouteModule<
       ...parsedUrl.query,
     }
 
+    // The pages router requires that the rewrite query params are included in
+    // the query and are normalized.
+    if (this.router === 'pages') {
+      Object.assign(query, parsedUrl.query)
+    }
+
     const routeParamKeys = new Set<string>()
     const combinedParamKeys = []
 
@@ -697,7 +710,7 @@ export abstract class RouteModule<
     // for app router since the searchParams is populated from the
     // URL so we don't want to strip the rewrite params from the URL
     // so that searchParams can include them
-    if (!this.isAppRouter) {
+    if (this.router !== 'app') {
       for (const key of [
         ...rewriteParamKeys,
         ...Object.keys(serverUtils.defaultRouteMatches || {}),

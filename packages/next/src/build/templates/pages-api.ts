@@ -33,6 +33,7 @@ const routeModule = new PagesAPIRouteModule({
   userland,
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
+  router: 'pages',
 })
 
 export async function handler(

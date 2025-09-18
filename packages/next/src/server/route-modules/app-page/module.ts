@@ -64,20 +64,14 @@ export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
 
 export type AppPageRouteModuleOptions = RouteModuleOptions<
   AppPageRouteDefinition,
-  AppPageUserlandModule
+  AppPageUserlandModule,
+  'app'
 >
 
 export class AppPageRouteModule extends RouteModule<
   AppPageRouteDefinition,
   AppPageUserlandModule
 > {
-  constructor(
-    options: RouteModuleOptions<AppPageRouteDefinition, AppPageUserlandModule>
-  ) {
-    super(options)
-    this.isAppRouter = true
-  }
-
   private matchers = new WeakMap<
     DeepReadonly<PrerenderManifest>,
     PrerenderManifestMatcher

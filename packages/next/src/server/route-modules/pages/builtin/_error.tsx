@@ -23,6 +23,7 @@ export const routeModule = new PagesRouteModule({
     Document,
   },
   userland: moduleError,
+  router: 'pages',
 })
 
 export const handler = getHandler({

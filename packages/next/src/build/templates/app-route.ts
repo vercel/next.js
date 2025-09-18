@@ -56,6 +56,7 @@ const routeModule = new AppRouteRouteModule({
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
   userland,
+  router: 'app',
 })
 
 // Pull out the exports that we need to expose from the module. This should

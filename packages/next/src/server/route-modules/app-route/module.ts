@@ -170,7 +170,11 @@ export type AppRouteUserlandModule = AppRouteHandlers &
  * module from the bundled code.
  */
 export interface AppRouteRouteModuleOptions
-  extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
+  extends RouteModuleOptions<
+    AppRouteRouteDefinition,
+    AppRouteUserlandModule,
+    'app'
+  > {
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
 }
@@ -220,8 +224,9 @@ export class AppRouteRouteModule extends RouteModule<
     relativeProjectDir,
     resolvedPagePath,
     nextConfigOutput,
+    router,
   }: AppRouteRouteModuleOptions) {
-    super({ userland, definition, distDir, relativeProjectDir })
+    super({ userland, definition, distDir, relativeProjectDir, router })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
@@ -229,7 +234,6 @@ export class AppRouteRouteModule extends RouteModule<
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
     this.methods = autoImplementMethods(userland)
-    this.isAppRouter = true
 
     // Get the non-static methods for this route.
     this.hasNonStaticMethods = hasNonStaticMethods(userland)
