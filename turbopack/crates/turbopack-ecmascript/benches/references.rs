@@ -19,6 +19,9 @@ use turbopack_ecmascript::{
 };
 use turbopack_test_utils::noop_asset_context::NoopAssetContext;
 
+#[global_allocator]
+static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
+
 pub fn benchmark(c: &mut Criterion) {
     let rt = tokio::runtime::Builder::new_current_thread()
         .build()
