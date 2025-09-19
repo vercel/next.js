@@ -68,22 +68,17 @@ pub async fn get_babel_loader_rules(
 
     // - See `packages/next/src/build/babel/loader/types.d.ts` for all the configuration options.
     // - See `packages/next/src/build/get-babel-loader-config.ts` for how we use this in webpack.
-    let mut loader_options = serde_json::Map::new();
-
-    // `transformMode: default` (what the webpack implementation does) would run all of the
-    // Next.js-specific transforms as babel transforms. Because we always have to pay the cost
-    // of parsing with SWC after the webpack loader runs, we want to keep running those
-    // transforms using SWC, so use `standalone` instead.
-    loader_options.insert("transformMode".to_owned(), "standalone".into());
-
-    loader_options.insert(
-        "cwd".to_owned(),
-        to_sys_path_str(project_root).await?.into(),
-    );
-    loader_options.insert(
-        "configFile".to_owned(),
-        to_sys_path_str(babel_config_path).await?.into(),
-    );
+    let serde_json::Value::Object(loader_options) = serde_json::json!({
+        // `transformMode: default` (what the webpack implementation does) would run all of the
+        // Next.js-specific transforms as babel transforms. Because we always have to pay the cost
+        // of parsing with SWC after the webpack loader runs, we want to keep running those
+        // transforms using SWC, so use `standalone` instead.
+        "transformMode": "standalone",
+        "cwd": to_sys_path_str(project_root).await?,
+        "configFile": to_sys_path_str(babel_config_path).await?,
+    }) else {
+        unreachable!("is an object")
+    };
 
     Ok(vec![(
         rcstr!("*.{js,jsx,ts,tsx,cjs,mjs,mts,cts}"),
