@@ -843,11 +843,8 @@ Hh = (...) => a
 
 Hi = (...) => ((a === N) || ((null !== b) && (b === N)))
 
-Hj = (???*0* | (???*1* + 500))
-- *0* FreeVar(Infinity)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *1* module<scheduler, {}>["unstable_now"]()
+Hj = (inf | (???*0* + 500))
+- *0* module<scheduler, {}>["unstable_now"]()
   ⚠️  nested operation
 
 Hk = (...) => (

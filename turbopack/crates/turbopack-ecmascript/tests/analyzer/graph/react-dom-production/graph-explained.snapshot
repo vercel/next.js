@@ -627,7 +627,7 @@ Hh = (...) => a
 
 Hi = (...) => ((a === N) || ((null !== b) && (b === N)))
 
-Hj = (FreeVar(Infinity) | (B() + 500))
+Hj = (inf | (B() + 500))
 
 Hk = (...) => (
   | null

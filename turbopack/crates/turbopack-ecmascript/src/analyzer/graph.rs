@@ -402,11 +402,12 @@ impl EvalContext {
             return imported;
         }
         if is_unresolved(i, self.unresolved_mark) || self.force_free_values.contains(&id) {
-            // Assume undefined is never shadowed by the global scope
-            if i.sym == "undefined" {
-                JsValue::Constant(ConstantValue::Undefined)
-            } else {
-                JsValue::FreeVar(i.sym.clone())
+            // These are special globals that we shouldn't consider to be free variables.
+            match i.sym.as_str() {
+                "undefined" => JsValue::Constant(ConstantValue::Undefined),
+                "NaN" => JsValue::Constant(ConstantValue::Num(ConstantNumber(f64::NAN))),
+                "Infinity" => JsValue::Constant(ConstantValue::Num(ConstantNumber(f64::INFINITY))),
+                _ => JsValue::FreeVar(i.sym.clone()),
             }
         } else {
             JsValue::Variable(id)
@@ -2032,13 +2033,12 @@ impl VisitAstPath for Analyzer<'_> {
             return;
         }
 
-        // If this variable is unresolved, track it as a free (unbound) variable
+        // If this identifier is free, produce an effect so we can potentially replace it later.
         if !self.is_tracing
-            && (is_unresolved(ident, self.eval_context.unresolved_mark)
-                || self.eval_context.force_free_values.contains(&ident.to_id()))
+            && let JsValue::FreeVar(var) = self.eval_context.eval_ident(ident)
         {
             self.add_effect(Effect::FreeVar {
-                var: ident.sym.clone(),
+                var,
                 ast_path: as_parent_path(ast_path),
                 span: ident.span(),
                 in_try: is_in_try(ast_path),
