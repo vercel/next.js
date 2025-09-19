@@ -151,7 +151,6 @@ pub enum Effect {
         /// The ast path to the condition.
         ast_path: Vec<AstParentKind>,
         span: Span,
-        in_try: bool,
     },
     /// A function call or a new call of a function.
     Call {
@@ -178,7 +177,6 @@ pub enum Effect {
         prop: Box<JsValue>,
         ast_path: Vec<AstParentKind>,
         span: Span,
-        in_try: bool,
     },
     /// A reference to an imported binding.
     ImportedBinding {
@@ -186,14 +184,12 @@ pub enum Effect {
         export: Option<RcStr>,
         ast_path: Vec<AstParentKind>,
         span: Span,
-        in_try: bool,
     },
     /// A reference to a free var access.
     FreeVar {
         var: Atom,
         ast_path: Vec<AstParentKind>,
         span: Span,
-        in_try: bool,
     },
     /// A typeof expression
     TypeOf {
@@ -206,7 +202,6 @@ pub enum Effect {
     ImportMeta {
         ast_path: Vec<AstParentKind>,
         span: Span,
-        in_try: bool,
     },
     /// Unreachable code, e.g. after a `return` statement.
     Unreachable { start_ast_path: Vec<AstParentKind> },
@@ -402,7 +397,8 @@ impl EvalContext {
             return imported;
         }
         if is_unresolved(i, self.unresolved_mark) || self.force_free_values.contains(&id) {
-            // These are special globals that we shouldn't consider to be free variables.
+            // These are special globals that we shouldn't consider to be free variables and we can
+            // model their values mostly useful for truthy/falsy checks.
             match i.sym.as_str() {
                 "undefined" => JsValue::Constant(ConstantValue::Undefined),
                 "NaN" => JsValue::Constant(ConstantValue::Num(ConstantNumber(f64::NAN))),
@@ -788,7 +784,6 @@ enum EarlyReturn {
         /// The ast path to the condition.
         condition_ast_path: Vec<AstParentKind>,
         span: Span,
-        in_try: bool,
 
         early_return_condition_value: bool,
     },
@@ -885,7 +880,7 @@ pub fn as_parent_path_with(
         .collect()
 }
 
-pub fn is_in_try(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
+fn is_in_try(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
     ast_path
         .iter()
         .rev()
@@ -1314,7 +1309,6 @@ impl Analyzer<'_> {
             prop: prop_value,
             ast_path: as_parent_path(ast_path),
             span: member_expr.span(),
-            in_try: is_in_try(ast_path),
         });
     }
 
@@ -1352,7 +1346,6 @@ impl Analyzer<'_> {
                     r#else,
                     condition_ast_path,
                     span,
-                    in_try,
                     early_return_condition_value,
                 } => {
                     let block = Box::new(EffectsBlock {
@@ -1396,7 +1389,6 @@ impl Analyzer<'_> {
                         kind: Box::new(kind),
                         ast_path: condition_ast_path,
                         span,
-                        in_try,
                     })
                 }
             }
@@ -2019,7 +2011,6 @@ impl VisitAstPath for Analyzer<'_> {
                     // point to the MemberExpression instead
                     ast_path: as_parent_path_skip(ast_path, 1),
                     span: member.span(),
-                    in_try: is_in_try(ast_path),
                 });
             } else {
                 self.add_effect(Effect::ImportedBinding {
@@ -2027,7 +2018,6 @@ impl VisitAstPath for Analyzer<'_> {
                     export,
                     ast_path: as_parent_path(ast_path),
                     span: ident.span(),
-                    in_try: is_in_try(ast_path),
                 })
             }
             return;
@@ -2037,11 +2027,12 @@ impl VisitAstPath for Analyzer<'_> {
         if !self.is_tracing
             && let JsValue::FreeVar(var) = self.eval_context.eval_ident(ident)
         {
+            // TODO(lukesandberg): we should consider filtering effects here, e.g. there is no
+            // benefit in an Effect for `window` or `Math`
             self.add_effect(Effect::FreeVar {
                 var,
                 ast_path: as_parent_path(ast_path),
                 span: ident.span(),
-                in_try: is_in_try(ast_path),
             })
         }
     }
@@ -2076,7 +2067,6 @@ impl VisitAstPath for Analyzer<'_> {
                 var: atom!("this"),
                 ast_path: as_parent_path(ast_path),
                 span: node.span(),
-                in_try: is_in_try(ast_path),
             })
         }
     }
@@ -2092,7 +2082,6 @@ impl VisitAstPath for Analyzer<'_> {
             self.add_effect(Effect::ImportMeta {
                 span: expr.span,
                 ast_path: as_parent_path(ast_path),
-                in_try: is_in_try(ast_path),
             })
         }
     }
@@ -2361,7 +2350,6 @@ impl VisitAstPath for Analyzer<'_> {
             }),
             ast_path: as_parent_path(ast_path),
             span: stmt.span,
-            in_try: is_in_try(ast_path),
         });
 
         self.effects = prev_effects;
@@ -2422,7 +2410,6 @@ impl Analyzer<'_> {
                     r#else,
                     condition_ast_path: as_parent_path_with(ast_path, condition_ast_kind),
                     span,
-                    in_try: is_in_try(ast_path),
                     early_return_condition_value: true,
                 });
             }
@@ -2435,7 +2422,6 @@ impl Analyzer<'_> {
                     r#else,
                     condition_ast_path: as_parent_path_with(ast_path, condition_ast_kind),
                     span,
-                    in_try: is_in_try(ast_path),
                     early_return_condition_value: false,
                 });
             }
@@ -2454,7 +2440,6 @@ impl Analyzer<'_> {
                     kind: Box::new(kind),
                     ast_path: as_parent_path_with(ast_path, condition_ast_kind),
                     span,
-                    in_try: is_in_try(ast_path),
                 });
                 if early_return_when_false && early_return_when_true {
                     self.early_return_stack.push(EarlyReturn::Always {
@@ -2511,7 +2496,6 @@ impl Analyzer<'_> {
                 kind: Box::new(cond_kind),
                 ast_path: as_parent_path_with(ast_path, ast_kind),
                 span,
-                in_try: is_in_try(ast_path),
             });
         }
     }
