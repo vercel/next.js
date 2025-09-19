@@ -181,37 +181,40 @@ module.exports = {
 - Supported boolean operators are `{all: [...]}`, `{any: [...]}` and `{not: ...}`.
 - Supported customizable operators are `{path: string | RegExp}` and `{content: RegExp}`. If `path` and `content` are specified in the same object, it acts as an implicit `and`.
 
-In addition, a number of special built-in conditions are supported:
-- `default`: Always matched. A no-op.
-- `browser`: The code will be executed on the client.
-- `foreign`: The code is part of `node_modules` or is a Next.js internal. Usually you'll want to restrict loaders to `{not: 'foreign'}`. This can improve performance by reducing the number of files the loader is invoked on.
-- `development`: The loader will only be run during `next dev --turbopack`.
-- `production`: The loader will only be run during `next build --turbopack`.
-- `node`: The code will be run on the default Node.js runtime.
-- `edge-light`: The code will be run on the [Edge runtime](/docs/app/api-reference/edge).
+In addition, a number of built-in conditions are supported:
 
-Rules can be an array of objects. All matching rules are executed in order. Array can be useful when used with disjoint conditions:
+- `default`: Always matched. A no-op.
+- `browser`: Matches code that will execute on the client. Server code can be matched using `{not: 'browser'}`.
+- `foreign`: Matches code in `node_modules`, as well as some Next.js internals. Usually you'll want to restrict loaders to `{not: 'foreign'}`. This can improve performance by reducing the number of files the loader is invoked on.
+- `development`: Matches when using `next dev --turbopack`.
+- `production`: Matches when using `next build --turbopack`.
+- `node`: Matches code that will run on the default Node.js runtime.
+- `edge-light`: Matches code that will run on the [Edge runtime](/docs/app/api-reference/edge).
+
+Rules can be an object or an array of objects. An array is often useful for modeling disjoint conditions:
 
 ```js filename="next.config.js"
 module.exports = {
   turbopack: {
     rules: {
-      "*.svg": [
+      '*.svg': [
         {
           condition: 'browser',
-          loaders: ["@svgr/webpack"],
-          as: "*.js",
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
         },
         {
           condition: { not: 'browser' },
           loaders: [require.resolve('./custom-svg-loader.js')],
-          as: "*.js",
+          as: '*.js',
         },
       ],
     },
   },
 }
 ```
+
+> **Good to know**: All matching rules are executed in order.
 
 ### Resolving aliases
 
