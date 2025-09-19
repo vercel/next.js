@@ -1637,7 +1637,7 @@ pub async fn project_get_source_map(
     let container = project.container;
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
-        .run_once(async move {
+        .run(async move {
             let Some(map) = &*get_source_map_rope_operation(container, file_path)
                 .read_strongly_consistent()
                 .await?
@@ -1650,7 +1650,7 @@ pub async fn project_get_source_map(
         // source files may have changed or been deleted), so these probably aren't internal errors?
         // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
 #[napi]
