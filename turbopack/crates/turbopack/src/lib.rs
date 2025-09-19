@@ -70,7 +70,9 @@ use turbopack_static::{css::StaticUrlCssModule, ecma::StaticUrlJsModule};
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
 use self::transition::{Transition, TransitionOptions};
-use crate::module_options::{CssOptionsContext, CustomModuleType, EcmascriptOptionsContext};
+use crate::module_options::{
+    CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
+};
 
 async fn apply_module_type(
     source: ResolvedVc<Box<dyn Source>>,
@@ -703,6 +705,9 @@ pub async fn externals_tracing_module_context(
         // are actually representative of what Turbopack does.
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                enable_typescript_transform: Some(
+                    TypescriptTransformOptions::default().resolved_cell(),
+                ),
                 // enable_types should not be enabled here. It gets set automatically when a TS file
                 // is encountered.
                 source_maps: SourceMapsType::None,
