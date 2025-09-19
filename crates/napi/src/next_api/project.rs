@@ -885,7 +885,7 @@ pub async fn project_write_all_entrypoints_to_disk(
     let tt_clone = tt.clone();
 
     let (entrypoints, issues, diags) = tt
-        .run_once(async move {
+        .run(async move {
             let entrypoints_with_issues_op =
                 get_all_written_entrypoints_with_issues_operation(container, app_dir_only);
 
@@ -913,7 +913,7 @@ pub async fn project_write_all_entrypoints_to_disk(
 
             Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
         })
-        .or_else(|e| ctx.throw_turbopack_internal_result(&e))
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
 
     Ok(TurbopackResult {
