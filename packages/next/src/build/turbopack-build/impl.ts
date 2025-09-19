@@ -147,7 +147,7 @@ export async function turbopackBuild(): Promise<{
       )
     }
 
-    if (topLevelErrors.length > 0) {
+    if (topLevelErrors.length > 0 || !('routes' in entrypoints)) {
       throw new Error(
         `Turbopack build failed with ${
           topLevelErrors.length

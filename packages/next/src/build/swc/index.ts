@@ -658,13 +658,20 @@ function bindingToApi(
 
     async writeAllEntrypointsToDisk(
       appDirOnly: boolean
-    ): Promise<TurbopackResult<RawEntrypoints>> {
+    ): Promise<TurbopackResult<RawEntrypoints | {}>> {
       const napiEndpoints = (await binding.projectWriteAllEntrypointsToDisk(
         this._nativeProject,
         appDirOnly
-      )) as TurbopackResult<NapiEntrypoints>
+      )) as TurbopackResult<NapiEntrypoints | {}>
 
-      return napiEntrypointsToRawEntrypoints(napiEndpoints)
+      if ('routes' in napiEndpoints) {
+        return napiEntrypointsToRawEntrypoints(napiEndpoints)
+      } else {
+        return {
+          issues: napiEndpoints.issues,
+          diagnostics: napiEndpoints.diagnostics,
+        }
+      }
     }
 
     entrypointsSubscribe() {
