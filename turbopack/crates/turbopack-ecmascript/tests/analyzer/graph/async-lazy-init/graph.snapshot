@@ -1,0 +1,96 @@
+[
+    (
+        "computeAsyncValue",
+        Function(
+            2,
+            222,
+            Constant(
+                Str(
+                    Atom(
+                        "async result",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "ensureAsyncProcessStarted",
+        Function(
+            2,
+            606,
+            Variable(
+                (
+                    "lasyInitAsyncProcess",
+                    #2,
+                ),
+            ),
+        ),
+    ),
+    (
+        "getLasyInitAsyncValue",
+        Function(
+            2,
+            294,
+            Variable(
+                (
+                    "lasyInitAsyncValue",
+                    #2,
+                ),
+            ),
+        ),
+    ),
+    (
+        "initLasyInitAsyncProcess",
+        Function(
+            2,
+            509,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "lasyInitAsyncProcess",
+        Alternatives {
+            total_nodes: 4,
+            values: [
+                Constant(
+                    Null,
+                ),
+                Call(
+                    2,
+                    Variable(
+                        (
+                            "initLasyInitAsyncProcess",
+                            #2,
+                        ),
+                    ),
+                    [],
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "lasyInitAsyncValue",
+        Alternatives {
+            total_nodes: 4,
+            values: [
+                Constant(
+                    Null,
+                ),
+                Call(
+                    2,
+                    Variable(
+                        (
+                            "computeAsyncValue",
+                            #2,
+                        ),
+                    ),
+                    [],
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+]
