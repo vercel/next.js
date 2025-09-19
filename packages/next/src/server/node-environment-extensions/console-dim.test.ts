@@ -293,54 +293,5 @@ describe('console-exit patches', () => {
         { method: 'log', input: expect.stringMatching(/\[DIM\].*after abort/) },
       ])
     })
-
-    it('should enter a dimming context when a react cacheSignal exists and is aborted', async () => {
-      async function testForWorker() {
-        const originalLog = console.log
-        const controller = new AbortController()
-
-        // Hacky but we need to provide a cacheSignal for this test
-        require('react').__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE.A =
-          {
-            cacheSignal() {
-              originalLog('cacheSignal called')
-              return controller.signal
-            },
-          }
-
-        // First, replace console.log to track what storage context it runs in
-        console.log = function (...args) {
-          originalLog(...args)
-          let dimmed = false
-          if (
-            args.find((a) =>
-              typeof a === 'string' ? a.includes('color:') : false
-            )
-          ) {
-            dimmed = true
-          }
-          reportResult({
-            type: 'console-call',
-            method: 'log',
-            input: `${dimmed ? '[DIM]' : '[BRIGHT]'}: ${args.join(' ')}`,
-          })
-        }
-
-        // Install patches - this wraps the current console.log
-        require('next/dist/server/node-environment-extensions/console-dim')
-
-        console.log('before abort')
-        controller.abort()
-        console.log('after abort')
-      }
-
-      const { consoleCalls, exitCode } = await runWorkerCode(testForWorker)
-
-      expect(exitCode).toBe(0)
-      expect(consoleCalls).toEqual([
-        { method: 'log', input: '[BRIGHT]: before abort' },
-        { method: 'log', input: expect.stringMatching(/\[DIM\].*after abort/) },
-      ])
-    })
   })
 })

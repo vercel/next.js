@@ -4,7 +4,6 @@ import {
   type ConsoleStore,
 } from '../app-render/console-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-import { cacheSignal } from 'react'
 
 type InterceptableConsoleMethod =
   | 'error'
@@ -182,56 +181,39 @@ function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
           args
         )
       } else {
-        const signal = cacheSignal()
-        if (signal) {
-          // We are in a React Server render and can consult the React cache signal to determine if logs
-          // are now dimmable.
-          if (signal.aborted) {
-            return applyWithDimming.call(
-              this,
-              consoleStore,
-              originalMethod,
-              methodName,
-              args
-            )
-          } else {
-            return originalMethod.apply(this, args)
-          }
-        } else {
-          // We are outside of a React Server render but we might be in a workUnitStore with a render
-          // signal. We can get rid of this once React implements cacheSignal for react-dom/server (SSR)
-          const workUnitStore = workUnitAsyncStorage.getStore()
-          switch (workUnitStore?.type) {
-            case 'prerender':
-            case 'prerender-runtime':
-            // These can be hit in a route handler. In the future we can use potential React.createCache API
-            // to create a cache scope for arbitrary computation and can move over to cacheSignal exclusively.
-            // fallthrough
-            case 'prerender-client':
-              // This is a react-dom/server render and won't have a cacheSignal until React adds this for the client world.
-              const renderSignal = workUnitStore.renderSignal
-              if (renderSignal.aborted) {
-                return applyWithDimming.call(
-                  this,
-                  consoleStore,
-                  originalMethod,
-                  methodName,
-                  args
-                )
-              } else {
-                return originalMethod.apply(this, args)
-              }
-            case 'prerender-legacy':
-            case 'prerender-ppr':
-            case 'cache':
-            case 'unstable-cache':
-            case 'private-cache':
-            case 'request':
-            case undefined:
+        // We are outside of a React Server render but we might be in a workUnitStore with a render
+        // signal. We can get rid of this once React implements cacheSignal for react-dom/server (SSR)
+        const workUnitStore = workUnitAsyncStorage.getStore()
+        switch (workUnitStore?.type) {
+          case 'prerender':
+          case 'prerender-runtime':
+          // These can be hit in a route handler. In the future we can use potential React.createCache API
+          // to create a cache scope for arbitrary computation and can move over to cacheSignal exclusively.
+          // fallthrough
+          case 'prerender-client':
+            // This is a react-dom/server render and won't have a cacheSignal until React adds this for the client world.
+            const renderSignal = workUnitStore.renderSignal
+            if (renderSignal.aborted) {
+              return applyWithDimming.call(
+                this,
+                consoleStore,
+                originalMethod,
+                methodName,
+                args
+              )
+            } else {
               return originalMethod.apply(this, args)
-            default:
-              workUnitStore satisfies never
-          }
+            }
+          case 'prerender-legacy':
+          case 'prerender-ppr':
+          case 'cache':
+          case 'unstable-cache':
+          case 'private-cache':
+          case 'request':
+          case undefined:
+            return originalMethod.apply(this, args)
+          default:
+            workUnitStore satisfies never
         }
       }
     }
