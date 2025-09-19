@@ -50,7 +50,8 @@ export default async function Page() {
 import { cookies } from 'next/headers'
 
 async function getCookieData() {
-  const cookieData = cookies().getAll()
+  const cookieStore = await cookies()
+  const cookieData = cookieStore.getAll()
   return new Promise((resolve) =>
     setTimeout(() => {
       resolve(cookieData)
