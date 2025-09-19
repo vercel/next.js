@@ -36,6 +36,14 @@ export function createWebSocket(
 
   let webSocket: WebSocket
 
+  const sendMessage = (data: string) => {
+    if (webSocket.readyState === webSocket.OPEN) {
+      webSocket.send(data)
+    }
+  }
+
+  const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
+
   function init() {
     if (webSocket) webSocket.close()
 
@@ -44,14 +52,6 @@ export function createWebSocket(
     )
 
     newWebSocket.binaryType = 'arraybuffer'
-
-    const sendMessage = (data: string) => {
-      if (newWebSocket.readyState === newWebSocket.OPEN) {
-        newWebSocket.send(data)
-      }
-    }
-
-    const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
 
     function handleOnline() {
       if (isTerminalLoggingEnabled) {
