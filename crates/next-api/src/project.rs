@@ -386,7 +386,7 @@ impl ProjectContainer {
         // TODO: Handle mode switch, should prevent mode being switched.
         let watch = new_options.watch;
 
-        let project = self.project().to_resolved().await?;
+        let project = self.project().strongly_consistent().to_resolved().await?;
         let prev_project_fs = project_fs_operation(project)
             .read_strongly_consistent()
             .await?;
@@ -395,7 +395,7 @@ impl ProjectContainer {
             .await?;
 
         this.options_state.set(Some(new_options));
-        let project = self.project().to_resolved().await?;
+        let project = self.project().strongly_consistent().to_resolved().await?;
         let project_fs = project_fs_operation(project)
             .read_strongly_consistent()
             .await?;
