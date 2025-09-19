@@ -71,7 +71,7 @@ jobs:
 
             return await rerunIfRequiredNotSuccessful()
       - name: send retry request to GitHub API
-        if: ${{ steps.required_job_conclusion.outputs.result != 'success' }}
+        if: ${{ steps.required_job_conclusion.outputs.result != '"success"' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -137,7 +137,7 @@ jobs:
 
             return await rerunIfRequiredNotSuccessful()
       - name: send webhook
-        if: ${{ steps.required_job_conclusion.outputs.result != 'success' }}
+        if: ${{ steps.required_job_conclusion.outputs.result != '"success"' }}
         uses: slackapi/slack-github-action@v1.25.0
         with:
           # These urls are intentionally missing the protocol,
