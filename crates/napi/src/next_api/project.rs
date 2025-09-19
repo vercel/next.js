@@ -885,7 +885,7 @@ pub async fn project_write_all_entrypoints_to_disk(
     let tt_clone = tt.clone();
 
     let (entrypoints, issues, diags) = tt
-        .run_once(async move {
+        .run(async move {
             let entrypoints_with_issues_op =
                 get_all_written_entrypoints_with_issues_operation(container, app_dir_only);
 
@@ -913,7 +913,7 @@ pub async fn project_write_all_entrypoints_to_disk(
 
             Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
         })
-        .or_else(|e| ctx.throw_turbopack_internal_result(&e))
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
 
     Ok(TurbopackResult {
@@ -1579,7 +1579,7 @@ pub async fn project_trace_source(
     let container = project.container;
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
-        .run_once(async move {
+        .run(async move {
             let traced_frame = project_trace_source_operation(
                 container,
                 frame,
@@ -1593,7 +1593,7 @@ pub async fn project_trace_source(
         // source files may have changed or been deleted), so these probably aren't internal errors?
         // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
 #[napi]
@@ -1604,7 +1604,7 @@ pub async fn project_get_source_for_asset(
     let container = project.container;
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
-        .run_once(async move {
+        .run(async move {
             let source_content = &*container
                 .project()
                 .project_path()
@@ -1626,7 +1626,7 @@ pub async fn project_get_source_for_asset(
         // source files may have changed or been deleted), so these probably aren't internal errors?
         // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
 #[napi]
@@ -1637,7 +1637,7 @@ pub async fn project_get_source_map(
     let container = project.container;
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
-        .run_once(async move {
+        .run(async move {
             let Some(map) = &*get_source_map_rope_operation(container, file_path)
                 .read_strongly_consistent()
                 .await?
@@ -1650,7 +1650,7 @@ pub async fn project_get_source_map(
         // source files may have changed or been deleted), so these probably aren't internal errors?
         // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
 #[napi]

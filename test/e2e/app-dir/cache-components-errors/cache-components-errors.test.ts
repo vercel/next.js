@@ -848,7 +848,7 @@ describe('Cache Components Errors', () => {
             throw new Error('expected build not to fail', { cause: error })
           }
 
-          expect(next.cliOutput).toContain(`◐ ${pathname} `)
+          expect(next.cliOutput).toContain(`◐ ${pathname}`)
           await next.start({ skipBuild: true })
           const $ = await next.render$(pathname)
           expect($('[data-fallback]').length).toBe(2)
@@ -1124,7 +1124,7 @@ describe('Cache Components Errors', () => {
               throw new Error('expected build not to fail', { cause: error })
             }
 
-            expect(next.cliOutput).toContain(`◐ ${pathname} `)
+            expect(next.cliOutput).toContain(`◐ ${pathname}`)
             await next.start({ skipBuild: true })
             const browser = await next.browser(`${pathname}?foo=test`)
             expect(await browser.elementById('foo-param').text()).toBe(
@@ -1176,7 +1176,7 @@ describe('Cache Components Errors', () => {
               throw new Error('expected build not to fail', { cause: error })
             }
 
-            expect(next.cliOutput).toContain(`◐ ${pathname} `)
+            expect(next.cliOutput).toContain(`◐ ${pathname}`)
             await next.start({ skipBuild: true })
             const browser = await next.browser(`${pathname}?foo=test`)
             expect(await browser.elementById('foo-param').text()).toBe(
@@ -1564,7 +1564,7 @@ describe('Cache Components Errors', () => {
               throw new Error('expected build not to fail', { cause: error })
             }
 
-            expect(next.cliOutput).toContain(`◐ ${pathname} `)
+            expect(next.cliOutput).toContain(`◐ ${pathname}`)
             await next.start({ skipBuild: true })
             const browser = await next.browser(`${pathname}`)
             expect(await browser.elementById('draft-mode').text()).toBe(
@@ -1936,7 +1936,7 @@ describe('Cache Components Errors', () => {
               throw new Error('expected build not to fail', { cause: error })
             }
 
-            expect(next.cliOutput).toContain(`◐ ${pathname}/[slug] `)
+            expect(next.cliOutput).toContain(`◐ ${pathname}/[slug]`)
             await next.start({ skipBuild: true })
             const browser = await next.browser(`${pathname}/test`)
             expect(await browser.elementById('param').text()).toBe('undefined')
@@ -1984,7 +1984,7 @@ describe('Cache Components Errors', () => {
               throw new Error('expected build not to fail', { cause: error })
             }
 
-            expect(next.cliOutput).toContain(`◐ ${pathname}/[slug] `)
+            expect(next.cliOutput).toContain(`◐ ${pathname}/[slug]`)
             await next.start({ skipBuild: true })
             const browser = await next.browser(`${pathname}/test`)
             expect(await browser.elementById('param').text()).toBe('undefined')

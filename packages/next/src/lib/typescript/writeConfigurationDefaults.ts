@@ -228,9 +228,6 @@ export async function writeConfigurationDefaults(
     if (!rawConfig.include.includes(nextAppTypes)) {
       missingFromResolved.push(nextAppTypes)
     }
-    if (!rawConfig.include.includes('**/*.mts')) {
-      missingFromResolved.push('**/*.mts')
-    }
 
     if (missingFromResolved.length > 0) {
       if (!Array.isArray(userTsConfig.include)) {

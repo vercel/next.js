@@ -176,7 +176,7 @@ describe('writeConfigurationDefaults()', () => {
       })
 
       it('should replace includes when base is missing appTypes', async () => {
-        const include = ['**/*.ts', '**/*.tsx']
+        const include = ['**/*.ts', '**/*.tsx', '**/*.mts']
         const content = { extends: './tsconfig.base.json' }
         const baseContent = { include }
 

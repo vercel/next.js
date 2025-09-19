@@ -12,8 +12,8 @@ use next_core::{
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        BuildManifest, EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2,
-        PagesManifest, Regions,
+        BuildManifest, ClientBuildManifest, EdgeFunctionDefinition, MiddlewareMatcher,
+        MiddlewaresManifestV2, PagesManifest, Regions,
     },
     next_pages::create_page_ssr_entry_module,
     next_server::{
@@ -1235,51 +1235,50 @@ impl PageEndpoint {
             fxindexmap![] // Empty pages when no user pages should be created
         };
 
-        let build_manifest = BuildManifest {
-            pages,
-            ..Default::default()
-        };
         let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
-        build_manifest
-            .build_output(
-                node_root.join(&format!(
-                    "server/pages{manifest_path_prefix}/build-manifest.json",
-                ))?,
-                client_relative_path,
-            )
-            .await
+        let build_manifest = BuildManifest {
+            output_path: node_root.join(&format!(
+                "server/pages{manifest_path_prefix}/build-manifest.json",
+            ))?,
+            client_relative_path,
+            pages,
+            polyfill_files: Default::default(),
+            root_main_files: Default::default(),
+        };
+        Ok(Vc::upcast(build_manifest.cell()))
     }
 
     #[turbo_tasks::function]
     async fn client_build_manifest(
-        self: Vc<Self>,
+        &self,
         page_loader: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
-        let this = self.await?;
-        let node_root = this.pages_project.project().node_root().await?;
-        let client_relative_path = this.pages_project.project().client_relative_path().await?;
+        let node_root = self.pages_project.project().node_root().await?;
+        let client_relative_path = self
+            .pages_project
+            .project()
+            .client_relative_path()
+            .owned()
+            .await?;
 
         // Check if we should include pages in the manifest
-        let pages_structure = this.pages_structure.await?;
-        let client_build_manifest = if pages_structure.should_create_pages_entries {
-            let page_loader_path = client_relative_path
-                .get_relative_path_to(&*page_loader.path().await?)
-                .context("failed to resolve client-relative path to page loader")?;
-            fxindexmap!(this.pathname.clone() => vec![page_loader_path])
+        let pages_structure = self.pages_structure.await?;
+        let pages = if pages_structure.should_create_pages_entries {
+            fxindexmap!(self.pathname.clone() => page_loader)
         } else {
-            fxindexmap![] // Empty manifest when no user pages should be created
+            fxindexmap![] // Empty pages when no user pages should be created
         };
 
-        let manifest_path_prefix = get_asset_prefix_from_pathname(&this.pathname);
-        Ok(Vc::upcast(VirtualOutputAsset::new_with_references(
-            node_root.join(&format!(
+        let manifest_path_prefix = get_asset_prefix_from_pathname(&self.pathname);
+        let client_build_manifest = ClientBuildManifest {
+            output_path: node_root.join(&format!(
                 "server/pages{manifest_path_prefix}/client-build-manifest.json",
             ))?,
-            AssetContent::file(
-                File::from(serde_json::to_string_pretty(&client_build_manifest)?).into(),
-            ),
-            Vc::cell(vec![page_loader]),
-        )))
+            client_relative_path,
+            pages,
+        };
+
+        Ok(Vc::upcast(client_build_manifest.cell()))
     }
 
     #[turbo_tasks::function]

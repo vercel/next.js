@@ -39,7 +39,7 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
-    issue::IssueDescriptionExt,
+    issue::CollectibleIssuesExt,
     module_graph::{
         ModuleGraph, chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info,
     },
@@ -563,7 +563,7 @@ async fn snapshot_issues(
     let PreparedTest { path, .. } = &*prepared_test.await?;
     let _ = run_result_op.resolve_strongly_consistent().await;
 
-    let captured_issues = run_result_op.peek_issues_with_path().await?;
+    let captured_issues = run_result_op.peek_issues().await?;
 
     let plain_issues = captured_issues.get_plain_issues().await?;
 

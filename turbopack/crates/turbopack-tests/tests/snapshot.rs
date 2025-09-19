@@ -41,7 +41,7 @@ use turbopack_core::{
     file_source::FileSource,
     free_var_references,
     ident::Layer,
-    issue::IssueDescriptionExt,
+    issue::CollectibleIssuesExt,
     module::Module,
     module_graph::{
         ModuleGraph,
@@ -217,7 +217,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
     let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
-    let captured_issues = out_op.peek_issues_with_path().await?;
+    let captured_issues = out_op.peek_issues().await?;
 
     let plain_issues = captured_issues.get_plain_issues().await?;
 

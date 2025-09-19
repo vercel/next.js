@@ -215,7 +215,8 @@ function assignDefaultsAndValidate(
   dir: string,
   userConfig: NextConfig & { configFileName: string },
   silent: boolean,
-  configuredExperimentalFeatures: ConfiguredExperimentalFeature[]
+  configuredExperimentalFeatures: ConfiguredExperimentalFeature[],
+  phase: PHASE_TYPE
 ): NextConfigComplete {
   const configFileName = userConfig.configFileName
   if (typeof userConfig.exportTrailingSlash !== 'undefined') {
@@ -1198,6 +1199,13 @@ function assignDefaultsAndValidate(
     )
   }
 
+  if (
+    phase === PHASE_DEVELOPMENT_SERVER &&
+    result.experimental?.isolatedDevBuild
+  ) {
+    result.distDir = join(result.distDir, 'dev')
+  }
+
   return result as NextConfigComplete
 }
 
@@ -1362,7 +1370,8 @@ export default async function loadConfig(
           ...customConfig,
         },
         silent,
-        configuredExperimentalFeatures
+        configuredExperimentalFeatures,
+        phase
       ) as NextConfigComplete,
       phase,
       silent
@@ -1569,7 +1578,8 @@ export default async function loadConfig(
         ...userConfig,
       },
       silent,
-      configuredExperimentalFeatures
+      configuredExperimentalFeatures,
+      phase
     ) as NextConfigComplete
 
     const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
@@ -1624,7 +1634,8 @@ export default async function loadConfig(
     dir,
     { ...clonedDefaultConfig, configFileName },
     silent,
-    configuredExperimentalFeatures
+    configuredExperimentalFeatures,
+    phase
   ) as NextConfigComplete
 
   setHttpClientAndAgentOptions(completeConfig)

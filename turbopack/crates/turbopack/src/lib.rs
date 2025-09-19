@@ -56,6 +56,7 @@ use turbopack_core::{
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
 use turbopack_ecmascript::{
+    inlined_bytes_module::InlinedBytesJsModule,
     references::external_module::{
         CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
     },
@@ -263,6 +264,9 @@ async fn apply_module_type(
         }
         ModuleType::StaticUrlCss => {
             ResolvedVc::upcast(StaticUrlCssModule::new(*source).to_resolved().await?)
+        }
+        ModuleType::InlinedBytesJs => {
+            ResolvedVc::upcast(InlinedBytesJsModule::new(*source).to_resolved().await?)
         }
         ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
             WebAssemblyModuleAsset::new(
@@ -518,6 +522,8 @@ async fn process_default_internal(
 
             match ty {
                 ImportWithType::Json => Some(ModuleType::Json),
+                // Reenable this once `import {type: "bytes"}` is stabilized
+                ImportWithType::Bytes => None,
             }
         }
         _ => None,

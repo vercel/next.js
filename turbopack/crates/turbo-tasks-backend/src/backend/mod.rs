@@ -388,6 +388,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.task_statistics
             .map(|stats| stats.increment_cache_miss(task_type.native_fn));
     }
+
+    fn track_task_duration(&self, task_id: TaskId, duration: std::time::Duration) {
+        self.task_statistics.map(|stats| {
+            if let Some(task_type) = self.task_cache.lookup_reverse(&task_id) {
+                stats.increment_execution_duration(task_type.native_fn, duration);
+            }
+        });
+    }
 }
 
 pub(crate) struct OperationGuard<'a, B: BackingStorage> {
@@ -1690,7 +1698,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn task_execution_completed(
         &self,
         task_id: TaskId,
-        _duration: Duration,
+        duration: Duration,
         _memory_usage: usize,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
@@ -1708,11 +1716,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // ok, since the dirty flag won't be removed until step 3 and step 4 is only affecting the
         // in-memory representation.
 
-        // The task might be invalidated during this process, so we need to change the stale flag
+        // The task might be invalidated during this process, so we need to check the stale flag
         // at the start of every step.
 
         let span = tracing::trace_span!("task execution completed", immutable = Empty).entered();
         let mut ctx = self.execute_context(turbo_tasks);
+
+        self.track_task_duration(task_id, duration);
 
         //// STEP 1 ////
 

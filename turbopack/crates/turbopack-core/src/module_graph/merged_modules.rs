@@ -88,6 +88,30 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .flat_map(|g| g.entries())
             .collect::<Vec<_>>();
 
+        // First, compute the depth for each module in the graph
+        let module_depth = {
+            let _inner_span = tracing::info_span!("compute depth").entered();
+
+            let mut module_depth =
+                FxHashMap::with_capacity_and_hasher(module_count, Default::default());
+            module_graph.traverse_edges_from_entries_bfs(
+                entries.iter().copied(),
+                |parent, node| {
+                    if let Some((parent, _)) = parent {
+                        let parent_depth = *module_depth
+                            .get(&parent.module)
+                            .context("Module depth not found")?;
+                        module_depth.entry(node.module).or_insert(parent_depth + 1);
+                    } else {
+                        module_depth.insert(node.module, 0);
+                    };
+
+                    Ok(GraphTraversalAction::Continue)
+                },
+            )?;
+            module_depth
+        };
+
         // For each module, the indices in the bitmap store which merge group entry modules
         // transitively import that module. The bitmap can be treated as an opaque value, merging
         // all modules with the same bitmap.
@@ -121,7 +145,10 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         let mut next_index = 0u32;
         let visit_count = module_graph.traverse_edges_fixed_point_with_priority(
-            entries.iter().map(|e| (*e, 0)),
+            entries
+                .iter()
+                .map(|e| Ok((*e, -*module_depth.get(e).context("Module depth not found")?)))
+                .collect::<Result<Vec<_>>>()?,
             &mut (),
             |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ RefData)>,
              node: &'_ SingleModuleGraphModuleNode,
@@ -196,7 +223,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     }
                 })
             },
-            |_, _| Ok(0),
+            |successor, _| {
+                // Invert the ordering here. High priority values get visited first, and we want to
+                // visit the low-depth nodes first, as we are propagating bitmaps downwards.
+                Ok(-*module_depth
+                    .get(&successor.module)
+                    .context("Module depth not found")?)
+            },
         )?;
 
         drop(inner_span);

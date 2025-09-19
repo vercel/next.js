@@ -37,7 +37,7 @@ pub fn fibonacci(c: &mut Criterion) {
                     noop_backing_storage(),
                 ));
                 async move {
-                    tt.run_once(async move {
+                    tt.run(async move {
                         // Number of tasks:
                         // 1 root task
                         // size >= 1 => + fib(0) = 1

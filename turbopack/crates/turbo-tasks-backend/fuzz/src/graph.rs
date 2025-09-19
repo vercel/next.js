@@ -145,7 +145,7 @@ fn actual_operation(spec: Arc<Vec<TaskSpec>>, iterations: usize) {
         .block_on(async {
             for i in 0..iterations {
                 let spec = spec.clone();
-                tt.run_once(async move {
+                tt.run(async move {
                     let it = create_state().resolve().await?;
                     it.await?.set(i);
                     let task = run_task(spec.clone(), it, 0);

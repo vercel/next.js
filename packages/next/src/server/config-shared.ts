@@ -388,6 +388,8 @@ export interface ExperimentalConfig {
     skipValidation?: boolean
   }
   disableOptimizedLoading?: boolean
+
+  /** @deprecated A no-op as of Next 16, size metrics were removed from the build output. */
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
@@ -435,6 +437,11 @@ export interface ExperimentalConfig {
    * Enable minification. Defaults to true in build mode and false in dev mode.
    */
   turbopackMinify?: boolean
+
+  /**
+   * Enable support for `with {type: "module"}` for ESM imports.
+   */
+  turbopackImportTypeBytes?: boolean
 
   /**
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
@@ -804,6 +811,13 @@ export interface ExperimentalConfig {
    * Enable accessing root params via the `next/root-params` module.
    */
   rootParams?: boolean
+
+  /**
+   * Use an isolated directory for development builds to prevent conflicts
+   * with production builds. Development builds will use `{distDir}/dev`
+   * instead of `{distDir}`.
+   */
+  isolatedDevBuild?: boolean
 }
 
 export type ExportPathMap = {
@@ -1496,6 +1510,7 @@ export const defaultConfig = Object.freeze({
     globalNotFound: false,
     browserDebugInfoInTerminal: false,
     optimizeRouterScrolling: false,
+    isolatedDevBuild: false,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
