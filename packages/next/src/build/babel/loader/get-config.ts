@@ -59,27 +59,26 @@ interface CharacteristicsGermaneToCaching {
   isPageFile: boolean | undefined
   isNextDist: boolean
   hasModuleExports: boolean
-  fileNameOrExt: string
+  hasReactCompiler: boolean
+  fileExt: string
   configFilePath: string | undefined
 }
 
 const fileExtensionRegex = /\.([a-z]+)$/
-function getCacheCharacteristics(
+async function getCacheCharacteristics(
   loaderOptions: NextBabelLoaderOptions,
   source: string,
   filename: string
-): CharacteristicsGermaneToCaching {
-  let isStandalone, isServer, pagesDir, fileNameOrExt
+): Promise<CharacteristicsGermaneToCaching> {
+  let isStandalone, isServer, pagesDir
   switch (loaderOptions.transformMode) {
     case 'default':
       isStandalone = false
       isServer = loaderOptions.isServer
       pagesDir = loaderOptions.pagesDir
-      fileNameOrExt = fileExtensionRegex.exec(filename)?.[1] || 'unknown'
       break
     case 'standalone':
       isStandalone = true
-      fileNameOrExt = filename
       break
     default:
       throw new Error(
@@ -90,6 +89,20 @@ function getCacheCharacteristics(
   const isPageFile = pagesDir != null && filename.startsWith(pagesDir)
   const isNextDist = nextDistPath.test(filename)
   const hasModuleExports = source.indexOf('module.exports') !== -1
+  const fileExt = fileExtensionRegex.exec(filename)?.[1] || 'unknown'
+
+  // Compute `hasReactCompiler` as part of the cache characteristics / key,
+  // rather than inside of `getFreshConfig`:
+  // - `isReactCompilerRequired` depends on the file contents
+  // - `node_modules` and `reactCompilerExclude` depend on the file path, which
+  //   isn't part of the cache characteristics
+  let { reactCompilerPlugins, reactCompilerExclude } = loaderOptions
+  reactCompilerPlugins ??= []
+  const hasReactCompiler =
+    reactCompilerPlugins.length !== 0 &&
+    !/[/\\]node_modules[/\\]/.test(filename) &&
+    !reactCompilerExclude?.(filename) &&
+    (await isReactCompilerRequired(filename))
 
   return {
     isStandalone,
@@ -97,7 +110,8 @@ function getCacheCharacteristics(
     isPageFile,
     isNextDist,
     hasModuleExports,
-    fileNameOrExt,
+    hasReactCompiler,
+    fileExt,
     configFilePath: loaderOptions.configFile,
   }
 }
@@ -306,43 +320,21 @@ function checkCustomBabelConfigDeprecation(
 /**
  * Generate a new, flat Babel config, ready to be handed to Babel-traverse.
  * This config should have no unresolved overrides, presets, etc.
+ *
+ * The config returned by this function is cached, so the function should not
+ * depend on file-specific configuration or configuration that could change
+ * across invocations without a process restart.
  */
 async function getFreshConfig(
   ctx: NextJsLoaderContext,
   cacheCharacteristics: CharacteristicsGermaneToCaching,
   loaderOptions: NextBabelLoaderOptions,
-  target: string,
-  filename: string,
-  inputSourceMap?: SourceMap
+  target: string
 ): Promise<ResolvedBabelConfig | null> {
-  const {
-    transformMode,
-    configFile,
-    reactCompilerPlugins,
-    reactCompilerExclude,
-  } = loaderOptions
+  const { transformMode } = loaderOptions
+  const { hasReactCompiler, configFilePath, fileExt } = cacheCharacteristics
 
-  const hasReactCompiler = await (async () => {
-    if (reactCompilerPlugins && reactCompilerPlugins.length === 0) {
-      return false
-    }
-
-    if (/[/\\]node_modules[/\\]/.test(filename)) {
-      return false
-    }
-
-    if (reactCompilerExclude && reactCompilerExclude(filename)) {
-      return false
-    }
-
-    if (!(await isReactCompilerRequired(filename))) {
-      return false
-    }
-
-    return true
-  })()
-
-  let customConfig = configFile && getCustomBabelConfig(configFile)
+  let customConfig = configFilePath && getCustomBabelConfig(configFilePath)
   if (transformMode === 'standalone' && !customConfig && !hasReactCompiler) {
     // Optimization: There's nothing useful to do, bail out and skip babel on this file
     return null
@@ -350,6 +342,9 @@ async function getFreshConfig(
 
   checkCustomBabelConfigDeprecation(customConfig)
 
+  // We can assume that `reactCompilerPlugins` does not change without a process
+  // restart (it's safe to cache), as it's specified in the `next.config.js`,
+  // which always causes a full restart of `next dev` if changed.
   const reactCompilerPluginsIfEnabled = hasReactCompiler
     ? (loaderOptions.reactCompilerPlugins ?? [])
     : []
@@ -365,13 +360,12 @@ async function getFreshConfig(
   let options: BabelLoaderTransformOptions = {
     babelrc: false,
     cloneInputAst: false,
-    filename,
-    inputSourceMap,
 
-    // Ensure that Webpack will get a full absolute path in the sourcemap
-    // so that it can properly map the module back to its internal cached
-    // modules.
-    sourceFileName: filename,
+    // Use placeholder file info. `updateBabelConfigWithFileDetails` will
+    // replace this after caching.
+    filename: `basename.${fileExt}`,
+    inputSourceMap: undefined,
+    sourceFileName: `basename.${fileExt}`,
 
     // Set the default sourcemap behavior based on Webpack's mapping flag,
     // but allow users to override if they want.
@@ -476,25 +470,55 @@ function getCacheKey(cacheCharacteristics: CharacteristicsGermaneToCaching) {
     isPageFile,
     isNextDist,
     hasModuleExports,
-    fileNameOrExt,
+    hasReactCompiler,
+    fileExt,
     configFilePath,
   } = cacheCharacteristics
 
   const flags =
     0 |
-    (isStandalone ? 0b00001 : 0) |
-    (isServer ? 0b00010 : 0) |
-    (isPageFile ? 0b00100 : 0) |
-    (isNextDist ? 0b01000 : 0) |
-    (hasModuleExports ? 0b10000 : 0)
+    (isStandalone ? 0b000001 : 0) |
+    (isServer ? 0b000010 : 0) |
+    (isPageFile ? 0b000100 : 0) |
+    (isNextDist ? 0b001000 : 0) |
+    (hasModuleExports ? 0b010000 : 0) |
+    (hasReactCompiler ? 0b100000 : 0)
 
   // separate strings will null bytes, assuming null bytes are not valid in file
   // paths
-  return `${configFilePath || ''}\x00${fileNameOrExt}\x00${flags}`
+  return `${configFilePath || ''}\x00${fileExt}\x00${flags}`
 }
 
 const configCache: Map<any, ResolvedBabelConfig | null> = new Map()
 const configFiles: Set<string> = new Set()
+
+/**
+ * Applies file-specific values to a potentially-cached configuration object.
+ */
+function updateBabelConfigWithFileDetails(
+  cachedConfig: ResolvedBabelConfig | null | undefined,
+  loaderOptions: NextBabelLoaderOptions,
+  filename: string,
+  inputSourceMap: SourceMap | undefined
+): ResolvedBabelConfig | null {
+  if (cachedConfig == null) {
+    return null
+  }
+  return {
+    ...cachedConfig,
+    options: {
+      ...cachedConfig.options,
+      cwd: loaderOptions.cwd,
+      root: loaderOptions.cwd,
+      filename,
+      inputSourceMap,
+      // Ensure that Webpack will get a full absolute path in the sourcemap
+      // so that it can properly map the module back to its internal cached
+      // modules.
+      sourceFileName: filename,
+    },
+  }
+}
 
 export default async function getConfig(
   ctx: NextJsLoaderContext,
@@ -512,7 +536,7 @@ export default async function getConfig(
     inputSourceMap?: SourceMap | undefined
   }
 ): Promise<ResolvedBabelConfig | null> {
-  const cacheCharacteristics = getCacheCharacteristics(
+  const cacheCharacteristics = await getCacheCharacteristics(
     loaderOptions,
     source,
     filename
@@ -524,22 +548,14 @@ export default async function getConfig(
   }
 
   const cacheKey = getCacheKey(cacheCharacteristics)
-  if (configCache.has(cacheKey)) {
-    const cachedConfig = configCache.get(cacheKey)
-    if (!cachedConfig) {
-      return null
-    }
-
-    return {
-      ...cachedConfig,
-      options: {
-        ...cachedConfig.options,
-        cwd: loaderOptions.cwd,
-        root: loaderOptions.cwd,
-        filename,
-        sourceFileName: filename,
-      },
-    }
+  const cachedConfig = configCache.get(cacheKey)
+  if (cachedConfig !== undefined) {
+    return updateBabelConfigWithFileDetails(
+      cachedConfig,
+      loaderOptions,
+      filename,
+      inputSourceMap
+    )
   }
 
   if (loaderOptions.configFile && !configFiles.has(loaderOptions.configFile)) {
@@ -553,12 +569,15 @@ export default async function getConfig(
     ctx,
     cacheCharacteristics,
     loaderOptions,
-    target,
-    filename,
-    inputSourceMap
+    target
   )
 
   configCache.set(cacheKey, freshConfig)
 
-  return freshConfig
+  return updateBabelConfigWithFileDetails(
+    freshConfig,
+    loaderOptions,
+    filename,
+    inputSourceMap
+  )
 }
