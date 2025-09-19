@@ -30,7 +30,7 @@ _req = ???*0*
 
 exports = ({} | undefined)
 
-handler = (...) => undefined
+handler = (...) => Promise<undefined>
 
 hello = ???*0*
 - *0* fs.readFile*1*("./hello.txt", "utf-8")

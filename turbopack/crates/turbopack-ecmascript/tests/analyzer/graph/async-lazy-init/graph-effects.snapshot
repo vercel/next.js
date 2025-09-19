@@ -205,7 +205,6 @@
             ),
         ],
         span: 331..407,
-        in_try: false,
     },
     Unreachable {
         start_ast_path: [
@@ -305,7 +304,6 @@
             ),
         ],
         span: 555..566,
-        in_try: false,
     },
     FreeVar {
         var: "console",
@@ -364,7 +362,6 @@
             ),
         ],
         span: 555..562,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(
@@ -602,7 +599,6 @@
             ),
         ],
         span: 647..734,
-        in_try: false,
     },
     Unreachable {
         start_ast_path: [

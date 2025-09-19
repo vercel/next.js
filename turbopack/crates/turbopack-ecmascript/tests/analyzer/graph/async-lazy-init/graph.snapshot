@@ -2,12 +2,15 @@
     (
         "computeAsyncValue",
         Function(
-            2,
+            3,
             222,
-            Constant(
-                Str(
-                    Atom(
-                        "async result",
+            Promise(
+                2,
+                Constant(
+                    Str(
+                        Atom(
+                            "async result",
+                        ),
                     ),
                 ),
             ),
@@ -42,10 +45,13 @@
     (
         "initLasyInitAsyncProcess",
         Function(
-            2,
+            3,
             509,
-            Constant(
-                Undefined,
+            Promise(
+                2,
+                Constant(
+                    Undefined,
+                ),
             ),
         ),
     ),

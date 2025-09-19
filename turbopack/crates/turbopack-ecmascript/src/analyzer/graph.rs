@@ -1598,7 +1598,12 @@ impl VisitAstPath for Analyzer<'_> {
 
         self.add_value(
             decl.ident.to_id(),
-            JsValue::function(self.cur_fn_ident, return_value),
+            JsValue::function(
+                self.cur_fn_ident,
+                decl.function.is_async,
+                decl.function.is_generator,
+                return_value,
+            ),
         );
 
         self.cur_fn_ident = old_ident;
@@ -1621,7 +1626,12 @@ impl VisitAstPath for Analyzer<'_> {
         if let Some(ident) = &expr.ident {
             self.add_value(
                 ident.to_id(),
-                JsValue::function(self.cur_fn_ident, return_value),
+                JsValue::function(
+                    self.cur_fn_ident,
+                    expr.function.is_async,
+                    expr.function.is_generator,
+                    return_value,
+                ),
             );
         } else {
             self.add_value(
@@ -1629,7 +1639,12 @@ impl VisitAstPath for Analyzer<'_> {
                     format!("*anonymous function {}*", expr.function.span.lo.0).into(),
                     SyntaxContext::empty(),
                 ),
-                JsValue::function(self.cur_fn_ident, return_value),
+                JsValue::function(
+                    self.cur_fn_ident,
+                    expr.function.is_async,
+                    expr.function.is_generator,
+                    return_value,
+                ),
             );
         }
 
@@ -1677,7 +1692,12 @@ impl VisitAstPath for Analyzer<'_> {
                 format!("*arrow function {}*", expr.span.lo.0).into(),
                 SyntaxContext::empty(),
             ),
-            JsValue::function(self.cur_fn_ident, return_value),
+            JsValue::function(
+                self.cur_fn_ident,
+                expr.is_async,
+                expr.is_generator,
+                return_value,
+            ),
         );
 
         self.cur_fn_ident = old_ident;
