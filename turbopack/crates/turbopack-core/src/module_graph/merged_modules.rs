@@ -147,7 +147,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let visit_count = module_graph.traverse_edges_fixed_point_with_priority(
             entries
                 .iter()
-                .map(|e| Ok((*e, *module_depth.get(e).context("Module depth not found")?)))
+                .map(|e| Ok((*e, -*module_depth.get(e).context("Module depth not found")?)))
                 .collect::<Result<Vec<_>>>()?,
             &mut (),
             |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ RefData)>,
