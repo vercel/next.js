@@ -22,7 +22,6 @@ let reconnections = 0
 let reloading = false
 let serverSessionId: number | null = null
 let mostRecentCompilationHash: string | null = null
-let hadReconnected = false
 
 export function createWebSocket(
   assetPrefix: string,
@@ -45,7 +44,9 @@ export function createWebSocket(
   const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
 
   function init() {
-    if (webSocket) webSocket.close()
+    if (webSocket) {
+      webSocket.close()
+    }
 
     const newWebSocket = new window.WebSocket(
       `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${self.__next_r}`
@@ -56,10 +57,6 @@ export function createWebSocket(
     function handleOnline() {
       if (isTerminalLoggingEnabled) {
         logQueue.onSocketReady(newWebSocket)
-      }
-      // Track if we had previously disconnected and are now reconnecting
-      if (reconnections > 0) {
-        hadReconnected = true
       }
 
       reconnections = 0
@@ -100,7 +97,6 @@ export function createWebSocket(
         ) {
           // If we had previously reconnected and the hash changed, the server may have restarted
           if (
-            hadReconnected &&
             mostRecentCompilationHash !== null &&
             mostRecentCompilationHash !== message.hash
           ) {
@@ -108,8 +104,6 @@ export function createWebSocket(
             reloading = true
             return
           }
-          // Reset reconnection flag after processing the first message
-          hadReconnected = false
           mostRecentCompilationHash = message.hash
         }
 
@@ -152,9 +146,7 @@ export function createWebSocket(
     return newWebSocket
   }
 
-  webSocket = init()
-
-  return webSocket
+  return init()
 }
 
 export function createProcessTurbopackMessage(
