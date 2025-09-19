@@ -1604,7 +1604,7 @@ pub async fn project_get_source_for_asset(
     let container = project.container;
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
-        .run_once(async move {
+        .run(async move {
             let source_content = &*container
                 .project()
                 .project_path()
@@ -1626,7 +1626,7 @@ pub async fn project_get_source_for_asset(
         // source files may have changed or been deleted), so these probably aren't internal errors?
         // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
 #[napi]
