@@ -27,6 +27,9 @@ use turbopack_ecmascript::{
     },
 };
 
+#[global_allocator]
+static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
+
 pub fn benchmark(c: &mut Criterion) {
     let tests_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/analyzer/graph");
     let results = fs::read_dir(tests_dir).unwrap();
