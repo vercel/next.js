@@ -243,8 +243,8 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
             )?;
             code += "};\n";
         }
-        code += "{\n";
 
+        code += "(function(){\n";
         let source_map = if let Some((source_map, _)) = parse_source_map_comment(
             source,
             Either::Right(&content_str),
@@ -259,7 +259,7 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
         code.push_source(content, source_map);
 
         // Add newline in case the raw code had a comment as the last line and no final newline.
-        code += "\n}\n";
+        code += "\n})();\n";
 
         let code = code.build();
         let source_map = if code.has_source_map() {
