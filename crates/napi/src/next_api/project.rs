@@ -1579,7 +1579,7 @@ pub async fn project_trace_source(
     let container = project.container;
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
-        .run_once(async move {
+        .run(async move {
             let traced_frame = project_trace_source_operation(
                 container,
                 frame,
@@ -1593,7 +1593,7 @@ pub async fn project_trace_source(
         // source files may have changed or been deleted), so these probably aren't internal errors?
         // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
 #[napi]
