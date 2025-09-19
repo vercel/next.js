@@ -140,10 +140,10 @@
   },
   "test/development/acceptance-app/editor-links.test.ts": {
     "passed": [
-      "Error overlay - editor links opening links in import traces should be possible to open import trace files on RSC parse error",
       "Error overlay - editor links should be possible to open source file on build error"
     ],
     "failed": [
+      "Error overlay - editor links opening links in import traces should be possible to open import trace files on RSC parse error",
       "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error"
     ],
     "pending": [],
@@ -540,8 +540,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/build-error-logs/build-error-logs.test.ts": {
-    "passed": [],
-    "failed": ["build-error-logs should only log error a single time"],
+    "passed": ["build-error-logs should only log error a single time"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3674,7 +3674,6 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -3689,6 +3688,7 @@
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
+      "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
       "app dir - basic server components should not serve .client.js as a path",
@@ -3732,7 +3732,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components next/router should support router.back and router.forward"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -3933,6 +3933,15 @@
       "async imports in cacheComponents outside of render client import of module with top-level-await",
       "async imports in cacheComponents outside of render server import of a sync module",
       "async imports in cacheComponents outside of render server import of module with top-level-await"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components-errors/cache-components-console-patch.test.ts": {
+    "passed": [
+      "Cache Components Errors Sync IO in console methods Console Patching does not warn about sync IO if console.log is patched to call new Date() internally"
     ],
     "failed": [],
     "pending": [],
@@ -8798,6 +8807,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/trace-build-file/trace-build-file.test.ts": {
+    "passed": [
+      "trace-build-file should not create trace-build file in development mode",
+      "trace-build-file should work with basic page rendering"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/trailingslash/trailingslash.test.ts": {
     "passed": [
       "app-dir trailingSlash handling should contain trailing slash to canonical url",
@@ -11420,10 +11439,12 @@
   "test/e2e/persistent-caching/persistent-caching.test.ts": {
     "passed": [
       "persistent-caching should allow to change files while stopped (run 1)",
-      "persistent-caching should allow to change files while stopped (run 2)",
-      "persistent-caching should allow to change files while stopped (run 3)"
+      "persistent-caching should allow to change files while stopped (run 2)"
     ],
-    "failed": ["persistent-caching should persistent cache loaders"],
+    "failed": [
+      "persistent-caching should allow to change files while stopped (run 3)",
+      "persistent-caching should persistent cache loaders"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
