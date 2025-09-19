@@ -132,7 +132,11 @@ export async function turbopackBuild(): Promise<{
     const topLevelErrors = []
     const topLevelWarnings = []
     for (const issue of entrypoints.issues) {
-      if (issue.severity === 'error' || issue.severity === 'fatal') {
+      if (
+        issue.severity === 'bug' ||
+        issue.severity === 'error' ||
+        issue.severity === 'fatal'
+      ) {
         topLevelErrors.push(formatIssue(issue))
       } else if (isRelevantWarning(issue)) {
         topLevelWarnings.push(formatIssue(issue))
@@ -147,12 +151,18 @@ export async function turbopackBuild(): Promise<{
       )
     }
 
-    if (topLevelErrors.length > 0 || !('routes' in entrypoints)) {
+    if (topLevelErrors.length > 0) {
       throw new Error(
         `Turbopack build failed with ${
           topLevelErrors.length
         } errors:\n${topLevelErrors.join('\n')}`
       )
+    }
+
+    if (!('routes' in entrypoints)) {
+      // This should never ever happen, there should be an error issue, or the bindings call should
+      // have thrown.
+      throw new Error(`Turbopack build failed`)
     }
 
     const currentEntrypoints = await rawEntrypointsToEntrypoints(entrypoints)

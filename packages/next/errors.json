@@ -850,5 +850,6 @@
   "849": "Route %s with \\`dynamic = \"error\"\\` couldn't be rendered statically because it used \\`cookies()\\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
   "850": "metadataBase is not a valid URL: %s",
   "851": "Pass either `webpack` or `turbopack`, not both.",
-  "852": "Only custom servers can pass `webpack`, `turbo`, or `turbopack`."
+  "852": "Only custom servers can pass `webpack`, `turbo`, or `turbopack`.",
+  "853": "Turbopack build failed"
 }
