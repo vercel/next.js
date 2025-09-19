@@ -1073,7 +1073,7 @@ peg$currPos = (
 
 peg$endExpectation = (...) => {"type": "end"}
 
-peg$fail = (...) => (undefined | FreeVar(undefined))
+peg$fail = (...) => undefined
 
 peg$literalExpectation = (...) => {"type": "literal", "text": text, "ignoreCase": ignoreCase}
 

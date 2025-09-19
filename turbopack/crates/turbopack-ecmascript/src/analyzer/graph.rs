@@ -402,7 +402,12 @@ impl EvalContext {
             return imported;
         }
         if is_unresolved(i, self.unresolved_mark) || self.force_free_values.contains(&id) {
-            JsValue::FreeVar(i.sym.clone())
+            // Assume undefined is never shadowed by the global scope
+            if i.sym == "undefined" {
+                JsValue::Constant(ConstantValue::Undefined)
+            } else {
+                JsValue::FreeVar(i.sym.clone())
+            }
         } else {
             JsValue::Variable(id)
         }
@@ -704,7 +709,7 @@ impl EvalContext {
                     .iter()
                     .map(|e| match e {
                         Some(e) => self.eval(&e.expr),
-                        _ => JsValue::FreeVar(atom!("undefined")),
+                        _ => JsValue::Constant(ConstantValue::Undefined),
                     })
                     .collect();
                 JsValue::array(arr)
@@ -1316,7 +1321,7 @@ impl Analyzer<'_> {
         let values = self.cur_fn_return_values.take().unwrap();
 
         Box::new(match values.len() {
-            0 => JsValue::FreeVar(atom!("undefined")),
+            0 => JsValue::Constant(ConstantValue::Undefined),
             1 => values.into_iter().next().unwrap(),
             _ => JsValue::alternatives(values),
         })
@@ -1964,7 +1969,7 @@ impl VisitAstPath for Analyzer<'_> {
                 .arg
                 .as_deref()
                 .map(|e| self.eval_context.eval(e))
-                .unwrap_or(JsValue::FreeVar(atom!("undefined")));
+                .unwrap_or(JsValue::Constant(ConstantValue::Undefined));
 
             values.push(return_value);
         }

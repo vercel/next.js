@@ -108,8 +108,8 @@
                     ),
                 ),
             ),
-            FreeVar(
-                "undefined",
+            Constant(
+                Undefined,
             ),
             Object {
                 total_nodes: 3,

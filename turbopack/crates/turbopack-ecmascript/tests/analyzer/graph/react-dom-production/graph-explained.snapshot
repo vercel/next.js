@@ -300,7 +300,7 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 74327* = (...) => undefined
 
-*anonymous function 86042* = (...) => (undefined | FreeVar(undefined))
+*anonymous function 86042* = (...) => undefined
 
 *anonymous function 86340* = (...) => undefined
 
@@ -730,7 +730,7 @@ Ke = (...) => (undefined | {"node": c, "offset": ???*0*})
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-Kf = (...) => (undefined | FreeVar(undefined))
+Kf = (...) => undefined
 
 Kg = ua["ReactCurrentBatchConfig"]
 
@@ -1121,7 +1121,7 @@ Ti = (...) => undefined
 
 Tj = (...) => undefined
 
-Tk = (...) => (undefined | FreeVar(undefined))
+Tk = (...) => undefined
 
 U = (!(1) | (U || (null !== c["memoizedState"])) | d | (U || m) | l | k | l)
 
@@ -1211,7 +1211,7 @@ Va = (...) => undefined
 
 Vb = (...) => ((3 === b["tag"]) ? c : null)
 
-Vc = (...) => (undefined | FreeVar(undefined))
+Vc = (...) => undefined
 
 Vd = rd(Ud)
 
@@ -3246,7 +3246,7 @@ ba = (
   | new Ld(ba, a, null, c, e)
 )
 
-bb = (...) => (undefined | FreeVar(undefined))
+bb = (...) => undefined
 
 bc = ca["unstable_cancelCallback"]
 
@@ -4400,7 +4400,7 @@ d#997 = (L() | undefined)
 
 da = new FreeVar(Set)()
 
-db = (...) => (undefined | FreeVar(undefined))
+db = (...) => undefined
 
 dc = ca["unstable_requestPaint"]
 
@@ -4982,7 +4982,7 @@ f#986 = c["_reactRootContainer"]
 
 fa = (...) => undefined
 
-fb = (...) => (undefined | FreeVar(undefined))
+fb = (...) => undefined
 
 fc = ca["unstable_ImmediatePriority"]
 
@@ -4994,7 +4994,7 @@ ff = (...) => undefined
 
 fg = (!(1) | !(0))
 
-fh = (...) => (undefined | FreeVar(undefined))
+fh = (...) => undefined
 
 fi = (...) => [b["memoizedState"], c["dispatch"]]
 
@@ -5361,7 +5361,7 @@ hb = (...) => undefined
 
 hc = ca["unstable_NormalPriority"]
 
-hd = (...) => (undefined | FreeVar(undefined))
+hd = (...) => undefined
 
 he = (...) => ((("object" === typeof(a)) && ???*0*) ? a["data"] : null)
 - *0* unsupported expression
@@ -5924,7 +5924,7 @@ nl = (...) => undefined
 
 oa = (...) => (!(0) | !(1))
 
-ob = (...) => (undefined | FreeVar(undefined))
+ob = (...) => undefined
 
 oc = (FreeVar(Math)["clz32"] ? FreeVar(Math)["clz32"] : nc)
 
@@ -6159,7 +6159,7 @@ rg = (1 | ???*0* | og[???*1*] | a["id"])
 
 rh = (...) => undefined
 
-ri = (...) => (undefined | FreeVar(undefined))
+ri = (...) => undefined
 
 rj = (...) => b
 
@@ -6341,7 +6341,7 @@ ug = (...) => undefined
 
 uh = (...) => b(a["_payload"])
 
-ui = (...) => (undefined | FreeVar(undefined))
+ui = (...) => undefined
 
 uj = (...) => undefined
 

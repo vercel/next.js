@@ -3129,13 +3129,10 @@
 
 0 -> 192 free var = FreeVar(undefined)
 
-0 -> 193 conditional = ((???*0* === ???*1*) | (???*2* === null))
+0 -> 193 conditional = ((???*0* === undefined) | (???*1* === null))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
-- *1* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *2* arguments[0]
+- *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
 193 -> 194 free var = FreeVar(Error)
