@@ -165,25 +165,30 @@ pub async fn get_babel_loader_rules(
             //
             // NOTE: we already bail out at the earlier if `foreign` condition is set or if
             // `browser` is not set.
-            if react_compiler_options.compilation_mode == ReactCompilerCompilationMode::Annotation {
-                loader_conditions.push(ConditionItem::Base {
-                    path: None,
-                    content: Some(
-                        EsRegex::new(r#"['"]use memo['"]"#, "")
-                            .expect("valid const regex")
-                            .resolved_cell(),
-                    ),
-                });
-            } else {
-                loader_conditions.push(ConditionItem::Base {
-                    path: None,
-                    // Matches declaration or useXXX or </ (closing jsx) or /> (self closing jsx)
-                    content: Some(
-                        EsRegex::new(r#"['"]use memo['"]|\Wuse[A-Z]|<\/|\/>"#, "")
-                            .expect("valid const regex")
-                            .resolved_cell(),
-                    ),
-                });
+            match react_compiler_options.compilation_mode {
+                ReactCompilerCompilationMode::Annotation => {
+                    loader_conditions.push(ConditionItem::Base {
+                        path: None,
+                        content: Some(
+                            EsRegex::new(r#"['"]use memo['"]"#, "")
+                                .expect("valid const regex")
+                                .resolved_cell(),
+                        ),
+                    });
+                }
+                ReactCompilerCompilationMode::Infer => {
+                    loader_conditions.push(ConditionItem::Base {
+                        path: None,
+                        // Matches declaration or useXXX or </ (closing jsx) or /> (self closing
+                        // jsx)
+                        content: Some(
+                            EsRegex::new(r#"['"]use memo['"]|\Wuse[A-Z]|<\/|\/>"#, "")
+                                .expect("valid const regex")
+                                .resolved_cell(),
+                        ),
+                    });
+                }
+                ReactCompilerCompilationMode::All => {}
             }
         }
     }
