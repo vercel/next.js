@@ -848,5 +848,6 @@
   "847": "Route %s with \\`dynamic = \"error\"\\` couldn't be rendered statically because it used \\`connection()\\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
   "848": "%sused %s. \\`searchParams\\` is a Promise and must be unwrapped with \\`await\\` or \\`React.use()\\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
   "849": "Route %s with \\`dynamic = \"error\"\\` couldn't be rendered statically because it used \\`cookies()\\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
-  "850": "metadataBase is not a valid URL: %s"
+  "850": "metadataBase is not a valid URL: %s",
+  "851": "Turbopack build failed"
 }
