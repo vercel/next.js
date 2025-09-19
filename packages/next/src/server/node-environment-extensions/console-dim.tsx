@@ -1,5 +1,10 @@
 import { dim } from '../../lib/picocolors'
-import { devLogsAsyncStorage } from '../app-render/dev-logs-async-storage.external'
+import {
+  consoleAsyncStorage,
+  type ConsoleStore,
+} from '../app-render/console-async-storage.external'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import { cacheSignal } from 'react'
 
 type InterceptableConsoleMethod =
   | 'error'
@@ -122,7 +127,7 @@ function dimmedConsoleArgs(...inputArgs: any[]): any[] {
   return [dim(`%c${template}`), dimStyle, ...newArgs]
 }
 
-function dimConsoleCall(
+function convertToDimmedArgs(
   methodName: InterceptableConsoleMethod,
   args: any[]
 ): any[] {
@@ -153,7 +158,7 @@ function dimConsoleCall(
 }
 
 // Based on https://github.com/facebook/react/blob/28dc0776be2e1370fe217549d32aee2519f0cf05/packages/react-server/src/ReactFlightServer.js#L248
-function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
+function patchConsoleMethod(methodName: InterceptableConsoleMethod): void {
   const descriptor = Object.getOwnPropertyDescriptor(console, methodName)
   if (
     descriptor &&
@@ -161,14 +166,73 @@ function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
     typeof descriptor.value === 'function'
   ) {
     const originalMethod = descriptor.value
-    const originalName = Object.getOwnPropertyDescriptor(originalMethod, 'name')
+    const originalName = Object.getOwnPropertyDescriptor(
+      originalMethod,
+      'name'
+    ) as string
     const wrapperMethod = function (this: typeof console, ...args: any[]) {
-      const devLogsStore = devLogsAsyncStorage.getStore()
+      const consoleStore = consoleAsyncStorage.getStore()
 
-      if (devLogsStore?.dim === true) {
-        return originalMethod.apply(this, dimConsoleCall(methodName, args))
+      if (consoleStore?.dim === true) {
+        return applyWithDimming.call(
+          this,
+          consoleStore,
+          originalMethod,
+          methodName,
+          args
+        )
       } else {
-        return originalMethod.apply(this, args)
+        const signal = cacheSignal()
+        if (signal) {
+          // We are in a React Server render and can consult the React cache signal to determine if logs
+          // are now dimmable.
+          if (signal.aborted) {
+            return applyWithDimming.call(
+              this,
+              consoleStore,
+              originalMethod,
+              methodName,
+              args
+            )
+          } else {
+            return originalMethod.apply(this, args)
+          }
+        } else {
+          // We are outside of a React Server render but we might be in a workUnitStore with a render
+          // signal. We can get rid of this once React implements cacheSignal for react-dom/server (SSR)
+          const workUnitStore = workUnitAsyncStorage.getStore()
+          switch (workUnitStore?.type) {
+            case 'prerender':
+            case 'prerender-runtime':
+            // These can be hit in a route handler. In the future we can use potential React.createCache API
+            // to create a cache scope for arbitrary computation and can move over to cacheSignal exclusively.
+            // fallthrough
+            case 'prerender-client':
+              // This is a react-dom/server render and won't have a cacheSignal until React adds this for the client world.
+              const renderSignal = workUnitStore.renderSignal
+              if (renderSignal.aborted) {
+                return applyWithDimming.call(
+                  this,
+                  consoleStore,
+                  originalMethod,
+                  methodName,
+                  args
+                )
+              } else {
+                return originalMethod.apply(this, args)
+              }
+            case 'prerender-legacy':
+            case 'prerender-ppr':
+            case 'cache':
+            case 'unstable-cache':
+            case 'private-cache':
+            case 'request':
+            case undefined:
+              return originalMethod.apply(this, args)
+            default:
+              workUnitStore satisfies never
+          }
+        }
       }
     }
     if (originalName) {
@@ -180,16 +244,35 @@ function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
   }
 }
 
-patchConsoleMethodDEV('error')
-patchConsoleMethodDEV('assert')
-patchConsoleMethodDEV('debug')
-patchConsoleMethodDEV('dir')
-patchConsoleMethodDEV('dirxml')
-patchConsoleMethodDEV('group')
-patchConsoleMethodDEV('groupCollapsed')
-patchConsoleMethodDEV('groupEnd')
-patchConsoleMethodDEV('info')
-patchConsoleMethodDEV('log')
-patchConsoleMethodDEV('table')
-patchConsoleMethodDEV('trace')
-patchConsoleMethodDEV('warn')
+function applyWithDimming<F extends (this: Console, ...args: any[]) => any>(
+  this: Console,
+  consoleStore: undefined | ConsoleStore,
+  method: F,
+  methodName: InterceptableConsoleMethod,
+  args: Parameters<F>
+): ReturnType<F> {
+  if (consoleStore?.dim === true) {
+    return method.apply(this, convertToDimmedArgs(methodName, args))
+  } else {
+    return consoleAsyncStorage.run(
+      DIMMED_STORE,
+      method.bind(this, ...convertToDimmedArgs(methodName, args))
+    )
+  }
+}
+
+const DIMMED_STORE = { dim: true }
+
+patchConsoleMethod('error')
+patchConsoleMethod('assert')
+patchConsoleMethod('debug')
+patchConsoleMethod('dir')
+patchConsoleMethod('dirxml')
+patchConsoleMethod('group')
+patchConsoleMethod('groupCollapsed')
+patchConsoleMethod('groupEnd')
+patchConsoleMethod('info')
+patchConsoleMethod('log')
+patchConsoleMethod('table')
+patchConsoleMethod('trace')
+patchConsoleMethod('warn')
