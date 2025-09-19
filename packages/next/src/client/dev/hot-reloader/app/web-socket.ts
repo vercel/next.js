@@ -18,6 +18,12 @@ import {
 } from '../../../../next-devtools/userspace/app/forward-logs'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
 
+let reconnections = 0
+let reloading = false
+let serverSessionId: number | null = null
+let mostRecentCompilationHash: string | null = null
+let hadReconnected = false
+
 export function createWebSocket(
   assetPrefix: string,
   staticIndicatorState: StaticIndicatorState
@@ -28,43 +34,125 @@ export function createWebSocket(
     )
   }
 
-  const webSocket = new window.WebSocket(
-    `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${self.__next_r}`
-  )
+  let webSocket: WebSocket
 
-  webSocket.binaryType = 'arraybuffer'
+  function init() {
+    if (webSocket) webSocket.close()
 
-  if (isTerminalLoggingEnabled) {
-    webSocket.addEventListener('open', () => {
-      logQueue.onSocketReady(webSocket)
-    })
+    const newWebSocket = new window.WebSocket(
+      `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${self.__next_r}`
+    )
+
+    newWebSocket.binaryType = 'arraybuffer'
+
+    const sendMessage = (data: string) => {
+      if (newWebSocket.readyState === newWebSocket.OPEN) {
+        newWebSocket.send(data)
+      }
+    }
+
+    const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
+
+    function handleOnline() {
+      if (isTerminalLoggingEnabled) {
+        logQueue.onSocketReady(newWebSocket)
+      }
+      // Track if we had previously disconnected and are now reconnecting
+      if (reconnections > 0) {
+        hadReconnected = true
+      }
+
+      reconnections = 0
+      window.console.log('[HMR] connected')
+    }
+
+    function handleMessage(event: MessageEvent) {
+      // While the page is reloading, don't respond to any more messages.
+      if (reloading) {
+        return
+      }
+
+      try {
+        const message: HmrMessageSentToBrowser =
+          event.data instanceof ArrayBuffer
+            ? parseBinaryMessage(event.data)
+            : JSON.parse(event.data)
+
+        // Check for server restart in Turbopack mode
+        if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED) {
+          if (
+            serverSessionId !== null &&
+            serverSessionId !== message.data.sessionId
+          ) {
+            // Either the server's session id has changed and it's a new server, or
+            // it's been too long since we disconnected and we should reload the page.
+            window.location.reload()
+            reloading = true
+            return
+          }
+          serverSessionId = message.data.sessionId
+        }
+
+        // Track webpack compilation hash for server restart detection
+        if (
+          message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC &&
+          'hash' in message
+        ) {
+          // If we had previously reconnected and the hash changed, the server may have restarted
+          if (
+            hadReconnected &&
+            mostRecentCompilationHash !== null &&
+            mostRecentCompilationHash !== message.hash
+          ) {
+            window.location.reload()
+            reloading = true
+            return
+          }
+          // Reset reconnection flag after processing the first message
+          hadReconnected = false
+          mostRecentCompilationHash = message.hash
+        }
+
+        processMessage(
+          message,
+          sendMessage,
+          processTurbopackMessage,
+          staticIndicatorState
+        )
+      } catch (err: unknown) {
+        reportInvalidHmrMessage(event, err)
+      }
+    }
+
+    let timer: ReturnType<typeof setTimeout>
+    function handleDisconnect() {
+      newWebSocket.onerror = null
+      newWebSocket.onclose = null
+      newWebSocket.close()
+      reconnections++
+
+      // After 25 reconnects we'll want to reload the page as it indicates the dev server is no longer running.
+      if (reconnections > 25) {
+        reloading = true
+        window.location.reload()
+        return
+      }
+
+      clearTimeout(timer)
+      // Try again after 5 seconds
+      timer = setTimeout(init, reconnections > 5 ? 5000 : 1000)
+    }
+
+    newWebSocket.onopen = handleOnline
+    newWebSocket.onerror = handleDisconnect
+    newWebSocket.onclose = handleDisconnect
+    newWebSocket.onmessage = handleMessage
+
+    webSocket = newWebSocket
+    return newWebSocket
   }
 
-  const sendMessage = (data: string) => {
-    if (webSocket.readyState === webSocket.OPEN) {
-      webSocket.send(data)
-    }
-  }
-
-  const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
-
-  webSocket.addEventListener('message', (event) => {
-    try {
-      const message: HmrMessageSentToBrowser =
-        event.data instanceof ArrayBuffer
-          ? parseBinaryMessage(event.data)
-          : JSON.parse(event.data)
-
-      processMessage(
-        message,
-        sendMessage,
-        processTurbopackMessage,
-        staticIndicatorState
-      )
-    } catch (err: unknown) {
-      reportInvalidHmrMessage(event, err)
-    }
-  })
+  webSocket = init()
 
   return webSocket
 }
