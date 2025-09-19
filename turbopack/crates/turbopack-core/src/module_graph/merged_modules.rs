@@ -249,12 +249,15 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         // A list of all different execution traces (orderings) of all modules, initially a union of
         // the partition of each chunk's modules (one for each ESM subtree in each chunks), but
         // further split up later on.
+        // This is a list (one per chunk group, initially) of lists (one per ESM subtree) of modules
         let mut lists;
         let mut lists_reverse_indices: FxIndexMap<
             ResolvedVc<Box<dyn MergeableModule>>,
             FxIndexSet<ListOccurrence>,
         > = FxIndexMap::default();
 
+        // Once we do the reconciliation below, we need to insert new lists, but the lists are per
+        // chunk group, so we put them into this one.
         #[allow(non_snake_case)]
         let LISTS_COMMON_IDX: usize;
 
