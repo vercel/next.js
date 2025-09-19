@@ -10,7 +10,6 @@ import { patchIncorrectLockfile } from '../../lib/patch-incorrect-lockfile'
 import { downloadNativeNextSwc, downloadWasmSwc } from '../../lib/download-swc'
 import type {
   NextConfigComplete,
-  ReactCompilerOptions,
   TurbopackLoaderBuiltinCondition,
   TurbopackLoaderItem,
   TurbopackRuleCondition,
@@ -19,7 +18,6 @@ import type {
 } from '../../server/config-shared'
 import { isDeepStrictEqual } from 'util'
 import { type DefineEnvOptions, getDefineEnv } from '../define-env'
-import { getReactCompilerLoader } from '../get-babel-loader-config'
 import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
