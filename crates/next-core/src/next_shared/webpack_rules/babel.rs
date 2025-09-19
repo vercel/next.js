@@ -107,6 +107,6 @@ async fn to_sys_path_str(path: FileSystemPath) -> Result<String> {
         .context("path should use a DiskFileSystem")?;
     Ok(sys_path
         .to_str()
-        .with_context(|| "{sys_path:?} is not valid utf-8")?
+        .with_context(|| format!("{sys_path:?} is not valid utf-8"))?
         .to_owned())
 }
