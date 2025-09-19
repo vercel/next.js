@@ -6,6 +6,9 @@ describe('persistent-caching', () => {
   const { skipped, next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
+    installCommand: 'npm i',
+    buildCommand: 'npm next build',
+    startCommand: isNextDev ? 'npm exec next dev' : 'npm exec next start',
   })
 
   beforeAll(() => {
