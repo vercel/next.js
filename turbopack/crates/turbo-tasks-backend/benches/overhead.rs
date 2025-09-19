@@ -191,7 +191,7 @@ fn run_turbo<Mode: TurboMode>(
         ));
 
         async move {
-            tt.run_once(async move {
+            tt.run(async move {
                 // If cached run once outside the loop to ensure the tasks are cached.
                 if Mode::is_cached() {
                     for i in 0..iters {

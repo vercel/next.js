@@ -47,11 +47,12 @@ pub fn scope_stress(c: &mut Criterion) {
                             .map(|(a, b)| {
                                 let tt = &tt;
                                 async move {
-                                    tt.run_once(async move {
-                                        rectangle(a, b).strongly_consistent().await?;
-                                        Ok(())
-                                    })
-                                    .await
+                                    Ok(tt
+                                        .run(async move {
+                                            rectangle(a, b).strongly_consistent().await?;
+                                            Ok(())
+                                        })
+                                        .await?)
                                 }
                             })
                             .try_join()
