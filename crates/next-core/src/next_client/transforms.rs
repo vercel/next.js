@@ -45,6 +45,11 @@ pub async fn get_next_client_transforms_rules(
         ));
     }
 
+    // This is purely a performance optimization:
+    // - The next-devtools file is very large and rather slow to analyze (unforatunately, at least
+    //   with our current implementation)
+    // - It's used by every single application in dev, even tiny (CNA) apps
+    // - It's prebundled already and doesn't contain any imports/requires
     rules.push(ModuleRule::new(
         RuleCondition::ResourcePathEndsWith(
             "next/dist/compiled/next-devtools/index.js".to_string(),
