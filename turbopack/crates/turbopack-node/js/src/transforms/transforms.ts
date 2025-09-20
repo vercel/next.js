@@ -50,10 +50,7 @@ export const toPath = (file: string) => {
   return sep !== '/' ? relPath.replaceAll(sep, '/') : relPath
 }
 export const fromPath = (path: string) => {
-  return join(
-    /* turbopackIgnore: true */ contextDir,
-    sep !== '/' ? path.replaceAll('/', sep) : path
-  )
+  return join(contextDir, sep !== '/' ? path.replaceAll('/', sep) : path)
 }
 
 // Patch process.env to track which env vars are read
