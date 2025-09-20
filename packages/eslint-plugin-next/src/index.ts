@@ -113,10 +113,7 @@ Object.assign(plugin.configs, {
     plugins: {
       '@next/next': plugin,
     },
-    rules: {
-      ...recommendedRules,
-      ...coreWebVitalsRules,
-    },
+    rules: coreWebVitalsRules,
   },
 } satisfies ESLintPluginConfigs)
 
