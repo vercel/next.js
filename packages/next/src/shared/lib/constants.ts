@@ -87,7 +87,6 @@ export const WEBPACK_STATS = 'webpack-stats.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
-export const APP_BUILD_MANIFEST = 'app-build-manifest.json'
 export const FUNCTIONS_CONFIG_MANIFEST = 'functions-config-manifest.json'
 export const SUBRESOURCE_INTEGRITY_MANIFEST = 'subresource-integrity-manifest'
 export const NEXT_FONT_MANIFEST = 'next-font-manifest'
@@ -109,6 +108,9 @@ export const CONFIG_FILES = [
   'next.config.js',
   'next.config.mjs',
   'next.config.ts',
+  // process.features can be undefined on Edge runtime
+  // TODO: Remove `as any` once we bump @types/node to v22.10.0+
+  ...((process?.features as any)?.typescript ? ['next.config.mts'] : []),
 ]
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']

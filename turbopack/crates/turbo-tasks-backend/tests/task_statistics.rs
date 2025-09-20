@@ -254,16 +254,23 @@ fn enable_stats() {
 
 fn stats_json() -> serde_json::Value {
     let tt = turbo_tasks::turbo_tasks();
-    remove_crate(serde_json::to_value(tt.task_statistics().get()).unwrap())
+    make_stats_deterministic(serde_json::to_value(tt.task_statistics().get()).unwrap())
 }
 
 // Global task identifiers can contain the crate name, remove it to simplify test assertions
-fn remove_crate(mut json: serde_json::Value) -> serde_json::Value {
+fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
     static HASH_RE: Lazy<Regex> = Lazy::new(|| Regex::new("^[^:@]+@[^:]+:+").unwrap());
     match &mut json {
         serde_json::Value::Object(map) => {
             let old_map = std::mem::take(map);
             for (k, v) in old_map {
+                // Replace `duration` with a fixed value to simplify test assertions
+                let mut v = v.clone();
+                let object = v.as_object_mut().unwrap();
+                // These are only populated after the task has finalized execution so it racy to
+                // assert on it.
+                object.remove("duration");
+                object.remove("executions");
                 map.insert(HASH_RE.replace(&k, "").into_owned(), v);
             }
         }

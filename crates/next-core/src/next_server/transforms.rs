@@ -3,15 +3,17 @@ use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
-use turbopack_core::reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType};
+use turbopack_core::reference_type::{
+    CssReferenceSubType, EntryReferenceSubType, ReferenceType, UrlReferenceSubType,
+};
 
 use crate::{
     mode::NextMode,
     next_config::NextConfig,
     next_server::context::ServerContextType,
     next_shared::transforms::{
-        get_next_dynamic_transform_rule, get_next_font_transform_rule, get_next_image_rule,
-        get_next_lint_transform_rule, get_next_modularize_imports_rule,
+        get_import_type_bytes_rule, get_next_dynamic_transform_rule, get_next_font_transform_rule,
+        get_next_image_rule, get_next_lint_transform_rule, get_next_modularize_imports_rule,
         get_next_pages_transforms_rule, get_next_track_dynamic_imports_transform_rule,
         get_server_actions_transform_rule, next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
@@ -75,26 +77,18 @@ pub async fn get_next_server_transforms_rules(
                     mdx_rs,
                     pages_dir.clone(),
                 ));
-            }
-            false
-        }
-        ServerContextType::PagesData { pages_dir } => {
-            if !foreign_code {
-                rules.push(
-                    get_next_pages_transforms_rule(
-                        pages_dir.clone(),
-                        ExportFilter::StripDefaultExport,
-                        mdx_rs,
-                    )
-                    .await?,
-                );
-                rules.push(get_next_disallow_export_all_in_page_rule(
-                    mdx_rs,
+                rules.push(get_next_pages_transforms_rule(
                     pages_dir.clone(),
-                ));
+                    ExportFilter::StripDefaultExport,
+                    mdx_rs,
+                    vec![RuleCondition::ReferenceType(ReferenceType::Entry(
+                        EntryReferenceSubType::PageData,
+                    ))],
+                )?);
             }
             false
         }
+
         ServerContextType::AppSSR { .. } => {
             // Yah, this is SSR, but this is still treated as a Client transform layer.
             // need to apply to foreign code too
@@ -215,6 +209,10 @@ pub async fn get_next_server_transforms_rules(
         }
     }
 
+    if *next_config.turbopack_import_type_bytes().await? {
+        rules.push(get_import_type_bytes_rule());
+    }
+
     Ok(rules)
 }
 
@@ -232,7 +230,6 @@ pub async fn get_next_server_internal_transforms_rules(
             rules.push(get_next_font_transform_rule(mdx_rs));
         }
         ServerContextType::PagesApi { .. } => {}
-        ServerContextType::PagesData { .. } => {}
         ServerContextType::AppSSR { .. } => {
             rules.push(get_next_font_transform_rule(mdx_rs));
         }

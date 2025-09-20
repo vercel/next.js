@@ -19,8 +19,8 @@ pub async fn get_global_module_id_strategy(
 ) -> Result<Vc<GlobalModuleIdStrategy>> {
     let span = tracing::info_span!("compute module id map");
     async move {
-        let module_graph = module_graph.await?;
-        let graphs = module_graph.graphs.iter().try_join().await?;
+        let module_graph = module_graph.read_graphs().await?;
+        let graphs = &module_graph.graphs;
 
         // All modules in the graph
         let module_idents = graphs
@@ -30,24 +30,21 @@ pub async fn get_global_module_id_strategy(
 
         // And additionally, all the modules that are inserted by chunking (i.e. async loaders)
         let mut async_idents = vec![];
-        module_graph
-            .traverse_all_edges_unordered(|parent, current| {
-                if let (
-                    _,
-                    &RefData {
-                        chunking_type: ChunkingType::Async,
-                        ..
-                    },
-                ) = parent
-                {
-                    let module =
-                        ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current.module)
-                            .context("expected chunkable module for async reference")?;
-                    async_idents.push(AsyncLoaderModule::asset_ident_for(*module));
-                }
-                Ok(())
-            })
-            .await?;
+        module_graph.traverse_all_edges_unordered(|parent, current| {
+            if let (
+                _,
+                &RefData {
+                    chunking_type: ChunkingType::Async,
+                    ..
+                },
+            ) = parent
+            {
+                let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current.module)
+                    .context("expected chunkable module for async reference")?;
+                async_idents.push(AsyncLoaderModule::asset_ident_for(*module));
+            }
+            Ok(())
+        })?;
 
         let mut module_id_map = module_idents
             .chain(async_idents.into_iter())

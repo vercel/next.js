@@ -3,7 +3,7 @@ use std::{fs, path::PathBuf};
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ReadConsistency, ResolvedVc, TurboTasks, Vc, apply_effects};
+use turbo_tasks::{ResolvedVc, TurboTasks, Vc, apply_effects};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbopack::{
@@ -75,7 +75,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
         let tests_root: RcStr = bench_input.tests_root.clone().into();
         let input: RcStr = bench_input.input.clone().into();
         async move {
-            let task = tt.spawn_once_task(async move {
+            tt.run_once(async move {
                 let input_fs = DiskFileSystem::new(rcstr!("tests"), tests_root.clone());
                 let input = input_fs.root().await?.join(&input)?;
 
@@ -125,11 +125,10 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 emit_op.read_strongly_consistent().await?;
                 apply_effects(emit_op).await?;
 
-                Ok::<Vc<()>, _>(Default::default())
-            });
-            tt.wait_task_completion(task, ReadConsistency::Strong)
-                .await
-                .unwrap();
+                Ok(())
+            })
+            .await
+            .unwrap();
         }
     })
 }

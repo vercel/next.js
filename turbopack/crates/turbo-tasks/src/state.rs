@@ -1,4 +1,5 @@
 use std::{
+    any::type_name,
     fmt::Debug,
     mem::take,
     ops::{Deref, DerefMut},
@@ -7,6 +8,7 @@ use std::{
 use auto_hash_map::AutoSet;
 use parking_lot::{Mutex, MutexGuard};
 use serde::{Deserialize, Serialize};
+use tracing::trace_span;
 
 use crate::{
     Invalidator, OperationValue, SerializationInvalidator, get_invalidator, mark_session_dependent,
@@ -54,6 +56,7 @@ impl<T: PartialEq> StateInner<T> {
         if self.value == value {
             return false;
         }
+        let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
         self.value = value;
         for invalidator in take(&mut self.invalidators) {
             invalidator.invalidate();
@@ -170,7 +173,9 @@ impl<T> State<T> {
     pub fn get(&self) -> StateRef<'_, T> {
         let invalidator = get_invalidator();
         let mut inner = self.inner.lock();
-        inner.add_invalidator(invalidator);
+        if let Some(invalidator) = invalidator {
+            inner.add_invalidator(invalidator);
+        }
         StateRef {
             serialization_invalidator: Some(&self.serialization_invalidator),
             inner,
@@ -295,7 +300,9 @@ impl<T> TransientState<T> {
         mark_session_dependent();
         let invalidator = get_invalidator();
         let mut inner = self.inner.lock();
-        inner.add_invalidator(invalidator);
+        if let Some(invalidator) = invalidator {
+            inner.add_invalidator(invalidator);
+        }
         StateRef {
             serialization_invalidator: None,
             inner,

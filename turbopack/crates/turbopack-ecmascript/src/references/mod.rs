@@ -61,8 +61,8 @@ use swc_core::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
-    UpcastStrict, ValueToString, Vc, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
+    ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -74,7 +74,7 @@ use turbopack_core::{
     error::PrettyPrintError,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     module::Module,
-    reference::{ModuleReference, ModuleReferences, SourceMapReference},
+    reference::{ModuleReference, ModuleReferences},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
         FindContextFileResult, ModulePart, find_context_file,
@@ -143,7 +143,6 @@ use crate::{
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
     export::Liveness,
     magic_identifier,
-    parse::parse,
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
         cjs::{CjsRequireAssetReference, CjsRequireCacheAccess, CjsRequireResolveAssetReference},
@@ -157,13 +156,13 @@ use crate::{
         node::PackageJsonReference,
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
-        util::InlineSourceMap,
     },
     runtime_functions::{
         TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXPORTS, TURBOPACK_GLOBAL,
         TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
-    tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
+    source_map::parse_source_map_comment,
+    tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split_module},
     utils::{AstPathRange, module_value_to_well_known_object},
 };
 
@@ -255,11 +254,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an asset reference to the analysis result.
-    pub fn add_reference(
-        &mut self,
-        reference: ResolvedVc<impl UpcastStrict<Box<dyn ModuleReference>>>,
-    ) {
-        let r = ResolvedVc::upcast(reference);
+    pub fn add_reference(&mut self, reference: ResolvedVc<impl Upcast<Box<dyn ModuleReference>>>) {
+        let r = ResolvedVc::upcast_non_strict(reference);
         self.references.insert(r);
     }
 
@@ -530,9 +526,8 @@ pub async fn analyse_ecmascript_module_internal(
     };
 
     let parsed = if let Some(part) = part {
-        let parsed = parse(*source, ty, *transforms);
-        let split_data = split(source.ident(), *source, parsed);
-        part_of_module(split_data, part.clone())
+        let split_data = split_module(*module);
+        part_of_module(split_data, part)
     } else {
         module.failsafe_parse()
     };
@@ -670,50 +665,17 @@ pub async fn analyse_ecmascript_module_internal(
     if options.extract_source_map {
         let span = tracing::info_span!("source map reference");
         async {
-            // Only use the last sourceMappingURL comment by spec
-            let mut paths_by_pos = Vec::new();
-            for (pos, comments) in comments.trailing.iter() {
-                for comment in comments.iter().rev() {
-                    static SOURCE_MAP_FILE_REFERENCE: LazyLock<Regex> =
-                        LazyLock::new(|| Regex::new(r"# sourceMappingURL=(.*)$").unwrap());
-                    if let Some(m) = SOURCE_MAP_FILE_REFERENCE.captures(&comment.text) {
-                        let path = m.get(1).unwrap().as_str();
-                        paths_by_pos.push((pos, path));
-                        break;
-                    }
-                }
-            }
-
-            let mut source_map_from_comment = false;
-            if let Some((_, path)) = paths_by_pos.into_iter().max_by_key(|&(pos, _)| pos) {
-                static JSON_DATA_URL_BASE64: LazyLock<Regex> = LazyLock::new(|| {
-                    Regex::new(r"^data:application\/json;(?:charset=utf-8;)?base64").unwrap()
-                });
-                let origin_path = origin.origin_path().owned().await?;
-                if path.ends_with(".map") {
-                    let source_map_origin = origin_path.parent().join(path)?;
-                    let reference = SourceMapReference::new(origin_path, source_map_origin)
-                        .to_resolved()
-                        .await?;
-                    analysis.add_reference(reference);
-                    analysis.set_source_map(ResolvedVc::upcast(reference));
-                    source_map_from_comment = true;
-                } else if JSON_DATA_URL_BASE64.is_match(path) {
-                    analysis.set_source_map(ResolvedVc::upcast(
-                        InlineSourceMap {
-                            origin_path,
-                            source_map: path.into(),
-                        }
-                        .resolved_cell(),
-                    ));
-                    source_map_from_comment = true;
-                }
-            }
-            if !source_map_from_comment
-                && let Some(generate_source_map) =
-                    ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source)
+            if let Some((source_map, reference)) = parse_source_map_comment(
+                source,
+                Either::Left(comments),
+                &*origin.origin_path().await?,
+            )
+            .await?
             {
-                analysis.set_source_map(generate_source_map);
+                analysis.set_source_map(source_map);
+                if let Some(reference) = reference {
+                    analysis.add_reference(reference);
+                }
             }
             anyhow::Ok(())
         }

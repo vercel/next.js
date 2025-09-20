@@ -12,8 +12,8 @@ use next_core::{
         get_app_page_entry, get_app_route_entry, metadata::route::get_app_metadata_route_entry,
     },
     next_client::{
-        ClientContextType, RuntimeEntries, get_client_module_options_context,
-        get_client_resolve_options_context, get_client_runtime_entries,
+        ClientContextType, get_client_module_options_context, get_client_resolve_options_context,
+        get_client_runtime_entries,
     },
     next_client_reference::{
         ClientReferenceGraphResult, NextCssClientReferenceTransition,
@@ -23,13 +23,12 @@ use next_core::{
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
-        EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
+        AppPathsManifest, BuildManifest, ClientReferenceManifest, EdgeFunctionDefinition,
+        MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
         client_reference_manifest::ClientReferenceManifestOptions,
     },
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
-        get_server_runtime_entries,
     },
     next_server_utility::{NEXT_SERVER_UTILITY_MERGE_TAG, NextServerUtilityTransition},
     parse_segment_config_from_source,
@@ -41,7 +40,7 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    fxindexmap, fxindexset, trace::TraceRawVcs,
+    fxindexset, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -779,26 +778,6 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn runtime_entries(self: Vc<Self>) -> Result<Vc<RuntimeEntries>> {
-        Ok(get_server_runtime_entries(
-            self.rsc_ty().owned().await?,
-            self.project().next_mode(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn rsc_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
-        self.runtime_entries()
-            .resolve_entries(Vc::upcast(self.rsc_module_context()))
-    }
-
-    #[turbo_tasks::function]
-    fn edge_rsc_runtime_entries(self: Vc<Self>) -> Vc<EvaluatableAssets> {
-        self.runtime_entries()
-            .resolve_entries(Vc::upcast(self.edge_rsc_module_context()))
-    }
-
-    #[turbo_tasks::function]
     fn client_env(self: Vc<Self>) -> Vc<Box<dyn ProcessEnv>> {
         Vc::upcast(CustomProcessEnv::new(
             self.project().env(),
@@ -1175,7 +1154,7 @@ impl AppEndpoint {
         enum EmitManifests {
             /// Don't emit any manifests (needed for the RSC endpoints)
             None,
-            /// Emit the manifest for basic Next.js functionality (e.g. app-build-manifest.json)
+            /// Emit the manifest for basic Next.js functionality
             Minimal,
             /// All manifests: `Minimal` plus next-font, next-dynamic, ...
             Full,
@@ -1333,30 +1312,6 @@ impl AppEndpoint {
 
         let manifest_path_prefix = &app_entry.original_name;
 
-        if emit_manifests != EmitManifests::None {
-            let app_build_manifest = AppBuildManifest {
-                pages: fxindexmap!(
-                    app_entry.original_name.clone() => ResolvedVc::cell(entry_client_chunks
-                        .iter()
-                        .chain(client_shared_chunks.iter())
-                        .copied()
-                        .collect())
-                ),
-            };
-            let app_build_manifest_output = app_build_manifest
-                .build_output(
-                    node_root.join(&format!(
-                        "server/app{manifest_path_prefix}/app-build-manifest.json",
-                    ))?,
-                    client_relative_path.clone(),
-                )
-                .await?
-                .to_resolved()
-                .await?;
-
-            server_assets.insert(app_build_manifest_output);
-        }
-
         // polyfill-nomodule.js is a pre-compiled asset distributed as part of next,
         // load it as a RawModule.
         let next_package = get_next_package(project.project_path().owned().await?)
@@ -1407,21 +1362,15 @@ impl AppEndpoint {
             }
 
             let build_manifest = BuildManifest {
+                output_path: node_root.join(&format!(
+                    "server/app{manifest_path_prefix}/build-manifest.json",
+                ))?,
+                client_relative_path: client_relative_path.clone(),
+                pages: Default::default(),
                 root_main_files: client_shared_chunks,
                 polyfill_files: vec![polyfill_output_asset],
-                ..Default::default()
             };
-            let build_manifest_output = build_manifest
-                .build_output(
-                    node_root.join(&format!(
-                        "server/app{manifest_path_prefix}/build-manifest.json",
-                    ))?,
-                    client_relative_path.clone(),
-                )
-                .await?
-                .to_resolved()
-                .await?;
-            server_assets.insert(build_manifest_output);
+            server_assets.insert(ResolvedVc::upcast(build_manifest.resolved_cell()));
         }
 
         if runtime == NextRuntime::Edge {
@@ -1780,17 +1729,11 @@ impl AppEndpoint {
                     )
                     .await?;
 
-                let edge_rsc_runtime_entries = this.app_project.edge_rsc_runtime_entries().await?;
-                let evaluatable_assets = edge_rsc_runtime_entries
-                    .iter()
-                    .map(|m| ResolvedVc::upcast(*m))
-                    .chain(std::iter::once(app_entry.rsc_entry));
-
                 assets.concatenate(
                     chunking_context
                         .evaluated_chunk_group_assets(
                             app_entry.rsc_entry.ident(),
-                            ChunkGroup::Entry(evaluatable_assets.collect()),
+                            ChunkGroup::Entry(vec![app_entry.rsc_entry]),
                             module_graph,
                             availability_info,
                         )
@@ -1799,13 +1742,11 @@ impl AppEndpoint {
                 )
             }
             NextRuntime::NodeJs => {
-                let mut evaluatable_assets = this.app_project.rsc_runtime_entries().owned().await?;
-
                 let Some(rsc_entry) = ResolvedVc::try_downcast(app_entry.rsc_entry) else {
                     bail!("rsc_entry must be evaluatable");
                 };
 
-                evaluatable_assets.push(rsc_entry);
+                let evaluatable_assets = Vc::cell(vec![rsc_entry]);
 
                 async {
                     let mut current_chunks = OutputAssets::empty();
@@ -1909,7 +1850,7 @@ impl AppEndpoint {
                                     "app{original_name}.js",
                                     original_name = app_entry.original_name
                                 ))?,
-                                Vc::cell(evaluatable_assets),
+                                evaluatable_assets,
                                 module_graph,
                                 current_chunks,
                                 current_availability_info,

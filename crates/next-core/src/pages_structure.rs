@@ -271,17 +271,14 @@ async fn get_pages_structure_for_root_directory(
 
     // Only skip user pages routes during build mode when there are no user pages
     let should_create_pages_entries = has_user_pages || next_mode.await?.is_development();
+    let next_package = get_next_package(project_root.clone()).await?;
 
     let app_item = {
         let app_router_path = next_router_path.join("_app")?;
         PagesStructureItem::new(
             pages_path.join("_app")?,
             page_extensions,
-            Some(
-                get_next_package(project_root.clone())
-                    .await?
-                    .join("app.js")?,
-            ),
+            Some(next_package.join("app.js")?),
             app_router_path.clone(),
             app_router_path,
         )
@@ -292,11 +289,7 @@ async fn get_pages_structure_for_root_directory(
         PagesStructureItem::new(
             pages_path.join("_document")?,
             page_extensions,
-            Some(
-                get_next_package(project_root.clone())
-                    .await?
-                    .join("document.js")?,
-            ),
+            Some(next_package.join("document.js")?),
             document_router_path.clone(),
             document_router_path,
         )
@@ -307,11 +300,7 @@ async fn get_pages_structure_for_root_directory(
         PagesStructureItem::new(
             pages_path.join("_error")?,
             page_extensions,
-            Some(
-                get_next_package(project_root.clone())
-                    .await?
-                    .join("error.js")?,
-            ),
+            Some(next_package.join("error.js")?),
             error_router_path.clone(),
             error_router_path,
         )

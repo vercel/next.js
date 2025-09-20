@@ -294,7 +294,13 @@ export async function handler(
   // When a page supports PPR, we can support RSC for Navigations so long as the
   // feature is not disabled.
   const supportsRSCForNavigations =
-    isRoutePPREnabled && nextConfig.experimental.rdcForNavigations === true
+    isRoutePPREnabled &&
+    nextConfig.experimental.rdcForNavigations === true &&
+    // Temporarily we require that clientParamParsing is enabled for
+    // RDC for Navigations. This is due to a builder configuration
+    // bug that manifests as invalid query params being passed to
+    // the resume lambdas.
+    nextConfig.experimental.clientParamParsing === true
 
   // In development, we always want to generate dynamic HTML.
   const supportsDynamicResponse: boolean =
@@ -453,7 +459,7 @@ export async function handler(
           })
           span.updateName(name)
         } else {
-          span.updateName(`${method} ${req.url}`)
+          span.updateName(`${method} ${srcPage}`)
         }
       })
     }
@@ -533,7 +539,6 @@ export async function handler(
                 )
               : `${process.cwd()}/${routeModule.relativeProjectDir}`,
           isDraftMode,
-          isRevalidate: isSSG && !postponed && !isDynamicRSCRequest,
           botType,
           isOnDemandRevalidate,
           isPossibleServerAction,
@@ -560,7 +565,6 @@ export async function handler(
                 nextExport: true,
                 supportsDynamicResponse: false,
                 isStaticGeneration: true,
-                isRevalidate: true,
                 isDebugDynamicAccesses: isDebugDynamicAccesses,
               }
             : {}),
@@ -606,7 +610,6 @@ export async function handler(
       if (isDebugStaticShell || isDebugDynamicAccesses) {
         context.renderOpts.nextExport = true
         context.renderOpts.supportsDynamicResponse = false
-        context.renderOpts.isRevalidate = true
         context.renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
       }
 
@@ -1390,7 +1393,7 @@ export async function handler(
         tracer.trace(
           BaseServerSpan.handleRequest,
           {
-            spanName: `${method} ${req.url}`,
+            spanName: `${method} ${srcPage}`,
             kind: SpanKind.SERVER,
             attributes: {
               'http.method': method,
@@ -1411,7 +1414,7 @@ export async function handler(
           routePath: srcPage,
           routeType: 'render',
           revalidateReason: getRevalidateReason({
-            isRevalidate: isSSG,
+            isStaticGeneration: isSSG,
             isOnDemandRevalidate,
           }),
         },

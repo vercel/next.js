@@ -48,7 +48,9 @@
               '" in the React Server Manifest. This is probably a bug in the React Server Components bundler.'
           );
       }
-      return [resolvedModuleData.id, resolvedModuleData.chunks, name];
+      return resolvedModuleData.async
+        ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
+        : [resolvedModuleData.id, resolvedModuleData.chunks, name];
     }
     function requireAsyncModule(id) {
       var promise = globalThis.__next_require__(id);
@@ -3064,7 +3066,7 @@
     function resolveErrorDev(response, errorInfo) {
       var name = errorInfo.name,
         env = errorInfo.env;
-      errorInfo = buildFakeCallStack(
+      var error = buildFakeCallStack(
         response,
         errorInfo.stack,
         env,
@@ -3075,11 +3077,25 @@
             "An error occurred in the Server Components render but no message was provided"
         )
       );
-      response = getRootTask(response, env);
-      response = null != response ? response.run(errorInfo) : errorInfo();
-      response.name = name;
-      response.environmentName = env;
-      return response;
+      var ownerTask = null;
+      null != errorInfo.owner &&
+        ((errorInfo = errorInfo.owner.slice(1)),
+        (errorInfo = getOutlinedModel(
+          response,
+          errorInfo,
+          {},
+          "",
+          createModel
+        )),
+        null !== errorInfo &&
+          (ownerTask = initializeFakeTask(response, errorInfo)));
+      null === ownerTask
+        ? ((response = getRootTask(response, env)),
+          (error = null != response ? response.run(error) : error()))
+        : (error = ownerTask.run(error));
+      error.name = name;
+      error.environmentName = env;
+      return error;
     }
     function createFakeFunction(
       name,

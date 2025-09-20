@@ -14,8 +14,8 @@ use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
     issue::{
-        Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionIssueProcessingPathItems,
-        OptionStyledString, PlainIssue, StyledString,
+        CollectibleIssuesExt, Issue, IssueSeverity, IssueStage, OptionStyledString, PlainIssue,
+        StyledString,
     },
     server_fs::ServerFileSystem,
     version::{
@@ -88,7 +88,7 @@ impl GetContentFn {
 }
 
 async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
-    let captured = source.peek_issues_with_path().await?;
+    let captured = source.peek_issues().await?;
 
     captured.get_plain_issues().await
 }
@@ -137,7 +137,6 @@ async fn get_update_stream_item_operation(
                         .cell(),
                     ),
                     None,
-                    OptionIssueProcessingPathItems::none(),
                 )
                 .await?,
             );

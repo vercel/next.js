@@ -9,10 +9,6 @@ autobenches = false
 [lib]
 bench = false
 
-[[bench]]
-name = "hmr"
-harness = false
-
 [lints]
 workspace = true
 
@@ -44,11 +40,9 @@ turbopack-wasm = { workspace = true }
 
 [dev-dependencies]
 turbo-tasks-malloc = { workspace = true }
-divan = { workspace = true }
 tokio = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-backend = { workspace = true }
-
 
 [build-dependencies]
 anyhow = { workspace = true }

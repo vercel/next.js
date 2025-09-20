@@ -124,12 +124,6 @@ pub struct BackendOptions {
     /// forever.
     pub dependency_tracking: bool,
 
-    /// Enables children tracking.
-    ///
-    /// When disabled: Strongly consistent reads are only eventually consistent. All tasks are
-    /// considered as active. Collectibles are disabled.
-    pub children_tracking: bool,
-
     /// Enables active tracking.
     ///
     /// Automatically disabled when `dependency_tracking` is disabled.
@@ -148,7 +142,6 @@ impl Default for BackendOptions {
     fn default() -> Self {
         Self {
             dependency_tracking: true,
-            children_tracking: true,
             active_tracking: true,
             storage_mode: Some(StorageMode::ReadWrite),
             small_preallocation: false,
@@ -386,10 +379,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.options.active_tracking
     }
 
-    fn should_track_children(&self) -> bool {
-        self.options.children_tracking
-    }
-
     fn track_cache_hit(&self, task_type: &CachedTaskType) {
         self.task_statistics
             .map(|stats| stats.increment_cache_hit(task_type.native_fn));
@@ -398,6 +387,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn track_cache_miss(&self, task_type: &CachedTaskType) {
         self.task_statistics
             .map(|stats| stats.increment_cache_miss(task_type.native_fn));
+    }
+
+    fn track_task_duration(&self, task_id: TaskId, duration: std::time::Duration) {
+        self.task_statistics.map(|stats| {
+            if let Some(task_type) = self.task_cache.lookup_reverse(&task_id) {
+                stats.increment_execution_duration(task_type.native_fn, duration);
+            }
+        });
     }
 }
 
@@ -426,7 +423,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     unsafe fn connect_child_with_tx<'l, 'tx: 'l>(
         &'l self,
         tx: Option<&'l B::ReadTransaction<'tx>>,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         child_task: TaskId,
         turbo_tasks: &'l dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
@@ -437,7 +434,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn connect_child(
         &self,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         child_task: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
@@ -455,9 +452,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<RawVc, EventListener>> {
-        if let Some(reader) = reader {
-            self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
-        }
+        self.assert_not_persistent_calling_transient(reader, task_id, /* cell_id */ None);
 
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -509,7 +504,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         }
 
-        if self.should_track_children() && matches!(consistency, ReadConsistency::Strong) {
+        if matches!(consistency, ReadConsistency::Strong) {
             // Ensure it's an root node
             loop {
                 let aggregation_number = get_aggregation_number(&task);
@@ -765,9 +760,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
-        if let Some(reader) = reader {
-            self.assert_not_persistent_calling_transient(reader, task_id, Some(cell));
-        }
+        self.assert_not_persistent_calling_transient(reader, task_id, Some(cell));
 
         fn add_cell_dependency<B: BackingStorage>(
             backend: &TurboTasksBackendInner<B>,
@@ -1279,7 +1272,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn get_or_create_persistent_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
@@ -1339,10 +1332,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn get_or_create_transient_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
-        if !parent_task.is_transient() {
+        if let Some(parent_task) = parent_task
+            && !parent_task.is_transient()
+        {
             self.panic_persistent_calling_transient(
                 self.lookup_task_type(parent_task).as_deref(),
                 Some(&task_type),
@@ -1597,27 +1592,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 })),
             });
 
-            if self.should_track_children() {
-                // Make all current collectibles outdated (remove left-over outdated collectibles)
-                enum Collectible {
-                    Current(CollectibleRef, i32),
-                    Outdated(CollectibleRef),
-                }
-                let collectibles = iter_many!(task, Collectible { collectible } value => Collectible::Current(collectible, *value))
+            // Make all current collectibles outdated (remove left-over outdated collectibles)
+            enum Collectible {
+                Current(CollectibleRef, i32),
+                Outdated(CollectibleRef),
+            }
+            let collectibles = iter_many!(task, Collectible { collectible } value => Collectible::Current(collectible, *value))
                     .chain(iter_many!(task, OutdatedCollectible { collectible } => Collectible::Outdated(collectible)))
                     .collect::<Vec<_>>();
-                for collectible in collectibles {
-                    match collectible {
-                        Collectible::Current(collectible, value) => {
-                            let _ = task
-                                .insert(CachedDataItem::OutdatedCollectible { collectible, value });
-                        }
-                        Collectible::Outdated(collectible) => {
-                            if !task.has_key(&CachedDataItemKey::Collectible { collectible }) {
-                                task.remove(&CachedDataItemKey::OutdatedCollectible {
-                                    collectible,
-                                });
-                            }
+            for collectible in collectibles {
+                match collectible {
+                    Collectible::Current(collectible, value) => {
+                        let _ =
+                            task.insert(CachedDataItem::OutdatedCollectible { collectible, value });
+                    }
+                    Collectible::Outdated(collectible) => {
+                        if !task.has_key(&CachedDataItemKey::Collectible { collectible }) {
+                            task.remove(&CachedDataItemKey::OutdatedCollectible { collectible });
                         }
                     }
                 }
@@ -1707,7 +1698,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn task_execution_completed(
         &self,
         task_id: TaskId,
-        _duration: Duration,
+        duration: Duration,
         _memory_usage: usize,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
@@ -1725,11 +1716,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // ok, since the dirty flag won't be removed until step 3 and step 4 is only affecting the
         // in-memory representation.
 
-        // The task might be invalidated during this process, so we need to change the stale flag
+        // The task might be invalidated during this process, so we need to check the stale flag
         // at the start of every step.
 
         let span = tracing::trace_span!("task execution completed", immutable = Empty).entered();
         let mut ctx = self.execute_context(turbo_tasks);
+
+        self.track_task_duration(task_id, duration);
 
         //// STEP 1 ////
 
@@ -1883,18 +1876,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
             }));
         }
-        if self.should_track_children() {
-            old_edges.extend(
-                task.iter(CachedDataItemType::OutdatedCollectible)
-                    .filter_map(|(key, value)| match (key, value) {
-                        (
-                            CachedDataItemKey::OutdatedCollectible { collectible },
-                            CachedDataItemValueRef::OutdatedCollectible { value },
-                        ) => Some(OutdatedEdge::Collectible(collectible, *value)),
-                        _ => None,
-                    }),
-            );
-        }
+
+        old_edges.extend(
+            task.iter(CachedDataItemType::OutdatedCollectible)
+                .filter_map(|(key, value)| match (key, value) {
+                    (
+                        CachedDataItemKey::OutdatedCollectible { collectible },
+                        CachedDataItemValueRef::OutdatedCollectible { value },
+                    ) => Some(OutdatedEdge::Collectible(collectible, *value)),
+                    _ => None,
+                }),
+        );
+
         if self.should_track_dependencies() {
             old_edges.extend(iter_many!(task, OutdatedCellDependency { target } => OutdatedEdge::CellDependency(target)));
             old_edges.extend(iter_many!(task, OutdatedOutputDependency { target } => OutdatedEdge::OutputDependency(target)));
@@ -2080,9 +2073,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task.remove(&CachedDataItemKey::Dirty {});
             }
 
-            if self.should_track_children()
-                && (old_dirty_state.is_some() || new_dirty_state.is_some())
-            {
+            if old_dirty_state.is_some() || new_dirty_state.is_some() {
                 let mut dirty_containers = get!(task, AggregatedDirtyContainerCount)
                     .cloned()
                     .unwrap_or_default();
@@ -2281,13 +2272,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_id: TaskId,
         collectible_type: TraitTypeId,
-        reader_id: TaskId,
+        reader_id: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
-        if !self.should_track_children() {
-            return AutoMap::default();
-        }
-
         let mut ctx = self.execute_context(turbo_tasks);
         let mut collectibles = AutoMap::default();
         {
@@ -2333,13 +2320,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     .entry(RawVc::TaskCell(collectible.task, collectible.cell))
                     .or_insert(0) += count;
             }
-            let _ = task.add(CachedDataItem::CollectiblesDependent {
-                collectible_type,
-                task: reader_id,
-                value: (),
-            });
+            if let Some(reader_id) = reader_id {
+                let _ = task.add(CachedDataItem::CollectiblesDependent {
+                    collectible_type,
+                    task: reader_id,
+                    value: (),
+                });
+            }
         }
-        {
+        if let Some(reader_id) = reader_id {
             let mut reader = ctx.task(reader_id, TaskDataCategory::Data);
             let target = CollectiblesRef {
                 task: task_id,
@@ -2363,9 +2352,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         self.assert_valid_collectible(task_id, collectible);
-        if !self.should_track_children() {
-            return;
-        }
 
         let RawVc::TaskCell(collectible_task, cell) = collectible else {
             panic!("Collectibles need to be resolved");
@@ -2394,9 +2380,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         self.assert_valid_collectible(task_id, collectible);
-        if !self.should_track_children() {
-            return;
-        }
 
         let RawVc::TaskCell(collectible_task, cell) = collectible else {
             panic!("Collectibles need to be resolved");
@@ -2507,7 +2490,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn connect_task(
         &self,
         task: TaskId,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         self.assert_not_persistent_calling_transient(parent_task, task, None);
@@ -2764,13 +2747,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn assert_not_persistent_calling_transient(
         &self,
-        parent_id: TaskId,
+        parent_id: Option<TaskId>,
         child_id: TaskId,
         cell_id: Option<CellId>,
     ) {
-        if !parent_id.is_transient() && child_id.is_transient() {
+        if !parent_id.is_none_or(|id| id.is_transient()) && child_id.is_transient() {
             self.panic_persistent_calling_transient(
-                self.lookup_task_type(parent_id).as_deref(),
+                parent_id
+                    .and_then(|id| self.lookup_task_type(id))
+                    .as_deref(),
                 self.lookup_task_type(child_id).as_deref(),
                 cell_id,
             );
@@ -2855,7 +2840,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn get_or_create_persistent_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         self.0
@@ -2865,7 +2850,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn get_or_create_transient_task(
         &self,
         task_type: CachedTaskType,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         self.0
@@ -2899,9 +2884,6 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn get_task_description(&self, task: TaskId) -> String {
         self.0.get_task_description(task)
     }
-
-    type TaskState = ();
-    fn new_task_state(&self, _task: TaskId) -> Self::TaskState {}
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
         self.0.task_execution_canceled(task, turbo_tasks)
@@ -2958,45 +2940,24 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn try_read_task_output(
         &self,
         task_id: TaskId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         consistency: ReadConsistency,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<RawVc, EventListener>> {
         self.0
-            .try_read_task_output(task_id, Some(reader), consistency, turbo_tasks)
-    }
-
-    fn try_read_task_output_untracked(
-        &self,
-        task_id: TaskId,
-        consistency: ReadConsistency,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<RawVc, EventListener>> {
-        self.0
-            .try_read_task_output(task_id, None, consistency, turbo_tasks)
+            .try_read_task_output(task_id, reader, consistency, turbo_tasks)
     }
 
     fn try_read_task_cell(
         &self,
         task_id: TaskId,
         cell: CellId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
         self.0
-            .try_read_task_cell(task_id, Some(reader), cell, options, turbo_tasks)
-    }
-
-    fn try_read_task_cell_untracked(
-        &self,
-        task_id: TaskId,
-        cell: CellId,
-        options: ReadCellOptions,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<TypedCellContent, EventListener>> {
-        self.0
-            .try_read_task_cell(task_id, None, cell, options, turbo_tasks)
+            .try_read_task_cell(task_id, reader, cell, options, turbo_tasks)
     }
 
     fn try_read_own_task_cell_untracked(
@@ -3014,7 +2975,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         task_id: TaskId,
         collectible_type: TraitTypeId,
-        reader: TaskId,
+        reader: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
         self.0
@@ -3083,7 +3044,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn connect_task(
         &self,
         task: TaskId,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.connect_task(task, parent_task, turbo_tasks);
@@ -3103,6 +3064,10 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
 
     fn task_statistics(&self) -> &TaskStatisticsApi {
         &self.0.task_statistics
+    }
+
+    fn is_tracking_dependencies(&self) -> bool {
+        self.0.options.dependency_tracking
     }
 }
 
