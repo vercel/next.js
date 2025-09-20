@@ -1463,7 +1463,7 @@ function loadNative(importPath?: string) {
         createProject: bindingToApi(customBindings ?? bindings, false),
         startTurbopackTraceServer(traceFilePath, port) {
           Log.warn(
-            'Turbopack trace server started. View trace at https://trace.nextjs.org'
+            `Turbopack trace server started. View trace at https://trace.nextjs.org${port != null ? `?port=${port}` : ''}`
           )
           ;(customBindings ?? bindings).startTurbopackTraceServer(
             traceFilePath,
