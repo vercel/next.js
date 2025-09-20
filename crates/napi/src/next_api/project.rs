@@ -32,9 +32,8 @@ use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, ReadRef,
-    ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, UpdateInfo, Vc,
-    get_effects,
+    Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, ReadRef, ResolvedVc,
+    TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, UpdateInfo, Vc, get_effects,
     message_queue::{CompilationEvent, Severity, TimingEvent},
     trace::TraceRawVcs,
 };
@@ -438,8 +437,7 @@ pub fn project_new(
         )?;
         let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 
-        let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
-        if let Some(stats_path) = stats_path {
+        if let Some(stats_path) = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS") {
             let task_stats = turbo_tasks.task_statistics().enable().clone();
             exit.on_exit(async move {
                 tokio::task::spawn_blocking(move || {
@@ -466,13 +464,18 @@ pub fn project_new(
             .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e))
             .await?;
 
-        turbo_tasks.spawn_once_task({
+        turbo_tasks.start_once_process({
             let tt = turbo_tasks.clone();
-            async move {
-                benchmark_file_io(tt, container.project().node_root().owned().await?)
-                    .await
-                    .inspect_err(|err| tracing::warn!(%err, "failed to benchmark file IO"))
-            }
+            Box::pin(async move {
+                let future = async move {
+                    benchmark_file_io(tt, container.project().node_root().owned().await?).await
+                };
+                if let Err(err) = future.await {
+                    // TODO Not ideal to print directly to stdout.
+                    // We should use a compilation event instead to report async errors.
+                    println!("Failed to benchmark file IO: {err}");
+                }
+            })
         });
 
         Ok(External::new(ProjectInstance {
@@ -520,13 +523,9 @@ impl CompilationEvent for SlowFilesystemEvent {
 /// - https://x.com/jarredsumner/status/1637549427677364224
 /// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
 #[tracing::instrument(skip(turbo_tasks))]
-async fn benchmark_file_io(
-    turbo_tasks: NextTurboTasks,
-    directory: FileSystemPath,
-) -> Result<Vc<Completion>> {
+async fn benchmark_file_io(turbo_tasks: NextTurboTasks, directory: FileSystemPath) -> Result<()> {
     // try to get the real file path on disk so that we can use it with tokio
-    let fs = Vc::try_resolve_downcast_type::<DiskFileSystem>(directory.fs())
-        .await?
+    let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(directory.fs)
         .context(anyhow!(
             "expected node_root to be a DiskFileSystem, cannot benchmark"
         ))?
@@ -569,7 +568,7 @@ async fn benchmark_file_io(
         }));
     }
 
-    Ok(Completion::new())
+    Ok(())
 }
 
 #[napi]
@@ -886,7 +885,7 @@ pub async fn project_write_all_entrypoints_to_disk(
     let tt_clone = tt.clone();
 
     let (entrypoints, issues, diags) = tt
-        .run_once(async move {
+        .run(async move {
             let entrypoints_with_issues_op =
                 get_all_written_entrypoints_with_issues_operation(container, app_dir_only);
 
@@ -914,7 +913,7 @@ pub async fn project_write_all_entrypoints_to_disk(
 
             Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
         })
-        .or_else(|e| ctx.throw_turbopack_internal_result(&e))
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
 
     Ok(TurbopackResult {
@@ -1580,7 +1579,7 @@ pub async fn project_trace_source(
     let container = project.container;
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
-        .run_once(async move {
+        .run(async move {
             let traced_frame = project_trace_source_operation(
                 container,
                 frame,
@@ -1594,7 +1593,7 @@ pub async fn project_trace_source(
         // source files may have changed or been deleted), so these probably aren't internal errors?
         // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
 #[napi]
@@ -1605,7 +1604,7 @@ pub async fn project_get_source_for_asset(
     let container = project.container;
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
-        .run_once(async move {
+        .run(async move {
             let source_content = &*container
                 .project()
                 .project_path()
@@ -1627,7 +1626,7 @@ pub async fn project_get_source_for_asset(
         // source files may have changed or been deleted), so these probably aren't internal errors?
         // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
 #[napi]
@@ -1638,7 +1637,7 @@ pub async fn project_get_source_map(
     let container = project.container;
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
-        .run_once(async move {
+        .run(async move {
             let Some(map) = &*get_source_map_rope_operation(container, file_path)
                 .read_strongly_consistent()
                 .await?
@@ -1651,7 +1650,7 @@ pub async fn project_get_source_map(
         // source files may have changed or been deleted), so these probably aren't internal errors?
         // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
 }
 
 #[napi]

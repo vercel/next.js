@@ -42,11 +42,9 @@
 0 -> 19 member call = (module<../../webpack-api-runtime.js, {}> | undefined)["C"](({} | undefined))
 
 0 -> 21 call = (module<../../webpack-api-runtime.js, {}> | undefined)(???*0*)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
 
-0 -> 22 call = ((...) => __webpack_require__(???*0*) | undefined)(5166)
-- *0* unsupported expression
-  ⚠️  This value might have side effects
+0 -> 22 call = ((...) => __webpack_require__(moduleId) | undefined)(5166)
 
 0 -> 24 free var = FreeVar(module)

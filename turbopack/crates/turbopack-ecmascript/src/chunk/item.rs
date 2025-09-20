@@ -85,9 +85,10 @@ impl EcmascriptChunkItemContent {
         }
         .cell())
     }
+}
 
-    #[turbo_tasks::function]
-    pub async fn module_factory(&self) -> Result<Vc<Code>> {
+impl EcmascriptChunkItemContent {
+    async fn module_factory(&self) -> Result<ResolvedVc<Code>> {
         let mut code = CodeBuilder::default();
         for additional_id in self.additional_ids.iter().try_join().await? {
             writeln!(code, "{}, ", StringifyJs(&*additional_id))?;
@@ -130,7 +131,7 @@ impl EcmascriptChunkItemContent {
 
         code += "})";
 
-        Ok(code.build().cell())
+        Ok(code.build().resolved_cell())
     }
 }
 
@@ -212,7 +213,7 @@ where
 {
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code> {
-        module_factory_with_code_generation_issue(Vc::upcast(self), async_module_info)
+        module_factory_with_code_generation_issue(Vc::upcast_non_strict(self), async_module_info)
     }
 }
 
@@ -221,37 +222,37 @@ async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<Code>> {
-    Ok(
-        match chunk_item
-            .content_with_async_module_info(async_module_info)
-            .module_factory()
-            .resolve()
-            .await
-        {
-            Ok(factory) => factory,
-            Err(error) => {
-                let id = chunk_item.asset_ident().to_string().await;
-                let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
-                let error = error.context(format!(
-                    "An error occurred while generating the chunk item {id}"
-                ));
-                let error_message = format!("{}", PrettyPrintError(&error)).into();
-                let js_error_message = serde_json::to_string(&error_message)?;
-                CodeGenerationIssue {
-                    severity: IssueSeverity::Error,
-                    path: chunk_item.asset_ident().path().owned().await?,
-                    title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
-                        .resolved_cell(),
-                    message: StyledString::Text(error_message).resolved_cell(),
-                }
-                .resolved_cell()
-                .emit();
-                let mut code = CodeBuilder::default();
-                code += "(() => {{\n\n";
-                writeln!(code, "throw new Error({error});", error = &js_error_message)?;
-                code += "\n}})";
-                code.build().cell()
+    let content = match chunk_item
+        .content_with_async_module_info(async_module_info)
+        .await
+    {
+        Ok(item) => item.module_factory().await,
+        Err(err) => Err(err),
+    };
+    Ok(match content {
+        Ok(factory) => *factory,
+        Err(error) => {
+            let id = chunk_item.asset_ident().to_string().await;
+            let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
+            let error = error.context(format!(
+                "An error occurred while generating the chunk item {id}"
+            ));
+            let error_message = format!("{}", PrettyPrintError(&error)).into();
+            let js_error_message = serde_json::to_string(&error_message)?;
+            CodeGenerationIssue {
+                severity: IssueSeverity::Error,
+                path: chunk_item.asset_ident().path().owned().await?,
+                title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
+                    .resolved_cell(),
+                message: StyledString::Text(error_message).resolved_cell(),
             }
-        },
-    )
+            .resolved_cell()
+            .emit();
+            let mut code = CodeBuilder::default();
+            code += "(() => {{\n\n";
+            writeln!(code, "throw new Error({error});", error = &js_error_message)?;
+            code += "\n}})";
+            code.build().cell()
+        }
+    })
 }

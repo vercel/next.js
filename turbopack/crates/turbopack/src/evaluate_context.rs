@@ -8,7 +8,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
     context::AssetContext,
-    environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::Layer,
     resolve::options::{ImportMap, ImportMapping},
 };
@@ -24,10 +24,9 @@ use crate::{
 
 #[turbo_tasks::function]
 pub fn node_build_environment() -> Vc<Environment> {
-    Environment::new(
-        ExecutionEnvironment::NodeJsBuildTime(NodeJsEnvironment::default().resolved_cell()),
-        BrowserEnvironment::default().cell(),
-    )
+    Environment::new(ExecutionEnvironment::NodeJsBuildTime(
+        NodeJsEnvironment::default().resolved_cell(),
+    ))
 }
 
 #[turbo_tasks::function]

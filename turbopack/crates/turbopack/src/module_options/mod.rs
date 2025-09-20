@@ -207,7 +207,7 @@ impl ModuleOptions {
                     ignore_dynamic_requests,
                     import_externals,
                     esm_url_rewrite_behavior,
-                    ref enable_typeof_window_inlining,
+                    enable_typeof_window_inlining,
                     source_maps: ecmascript_source_maps,
                     ..
                 },
@@ -282,21 +282,13 @@ impl ModuleOptions {
             extract_source_map: matches!(ecmascript_source_maps, SourceMapsType::Full),
             keep_last_successful_parse,
             is_tracing,
+            enable_typeof_window_inlining,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
 
         if let Some(environment) = environment {
             postprocess.push(EcmascriptInputTransform::PresetEnv(environment));
-        }
-
-        if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
-            postprocess.push(EcmascriptInputTransform::GlobalTypeofs {
-                window_value: match enable_typeof_window_inlining {
-                    TypeofWindow::Object => rcstr!("object"),
-                    TypeofWindow::Undefined => rcstr!("undefined"),
-                },
-            });
         }
 
         let ts_transform = if let Some(options) = enable_typescript_transform {

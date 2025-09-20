@@ -11,7 +11,7 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ReadConsistency, ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects};
+use turbo_tasks::{ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -41,7 +41,7 @@ use turbopack_core::{
     file_source::FileSource,
     free_var_references,
     ident::Layer,
-    issue::IssueDescriptionExt,
+    issue::CollectibleIssuesExt,
     module::Module,
     module_graph::{
         ModuleGraph,
@@ -201,15 +201,14 @@ async fn run(resource: PathBuf) -> Result<()> {
         },
         noop_backing_storage(),
     ));
-    let task = tt.spawn_once_task(async move {
+    tt.run_once(async move {
         let emit_op = run_inner_operation(resource.to_str().unwrap().into());
         emit_op.read_strongly_consistent().await?;
         apply_effects(emit_op).await?;
 
-        Ok(Vc::<()>::default())
-    });
-    tt.wait_task_completion(task, ReadConsistency::Strong)
-        .await?;
+        Ok(())
+    })
+    .await?;
 
     Ok(())
 }
@@ -218,7 +217,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
     let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
-    let captured_issues = out_op.peek_issues_with_path().await?;
+    let captured_issues = out_op.peek_issues().await?;
 
     let plain_issues = captured_issues.get_plain_issues().await?;
 
@@ -257,33 +256,28 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let entry_asset = project_path.join(&options.entry)?;
 
-    let env = match options.environment {
+    let env = Environment::new(match options.environment {
         SnapshotEnvironment::Browser => {
-            let environment=// TODO: load more from options.json
-            BrowserEnvironment {
-                dom: true,
-                web_worker: false,
-                service_worker: false,
-                browserslist_query: options.browserslist.into(),
-            }
-            .resolved_cell();
-
-            Environment::new(ExecutionEnvironment::Browser(environment), *environment)
-                .to_resolved()
-                .await?
+            ExecutionEnvironment::Browser(
+                // TODO: load more from options.json
+                BrowserEnvironment {
+                    dom: true,
+                    web_worker: false,
+                    service_worker: false,
+                    browserslist_query: options.browserslist.into(),
+                }
+                .resolved_cell(),
+            )
         }
         SnapshotEnvironment::NodeJs => {
-            Environment::new(
-                ExecutionEnvironment::NodeJsBuildTime(
-                    // TODO: load more from options.json
-                    NodeJsEnvironment::default().resolved_cell(),
-                ),
-                BrowserEnvironment::default().cell(),
+            ExecutionEnvironment::NodeJsBuildTime(
+                // TODO: load more from options.json
+                NodeJsEnvironment::default().resolved_cell(),
             )
-            .to_resolved()
-            .await?
         }
-    };
+    })
+    .to_resolved()
+    .await?;
 
     let mut defines = compile_time_defines!(
         process.turbopack = true,
@@ -404,7 +398,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     {
         let evaluatable_assets = runtime_entries
             .unwrap_or_else(EvaluatableAssets::empty)
-            .with_entry(Vc::upcast(ecmascript));
+            .with_entry(ecmascript);
         (
             evaluatable_assets,
             evaluatable_assets

@@ -71,6 +71,8 @@ test/e2e/async-modules/amp-validator-wasm.js
 /turbopack/crates/turbopack-tests/tests/snapshot/source_maps/*
 /turbopack/crates/turbopack-tests/tests/**/output*
 /turbopack/crates/turbopack-tests/tests/**/static
+/turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/syntax-err/input.js
+/turbopack/crates/turbopack-tracing/tests/node-file-trace/test/unit/tsx/lib.tsx
 
 /apps/docs/.source/*
 
@@ -84,7 +86,6 @@ test/integration/edge-runtime-configurable-guards/node_modules/lib
 test/production/app-dir/symbolic-file-links/src/i18n.ts
 test/production/app-dir/symbolic-file-links/src/app/layout.tsx
 test/production/app-dir/symbolic-file-links/src/app/page.tsx
-turbopack/crates/turbopack/tests/node-file-trace/integration/pnpm/node_modules/foo
-turbopack/crates/turbopack/tests/node-file-trace/integration/pnpm/node_modules/.pnpm/foo@2.1.0/node_modules/lodash-pnpm-test
-turbopack/crates/turbopack/tests/node-file-trace/integration/symlink-to-file/linked.js
+turbopack/crates/turbopack-tracing/tests/node-file-trace/integration/pnpm/node_modules/*
+turbopack/crates/turbopack-tracing/tests/node-file-trace/integration/symlink-to-file/linked.js
 turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/mono_transforms/input/node_modules/component

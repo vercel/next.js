@@ -12,9 +12,8 @@ import type {
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import { posix, join, dirname, extname, normalize } from 'path'
+import { posix, join, normalize } from 'path'
 import { stringify } from 'querystring'
-import fs from 'fs'
 import {
   PAGES_DIR_ALIAS,
   ROOT_DIR_ALIAS,
@@ -45,13 +44,8 @@ import {
   isMiddlewareFilename,
   isInstrumentationHookFile,
   isInstrumentationHookFilename,
-  reduceAppConfig,
-  isAppBuiltinPage,
 } from './utils'
-import {
-  getAppPageStaticInfo,
-  getPageStaticInfo,
-} from './analysis/get-page-static-info'
+import { getPageStaticInfo } from './analysis/get-page-static-info'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import type { ServerRuntime } from '../types'
@@ -75,7 +69,6 @@ import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import type { PageExtensions } from './page-extensions-type'
 import type { MappedPages } from './build-context'
 import { PAGE_TYPES } from '../lib/page-types'
-import { isAppPageRoute } from '../lib/is-app-page-route'
 import { recursiveReadDir } from '../lib/recursive-readdir'
 import type { createValidFileMatcher } from '../server/lib/find-page-file'
 import { isReservedPage } from './utils'
@@ -86,6 +79,7 @@ import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE,
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
 } from '../shared/lib/entry-constants'
+import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 
 /**
  * Collect app pages, layouts, and default files from the app directory
@@ -399,110 +393,6 @@ export function processLayoutRoutes(
   }
 
   return layoutRoutes
-}
-
-export function sortByPageExts(pageExtensions: PageExtensions) {
-  return (a: string, b: string) => {
-    // prioritize entries according to pageExtensions order
-    // for consistency as fs order can differ across systems
-    // NOTE: this is reversed so preferred comes last and
-    // overrides prior
-    const aExt = extname(a)
-    const bExt = extname(b)
-
-    const aNoExt = a.substring(0, a.length - aExt.length)
-    const bNoExt = a.substring(0, b.length - bExt.length)
-
-    if (aNoExt !== bNoExt) return 0
-
-    // find extension index (skip '.' as pageExtensions doesn't have it)
-    const aExtIndex = pageExtensions.indexOf(aExt.substring(1))
-    const bExtIndex = pageExtensions.indexOf(bExt.substring(1))
-
-    return bExtIndex - aExtIndex
-  }
-}
-
-export async function getStaticInfoIncludingLayouts({
-  isInsideAppDir,
-  pageExtensions,
-  pageFilePath,
-  appDir,
-  config: nextConfig,
-  isDev,
-  page,
-}: {
-  isInsideAppDir: boolean
-  pageExtensions: PageExtensions
-  pageFilePath: string
-  appDir: string | undefined
-  config: NextConfigComplete
-  isDev: boolean | undefined
-  page: string
-}): Promise<PageStaticInfo> {
-  // TODO: sync types for pages: PAGE_TYPES, ROUTER_TYPE, 'app' | 'pages', etc.
-  const pageType = isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES
-
-  const pageStaticInfo = await getPageStaticInfo({
-    nextConfig,
-    pageFilePath,
-    isDev,
-    page,
-    pageType,
-  })
-
-  if (pageStaticInfo.type === PAGE_TYPES.PAGES || !appDir) {
-    return pageStaticInfo
-  }
-
-  // Skip inheritance for global-error pages - always use default config
-  if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY) {
-    return pageStaticInfo
-  }
-
-  const segments = [pageStaticInfo]
-
-  // inherit from layout files only if it's a page route and not a builtin page
-  if (isAppPageRoute(page) && !isAppBuiltinPage(pageFilePath)) {
-    const layoutFiles = []
-    const potentialLayoutFiles = pageExtensions.map((ext) => 'layout.' + ext)
-    let dir = dirname(pageFilePath)
-
-    // Uses startsWith to not include directories further up.
-    while (dir.startsWith(appDir)) {
-      for (const potentialLayoutFile of potentialLayoutFiles) {
-        const layoutFile = join(dir, potentialLayoutFile)
-        if (!fs.existsSync(layoutFile)) {
-          continue
-        }
-        layoutFiles.push(layoutFile)
-      }
-      // Walk up the directory tree
-      dir = join(dir, '..')
-    }
-
-    for (const layoutFile of layoutFiles) {
-      const layoutStaticInfo = await getAppPageStaticInfo({
-        nextConfig,
-        pageFilePath: layoutFile,
-        isDev,
-        page,
-        pageType: isInsideAppDir ? PAGE_TYPES.APP : PAGE_TYPES.PAGES,
-      })
-
-      segments.unshift(layoutStaticInfo)
-    }
-  }
-
-  const config = reduceAppConfig(segments)
-
-  return {
-    ...pageStaticInfo,
-    config,
-    runtime: config.runtime,
-    preferredRegion: config.preferredRegion,
-    maxDuration: config.maxDuration,
-  }
 }
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never

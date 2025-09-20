@@ -261,27 +261,25 @@ pub async fn get_intermediate_asset(
     main_entry: ResolvedVc<Box<dyn EvaluatableAsset>>,
     other_entries: Vc<EvaluatableAssets>,
 ) -> Result<Vc<Box<dyn OutputAsset>>> {
-    Ok(Vc::upcast(
-        chunking_context.root_entry_chunk_group_asset(
-            chunking_context
-                .chunk_path(None, main_entry.ident(), None, rcstr!(".js"))
-                .owned()
-                .await?,
-            other_entries.with_entry(*main_entry),
-            ModuleGraph::from_modules(
-                Vc::cell(vec![ChunkGroupEntry::Entry(
-                    other_entries
-                        .await?
-                        .into_iter()
-                        .copied()
-                        .chain(std::iter::once(main_entry))
-                        .map(ResolvedVc::upcast)
-                        .collect(),
-                )]),
-                false,
-            ),
-            OutputAssets::empty(),
+    Ok(chunking_context.root_entry_chunk_group_asset(
+        chunking_context
+            .chunk_path(None, main_entry.ident(), None, rcstr!(".js"))
+            .owned()
+            .await?,
+        other_entries.with_entry(*main_entry),
+        ModuleGraph::from_modules(
+            Vc::cell(vec![ChunkGroupEntry::Entry(
+                other_entries
+                    .await?
+                    .into_iter()
+                    .copied()
+                    .chain(std::iter::once(main_entry))
+                    .map(ResolvedVc::upcast)
+                    .collect(),
+            )]),
+            false,
         ),
+        OutputAssets::empty(),
     ))
 }
 

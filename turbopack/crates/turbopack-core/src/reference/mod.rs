@@ -335,10 +335,7 @@ pub async fn all_assets_from_entries(entries: Vc<OutputAssets>) -> Result<Vc<Out
     Ok(Vc::cell(
         AdjacencyMap::new()
             .skip_duplicates()
-            .visit(
-                entries.await?.iter().copied().map(ResolvedVc::upcast),
-                get_referenced_assets,
-            )
+            .visit(entries.await?.iter().copied(), get_referenced_assets)
             .await
             .completed()?
             .into_inner()

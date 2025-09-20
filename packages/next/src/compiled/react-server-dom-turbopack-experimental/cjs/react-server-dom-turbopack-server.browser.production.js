@@ -2109,7 +2109,7 @@ function abort(request, reason) {
             errorId$26 = request.nextChunkId++;
           request.fatalError = errorId$26;
           request.pendingChunks++;
-          emitErrorChunk(request, errorId$26, digest, error, !1);
+          emitErrorChunk(request, errorId$26, digest, error, !1, null);
           abortableTasks.forEach(function (task) {
             return abortTask(task, request, errorId$26);
           });
@@ -2143,7 +2143,9 @@ function resolveServerReference(bundlerConfig, id) {
           '" in the React Server Manifest. This is probably a bug in the React Server Components bundler.'
       );
   }
-  return [resolvedModuleData.id, resolvedModuleData.chunks, name];
+  return resolvedModuleData.async
+    ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
+    : [resolvedModuleData.id, resolvedModuleData.chunks, name];
 }
 function requireAsyncModule(id) {
   var promise = __turbopack_require__(id);

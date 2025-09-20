@@ -398,7 +398,7 @@ pub async fn all_assets_from_entries_filtered(
                     .iter()
                     .map(async |asset| {
                         Ok((
-                            ResolvedVc::upcast(*asset),
+                            *asset,
                             if emit_spans {
                                 Some(asset.path().to_string().await?)
                             } else {

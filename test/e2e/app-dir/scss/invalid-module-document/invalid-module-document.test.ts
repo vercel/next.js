@@ -6,7 +6,7 @@ import { join } from 'path'
 // In order for the global isNextStart to be set
 import 'e2e-utils'
 
-// TODO: Implement warning for Turbopack
+// Importing module CSS in _document is allowed in Turbopack
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Invalid SCSS in _document',
   () => {

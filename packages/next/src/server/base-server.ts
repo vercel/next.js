@@ -406,7 +406,7 @@ export default abstract class Server<
 
   protected abstract loadEnvConfig(params: {
     dev: boolean
-    forceReload?: boolean
+    forceReload: boolean
   }): void
 
   // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
@@ -448,7 +448,7 @@ export default abstract class Server<
     this.dir = path.resolve(/* turbopackIgnore: true */ dir)
 
     this.quiet = quiet
-    this.loadEnvConfig({ dev })
+    this.loadEnvConfig({ dev, forceReload: false })
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
@@ -604,6 +604,10 @@ export default abstract class Server<
 
     this.setAssetPrefix(assetPrefix)
     this.responseCache = this.getResponseCache({ dev })
+  }
+
+  protected reloadMatchers() {
+    return this.matchers.reload()
   }
 
   private handleRSCRequest: RouteHandler<ServerRequest, ServerResponse> = (
@@ -882,13 +886,13 @@ export default abstract class Server<
   ): Promise<void> {
     await this.prepare()
     const method = req.method.toUpperCase()
-
     const tracer = getTracer()
+
     return tracer.withPropagatedContext(req.headers, () => {
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
-          spanName: `${method} ${req.url}`,
+          spanName: `${method}`,
           kind: SpanKind.SERVER,
           attributes: {
             'http.method': method,
@@ -944,11 +948,7 @@ export default abstract class Server<
               })
               span.updateName(name)
             } else {
-              span.updateName(
-                isRSCRequest
-                  ? `RSC ${method} ${req.url}`
-                  : `${method} ${req.url}`
-              )
+              span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
             }
           })
       )

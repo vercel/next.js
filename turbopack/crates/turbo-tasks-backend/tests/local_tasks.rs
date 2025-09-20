@@ -4,31 +4,36 @@
 
 use anyhow::Result;
 use turbo_tasks::{Vc, test_helpers::current_task_for_testing};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
+fn task_id() -> u32 {
+    if let Some(id) = current_task_for_testing() {
+        *id
+    } else {
+        0
+    }
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_local_task_id() -> Result<()> {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let local_vc = get_local_task_id();
         assert!(local_vc.is_local());
-        assert_eq!(*local_vc.await.unwrap(), *current_task_for_testing());
+        assert_eq!(*local_vc.await.unwrap(), task_id());
 
         let local_trait_vc = Foo {}.cell().get_local_task_id();
         assert!(local_trait_vc.is_local());
-        assert_eq!(*local_trait_vc.await.unwrap(), *current_task_for_testing());
+        assert_eq!(*local_trait_vc.await.unwrap(), task_id());
 
         let non_local_vc = get_non_local_task_id();
         assert!(!non_local_vc.is_local());
-        assert_ne!(*non_local_vc.await.unwrap(), *current_task_for_testing());
+        assert_ne!(*non_local_vc.await.unwrap(), task_id());
 
         let non_local_trait_vc = Foo {}.cell().get_non_local_task_id();
         assert!(!non_local_trait_vc.is_local());
-        assert_ne!(
-            *non_local_trait_vc.await.unwrap(),
-            *current_task_for_testing()
-        );
+        assert_ne!(*non_local_trait_vc.await.unwrap(), task_id());
 
         Ok(())
     })
@@ -37,12 +42,12 @@ async fn test_local_task_id() -> Result<()> {
 
 #[turbo_tasks::function(local)]
 fn get_local_task_id() -> Vc<u32> {
-    Vc::cell(*current_task_for_testing())
+    Vc::cell(task_id())
 }
 
 #[turbo_tasks::function]
 fn get_non_local_task_id() -> Vc<u32> {
-    Vc::cell(*current_task_for_testing())
+    Vc::cell(task_id())
 }
 
 #[turbo_tasks::value_trait]
@@ -59,11 +64,11 @@ struct Foo {}
 impl SomeTrait for Foo {
     #[turbo_tasks::function(local)]
     fn get_local_task_id(self: Vc<Self>) -> Vc<u32> {
-        Vc::cell(*current_task_for_testing())
+        Vc::cell(task_id())
     }
 
     #[turbo_tasks::function]
     fn get_non_local_task_id(self: Vc<Self>) -> Vc<u32> {
-        Vc::cell(*current_task_for_testing())
+        Vc::cell(task_id())
     }
 }

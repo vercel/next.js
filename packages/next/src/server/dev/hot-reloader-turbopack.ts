@@ -26,10 +26,6 @@ import type {
 } from '../../build/swc/types'
 import { createDefineEnv } from '../../build/swc'
 import * as Log from '../../build/output/log'
-import {
-  getVersionInfo,
-  matchNextPageBundleRequest,
-} from './hot-reloader-webpack'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
   getOverlayMiddleware,
@@ -111,6 +107,10 @@ import {
   deleteReactDebugChannel,
   setReactDebugChannel,
 } from './debug-channel'
+import {
+  getVersionInfo,
+  matchNextPageBundleRequest,
+} from './hot-reloader-shared-utils'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -612,6 +612,21 @@ export async function createHotReloaderTurbopack(
         )
       }
 
+      const existingRoutes = [
+        ...currentEntrypoints.app.keys(),
+        ...currentEntrypoints.page.keys(),
+      ]
+      const newRoutes = [...entrypoints.routes.keys()]
+
+      const addedRoutes = newRoutes.filter(
+        (route) =>
+          !currentEntrypoints.app.has(route) &&
+          !currentEntrypoints.page.has(route)
+      )
+      const removedRoutes = existingRoutes.filter(
+        (route) => !entrypoints.routes.has(route)
+      )
+
       processTopLevelIssues(currentTopLevelIssues, entrypoints)
 
       await handleEntrypoints({
@@ -646,6 +661,35 @@ export async function createHotReloaderTurbopack(
           },
         },
       })
+
+      // Reload matchers when the files have been compiled
+      await propagateServerField(opts, 'reloadMatchers', undefined)
+
+      if (addedRoutes.length > 0 || removedRoutes.length > 0) {
+        // When the list of routes changes a new manifest should be fetched for Pages Router.
+        hotReloader.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.DEV_PAGES_MANIFEST_UPDATE,
+          data: [
+            {
+              devPagesManifest: true,
+            },
+          ],
+        })
+      }
+
+      for (const route of addedRoutes) {
+        hotReloader.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE,
+          data: [route],
+        })
+      }
+
+      for (const route of removedRoutes) {
+        hotReloader.send({
+          type: HMR_MESSAGE_SENT_TO_BROWSER.REMOVED_PAGE,
+          data: [route],
+        })
+      }
 
       currentEntriesHandlingResolve!()
       currentEntriesHandlingResolve = undefined
@@ -690,7 +734,17 @@ export async function createHotReloaderTurbopack(
     }),
   ]
 
-  const versionInfoPromise = getVersionInfo()
+  let versionInfoCached: ReturnType<typeof getVersionInfo> | undefined
+  // This fetch, even though not awaited, is not kicked off eagerly because the first `fetch()` in
+  // Node.js adds roughly 20ms main-thread blocking to load the SSL certificate cache
+  // We don't want that blocking time to be in the hot path for the `ready in` logging.
+  // Instead, the fetch is kicked off lazily when the first `getVersionInfoCached()` is called.
+  const getVersionInfoCached = (): ReturnType<typeof getVersionInfo> => {
+    if (!versionInfoCached) {
+      versionInfoCached = getVersionInfo()
+    }
+    return versionInfoCached
+  }
 
   let devtoolsFrontendUrl: string | undefined
   const nodeDebugType = getNodeDebugType()
@@ -910,7 +964,7 @@ export async function createHotReloaderTurbopack(
         }
 
         ;(async function () {
-          const versionInfo = await versionInfoPromise
+          const versionInfo = await getVersionInfoCached()
           const devToolsConfig = await getDevToolsConfig(distDir)
 
           const syncMessage: SyncMessage = {

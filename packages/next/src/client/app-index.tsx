@@ -162,7 +162,11 @@ let debugChannel:
   | { readable?: ReadableStream; writable?: WritableStream }
   | undefined
 
-if (process.env.NODE_ENV !== 'production' && typeof window !== 'undefined') {
+if (
+  process.env.NODE_ENV !== 'production' &&
+  process.env.__NEXT_REACT_DEBUG_CHANNEL &&
+  typeof window !== 'undefined'
+) {
   const { createDebugChannel } =
     require('./dev/debug-channel') as typeof import('./dev/debug-channel')
 

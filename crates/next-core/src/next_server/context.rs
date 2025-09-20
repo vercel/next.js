@@ -9,7 +9,7 @@ use turbopack::{
     css::chunk::CssChunkType,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ExternalsTracingOptions, JsxTransformOptions,
-        ModuleOptionsContext, ModuleRule, TypeofWindow, TypescriptTransformOptions,
+        ModuleOptionsContext, ModuleRule, TypescriptTransformOptions,
     },
     resolve_options_context::ResolveOptionsContext,
     transition::Transition,
@@ -21,14 +21,14 @@ use turbopack_core::{
     },
     compile_time_defines,
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReferences},
-    environment::{
-        BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion,
-    },
+    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
     free_var_references,
     module_graph::export_usage::OptionExportUsageInfo,
     target::CompileTarget,
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior};
+use turbopack_ecmascript::{
+    TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
+};
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
 };
@@ -46,7 +46,6 @@ use crate::{
     app_structure::CollectedRootParams,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
-    next_client::RuntimeEntries,
     next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
@@ -86,9 +85,6 @@ pub enum ServerContextType {
         pages_dir: FileSystemPath,
     },
     PagesApi {
-        pages_dir: FileSystemPath,
-    },
-    PagesData {
         pages_dir: FileSystemPath,
     },
     AppSSR {
@@ -252,8 +248,7 @@ pub async fn get_server_resolve_options_context(
                 ResolvedVc::upcast(module_feature_report_resolve_plugin),
             ]
         }
-        ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. }
+        ServerContextType::PagesApi { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {
@@ -262,9 +257,7 @@ pub async fn get_server_resolve_options_context(
     };
 
     let after_resolve_plugins = match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesApi { .. }
-        | ServerContextType::PagesData { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             vec![
                 ResolvedVc::upcast(next_node_shared_runtime_plugin),
                 ResolvedVc::upcast(external_cjs_modules_plugin),
@@ -300,8 +293,7 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             //noop
         }
-        ServerContextType::PagesData { .. }
-        | ServerContextType::AppRSC { .. }
+        ServerContextType::AppRSC { .. }
         | ServerContextType::AppRoute { .. }
         | ServerContextType::Middleware { .. }
         | ServerContextType::Instrumentation { .. } => {
@@ -369,28 +361,16 @@ pub async fn get_server_compile_time_info(
     cwd: RcStr,
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
-    css_browserslist_query: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
-    let css_environment = BrowserEnvironment {
-        dom: false,
-        web_worker: false,
-        service_worker: false,
-        browserslist_query: css_browserslist_query,
-    }
-    .resolved_cell();
-
     CompileTimeInfo::builder(
-        Environment::new(
-            ExecutionEnvironment::NodeJsLambda(
-                NodeJsEnvironment {
-                    compile_target: CompileTarget::current().to_resolved().await?,
-                    node_version,
-                    cwd: ResolvedVc::cell(Some(cwd)),
-                }
-                .resolved_cell(),
-            ),
-            *css_environment,
-        )
+        Environment::new(ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironment {
+                compile_target: CompileTarget::current().to_resolved().await?,
+                node_version,
+                cwd: ResolvedVc::cell(Some(cwd)),
+            }
+            .resolved_cell(),
+        ))
         .to_resolved()
         .await?,
     )
@@ -403,10 +383,9 @@ pub async fn get_server_compile_time_info(
 #[turbo_tasks::function]
 pub async fn get_tracing_compile_time_info() -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
-        Environment::new(
-            ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().resolved_cell()),
-            BrowserEnvironment::default().cell(),
-        )
+        Environment::new(ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironment::default().resolved_cell(),
+        ))
         .to_resolved()
         .await?,
     )
@@ -454,6 +433,7 @@ pub async fn get_server_module_options_context(
     next_runtime: NextRuntime,
     encryption_key: ResolvedVc<RcStr>,
     environment: ResolvedVc<Environment>,
+    client_environment: ResolvedVc<Environment>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let mut next_server_rules = get_next_server_transforms_rules(
@@ -523,7 +503,6 @@ pub async fn get_server_module_options_context(
     let tree_shaking_mode_for_foreign_code = *next_config
         .tree_shaking_mode_for_foreign_code(next_mode.is_development())
         .await?;
-    let css_versions = environment.css_runtime_versions();
 
     let tsconfig_path = next_config
         .typescript_tsconfig_path()
@@ -584,8 +563,10 @@ pub async fn get_server_module_options_context(
     // context type.
     let styled_components_transform_rule =
         get_styled_components_transform_rule(next_config).await?;
+    // It's important the client's browserlist config is used for styled-jsx, otherwise we transpile
+    // the CSS to be compatible with Node.js 20.
     let styled_jsx_transform_rule =
-        get_styled_jsx_transform_rule(next_config, css_versions).await?;
+        get_styled_jsx_transform_rule(next_config, client_environment.runtime_versions()).await?;
 
     let source_maps = if *next_config.server_source_maps().await? {
         SourceMapsType::Full
@@ -626,9 +607,7 @@ pub async fn get_server_module_options_context(
     };
 
     let module_options_context = match ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::PagesData { .. }
-        | ServerContextType::PagesApi { .. } => {
+        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             let mut custom_source_transform_rules: Vec<ModuleRule> =
                 vec![styled_components_transform_rule, styled_jsx_transform_rule]
                     .into_iter()
@@ -1018,15 +997,6 @@ pub async fn get_server_module_options_context(
     .cell();
 
     Ok(module_options_context)
-}
-
-#[turbo_tasks::function]
-pub fn get_server_runtime_entries(
-    _ty: ServerContextType,
-    _mode: Vc<NextMode>,
-) -> Vc<RuntimeEntries> {
-    let runtime_entries = vec![];
-    Vc::cell(runtime_entries)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Serialize, Deserialize)]

@@ -9,14 +9,13 @@ use crate::{
     next_client::context::ClientContextType,
     next_config::NextConfig,
     next_shared::transforms::{
-        debug_fn_name::get_debug_fn_name_rule, get_next_dynamic_transform_rule,
-        get_next_font_transform_rule, get_next_image_rule, get_next_lint_transform_rule,
-        get_next_modularize_imports_rule, get_next_pages_transforms_rule,
-        get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
+        debug_fn_name::get_debug_fn_name_rule, get_import_type_bytes_rule,
+        get_next_dynamic_transform_rule, get_next_font_transform_rule, get_next_image_rule,
+        get_next_lint_transform_rule, get_next_modularize_imports_rule,
+        get_next_pages_transforms_rule, get_server_actions_transform_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
-        next_page_config::get_next_page_config_rule, next_pure::get_next_pure_rule,
-        server_actions::ActionsTransform,
+        next_pure::get_next_pure_rule, server_actions::ActionsTransform,
     },
 };
 
@@ -56,20 +55,13 @@ pub async fn get_next_client_transforms_rules(
     match &context_ty {
         ClientContextType::Pages { pages_dir } => {
             if !foreign_code {
-                rules.push(
-                    get_next_pages_transforms_rule(
-                        pages_dir.clone(),
-                        ExportFilter::StripDataExports,
-                        enable_mdx_rs,
-                    )
-                    .await?,
-                );
-                rules.push(get_next_disallow_export_all_in_page_rule(
-                    enable_mdx_rs,
+                rules.push(get_next_pages_transforms_rule(
                     pages_dir.clone(),
-                ));
-                rules.push(get_next_page_config_rule(
-                    is_development,
+                    ExportFilter::StripDataExports,
+                    enable_mdx_rs,
+                    vec![],
+                )?);
+                rules.push(get_next_disallow_export_all_in_page_rule(
                     enable_mdx_rs,
                     pages_dir.clone(),
                 ));
@@ -93,7 +85,6 @@ pub async fn get_next_client_transforms_rules(
     };
 
     if !foreign_code {
-        rules.push(get_next_amp_attr_rule(enable_mdx_rs));
         rules.push(get_next_cjs_optimizer_rule(enable_mdx_rs));
         rules.push(get_next_pure_rule(enable_mdx_rs));
 
@@ -102,6 +93,10 @@ pub async fn get_next_client_transforms_rules(
         );
 
         rules.push(get_next_image_rule().await?);
+    }
+
+    if *next_config.turbopack_import_type_bytes().await? {
+        rules.push(get_import_type_bytes_rule());
     }
 
     Ok(rules)
