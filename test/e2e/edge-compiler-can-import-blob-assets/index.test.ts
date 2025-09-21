@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP, getDefaultDistDir, renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, getDistDir, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import { promises as fs } from 'fs'
 import { readJson } from 'fs-extra'
@@ -56,7 +56,7 @@ describe('Edge Compiler can import asset assets', () => {
     it('extracts all the assets from the bundle', async () => {
       const manifestPath = path.join(
         next.testDir,
-        `${getDefaultDistDir()}/server/middleware-manifest.json`
+        `${getDistDir()}/server/middleware-manifest.json`
       )
       const manifest = await readJson(manifestPath)
       const orderedAssets = manifest.functions['/api/edge'].assets.sort(

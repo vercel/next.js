@@ -154,9 +154,7 @@ describe('app dir - metadata dynamic routes', () => {
     if (isNextStart) {
       it('should optimize routes without multiple generation API as static routes', async () => {
         const appPathsManifest = JSON.parse(
-          await next.readFile(
-            `${getDistDir(next.testDir)}/server/app-paths-manifest.json`
-          )
+          await next.readFile(`${getDistDir()}/server/app-paths-manifest.json`)
         )
 
         expect(appPathsManifest).toMatchObject({
@@ -174,8 +172,7 @@ describe('app dir - metadata dynamic routes', () => {
 
       it('should generate static paths of dynamic sitemap in production', async () => {
         const sitemapPaths = ['child0', 'child1', 'child2', 'child3'].map(
-          (id) =>
-            `${getDistDir(next.testDir)}/server/app/gsp/sitemap/${id}.xml.meta`
+          (id) => `${getDistDir()}/server/app/gsp/sitemap/${id}.xml.meta`
         )
         const promises = sitemapPaths.map(async (filePath) => {
           expect(await next.hasFile(filePath)).toBe(true)
@@ -231,16 +228,12 @@ describe('app dir - metadata dynamic routes', () => {
 
       if (isNextDev) {
         await check(async () => {
-          next.hasFile(
-            `${getDistDir(next.testDir)}/server/app-paths-manifest.json`
-          )
+          next.hasFile(`${getDistDir()}/server/app-paths-manifest.json`)
           return 'success'
         }, /success/)
 
         const appPathsManifest = JSON.parse(
-          await next.readFile(
-            `${getDistDir(next.testDir)}/server/app-paths-manifest.json`
-          )
+          await next.readFile(`${getDistDir()}/server/app-paths-manifest.json`)
         )
         const entryKeys = Object.keys(appPathsManifest)
         // Only has one route for twitter-image with catch-all routes in dev
@@ -370,19 +363,15 @@ describe('app dir - metadata dynamic routes', () => {
 
         expect(
           await next.hasFile(
-            `${getDistDir(next.testDir)}/server/app${dynamicRoute}/route.js`
+            `${getDistDir()}/server/app${dynamicRoute}/route.js`
           )
         ).toBe(true)
         // dynamic routes should not have body and meta files
         expect(
-          await next.hasFile(
-            `${getDistDir(next.testDir)}/server/app${dynamicRoute}.body`
-          )
+          await next.hasFile(`${getDistDir()}/server/app${dynamicRoute}.body`)
         ).toBe(false)
         expect(
-          await next.hasFile(
-            `${getDistDir(next.testDir)}/server/app${dynamicRoute}.meta`
-          )
+          await next.hasFile(`${getDistDir()}/server/app${dynamicRoute}.meta`)
         ).toBe(false)
       })
     })
@@ -497,9 +486,7 @@ describe('app dir - metadata dynamic routes', () => {
   if (isNextStart) {
     it('should support edge runtime of image routes', async () => {
       const middlewareManifest = JSON.parse(
-        await next.readFile(
-          `${getDistDir(next.testDir)}/server/middleware-manifest.json`
-        )
+        await next.readFile(`${getDistDir()}/server/middleware-manifest.json`)
       )
       const functionRoutes = Object.keys(middlewareManifest.functions)
       const edgeRoute = functionRoutes.find((route) =>
@@ -511,7 +498,7 @@ describe('app dir - metadata dynamic routes', () => {
     it('should include default og font files in file trace', async () => {
       const fileTrace = JSON.parse(
         await next.readFile(
-          `${getDistDir(next.testDir)}/server/app/metadata-base/unset/opengraph-image2/[__metadata_id__]/route.js.nft.json`
+          `${getDistDir()}/server/app/metadata-base/unset/opengraph-image2/[__metadata_id__]/route.js.nft.json`
         )
       )
 
@@ -524,9 +511,7 @@ describe('app dir - metadata dynamic routes', () => {
 
     it('should contain generated routes in prerender manifest', async () => {
       const prerenderManifest = JSON.parse(
-        await next.readFile(
-          `${getDistDir(next.testDir)}/prerender-manifest.json`
-        )
+        await next.readFile(`${getDistDir()}/prerender-manifest.json`)
       )
       const routes = Object.keys(prerenderManifest.routes).sort()
 

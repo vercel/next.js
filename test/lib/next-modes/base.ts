@@ -511,7 +511,7 @@ export class NextInstance {
       if (process.env.TRACE_PLAYWRIGHT) {
         await fs
           .cp(
-            path.join(this.testDir, getDistDir(this.testDir), 'trace'),
+            path.join(this.testDir, getDistDir(), 'trace'),
             path.join(
               __dirname,
               '../../traces',

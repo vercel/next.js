@@ -45,12 +45,7 @@ describe('i18n-ignore-rewrite-source-locale with basepath', () => {
       async (locale) => {
         const chunks = (
           await fs.readdir(
-            path.join(
-              next.testDir,
-              getDistDir(next.testDir),
-              'static',
-              'chunks'
-            )
+            path.join(next.testDir, getDistDir(), 'static', 'chunks')
           )
         ).filter((f) => f.endsWith('.js'))
 
