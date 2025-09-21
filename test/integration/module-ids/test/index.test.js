@@ -26,7 +26,7 @@ describe('minified module ids', () => {
     beforeAll(async () => {
       await nextBuild(appDir, [])
 
-      const ssrPath = join(appDir, `${getDistDir(appDir)}/server/chunks/ssr/`)
+      const ssrPath = join(appDir, `${getDistDir()}/server/chunks/ssr/`)
       const ssrBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
         p.match(/\.js$/)
       )
@@ -35,7 +35,7 @@ describe('minified module ids', () => {
         ssrBundles += output
       }
 
-      const staticPath = join(appDir, `${getDistDir(appDir)}/static/chunks/`)
+      const staticPath = join(appDir, `${getDistDir()}/static/chunks/`)
       const staticBundleBasenames = (await fs.readdir(staticPath)).filter((p) =>
         p.match(/\.js$/)
       )
@@ -78,7 +78,7 @@ describe('minified module ids', () => {
 
       await renderViaHTTP(appPort, '/')
 
-      const ssrPath = join(appDir, `${getDistDir(appDir)}/server/chunks/ssr/`)
+      const ssrPath = join(appDir, `${getDistDir()}/server/chunks/ssr/`)
       const ssrBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
         p.match(/\.js$/)
       )
@@ -87,7 +87,7 @@ describe('minified module ids', () => {
         ssrBundles += output
       }
 
-      const staticPath = join(appDir, `${getDistDir(appDir)}/static/chunks/`)
+      const staticPath = join(appDir, `${getDistDir()}/static/chunks/`)
       const staticBundleBasenames = (await fs.readdir(staticPath)).filter((p) =>
         p.match(/\.js$/)
       )
