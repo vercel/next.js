@@ -1,18 +1,18 @@
-a = (...) => (undefined | FreeVar(undefined))
+a = (...) => undefined
 
-b = (...) => (undefined | FreeVar(undefined))
+b = (...) => undefined
 
-c = (...) => (undefined | FreeVar(undefined))
+c = (...) => undefined
 
-d = (...) => (undefined | FreeVar(undefined))
+d = (...) => undefined
 
-e = (...) => (undefined | FreeVar(undefined))
+e = (...) => undefined
 
-f = (...) => (undefined | FreeVar(undefined))
+f = (...) => undefined
 
-g = (...) => (undefined | FreeVar(undefined))
+g = (...) => undefined
 
-h = (...) => (undefined | FreeVar(undefined))
+h = (...) => undefined
 
 i = (...) => (FreeVar(i1)() | FreeVar(i2)())
 

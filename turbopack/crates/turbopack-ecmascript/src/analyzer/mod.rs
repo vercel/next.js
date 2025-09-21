@@ -1004,7 +1004,18 @@ impl JsValue {
         }
     }
 
-    pub fn function(func_ident: u32, return_value: Box<JsValue>) -> Self {
+    pub fn function(
+        func_ident: u32,
+        is_async: bool,
+        is_generator: bool,
+        mut return_value: Box<JsValue>,
+    ) -> Self {
+        // Check generator first to handle async generators
+        if is_generator {
+            return_value = Box::new(JsValue::WellKnownObject(WellKnownObjectKind::Generator));
+        } else if is_async && !matches!(return_value, box JsValue::Promise(_, _)) {
+            return_value = Box::new(JsValue::promise(return_value));
+        }
         Self::Function(1 + return_value.total_nodes(), func_ident, return_value)
     }
 
@@ -1062,6 +1073,10 @@ impl JsValue {
     }
 
     pub fn promise(operand: Box<JsValue>) -> Self {
+        // In ecmascript Promise<Promise<T>> is equivalent to Promise<T>
+        if let JsValue::Promise(_, _) = &*operand {
+            return *operand;
+        }
         Self::Promise(1 + operand.total_nodes(), operand)
     }
 
@@ -1735,6 +1750,10 @@ impl JsValue {
             }
             JsValue::WellKnownObject(obj) => {
                 let (name, explainer) = match obj {
+                    WellKnownObjectKind::Generator => (
+                        "Generator",
+                        "A Generator or AsyncGenerator object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
+                    ),
                     WellKnownObjectKind::GlobalObject => (
                         "Object",
                         "The global Object variable",
@@ -3440,6 +3459,8 @@ pub enum WellKnownObjectKind {
     NodeBuffer,
     RequireCache,
     ImportMeta,
+    /// An iterator object, used to model generator return values.
+    Generator,
 }
 
 impl WellKnownObjectKind {

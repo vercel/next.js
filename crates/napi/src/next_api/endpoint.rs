@@ -131,7 +131,7 @@ pub async fn endpoint_write_to_disk(
     let (written, issues, diags) = endpoint
         .turbopack_ctx()
         .turbo_tasks()
-        .run_once(async move {
+        .run(async move {
             let written_entrypoint_with_issues_op =
                 get_written_endpoint_with_issues_operation(endpoint_op);
             let WrittenEndpointWithIssues {
@@ -146,7 +146,7 @@ pub async fn endpoint_write_to_disk(
 
             Ok((written.clone(), issues.clone(), diagnostics.clone()))
         })
-        .or_else(|e| ctx.throw_turbopack_internal_result(&e))
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
     Ok(TurbopackResult {
         result: NapiWrittenEndpoint::from(written.map(ReadRef::into_owned)),

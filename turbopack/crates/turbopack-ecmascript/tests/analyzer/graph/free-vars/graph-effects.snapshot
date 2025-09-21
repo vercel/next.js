@@ -47,7 +47,6 @@
             ),
         ],
         span: 13..24,
-        in_try: false,
     },
     FreeVar {
         var: "Buffer",
@@ -94,7 +93,6 @@
             ),
         ],
         span: 13..19,
-        in_try: false,
     },
     MemberCall {
         obj: FreeVar(

@@ -14,7 +14,7 @@ clientComponentLoadTimes = (0 | (clientComponentLoadTimes + ???*0*))
 
 getClientComponentLoaderMetrics = (...) => metrics
 
-metrics = ((clientComponentLoadTimes === 0) ? FreeVar(undefined) : {
+metrics = ((clientComponentLoadTimes === 0) ? undefined : {
     "clientComponentLoadTimes": clientComponentLoadTimes
 })
 

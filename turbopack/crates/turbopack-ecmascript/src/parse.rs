@@ -10,7 +10,6 @@ use swc_core::{
         errors::{HANDLER, Handler},
         input::StringInput,
         source_map::{Files, SourceMapGenConfig, build_source_map},
-        util::take::Take,
     },
     ecma::{
         ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
@@ -44,7 +43,7 @@ use turbopack_swc_utils::emitter::IssueEmitter;
 use super::EcmascriptModuleAssetType;
 use crate::{
     EcmascriptInputTransform,
-    analyzer::{ImportMap, graph::EvalContext},
+    analyzer::graph::EvalContext,
     swc_comments::ImmutableComments,
     transform::{EcmascriptInputTransforms, TransformContext},
 };
@@ -77,28 +76,6 @@ impl PartialEq for ParseResult {
             (Self::Ok { .. }, Self::Ok { .. }) => false,
             _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ParseResult {
-    #[turbo_tasks::function]
-    pub fn empty() -> Vc<ParseResult> {
-        let globals = Globals::new();
-        let eval_context = GLOBALS.set(&globals, || EvalContext {
-            unresolved_mark: Mark::new(),
-            top_level_mark: Mark::new(),
-            imports: ImportMap::default(),
-            force_free_values: Default::default(),
-        });
-        ParseResult::Ok {
-            program: Program::Module(swc_core::ecma::ast::Module::dummy()),
-            comments: Default::default(),
-            eval_context,
-            globals: Arc::new(globals),
-            source_map: Default::default(),
-        }
-        .cell()
     }
 }
 
@@ -195,7 +172,7 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
 pub async fn parse(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
-    transforms: Vc<EcmascriptInputTransforms>,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
     let name = source.ident().to_string().await?.to_string();
     let span = tracing::info_span!("parse ecmascript", name = name, ty = display(&ty));
@@ -215,11 +192,10 @@ pub async fn parse(
 async fn parse_internal(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
-    transforms: Vc<EcmascriptInputTransforms>,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
-    let fs_path_vc = source.ident().path().owned().await?;
-    let fs_path = fs_path_vc.clone();
+    let fs_path = source.ident().path().owned().await?;
     let ident = &*source.ident().to_string().await?;
     let file_path_hash = hash_xxh3_hash64(&*source.ident().to_string().await?) as u128;
     let content = match content.await {
@@ -248,7 +224,6 @@ async fn parse_internal(
                         let transforms = &*transforms.await?;
                         match parse_file_content(
                             string,
-                            fs_path_vc.clone(),
                             &fs_path,
                             ident,
                             source.ident().await?.query.clone(),
@@ -297,7 +272,6 @@ async fn parse_internal(
 
 async fn parse_file_content(
     string: BytesStr,
-    fs_path_vc: FileSystemPath,
     fs_path: &FileSystemPath,
     ident: &str,
     query: RcStr,
@@ -458,7 +432,7 @@ async fn parse_file_content(
                 file_name_str: fs_path.file_name(),
                 file_name_hash: file_path_hash,
                 query_str: query,
-                file_path: fs_path_vc.clone(),
+                file_path: fs_path.clone(),
                 source
             };
             let span = tracing::trace_span!("transforms");

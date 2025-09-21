@@ -391,6 +391,8 @@ impl ModuleReference for EsmAssetReference {
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         let ty = if matches!(self.annotations.module_type(), Some("json")) {
             EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Json)
+        } else if matches!(self.annotations.module_type(), Some("bytes")) {
+            EcmaScriptModulesReferenceSubType::ImportWithType(ImportWithType::Bytes)
         } else if let Some(part) = &self.export_name {
             EcmaScriptModulesReferenceSubType::ImportPart(part.clone())
         } else {

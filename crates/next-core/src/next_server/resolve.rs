@@ -1,7 +1,5 @@
-use std::sync::LazyLock;
-
 use anyhow::Result;
-use regex::Regex;
+use next_taskless::NEVER_EXTERNAL_RE;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
@@ -100,11 +98,6 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         else {
             return Ok(ResolveResultOption::none());
         };
-
-        // from https://github.com/vercel/next.js/blob/8d1c619ad650f5d147207f267441caf12acd91d1/packages/next/src/build/handle-externals.ts#L188
-        static NEVER_EXTERNAL_RE: LazyLock<Regex> = LazyLock::new(|| {
-            Regex::new("^(?:private-next-pages\\/|next\\/(?:dist\\/pages\\/|(?:app|cache|document|link|form|head|image|legacy\\/image|constants|dynamic|script|navigation|headers|router|compat\\/router|server)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper$)").unwrap()
-        });
 
         let (Pattern::Constant(package), Pattern::Constant(package_subpath)) =
             (package, package_subpath)

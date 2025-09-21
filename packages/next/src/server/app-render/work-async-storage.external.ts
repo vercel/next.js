@@ -38,8 +38,6 @@ export interface WorkStore {
    */
   readonly hasReadableErrorStacks?: boolean
 
-  readonly isRevalidate?: boolean
-
   forceDynamic?: boolean
   fetchCache?: AppSegmentConfig['fetchCache']
 

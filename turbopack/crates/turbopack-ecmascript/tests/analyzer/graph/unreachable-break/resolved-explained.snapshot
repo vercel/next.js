@@ -1,8 +1,8 @@
-A = (...) => (undefined | FreeVar(undefined))
+A = (...) => undefined
 
-B = (...) => (undefined | FreeVar(undefined))
+B = (...) => undefined
 
-C = (...) => (undefined | FreeVar(undefined))
+C = (...) => undefined
 
 v = ???*0*
 - *0* arguments[0]
