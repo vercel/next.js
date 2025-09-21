@@ -960,15 +960,7 @@ mod analyzer_state {
                 function.is_async(),
                 function.is_generator(),
                 match return_values.len() {
-                    0 => {
-                        // This doesn't really seem possible
-                        debug_assert!(
-                            false,
-                            "Function with no return values and early return handling didn't \
-                             detect it"
-                        );
-                        JsValue::Constant(ConstantValue::Undefined)
-                    }
+                    0 => JsValue::Constant(ConstantValue::Undefined),
                     1 => return_values.into_iter().next().unwrap(),
                     _ => JsValue::alternatives(return_values),
                 },
@@ -2444,6 +2436,9 @@ impl VisitAstPath for Analyzer<'_> {
                 let hoisted_effects = take(&mut self.hoisted_effects);
                 n.visit_children_with_ast_path(self, ast_path);
                 if !self.end_early_return_block() {
+                    // NOTE: this only occurs if the function has a return statement on one branch
+                    // but not another. if there are no return statements,
+                    // `end_early_return_block` will return false.
                     self.add_return_value(JsValue::Constant(ConstantValue::Undefined));
                 }
                 self.effects.append(&mut self.hoisted_effects);
