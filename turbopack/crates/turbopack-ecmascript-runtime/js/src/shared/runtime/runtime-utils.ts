@@ -579,7 +579,7 @@ function installCompressedModuleFactories(
  * This is based on webpack's existing implementation:
  * https://github.com/webpack/webpack/blob/87660921808566ef3b8796f8df61bd79fc026108/lib/runtime/RelativeUrlRuntimeModule.js
  */
-const relativeURL = function relativeURL(this: any, inputUrl: string) {
+const relativeURL = function relativeURL(inputUrl: string) {
   const realUrl = new URL(inputUrl, 'x:/')
   const values: Record<string, any> = {}
   for (const key in realUrl) values[key] = (realUrl as any)[key]
@@ -588,13 +588,13 @@ const relativeURL = function relativeURL(this: any, inputUrl: string) {
   values.origin = values.protocol = ''
   values.toString = values.toJSON = (..._args: Array<any>) => inputUrl
   for (const key in values)
-    Object.defineProperty(this, key, {
+    Object.defineProperty(realUrl, key, {
       enumerable: true,
       configurable: true,
       value: values[key],
     })
+  return realUrl
 }
-relativeURL.prototype = URL.prototype
 contextPrototype.U = relativeURL
 
 /**
