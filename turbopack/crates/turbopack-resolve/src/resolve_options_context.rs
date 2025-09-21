@@ -25,7 +25,7 @@ pub enum TsConfigHandling {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct ResolveOptionsContext {
     /// - Overrides `options.node_externals`
     /// - Appends `environment.resolve_conditions`
@@ -35,6 +35,7 @@ pub struct ResolveOptionsContext {
     pub enable_typescript: bool,
     pub enable_react: bool,
     pub enable_node_native_modules: bool,
+    pub enable_react_native_infix: Option<RcStr>,
     // Enable resolving of .mjs files without the .mjs extension
     pub enable_mjs_extension: bool,
     /// Enable resolving of the node_modules folder when within the provided

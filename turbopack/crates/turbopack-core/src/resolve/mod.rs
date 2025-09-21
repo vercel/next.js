@@ -2449,6 +2449,8 @@ async fn resolve_relative_request(
         ]));
     }
 
+    // let x = new_path.clone();
+
     if !options_value.fully_specified {
         // For each current set of modifications append an extension modification
         modifications =
@@ -2478,6 +2480,7 @@ async fn resolve_relative_request(
         ));
         new_path.normalize();
     };
+    // println!("pattern {:#?} {:#?}", x, new_path);
 
     struct ExtensionReplacements {
         forward: FxHashMap<RcStr, SmallVec<[RcStr; 3]>>,

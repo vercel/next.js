@@ -144,6 +144,15 @@ async fn base_resolve_options(
         if opt.enable_mjs_extension {
             ext.push(rcstr!(".mjs"));
         }
+
+        if let Some(infix) = &opt.enable_react_native_infix {
+            ext = ext
+                .iter()
+                .flat_map(|e| [format!(".{infix}{e}").into(), format!(".native{e}").into()])
+                .chain(ext.iter().cloned())
+                .collect();
+        }
+
         if opt.enable_node_native_modules {
             ext.push(rcstr!(".node"));
         }
