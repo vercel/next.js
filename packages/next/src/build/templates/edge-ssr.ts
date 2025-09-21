@@ -263,6 +263,9 @@ async function requestHandler(
           if (!span) return
 
           span.setAttributes({
+            // Current OpenTelemetry semantic conventions
+            'http.response.status_code': finalStatus,
+            // Legacy attributes for backward compatibility
             'http.status_code': finalStatus,
             'next.rsc': false,
           })
@@ -346,9 +349,13 @@ async function requestHandler(
         spanName: `${req.method} ${srcPage}`,
         kind: SpanKind.SERVER,
         attributes: {
+          // Current OpenTelemetry semantic conventions
+          'http.request.method': req.method,
+          'url.path': relativeUrl,
+          'http.route': srcPage,
+          // Legacy attributes for backward compatibility
           'http.method': req.method,
           'http.target': relativeUrl,
-          'http.route': srcPage,
         },
       },
       invokeRender

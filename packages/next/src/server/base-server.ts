@@ -895,6 +895,10 @@ export default abstract class Server<
           spanName: `${method}`,
           kind: SpanKind.SERVER,
           attributes: {
+            // Current OpenTelemetry semantic conventions
+            'http.request.method': method,
+            'url.path': req.url,
+            // Legacy attributes for backward compatibility
             'http.method': method,
             'http.target': req.url,
           },
@@ -905,6 +909,9 @@ export default abstract class Server<
 
             const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
             span.setAttributes({
+              // Current OpenTelemetry semantic conventions
+              'http.response.status_code': res.statusCode,
+              // Legacy attributes for backward compatibility
               'http.status_code': res.statusCode,
               'next.rsc': isRSCRequest,
             })
