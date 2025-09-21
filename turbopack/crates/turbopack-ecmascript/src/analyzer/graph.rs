@@ -284,6 +284,7 @@ pub struct VarMeta {
     /// - [`AssignmentScopes::AllInFunctionScopes`] if it was assigned in any set of function
     ///   scopes
     /// - [`AssignmentScopes::Mixed`] if it was assigned in both
+    ///
     /// This is used to track the _liveness_ of exports.
     pub assignment_scopes: AssignmentScopes,
 }
