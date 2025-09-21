@@ -45,16 +45,32 @@ const moduleHotState: WeakMap<any, HotState> = new WeakMap()
  */
 const queuedInvalidatedModules: Set<ModuleId> = new Set()
 
-class UpdateApplyError extends Error {
-  name = 'UpdateApplyError'
+// class UpdateApplyError extends Error {
+//   name = 'UpdateApplyError'
+//
+//   dependencyChain: ModuleId[]
+//
+//   constructor(message: string, dependencyChain: ModuleId[]) {
+//     super(message)
+//     this.dependencyChain = dependencyChain
+//   }
+// }
 
+const UpdateApplyError = function UpdateApplyError(
+  message: string,
   dependencyChain: ModuleId[]
-
-  constructor(message: string, dependencyChain: ModuleId[]) {
-    super(message)
-    this.dependencyChain = dependencyChain
-  }
+) {
+  // @ts-ignore-error
+  Error.call(this, message)
+  // @ts-ignore-error
+  this.name = 'UpdateApplyError'
+  // @ts-ignore-error
+  this.dependencyChain = dependencyChain
+} as any as {
+  new (message: string, dependencyChain: ModuleId[]): Error
 }
+UpdateApplyError.prototype = Object.create(Error.prototype)
+UpdateApplyError.prototype.constructor = UpdateApplyError
 
 type ModuleEffect =
   | {
