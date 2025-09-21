@@ -8,7 +8,6 @@ $c = (...) => undefined
 
 $d = [9, 13, 27, 32]
 
-<<<<<<< HEAD
 $e = (undefined | ???*0* | "animationend" | ???*1* | ???*3*)
 - *0* unknown mutation
   ⚠️  This value might have side effects
@@ -19,12 +18,6 @@ $e = (undefined | ???*0* | "animationend" | ???*1* | ???*3*)
   ⚠️  pattern without value
 - *3* ???*4*[(???*5* | ???*6*)]
   ⚠️  unknown object
-=======
-$e = (undefined | ???*0* | "animationend" | ???*1*)
-- *0* unknown mutation
-  ⚠️  This value might have side effects
-- *1* unsupported expression
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  This value might have side effects
 - *4* unknown mutation
   ⚠️  This value might have side effects
@@ -57,12 +50,7 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 *anonymous function 114743* = (...) => null
 
 *anonymous function 117815* = (...) => (
-<<<<<<< HEAD
-  | undefined
   | zj(a, b, c)
-=======
-  | ???*0*
->>>>>>> 636c4d4d30 (fix effect ordering)
   | b
   | ???*0*
   | pj(a, b, c)
@@ -103,14 +91,7 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 128133* = (...) => C
 
-<<<<<<< HEAD
-*anonymous function 128157* = (...) => (undefined | b())
-=======
-*anonymous function 128157* = (...) => (???*0* | undefined)
-- *0* b()
-  ⚠️  sequence with side effects
-  ⚠️  This value might have side effects
->>>>>>> 636c4d4d30 (fix effect ordering)
+*anonymous function 128157* = (...) => (b() | undefined)
 
 *anonymous function 128216* = (...) => undefined
 
@@ -542,17 +523,13 @@ Cf = (null | true | false | !(???*0*))
 - *1* Cf
   ⚠️  circular variable reference
 
-<<<<<<< HEAD
 Cg = (...) => (
-  | undefined
   | ((null !== b) ? ???*0* : !(1))
   | ((null !== b) ? !(0) : !(1))
   | ((null !== b) ? ???*1* : !(1))
   | !(1)
+  | undefined
 )
-=======
-Cg = (...) => (((null !== b) ? ???*0* : !(1)) | ???*1* | !(1) | undefined)
->>>>>>> 636c4d4d30 (fix effect ordering)
 - *0* !(0)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -737,11 +714,7 @@ Fh = {"current": {}}
 
 Fi = (...) => di()["memoizedState"]
 
-<<<<<<< HEAD
-Fj = (...) => (undefined | ???*0* | null | (???*1* ? b : null) | b | b["child"])
-=======
-Fj = (...) => (???*0* | null | (???*1* ? b : null) | b["child"] | undefined)
->>>>>>> 636c4d4d30 (fix effect ordering)
+Fj = (...) => (???*0* | null | (???*1* ? b : null) | b | b["child"] | undefined)
 - *0* null
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -891,11 +864,7 @@ Ia = ???*0*
 
 Ib = (false | true)
 
-<<<<<<< HEAD
-Ic = (???*0* | (...) => (undefined | b()))
-=======
-Ic = (???*0* | (...) => (???*1* | undefined))
->>>>>>> 636c4d4d30 (fix effect ordering)
+Ic = (???*0* | (...) => (b() | undefined))
 - *0* Ic
   ⚠️  pattern without value
 
@@ -2067,12 +2036,7 @@ Wj = (...) => undefined
 Wk = (
   | ???*0*
   | (...) => (
-<<<<<<< HEAD
-      | undefined
       | zj(a, b, c)
-=======
-      | ???*1*
->>>>>>> 636c4d4d30 (fix effect ordering)
       | b
       | ???*1*
       | pj(a, b, c)
@@ -3864,23 +3828,13 @@ a#472 = (
   | ???*1*
   | (???*3* ? ???*5* : ???*7*)["nodeType"]
   | null["nodeType"]
-<<<<<<< HEAD
   | (???*9* ? (
-      | undefined
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
+      | undefined
     ) : ???*11*)["nodeType"]
   | (???*15* ? (???*17* | null["parentNode"]) : (???*19* | ???*20* | ???*27* | null))
-=======
-  | (???*8* ? (
-      | "http://www.w3.org/2000/svg"
-      | "http://www.w3.org/1998/Math/MathML"
-      | "http://www.w3.org/1999/xhtml"
-      | undefined
-    ) : ???*10*)["nodeType"]
-  | (???*14* ? (???*16* | null["parentNode"]) : (???*18* | ???*19* | ???*25* | null))
->>>>>>> 636c4d4d30 (fix effect ordering)
 )
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
@@ -3892,16 +3846,11 @@ a#472 = (
   ⚠️  unknown object
 - *4* b
   ⚠️  circular variable reference
-<<<<<<< HEAD
 - *5* ???*6*["namespaceURI"]
   ⚠️  unknown object
 - *6* b
   ⚠️  circular variable reference
 - *7* ((???*8* | false) ? (
-      | undefined
-=======
-- *6* ((???*7* | false) ? (
->>>>>>> 636c4d4d30 (fix effect ordering)
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
@@ -3938,16 +3887,11 @@ a#472 = (
   ⚠️  unknown object
 - *22* b
   ⚠️  circular variable reference
-<<<<<<< HEAD
 - *23* ???*24*["namespaceURI"]
   ⚠️  unknown object
 - *24* b
   ⚠️  circular variable reference
 - *25* ((???*26* | false) ? (
-      | undefined
-=======
-- *23* ((???*24* | false) ? (
->>>>>>> 636c4d4d30 (fix effect ordering)
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
@@ -5885,7 +5829,6 @@ ae = (!(???*0*) | ???*3*)
 - *3* unsupported expression
   ⚠️  This value might have side effects
 
-<<<<<<< HEAD
 af = (undefined | ???*0* | "animationiteration" | ???*1* | ???*3*)
 - *0* unknown mutation
   ⚠️  This value might have side effects
@@ -5896,12 +5839,6 @@ af = (undefined | ???*0* | "animationiteration" | ???*1* | ???*3*)
   ⚠️  pattern without value
 - *3* ???*4*[(???*5* | ???*6*)]
   ⚠️  unknown object
-=======
-af = (undefined | ???*0* | "animationiteration" | ???*1*)
-- *0* unknown mutation
-  ⚠️  This value might have side effects
-- *1* unsupported expression
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  This value might have side effects
 - *4* unknown mutation
   ⚠️  This value might have side effects
@@ -7138,7 +7075,6 @@ b#421 = (
   ⚠️  circular variable reference
 - *5* unknown mutation
   ⚠️  This value might have side effects
-<<<<<<< HEAD
 - *6* (???*7* ? ({} | ???*12*) : {})
   ⚠️  nested operation
 - *7* (null !== (false | ???*8* | ???*10*))
@@ -7156,17 +7092,6 @@ b#421 = (
 - *13* ???*14*["stateNode"]
   ⚠️  unknown object
 - *14* arguments[0]
-=======
-- *6* (???*7* ? ({} | ???*8*) : {})
-  ⚠️  nested operation
-- *7* unsupported expression
-  ⚠️  This value might have side effects
-- *8* ???*9*["__reactInternalMemoizedMaskedChildContext"]
-  ⚠️  unknown object
-- *9* ???*10*["stateNode"]
-  ⚠️  unknown object
-- *10* arguments[0]
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  function calls are not analysed yet
 
 b#422 = ???*0*
@@ -7428,21 +7353,12 @@ b#472 = (
   | ???*7*
   | (???*9* ? ???*11* : ???*13*)["namespaceURI"]
   | null
-<<<<<<< HEAD
   | (???*14* ? (
-      | undefined
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
+      | undefined
     ) : ???*16*)
-=======
-  | (???*13* ? (
-      | "http://www.w3.org/2000/svg"
-      | "http://www.w3.org/1998/Math/MathML"
-      | "http://www.w3.org/1999/xhtml"
-      | undefined
-    ) : ???*15*)
->>>>>>> 636c4d4d30 (fix effect ordering)
 )
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
@@ -7450,16 +7366,11 @@ b#472 = (
   ⚠️  unknown object
 - *2* b
   ⚠️  circular variable reference
-<<<<<<< HEAD
 - *3* ???*4*["namespaceURI"]
   ⚠️  unknown object
 - *4* b
   ⚠️  circular variable reference
 - *5* ((???*6* | false) ? (
-      | undefined
-=======
-- *4* ((???*5* | false) ? (
->>>>>>> 636c4d4d30 (fix effect ordering)
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
@@ -8957,12 +8868,7 @@ b#868 = ???*0*
 - *0* (
       | ???*1*
       | (...) => (
-<<<<<<< HEAD
-          | undefined
           | zj(a, b, c)
-=======
-          | ???*2*
->>>>>>> 636c4d4d30 (fix effect ordering)
           | b
           | ???*2*
           | pj(a, b, c)
@@ -9541,7 +9447,6 @@ be = (null | ???*0*)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-<<<<<<< HEAD
 bf = (undefined | ???*0* | "animationstart" | ???*1* | ???*3*)
 - *0* unknown mutation
   ⚠️  This value might have side effects
@@ -9552,12 +9457,6 @@ bf = (undefined | ???*0* | "animationstart" | ???*1* | ???*3*)
   ⚠️  pattern without value
 - *3* ???*4*[(???*5* | ???*6*)]
   ⚠️  unknown object
-=======
-bf = (undefined | ???*0* | "animationstart" | ???*1*)
-- *0* unknown mutation
-  ⚠️  This value might have side effects
-- *1* unsupported expression
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  This value might have side effects
 - *4* unknown mutation
   ⚠️  This value might have side effects
@@ -12252,7 +12151,6 @@ ce = (!(???*0*) | ???*3* | !((null | ???*4*)))
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-<<<<<<< HEAD
 cf = (undefined | ???*0* | "transitionend" | ???*1* | ???*3*)
 - *0* unknown mutation
   ⚠️  This value might have side effects
@@ -12263,12 +12161,6 @@ cf = (undefined | ???*0* | "transitionend" | ???*1* | ???*3*)
   ⚠️  pattern without value
 - *3* ???*4*[(???*5* | ???*6*)]
   ⚠️  unknown object
-=======
-cf = (undefined | ???*0* | "transitionend" | ???*1*)
-- *0* unknown mutation
-  ⚠️  This value might have side effects
-- *1* unsupported expression
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  This value might have side effects
 - *4* unknown mutation
   ⚠️  This value might have side effects
@@ -12810,11 +12702,7 @@ d#400 = (???*0* | null["alternate"] | undefined["alternate"] | undefined | ???*2
 - *3* ???*4*["alternate"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-<<<<<<< HEAD
 - *4* unknown mutation
-=======
-- *4* unsupported expression
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  This value might have side effects
 
 d#404 = ???*0*
@@ -12967,13 +12855,8 @@ d#421 = (
   | false
   | ???*0*
   | new ???*2*(???*3*, (???*4* | undefined | ???*6* | ???*7*))["contextTypes"]
-<<<<<<< HEAD
   | (null !== ???*13*)
   | (undefined !== ???*14*)
-=======
-  | (null !== ???*12*)
-  | (undefined !== ???*13*)
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 )
 - *0* ???*1*["contextTypes"]
   ⚠️  unknown object
@@ -12989,7 +12872,6 @@ d#421 = (
   ⚠️  circular variable reference
 - *6* unknown mutation
   ⚠️  This value might have side effects
-<<<<<<< HEAD
 - *7* (???*8* ? ({} | ???*10*) : {})
   ⚠️  nested operation
 - *8* (null !== ???*9*)
@@ -12997,21 +12879,14 @@ d#421 = (
 - *9* d
   ⚠️  circular variable reference
 - *10* ???*11*["__reactInternalMemoizedMaskedChildContext"]
-=======
-- *7* (???*8* ? ({} | ???*9*) : {})
-  ⚠️  nested operation
-- *8* unsupported expression
-  ⚠️  This value might have side effects
-- *9* ???*10*["__reactInternalMemoizedMaskedChildContext"]
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  unknown object
-- *10* ???*11*["stateNode"]
+- *11* ???*12*["stateNode"]
   ⚠️  unknown object
-- *11* arguments[0]
+- *12* arguments[0]
   ⚠️  function calls are not analysed yet
-- *12* d
-  ⚠️  circular variable reference
 - *13* d
+  ⚠️  circular variable reference
+- *14* d
   ⚠️  circular variable reference
 
 d#422 = ???*0*
@@ -14228,16 +14103,9 @@ d#802 = ???*0*
 
 d#803 = (
   | 0
-<<<<<<< HEAD
   | (???*0* ? (0 | ???*19* | ???*20*) : 0)
   | ???*21*
   | ???*23*
-  | undefined
-=======
-  | (???*0* ? (0 | ???*19*) : 0)
-  | ???*20*
-  | ???*22*
->>>>>>> 636c4d4d30 (fix effect ordering)
   | 1
   | 2
   | 4
@@ -15771,13 +15639,8 @@ e#420 = ???*0*
 - *0* arguments[4]
   ⚠️  function calls are not analysed yet
 
-<<<<<<< HEAD
 e#421 = ({} | (???*0* ? ({} | ???*16*) : ({} | ???*17*)))
 - *0* (null !== (???*1* | ???*2* | ???*14*))
-=======
-e#421 = ({} | (???*0* ? ({} | ???*14*) : ({} | ???*15*)))
-- *0* (null !== (???*1* | ???*2* | ???*12*))
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  nested operation
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
@@ -15793,7 +15656,6 @@ e#421 = ({} | (???*0* ? ({} | ???*14*) : ({} | ???*15*)))
   ⚠️  circular variable reference
 - *7* unknown mutation
   ⚠️  This value might have side effects
-<<<<<<< HEAD
 - *8* (???*9* ? ({} | ???*12*) : {})
   ⚠️  nested operation
 - *9* (null !== (false | ???*10* | ???*11*))
@@ -15811,23 +15673,6 @@ e#421 = ({} | (???*0* ? ({} | ???*14*) : ({} | ???*15*)))
 - *15* a
   ⚠️  circular variable reference
 - *16* unknown mutation
-=======
-- *8* (???*9* ? ({} | ???*10*) : {})
-  ⚠️  nested operation
-- *9* unsupported expression
-  ⚠️  This value might have side effects
-- *10* ???*11*["__reactInternalMemoizedMaskedChildContext"]
-  ⚠️  unknown object
-- *11* ???["stateNode"]
-  ⚠️  unknown object
-- *12* ???*13*["childContextTypes"]
-  ⚠️  unknown object
-- *13* a
-  ⚠️  circular variable reference
-- *14* unknown mutation
-  ⚠️  This value might have side effects
-- *15* unknown mutation
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  This value might have side effects
 - *17* unknown mutation
   ⚠️  This value might have side effects
@@ -16590,15 +16435,7 @@ e#77 = (0 | undefined | ???*0* | ???*1* | ???*9* | null["hasOwnProperty"](???*17
 - *11* ???*12*["value"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-<<<<<<< HEAD
-<<<<<<< HEAD
-- *12* ???*13*[(???*14* | 0 | ???*15* | undefined | ???*16* | "")]
-=======
-- *13* ???*14*[(???*15* | 0 | ???*16* | ???*17* | "" | undefined)]
->>>>>>> 636c4d4d30 (fix effect ordering)
-=======
 - *12* ???*13*[(???*14* | 0 | ???*15* | ???*16* | "" | undefined)]
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *13* arguments[0]
@@ -16614,15 +16451,7 @@ e#77 = (0 | undefined | ???*0* | ???*1* | ???*9* | null["hasOwnProperty"](???*17
 - *18* ???*19*["value"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-<<<<<<< HEAD
-<<<<<<< HEAD
-- *19* ???*20*[(???*21* | 0 | ???*22* | undefined | ???*23* | "")]
-=======
-- *20* ???*21*[(???*22* | 0 | ???*23* | ???*24* | "" | undefined)]
->>>>>>> 636c4d4d30 (fix effect ordering)
-=======
 - *19* ???*20*[(???*21* | 0 | ???*22* | ???*23* | "" | undefined)]
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *20* arguments[0]
@@ -17339,10 +17168,6 @@ f#400 = (
         "next": null
     }
   | ???*20*
-<<<<<<< HEAD
-=======
-  | ???*21*
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 )
 - *0* ???*1*["eventTime"]
   ⚠️  unknown object
@@ -17384,13 +17209,7 @@ f#400 = (
   ⚠️  function calls are not analysed yet
 - *19* unknown mutation
   ⚠️  This value might have side effects
-<<<<<<< HEAD
 - *20* arguments[1]
-=======
-- *20* unsupported expression
-  ⚠️  This value might have side effects
-- *21* arguments[1]
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  function calls are not analysed yet
 
 f#404 = ???*0*
@@ -17602,11 +17421,7 @@ f#421 = (
   | new ???*2*(???*3*, ???*4*)["contextType"]
   | undefined
   | ???*5*
-<<<<<<< HEAD
   | (???*6* ? ({} | ???*11*) : {})
-=======
-  | (???*6* ? ({} | ???*7*) : {})
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 )
 - *0* ???*1*["contextType"]
   ⚠️  unknown object
@@ -17620,7 +17435,6 @@ f#421 = (
   ⚠️  circular variable reference
 - *5* unknown mutation
   ⚠️  This value might have side effects
-<<<<<<< HEAD
 - *6* (null !== (false | ???*7* | ???*9*))
   ⚠️  nested operation
 - *7* ???*8*["contextTypes"]
@@ -17636,15 +17450,6 @@ f#421 = (
 - *12* ???*13*["stateNode"]
   ⚠️  unknown object
 - *13* arguments[0]
-=======
-- *6* unsupported expression
-  ⚠️  This value might have side effects
-- *7* ???*8*["__reactInternalMemoizedMaskedChildContext"]
-  ⚠️  unknown object
-- *8* ???*9*["stateNode"]
-  ⚠️  unknown object
-- *9* arguments[0]
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   ⚠️  function calls are not analysed yet
 
 f#423 = (???*0* | (???*2* ? ({} | ???*7*) : ({} | ???*8*)))
@@ -19073,16 +18878,7 @@ g#961 = (
   | (???*10* ? 16 : (???*11* | undefined | null | ???*18* | ???*19*))
   | ???*21*
   | ???*22*
-<<<<<<< HEAD
-<<<<<<< HEAD
-  | (???*24* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
-=======
-  | ???*23*
-  | (???*25* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
->>>>>>> 636c4d4d30 (fix effect ordering)
-=======
   | (???*24* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 )
 - *0* unsupported expression
   ⚠️  This value might have side effects
@@ -19975,14 +19771,7 @@ jc = module<scheduler, {}>["unstable_IdlePriority"]
 
 jd = (...) => (1 | 4 | 16 | 536870912 | undefined)
 
-<<<<<<< HEAD
-je = (...) => (undefined | he(b) | null | ee | (((a === ee) && fe) ? null : a))
-=======
-je = (...) => (he(b) | null | ee | ???*0* | undefined)
-- *0* (((a === ee) && fe) ? null : a)
-  ⚠️  sequence with side effects
-  ⚠️  This value might have side effects
->>>>>>> 636c4d4d30 (fix effect ordering)
+je = (...) => (he(b) | null | ee | (((a === ee) && fe) ? null : a) | undefined)
 
 jf = (???*0*() | undefined["toLowerCase"]() | undefined)
 - *0* ???*1*["toLowerCase"]
@@ -20941,14 +20730,10 @@ n#404 = (
   | null["lastBaseUpdate"]["payload"]
   | undefined["payload"]
   | ???*6*
-  | undefined["payload"]
   | undefined["next"]["payload"]
   | null["next"]["payload"]
-<<<<<<< HEAD
   | null["payload"]
   | ???*8*
-=======
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
   | (???*9* ? ???*12* : ???*14*)["next"]["payload"]
 )
 - *0* arguments[0]
@@ -21719,13 +21504,10 @@ vl = {
   ⚠️  This value might have side effects
 - *4* unknown mutation
   ⚠️  This value might have side effects
-<<<<<<< HEAD
 
 w#292 = ???*0*
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
-=======
->>>>>>> 183fab2a70 (Fix snapshots for new analyzer goldens)
 
 w#449 = (0 | ???*0*)
 - *0* updated with update expression

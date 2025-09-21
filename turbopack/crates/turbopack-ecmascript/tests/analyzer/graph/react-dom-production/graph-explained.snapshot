@@ -52,12 +52,7 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 *anonymous function 114743* = (...) => null
 
 *anonymous function 117815* = (...) => (
-<<<<<<< HEAD
-  | undefined
   | zj(a, b, c)
-=======
-  | ???*0*
->>>>>>> 636c4d4d30 (fix effect ordering)
   | b
   | ???*0*
   | pj(a, b, c)
@@ -98,14 +93,7 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 128133* = (...) => C
 
-<<<<<<< HEAD
-*anonymous function 128157* = (...) => (undefined | b())
-=======
-*anonymous function 128157* = (...) => (???*0* | undefined)
-- *0* b()
-  ⚠️  sequence with side effects
-  ⚠️  This value might have side effects
->>>>>>> 636c4d4d30 (fix effect ordering)
+*anonymous function 128157* = (...) => (b() | undefined)
 
 *anonymous function 128216* = (...) => undefined
 
@@ -438,17 +426,13 @@ Ce = (...) => undefined
 
 Cf = (null | dd)
 
-<<<<<<< HEAD
 Cg = (...) => (
-  | undefined
   | ((null !== b) ? ???*0* : !(1))
   | ((null !== b) ? !(0) : !(1))
   | ((null !== b) ? ???*1* : !(1))
   | !(1)
+  | undefined
 )
-=======
-Cg = (...) => (((null !== b) ? ???*0* : !(1)) | ???*1* | !(1) | undefined)
->>>>>>> 636c4d4d30 (fix effect ordering)
 - *0* !(0)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -572,11 +556,7 @@ Fh = Uf(Dh)
 
 Fi = (...) => di()["memoizedState"]
 
-<<<<<<< HEAD
-Fj = (...) => (undefined | ???*0* | null | (???*1* ? b : null) | b | b["child"])
-=======
-Fj = (...) => (???*0* | null | (???*1* ? b : null) | b["child"] | undefined)
->>>>>>> 636c4d4d30 (fix effect ordering)
+Fj = (...) => (???*0* | null | (???*1* ? b : null) | b | b["child"] | undefined)
 - *0* null
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -5437,14 +5417,7 @@ jc = ca["unstable_IdlePriority"]
 
 jd = (...) => (1 | 4 | 16 | 536870912 | undefined)
 
-<<<<<<< HEAD
-je = (...) => (undefined | he(b) | null | ee | (((a === ee) && fe) ? null : a))
-=======
-je = (...) => (he(b) | null | ee | ???*0* | undefined)
-- *0* (((a === ee) && fe) ? null : a)
-  ⚠️  sequence with side effects
-  ⚠️  This value might have side effects
->>>>>>> 636c4d4d30 (fix effect ordering)
+je = (...) => (he(b) | null | ee | (((a === ee) && fe) ? null : a) | undefined)
 
 jf = (hf["toLowerCase"]() | undefined)
 
