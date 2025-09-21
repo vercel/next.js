@@ -262,6 +262,9 @@ name = "anyhow"
 version = "1.0.100"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a23eb6b1614318a8071c9b2521f36b424b2c83db5eb3a0fead4a6c0809af6e61"
+dependencies = [
+ "backtrace",
+]
 
 [[package]]
 name = "approx"
@@ -3043,9 +3046,9 @@ checksum = "c3531d702d6c1a3ba92a5fb55a404c7b8c476c8e7ca249951077afcbe4bc807f"
 
 [[package]]
 name = "h2"
-version = "0.3.24"
+version = "0.3.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb2c4422095b67ee78da96fbb51a4cc413b3b25883c7717ff7ca1ab31022c9c9"
+checksum = "0beca50380b1fc32983fc1cb4587bfa4bb9e78fc259aad4a0032d2080309222d"
 dependencies = [
  "bytes",
  "fnv",
@@ -3311,9 +3314,9 @@ dependencies = [
 
 [[package]]
 name = "http-body"
-version = "0.4.5"
+version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5f38f16d184e36f2408a55281cd658ecbd3ca05cce6d6510a176eca393e26d1"
+checksum = "7ceab25649e9960c0311ea418d17bee82c0dcec1bd053b5f9a66e265a693bed2"
 dependencies = [
  "bytes",
  "http 0.2.11",
@@ -3371,9 +3374,9 @@ dependencies = [
  "futures-channel",
  "futures-core",
  "futures-util",
- "h2 0.3.24",
+ "h2 0.3.27",
  "http 0.2.11",
- "http-body 0.4.5",
+ "http-body 0.4.6",
  "httparse",
  "httpdate",
  "itoa",
@@ -3462,8 +3465,23 @@ dependencies = [
  "hyper 0.14.32",
  "pin-project",
  "tokio",
- "tokio-tungstenite",
+ "tokio-tungstenite 0.18.0",
  "tungstenite 0.18.0",
+]
+
+[[package]]
+name = "hyper-tungstenite"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "87ec0b60f8f6371eb04e4b19361b39fa9a1a88bf344d50c31347824599ca150e"
+dependencies = [
+ "http-body-util",
+ "hyper 1.7.0",
+ "hyper-util",
+ "pin-project-lite",
+ "tokio",
+ "tokio-tungstenite 0.27.0",
+ "tungstenite 0.27.0",
 ]
 
 [[package]]
@@ -3485,9 +3503,11 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "socket2 0.6.3",
+ "system-configuration",
  "tokio",
  "tower-service",
  "tracing",
+ "windows-registry",
 ]
 
 [[package]]
@@ -9129,6 +9149,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "system-configuration"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c879d448e9d986b661742763247d3693ed13609438cf3d006f51f5368a5ba6b"
+dependencies = [
+ "bitflags 2.9.1",
+ "core-foundation 0.9.4",
+ "system-configuration-sys",
+]
+
+[[package]]
+name = "system-configuration-sys"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e1d1b10ced5ca923a1fcb8d03e96b8d3268065d724548c0211415ff6ac6bac4"
+dependencies = [
+ "core-foundation-sys",
+ "libc",
+]
+
+[[package]]
 name = "system-deps"
 version = "6.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9519,6 +9560,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-tungstenite"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "489a59b6730eda1b0171fcfda8b121f4bee2b35cba8645ca35c5f7ba3eb736c1"
+dependencies = [
+ "futures-util",
+ "log",
+ "tokio",
+ "tungstenite 0.27.0",
+]
+
+[[package]]
 name = "tokio-util"
 version = "0.7.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9901,6 +9954,23 @@ dependencies = [
  "sha1",
  "thiserror 1.0.69",
  "url",
+ "utf-8",
+]
+
+[[package]]
+name = "tungstenite"
+version = "0.27.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eadc29d668c91fcc564941132e17b28a7ceb2f3ebf0b9dae3e03fd7a6748eb0d"
+dependencies = [
+ "bytes",
+ "data-encoding",
+ "http 1.1.0",
+ "httparse",
+ "log",
+ "rand 0.9.0",
+ "sha1",
+ "thiserror 2.0.12",
  "utf-8",
 ]
 
@@ -10549,7 +10619,7 @@ dependencies = [
  "flate2",
  "futures",
  "hyper 0.14.32",
- "hyper-tungstenite",
+ "hyper-tungstenite 0.9.0",
  "mime",
  "mime_guess",
  "parking_lot",
@@ -10843,6 +10913,62 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-fs",
  "turbopack-core",
+]
+
+[[package]]
+name = "turbopack-rn"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "bincode 2.0.1",
+ "clap",
+ "codspeed-criterion-compat",
+ "console-subscriber",
+ "dunce",
+ "futures",
+ "http-body-util",
+ "hyper 1.7.0",
+ "hyper-tungstenite 0.18.0",
+ "hyper-util",
+ "owo-colors",
+ "pin-project-lite",
+ "regex",
+ "rustc-hash 2.1.1",
+ "serde",
+ "serde_json",
+ "serde_qs",
+ "swc_core",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "turbo-esregex",
+ "turbo-rcstr",
+ "turbo-tasks",
+ "turbo-tasks-backend",
+ "turbo-tasks-env",
+ "turbo-tasks-fs",
+ "turbo-tasks-malloc",
+ "turbo-unix-path",
+ "turbopack",
+ "turbopack-bench",
+ "turbopack-browser",
+ "turbopack-cli-utils",
+ "turbopack-core",
+ "turbopack-css",
+ "turbopack-dev-server",
+ "turbopack-ecmascript",
+ "turbopack-ecmascript-hmr-protocol",
+ "turbopack-ecmascript-plugins",
+ "turbopack-ecmascript-runtime",
+ "turbopack-env",
+ "turbopack-node",
+ "turbopack-nodejs",
+ "turbopack-resolve",
+ "turbopack-trace-utils",
+ "webbrowser",
 ]
 
 [[package]]
@@ -12448,8 +12574,8 @@ dependencies = [
  "windows-implement",
  "windows-interface",
  "windows-link 0.2.1",
- "windows-result",
- "windows-strings",
+ "windows-result 0.4.1",
+ "windows-strings 0.5.1",
 ]
 
 [[package]]
@@ -12487,12 +12613,41 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0805222e57f7521d6a62e36fa9163bc891acd422f971defe97d64e70d0a4fe5"
 
 [[package]]
+name = "windows-registry"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b3bab093bdd303a1240bb99b8aba8ea8a69ee19d34c9e2ef9594e708a4878820"
+dependencies = [
+ "windows-link 0.1.1",
+ "windows-result 0.3.4",
+ "windows-strings 0.4.2",
+]
+
+[[package]]
+name = "windows-result"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56f42bd332cc6c8eac5af113fc0c1fd6a8fd2aa08a0119358686e5160d0586c6"
+dependencies = [
+ "windows-link 0.1.1",
+]
+
+[[package]]
 name = "windows-result"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7781fa89eaf60850ac3d2da7af8e5242a5ea78d1a11c49bf2910bb5a73853eb5"
 dependencies = [
  "windows-link 0.2.1",
+]
+
+[[package]]
+name = "windows-strings"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "56e6c93f3a0c3b36176cb1327a4958a0353d5d166c2a35cb268ace15e91d3b57"
+dependencies = [
+ "windows-link 0.1.1",
 ]
 
 [[package]]

@@ -52,6 +52,7 @@ pub static TRACING_TURBOPACK_TARGETS: LazyLock<Vec<&str>> = LazyLock::new(|| {
             "turbopack_json=trace",
             "turbopack_mdx=trace",
             "turbopack_node=trace",
+            "turbopack_rn=trace",
             "turbopack_static=trace",
             "turbopack_swc_utils=trace",
             "turbopack_wasm=trace",

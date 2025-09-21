@@ -29,7 +29,7 @@ use crate::BrowserChunkingContext;
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
 #[value_to_string("Ecmascript Dev Chunk List")]
-pub(crate) struct EcmascriptDevChunkList {
+pub struct EcmascriptDevChunkList {
     pub(super) chunking_context: ResolvedVc<BrowserChunkingContext>,
     pub(super) ident: ResolvedVc<AssetIdent>,
     pub(super) evaluatable_assets: ResolvedVc<EvaluatableAssets>,

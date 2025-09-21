@@ -1,20 +1,21 @@
 use std::{
     ops::ControlFlow,
     pin::Pin,
+    sync::Arc,
     task::{Context, Poll},
 };
 
 use anyhow::{Context as _, Error, Result};
 use futures::{SinkExt, prelude::*, ready, stream::FusedStream};
-use hyper::{HeaderMap, Uri, upgrade::Upgraded};
+use hyper::upgrade::Upgraded;
 use hyper_tungstenite::{HyperWebsocket, WebSocketStream, tungstenite::Message};
+use hyper_util::rt::TokioIo;
 use pin_project_lite::pin_project;
 use tokio::select;
 use tokio_stream::StreamMap;
 use tracing::{Level, instrument};
 use turbo_tasks::{
-    NonLocalValue, OperationVc, PrettyPrintError, ReadRef, TransientInstance, TurboTasksApi,
-    trace::TraceRawVcs,
+    NonLocalValue, PrettyPrintError, TransientInstance, TurboTasksApi, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::json::parse_json_with_source_context;
 use turbopack_core::version::Update;
@@ -22,31 +23,25 @@ use turbopack_ecmascript_hmr_protocol::{
     ClientMessage, ClientUpdateInstruction, Issue, ResourceIdentifier,
 };
 
-use crate::{
-    SourceProvider,
-    source::{
-        Body,
-        request::SourceRequest,
-        resolve::{ResolveSourceRequestResult, resolve_source_request},
-    },
-    update::stream::{GetContentFn, UpdateStream, UpdateStreamItem},
+use crate::dev::stream::{
+    OutputAssetsProvider, UpdateStream, UpdateStreamItem, UpdateStreamItemRef,
 };
 
 /// A server that listens for updates and sends them to connected clients.
-pub struct UpdateServer<P: SourceProvider> {
-    source_provider: P,
+pub struct UpdateServer<P: OutputAssetsProvider> {
+    source_provider: Arc<P>,
     // #[allow(dead_code)]
     // issue_reporter: Vc<Box<dyn IssueReporter>>,
 }
 
 impl<P> UpdateServer<P>
 where
-    P: SourceProvider + NonLocalValue + TraceRawVcs + Clone + Send + Sync,
+    P: OutputAssetsProvider + NonLocalValue + TraceRawVcs + Clone + Send + Sync,
 {
     /// Create a new update server with the given websocket and content source.
     pub fn new(source_provider: P /* , issue_reporter: Vc<Box<dyn IssueReporter>> */) -> Self {
         Self {
-            source_provider,
+            source_provider: Arc::new(source_provider),
             // issue_reporter,
         }
     }
@@ -73,7 +68,7 @@ where
                     if Self::on_message(
                         &mut client,
                         &mut streams,
-                        &self.source_provider,
+                        self.source_provider.clone(),
                         message?,
                     ).await?.is_break() {
                         break;
@@ -94,33 +89,19 @@ where
         Ok(())
     }
 
-    /// Helper for `on_message` used to construct a `GetContentFn`. Argument must match
-    /// `get_content_capture`.
-    fn get_content(
-        (source_provider, request): &(P, SourceRequest),
-    ) -> OperationVc<ResolveSourceRequestResult> {
-        let request = request.clone();
-        let source = source_provider.get_source();
-        resolve_source_request(source, TransientInstance::new(request))
-    }
-
     /// receives ClientMessages and passes subscriptions to `on_stream` via the `streams` map.
     async fn on_message(
         client: &mut UpdateClient,
         streams: &mut StreamMap<ResourceIdentifier, UpdateStream>,
-        source_provider: &P,
+        get_content: Arc<P>,
         message: Option<ClientMessage>,
     ) -> Result<ControlFlow<()>> {
+        // println!("[UpdateServer]: on_message {:#?}", message);
         match message {
             Some(ClientMessage::Subscribe { resource }) => {
-                let get_content_capture =
-                    (source_provider.clone(), resource_to_request(&resource)?);
                 match UpdateStream::new(
                     resource.to_string().into(),
-                    TransientInstance::new(GetContentFn::new(
-                        get_content_capture,
-                        Self::get_content,
-                    )),
+                    TransientInstance::new(get_content),
                 )
                 .await
                 {
@@ -153,8 +134,9 @@ where
         client: &mut UpdateClient,
         streams: &mut StreamMap<ResourceIdentifier, UpdateStream>,
         resource: ResourceIdentifier,
-        update_result: Result<ReadRef<UpdateStreamItem>>,
+        update_result: Result<UpdateStreamItemRef>,
     ) -> Result<()> {
+        // println!("[UpdateServer]: on_stream {:#?}", update_result);
         match update_result {
             Ok(update_item) => Self::send_update(client, streams, resource, &update_item).await,
             Err(err) => {
@@ -169,45 +151,37 @@ where
 
     async fn send_update(
         client: &mut UpdateClient,
-        streams: &mut StreamMap<ResourceIdentifier, UpdateStream>,
+        _streams: &mut StreamMap<ResourceIdentifier, UpdateStream>,
         resource: ResourceIdentifier,
         update_item: &UpdateStreamItem,
     ) -> Result<()> {
-        match update_item {
-            UpdateStreamItem::NotFound => {
-                // If the resource was not found, we remove the stream and indicate that to the
-                // client.
-                streams.remove(&resource);
-                client
-                    .send(ClientUpdateInstruction::not_found(&resource))
-                    .await?;
-            }
-            UpdateStreamItem::Found { update, issues } => {
-                let issues = issues
-                    .iter()
-                    .map(|p| Issue::from(&**p))
-                    .collect::<Vec<Issue<'_>>>();
-                match &**update {
-                    Update::Partial(partial) => {
-                        let partial_instruction = &partial.instruction;
-                        client
-                            .send(ClientUpdateInstruction::partial(
-                                &resource,
-                                partial_instruction,
-                                &issues,
-                            ))
-                            .await?;
-                    }
-                    Update::Missing | Update::Total(_) => {
-                        client
-                            .send(ClientUpdateInstruction::restart(&resource, &issues))
-                            .await?;
-                    }
-                    Update::None => {
-                        client
-                            .send(ClientUpdateInstruction::issues(&resource, &issues))
-                            .await?;
-                    }
+        let issues = update_item
+            .issues
+            .iter()
+            .map(|p| Issue::from(&**p))
+            .collect::<Vec<Issue<'_>>>();
+
+        for (_, update) in &update_item.updates {
+            match &**update {
+                Update::Partial(partial) => {
+                    let partial_instruction = &partial.instruction;
+                    client
+                        .send(ClientUpdateInstruction::partial(
+                            &resource,
+                            partial_instruction,
+                            &issues,
+                        ))
+                        .await?;
+                }
+                Update::Missing | Update::Total(_) => {
+                    client
+                        .send(ClientUpdateInstruction::restart(&resource, &issues))
+                        .await?;
+                }
+                Update::None => {
+                    client
+                        .send(ClientUpdateInstruction::issues(&resource, &issues))
+                        .await?;
                 }
             }
         }
@@ -216,30 +190,10 @@ where
     }
 }
 
-fn resource_to_request(resource: &ResourceIdentifier) -> Result<SourceRequest> {
-    let mut headers = HeaderMap::new();
-
-    if let Some(res_headers) = &resource.headers {
-        for (name, value) in res_headers {
-            headers.append(
-                hyper::header::HeaderName::from_bytes(name.as_bytes()).unwrap(),
-                hyper::header::HeaderValue::from_bytes(value.as_bytes()).unwrap(),
-            );
-        }
-    }
-
-    Ok(SourceRequest {
-        uri: Uri::try_from(format!("/{}", resource.path))?,
-        headers,
-        method: "GET".to_string(),
-        body: Body::new(vec![]),
-    })
-}
-
 pin_project! {
     struct UpdateClient {
         #[pin]
-        ws: WebSocketStream<Upgraded>,
+        ws: WebSocketStream<TokioIo<Upgraded>>,
         ended: bool,
     }
 }
@@ -332,8 +286,8 @@ impl<'a> Sink<ClientUpdateInstruction<'a>> for UpdateClient {
     }
 }
 
-impl From<WebSocketStream<Upgraded>> for UpdateClient {
-    fn from(ws: WebSocketStream<Upgraded>) -> Self {
+impl From<WebSocketStream<TokioIo<Upgraded>>> for UpdateClient {
+    fn from(ws: WebSocketStream<TokioIo<Upgraded>>) -> Self {
         Self { ws, ended: false }
     }
 }

@@ -207,8 +207,7 @@ impl DevServerBuilder {
                                 if path == "/turbopack-hmr" {
                                     let (response, websocket) =
                                         hyper_tungstenite::upgrade(request, None)?;
-                                    let update_server =
-                                        UpdateServer::new(source_provider, issue_reporter);
+                                    let update_server = UpdateServer::new(source_provider);
                                     update_server.run(&*tt, websocket);
                                     return Ok(response);
                                 }

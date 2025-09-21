@@ -279,7 +279,7 @@ async fn compute_update_stream(
     let _ = sender.0.send(item).await;
 }
 
-pub(super) struct UpdateStream(
+pub struct UpdateStream(
     Pin<Box<dyn Stream<Item = Result<ReadRef<UpdateStreamItem>>> + Send + Sync>>,
 );
 

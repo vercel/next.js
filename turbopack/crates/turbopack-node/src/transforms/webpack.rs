@@ -324,7 +324,10 @@ impl WebpackLoadersProcessedAsset {
                 additional_invalidation: Completion::immutable().to_resolved().await?,
                 loader_names,
             })
-            .await?;
+            .await
+            .inspect_err(|e| {
+                println!("error evaluating webpack loader: {e:?}");
+            })?;
 
             let Some(val) = &*config_value else {
                 // An error happened, which has already been converted into an issue.

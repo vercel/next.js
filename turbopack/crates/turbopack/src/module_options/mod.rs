@@ -440,6 +440,8 @@ impl ModuleOptions {
                     *loader_runner_package,
                 )
             } else {
+                // TODO this doesn't work at all. Every path gets a new context, so there is a
+                // Webpack worker pool per folder
                 package_import_map_from_context(
                     rcstr!("loader-runner"),
                     path.clone()

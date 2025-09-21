@@ -299,10 +299,11 @@ async fn common_node_env(env: Vc<Box<dyn ProcessEnv>>) -> Result<Vc<EnvMap>> {
 
 struct PoolErrorHandler;
 
+// TODO Make this a global limit, not per request
 /// Number of attempts before we start slowing down the retry.
-const MAX_FAST_ATTEMPTS: usize = 5;
+const MAX_FAST_ATTEMPTS: usize = 1;
 /// Total number of attempts.
-const MAX_ATTEMPTS: usize = MAX_FAST_ATTEMPTS * 2;
+const MAX_ATTEMPTS: usize = 1;
 
 impl futures_retry::ErrorHandler<anyhow::Error> for PoolErrorHandler {
     type OutError = anyhow::Error;

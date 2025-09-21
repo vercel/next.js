@@ -27,7 +27,7 @@ impl Display for ResourceIdentifier {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum ClientMessage {
     #[serde(rename = "turbopack-subscribe")]
