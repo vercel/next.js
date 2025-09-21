@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, getDefaultDistDir } from 'next-test-utils'
 import path from 'path'
 import fs from 'fs-extra'
 
@@ -103,7 +103,7 @@ describe('middleware can use wasm files', () => {
     it('lists the necessary wasm bindings in the manifest', async () => {
       const manifestPath = path.join(
         next.testDir,
-        '.next/server/middleware-manifest.json'
+        `${getDefaultDistDir()}/server/middleware-manifest.json`
       )
       const manifest = await fs.readJSON(manifestPath)
       if (process.env.IS_TURBOPACK_TEST) {

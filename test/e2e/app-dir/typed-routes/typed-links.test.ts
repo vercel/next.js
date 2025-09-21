@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDefaultDistDir } from 'next-test-utils'
 
 describe('typed-links', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
@@ -11,12 +12,12 @@ describe('typed-links', () => {
   }
 
   it('should generate types for next/link', async () => {
-    const dts = await next.readFile('.next/dev/types/link.d.ts')
+    const dts = await next.readFile(`${getDefaultDistDir()}/types/link.d.ts`)
     expect(dts).toContain(`declare module 'next/link'`)
   })
 
   it('should include handler route from app/api-test/route.ts in generated link route definitions', async () => {
-    const dts = await next.readFile('.next/dev/types/link.d.ts')
+    const dts = await next.readFile(`${getDefaultDistDir()}/types/link.d.ts`)
     // Ensure the app route handler at app/api-test/route.ts ("/api-test") is present
     expect(dts).toContain('`/api-test`')
   })
