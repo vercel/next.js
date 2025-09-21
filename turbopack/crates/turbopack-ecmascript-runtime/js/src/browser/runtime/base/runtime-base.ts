@@ -97,7 +97,7 @@ function loadInitialChunk(chunkPath: ChunkPath, chunkData: ChunkData) {
   return loadChunkInternal(SourceType.Runtime, chunkPath, chunkData)
 }
 
-async function loadChunkInternal(
+function loadChunkInternal(
   sourceType: SourceType,
   sourceData: SourceData,
   chunkData: ChunkData
@@ -113,8 +113,7 @@ async function loadChunkInternal(
   })
   if (modulesPromises.length > 0 && modulesPromises.every((p) => p)) {
     // When all included items are already loaded or loading, we can skip loading ourselves
-    await Promise.all(modulesPromises)
-    return
+    return Promise.all(modulesPromises).then(() => undefined)
   }
 
   const includedModuleChunksList = chunkData.moduleChunks || []
@@ -132,8 +131,7 @@ async function loadChunkInternal(
 
     if (moduleChunksPromises.length === includedModuleChunksList.length) {
       // When all included module chunks are already loaded or loading, we can skip loading ourselves
-      await Promise.all(moduleChunksPromises)
-      return
+      return Promise.all(moduleChunksPromises).then(() => undefined)
     }
 
     const moduleChunksToLoad: Set<ChunkPath> = new Set()
@@ -171,7 +169,7 @@ async function loadChunkInternal(
     }
   }
 
-  await promise
+  return promise.then(() => undefined)
 }
 
 const loadedChunk = Promise.resolve(undefined)

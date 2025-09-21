@@ -35,7 +35,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 
 ;(() => {
   BACKEND = {
-    async registerChunk(chunk, params) {
+    registerChunk(chunk, params) {
       if (chunk === undefined) {
         throw new Error('Missing chunkPath')
       }
@@ -58,17 +58,17 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       }
 
       // This waits for chunks to be loaded, but also marks included items as available.
-      await Promise.all(
+      Promise.all(
         params.otherChunks.map((otherChunkData) =>
           loadInitialChunk(chunkPath, otherChunkData)
         )
-      )
-
-      if (params.runtimeModuleIds.length > 0) {
-        for (const moduleId of params.runtimeModuleIds) {
-          getOrInstantiateRuntimeModule(chunkPath, moduleId)
+      ).then(() => {
+        if (params.runtimeModuleIds.length > 0) {
+          for (const moduleId of params.runtimeModuleIds) {
+            getOrInstantiateRuntimeModule(chunkPath, moduleId)
+          }
         }
-      }
+      })
     },
 
     /**
