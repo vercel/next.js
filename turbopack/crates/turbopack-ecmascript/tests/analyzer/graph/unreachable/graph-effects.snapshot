@@ -293,6 +293,44 @@
             ),
         ],
     },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                While,
+            ),
+            WhileStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+        ],
+    },
     FreeVar {
         var: "b3",
         ast_path: [
@@ -552,6 +590,44 @@
             ),
             Stmt(
                 Return,
+            ),
+        ],
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                DoWhile,
+            ),
+            DoWhileStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
             ),
         ],
     },
@@ -817,6 +893,44 @@
             ),
         ],
     },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                For,
+            ),
+            ForStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+        ],
+    },
     FreeVar {
         var: "d3",
         ast_path: [
@@ -1079,6 +1193,44 @@
             ),
         ],
     },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                ForIn,
+            ),
+            ForInStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
+            ),
+        ],
+    },
     FreeVar {
         var: "e3",
         ast_path: [
@@ -1338,6 +1490,44 @@
             ),
             Stmt(
                 Return,
+            ),
+        ],
+    },
+    Unreachable {
+        start_ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Fn,
+            ),
+            FnDecl(
+                Function,
+            ),
+            Function(
+                Body,
+            ),
+            BlockStmt(
+                Stmts(
+                    0,
+                ),
+            ),
+            Stmt(
+                ForOf,
+            ),
+            ForOfStmt(
+                Body,
+            ),
+            Stmt(
+                Block,
             ),
         ],
     },

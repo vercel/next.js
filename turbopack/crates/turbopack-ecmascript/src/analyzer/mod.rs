@@ -1008,15 +1008,21 @@ impl JsValue {
         func_ident: u32,
         is_async: bool,
         is_generator: bool,
-        mut return_value: Box<JsValue>,
+        return_value: JsValue,
     ) -> Self {
         // Check generator first to handle async generators
-        if is_generator {
-            return_value = Box::new(JsValue::WellKnownObject(WellKnownObjectKind::Generator));
-        } else if is_async && !matches!(return_value, box JsValue::Promise(_, _)) {
-            return_value = Box::new(JsValue::promise(return_value));
-        }
-        Self::Function(1 + return_value.total_nodes(), func_ident, return_value)
+        let return_value = if is_generator {
+            JsValue::WellKnownObject(WellKnownObjectKind::Generator)
+        } else if is_async {
+            JsValue::promise(return_value)
+        } else {
+            return_value
+        };
+        Self::Function(
+            1 + return_value.total_nodes(),
+            func_ident,
+            Box::new(return_value),
+        )
     }
 
     pub fn object(list: Vec<ObjectPart>) -> Self {
@@ -1072,12 +1078,12 @@ impl JsValue {
         Self::Member(1 + o.total_nodes() + p.total_nodes(), o, p)
     }
 
-    pub fn promise(operand: Box<JsValue>) -> Self {
+    pub fn promise(operand: JsValue) -> Self {
         // In ecmascript Promise<Promise<T>> is equivalent to Promise<T>
-        if let JsValue::Promise(_, _) = &*operand {
-            return *operand;
+        if let JsValue::Promise(_, _) = operand {
+            return operand;
         }
-        Self::Promise(1 + operand.total_nodes(), operand)
+        Self::Promise(1 + operand.total_nodes(), Box::new(operand))
     }
 
     pub fn awaited(operand: Box<JsValue>) -> Self {
@@ -3665,10 +3671,10 @@ pub mod test_utils {
                 ref args,
             ) => match &args[0] {
                 JsValue::Constant(ConstantValue::Str(v)) => {
-                    JsValue::promise(Box::new(JsValue::Module(ModuleValue {
+                    JsValue::promise(JsValue::Module(ModuleValue {
                         module: v.as_atom().into_owned(),
                         annotations: ImportAnnotations::default(),
-                    })))
+                    }))
                 }
                 _ => v.into_unknown(true, "import() non constant"),
             },

@@ -805,12 +805,64 @@ struct Analyzer<'a> {
     state: analyzer_state::AnalyzerState,
 
     effects: Vec<Effect>,
+    // Effects collected from hoisted declarations. See https://developer.mozilla.org/en-US/docs/Glossary/Hoisting
+    // Tracked separately so we can preserve effects from hoisted declarations even when we don't
+    // collect effects from the declaring context.
     hoisted_effects: Vec<Effect>,
     early_return_stack: Vec<EarlyReturn>,
 
     eval_context: &'a EvalContext,
 
     var_decl_kind: Option<VarDeclKind>,
+}
+
+trait FunctionLike {
+    fn is_async(&self) -> bool {
+        false
+    }
+    fn is_generator(&self) -> bool {
+        false
+    }
+    fn span(&self) -> Span;
+}
+
+impl FunctionLike for Function {
+    fn is_async(&self) -> bool {
+        self.is_async
+    }
+    fn is_generator(&self) -> bool {
+        self.is_generator
+    }
+    fn span(&self) -> Span {
+        self.span
+    }
+}
+impl FunctionLike for ArrowExpr {
+    fn is_async(&self) -> bool {
+        self.is_async
+    }
+    fn is_generator(&self) -> bool {
+        self.is_generator
+    }
+    fn span(&self) -> Span {
+        self.span
+    }
+}
+
+impl FunctionLike for Constructor {
+    fn span(&self) -> Span {
+        self.span
+    }
+}
+impl FunctionLike for GetterProp {
+    fn span(&self) -> Span {
+        self.span
+    }
+}
+impl FunctionLike for SetterProp {
+    fn span(&self) -> Span {
+        self.span
+    }
 }
 
 mod analyzer_state {
@@ -853,22 +905,14 @@ mod analyzer_state {
             self.state.cur_fn_id.expect("not in a function")
         }
 
-        /// Returns the return values of the current function.
-        ///
-        /// This is configured to [Some] by function handlers and filled by the
-        /// return statement handler.
-        fn take_return_values(&mut self) -> Box<JsValue> {
-            let values = self.state.cur_fn_return_values.take().unwrap();
-
-            Box::new(match values.len() {
-                0 => JsValue::Constant(ConstantValue::Undefined),
-                1 => values.into_iter().next().unwrap(),
-                _ => JsValue::alternatives(values),
-            })
-        }
-
-        pub(super) fn get_mut_cur_fn_return_values(&mut self) -> Option<&mut Vec<JsValue>> {
-            self.state.cur_fn_return_values.as_mut()
+        /// Adds a return value to the current function.
+        /// Panics if we are not in a function scope
+        pub(super) fn add_return_value(&mut self, value: JsValue) {
+            self.state
+                .cur_fn_return_values
+                .as_mut()
+                .expect("not in a function")
+                .push(value);
         }
 
         /// The RHS (or some part of it) of an pattern or assignment (e.g. `PatAssignTarget`,
@@ -899,38 +943,36 @@ mod analyzer_state {
         /// block.
         pub(super) fn enter_fn(
             &mut self,
-            fn_id: u32,
-            is_expr_arrow_fn: bool,
-            is_async: bool,
-            is_generator: bool,
-            func: impl FnOnce(&mut Self),
+            function: &impl FunctionLike,
+            visitor: impl FnOnce(&mut Self),
         ) -> JsValue {
+            let fn_id = function.span().lo.0;
             let prev_fn_id = self.state.cur_fn_id.replace(fn_id);
             let prev_return_values = self.state.cur_fn_return_values.replace(vec![]);
-            let prev_early_return_stack = take(&mut self.early_return_stack);
-            let mut prev_effects = take(&mut self.effects);
-            let prev_hoisted_effects = take(&mut self.hoisted_effects);
 
-            func(self);
-
-            // If we do not always end with a `return` and the function is not an arrow function
-            // with a single expression then there is an implicit `undefined` return value
-            if !self.end_early_return_block() && !is_expr_arrow_fn {
-                // If the block doesn't end in a return there is an implicit `undefined` return
-                self.get_mut_cur_fn_return_values()
-                    .unwrap()
-                    .push(JsValue::Constant(ConstantValue::Undefined))
-            }
-            let return_values = self.take_return_values();
-            self.effects.append(&mut self.hoisted_effects);
-            prev_effects.append(&mut self.effects);
-            self.hoisted_effects = prev_hoisted_effects;
-            self.effects = prev_effects;
-            self.early_return_stack = prev_early_return_stack;
+            visitor(self);
+            let return_values = self.state.cur_fn_return_values.take().unwrap();
 
             self.state.cur_fn_id = prev_fn_id;
             self.state.cur_fn_return_values = prev_return_values;
-            JsValue::function(fn_id, is_async, is_generator, return_values)
+            JsValue::function(
+                fn_id,
+                function.is_async(),
+                function.is_generator(),
+                match return_values.len() {
+                    0 => {
+                        // This doesn't really seem possible
+                        debug_assert!(
+                            false,
+                            "Function with no return values and early return handling didn't \
+                             detect it"
+                        );
+                        JsValue::Constant(ConstantValue::Undefined)
+                    }
+                    1 => return_values.into_iter().next().unwrap(),
+                    _ => JsValue::alternatives(return_values),
+                },
+            )
         }
     }
 }
@@ -1069,7 +1111,11 @@ impl Analyzer<'_> {
                     {
                         let mut ast_path = ast_path
                             .with_guard(AstParentNodeRef::FnExpr(fn_expr, FnExprField::Function));
-                        self.handle_iife_function(function, &mut ast_path, &n.args);
+                        // We don't handle the value of the function here, though we could to better
+                        // model the value of this 'call'
+                        self.enter_fn(&**function, |this| {
+                            this.handle_iife_function(function, &mut ast_path, &n.args);
+                        });
                     }
 
                     true
@@ -1079,7 +1125,11 @@ impl Analyzer<'_> {
                     let mut ast_path =
                         ast_path.with_guard(AstParentNodeRef::Expr(expr, ExprField::Arrow));
                     let args = &n.args;
-                    self.handle_iife_arrow(arrow_expr, args, &mut ast_path);
+                    // We don't handle the value of the function here, though we could to better
+                    // model the value of this 'call'
+                    self.enter_fn(arrow_expr, |this| {
+                        this.handle_iife_arrow(arrow_expr, args, &mut ast_path);
+                    });
                     true
                 }
                 _ => false,
@@ -1648,18 +1698,16 @@ impl VisitAstPath for Analyzer<'_> {
         decl: &'ast FnDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let fn_value = self.enter_fn(
-            decl.function.span.lo.0,
-            false,
-            decl.function.is_async,
-            decl.function.is_generator,
-            |this| {
-                decl.visit_children_with_ast_path(this, ast_path);
-            },
-        );
-        // Why do we do this? Move all effects to hoisted effects after visiting a function
-        // declaration?
+        let fn_value = self.enter_fn(&*decl.function, |this| {
+            decl.visit_children_with_ast_path(this, ast_path);
+        });
+        // Take all effects produced by the function and move them to hoisted effects since
+        // function declarations are hoisted.
+        // This accounts for the fact that even with `if (false) { function f() {} }` `f` is
+        // hoisted out of the condition. so we still need to process effects for it.
+        // TODO(lukesandberg): shouldn't this just be the effects associated with the function.
         self.hoisted_effects.append(&mut self.effects);
+
         self.add_value(decl.ident.to_id(), fn_value);
     }
 
@@ -1668,15 +1716,9 @@ impl VisitAstPath for Analyzer<'_> {
         expr: &'ast FnExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let fn_value = self.enter_fn(
-            expr.function.span.lo.0,
-            false,
-            expr.function.is_async,
-            expr.function.is_generator,
-            |this| {
-                expr.visit_children_with_ast_path(this, ast_path);
-            },
-        );
+        let fn_value = self.enter_fn(&*expr.function, |this| {
+            expr.visit_children_with_ast_path(this, ast_path);
+        });
         if let Some(ident) = &expr.ident {
             self.add_value(ident.to_id(), fn_value);
         } else {
@@ -1695,37 +1737,29 @@ impl VisitAstPath for Analyzer<'_> {
         expr: &'ast ArrowExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let fn_value = self.enter_fn(
-            expr.span.lo.0,
-            matches!(*expr.body, BlockStmtOrExpr::Expr(_)),
-            expr.is_async,
-            expr.is_generator,
-            |this| {
-                let fn_id = this.cur_fn_ident();
-                for (index, p) in expr.params.iter().enumerate() {
-                    this.with_pat_value(Some(JsValue::Argument(fn_id, index)), |this| {
-                        let mut ast_path = ast_path.with_guard(AstParentNodeRef::ArrowExpr(
-                            expr,
-                            ArrowExprField::Params(index),
-                        ));
-                        p.visit_with_ast_path(this, &mut ast_path);
-                    });
-                }
+        let fn_value = self.enter_fn(expr, |this| {
+            let fn_id = this.cur_fn_ident();
+            for (index, p) in expr.params.iter().enumerate() {
+                this.with_pat_value(Some(JsValue::Argument(fn_id, index)), |this| {
+                    let mut ast_path = ast_path.with_guard(AstParentNodeRef::ArrowExpr(
+                        expr,
+                        ArrowExprField::Params(index),
+                    ));
+                    p.visit_with_ast_path(this, &mut ast_path);
+                });
+            }
 
-                {
-                    let mut ast_path = ast_path
-                        .with_guard(AstParentNodeRef::ArrowExpr(expr, ArrowExprField::Body));
-                    expr.body.visit_with_ast_path(this, &mut ast_path);
-                    // If body is a single expression treat it as a Block with an return statement
-                    if let BlockStmtOrExpr::Expr(inner_expr) = &*expr.body {
-                        let implicit_return_value = this.eval_context.eval(inner_expr);
-                        this.get_mut_cur_fn_return_values()
-                            .unwrap()
-                            .push(implicit_return_value);
-                    }
+            {
+                let mut ast_path =
+                    ast_path.with_guard(AstParentNodeRef::ArrowExpr(expr, ArrowExprField::Body));
+                expr.body.visit_with_ast_path(this, &mut ast_path);
+                // If body is a single expression treat it as a Block with an return statement
+                if let BlockStmtOrExpr::Expr(inner_expr) = &*expr.body {
+                    let implicit_return_value = this.eval_context.eval(inner_expr);
+                    this.add_return_value(implicit_return_value);
                 }
-            },
-        );
+            }
+        });
         self.add_value(
             (
                 format!("*arrow function {}*", expr.span.lo.0).into(),
@@ -1756,7 +1790,7 @@ impl VisitAstPath for Analyzer<'_> {
         node: &'ast GetterProp,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        self.enter_fn(node.span.lo.0, false, false, false, |this| {
+        self.enter_fn(node, |this| {
             node.visit_children_with_ast_path(this, ast_path);
         });
     }
@@ -1766,7 +1800,7 @@ impl VisitAstPath for Analyzer<'_> {
         node: &'ast SetterProp,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        self.enter_fn(node.span.lo.0, false, false, false, |this| {
+        self.enter_fn(node, |this| {
             node.visit_children_with_ast_path(this, ast_path);
         });
     }
@@ -1776,7 +1810,7 @@ impl VisitAstPath for Analyzer<'_> {
         node: &'ast Constructor,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        self.enter_fn(node.span.lo.0, false, false, false, |this| {
+        self.enter_fn(node, |this| {
             node.visit_children_with_ast_path(this, ast_path);
         });
     }
@@ -1786,15 +1820,9 @@ impl VisitAstPath for Analyzer<'_> {
         node: &'ast ClassMethod,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        self.enter_fn(
-            node.span.lo.0,
-            false,
-            node.function.is_async,
-            node.function.is_generator,
-            |this| {
-                node.visit_children_with_ast_path(this, ast_path);
-            },
-        );
+        self.enter_fn(&*node.function, |this| {
+            node.visit_children_with_ast_path(this, ast_path);
+        });
     }
 
     fn visit_private_method<'ast: 'r, 'r>(
@@ -1802,15 +1830,9 @@ impl VisitAstPath for Analyzer<'_> {
         node: &'ast PrivateMethod,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        self.enter_fn(
-            node.span.lo.0,
-            false,
-            node.function.is_async,
-            node.function.is_generator,
-            |this| {
-                node.visit_children_with_ast_path(this, ast_path);
-            },
-        );
+        self.enter_fn(&*node.function, |this| {
+            node.visit_children_with_ast_path(this, ast_path);
+        });
     }
 
     fn visit_method_prop<'ast: 'r, 'r>(
@@ -1818,15 +1840,9 @@ impl VisitAstPath for Analyzer<'_> {
         node: &'ast MethodProp,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        self.enter_fn(
-            node.span().lo.0,
-            false,
-            node.function.is_async,
-            node.function.is_generator,
-            |this| {
-                node.visit_children_with_ast_path(this, ast_path);
-            },
-        );
+        self.enter_fn(&*node.function, |this| {
+            node.visit_children_with_ast_path(this, ast_path);
+        });
     }
 
     fn visit_var_decl<'ast: 'r, 'r>(
@@ -2086,6 +2102,8 @@ impl VisitAstPath for Analyzer<'_> {
     ) {
         stmt.visit_children_with_ast_path(self, ast_path);
 
+        // Technically a top level return is illegal, but node supports it due to how module
+        // wrapping works.
         if self.is_in_fn() {
             let return_value = stmt
                 .arg
@@ -2093,9 +2111,7 @@ impl VisitAstPath for Analyzer<'_> {
                 .map(|e| self.eval_context.eval(e))
                 .unwrap_or(JsValue::Constant(ConstantValue::Undefined));
 
-            self.get_mut_cur_fn_return_values()
-                .unwrap()
-                .push(return_value);
+            self.add_return_value(return_value);
         }
 
         self.early_return_stack.push(EarlyReturn::Always {
@@ -2186,6 +2202,7 @@ impl VisitAstPath for Analyzer<'_> {
                     | AstParentKind::ClassDecl(ClassDeclField::Class)
                     | AstParentKind::ClassExpr(ClassExprField::Class)
                     | AstParentKind::Function(FunctionField::Body)
+                    | AstParentKind::Function(FunctionField::Params(_))
             )
         }) {
             // We are in some scope that will rebind this
@@ -2349,6 +2366,13 @@ impl VisitAstPath for Analyzer<'_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::TryStmt(stmt, TryStmtField::Finalizer));
             finalizer.visit_with_ast_path(self, &mut ast_path);
+            // If a finally block early returns the parent block does too.
+            if self.end_early_return_block() {
+                self.early_return_stack.push(EarlyReturn::Always {
+                    prev_effects: take(&mut self.effects),
+                    start_ast_path: as_parent_path(&ast_path),
+                });
+            }
         };
     }
 
@@ -2372,9 +2396,15 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast BlockStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        let path_suffix = &ast_path[ast_path.len().saturating_sub(2)..];
-        if matches!(
-            path_suffix,
+        enum ScopeType {
+            Function,
+            Block,
+            ControlFlow,
+        }
+        let block_type = if ast_path.len() < 2 {
+            ScopeType::Block
+        } else if matches!(
+            &ast_path[ast_path.len() - 2..],
             [
                 AstParentNodeRef::IfStmt(_, IfStmtField::Cons),
                 AstParentNodeRef::Stmt(_, StmtField::Block)
@@ -2390,33 +2420,10 @@ impl VisitAstPath for Analyzer<'_> {
                     AstParentNodeRef::LabeledStmt(_, LabeledStmtField::Body),
                     AstParentNodeRef::Stmt(_, StmtField::Block)
                 ]
-                | [
-                    AstParentNodeRef::ForInStmt(_, ForInStmtField::Body),
-                    AstParentNodeRef::Stmt(_, StmtField::Block)
-                ]
-                | [
-                    AstParentNodeRef::ForStmt(_, ForStmtField::Body),
-                    AstParentNodeRef::Stmt(_, StmtField::Block)
-                ]
-                | [
-                    AstParentNodeRef::ForOfStmt(_, ForOfStmtField::Body),
-                    AstParentNodeRef::Stmt(_, StmtField::Block)
-                ]
-                | [
-                    AstParentNodeRef::WhileStmt(_, WhileStmtField::Body),
-                    AstParentNodeRef::Stmt(_, StmtField::Block)
-                ]
-                | [
-                    AstParentNodeRef::DoWhileStmt(_, DoWhileStmtField::Body),
-                    AstParentNodeRef::Stmt(_, StmtField::Block)
-                ]
         ) {
-            // Just visit children, we already handled return stack manipulation in the
-            // corresponding handlers.
-            n.visit_children_with_ast_path(self, ast_path);
+            ScopeType::ControlFlow
         } else if matches!(
-            path_suffix,
-            // NOTE: class and object methods have 'functions' as children so they match here
+            &ast_path[ast_path.len() - 2..],
             [_, AstParentNodeRef::Function(_, FunctionField::Body)]
                 | [
                     AstParentNodeRef::ArrowExpr(_, ArrowExprField::Body),
@@ -2426,18 +2433,36 @@ impl VisitAstPath for Analyzer<'_> {
                 | [_, AstParentNodeRef::SetterProp(_, SetterPropField::Body)]
                 | [_, AstParentNodeRef::Constructor(_, ConstructorField::Body)]
         ) {
-            // Just visit children, we already handled everything in `enter_fn`
-            n.visit_children_with_ast_path(self, ast_path);
+            ScopeType::Function
         } else {
-            // These are anonymous blocks and try-statement finalizers
-            // an early return in them will end the parent block
-            n.visit_children_with_ast_path(self, ast_path);
-
-            if self.end_early_return_block() {
-                self.early_return_stack.push(EarlyReturn::Always {
-                    prev_effects: take(&mut self.effects),
-                    start_ast_path: as_parent_path(ast_path),
-                });
+            ScopeType::Block
+        };
+        match block_type {
+            ScopeType::Function => {
+                let early_return_stack = take(&mut self.early_return_stack);
+                let mut effects = take(&mut self.effects);
+                let hoisted_effects = take(&mut self.hoisted_effects);
+                n.visit_children_with_ast_path(self, ast_path);
+                if !self.end_early_return_block() {
+                    self.add_return_value(JsValue::Constant(ConstantValue::Undefined));
+                }
+                self.effects.append(&mut self.hoisted_effects);
+                effects.append(&mut self.effects);
+                self.hoisted_effects = hoisted_effects;
+                self.effects = effects;
+                self.early_return_stack = early_return_stack;
+            }
+            ScopeType::Block => {
+                n.visit_children_with_ast_path(self, ast_path);
+                if self.end_early_return_block() {
+                    self.early_return_stack.push(EarlyReturn::Always {
+                        prev_effects: take(&mut self.effects),
+                        start_ast_path: as_parent_path(ast_path),
+                    });
+                }
+            }
+            ScopeType::ControlFlow => {
+                n.visit_children_with_ast_path(self, ast_path);
             }
         }
     }
