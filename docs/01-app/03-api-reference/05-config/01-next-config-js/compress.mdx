@@ -13,10 +13,25 @@ You can check if compression is enabled and which algorithm is used by looking a
 
 To disable **compression**, set the `compress` config option to `false`:
 
-```js filename="next.config.js"
-module.exports = {
+```ts filename="next.config.ts" highlight={4} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
   compress: false,
 }
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={5} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  compress: false,
+}
+
+export default nextConfig
 ```
 
 We **do not recommend disabling compression** unless you have compression configured on your server, as compression reduces bandwidth usage and improves the performance of your application. For example, you're using [nginx](https://nginx.org/) and want to switch to `brotli`, set the `compress` option to `false` to allow nginx to handle compression.

@@ -29,7 +29,21 @@ To set up a [CDN](https://en.wikipedia.org/wiki/Content_delivery_network), you c
 
 Open `next.config.mjs` and add the `assetPrefix` config based on the [phase](/docs/app/api-reference/config/next-config-js#async-configuration):
 
-```js filename="next.config.mjs"
+```ts filename="next.config.ts" highlight={8} switcher
+import type { NextConfig } from 'next'
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
+
+export default (phase: string): NextConfig => {
+  const isDev = phase === PHASE_DEVELOPMENT_SERVER
+
+  const nextConfig: NextConfig = {
+    assetPrefix: isDev ? undefined : 'https://cdn.mydomain.com',
+  }
+  return nextConfig
+}
+```
+
+```js filename="next.config.mjs" highlight={9} switcher
 // @ts-check
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 

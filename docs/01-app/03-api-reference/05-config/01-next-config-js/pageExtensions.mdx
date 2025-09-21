@@ -9,27 +9,55 @@ description: Extend the default page extensions used by Next.js when resolving p
 
 By default, Next.js accepts files with the following extensions: `.tsx`, `.ts`, `.jsx`, `.js`. This can be modified to allow other extensions like markdown (`.md`, `.mdx`).
 
-```js filename="next.config.js"
-const withMDX = require('@next/mdx')()
+```ts filename="next.config.ts" highlight={5} switcher
+import type { NextConfig } from 'next'
+import withMDX from '@next/mdx'
 
-/** @type {import('next').NextConfig} */
+const nextConfig: NextConfig = {
+  pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'md', 'mdx'],
+}
+
+export default withMDX()(nextConfig)
+```
+
+```js filename="next.config.mjs" highlight={6} switcher
+import withMDX from '@next/mdx'
+
+/**
+ * @type {import('next').NextConfig}
+ */
 const nextConfig = {
   pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'md', 'mdx'],
 }
 
-module.exports = withMDX(nextConfig)
+export default withMDX()(nextConfig)
 ```
 
 </AppOnly>
 
 <PagesOnly>
 
-You can extend the default Page extensions (`.tsx`, `.ts`, `.jsx`, `.js`) used by Next.js. Inside `next.config.js`, add the `pageExtensions` config:
+You can extend the default Page extensions (`.tsx`, `.ts`, `.jsx`, `.js`) used by Next.js. Inside `next.config.ts`, add the `pageExtensions` config:
 
-```js filename="next.config.js"
-module.exports = {
+```ts filename="next.config.ts" highlight={4} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
   pageExtensions: ['mdx', 'md', 'jsx', 'js', 'tsx', 'ts'],
 }
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={5} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  pageExtensions: ['mdx', 'md', 'jsx', 'js', 'tsx', 'ts'],
+}
+
+export default nextConfig
 ```
 
 Changing these values affects _all_ Next.js pages, including the following:
@@ -44,12 +72,27 @@ For example, if you reconfigure `.ts` page extensions to `.page.ts`, you would n
 
 ## Including non-page files in the `pages` directory
 
-You can colocate test files or other files used by components in the `pages` directory. Inside `next.config.js`, add the `pageExtensions` config:
+You can colocate test files or other files used by components in the `pages` directory. Inside `next.config.ts`, add the `pageExtensions` config:
 
-```js filename="next.config.js"
-module.exports = {
+```ts filename="next.config.ts" highlight={4} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
   pageExtensions: ['page.tsx', 'page.ts', 'page.jsx', 'page.js'],
 }
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={5} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  pageExtensions: ['page.tsx', 'page.ts', 'page.jsx', 'page.js'],
+}
+
+export default nextConfig
 ```
 
 Then, rename your pages to have a file extension that includes `.page` (e.g. rename `MyPage.tsx` to `MyPage.page.tsx`). Ensure you rename _all_ Next.js pages, including the files mentioned above.

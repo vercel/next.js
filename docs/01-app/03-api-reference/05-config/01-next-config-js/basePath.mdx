@@ -7,12 +7,27 @@ description: Use `basePath` to deploy a Next.js application under a sub-path of 
 
 To deploy a Next.js application under a sub-path of a domain you can use the `basePath` config option.
 
-`basePath` allows you to set a path prefix for the application. For example, to use `/docs` instead of `''` (an empty string, the default), open `next.config.js` and add the `basePath` config:
+`basePath` allows you to set a path prefix for the application. For example, to use `/docs` instead of `''` (an empty string, the default), open `next.config.ts` and add the `basePath` config:
 
-```js filename="next.config.js"
-module.exports = {
+```ts filename="next.config.ts" highlight={4} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
   basePath: '/docs',
 }
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={5} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  basePath: '/docs',
+}
+
+export default nextConfig
 ```
 
 > **Good to know**: This value must be set at build time and cannot be changed without re-building as the value is inlined in the client-side bundles.

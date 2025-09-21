@@ -7,10 +7,12 @@ description: Configure how Next.js will dispose and keep in memory pages created
 
 Next.js exposes some options that give you some control over how the server will dispose or keep in memory built pages in development.
 
-To change the defaults, open `next.config.js` and add the `onDemandEntries` config:
+To change the defaults, open `next.config.ts` and add the `onDemandEntries` config:
 
-```js filename="next.config.js"
-module.exports = {
+```ts filename="next.config.ts" highlight={4-8} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
   onDemandEntries: {
     // period (in ms) where the server will keep pages in the buffer
     maxInactiveAge: 25 * 1000,
@@ -18,4 +20,22 @@ module.exports = {
     pagesBufferLength: 2,
   },
 }
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={5-9} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  onDemandEntries: {
+    // period (in ms) where the server will keep pages in the buffer
+    maxInactiveAge: 25 * 1000,
+    // number of pages that should be kept simultaneously without being disposed
+    pagesBufferLength: 2,
+  },
+}
+
+export default nextConfig
 ```

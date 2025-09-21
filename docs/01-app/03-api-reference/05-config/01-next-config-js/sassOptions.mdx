@@ -5,7 +5,7 @@ description: Configure Sass options.
 
 `sassOptions` allow you to configure the Sass compiler.
 
-```ts filename="next.config.ts" switcher
+```ts filename="next.config.ts" highlight={10-14} switcher
 import type { NextConfig } from 'next'
 
 const sassOptions = {
@@ -24,9 +24,10 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
-
+```js filename="next.config.mjs" highlight={11-15} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
 const sassOptions = {
   additionalData: `
     $var: red;
@@ -40,7 +41,7 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 > **Good to know:** `sassOptions` are not typed outside of `implementation` because Next.js does not maintain the other possible properties.

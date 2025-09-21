@@ -6,11 +6,27 @@ description: Configure the Next.js cache used for storing and revalidating data 
 
 You can configure the Next.js cache location if you want to persist cached pages and data to durable storage, or share the cache across multiple containers or instances of your Next.js application.
 
-```js filename="next.config.js"
-module.exports = {
+```ts filename="next.config.ts" highlight={4-5} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
   cacheHandler: require.resolve('./cache-handler.js'),
   cacheMaxMemorySize: 0, // disable default in-memory caching
 }
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={5-6} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  cacheHandler: require.resolve('./cache-handler.js'),
+  cacheMaxMemorySize: 0, // disable default in-memory caching
+}
+
+export default nextConfig
 ```
 
 View an example of a [custom cache handler](/docs/app/guides/self-hosting#configuring-caching) and learn more about the implementation.

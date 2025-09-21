@@ -12,7 +12,7 @@ related:
 
 The `authInterrupts` configuration option allows you to use [`forbidden`](/docs/app/api-reference/functions/forbidden) and [`unauthorized`](/docs/app/api-reference/functions/unauthorized) APIs in your application. While these functions are experimental, you must enable the `authInterrupts` option in your `next.config.js` file to use them:
 
-```ts filename="next.config.ts" switcher
+```ts filename="next.config.ts" highlight={4-6} switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -24,10 +24,15 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
-module.exports = {
+```js filename="next.config.mjs" highlight={4-6} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
   experimental: {
     authInterrupts: true,
   },
 }
+
+export default nextConfig
 ```

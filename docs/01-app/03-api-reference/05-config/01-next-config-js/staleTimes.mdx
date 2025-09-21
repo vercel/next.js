@@ -8,8 +8,25 @@ version: experimental
 
 You can enable this experimental feature and provide custom revalidation times by setting the experimental `staleTimes` flag:
 
-```js filename="next.config.js"
-/** @type {import('next').NextConfig} */
+```ts filename="next.config.ts" highlight={4-8} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={5-9} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
 const nextConfig = {
   experimental: {
     staleTimes: {
@@ -19,7 +36,7 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 The `static` and `dynamic` properties correspond with the time period (in seconds) based on different types of [link prefetching](/docs/app/api-reference/components/link#prefetch).

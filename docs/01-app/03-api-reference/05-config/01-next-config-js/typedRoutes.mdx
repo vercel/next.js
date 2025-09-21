@@ -7,11 +7,23 @@ description: Enable support for statically typed links.
 
 Support for [statically typed links](/docs/app/api-reference/config/typescript#statically-typed-links). This feature requires using TypeScript in your project.
 
-```js filename="next.config.js"
-/** @type {import('next').NextConfig} */
+```ts filename="next.config.ts" highlight={4} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  typedRoutes: true,
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={5} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
 const nextConfig = {
   typedRoutes: true,
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```

@@ -13,7 +13,7 @@ The `taint` option enables support for experimental React APIs for tainting obje
 
 > **Good to know**: Activating this flag also enables the React `experimental` channel for `app` directory.
 
-```ts filename="next.config.ts" switcher
+```ts filename="next.config.ts" highlight={4-6} switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -25,15 +25,17 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
-/** @type {import('next').NextConfig} */
+```js filename="next.config.mjs" highlight={5-7} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
 const nextConfig = {
   experimental: {
     taint: true,
   },
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 > **Warning:** Do not rely on the taint API as your only mechanism to prevent exposing sensitive data to the client. See our [security recommendations](/blog/security-nextjs-server-components-actions).

@@ -7,13 +7,25 @@ description: Automatically transpile and bundle dependencies from local packages
 
 Next.js can automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`). This replaces the `next-transpile-modules` package.
 
-```js filename="next.config.js"
-/** @type {import('next').NextConfig} */
+```ts filename="next.config.ts" highlight={4} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  transpilePackages: ['package-name'],
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={5} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
 const nextConfig = {
   transpilePackages: ['package-name'],
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 ## Version History

@@ -8,7 +8,19 @@ version: experimental
 
 To enable this feature, you need to set the `viewTransition` property to `true` in your `next.config.js` file.
 
-```js filename="next.config.js"
+```ts filename="next.config.ts" highlight={5} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    viewTransition: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={4} switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
@@ -16,7 +28,7 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 > Important Notice: The `<ViewTransition>` Component is already available in React's Canary release channel.
@@ -27,8 +39,8 @@ module.exports = nextConfig
 
 You can import the [`<ViewTransition>` Component](https://react.dev/reference/react/ViewTransition) from React in your application:
 
-```jsx
-import { ViewTransition } from 'react'
+```jsx filename="app/page.jsx"
+import { unstable_ViewTransition as ViewTransition } from 'react'
 ```
 
 ### Live Demo

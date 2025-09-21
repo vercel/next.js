@@ -7,13 +7,29 @@ description: Customize stale-while-revalidate expire time for ISR enabled pages.
 
 You can specify a custom `stale-while-revalidate` expire time for CDNs to consume in the `Cache-Control` header for ISR enabled pages.
 
-Open `next.config.js` and add the `expireTime` config:
+Open `next.config.ts` and add the `expireTime` config:
 
-```js filename="next.config.js"
-module.exports = {
+```ts filename="next.config.ts" highlight={4-5} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
   // one hour in seconds
   expireTime: 3600,
 }
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={5-6} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  // one hour in seconds
+  expireTime: 3600,
+}
+
+export default nextConfig
 ```
 
 Now when sending the `Cache-Control` header the expire time will be calculated depending on the specific revalidate period.

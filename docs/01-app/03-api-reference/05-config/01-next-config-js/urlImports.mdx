@@ -10,14 +10,31 @@ URL imports are an experimental feature that allows you to import modules direct
 
 > **Warning**: Only use domains that you trust to download and execute on your machine. Please exercise discretion, and caution until the feature is flagged as stable.
 
-To opt-in, add the allowed URL prefixes inside `next.config.js`:
+To opt-in, add the allowed URL prefixes inside `next.config.ts`:
 
-```js filename="next.config.js"
-module.exports = {
+```ts filename="next.config.ts" highlight={4-6} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
   experimental: {
     urlImports: ['https://example.com/assets/', 'https://cdn.skypack.dev'],
   },
 }
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={5-7} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  experimental: {
+    urlImports: ['https://example.com/assets/', 'https://cdn.skypack.dev'],
+  },
+}
+
+export default nextConfig
 ```
 
 Then, you can import modules directly from URLs:

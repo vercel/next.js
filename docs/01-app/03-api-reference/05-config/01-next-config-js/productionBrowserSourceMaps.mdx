@@ -9,10 +9,25 @@ Source Maps are enabled by default during development. During production builds,
 
 Next.js provides a configuration flag you can use to enable browser source map generation during the production build:
 
-```js filename="next.config.js"
-module.exports = {
+```ts filename="next.config.ts" highlight={4} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
   productionBrowserSourceMaps: true,
 }
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={5} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  productionBrowserSourceMaps: true,
+}
+
+export default nextConfig
 ```
 
 When the `productionBrowserSourceMaps` option is enabled, the source maps will be output in the same directory as the JavaScript files. Next.js will automatically serve these files when requested.

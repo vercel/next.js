@@ -9,12 +9,29 @@ Some packages can export hundreds or thousands of modules, which can cause perfo
 
 Adding a package to `experimental.optimizePackageImports` will only load the modules you are actually using, while still giving you the convenience of writing import statements with many named exports.
 
-```js filename="next.config.js"
-module.exports = {
+```ts filename="next.config.ts" highlight={4-6} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ['package-name'],
   },
 }
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={5-7} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  experimental: {
+    optimizePackageImports: ['package-name'],
+  },
+}
+
+export default nextConfig
 ```
 
 The following libraries are optimized by default:
