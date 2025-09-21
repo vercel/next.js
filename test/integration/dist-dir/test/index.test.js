@@ -65,7 +65,7 @@ describe('distDir', () => {
 
       it('should build the app within the given `dist` directory', async () => {
         expect(
-          await fs.exists(join(__dirname, `/../dist/${BUILD_MANIFEST}`))
+          await fs.exists(join(__dirname, `/../dist/dev/${BUILD_MANIFEST}`))
         ).toBeTruthy()
       })
       it('should not build the app within the default `.next` directory', async () => {

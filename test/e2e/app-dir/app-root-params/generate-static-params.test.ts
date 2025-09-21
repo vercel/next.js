@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
 describe('app-root-params - generateStaticParams', () => {
-  const { next, isNextDeploy, isTurbopack } = nextTestSetup({
+  const { next, isNextDeploy, isTurbopack, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'generate-static-params'),
   })
 
@@ -40,8 +40,14 @@ describe('app-root-params - generateStaticParams', () => {
   // check the file generated at build time.
   if (!isNextDeploy && !isTurbopack) {
     it('should correctly generate types', async () => {
-      expect(await next.hasFile('.next/types/server.d.ts')).toBe(true)
-      const fileContents = await next.readFile('.next/types/server.d.ts')
+      let fileContents: string
+      if (isNextDev) {
+        expect(await next.hasFile('.next/dev/types/server.d.ts')).toBe(true)
+        fileContents = await next.readFile('.next/dev/types/server.d.ts')
+      } else {
+        expect(await next.hasFile('.next/types/server.d.ts')).toBe(true)
+        fileContents = await next.readFile('.next/types/server.d.ts')
+      }
       expect(fileContents).toContain(
         `export function unstable_rootParams(): Promise<{ lang: string, locale: string }>`
       )
