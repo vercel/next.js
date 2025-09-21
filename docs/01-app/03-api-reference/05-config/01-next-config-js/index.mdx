@@ -7,15 +7,27 @@ description: Learn how to configure your application with next.config.js.
 
 Next.js can be configured through a `next.config.js` file in the root of your project directory (for example, by `package.json`) with a default export.
 
-```js filename="next.config.js"
+```ts filename="next.config.ts" highlight={3-5} switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  /* config options here */
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.mjs" highlight={6-8} switcher
 // @ts-check
 
-/** @type {import('next').NextConfig} */
+/**
+ * @type {import('next').NextConfig}
+ */
 const nextConfig = {
   /* config options here */
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 ## ECMAScript Modules
@@ -43,10 +55,24 @@ export default nextConfig
 
 You can also use a function:
 
-```js filename="next.config.mjs"
+```ts filename="next.config.ts" highlight={3-11} switcher
+import type { NextConfig } from 'next'
+
+export default async function (
+  phase: string,
+  { defaultConfig }: { defaultConfig: NextConfig }
+) {
+  const nextConfig: NextConfig = {
+    /* config options here */
+  }
+  return nextConfig
+}
+```
+
+```js filename="next.config.mjs" highlight={3-11} switcher
 // @ts-check
 
-export default (phase, { defaultConfig }) => {
+export default async (phase, { defaultConfig }) => {
   /**
    * @type {import('next').NextConfig}
    */
@@ -61,30 +87,32 @@ export default (phase, { defaultConfig }) => {
 
 Since Next.js 12.1.0, you can use an async function:
 
-```js filename="next.config.js"
-// @ts-check
-
-module.exports = async (phase, { defaultConfig }) => {
-  /**
-   * @type {import('next').NextConfig}
-   */
-  const nextConfig = {
-    /* config options here */
-  }
-  return nextConfig
-}
-```
-
 ### Phase
 
 `phase` is the current context in which the configuration is loaded. You can see the [available phases](https://github.com/vercel/next.js/blob/5e6b008b561caf2710ab7be63320a3d549474a5b/packages/next/shared/lib/constants.ts#L19-L23). Phases can be imported from `next/constants`:
 
-```js filename="next.config.js"
+```ts filename="next.config.ts" highlight={5-9} switcher
+import type { NextConfig } from 'next'
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
+
+export default (phase: string): NextConfig | Record<string, unknown> => {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
+    return {
+      /* development only config options here */
+    }
+  }
+
+  return {
+    /* config options for all phases except development here */
+  }
+}
+```
+
+```js filename="next.config.mjs" highlight={5-9} switcher
 // @ts-check
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 
-const { PHASE_DEVELOPMENT_SERVER } = require('next/constants')
-
-module.exports = (phase, { defaultConfig }) => {
+export default (phase, { defaultConfig }) => {
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     return {
       /* development only config options here */

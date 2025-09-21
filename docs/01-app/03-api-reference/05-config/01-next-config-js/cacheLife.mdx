@@ -29,8 +29,11 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
-module.exports = {
+```js filename="next.config.mjs" highlight={5-14} switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
   experimental: {
     cacheComponents: true,
     cacheLife: {
@@ -42,11 +45,13 @@ module.exports = {
     },
   },
 }
+
+export default nextConfig
 ```
 
 You can now use this custom `blog` configuration in your component or function as follows:
 
-```tsx filename="app/actions.ts" highlight={4,5} switcher
+```tsx filename="app/actions.ts" highlight={4} switcher
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 export async function getCachedData() {
@@ -57,7 +62,7 @@ export async function getCachedData() {
 }
 ```
 
-```jsx filename="app/actions.js" highlight={4,5} switcher
+```jsx filename="app/actions.js" highlight={4} switcher
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 export async function getCachedData() {

@@ -36,7 +36,7 @@ Some commonly asked for features are available as plugins:
 
 In order to extend our usage of `webpack`, you can define a function that extends its config inside `next.config.js`, like so:
 
-```ts filename="next.config.ts" switcher
+```ts filename="next.config.ts" highlight={4} switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -52,7 +52,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" switcher
+```js filename="next.config.mjs" highlight={3} switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (
@@ -103,7 +103,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={4} switcher
+```js filename="next.config.mjs" highlight={3} switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (config, options) => {

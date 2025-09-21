@@ -9,7 +9,7 @@ Next.js exposes some options that give you some control over how the server will
 
 To change the defaults, open `next.config.ts` and add the `onDemandEntries` config:
 
-```ts filename="next.config.ts" highlight={4-8} switcher
+```ts filename="next.config.ts" highlight={4} switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-9} switcher
+```js filename="next.config.mjs" highlight={5} switcher
 /**
  * @type {import('next').NextConfig}
  */

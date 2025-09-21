@@ -12,7 +12,7 @@ URL imports are an experimental feature that allows you to import modules direct
 
 To opt-in, add the allowed URL prefixes inside `next.config.ts`:
 
-```ts filename="next.config.ts" highlight={4-6} switcher
+```ts filename="next.config.ts" highlight={4} switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-7} switcher
+```js filename="next.config.mjs" highlight={4} switcher
 /**
  * @type {import('next').NextConfig}
  */

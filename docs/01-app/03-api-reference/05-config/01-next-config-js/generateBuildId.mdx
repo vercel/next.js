@@ -9,7 +9,7 @@ Next.js generates an ID during `next build` to identify which version of your ap
 
 If you are rebuilding for each stage of your environment, you will need to generate a consistent build ID to use between containers. Use the `generateBuildId` command in `next.config.ts`:
 
-```ts filename="next.config.ts" highlight={4-7} switcher
+```ts filename="next.config.ts" highlight={4} switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-8} switcher
+```js filename="next.config.mjs" highlight={5} switcher
 /**
  * @type {import('next').NextConfig}
  */

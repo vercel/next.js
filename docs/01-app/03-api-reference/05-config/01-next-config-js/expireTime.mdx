@@ -9,7 +9,7 @@ You can specify a custom `stale-while-revalidate` expire time for CDNs to consum
 
 Open `next.config.ts` and add the `expireTime` config:
 
-```ts filename="next.config.ts" highlight={4-5} switcher
+```ts filename="next.config.ts" highlight={4} switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-6} switcher
+```js filename="next.config.mjs" highlight={5} switcher
 /**
  * @type {import('next').NextConfig}
  */

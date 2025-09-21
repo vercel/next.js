@@ -13,7 +13,7 @@ If disabled, be sure you are running type checks as part of your build or deploy
 
 Open `next.config.ts` and enable the `ignoreBuildErrors` option in the `typescript` config:
 
-```ts filename="next.config.ts" highlight={4-9} switcher
+```ts filename="next.config.ts" highlight={4} switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -29,7 +29,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-10} switcher
+```js filename="next.config.mjs" highlight={5} switcher
 /**
  * @type {import('next').NextConfig}
  */
