@@ -8,6 +8,7 @@ import {
   launchApp,
   nextBuild,
   renderViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -25,7 +26,7 @@ describe('minified module ids', () => {
     beforeAll(async () => {
       await nextBuild(appDir, [])
 
-      const ssrPath = join(appDir, '.next/server/chunks/ssr/')
+      const ssrPath = join(appDir, `${getDistDir(appDir)}/server/chunks/ssr/`)
       const ssrBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
         p.match(/\.js$/)
       )
@@ -34,7 +35,7 @@ describe('minified module ids', () => {
         ssrBundles += output
       }
 
-      const staticPath = join(appDir, '.next/static/chunks/')
+      const staticPath = join(appDir, `${getDistDir(appDir)}/static/chunks/`)
       const staticBundleBasenames = (await fs.readdir(staticPath)).filter((p) =>
         p.match(/\.js$/)
       )
@@ -77,7 +78,7 @@ describe('minified module ids', () => {
 
       await renderViaHTTP(appPort, '/')
 
-      const ssrPath = join(appDir, '.next/server/chunks/ssr/')
+      const ssrPath = join(appDir, `${getDistDir(appDir)}/server/chunks/ssr/`)
       const ssrBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
         p.match(/\.js$/)
       )
@@ -86,7 +87,7 @@ describe('minified module ids', () => {
         ssrBundles += output
       }
 
-      const staticPath = join(appDir, '.next/static/chunks/')
+      const staticPath = join(appDir, `${getDistDir(appDir)}/static/chunks/`)
       const staticBundleBasenames = (await fs.readdir(staticPath)).filter((p) =>
         p.match(/\.js$/)
       )

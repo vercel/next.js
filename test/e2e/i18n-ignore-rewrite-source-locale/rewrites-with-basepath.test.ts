@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, getDistDir, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import fs from 'fs-extra'
 
@@ -44,7 +44,14 @@ describe('i18n-ignore-rewrite-source-locale with basepath', () => {
       'get _next/static/ files by skipping locale in rewrite, locale: %s',
       async (locale) => {
         const chunks = (
-          await fs.readdir(path.join(next.testDir, '.next', 'static', 'chunks'))
+          await fs.readdir(
+            path.join(
+              next.testDir,
+              getDistDir(next.testDir),
+              'static',
+              'chunks'
+            )
+          )
         ).filter((f) => f.endsWith('.js'))
 
         await Promise.all(

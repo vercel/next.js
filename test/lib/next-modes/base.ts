@@ -8,7 +8,12 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP, findPort } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  fetchViaHTTP,
+  findPort,
+  getDistDir,
+} from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
 import { Playwright } from 'next-webdriver'
@@ -506,7 +511,7 @@ export class NextInstance {
       if (process.env.TRACE_PLAYWRIGHT) {
         await fs
           .cp(
-            path.join(this.testDir, '.next/trace'),
+            path.join(this.testDir, getDistDir(this.testDir), 'trace'),
             path.join(
               __dirname,
               '../../traces',

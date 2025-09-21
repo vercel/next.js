@@ -193,7 +193,7 @@ async function main() {
   );
   const bindings = await loadBindings();
   const rootPath = __dirname;
-  const distDir = '.next';
+  const distDir = '.next/dev';
   const project = await bindings.turbo.createProject({
     env: {},
     nextConfig: nextConfig,
@@ -350,7 +350,7 @@ describe('next.rs api', () => {
     const rootPath = process.env.NEXT_SKIP_ISOLATE
       ? path.resolve(__dirname, '../../..')
       : next.testDir
-    const distDir = '.next'
+    const distDir = '.next/dev'
     project = await bindings.turbo.createProject({
       env: {},
       nextConfig: nextConfig,

@@ -333,11 +333,11 @@ describe('Client Navigation rendering', () => {
       // build dynamic page
       await fetch('/dynamic/ssr')
 
-      const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
+      const buildManifest = await next.readJSON(`.next/dev/${BUILD_MANIFEST}`)
       const reactLoadableManifest = await next.readJSON(
         process.env.IS_TURBOPACK_TEST
-          ? `.next/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
-          : `.next/${REACT_LOADABLE_MANIFEST}`
+          ? `.next/dev/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
+          : `.next/dev/${REACT_LOADABLE_MANIFEST}`
       )
       const resources = []
 

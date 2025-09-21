@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { assertNoRedbox, getDistDir } from 'next-test-utils'
 import { join } from 'path'
 
 describe('app-root-params - simple', () => {
@@ -31,8 +31,12 @@ describe('app-root-params - simple', () => {
   // check the file generated at build time.
   if (!isNextDeploy && !isTurbopack) {
     it('should correctly generate types', async () => {
-      expect(await next.hasFile('.next/types/server.d.ts')).toBe(true)
-      const fileContents = await next.readFile('.next/types/server.d.ts')
+      expect(
+        await next.hasFile(`${getDistDir(next.testDir)}/types/server.d.ts`)
+      ).toBe(true)
+      const fileContents = await next.readFile(
+        `${getDistDir(next.testDir)}/types/server.d.ts`
+      )
       expect(fileContents).toContain(
         `export function unstable_rootParams(): Promise<{ lang: string, locale: string }>`
       )
