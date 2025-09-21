@@ -22,11 +22,52 @@ import { createInitialRouterState } from './components/router-reducer/create-ini
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
 import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-app'
+import { ST } from '../shared/lib/utils'
 
 /// <reference types="react-dom/experimental" />
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
+
+const performanceMarks = {
+  /** Browser's built-in navigation start timestamp */
+  navigationStart: 'navigationStart',
+  /** Set before createRoot call during client-side rendering only */
+  beforeRender: 'beforeRender',
+  /** Set before hydrateRoot call during server-side rendering only */
+  beforeHydration: 'beforeHydration',
+  /** Set after initial React commit when hydration or render starts */
+  afterInitialCommit: 'afterInitialCommit',
+  /** Set when rsc stream processing begins */
+  rscStreamStart: 'rscStreamStart',
+  /** Set when rsc stream processing finishes */
+  rscStreamEnd: 'rscStreamEnd',
+} as const
+
+const performanceMeasures = {
+  /**
+   * Measures the time from navigation start to before client-side render begins.
+   * Only applicable for client-side rendering scenarios (error pages).
+   */
+  beforeRender: 'Next.js-before-render',
+
+  /**
+   * Measures the time from navigation start to before hydration begins.
+   * Tracks the initial loading phase before React takes over the SSRd HTML.
+   */
+  beforeHydration: 'Next.js-before-hydration',
+
+  /**
+   * Measures the time from hydration start to after the initial commit is complete.
+   */
+  initialCommit: 'Next.js-initial-commit',
+
+  /**
+   * Measures the complete duration of the rsc stream reader processing.
+   * Tracks from when the client begins reading the rsc stream until it finishes.
+   */
+  rscStream: 'Next.js-rsc-stream-reader',
+} as const
 
 const appElement: HTMLElement | Document = document
 
@@ -121,6 +162,7 @@ function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
         )
       } else {
         ctr.close()
+        markRscStreamEnd()
       }
       initialServerDataFlushed = true
       initialServerDataBuffer = undefined
@@ -134,6 +176,7 @@ function nextServerDataRegisterWriter(ctr: ReadableStreamDefaultController) {
 const DOMContentLoaded = function () {
   if (initialServerDataWriter && !initialServerDataFlushed) {
     initialServerDataWriter.close()
+    markRscStreamEnd()
     initialServerDataFlushed = true
     initialServerDataBuffer = undefined
   }
@@ -171,6 +214,10 @@ if (
     require('./dev/debug-channel') as typeof import('./dev/debug-channel')
 
   debugChannel = createDebugChannel(undefined)
+}
+
+if (ST) {
+  performance.mark(performanceMarks.rscStreamStart)
 }
 
 const initialServerResponse = createFromReadableStream<InitialRSCPayload>(
@@ -216,7 +263,26 @@ const StrictModeIfEnabled = process.env.__NEXT_STRICT_MODE_APP
   ? React.StrictMode
   : React.Fragment
 
-function Root({ children }: React.PropsWithChildren<{}>) {
+function Root({
+  children,
+  callbacks,
+}: React.PropsWithChildren<{
+  callbacks?: Array<() => void>
+}>) {
+  const callbacksExecutedRef = React.useRef(false)
+
+  React.useEffect(() => {
+    if (callbacksExecutedRef.current || !callbacks) {
+      return
+    }
+
+    callbacksExecutedRef.current = true
+
+    for (const callback of callbacks) {
+      callback()
+    }
+  }, [callbacks])
+
   if (process.env.__NEXT_TEST_MODE) {
     // eslint-disable-next-line react-hooks/rules-of-hooks
     React.useEffect(() => {
@@ -227,6 +293,72 @@ function Root({ children }: React.PropsWithChildren<{}>) {
   }
 
   return children
+}
+
+function markRootCommitComplete(): void {
+  if (!ST) return
+
+  performance.mark(performanceMarks.afterInitialCommit)
+
+  const hasBeforeRenderMark = performance.getEntriesByName(
+    performanceMarks.beforeRender,
+    'mark'
+  ).length
+
+  const hasBeforeHydrationMark = performance.getEntriesByName(
+    performanceMarks.beforeHydration,
+    'mark'
+  ).length
+
+  if (hasBeforeRenderMark) {
+    performance.measure(
+      performanceMeasures.beforeRender,
+      performanceMarks.navigationStart,
+      performanceMarks.beforeRender
+    )
+
+    performance.measure(
+      performanceMeasures.initialCommit,
+      performanceMarks.beforeRender,
+      performanceMarks.afterInitialCommit
+    )
+  }
+
+  if (hasBeforeHydrationMark) {
+    performance.measure(
+      performanceMeasures.beforeHydration,
+      performanceMarks.navigationStart,
+      performanceMarks.beforeHydration
+    )
+
+    performance.measure(
+      performanceMeasures.initialCommit,
+      performanceMarks.beforeHydration,
+      performanceMarks.afterInitialCommit
+    )
+  }
+}
+
+function markRscStreamEnd() {
+  if (!ST) return
+
+  performance.mark(performanceMarks.rscStreamEnd)
+
+  const hasRSCStreamEndMark = performance.getEntriesByName(
+    performanceMarks.rscStreamEnd,
+    'mark'
+  ).length
+
+  if (
+    hasRSCStreamEndMark &&
+    performance.getEntriesByName(performanceMarks.rscStreamStart, 'mark').length
+  ) {
+    performance.measure(
+      performanceMeasures.rscStream,
+      performanceMarks.rscStreamStart,
+      performanceMarks.rscStreamEnd
+    )
+  }
 }
 
 function onDefaultTransitionIndicator() {
@@ -299,23 +431,32 @@ export function hydrate(
     }
   )
 
-  const reactEl = (
-    <StrictModeIfEnabled>
-      <HeadManagerContext.Provider value={{ appDir: true }}>
-        <Root>
-          <ServerRoot
-            pendingActionQueue={pendingActionQueue}
-            webSocket={webSocket}
-            staticIndicatorState={staticIndicatorState}
-          />
-        </Root>
-      </HeadManagerContext.Provider>
-    </StrictModeIfEnabled>
-  )
+  function createReactElement(callbacks?: Array<() => void>) {
+    return (
+      <StrictModeIfEnabled>
+        <HeadManagerContext.Provider value={{ appDir: true }}>
+          <Root callbacks={callbacks}>
+            <ServerRoot
+              pendingActionQueue={pendingActionQueue}
+              webSocket={webSocket}
+              staticIndicatorState={staticIndicatorState}
+            />
+          </Root>
+        </HeadManagerContext.Provider>
+      </StrictModeIfEnabled>
+    )
+  }
 
   if (document.documentElement.id === '__next_error__') {
-    let element = reactEl
     // Server rendering failed, fall back to client-side rendering
+    if (ST) {
+      performance.mark(performanceMarks.beforeRender)
+    }
+
+    const renderCallbacks = ST ? [markRootCommitComplete] : undefined
+    const reactEl = createReactElement(renderCallbacks)
+
+    let element = reactEl
     if (process.env.NODE_ENV !== 'production') {
       const { RootLevelDevOverlayElement } =
         require('../next-devtools/userspace/app/client-entry') as typeof import('../next-devtools/userspace/app/client-entry')
@@ -328,6 +469,13 @@ export function hydrate(
 
     ReactDOMClient.createRoot(appElement, reactRootOptions).render(element)
   } else {
+    if (ST) {
+      performance.mark(performanceMarks.beforeHydration)
+    }
+
+    const rootCommitCallbacks = ST ? [markRootCommitComplete] : undefined
+    const reactEl = createReactElement(rootCommitCallbacks)
+
     React.startTransition(() => {
       ReactDOMClient.hydrateRoot(appElement, reactEl, {
         ...reactRootOptions,
