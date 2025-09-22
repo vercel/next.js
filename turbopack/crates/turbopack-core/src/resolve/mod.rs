@@ -146,6 +146,8 @@ impl ExportUsage {
 #[derive(Clone)]
 pub struct ModuleResolveResult {
     pub primary: SliceMap<RequestKey, ModuleResolveResultItem>,
+    /// Affecting sources are other files that influence the resolve result.  For example,
+    /// traversed symlinks
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
 }
 
@@ -229,7 +231,7 @@ impl ModuleResolveResult {
     }
 
     pub fn affecting_sources_iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Source>>> + '_ {
-        self.affecting_sources.as_ref().iter().copied()
+        self.affecting_sources.iter().copied()
     }
 
     pub fn is_unresolvable_ref(&self) -> bool {
@@ -466,6 +468,8 @@ impl RequestKey {
 #[derive(Clone)]
 pub struct ResolveResult {
     pub primary: SliceMap<RequestKey, ResolveResultItem>,
+    /// Affecting sources are other files that influence the resolve result.  For example,
+    /// traversed symlinks
     pub affecting_sources: Box<[ResolvedVc<Box<dyn Source>>]>,
 }
 
