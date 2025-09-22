@@ -333,7 +333,7 @@ impl VarGraph {
 pub fn create_graph(
     m: &Program,
     eval_context: &EvalContext,
-    tracing_mode: AnalyzeMode,
+    analyze_mode: AnalyzeMode,
 ) -> VarGraph {
     let mut graph = VarGraph {
         values: Default::default(),
@@ -343,7 +343,7 @@ pub fn create_graph(
 
     m.visit_with_ast_path(
         &mut Analyzer {
-            tracing_mode,
+            analyze_mode,
             data: &mut graph,
             state: analyzer_state::AnalyzerState::new(),
             eval_context,
@@ -864,7 +864,7 @@ pub fn as_parent_path_skip(
 }
 
 struct Analyzer<'a> {
-    tracing_mode: AnalyzeMode,
+    analyze_mode: AnalyzeMode,
 
     data: &'a mut VarGraph,
     state: analyzer_state::AnalyzerState,
@@ -1471,7 +1471,7 @@ impl Analyzer<'_> {
         member_expr: &'ast MemberExpr,
         ast_path: &AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if !self.tracing_mode.is_code_gen() {
+        if !self.analyze_mode.is_code_gen() {
             return;
         }
 
@@ -1505,7 +1505,7 @@ impl Analyzer<'_> {
                     start_ast_path,
                 } => {
                     self.effects = prev_effects;
-                    if self.tracing_mode.is_code_gen() {
+                    if self.analyze_mode.is_code_gen() {
                         self.effects.push(Effect::Unreachable { start_ast_path });
                     }
                     always_returns = true;
@@ -2233,7 +2233,7 @@ impl VisitAstPath for Analyzer<'_> {
         }
 
         // If this identifier is free, produce an effect so we can potentially replace it later.
-        if self.tracing_mode.is_code_gen()
+        if self.analyze_mode.is_code_gen()
             && let JsValue::FreeVar(var) = self.eval_context.eval_ident(ident)
         {
             // TODO(lukesandberg): we should consider filtering effects here, e.g. there is no
@@ -2271,7 +2271,7 @@ impl VisitAstPath for Analyzer<'_> {
             return;
         }
 
-        if self.tracing_mode.is_code_gen() {
+        if self.analyze_mode.is_code_gen() {
             // Otherwise 'this' is free
             self.add_effect(Effect::FreeVar {
                 var: atom!("this"),
@@ -2286,7 +2286,7 @@ impl VisitAstPath for Analyzer<'_> {
         expr: &'ast MetaPropExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.tracing_mode.is_code_gen() && expr.kind == MetaPropKind::ImportMeta {
+        if self.analyze_mode.is_code_gen() && expr.kind == MetaPropKind::ImportMeta {
             // MetaPropExpr also covers `new.target`. Only consider `import.meta`
             // an effect.
             self.add_effect(Effect::ImportMeta {
@@ -2537,7 +2537,7 @@ impl VisitAstPath for Analyzer<'_> {
         n: &'ast UnaryExpr,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
-        if n.op == UnaryOp::TypeOf && self.tracing_mode.is_code_gen() {
+        if n.op == UnaryOp::TypeOf && self.analyze_mode.is_code_gen() {
             let arg_value = Box::new(self.eval_context.eval(&n.arg));
 
             self.add_effect(Effect::TypeOf {

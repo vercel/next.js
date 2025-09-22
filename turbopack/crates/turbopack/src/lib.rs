@@ -720,7 +720,7 @@ pub async fn externals_tracing_module_context(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            tracing_mode: AnalyzeMode::Tracing,
+            analyze_mode: AnalyzeMode::Tracing,
             ..Default::default()
         }
         .cell(),
@@ -825,7 +825,7 @@ impl AssetContext for ModuleAssetContext {
                         }
                         ResolveResultItem::External { name, ty, traced } => {
                             let replacement = if replace_externals {
-                                let tracing_mode = if traced == ExternalTraced::Traced
+                                let analyze_mode = if traced == ExternalTraced::Traced
                                     && let Some(options) = &self
                                         .module_options_context()
                                         .await?
@@ -851,7 +851,7 @@ impl AssetContext for ModuleAssetContext {
                                     CachedExternalTracingMode::Untraced
                                 };
 
-                                replace_external(&name, ty, import_externals, tracing_mode).await?
+                                replace_external(&name, ty, import_externals, analyze_mode).await?
                             } else {
                                 None
                             };
@@ -1004,7 +1004,7 @@ pub async fn replace_external(
     name: &RcStr,
     ty: ExternalType,
     import_externals: bool,
-    tracing_mode: CachedExternalTracingMode,
+    analyze_mode: CachedExternalTracingMode,
 ) -> Result<Option<ModuleResolveResultItem>> {
     let external_type = match ty {
         ExternalType::CommonJs => CachedExternalType::CommonJs,
@@ -1023,7 +1023,7 @@ pub async fn replace_external(
         }
     };
 
-    let module = CachedExternalModule::new(name.clone(), external_type, tracing_mode)
+    let module = CachedExternalModule::new(name.clone(), external_type, analyze_mode)
         .to_resolved()
         .await?;
 

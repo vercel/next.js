@@ -264,7 +264,7 @@ pub struct EcmascriptOptions {
     pub keep_last_successful_parse: bool,
     /// Whether the modules in this context are never chunked/codegen-ed, but only used for
     /// tracing.
-    pub tracing_mode: AnalyzeMode,
+    pub analyze_mode: AnalyzeMode,
     // TODO this should just be handled via CompileTimeInfo FreeVarReferences, but then it
     // (currently) wouldn't be possible to have different replacement values in user code vs
     // node_modules.

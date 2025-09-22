@@ -337,7 +337,7 @@ pub async fn get_client_module_options_context(
         enable_postcss_transform,
         side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
         keep_last_successful_parse: next_mode.is_development(),
-        tracing_mode: if next_mode.is_development() {
+        analyze_mode: if next_mode.is_development() {
             AnalyzeMode::CodeGeneration
         } else {
             // Technically, this doesn't need to tracing for the client context. But this will

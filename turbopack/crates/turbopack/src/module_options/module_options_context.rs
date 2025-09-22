@@ -209,7 +209,7 @@ pub struct ModuleOptionsContext {
 
     /// Whether the modules in this context are never chunked/codegen-ed, but only used for
     /// tracing.
-    pub tracing_mode: AnalyzeMode,
+    pub analyze_mode: AnalyzeMode,
 
     pub placeholder_for_future_extensions: (),
 }

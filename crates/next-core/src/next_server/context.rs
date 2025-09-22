@@ -592,7 +592,7 @@ pub async fn get_server_module_options_context(
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
-        tracing_mode: if next_mode.is_development() {
+        analyze_mode: if next_mode.is_development() {
             AnalyzeMode::CodeGeneration
         } else {
             AnalyzeMode::CodeGenerationAndTracing
