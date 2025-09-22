@@ -3,6 +3,7 @@ import os from 'os'
 import path from 'path'
 import { Span } from 'next/dist/trace'
 import loader from 'next/dist/build/babel/loader'
+import { getDistDir } from '../lib/next-test-utils'
 
 const dir = path.resolve(os.tmpdir())
 
@@ -23,7 +24,7 @@ const babel = async (code: string, queryOpts = {} as any) => {
       // loader opts
       cwd: dir,
       isServer,
-      distDir: path.resolve(dir, '.next'),
+      distDir: path.resolve(dir, getDistDir()),
       pagesDir:
         'pagesDir' in queryOpts
           ? queryOpts.pagesDir

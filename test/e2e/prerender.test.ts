@@ -66,7 +66,7 @@ describe('Prerender', () => {
       const lastRetry = i === retries - 1
       const jsonPath = join(
         next.testDir,
-        '.next',
+        getDistDir(),
         'server',
         'pages',
         `${prerenderPath}.html`

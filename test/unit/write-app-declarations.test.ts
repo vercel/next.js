@@ -3,6 +3,7 @@ import os from 'os'
 import fs from 'fs-extra'
 import { join } from 'path'
 import { writeAppTypeDeclarations } from 'next/dist/lib/typescript/writeAppTypeDeclarations'
+import { getDistDir } from '../lib/next-test-utils'
 
 const fixtureDir = join(__dirname, 'fixtures/app-declarations')
 const declarationFile = join(fixtureDir, 'next-env.d.ts')
@@ -34,7 +35,7 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
-      distDir: '.next',
+      distDir: getDistDir(),
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
@@ -62,7 +63,7 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
-      distDir: '.next',
+      distDir: getDistDir(),
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
@@ -88,7 +89,7 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
-      distDir: '.next',
+      distDir: getDistDir(),
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: false,
@@ -99,7 +100,7 @@ describe('find config', () => {
   it('should include navigation types if app directory is enabled', async () => {
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
-      distDir: '.next',
+      distDir: getDistDir(),
       imageImportsEnabled,
       hasPagesDir: false,
       hasAppDir: true,
@@ -111,7 +112,7 @@ describe('find config', () => {
 
     await writeAppTypeDeclarations({
       baseDir: fixtureDir,
-      distDir: '.next',
+      distDir: getDistDir(),
       imageImportsEnabled,
       hasPagesDir: true,
       hasAppDir: true,

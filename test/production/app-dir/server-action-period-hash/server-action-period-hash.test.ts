@@ -28,7 +28,7 @@ describe('app-dir - server-action-period-hash', () => {
     await next.build()
     const firstActionIds = await getServerActionManifestNodeKeys(next)
 
-    await next.remove('.next') // dismiss cache
+    await next.remove(getDistDir()) // dismiss cache
     await next.build()
 
     const secondActionIds = await getServerActionManifestNodeKeys(next)
