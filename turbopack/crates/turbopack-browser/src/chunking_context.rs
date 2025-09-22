@@ -591,7 +591,6 @@ impl ChunkingContext for BrowserChunkingContext {
                 .map(|chunk| self.generate_chunk(**chunk).to_resolved())
                 .try_join()
                 .await?;
-            let other_assets = Vc::cell(assets.clone());
 
             if this.enable_hot_module_replacement {
                 let mut ident = ident;
@@ -605,6 +604,7 @@ impl ChunkingContext for BrowserChunkingContext {
                             ident.with_modifier(available_modules.hash().await?.to_string().into());
                     }
                 }
+                let other_assets = Vc::cell(assets.clone());
                 assets.push(
                     self.generate_chunk_list_register_chunk(
                         ident,
@@ -658,7 +658,6 @@ impl ChunkingContext for BrowserChunkingContext {
                 .map(|chunk| self.generate_chunk(**chunk).to_resolved())
                 .try_join()
                 .await?;
-            let other_assets = Vc::cell(assets.clone());
 
             let entries = Vc::cell(
                 chunk_group
@@ -682,6 +681,7 @@ impl ChunkingContext for BrowserChunkingContext {
                             ident.with_modifier(available_modules.hash().await?.to_string().into());
                     }
                 }
+                let other_assets = Vc::cell(assets.clone());
                 assets.push(
                     self.generate_chunk_list_register_chunk(
                         ident,
