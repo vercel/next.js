@@ -25,6 +25,12 @@ describe('transpile-packages-typescript-foreign', () => {
         expect(next.cliOutput).toContain(`pkg/index.ts
 Unknown module type
 This module doesn't have an associated type`)
+        expect(
+          next.cliOutput.match(/Unknown module type/g).length
+        ).toBeLessThanOrEqual(1)
+        expect(
+          next.cliOutput.match(/Missing module type/g).length
+        ).toBeLessThanOrEqual(1)
       } else {
         expect(next.cliOutput).toContain(`pkg/index.ts
 Module parse failed: Unexpected token`)
