@@ -1494,18 +1494,13 @@ impl RealPathResultError {
     }
 }
 
-#[derive(Clone, Copy, Debug, DeterministicHash, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, Default, DeterministicHash, PartialOrd, Ord)]
 #[turbo_tasks::value(shared)]
 pub enum Permissions {
     Readable,
+    #[default]
     Writable,
     Executable,
-}
-
-impl Default for Permissions {
-    fn default() -> Self {
-        Self::Writable
-    }
 }
 
 // Only handle the permissions on unix platform for now

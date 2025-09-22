@@ -133,9 +133,7 @@ impl TurboTasksCallApi for VcStorage {
         &self,
         _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<
-        Box<
-            (dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static),
-        >,
+        Box<dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static>,
     > {
         unreachable!()
     }
@@ -145,9 +143,7 @@ impl TurboTasksCallApi for VcStorage {
         _reason: StaticOrArc<dyn InvalidationReason>,
         _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<
-        Box<
-            (dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static),
-        >,
+        Box<dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static>,
     > {
         unreachable!()
     }
