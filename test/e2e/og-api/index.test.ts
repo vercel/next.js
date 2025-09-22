@@ -68,7 +68,9 @@ describe('og-api', () => {
 
       for (let f of files) {
         expect(
-          await fs.pathExists(join(next.testDir, `${getDistDir()}/standalone/${getDistDir()}`, f))
+          await fs.pathExists(
+            join(next.testDir, `${getDistDir()}/standalone/${getDistDir()}`, f)
+          )
         ).toBe(true)
       }
     })

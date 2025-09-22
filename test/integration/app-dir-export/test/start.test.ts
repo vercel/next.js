@@ -63,7 +63,7 @@ describe('app dir - with output export (next start)', () => {
           await check(() => stderr, /⚠/i)
           // eslint-disable-next-line jest/no-standalone-expect
           expect(stderr).toContain(
-            `"next start" does not work with "output: standalone" configuration. Use "node .next/standalone/server.js" instead.`
+            `"next start" does not work with "output: standalone" configuration. Use "node ${getDistDir()}/standalone/server.js" instead.`
           )
         }
       )

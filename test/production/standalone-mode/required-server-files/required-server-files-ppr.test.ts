@@ -77,7 +77,7 @@ describe('required server files app router', () => {
     )
 
     await fs.rename(
-      join(next.testDir, '.next/standalone'),
+      join(next.testDir, `${getDistDir()}/standalone`),
       join(next.testDir, 'standalone')
     )
 
