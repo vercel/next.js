@@ -4,6 +4,7 @@ import { NextInstance } from './base'
 import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import stripAnsi from 'strip-ansi'
+import { getDistDir } from '../next-test-utils'
 
 export class NextStartInstance extends NextInstance {
   private _buildId: string
@@ -90,7 +91,7 @@ export class NextStartInstance extends NextInstance {
           .readFile(
             path.join(
               this.testDir,
-              this.nextConfig?.distDir || '.next',
+              this.nextConfig?.distDir || getDistDir(),
               'BUILD_ID'
             ),
             'utf8'

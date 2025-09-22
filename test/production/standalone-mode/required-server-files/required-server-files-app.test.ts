@@ -63,7 +63,7 @@ describe('required server files app router', () => {
       }
     }
     const files = glob.sync('**/*', {
-      cwd: join(next.testDir, 'standalone/.next/server/pages'),
+      cwd: join(next.testDir, `standalone/${getDistDir()}/server/pages`),
       dot: true,
     })
 

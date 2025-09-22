@@ -105,7 +105,7 @@ describe('required server files', () => {
       }
     }
     const files = glob.sync('**/*', {
-      cwd: join(next.testDir, 'standalone/.next/server/pages'),
+      cwd: join(next.testDir, `standalone/${getDistDir()}/server/pages`),
       dot: true,
     })
 
@@ -168,7 +168,7 @@ describe('required server files', () => {
   })
 
   it('should resolve correctly when a redirect is returned', async () => {
-    const toRename = `standalone/.next/server/pages/route-resolving/[slug]/[project].html`
+    const toRename = `standalone/${getDistDir()}/server/pages/route-resolving/[slug]/[project].html`
     await next.renameFile(toRename, `${toRename}.bak`)
     try {
       const res = await fetchViaHTTP(
@@ -195,7 +195,7 @@ describe('required server files', () => {
   })
 
   it('should show invariant when an automatic static page is requested', async () => {
-    const toRename = `standalone/.next/server/pages/auto-static.html`
+    const toRename = `standalone/${getDistDir()}/server/pages/auto-static.html`
     await next.renameFile(toRename, `${toRename}.bak`)
 
     try {
@@ -382,12 +382,15 @@ describe('required server files', () => {
     if (process.env.TEST_NODE_MIDDLEWARE) {
       expect(
         await fs.pathExists(
-          join(next.testDir, 'standalone/.next/server/middleware.js')
+          join(next.testDir, `standalone/${getDistDir()}/server/middleware.js`)
         )
       ).toBe(true)
     } else {
       let manifest = await fs.readJSON(
-        join(next.testDir, 'standalone/.next/server/middleware-manifest.json')
+        join(
+          next.testDir,
+          `standalone/${getDistDir()}/server/middleware-manifest.json`
+        )
       )
       let middleware = manifest.middleware['/']
       let files = [
@@ -399,7 +402,9 @@ describe('required server files', () => {
       for (const file of files) {
         try {
           expect(
-            await fs.pathExists(join(next.testDir, 'standalone/.next', file))
+            await fs.pathExists(
+              join(next.testDir, `standalone/${getDistDir()}`, file)
+            )
           ).toBe(true)
         } catch (err) {
           throw new Error('Missing file ' + file)

@@ -3,7 +3,7 @@
 import path from 'path'
 import fs from 'fs-extra'
 import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 const nextConfig = join(appDir, 'next.config.js')
@@ -20,7 +20,7 @@ describe('no-op export', () => {
     () => {
       afterEach(async () => {
         await Promise.all(
-          ['.next', 'pages', 'next.config.js', 'out'].map((file) =>
+          [getDistDir(), 'pages', 'next.config.js', 'out'].map((file) =>
             fs.remove(join(appDir, file))
           )
         )

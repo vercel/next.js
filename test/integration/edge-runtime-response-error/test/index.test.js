@@ -11,6 +11,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  getDistDir,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -40,7 +41,7 @@ describe('Edge runtime code with imports', () => {
   beforeEach(async () => {
     context.appPort = await findPort()
     context.logs = { output: '', stdout: '', stderr: '' }
-    await remove(join(__dirname, '../.next'))
+    await remove(join(__dirname, '../', getDistDir()))
   })
 
   afterEach(async () => {

@@ -33,7 +33,7 @@ describe('app-dir - server-action-period-hash-custom-key', () => {
     await next.build()
     const firstActionIds = await getServerActionManifestNodeKeys(next)
 
-    await next.remove('.next') // dismiss cache
+    await next.remove(getDistDir()) // dismiss cache
     await next.build() // build with the same secret key
     delete process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY
     const secondActionIds = await getServerActionManifestNodeKeys(next)

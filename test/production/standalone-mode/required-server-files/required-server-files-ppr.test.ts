@@ -130,7 +130,7 @@ describe('required server files app router', () => {
 
   it('should de-dupe client segment tree revalidate requests', async () => {
     const { segmentPaths } = await next.readJSON(
-      'standalone/.next/server/app/isr/first.meta'
+      `standalone/${getDistDir()}/server/app/isr/first.meta`
     )
     const outputIdx = cliOutput.length
 
