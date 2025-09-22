@@ -519,7 +519,7 @@ async fn evaluated_chunk_group_assets(
         .await?;
     Ok(OutputAssetsWithReferenced {
         assets: evaluated_chunk_group.assets,
-        referenced_assets: ResolvedVc::cell(vec![]),
+        referenced_assets: evaluated_chunk_group.referenced_assets,
     }
     .cell())
 }
