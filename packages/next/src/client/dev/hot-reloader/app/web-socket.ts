@@ -34,6 +34,7 @@ export function createWebSocket(
   }
 
   let webSocket: WebSocket
+  let timer: ReturnType<typeof setTimeout>
 
   const sendMessage = (data: string) => {
     if (webSocket.readyState === webSocket.OPEN) {
@@ -118,7 +119,6 @@ export function createWebSocket(
       }
     }
 
-    let timer: ReturnType<typeof setTimeout>
     function handleDisconnect() {
       newWebSocket.onerror = null
       newWebSocket.onclose = null

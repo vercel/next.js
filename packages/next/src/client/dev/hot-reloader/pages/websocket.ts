@@ -28,6 +28,8 @@ let reloading = false
 let serverSessionId: number | null = null
 
 export function connectHMR(options: { path: string; assetPrefix: string }) {
+  let timer: ReturnType<typeof setTimeout>
+
   function init() {
     if (source) source.close()
 
@@ -71,7 +73,6 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
       }
     }
 
-    let timer: ReturnType<typeof setTimeout>
     function handleDisconnect() {
       source.onerror = null
       source.onclose = null
