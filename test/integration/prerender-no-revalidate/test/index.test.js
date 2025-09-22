@@ -9,6 +9,7 @@ import {
   renderViaHTTP,
   waitFor,
   getPageFileFromPagesManifest,
+  getDistDir,
 } from 'next-test-utils'
 import { join } from 'path'
 
@@ -22,9 +23,9 @@ function runTests(route, routePath) {
   it(`[${route}] should not revalidate when set to false`, async () => {
     const fileName = join(
       appDir,
-      '.next',
+      getDistDir(true),
       'server',
-      getPageFileFromPagesManifest(appDir, routePath)
+      getPageFileFromPagesManifest(appDir, routePath, true)
     )
     const initialHtml = await renderViaHTTP(appPort, route)
     const initialFileHtml = await fs.readFile(fileName, 'utf8')
@@ -51,9 +52,9 @@ function runTests(route, routePath) {
   it(`[${route}] should not revalidate /_next/data when set to false`, async () => {
     const fileName = join(
       appDir,
-      '.next',
+      getDistDir(true),
       'server',
-      getPageFileFromPagesManifest(appDir, routePath)
+      getPageFileFromPagesManifest(appDir, routePath, true)
     )
     const route = join(`/_next/data/${buildId}`, `${routePath}.json`)
 
@@ -80,7 +81,7 @@ describe('SSG Prerender No Revalidate', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir(true)))
         await nextBuild(appDir, [])
         appPort = await findPort()
         stderr = ''
@@ -89,7 +90,7 @@ describe('SSG Prerender No Revalidate', () => {
             stderr += msg
           },
         })
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        buildId = await fs.readFile(join(appDir, getDistDir(true), 'BUILD_ID'), 'utf8')
       })
       afterAll(() => killApp(app))
 
