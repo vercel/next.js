@@ -51,18 +51,17 @@ impl ModuleIdStrategy for GlobalModuleIdStrategy {
         }
 
         let ident_string = ident.to_string().await?;
-        // TODO: This shouldn't happen, but is a temporary workaround to ignore next/dynamic
-        // imports of a server component from another server component.
-        // Otherwise, this should be a bail!
-        if !ident_string.ends_with("[app-client] (ecmascript, next/dynamic entry)") {
-            bail!("ModuleId not found for ident: {ident_string:?}");
+        if ident_string.ends_with("[app-client] (ecmascript, next/dynamic entry)") {
+            // TODO: This shouldn't happen, but is a temporary workaround to ignore next/dynamic
+            // imports of a server component from another server component.
+            return Ok(ModuleId::String(
+                hash_xxh3_hash64(ident.to_string().await?)
+                    .to_string()
+                    .into(),
+            )
+            .cell());
         }
 
-        Ok(ModuleId::String(
-            hash_xxh3_hash64(ident.to_string().await?)
-                .to_string()
-                .into(),
-        )
-        .cell())
+        bail!("ModuleId not found for ident: {ident_string:?}");
     }
 }

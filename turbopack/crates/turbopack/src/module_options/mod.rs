@@ -255,7 +255,6 @@ impl ModuleOptions {
             RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Analyze)),
         ]);
 
-        let mut ts_preprocess = vec![];
         let mut ecma_preprocess = vec![];
         let mut postprocess = vec![];
 
@@ -445,21 +444,16 @@ impl ModuleOptions {
             ),
         ];
 
-        if enable_typescript_transform.is_some() {
-            if let Some(options) = enable_typescript_transform {
-                let ts_transform = EcmascriptInputTransform::TypeScript {
-                    use_define_for_class_fields: options.await?.use_define_for_class_fields,
-                };
-                ts_preprocess.splice(
-                    0..0,
-                    decorators_transform
-                        .clone()
-                        .into_iter()
-                        .chain(std::iter::once(ts_transform)),
-                );
-            }
-
-            let ts_preprocess = ResolvedVc::cell(ts_preprocess);
+        if let Some(options) = enable_typescript_transform {
+            let ts_preprocess = ResolvedVc::cell(
+                decorators_transform
+                    .clone()
+                    .into_iter()
+                    .chain(std::iter::once(EcmascriptInputTransform::TypeScript {
+                        use_define_for_class_fields: options.await?.use_define_for_class_fields,
+                    }))
+                    .collect(),
+            );
 
             rules.splice(
                 0..0,
