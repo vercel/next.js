@@ -140,10 +140,10 @@
   },
   "test/development/acceptance-app/editor-links.test.ts": {
     "passed": [
+      "Error overlay - editor links opening links in import traces should be possible to open import trace files on RSC parse error",
       "Error overlay - editor links should be possible to open source file on build error"
     ],
     "failed": [
-      "Error overlay - editor links opening links in import traces should be possible to open import trace files on RSC parse error",
       "Error overlay - editor links opening links in import traces should be possible to open import trace files on module not found error"
     ],
     "pending": [],
@@ -851,6 +851,16 @@
       "hydration-error-count should display runtime error separately from hydration errors",
       "hydration-error-count should have correct hydration error count for bad nesting",
       "hydration-error-count should have correct hydration error count for html diff"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/isolated-dev-build/isolated-dev-build.test.ts": {
+    "passed": [
+      "isolated-dev-build should create dev artifacts in .next/dev/ directory",
+      "isolated-dev-build should work with HMR"
     ],
     "failed": [],
     "pending": [],
@@ -1662,7 +1672,8 @@
       "next.rs api should have working HMR on server-side change on a app page 2",
       "next.rs api should have working HMR on server-side change on a page 0",
       "next.rs api should have working HMR on server-side change on a page 1",
-      "next.rs api should have working HMR on server-side change on a page 2"
+      "next.rs api should have working HMR on server-side change on a page 2",
+      "next.rs api writeToDisk multiple times should allow to write to disk multiple times"
     ],
     "failed": [],
     "pending": ["next.rs api should allow to make many HMR updates"],
@@ -3862,13 +3873,6 @@
     "passed": [
       "RSC binary serialization should correctly encode/decode binaries and hydrate"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/build-size/index.test.ts": {
-    "passed": ["app-dir build size should skip next dev for now"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -11439,12 +11443,10 @@
   "test/e2e/persistent-caching/persistent-caching.test.ts": {
     "passed": [
       "persistent-caching should allow to change files while stopped (run 1)",
-      "persistent-caching should allow to change files while stopped (run 2)"
+      "persistent-caching should allow to change files while stopped (run 2)",
+      "persistent-caching should allow to change files while stopped (run 3)"
     ],
-    "failed": [
-      "persistent-caching should allow to change files while stopped (run 3)",
-      "persistent-caching should persistent cache loaders"
-    ],
+    "failed": ["persistent-caching should persistent cache loaders"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11986,6 +11988,13 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/turbopack-import-type-bytes/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["turbopack-import-type-bytes support import type: bytes"],
     "flakey": [],
     "runtimeError": false
   },
