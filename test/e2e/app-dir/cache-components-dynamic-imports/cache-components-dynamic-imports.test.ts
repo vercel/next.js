@@ -161,13 +161,6 @@ describe('async imports in cacheComponents', () => {
       // indirectly tests the behavior of middleware by rendering a page which the middleware matches
       await testPage('/not-instrumented/middleware')
     })
-
-    it('edge route handler', async () => {
-      const result = await next
-        .fetch('/not-instrumented/edge-route-handler')
-        .then((res) => res.text())
-      expect(result).toBe('hello')
-    })
   })
 })
 

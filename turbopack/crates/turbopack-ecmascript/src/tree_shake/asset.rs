@@ -14,7 +14,7 @@ use turbopack_core::{
 };
 
 use super::{
-    SplitResult, chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module, split,
+    SplitResult, chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module,
     split_module,
 };
 use crate::{
@@ -43,8 +43,7 @@ pub struct EcmascriptModulePartAsset {
 impl EcmascriptParsable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn failsafe_parse(&self) -> Result<Vc<ParseResult>> {
-        let parsed = self.full_module.failsafe_parse();
-        let split_data = split(self.full_module.ident(), self.full_module.source(), parsed);
+        let split_data = split_module(*self.full_module);
         Ok(part_of_module(split_data, self.part.clone()))
     }
     #[turbo_tasks::function]
@@ -95,7 +94,7 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
             .reference_module_source_maps(Vc::upcast(*self))
             .await?;
         Ok(EcmascriptModuleContentOptions {
-            parsed,
+            parsed: Some(parsed),
             module: ResolvedVc::upcast(self),
             specified_module_type: module_type_result.module_type,
             chunking_context,
@@ -216,7 +215,7 @@ impl EcmascriptModulePartAsset {
                     )
                 };
                 if side_effects.is_empty() {
-                    return Ok(*ResolvedVc::upcast(final_module));
+                    return Ok(*final_module);
                 }
                 let side_effects_module = SideEffectsModule::new(
                     module,
@@ -419,13 +418,13 @@ impl EvaluatableAsset for EcmascriptModulePartAsset {}
 
 #[turbo_tasks::function]
 async fn only_effects(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-    if let Some(module) = Vc::try_resolve_downcast_type::<EcmascriptModuleAsset>(module).await? {
+    if let Some(module) = ResolvedVc::try_downcast_type::<EcmascriptModuleAsset>(module) {
         let module =
-            EcmascriptModulePartAsset::new_with_resolved_part(module, ModulePart::evaluation());
+            EcmascriptModulePartAsset::new_with_resolved_part(*module, ModulePart::evaluation());
         return Ok(Vc::upcast(module));
     }
 
-    Ok(module)
+    Ok(*module)
 }

@@ -13,7 +13,7 @@ use next_core::{
     next_client::{
         ClientChunkingContextOptions, get_client_chunking_context, get_client_compile_time_info,
     },
-    next_config::{JsConfig, ModuleIds as ModuleIdStrategyConfig, NextConfig},
+    next_config::{ModuleIds as ModuleIdStrategyConfig, NextConfig},
     next_edge::context::EdgeChunkingContextOptions,
     next_server::{
         ServerChunkingContextOptions, ServerContextType, get_server_chunking_context,
@@ -21,7 +21,9 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
     },
     next_telemetry::NextFeatureTelemetry,
-    util::{NextRuntime, OptionEnvMap, parse_config_from_source},
+    parse_segment_config_from_source,
+    segment_config::ParseSegmentMode,
+    util::{NextRuntime, OptionEnvMap},
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -56,7 +58,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{
-        Issue, IssueDescriptionExt, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
+        CollectibleIssuesExt, Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
         StyledString,
     },
     module::Module,
@@ -66,7 +68,6 @@ use turbopack_core::{
         export_usage::{OptionExportUsageInfo, compute_export_usage_info},
     },
     output::{OutputAsset, OutputAssets},
-    reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{FindContextFileResult, find_context_file},
     source_map::OptionStringifiedSourceMap,
     version::{
@@ -159,9 +160,6 @@ pub struct ProjectOptions {
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: RcStr,
 
-    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: RcStr,
-
     /// A map of environment variables to use when compiling code.
     pub env: Vec<(RcStr, RcStr)>,
 
@@ -210,9 +208,6 @@ pub struct PartialProjectOptions {
 
     /// The contents of next.config.js, serialized to JSON.
     pub next_config: Option<RcStr>,
-
-    /// The contents of ts/config read by load-jsconfig, serialized to JSON.
-    pub js_config: Option<RcStr>,
 
     /// A map of environment variables to use when compiling code.
     pub env: Option<Vec<(RcStr, RcStr)>>,
@@ -295,6 +290,11 @@ impl ProjectContainer {
 }
 
 #[turbo_tasks::function(operation)]
+fn project_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Project> {
+    project.project()
+}
+
+#[turbo_tasks::function(operation)]
 fn project_fs_operation(project: ResolvedVc<Project>) -> Vc<DiskFileSystem> {
     project.project_fs()
 }
@@ -340,7 +340,6 @@ impl ProjectContainer {
             root_path,
             project_path,
             next_config,
-            js_config,
             env,
             define_env,
             watch,
@@ -350,7 +349,8 @@ impl ProjectContainer {
             preview_props,
         } = options;
 
-        let this = self.await?;
+        let resolved_self = self.to_resolved().await?;
+        let this = resolved_self.await?;
 
         let mut new_options = this
             .options_state
@@ -366,9 +366,6 @@ impl ProjectContainer {
         }
         if let Some(next_config) = next_config {
             new_options.next_config = next_config;
-        }
-        if let Some(js_config) = js_config {
-            new_options.js_config = js_config;
         }
         if let Some(env) = env {
             new_options.env = env;
@@ -395,7 +392,9 @@ impl ProjectContainer {
         // TODO: Handle mode switch, should prevent mode being switched.
         let watch = new_options.watch;
 
-        let project = self.project().to_resolved().await?;
+        let project = project_operation(resolved_self)
+            .resolve_strongly_consistent()
+            .await?;
         let prev_project_fs = project_fs_operation(project)
             .read_strongly_consistent()
             .await?;
@@ -404,7 +403,9 @@ impl ProjectContainer {
             .await?;
 
         this.options_state.set(Some(new_options));
-        let project = self.project().to_resolved().await?;
+        let project = project_operation(resolved_self)
+            .resolve_strongly_consistent()
+            .await?;
         let project_fs = project_fs_operation(project)
             .read_strongly_consistent()
             .await?;
@@ -442,7 +443,6 @@ impl ProjectContainer {
         let env_map: Vc<EnvMap>;
         let next_config;
         let define_env;
-        let js_config;
         let root_path;
         let project_path;
         let watch;
@@ -466,7 +466,6 @@ impl ProjectContainer {
             }
             .cell();
             next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
-            js_config = JsConfig::from_string(Vc::cell(options.js_config.clone()));
             root_path = options.root_path.clone();
             project_path = options.project_path.clone();
             watch = options.watch;
@@ -490,7 +489,6 @@ impl ProjectContainer {
             project_path,
             watch,
             next_config: next_config.to_resolved().await?,
-            js_config: js_config.to_resolved().await?,
             dist_dir,
             env: ResolvedVc::upcast(env_map.to_resolved().await?),
             define_env: define_env.to_resolved().await?,
@@ -560,9 +558,6 @@ pub struct Project {
 
     /// Next config.
     next_config: ResolvedVc<NextConfig>,
-
-    /// Js/Tsconfig read by load-jsconfig
-    js_config: ResolvedVc<JsConfig>,
 
     /// A map of environment variables to use when compiling code.
     env: ResolvedVc<Box<dyn ProcessEnv>>,
@@ -764,6 +759,13 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub async fn ci_has_next_support(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.env.read(rcstr!("NOW_BUILDER")).await?.is_some(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn current_node_js_version(&self) -> Vc<NodeJsVersion> {
         NodeJsVersion::Static(ResolvedVc::cell(self.current_node_js_version.clone())).cell()
     }
@@ -786,11 +788,6 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn per_page_module_graph(&self) -> Result<Vc<bool>> {
         Ok(Vc::cell(*self.mode.await? == NextMode::Development))
-    }
-
-    #[turbo_tasks::function]
-    pub(super) fn js_config(&self) -> Vc<JsConfig> {
-        *self.js_config
     }
 
     #[turbo_tasks::function]
@@ -818,9 +815,9 @@ impl Project {
         let node_execution_chunking_context = Vc::upcast(
             NodeJsChunkingContext::builder(
                 self.project_root_path().owned().await?,
-                node_root.clone(),
+                node_root.join("build")?,
                 self.node_root_to_root_path().owned().await?,
-                node_root.clone(),
+                node_root.join("build")?,
                 node_root.join("build/chunks")?,
                 node_root.join("build/assets")?,
                 node_build_environment().to_resolved().await?,
@@ -973,7 +970,7 @@ impl Project {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
             let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
-            let _ = module_graphs_op.take_issues_with_path().await?;
+            let _ = module_graphs_op.take_issues().await?;
 
             // At this point all modules have been computed and we can get rid of the node.js
             // process pools
@@ -1127,21 +1124,6 @@ impl Project {
         // This is different to webpack-config; when this is being called,
         // it is always using SWC so we don't check swc here.
         emit_event(env!("VERGEN_CARGO_TARGET_TRIPLE"), true);
-
-        // Go over jsconfig and report enabled features.
-        let compiler_options = self.js_config().compiler_options().await?;
-        let compiler_options = compiler_options.as_object();
-        let experimental_decorators_enabled = compiler_options
-            .as_ref()
-            .and_then(|compiler_options| compiler_options.get("experimentalDecorators"))
-            .is_some();
-        let jsx_import_source_enabled = compiler_options
-            .as_ref()
-            .and_then(|compiler_options| compiler_options.get("jsxImportSource"))
-            .is_some();
-
-        emit_event("swcExperimentalDecorators", experimental_decorators_enabled);
-        emit_event("swcImportSource", jsx_import_source_enabled);
 
         // Go over config and report enabled features.
         // [TODO]: useSwcLoader is not being reported as it is not directly corresponds (it checks babel config existence)
@@ -1322,6 +1304,7 @@ impl Project {
                 NextRuntime::Edge,
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1384,6 +1367,7 @@ impl Project {
                 NextRuntime::NodeJs,
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1406,20 +1390,16 @@ impl Project {
 
         let middleware = self.find_middleware();
         let FindContextFileResult::Found(fs_path, _) = &*middleware.await? else {
-            return Ok(Vc::upcast(edge_module_context));
+            return Ok(edge_module_context);
         };
         let source = Vc::upcast(FileSource::new(fs_path.clone()));
 
-        let module = edge_module_context
-            .process(
-                source,
-                ReferenceType::Entry(EntryReferenceSubType::Middleware),
-            )
-            .module();
+        let runtime = parse_segment_config_from_source(source, ParseSegmentMode::Base)
+            .await?
+            .runtime
+            .unwrap_or(NextRuntime::Edge);
 
-        let config = parse_config_from_source(source, module, NextRuntime::Edge).await?;
-
-        if matches!(config.runtime, NextRuntime::NodeJs) {
+        if matches!(runtime, NextRuntime::NodeJs) {
             Ok(self.node_middleware_context())
         } else {
             Ok(edge_module_context)
@@ -1502,6 +1482,7 @@ impl Project {
                 NextRuntime::NodeJs,
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1564,6 +1545,7 @@ impl Project {
                 NextRuntime::Edge,
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
+                self.client_compile_time_info().environment(),
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -1866,17 +1848,15 @@ async fn any_output_changed(
                     && (!server || !asset_path.path.ends_with(".css"))
                     && asset_path.is_inside_ref(&path)
                 {
-                    anyhow::Ok(Some(content_changed(*ResolvedVc::upcast(m))))
+                    anyhow::Ok(Some(
+                        content_changed(*ResolvedVc::upcast(m))
+                            .to_resolved()
+                            .await?,
+                    ))
                 } else {
                     Ok(None)
                 }
             }
-        })
-        .map(|v| async move {
-            Ok(match v.await? {
-                Some(v) => Some(v.to_resolved().await?),
-                None => None,
-            })
         })
         .try_flat_join()
         .await?;

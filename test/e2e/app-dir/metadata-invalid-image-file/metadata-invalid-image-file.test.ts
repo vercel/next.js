@@ -6,6 +6,7 @@ describe('metadata-invalid-image-file', () => {
     skipDeployment: true,
     skipStart: true,
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) return
 
@@ -33,6 +34,10 @@ describe('metadata-invalid-image-file', () => {
       // `next build` should fail
       if (isTurbopack) {
         expect(next.cliOutput).toContain('Build error occurred')
+      } else if (isRspack) {
+        expect(next.cliOutput).toContain(
+          'Build failed because of Rspack errors'
+        )
       } else {
         expect(next.cliOutput).toContain(
           'Build failed because of webpack errors'

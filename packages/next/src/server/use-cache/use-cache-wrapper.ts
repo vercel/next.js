@@ -211,6 +211,7 @@ function createUseCacheStore(
         outerWorkUnitStore
       ),
       rootParams: outerWorkUnitStore.rootParams,
+      headers: outerWorkUnitStore.headers,
       cookies: outerWorkUnitStore.cookies,
     }
   } else {

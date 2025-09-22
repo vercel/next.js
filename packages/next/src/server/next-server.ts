@@ -371,6 +371,7 @@ export default class NextNodeServer extends BaseServer<
           isAppPath: false,
           isDev: this.isDev,
           sriEnabled: this.sriEnabled,
+          needsManifestsForLegacyReasons: false,
         })
       } catch (_err) {
         // Intentionally ignored because this is a preload step.
@@ -385,6 +386,7 @@ export default class NextNodeServer extends BaseServer<
           isAppPath: true,
           isDev: this.isDev,
           sriEnabled: this.sriEnabled,
+          needsManifestsForLegacyReasons: false,
         })
         // we need to ensure fetch is patched before we require the page,
         // otherwise if the fetch is patched by user code, we will be patching it
@@ -432,17 +434,20 @@ export default class NextNodeServer extends BaseServer<
   protected loadEnvConfig({
     dev,
     forceReload,
-    silent,
   }: {
     dev: boolean
-    forceReload?: boolean
-    silent?: boolean
+    forceReload: boolean
   }) {
     loadEnvConfig(
       this.dir,
       dev,
-      silent ? { info: () => {}, error: () => {} } : Log,
+      Log,
+      forceReload,
       forceReload
+        ? (envFilePath) => {
+            Log.info(`Reload env: ${envFilePath}`)
+          }
+        : undefined
     )
   }
 
@@ -905,6 +910,7 @@ export default class NextNodeServer extends BaseServer<
           isAppPath,
           isDev: this.isDev,
           sriEnabled: this.sriEnabled,
+          needsManifestsForLegacyReasons: false,
         })
 
         if (

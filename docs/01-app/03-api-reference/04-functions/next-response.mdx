@@ -58,7 +58,7 @@ Given a cookie name, delete the cookie from the response.
 ```ts
 // Given incoming request /home
 let response = NextResponse.next()
-// Returns true for deleted, false is nothing is deleted
+// Returns true for deleted, false if nothing is deleted
 response.cookies.delete('experiments')
 ```
 

@@ -42,7 +42,7 @@ module.exports = nextConfig
 
 ### Options
 
-The following options are available for the `turbo` configuration:
+The following options are available for the `turbopack` configuration:
 
 | Option              | Description                                                             |
 | ------------------- | ----------------------------------------------------------------------- |
@@ -97,7 +97,7 @@ If you need loader support beyond what's built in, many webpack loaders already 
 - Only loaders that return JavaScript code are supported. Loaders that transform files like stylesheets or images are not currently supported.
 - Options passed to webpack loaders must be plain JavaScript primitives, objects, and arrays. For example, it's not possible to pass `require()` plugin modules as option values.
 
-To configure loaders, add the names of the loaders you've installed and any options in `next.config.js`, mapping file extensions to a list of loaders.
+To configure loaders, add the names of the loaders you've installed and any options in `next.config.js`, mapping file extensions to a list of loaders. Rules are evaluated in order.
 
 Here is an example below using the [`@svgr/webpack`](https://www.npmjs.com/package/@svgr/webpack) loader, which enables importing `.svg` files and rendering them as React components.
 
@@ -113,6 +113,10 @@ module.exports = {
   },
 }
 ```
+
+> **Good to know**: Globs used in the `rules` object match based on file name, unless the glob contains a `/` character, which will cause it to match based on the full project-relative file path. Windows file paths are normalized to use unix-style `/` path separators.
+>
+> Turbopack uses a modified version of the [Rust `globset` library](https://docs.rs/globset/latest/globset/).
 
 For loaders that require configuration options, you can use an object format instead of a string:
 
@@ -136,7 +140,81 @@ module.exports = {
 }
 ```
 
-> **Good to know**: Prior to Next.js version 13.4.4, `turbo.rules` was named `turbo.loaders` and only accepted file extensions like `.mdx` instead of `*.mdx`.
+> **Good to know**: Prior to Next.js version 13.4.4, `turbopack.rules` was named `turbo.loaders` and only accepted file extensions like `.mdx` instead of `*.mdx`.
+
+### Advanced webpack loader conditions
+
+You can further restrict where a loader runs using the advanced `condition` syntax:
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    rules: {
+      // '*' will match all file paths, but we restrict where our
+      // rule runs with a condition.
+      '*': {
+        condition: {
+          all: [
+            // 'foreign' is a built-in condition.
+            { not: 'foreign' },
+            // 'path' can be a RegExp or a glob string. A RegExp matches
+            // anywhere in the full project-relative file path.
+            { path: /^img\/[0-9]{3}\// },
+            {
+              any: [
+                { path: '*.svg' },
+                // 'content' is always a RegExp, and can match
+                // anywhere in the file.
+                { content: /\<svg\W/ },
+              ],
+            },
+          ],
+        },
+        loaders: ['@svgr/webpack'],
+        as: '*.js',
+      },
+    },
+  },
+}
+```
+
+- Supported boolean operators are `{all: [...]}`, `{any: [...]}` and `{not: ...}`.
+- Supported customizable operators are `{path: string | RegExp}` and `{content: RegExp}`. If `path` and `content` are specified in the same object, it acts as an implicit `and`.
+
+In addition, a number of built-in conditions are supported:
+
+- `default`: Always matched. A no-op.
+- `browser`: Matches code that will execute on the client. Server code can be matched using `{not: 'browser'}`.
+- `foreign`: Matches code in `node_modules`, as well as some Next.js internals. Usually you'll want to restrict loaders to `{not: 'foreign'}`. This can improve performance by reducing the number of files the loader is invoked on.
+- `development`: Matches when using `next dev --turbopack`.
+- `production`: Matches when using `next build --turbopack`.
+- `node`: Matches code that will run on the default Node.js runtime.
+- `edge-light`: Matches code that will run on the [Edge runtime](/docs/app/api-reference/edge).
+
+Rules can be an object or an array of objects. An array is often useful for modeling disjoint conditions:
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    rules: {
+      '*.svg': [
+        {
+          condition: 'browser',
+          loaders: ['@svgr/webpack'],
+          as: '*.js',
+        },
+        {
+          condition: { not: 'browser' },
+          loaders: [require.resolve('./custom-svg-loader.js')],
+          as: '*.js',
+        },
+      ],
+    },
+  },
+}
+```
+
+> **Good to know**: All matching rules are executed in order.
 
 ### Resolving aliases
 
@@ -181,5 +259,6 @@ For more information and guidance for how to migrate your app to Turbopack from 
 
 | Version  | Changes                                         |
 | -------- | ----------------------------------------------- |
+| `16.0.0` | `turbopack.rules.*.condition` was added.        |
 | `15.3.0` | `experimental.turbo` is changed to `turbopack`. |
 | `13.0.0` | `experimental.turbo` introduced.                |

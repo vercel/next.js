@@ -25,6 +25,12 @@ export default async function Page() {
         </li>
         <li>
           <DebugLinkAccordion
+            href="/errors/sync-io-after-runtime-api/headers"
+            prefetch={true}
+          />
+        </li>
+        <li>
+          <DebugLinkAccordion
             href="/errors/sync-io-after-runtime-api/dynamic-params/123"
             prefetch={true}
           />

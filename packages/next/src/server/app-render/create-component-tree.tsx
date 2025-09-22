@@ -422,9 +422,7 @@ async function createComponentTreeInternal(
 
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
-  const isSegmentViewEnabled =
-    process.env.NODE_ENV === 'development' &&
-    ctx.renderOpts.devtoolSegmentExplorer
+  const isSegmentViewEnabled = !!ctx.renderOpts.dev
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR
@@ -1145,9 +1143,7 @@ async function createBoundaryConventionElement({
   styles: React.ReactNode | undefined
   tree: LoaderTree
 }) {
-  const isSegmentViewEnabled =
-    process.env.NODE_ENV === 'development' &&
-    ctx.renderOpts.devtoolSegmentExplorer
+  const isSegmentViewEnabled = !!ctx.renderOpts.dev
   const dir =
     (process.env.NEXT_RUNTIME === 'edge'
       ? process.env.__NEXT_EDGE_PROJECT_DIR

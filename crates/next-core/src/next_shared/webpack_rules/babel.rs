@@ -1,16 +1,11 @@
 use std::sync::LazyLock;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use regex::Regex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{self, FileSystemEntryType, FileSystemPath};
+use turbo_tasks::ResolvedVc;
+use turbo_tasks_fs::{self, FileSystemEntryType, FileSystemPath, to_sys_path};
 use turbopack::module_options::{ConditionItem, LoaderRuleItem};
-use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-    reference_type::{CommonJsReferenceSubType, ReferenceType},
-    resolve::{node::node_cjs_resolve_options, parse::Request, pattern::Pattern, resolve},
-};
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 use crate::next_shared::webpack_rules::WebpackLoaderBuiltinCondition;
@@ -31,6 +26,10 @@ const BABEL_CONFIG_FILES: &[&str] = &[
 
 static BABEL_LOADER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(^|/)@?babel[-/]loader($|/|\.)").unwrap());
+
+/// The forked version of babel-loader that we should use for automatic configuration. This version
+/// is always available, as it's installed as part of next.js.
+const NEXT_JS_BABEL_LOADER: &str = "next/dist/build/babel/loader";
 
 pub async fn detect_likely_babel_loader(
     webpack_rules: &[(RcStr, LoaderRuleItem)],
@@ -54,41 +53,39 @@ pub async fn detect_likely_babel_loader(
 pub async fn get_babel_loader_rules(
     project_root: FileSystemPath,
 ) -> Result<Vec<(RcStr, LoaderRuleItem)>> {
-    let mut has_babel_config = false;
+    let mut babel_config_path = None;
     for &filename in BABEL_CONFIG_FILES {
-        let filetype = *project_root.join(filename)?.get_type().await?;
+        let path = project_root.join(filename)?;
+        let filetype = *path.get_type().await?;
         if matches!(filetype, FileSystemEntryType::File) {
-            has_babel_config = true;
+            babel_config_path = Some(path);
             break;
         }
     }
-    if !has_babel_config {
+    let Some(babel_config_path) = babel_config_path else {
         return Ok(Vec::new());
-    }
+    };
 
-    if !*is_babel_loader_available(project_root.clone()).await? {
-        BabelIssue {
-            path: project_root.clone(),
-            title: StyledString::Text(rcstr!(
-                "Unable to resolve babel-loader, but a babel config is present"
-            ))
-            .resolved_cell(),
-            description: StyledString::Text(rcstr!(
-                "Make sure babel-loader is installed via your package manager."
-            ))
-            .resolved_cell(),
-            severity: IssueSeverity::Fatal,
-        }
-        .resolved_cell()
-        .emit();
-    }
+    // - See `packages/next/src/build/babel/loader/types.d.ts` for all the configuration options.
+    // - See `packages/next/src/build/get-babel-loader-config.ts` for how we use this in webpack.
+    let serde_json::Value::Object(loader_options) = serde_json::json!({
+        // `transformMode: default` (what the webpack implementation does) would run all of the
+        // Next.js-specific transforms as babel transforms. Because we always have to pay the cost
+        // of parsing with SWC after the webpack loader runs, we want to keep running those
+        // transforms using SWC, so use `standalone` instead.
+        "transformMode": "standalone",
+        "cwd": to_sys_path_str(project_root).await?,
+        "configFile": to_sys_path_str(babel_config_path).await?,
+    }) else {
+        unreachable!("is an object")
+    };
 
     Ok(vec![(
         rcstr!("*.{js,jsx,ts,tsx,cjs,mjs,mts,cts}"),
         LoaderRuleItem {
             loaders: ResolvedVc::cell(vec![WebpackLoaderItem {
-                loader: rcstr!("babel-loader"),
-                options: Default::default(),
+                loader: rcstr!(NEXT_JS_BABEL_LOADER),
+                options: loader_options,
             }]),
             rename_as: Some(rcstr!("*")),
             condition: Some(ConditionItem::Not(Box::new(ConditionItem::Builtin(
@@ -98,49 +95,13 @@ pub async fn get_babel_loader_rules(
     )])
 }
 
-#[turbo_tasks::function]
-pub async fn is_babel_loader_available(project_path: FileSystemPath) -> Result<Vc<bool>> {
-    let result = resolve(
-        project_path.clone(),
-        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-        Request::parse(Pattern::Constant(rcstr!("babel-loader/package.json"))),
-        node_cjs_resolve_options(project_path),
-    );
-    let assets = result.primary_sources().await?;
-    Ok(Vc::cell(!assets.is_empty()))
-}
-
-#[turbo_tasks::value]
-struct BabelIssue {
-    path: FileSystemPath,
-    title: ResolvedVc<StyledString>,
-    description: ResolvedVc<StyledString>,
-    severity: IssueSeverity,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for BabelIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.into()
-    }
-
-    fn severity(&self) -> IssueSeverity {
-        self.severity
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        *self.title
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
-    }
+/// A system path that can be passed to the webpack loader
+async fn to_sys_path_str(path: FileSystemPath) -> Result<String> {
+    let sys_path = to_sys_path(path)
+        .await?
+        .context("path should use a DiskFileSystem")?;
+    Ok(sys_path
+        .to_str()
+        .with_context(|| format!("{sys_path:?} is not valid utf-8"))?
+        .to_owned())
 }

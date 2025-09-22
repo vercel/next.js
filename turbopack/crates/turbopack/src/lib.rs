@@ -37,7 +37,7 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
     ident::Layer,
-    issue::{IssueExt, IssueSource, StyledString, module::ModuleIssue},
+    issue::{IssueExt, IssueSource, module::ModuleIssue},
     module::Module,
     node_addon_module::NodeAddonModule,
     output::OutputAsset,
@@ -56,6 +56,7 @@ use turbopack_core::{
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
 use turbopack_ecmascript::{
+    inlined_bytes_module::InlinedBytesJsModule,
     references::external_module::{
         CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
     },
@@ -69,16 +70,17 @@ use turbopack_static::{css::StaticUrlCssModule, ecma::StaticUrlJsModule};
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
 use self::transition::{Transition, TransitionOptions};
-use crate::module_options::{CssOptionsContext, CustomModuleType, EcmascriptOptionsContext};
+use crate::module_options::{
+    CssOptionsContext, CustomModuleType, EcmascriptOptionsContext, TypescriptTransformOptions,
+};
 
-#[turbo_tasks::function]
 async fn apply_module_type(
     source: ResolvedVc<Box<dyn Source>>,
     module_asset_context: Vc<ModuleAssetContext>,
     module_type: Vc<ModuleType>,
     part: Option<ModulePart>,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
-    css_import_context: Option<Vc<ImportContext>>,
+    css_import_context: Option<ResolvedVc<ImportContext>>,
     runtime_code: bool,
 ) -> Result<Vc<ProcessResult>> {
     let module_type = &*module_type.await?;
@@ -206,12 +208,14 @@ async fn apply_module_type(
                                             part,
                                             side_effect_free_packages,
                                         )
+                                        .await?
                                     } else {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(*module),
                                             part,
                                             side_effect_free_packages,
                                         )
+                                        .await?
                                     }
                                 }
                                 _ => bail!(
@@ -251,7 +255,7 @@ async fn apply_module_type(
                 *source,
                 Vc::upcast(module_asset_context),
                 *ty,
-                css_import_context,
+                css_import_context.map(|c| *c),
                 environment.as_deref().copied(),
             )
             .to_resolved()
@@ -262,6 +266,9 @@ async fn apply_module_type(
         }
         ModuleType::StaticUrlCss => {
             ResolvedVc::upcast(StaticUrlCssModule::new(*source).to_resolved().await?)
+        }
+        ModuleType::InlinedBytesJs => {
+            ResolvedVc::upcast(InlinedBytesJsModule::new(*source).to_resolved().await?)
         }
         ModuleType::WebAssembly { source_ty } => ResolvedVc::upcast(
             WebAssemblyModuleAsset::new(
@@ -281,7 +288,6 @@ async fn apply_module_type(
     .cell())
 }
 
-#[turbo_tasks::function]
 async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
@@ -490,10 +496,10 @@ async fn process_default_internal(
     reference_type: ReferenceType,
     processed_rules: Vec<usize>,
 ) -> Result<Vc<ProcessResult>> {
-    let ident = source.ident().resolve().await?;
+    let ident = source.ident().to_resolved().await?;
     let path_ref = ident.path().await?;
     let options = ModuleOptions::new(
-        ident.path().await?.parent(),
+        path_ref.parent(),
         module_asset_context.module_options_context(),
         module_asset_context.resolve_options_context(),
     );
@@ -518,6 +524,8 @@ async fn process_default_internal(
 
             match ty {
                 ImportWithType::Json => Some(ModuleType::Json),
+                // Reenable this once `import {type: "bytes"}` is stabilized
+                ImportWithType::Bytes => None,
             }
         }
         _ => None,
@@ -539,7 +547,7 @@ async fn process_default_internal(
                     ModuleRuleEffect::SourceTransforms(transforms) => {
                         current_source =
                             transforms.transform(*current_source).to_resolved().await?;
-                        if current_source.ident().resolve().await? != ident {
+                        if current_source.ident().to_resolved().await? != ident {
                             // The ident has been changed, so we need to apply new rules.
                             if let Some(transition) = module_asset_context
                                 .await?
@@ -614,34 +622,32 @@ async fn process_default_internal(
                                 options,
                             }),
                             Some(module_type) => {
-                                ModuleIssue {
-                                    ident: ident.to_resolved().await?,
-                                    title: StyledString::Text(rcstr!("Invalid module type"))
-                                        .resolved_cell(),
-                                    description: StyledString::Text(rcstr!(
+                                ModuleIssue::new(
+                                    *ident,
+                                    rcstr!("Invalid module type"),
+                                    rcstr!(
                                         "The module type must be Ecmascript or Typescript to add \
                                          Ecmascript transforms"
-                                    ))
-                                    .resolved_cell(),
-                                    source: Some(IssueSource::from_source_only(current_source)),
-                                }
-                                .resolved_cell()
+                                    ),
+                                    Some(IssueSource::from_source_only(current_source)),
+                                )
+                                .to_resolved()
+                                .await?
                                 .emit();
                                 Some(module_type)
                             }
                             None => {
-                                ModuleIssue {
-                                    ident: ident.to_resolved().await?,
-                                    title: StyledString::Text(rcstr!("Missing module type"))
-                                        .resolved_cell(),
-                                    description: StyledString::Text(rcstr!(
+                                ModuleIssue::new(
+                                    *ident,
+                                    rcstr!("Missing module type"),
+                                    rcstr!(
                                         "The module type effect must be applied before adding \
                                          Ecmascript transforms"
-                                    ))
-                                    .resolved_cell(),
-                                    source: Some(IssueSource::from_source_only(current_source)),
-                                }
-                                .resolved_cell()
+                                    ),
+                                    Some(IssueSource::from_source_only(current_source)),
+                                )
+                                .to_resolved()
+                                .await?
                                 .emit();
                                 None
                             }
@@ -656,19 +662,20 @@ async fn process_default_internal(
         return Ok(ProcessResult::Unknown(current_source).cell());
     };
 
-    Ok(apply_module_type(
-        *current_source,
+    apply_module_type(
+        current_source,
         module_asset_context,
         module_type.cell(),
         part,
-        inner_assets.map(|v| *v),
+        inner_assets,
         if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) = reference_type {
-            import.map(|v| *v)
+            import
         } else {
             None
         },
         matches!(reference_type, ReferenceType::Runtime),
-    ))
+    )
+    .await
 }
 
 #[turbo_tasks::function]
@@ -696,6 +703,9 @@ pub async fn externals_tracing_module_context(
         // are actually representative of what Turbopack does.
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                enable_typescript_transform: Some(
+                    TypescriptTransformOptions::default().resolved_cell(),
+                ),
                 // enable_types should not be enabled here. It gets set automatically when a TS file
                 // is encountered.
                 source_maps: SourceMapsType::None,
@@ -1019,20 +1029,4 @@ pub async fn replace_external(
     Ok(Some(ModuleResolveResultItem::Module(ResolvedVc::upcast(
         module,
     ))))
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_css::register();
-    turbopack_ecmascript::register();
-    turbopack_node::register();
-    turbopack_env::register();
-    turbopack_mdx::register();
-    turbopack_json::register();
-    turbopack_resolve::register();
-    turbopack_static::register();
-    turbopack_wasm::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

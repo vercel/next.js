@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use turbo_tasks::{IntoTraitRef, State, TraitRef, Upcast, Vc};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
@@ -11,7 +11,7 @@ static REGISTRATION: Registration = register!();
 // value is equal.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_ref_shared_cell_mode() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let input = CellIdSelector {
             value: 42,
             cell_idx: State::new(0),
@@ -46,7 +46,7 @@ async fn test_trait_ref_shared_cell_mode() {
 // value is equal.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_ref_new_cell_mode() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
         let input = CellIdSelector {
             value: 42,
             cell_idx: State::new(0),
@@ -125,7 +125,7 @@ where
     // contain the same value
     let mut upcast_vcs = Vec::new();
     for _idx in 0..2 {
-        upcast_vcs.push(Vc::upcast((cell_fn)(input.value)));
+        upcast_vcs.push(Vc::upcast_non_strict((cell_fn)(input.value)));
     }
 
     // pick a different cell idx upon each invalidation/execution

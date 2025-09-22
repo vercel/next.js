@@ -2,7 +2,6 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use anyhow::Result;
 use async_trait::async_trait;
-use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::{Atom, atom},
     base::SwcComments,
@@ -15,7 +14,6 @@ use swc_core::{
                 assumptions::Assumptions,
                 helpers::{HELPERS, HelperData, Helpers},
             },
-            optimization::inline_globals,
             react::react,
         },
         utils::IsDirective,
@@ -43,9 +41,6 @@ pub enum EcmascriptInputTransform {
         import_source: ResolvedVc<Option<RcStr>>,
         // swc.jsc.transform.react.runtime,
         runtime: ResolvedVc<Option<RcStr>>,
-    },
-    GlobalTypeofs {
-        window_value: RcStr,
     },
     // These options are subset of swc_core::ecma::transforms::typescript::Config, but
     // it doesn't derive `Copy` so repeating values in here
@@ -139,22 +134,6 @@ impl EcmascriptInputTransform {
         } = ctx;
 
         Ok(match self {
-            EcmascriptInputTransform::GlobalTypeofs { window_value } => {
-                let mut typeofs: FxHashMap<Atom, Atom> = Default::default();
-                typeofs.insert(Atom::from("window"), Atom::from(&**window_value));
-
-                apply_transform(
-                    program,
-                    helpers,
-                    inline_globals(
-                        unresolved_mark,
-                        Default::default(),
-                        Default::default(),
-                        Default::default(),
-                        Arc::new(typeofs),
-                    ),
-                )
-            }
             EcmascriptInputTransform::React {
                 development,
                 refresh,

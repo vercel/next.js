@@ -29,11 +29,3 @@ pub async fn wasm_edge_var_name(asset: Vc<Box<dyn Asset>>) -> Result<Vc<RcStr>> 
         format!("wasm_{:08x}", hash_xxh3_hash64(content)).into(),
     ))
 }
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

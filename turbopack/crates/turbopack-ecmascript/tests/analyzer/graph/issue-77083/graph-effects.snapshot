@@ -76,7 +76,6 @@
                             ),
                         ],
                         span: 108..114,
-                        in_try: false,
                     },
                     Call {
                         func: Member(
@@ -298,7 +297,6 @@
             ),
         ],
         span: 91..192,
-        in_try: false,
     },
     ImportedBinding {
         esm_reference_index: 1,
@@ -362,7 +360,6 @@
             ),
         ],
         span: 201..207,
-        in_try: false,
     },
     Call {
         func: Member(
@@ -508,7 +505,6 @@
             ),
         ],
         span: 222..228,
-        in_try: false,
     },
     Call {
         func: Member(

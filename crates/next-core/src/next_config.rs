@@ -14,7 +14,7 @@ use turbo_tasks_fetch::FetchClient;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     ConditionItem, ConditionPath, LoaderRuleItem, WebpackRules,
-    module_options_context::{MdxTransformOptions, OptionWebpackConditions},
+    module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
@@ -558,8 +558,6 @@ pub struct TurbopackConfig {
     /// This option has been replaced by `rules`.
     pub loaders: Option<JsonValue>,
     pub rules: Option<FxIndexMap<RcStr, RuleConfigCollection>>,
-    #[turbo_tasks(trace_ignore)]
-    pub conditions: Option<FxIndexMap<RcStr, ConfigConditionItem>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub module_ids: Option<ModuleIds>,
@@ -876,6 +874,7 @@ pub struct ExperimentalConfig {
     turbopack_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    turbopack_import_type_bytes: Option<bool>,
     turbopack_use_system_tls_certs: Option<bool>,
     /// Disable automatic configuration of the sass loader.
     #[serde(default)]
@@ -1331,11 +1330,6 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn ci_has_next_support(&self) -> Vc<bool> {
-        Vc::cell(self.env.contains_key("NOW_BUILDER"))
-    }
-
-    #[turbo_tasks::function]
     pub fn cache_handler(&self, project_path: FileSystemPath) -> Result<Vc<OptionFileSystemPath>> {
         if let Some(handler) = &self.cache_handler {
             Ok(Vc::cell(Some(project_path.join(handler)?)))
@@ -1482,24 +1476,6 @@ impl NextConfig {
             }
         }
         Ok(Vc::cell(rules))
-    }
-
-    #[turbo_tasks::function]
-    pub fn webpack_conditions(&self) -> Result<Vc<OptionWebpackConditions>> {
-        let Some(config_conditions) = self.turbopack.as_ref().and_then(|t| t.conditions.as_ref())
-        else {
-            return Ok(Vc::cell(None));
-        };
-
-        let conditions = config_conditions
-            .iter()
-            .map(|(k, v)| {
-                let item: Result<ConditionItem> = TryInto::<ConditionItem>::try_into((*v).clone());
-                item.map(|item| (k.clone(), item))
-            })
-            .collect::<Result<FxIndexMap<RcStr, ConditionItem>>>()?;
-
-        Ok(Vc::cell(Some(ResolvedVc::cell(conditions))))
     }
 
     #[turbo_tasks::function]
@@ -1719,11 +1695,6 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn enable_router_bfcache(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.router_bfcache.unwrap_or(false))
-    }
-
-    #[turbo_tasks::function]
     pub fn enable_view_transition(&self) -> Vc<bool> {
         Vc::cell(self.experimental.view_transition.unwrap_or(false))
     }
@@ -1837,6 +1808,15 @@ impl NextConfig {
             NextMode::Development => false,
             NextMode::Build => self.experimental.turbopack_scope_hoisting.unwrap_or(true),
         }))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbopack_import_type_bytes(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_import_type_bytes
+                .unwrap_or(false),
+        )
     }
 
     #[turbo_tasks::function]

@@ -41,8 +41,8 @@ import { getHostname } from '../../shared/lib/get-hostname'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { MockedResponse } from './mock-request'
 import {
-  HMR_ACTIONS_SENT_TO_BROWSER,
-  type AppIsrManifestAction,
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  type AppIsrManifestMessage,
 } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
@@ -724,6 +724,9 @@ export async function initialize(opts: {
       ? handlers.server.logErrorWithOriginalStack.bind(handlers.server)
       : (err: unknown) => !opts.quiet && Log.error(err),
     setIsrStatus: devBundlerService?.setIsrStatus.bind(devBundlerService),
+    setReactDebugChannel: config.experimental.reactDebugChannel
+      ? devBundlerService?.setReactDebugChannel.bind(devBundlerService)
+      : undefined,
   }
 
   const logError = async (
@@ -801,9 +804,9 @@ export async function initialize(opts: {
             (client) => {
               client.send(
                 JSON.stringify({
-                  action: HMR_ACTIONS_SENT_TO_BROWSER.ISR_MANIFEST,
+                  type: HMR_MESSAGE_SENT_TO_BROWSER.ISR_MANIFEST,
                   data: devBundlerService?.appIsrManifest || {},
-                } satisfies AppIsrManifestAction)
+                } satisfies AppIsrManifestMessage)
               )
             }
           )

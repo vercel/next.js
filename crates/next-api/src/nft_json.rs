@@ -398,7 +398,7 @@ pub async fn all_assets_from_entries_filtered(
                     .iter()
                     .map(async |asset| {
                         Ok((
-                            ResolvedVc::upcast(*asset),
+                            *asset,
                             if emit_spans {
                                 Some(asset.path().to_string().await?)
                             } else {
@@ -509,8 +509,6 @@ mod tests {
     use super::*;
 
     fn create_test_fs_path(path: &str) -> FileSystemPath {
-        crate::register();
-
         FileSystemPath {
             fs: ResolvedVc::upcast(NullFileSystem {}.resolved_cell()),
             path: path.into(),

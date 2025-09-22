@@ -80,9 +80,6 @@ turbopack-nodejs = { workspace = true }
 turbopack-static = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
-
 [features]
 next-font-local = []
 plugin = [

@@ -1004,8 +1004,25 @@ impl JsValue {
         }
     }
 
-    pub fn function(func_ident: u32, return_value: Box<JsValue>) -> Self {
-        Self::Function(1 + return_value.total_nodes(), func_ident, return_value)
+    pub fn function(
+        func_ident: u32,
+        is_async: bool,
+        is_generator: bool,
+        return_value: JsValue,
+    ) -> Self {
+        // Check generator first to handle async generators
+        let return_value = if is_generator {
+            JsValue::WellKnownObject(WellKnownObjectKind::Generator)
+        } else if is_async {
+            JsValue::promise(return_value)
+        } else {
+            return_value
+        };
+        Self::Function(
+            1 + return_value.total_nodes(),
+            func_ident,
+            Box::new(return_value),
+        )
     }
 
     pub fn object(list: Vec<ObjectPart>) -> Self {
@@ -1061,8 +1078,12 @@ impl JsValue {
         Self::Member(1 + o.total_nodes() + p.total_nodes(), o, p)
     }
 
-    pub fn promise(operand: Box<JsValue>) -> Self {
-        Self::Promise(1 + operand.total_nodes(), operand)
+    pub fn promise(operand: JsValue) -> Self {
+        // In ecmascript Promise<Promise<T>> is equivalent to Promise<T>
+        if let JsValue::Promise(_, _) = operand {
+            return operand;
+        }
+        Self::Promise(1 + operand.total_nodes(), Box::new(operand))
     }
 
     pub fn awaited(operand: Box<JsValue>) -> Self {
@@ -1735,6 +1756,10 @@ impl JsValue {
             }
             JsValue::WellKnownObject(obj) => {
                 let (name, explainer) = match obj {
+                    WellKnownObjectKind::Generator => (
+                        "Generator",
+                        "A Generator or AsyncGenerator object: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Generator",
+                    ),
                     WellKnownObjectKind::GlobalObject => (
                         "Object",
                         "The global Object variable",
@@ -3440,6 +3465,8 @@ pub enum WellKnownObjectKind {
     NodeBuffer,
     RequireCache,
     ImportMeta,
+    /// An iterator object, used to model generator return values.
+    Generator,
 }
 
 impl WellKnownObjectKind {
@@ -3644,10 +3671,10 @@ pub mod test_utils {
                 ref args,
             ) => match &args[0] {
                 JsValue::Constant(ConstantValue::Str(v)) => {
-                    JsValue::promise(Box::new(JsValue::Module(ModuleValue {
+                    JsValue::promise(JsValue::Module(ModuleValue {
                         module: v.as_atom().into_owned(),
                         annotations: ImportAnnotations::default(),
-                    })))
+                    }))
                 }
                 _ => v.into_unknown(true, "import() non constant"),
             },
@@ -3747,7 +3774,7 @@ pub mod test_utils {
                 }
             }
             _ => {
-                let (mut v, m1) = replace_well_known(v, compile_time_info).await?;
+                let (mut v, m1) = replace_well_known(v, compile_time_info, true).await?;
                 let m2 = replace_builtin(&mut v);
                 let m = m1 || m2 || v.make_nested_operations_unknown();
                 return Ok((v, m));
@@ -3786,11 +3813,13 @@ mod tests {
         graph::{ConditionalKind, Effect, EffectArg, EvalContext, VarGraph, create_graph},
         linker::link,
     };
-    use crate::analyzer::imports::ImportAttributes;
+    use crate::analyzer::{
+        graph::{AssignmentScopes, VarMeta},
+        imports::ImportAttributes,
+    };
 
     #[fixture("tests/analyzer/graph/**/input.js")]
     fn fixture(input: PathBuf) {
-        crate::register();
         let graph_snapshot_path = input.with_file_name("graph.snapshot");
         let graph_explained_snapshot_path = input.with_file_name("graph-explained.snapshot");
         let graph_effects_snapshot_path = input.with_file_name("graph-effects.snapshot");
@@ -3847,13 +3876,21 @@ mod tests {
                 named_values.sort_by(|a, b| a.0.cmp(&b.0));
 
                 fn explain_all<'a>(
-                    values: impl IntoIterator<Item = (&'a String, &'a JsValue)>,
+                    values: impl IntoIterator<
+                        Item = (&'a String, &'a JsValue, Option<AssignmentScopes>),
+                    >,
                 ) -> String {
                     values
                         .into_iter()
-                        .map(|(id, value)| {
+                        .map(|(id, value, assignment_scopes)| {
+                            let non_root_assignments = match assignment_scopes {
+                                Some(AssignmentScopes::AllInModuleEvalScope) => {
+                                    " (const after eval)"
+                                }
+                                _ => "",
+                            };
                             let (explainer, hints) = value.explain(10, 5);
-                            format!("{id} = {explainer}{hints}")
+                            format!("{id}{non_root_assignments} = {explainer}{hints}")
                         })
                         .collect::<Vec<_>>()
                         .join("\n\n")
@@ -3869,15 +3906,24 @@ mod tests {
                             "{:#?}",
                             named_values
                                 .iter()
-                                .map(|(name, (_, value))| (name, value))
+                                .map(|(name, (_, VarMeta { value, .. }))| (name, value))
                                 .collect::<Vec<_>>()
                         ))
                         .compare_to_file(&graph_snapshot_path)
                         .unwrap();
                     }
-                    NormalizedOutput::from(explain_all(
-                        named_values.iter().map(|(name, (_, value))| (name, value)),
-                    ))
+                    NormalizedOutput::from(explain_all(named_values.iter().map(
+                        |(
+                            name,
+                            (
+                                _,
+                                VarMeta {
+                                    value,
+                                    assignment_scopes,
+                                },
+                            ),
+                        )| (name, value, Some(*assignment_scopes)),
+                    )))
                     .compare_to_file(&graph_explained_snapshot_path)
                     .unwrap();
                     if !large {
@@ -3921,7 +3967,8 @@ mod tests {
                     }
 
                     let start = Instant::now();
-                    let explainer = explain_all(resolved.iter().map(|(name, value)| (name, value)));
+                    let explainer =
+                        explain_all(resolved.iter().map(|(name, value)| (name, value, None)));
                     let time = start.elapsed();
                     if time.as_millis() > 1 {
                         println!(
@@ -4149,7 +4196,8 @@ mod tests {
                     }
 
                     let start = Instant::now();
-                    let explainer = explain_all(resolved.iter().map(|(name, value)| (name, value)));
+                    let explainer =
+                        explain_all(resolved.iter().map(|(name, value)| (name, value, None)));
                     let time = start.elapsed();
                     if time.as_millis() > 1 {
                         println!(

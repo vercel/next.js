@@ -59,7 +59,6 @@ struct FsWatcher {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    register();
     let cli = Cli::parse();
 
     match cli.command {
@@ -275,10 +274,4 @@ impl Drop for FsCleanup<'_> {
     fn drop(&mut self) {
         std::fs::remove_dir_all(self.path).unwrap();
     }
-}
-
-fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

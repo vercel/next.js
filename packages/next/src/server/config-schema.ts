@@ -149,7 +149,6 @@ const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection>
 
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   rules: z.record(z.string(), zTurbopackRuleConfigCollection).optional(),
-  conditions: z.record(z.string(), zTurbopackCondition).optional(),
   resolveAlias: z
     .record(
       z.string(),
@@ -415,6 +414,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
         rootParams: z.boolean().optional(),
+        isolatedDevBuild: z.boolean().optional(),
         routerBFCache: z.boolean().optional(),
         removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
         validateRSCRequestHeaders: z.boolean().optional(),
@@ -473,6 +473,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         turbopackTreeShaking: z.boolean().optional(),
         turbopackRemoveUnusedExports: z.boolean().optional(),
         turbopackScopeHoisting: z.boolean().optional(),
+        turbopackImportTypeBytes: z.boolean().optional(),
         turbopackUseSystemTlsCerts: z.boolean().optional(),
         turbopackUseBuiltinBabel: z.boolean().optional(),
         turbopackUseBuiltinSass: z.boolean().optional(),
@@ -495,11 +496,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
                 .enum(['infer', 'annotation', 'all'])
                 .optional(),
               panicThreshold: z
-                .enum(['ALL_ERRORS', 'CRITICAL_ERRORS', 'NONE'])
+                .enum(['none', 'critical_errors', 'all_errors'])
                 .optional(),
             })
             .optional(),
         ]),
+        reactDebugChannel: z.boolean().optional(),
         staticGenerationRetryCount: z.number().int().optional(),
         staticGenerationMaxConcurrency: z.number().int().optional(),
         staticGenerationMinPagesPerWorker: z.number().int().optional(),
@@ -513,7 +515,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           })
           .optional(),
         globalNotFound: z.boolean().optional(),
-        devtoolSegmentExplorer: z.boolean().optional(),
         browserDebugInfoInTerminal: z
           .union([
             z.boolean(),
@@ -684,7 +685,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     pageExtensions: z.array(z.string()).min(1).optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
-    publicRuntimeConfig: z.record(z.string(), z.any()).optional(),
     reactProductionProfiling: z.boolean().optional(),
     reactStrictMode: z.boolean().nullable().optional(),
     reactMaxHeadersLength: z.number().nonnegative().int().optional(),
@@ -717,7 +717,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .catchall(z.any())
       .optional(),
     serverExternalPackages: z.array(z.string()).optional(),
-    serverRuntimeConfig: z.record(z.string(), z.any()).optional(),
     skipMiddlewareUrlNormalize: z.boolean().optional(),
     skipTrailingSlashRedirect: z.boolean().optional(),
     staticPageGenerationTimeout: z.number().optional(),

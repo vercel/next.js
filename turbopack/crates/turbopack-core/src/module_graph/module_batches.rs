@@ -20,7 +20,7 @@ use crate::{
     chunk::{ChunkableModule, ChunkingType},
     module::Module,
     module_graph::{
-        GraphTraversalAction, ModuleGraph,
+        GraphTraversalAction, ModuleGraph, ModuleGraphRef,
         chunk_group_info::{ChunkGroupInfo, ChunkGroupKey, RoaringBitmapWrapper},
         module_batch::{ModuleBatch, ModuleBatchGroup, ModuleOrBatch},
         traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
@@ -276,7 +276,7 @@ impl PreBatches {
         &mut self,
         entry: ResolvedVc<Box<dyn Module>>,
         chunk_group_info: &ChunkGroupInfo,
-        module_graph: &ModuleGraph,
+        module_graph: &ModuleGraphRef,
         queue: &mut VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)>,
     ) -> Result<Vec<PreBatchItem>> {
         let mut state = TraversalState {
@@ -284,48 +284,46 @@ impl PreBatches {
             this: self,
         };
         let mut visited = FxHashSet::default();
-        module_graph
-            .traverse_edges_from_entries_dfs(
-                std::iter::once(ResolvedVc::upcast(entry)),
-                &mut state,
-                |parent_info, node, state| {
-                    let ty = parent_info.map_or(
-                        &ChunkingType::Parallel {
-                            inherit_async: false,
-                            hoisted: false,
-                        },
-                        |(_, ty)| &ty.chunking_type,
-                    );
-                    let module = node.module;
-                    if !ty.is_parallel() {
-                        state.items.push(PreBatchItem::NonParallelEdge(
-                            ty.without_inherit_async(),
+        module_graph.traverse_edges_from_entries_dfs(
+            std::iter::once(entry),
+            &mut state,
+            |parent_info, node, state| {
+                let ty = parent_info.map_or(
+                    &ChunkingType::Parallel {
+                        inherit_async: false,
+                        hoisted: false,
+                    },
+                    |(_, ty)| &ty.chunking_type,
+                );
+                let module = node.module;
+                if !ty.is_parallel() {
+                    state.items.push(PreBatchItem::NonParallelEdge(
+                        ty.without_inherit_async(),
+                        module,
+                    ));
+                    return Ok(GraphTraversalAction::Exclude);
+                }
+                if visited.insert(module) {
+                    if parent_info.is_some() && state.this.boundary_modules.contains(&module) {
+                        let idx = state.this.ensure_pre_batch_for_module(
                             module,
-                        ));
+                            chunk_group_info,
+                            queue,
+                        )?;
+                        state.items.push(PreBatchItem::ParallelReference(idx));
                         return Ok(GraphTraversalAction::Exclude);
                     }
-                    if visited.insert(module) {
-                        if parent_info.is_some() && state.this.boundary_modules.contains(&module) {
-                            let idx = state.this.ensure_pre_batch_for_module(
-                                module,
-                                chunk_group_info,
-                                queue,
-                            )?;
-                            state.items.push(PreBatchItem::ParallelReference(idx));
-                            return Ok(GraphTraversalAction::Exclude);
-                        }
-                        Ok(GraphTraversalAction::Continue)
-                    } else {
-                        Ok(GraphTraversalAction::Exclude)
-                    }
-                },
-                |_, node, state| {
-                    let item = PreBatchItem::ParallelModule(node.module);
-                    state.items.push(item);
-                    Ok(())
-                },
-            )
-            .await?;
+                    Ok(GraphTraversalAction::Continue)
+                } else {
+                    Ok(GraphTraversalAction::Exclude)
+                }
+            },
+            |_, node, state| {
+                let item = PreBatchItem::ParallelModule(node.module);
+                state.items.push(item);
+                Ok(())
+            },
+        )?;
         Ok(state.items)
     }
 }
@@ -346,39 +344,37 @@ pub async fn compute_module_batches(
     let span = outer_span.clone();
     async move {
         let chunk_group_info = module_graph.chunk_group_info().await?;
-        let module_graph = module_graph.await?;
+        let module_graph = module_graph.read_graphs().await?;
 
         let mut pre_batches = PreBatches::new();
 
         // Walk the module graph and mark all modules that are boundary modules (referenced from a
         // different chunk group bitmap)
-        module_graph
-            .traverse_all_edges_unordered(|(parent, ty), node| {
-                let std::collections::hash_set::Entry::Vacant(entry) =
-                    pre_batches.boundary_modules.entry(node.module)
-                else {
-                    // Already a boundary module, can skip check
-                    return Ok(());
-                };
-                if ty.chunking_type.is_parallel() {
-                    let parent_chunk_groups = chunk_group_info
-                        .module_chunk_groups
-                        .get(&parent.module)
-                        .context("all modules need to have chunk group info")?;
-                    let chunk_groups = chunk_group_info
-                        .module_chunk_groups
-                        .get(&node.module)
-                        .context("all modules need to have chunk group info")?;
-                    if parent_chunk_groups != chunk_groups {
-                        // This is a boundary module
-                        entry.insert();
-                    }
-                } else {
+        module_graph.traverse_all_edges_unordered(|(parent, ty), node| {
+            let std::collections::hash_set::Entry::Vacant(entry) =
+                pre_batches.boundary_modules.entry(node.module)
+            else {
+                // Already a boundary module, can skip check
+                return Ok(());
+            };
+            if ty.chunking_type.is_parallel() {
+                let parent_chunk_groups = chunk_group_info
+                    .module_chunk_groups
+                    .get(&parent.module)
+                    .context("all modules need to have chunk group info")?;
+                let chunk_groups = chunk_group_info
+                    .module_chunk_groups
+                    .get(&node.module)
+                    .context("all modules need to have chunk group info")?;
+                if parent_chunk_groups != chunk_groups {
+                    // This is a boundary module
                     entry.insert();
                 }
-                Ok(())
-            })
-            .await?;
+            } else {
+                entry.insert();
+            }
+            Ok(())
+        })?;
 
         // All entries are boundary modules too
         for chunk_group in &chunk_group_info.chunk_groups {
@@ -389,21 +385,19 @@ pub async fn compute_module_batches(
 
         // Pre batches would be incorrect with cycles, so we need to opt-out of pre batches for
         // cycles that include boundary modules
-        module_graph
-            .traverse_cycles(
-                |ref_data| ref_data.chunking_type.is_parallel(),
-                |cycle| {
-                    if cycle
-                        .iter()
-                        .any(|node| pre_batches.boundary_modules.contains(&node.module))
-                    {
-                        pre_batches
-                            .boundary_modules
-                            .extend(cycle.iter().map(|node| node.module));
-                    }
-                },
-            )
-            .await?;
+        module_graph.traverse_cycles(
+            |ref_data| ref_data.chunking_type.is_parallel(),
+            |cycle| {
+                if cycle
+                    .iter()
+                    .any(|node| pre_batches.boundary_modules.contains(&node.module))
+                {
+                    pre_batches
+                        .boundary_modules
+                        .extend(cycle.iter().map(|node| node.module));
+                }
+            },
+        )?;
 
         let mut queue: VecDeque<(ResolvedVc<Box<dyn Module>>, PreBatchIndex)> = VecDeque::new();
 
@@ -412,15 +406,7 @@ pub async fn compute_module_batches(
         // Start with the entries
         for chunk_group in &chunk_group_info.chunk_groups {
             for entry in chunk_group.entries() {
-                if let Some(chunkable_module) = ResolvedVc::try_downcast(entry) {
-                    pre_batches.ensure_pre_batch_for_module(
-                        chunkable_module,
-                        &chunk_group_info,
-                        &mut queue,
-                    )?;
-                } else {
-                    pre_batches.single_module_entries.insert(entry);
-                }
+                pre_batches.ensure_pre_batch_for_module(entry, &chunk_group_info, &mut queue)?;
             }
             if let Some(parent) = chunk_group.get_merged_parent() {
                 chunk_group_indices_with_merged_children.insert(parent);
@@ -459,13 +445,9 @@ pub async fn compute_module_batches(
                     || Either::Left(chunk_group.entries()),
                     |v| Either::Right(v.iter().copied()),
                 )
-                .filter_map(|module| {
-                    if let Some(chunkable_module) = ResolvedVc::try_downcast(module) {
-                        let idx = *pre_batches.entries.get(&chunkable_module).unwrap();
-                        Some((idx, 0))
-                    } else {
-                        None
-                    }
+                .map(|module| {
+                    let idx = *pre_batches.entries.get(&module).unwrap();
+                    (idx, 0)
                 })
                 .collect::<Vec<_>>();
             stack.reverse();
@@ -537,11 +519,7 @@ pub async fn compute_module_batches(
                             .push(idx);
                     }
                     PreBatchItem::NonParallelEdge(_, module) => {
-                        if let Some(chunkable_module) = ResolvedVc::try_downcast(*module) {
-                            if !pre_batches.entries.contains_key(&chunkable_module) {
-                                pre_batches.single_module_entries.insert(*module);
-                            }
-                        } else {
+                        if !pre_batches.entries.contains_key(module) {
                             pre_batches.single_module_entries.insert(*module);
                         }
                     }
@@ -858,9 +836,7 @@ pub async fn compute_module_batches(
                         );
                     }
                     PreBatchItem::NonParallelEdge(ty, module) => {
-                        if let Some(chunkable_module) = ResolvedVc::try_downcast(module)
-                            && let Some(batch) = pre_batches.entries.get(&chunkable_module).copied()
-                        {
+                        if let Some(batch) = pre_batches.entries.get(&module).copied() {
                             graph.add_edge(
                                 index,
                                 batch_indices[batch],
@@ -897,9 +873,7 @@ pub async fn compute_module_batches(
         let mut entries = FxHashMap::default();
         for chunk_group in &chunk_group_info.chunk_groups {
             for module in chunk_group.entries() {
-                if let Some(chunkable_module) = ResolvedVc::try_downcast(module)
-                    && let Some(batch) = pre_batches.entries.get(&chunkable_module).copied()
-                {
+                if let Some(batch) = pre_batches.entries.get(&module).copied() {
                     entries.insert(module, batch_indices[batch]);
                     continue;
                 }

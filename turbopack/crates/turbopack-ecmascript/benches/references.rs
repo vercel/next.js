@@ -20,9 +20,6 @@ use turbopack_ecmascript::{
 use turbopack_test_utils::noop_asset_context::NoopAssetContext;
 
 pub fn benchmark(c: &mut Criterion) {
-    turbopack_ecmascript::register();
-    turbopack_test_utils::register();
-
     let rt = tokio::runtime::Builder::new_current_thread()
         .build()
         .unwrap();

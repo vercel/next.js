@@ -5,14 +5,16 @@ import {
   getPrerenderOutput,
 } from './utils'
 
-const isRspack = process.env.NEXT_RSPACK !== undefined
-
 describe('Cache Components Errors', () => {
   const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
     skipStart: !isNextDev,
     skipDeployment: true,
+    env: {
+      NEXT_USE_UNHANDLED_REJECTION_FILTER: 'enabled',
+    },
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) {
     return
@@ -242,13 +244,13 @@ describe('Cache Components Errors', () => {
                    at ScrollAndFocusHandler (bundler:///<next-src>)
                    at RenderFromTemplateContext (bundler:///<next-src>)
                    at OuterLayoutRouter (bundler:///<next-src>)
-                 333 |  */
-                 334 | function InnerLayoutRouter({
-               > 335 |   tree,
+                 330 |  */
+                 331 | function InnerLayoutRouter({
+               > 332 |   tree,
                      |   ^
-                 336 |   segmentPath,
-                 337 |   cacheNode,
-                 338 |   url,
+                 333 |   segmentPath,
+                 334 |   cacheNode,
+                 335 |   url,
                To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-metadata-error-route" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-metadata-error-route". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -662,7 +664,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at a (bundler:///app/dynamic-root/indirection.tsx:7:34)
+                   at <unknown> (bundler:///app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -749,13 +751,13 @@ describe('Cache Components Errors', () => {
                    at ScrollAndFocusHandler (bundler:///<next-src>)
                    at RenderFromTemplateContext (bundler:///<next-src>)
                    at OuterLayoutRouter (bundler:///<next-src>)
-                 333 |  */
-                 334 | function InnerLayoutRouter({
-               > 335 |   tree,
+                 330 |  */
+                 331 | function InnerLayoutRouter({
+               > 332 |   tree,
                      |   ^
-                 336 |   segmentPath,
-                 337 |   cacheNode,
-                 338 |   url,
+                 333 |   segmentPath,
+                 334 |   cacheNode,
+                 335 |   url,
                To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                Error occurred prerendering page "/dynamic-root". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -846,7 +848,7 @@ describe('Cache Components Errors', () => {
             throw new Error('expected build not to fail', { cause: error })
           }
 
-          expect(next.cliOutput).toContain(`◐ ${pathname} `)
+          expect(next.cliOutput).toContain(`◐ ${pathname}`)
           await next.start({ skipBuild: true })
           const $ = await next.render$(pathname)
           expect($('[data-fallback]').length).toBe(2)
@@ -1122,7 +1124,7 @@ describe('Cache Components Errors', () => {
               throw new Error('expected build not to fail', { cause: error })
             }
 
-            expect(next.cliOutput).toContain(`◐ ${pathname} `)
+            expect(next.cliOutput).toContain(`◐ ${pathname}`)
             await next.start({ skipBuild: true })
             const browser = await next.browser(`${pathname}?foo=test`)
             expect(await browser.elementById('foo-param').text()).toBe(
@@ -1174,7 +1176,7 @@ describe('Cache Components Errors', () => {
               throw new Error('expected build not to fail', { cause: error })
             }
 
-            expect(next.cliOutput).toContain(`◐ ${pathname} `)
+            expect(next.cliOutput).toContain(`◐ ${pathname}`)
             await next.start({ skipBuild: true })
             const browser = await next.browser(`${pathname}?foo=test`)
             expect(await browser.elementById('foo-param').text()).toBe(
@@ -1212,6 +1214,34 @@ describe('Cache Components Errors', () => {
                  },
                  {
                    "description": "(0 , <turbopack-module-id>.cookies)(...).get is not a function",
+                   "environmentLabel": "Prerender",
+                   "label": "Runtime TypeError",
+                   "source": "app/sync-cookies/page.tsx (17:66) @ CookiesReadingComponent
+               > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                    |                                                                  ^",
+                   "stack": [
+                     "CookiesReadingComponent app/sync-cookies/page.tsx (17:66)",
+                   ],
+                 },
+               ]
+              `)
+            } else if (isRspack) {
+              await expect(browser).toDisplayRedbox(`
+               [
+                 {
+                   "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "environmentLabel": "Prerender",
+                   "label": "Console Error",
+                   "source": "app/sync-cookies/page.tsx (17:25) @ CookiesReadingComponent
+               > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                    |                         ^",
+                   "stack": [
+                     "CookiesReadingComponent app/sync-cookies/page.tsx (17:25)",
+                     "Page app/sync-cookies/page.tsx (11:7)",
+                   ],
+                 },
+                 {
+                   "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies/page.tsx (17:66) @ CookiesReadingComponent
@@ -1377,6 +1407,34 @@ describe('Cache Components Errors', () => {
                  },
                ]
               `)
+            } else if (isRspack) {
+              await expect(browser).toDisplayRedbox(`
+               [
+                 {
+                   "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "environmentLabel": "Server",
+                   "label": "Console Error",
+                   "source": "app/sync-cookies-runtime/page.tsx (24:25) @ CookiesReadingComponent
+               > 24 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                    |                         ^",
+                   "stack": [
+                     "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:25)",
+                     "Page app/sync-cookies-runtime/page.tsx (14:9)",
+                   ],
+                 },
+                 {
+                   "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
+                   "environmentLabel": "Server",
+                   "label": "Runtime TypeError",
+                   "source": "app/sync-cookies-runtime/page.tsx (24:66) @ CookiesReadingComponent
+               > 24 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                    |                                                                  ^",
+                   "stack": [
+                     "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:66)",
+                   ],
+                 },
+               ]
+              `)
             } else {
               await expect(browser).toDisplayRedbox(`
                [
@@ -1466,6 +1524,21 @@ describe('Cache Components Errors', () => {
                               ],
                             }
                           `)
+            } else if (isRspack) {
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                 "environmentLabel": "Prerender",
+                 "label": "Console Error",
+                 "source": "app/sync-draft-mode/page.tsx (23:31) @ DraftModeReadingComponent
+               > 23 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
+                    |                               ^",
+                 "stack": [
+                   "DraftModeReadingComponent app/sync-draft-mode/page.tsx (23:31)",
+                   "Page app/sync-draft-mode/page.tsx (13:7)",
+                 ],
+               }
+              `)
             } else {
               await expect(browser).toDisplayCollapsedRedbox(`
                             {
@@ -1491,7 +1564,7 @@ describe('Cache Components Errors', () => {
               throw new Error('expected build not to fail', { cause: error })
             }
 
-            expect(next.cliOutput).toContain(`◐ ${pathname} `)
+            expect(next.cliOutput).toContain(`◐ ${pathname}`)
             await next.start({ skipBuild: true })
             const browser = await next.browser(`${pathname}`)
             expect(await browser.elementById('draft-mode').text()).toBe(
@@ -1540,6 +1613,34 @@ describe('Cache Components Errors', () => {
                               },
                             ]
                           `)
+            } else if (isRspack) {
+              await expect(browser).toDisplayRedbox(`
+               [
+                 {
+                   "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "environmentLabel": "Prerender",
+                   "label": "Console Error",
+                   "source": "app/sync-headers/page.tsx (17:29) @ HeadersReadingComponent
+               > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                    |                             ^",
+                   "stack": [
+                     "HeadersReadingComponent app/sync-headers/page.tsx (17:29)",
+                     "Page app/sync-headers/page.tsx (11:7)",
+                   ],
+                 },
+                 {
+                   "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
+                   "environmentLabel": "Prerender",
+                   "label": "Runtime TypeError",
+                   "source": "app/sync-headers/page.tsx (17:70) @ HeadersReadingComponent
+               > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                    |                                                                      ^",
+                   "stack": [
+                     "HeadersReadingComponent app/sync-headers/page.tsx (17:70)",
+                   ],
+                 },
+               ]
+              `)
             } else {
               await expect(browser).toDisplayRedbox(`
                             [
@@ -1694,6 +1795,34 @@ describe('Cache Components Errors', () => {
                  },
                ]
               `)
+            } else if (isRspack) {
+              await expect(browser).toDisplayRedbox(`
+               [
+                 {
+                   "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "environmentLabel": "Server",
+                   "label": "Console Error",
+                   "source": "app/sync-headers-runtime/page.tsx (24:29) @ HeadersReadingComponent
+               > 24 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                    |                             ^",
+                   "stack": [
+                     "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:29)",
+                     "Page app/sync-headers-runtime/page.tsx (14:9)",
+                   ],
+                 },
+                 {
+                   "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
+                   "environmentLabel": "Server",
+                   "label": "Runtime TypeError",
+                   "source": "app/sync-headers-runtime/page.tsx (24:70) @ HeadersReadingComponent
+               > 24 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                    |                                                                      ^",
+                   "stack": [
+                     "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:70)",
+                   ],
+                 },
+               ]
+              `)
             } else {
               await expect(browser).toDisplayRedbox(`
                [
@@ -1807,7 +1936,7 @@ describe('Cache Components Errors', () => {
               throw new Error('expected build not to fail', { cause: error })
             }
 
-            expect(next.cliOutput).toContain(`◐ ${pathname}/[slug] `)
+            expect(next.cliOutput).toContain(`◐ ${pathname}/[slug]`)
             await next.start({ skipBuild: true })
             const browser = await next.browser(`${pathname}/test`)
             expect(await browser.elementById('param').text()).toBe('undefined')
@@ -1855,7 +1984,7 @@ describe('Cache Components Errors', () => {
               throw new Error('expected build not to fail', { cause: error })
             }
 
-            expect(next.cliOutput).toContain(`◐ ${pathname}/[slug] `)
+            expect(next.cliOutput).toContain(`◐ ${pathname}/[slug]`)
             await next.start({ skipBuild: true })
             const browser = await next.browser(`${pathname}/test`)
             expect(await browser.elementById('param').text()).toBe('undefined')
@@ -1951,7 +2080,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (bundler:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at <unknown> (bundler:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2081,12 +2210,9 @@ describe('Cache Components Errors', () => {
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                      at a (<anonymous>)
                      at main (<anonymous>)
-                     at b (<anonymous>)
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at c (<anonymous>)
-                     at d (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2134,13 +2260,13 @@ describe('Cache Components Errors', () => {
                      at ScrollAndFocusHandler (bundler:///<next-src>)
                      at RenderFromTemplateContext (<anonymous>)
                      at OuterLayoutRouter (bundler:///<next-src>)
-                   333 |  */
-                   334 | function InnerLayoutRouter({
-                 > 335 |   tree,
+                   330 |  */
+                   331 | function InnerLayoutRouter({
+                 > 332 |   tree,
                        |   ^
-                   336 |   segmentPath,
-                   337 |   cacheNode,
-                   338 |   url,
+                   333 |   segmentPath,
+                   334 |   cacheNode,
+                   335 |   url,
                  To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
                  Error occurred prerendering page "/sync-attribution/unguarded-async-guarded-clientsync". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -2260,7 +2386,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (bundler:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at <unknown> (bundler:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2784,6 +2910,37 @@ describe('Cache Components Errors', () => {
                  Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
                 `)
               }
+            } else if (isRspack) {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                     at 0 (bundler:///app/use-cache-private-in-unstable-cache/page.tsx:21:38)
+                     at a (<next-dist-dir>)
+                   19 | }
+                   20 |
+                 > 21 | const getCachedData = unstable_cache(async () => {
+                      |                                      ^
+                   22 |   'use cache: private'
+                   23 |
+                   24 |   return fetch('https://next-data-api-endpoint.vercel.app/api/random').then(
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within \`unstable_cache()\`.
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-unstable-cache" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-in-unstable-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-in-unstable-cache/page: /use-cache-private-in-unstable-cache, exiting the build."
+                `)
+              }
             } else {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
@@ -2944,6 +3101,50 @@ describe('Cache Components Errors', () => {
                  Export encountered an error on /use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache, exiting the build."
                 `)
               }
+            } else if (isRspack) {
+              if (isDebugPrerender) {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at 0 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at a (<next-dist-dir>)
+                   13 | }
+                   14 |
+                 > 15 | async function Private() {
+                      | ^
+                   16 |   'use cache: private'
+                   17 |
+                   18 |   return <p>Private</p>
+                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at 1 (bundler:///app/use-cache-private-in-use-cache/page.tsx:15:1)
+                     at b (<next-dist-dir>)
+                   13 | }
+                   14 |
+                 > 15 | async function Private() {
+                      | ^
+                   16 |   'use cache: private'
+                   17 |
+                   18 |   return <p>Private</p>
+                 To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+
+                 > Export encountered errors on following paths:
+                 	/use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache"
+                `)
+              } else {
+                expect(output).toMatchInlineSnapshot(`
+                 "Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at a (<next-dist-dir>)
+                     at b (<next-dist-dir>)
+                 Error: "use cache: private" must not be used within "use cache". It can only be nested inside of another "use cache: private".
+                     at c (<next-dist-dir>)
+                     at d (<next-dist-dir>)
+                 To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                   - Start the app in development mode by running \`next dev\`, then open "/use-cache-private-in-use-cache" in your browser to investigate the error.
+                   - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                 Error occurred prerendering page "/use-cache-private-in-use-cache". Read more: https://nextjs.org/docs/messages/prerender-error
+                 Export encountered an error on /use-cache-private-in-use-cache/page: /use-cache-private-in-use-cache, exiting the build."
+                `)
+              }
             } else {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
@@ -3097,13 +3298,13 @@ describe('Cache Components Errors', () => {
                      at ScrollAndFocusHandler (bundler:///<next-src>)
                      at RenderFromTemplateContext (bundler:///<next-src>)
                      at OuterLayoutRouter (bundler:///<next-src>)
-                   333 |  */
-                   334 | function InnerLayoutRouter({
-                 > 335 |   tree,
+                   330 |  */
+                   331 | function InnerLayoutRouter({
+                 > 332 |   tree,
                        |   ^
-                   336 |   segmentPath,
-                   337 |   cacheNode,
-                   338 |   url,
+                   333 |   segmentPath,
+                   334 |   cacheNode,
+                   335 |   url,
                  To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-private-without-suspense" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-private-without-suspense". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -3194,63 +3395,6 @@ describe('Cache Components Errors', () => {
               '/use-cache-private-connection',
               { pushErrorAsConsoleLog: true }
             )
-
-            expect(await browser.elementById('private').text()).toBe('Private')
-
-            expect(await browser.log()).not.toContainEqual(
-              expect.objectContaining({ source: 'error' })
-            )
-
-            expect(next.cliOutput.slice(cliOutputLength)).not.toInclude('Error')
-          })
-        }
-      })
-
-      describe('with `headers()`', () => {
-        if (isNextDev) {
-          it('should show a redbox error', async () => {
-            const browser = await next.browser('/use-cache-private-headers')
-
-            if (isTurbopack) {
-              await expect(browser).toDisplayRedbox(`
-               {
-                 "description": "Route /use-cache-private-headers used "headers" inside "use cache: private". Accessing "headers" inside a private cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-private-headers/page.tsx (25:18) @ Private
-               > 25 |     await headers()
-                    |                  ^",
-                 "stack": [
-                   "Private app/use-cache-private-headers/page.tsx (25:18)",
-                 ],
-               }
-              `)
-            } else {
-              await expect(browser).toDisplayRedbox(`
-               {
-                 "description": "Route /use-cache-private-headers used "headers" inside "use cache: private". Accessing "headers" inside a private cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-private-headers/page.tsx (25:18) @ Private
-               > 25 |     await headers()
-                    |                  ^",
-                 "stack": [
-                   "Private app/use-cache-private-headers/page.tsx (25:18)",
-                 ],
-               }
-              `)
-            }
-          })
-        } else {
-          // TODO: With prefetch sentinels this should yield a build error.
-          it('should not fail the build and show no runtime error (caught in userland)', async () => {
-            await prerender('/use-cache-private-headers')
-            await next.start({ skipBuild: true })
-            cliOutputLength = next.cliOutput.length
-
-            const browser = await next.browser('/use-cache-private-headers', {
-              pushErrorAsConsoleLog: true,
-            })
 
             expect(await browser.elementById('private').text()).toBe('Private')
 
@@ -4997,6 +5141,91 @@ describe('Cache Components Errors', () => {
               `)
             }
           }
+        })
+      }
+    })
+
+    describe('Unhandled Rejection Suppression', () => {
+      const pathname = '/unhandled-rejection'
+
+      if (isNextDev) {
+        it('should suppress unhandled rejections during prerender validation in dev', async () => {
+          const browser = await next.browser(pathname)
+
+          await expect(browser).toDisplayCollapsedRedbox(`
+           [
+             {
+               "description": "BOOM",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": " ⨯ "unhandledRejection:" "BOOM"",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": " ⨯ "unhandledRejection: " "BOOM"",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": "BAM",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": " ⨯ "unhandledRejection:" "BAM"",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+             {
+               "description": " ⨯ "unhandledRejection: " "BAM"",
+               "environmentLabel": "Server",
+               "label": "Console Error",
+               "source": null,
+               "stack": [
+                 "Page <anonymous>",
+               ],
+             },
+           ]
+          `)
+        })
+      } else {
+        it('should suppress unhandled rejections after prerender abort', async () => {
+          try {
+            await prerender(pathname)
+          } catch {}
+
+          const output = getPrerenderOutput(
+            next.cliOutput.slice(cliOutputLength),
+            { isMinified: !isDebugPrerender }
+          )
+
+          expect(output).toMatchInlineSnapshot(`
+             "BOOM
+             BOOM"
+            `)
         })
       }
     })

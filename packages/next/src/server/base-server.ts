@@ -57,7 +57,6 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../shared/lib/constants'
 import { isDynamicRoute } from '../shared/lib/router/utils'
-import { setConfig } from '../shared/lib/runtime-config.external'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
 import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
@@ -406,7 +405,7 @@ export default abstract class Server<
 
   protected abstract loadEnvConfig(params: {
     dev: boolean
-    forceReload?: boolean
+    forceReload: boolean
   }): void
 
   // TODO-APP: (wyattjoh): Make protected again. Used for turbopack in route-resolver.ts right now.
@@ -448,7 +447,7 @@ export default abstract class Server<
     this.dir = path.resolve(/* turbopackIgnore: true */ dir)
 
     this.quiet = quiet
-    this.loadEnvConfig({ dev })
+    this.loadEnvConfig({ dev, forceReload: false })
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
@@ -475,14 +474,7 @@ export default abstract class Server<
       ? new LocaleRouteNormalizer(this.i18nProvider)
       : undefined
 
-    // Only serverRuntimeConfig needs the default
-    // publicRuntimeConfig gets it's default in client/index.js
-    const {
-      serverRuntimeConfig = {},
-      publicRuntimeConfig,
-      assetPrefix,
-      generateEtags,
-    } = this.nextConfig
+    const { assetPrefix, generateEtags } = this.nextConfig
 
     this.buildId = this.getBuildId()
     // this is a hack to avoid Webpack knowing this is equal to this.minimalMode
@@ -551,12 +543,6 @@ export default abstract class Server<
         ? this.nextConfig.crossOrigin
         : undefined,
       largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
-      // Only the `publicRuntimeConfig` key is exposed to the client side
-      // It'll be rendered as part of __NEXT_DATA__ on the client side
-      runtimeConfig:
-        Object.keys(publicRuntimeConfig).length > 0
-          ? publicRuntimeConfig
-          : undefined,
 
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
       // `htmlLimitedBots` is passed to server as serialized config in string format
@@ -581,15 +567,7 @@ export default abstract class Server<
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
-      devtoolSegmentExplorer:
-        this.nextConfig.experimental.devtoolSegmentExplorer,
     }
-
-    // Initialize next/config with the environment configuration
-    setConfig({
-      serverRuntimeConfig,
-      publicRuntimeConfig,
-    })
 
     this.pagesManifest = this.getPagesManifest()
     this.appPathsManifest = this.getAppPathsManifest()
@@ -606,6 +584,10 @@ export default abstract class Server<
 
     this.setAssetPrefix(assetPrefix)
     this.responseCache = this.getResponseCache({ dev })
+  }
+
+  protected reloadMatchers() {
+    return this.matchers.reload()
   }
 
   private handleRSCRequest: RouteHandler<ServerRequest, ServerResponse> = (
@@ -884,13 +866,13 @@ export default abstract class Server<
   ): Promise<void> {
     await this.prepare()
     const method = req.method.toUpperCase()
-
     const tracer = getTracer()
+
     return tracer.withPropagatedContext(req.headers, () => {
       return tracer.trace(
         BaseServerSpan.handleRequest,
         {
-          spanName: `${method} ${req.url}`,
+          spanName: `${method}`,
           kind: SpanKind.SERVER,
           attributes: {
             'http.method': method,
@@ -946,11 +928,7 @@ export default abstract class Server<
               })
               span.updateName(name)
             } else {
-              span.updateName(
-                isRSCRequest
-                  ? `RSC ${method} ${req.url}`
-                  : `${method} ${req.url}`
-              )
+              span.updateName(isRSCRequest ? `RSC ${method}` : `${method}`)
             }
           })
       )

@@ -71,7 +71,7 @@ describe('app-dir action progressive enhancement', () => {
       await browser.elementById('set-cookie').click()
 
       await retry(async () => {
-        expect(await browser.elementById('referer').text()).toBe('')
+        expect(await browser.elementById('referer').text()).toBe('<null>')
       })
 
       await browser.elementById('get-cookie').click()

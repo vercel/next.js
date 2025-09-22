@@ -88,8 +88,3 @@ async fn to_uppercase_map(map: Vc<EnvMap>) -> Result<Vc<EnvMap>> {
 }
 
 pub static GLOBAL_ENV_LOCK: Mutex<()> = Mutex::new(());
-
-pub fn register() {
-    turbo_tasks::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
-}

@@ -138,7 +138,6 @@ async function requestHandler(
       dir: pageRouteModule.relativeProjectDir,
       botType,
       isDraftMode: false,
-      isRevalidate: false,
       isOnDemandRevalidate,
       isPossibleServerAction,
       assetPrefix: nextConfig.assetPrefix,
@@ -149,7 +148,6 @@ async function requestHandler(
       deploymentId: nextConfig.deploymentId,
       enableTainting: nextConfig.experimental.taint,
       htmlLimitedBots: nextConfig.htmlLimitedBots,
-      devtoolSegmentExplorer: nextConfig.experimental.devtoolSegmentExplorer,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
       multiZoneDraftMode: false,
@@ -318,7 +316,7 @@ async function requestHandler(
             })
             span.updateName(name)
           } else {
-            span.updateName(`${req.method} ${relativeUrl}`)
+            span.updateName(`${req.method} ${srcPage}`)
           }
         })
 
@@ -341,7 +339,7 @@ async function requestHandler(
     tracer.trace(
       BaseServerSpan.handleRequest,
       {
-        spanName: `${req.method} ${relativeUrl}`,
+        spanName: `${req.method} ${srcPage}`,
         kind: SpanKind.SERVER,
         attributes: {
           'http.method': req.method,

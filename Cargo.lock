@@ -252,6 +252,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "approx"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "arbitrary"
 version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -973,12 +982,6 @@ checksum = "9555578bc9e57714c812a1f84e4fc5b4d21fcb063490c624de019f7464c91268"
 
 [[package]]
 name = "cfg_aliases"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
-
-[[package]]
-name = "cfg_aliases"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
@@ -1121,7 +1124,6 @@ dependencies = [
  "anstyle",
  "clap_lex",
  "strsim 0.11.1",
- "terminal_size",
 ]
 
 [[package]]
@@ -1162,22 +1164,27 @@ dependencies = [
 
 [[package]]
 name = "codspeed"
-version = "2.10.1"
+version = "3.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "93f4cce9c27c49c4f101fffeebb1826f41a9df2e7498b7cd4d95c0658b796c6c"
+checksum = "35584c5fcba8059780748866387fb97c5a203bcfc563fc3d0790af406727a117"
 dependencies = [
+ "anyhow",
+ "bincode",
  "colored",
+ "glob",
  "libc",
+ "nix 0.29.0",
  "serde",
  "serde_json",
+ "statrs",
  "uuid",
 ]
 
 [[package]]
 name = "codspeed-criterion-compat"
-version = "2.10.1"
+version = "3.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3c23d880a28a2aab52d38ca8481dd7a3187157d0a952196b6db1db3c8499725"
+checksum = "78f6c1c6bed5fd84d319e8b0889da051daa361c79b7709c9394dfe1a882bba67"
 dependencies = [
  "codspeed",
  "codspeed-criterion-compat-walltime",
@@ -1188,9 +1195,9 @@ dependencies = [
 
 [[package]]
 name = "codspeed-criterion-compat-walltime"
-version = "2.10.1"
+version = "3.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b0a2f7365e347f4f22a67e9ea689bf7bc89900a354e22e26cf8a531a42c8fbb"
+checksum = "c989289ce6b1cbde72ed560496cb8fbf5aa14d5ef5666f168e7f87751038352e"
 dependencies = [
  "anes",
  "cast",
@@ -1213,46 +1220,6 @@ dependencies = [
  "tinytemplate",
  "tokio",
  "walkdir",
-]
-
-[[package]]
-name = "codspeed-divan-compat"
-version = "2.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8620a09dfaf37b3c45f982c4b65bd8f9b0203944da3ffa705c0fcae6b84655ff"
-dependencies = [
- "codspeed",
- "codspeed-divan-compat-macros",
- "codspeed-divan-compat-walltime",
-]
-
-[[package]]
-name = "codspeed-divan-compat-macros"
-version = "2.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30fe872bc4214626b35d3a1706a905d0243503bb6ba3bb7be2fc59083d5d680c"
-dependencies = [
- "divan-macros",
- "itertools 0.14.0",
- "proc-macro-crate",
- "proc-macro2",
- "quote",
- "syn 2.0.104",
-]
-
-[[package]]
-name = "codspeed-divan-compat-walltime"
-version = "2.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "104caa97b36d4092d89e24e4b103b40ede1edab03c0372d19e14a33f9393132b"
-dependencies = [
- "cfg-if",
- "clap",
- "codspeed",
- "condtype",
- "divan-macros",
- "libc",
- "regex-lite",
 ]
 
 [[package]]
@@ -1308,12 +1275,6 @@ checksum = "4ca0197aee26d1ae37445ee532fefce43251d24cc7c166799f4d46817f1d3973"
 dependencies = [
  "crossbeam-utils",
 ]
-
-[[package]]
-name = "condtype"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "baf0a07a401f374238ab8e2f11a104d2851bf9ce711ec69804834de8af45c7af"
 
 [[package]]
 name = "console"
@@ -1618,7 +1579,7 @@ dependencies = [
  "autocfg",
  "cfg-if",
  "crossbeam-utils",
- "memoffset 0.9.0",
+ "memoffset",
  "scopeguard",
 ]
 
@@ -1740,12 +1701,12 @@ dependencies = [
 
 [[package]]
 name = "ctrlc"
-version = "3.4.4"
+version = "3.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "672465ae37dc1bc6380a6547a8883d5dd397b0f1faaad4f265726cc7042a5345"
+checksum = "46f93780a459b7d656ef7f071fe699c4d3d2cb201c4b24d085b6ddc505276e73"
 dependencies = [
- "nix 0.28.0",
- "windows-sys 0.52.0",
+ "nix 0.30.1",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -2034,17 +1995,6 @@ name = "displaydoc"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97369cbbc041bc366949bc74d34658d6cda5621039731c6310521892a3a20ae0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.104",
-]
-
-[[package]]
-name = "divan-macros"
-version = "0.1.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8dc51d98e636f5e3b0759a39257458b22619cac7e96d932da6eeb052891bb67c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2510,9 +2460,9 @@ dependencies = [
 
 [[package]]
 name = "glob"
-version = "0.3.1"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
+checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "globset"
@@ -3301,6 +3251,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "inventory"
+version = "0.3.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc61209c082fbeb19919bee74b176221b27223e27b65d781eb91af24eb1fb46e"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
 name = "ipnet"
 version = "2.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3371,15 +3330,6 @@ name = "itertools"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
-dependencies = [
- "either",
-]
-
-[[package]]
-name = "itertools"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
 dependencies = [
  "either",
 ]
@@ -3956,15 +3906,6 @@ dependencies = [
 
 [[package]]
 name = "memoffset"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5de893c32cde5f383baa4c04c5d6dbdd735cfd4a794b0debdb2bb1b421da5ff4"
-dependencies = [
- "autocfg",
-]
-
-[[package]]
-name = "memoffset"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a634b1c61a95585bd15607c6ab0c4e5b226e695ff2800ba0cdccddf208c406c"
@@ -3980,7 +3921,7 @@ checksum = "4edc8853320c2a0dab800fbda86253c8938f6ea88510dc92c5f1ed20e794afc1"
 dependencies = [
  "cfg-if",
  "miette-derive",
- "owo-colors 4.0.0",
+ "owo-colors",
  "textwrap",
  "thiserror 1.0.69",
  "unicode-width 0.1.13",
@@ -4259,7 +4200,6 @@ name = "next-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "codspeed-divan-compat",
  "either",
  "futures",
  "indexmap 2.9.0",
@@ -4276,7 +4216,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
@@ -4297,7 +4236,6 @@ version = "0.1.0"
 dependencies = [
  "next-core",
  "turbo-rcstr",
- "turbo-tasks-build",
  "turbopack-core",
 ]
 
@@ -4320,7 +4258,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-malloc",
  "turbopack-trace-utils",
 ]
@@ -4359,7 +4296,6 @@ dependencies = [
  "turbo-esregex",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-bytes",
  "turbo-tasks-env",
  "turbo-tasks-fetch",
@@ -4436,7 +4372,7 @@ dependencies = [
  "next-custom-transforms",
  "next-taskless",
  "once_cell",
- "owo-colors 3.5.0",
+ "owo-colors",
  "rand 0.9.0",
  "rustc-hash 2.1.1",
  "serde",
@@ -4451,7 +4387,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
  "turbo-unix-path",
@@ -4477,26 +4412,25 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.26.4"
+version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "598beaf3cc6fdd9a5dfb1630c2800c7acd31df7aaf0f565796fba2b53ca1af1b"
+checksum = "71e2746dc3a24dd78b3cfcb7be93368c6de9963d30f43a6a73998a9cf4b17b46"
 dependencies = [
- "bitflags 1.3.2",
+ "bitflags 2.9.1",
  "cfg-if",
+ "cfg_aliases",
  "libc",
- "memoffset 0.7.1",
- "pin-utils",
 ]
 
 [[package]]
 name = "nix"
-version = "0.28.0"
+version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ab2156c4fce2f8df6c499cc1c763e4394b7482525bf2a9701c9d79d215f519e4"
+checksum = "74523f3a35e05aba87a1d978330aef40f67b0304ac79c1c00b294c9830543db6"
 dependencies = [
  "bitflags 2.9.1",
  "cfg-if",
- "cfg_aliases 0.1.1",
+ "cfg_aliases",
  "libc",
 ]
 
@@ -4813,15 +4747,9 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 
 [[package]]
 name = "owo-colors"
-version = "3.5.0"
+version = "4.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1b04fb49957986fdce4d6ee7a65027d55d4b6d2265e5848bbb507b58ccfdb6f"
-
-[[package]]
-name = "owo-colors"
-version = "4.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caff54706df99d2a78a5a4e3455ff45448d81ef1bb63c22cd14052ca0e993a3f"
+checksum = "48dd4f4a2c8405440fd0462561f0e5806bd0f77e86f51c761481bdd4018b545e"
 
 [[package]]
 name = "papergrid"
@@ -5494,7 +5422,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "626214629cda6781b6dc1d316ba307189c85ba657213ce642d9c77670f8202c8"
 dependencies = [
  "bytes",
- "cfg_aliases 0.2.1",
+ "cfg_aliases",
  "pin-project-lite",
  "quinn-proto",
  "quinn-udp",
@@ -5534,7 +5462,7 @@ version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee4e529991f949c5e25755532370b8af5d114acae52326361d68d47af64aa842"
 dependencies = [
- "cfg_aliases 0.2.1",
+ "cfg_aliases",
  "libc",
  "once_cell",
  "socket2 0.5.10",
@@ -5800,12 +5728,6 @@ dependencies = [
  "memchr",
  "regex-syntax 0.8.5",
 ]
-
-[[package]]
-name = "regex-lite"
-version = "0.1.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53a49587ad06b26609c52e423de037e7f57f20d53535d66e08c695f347df952a"
 
 [[package]]
 name = "regex-syntax"
@@ -6887,6 +6809,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
+name = "statrs"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a3fe7c28c6512e766b0874335db33c94ad7b8f9054228ae1c2abd47ce7d335e"
+dependencies = [
+ "approx",
+ "num-traits",
+]
+
+[[package]]
 name = "string_enum"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7034,7 +6966,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
- "owo-colors 3.5.0",
+ "owo-colors",
  "regex",
  "swc_core",
 ]
@@ -9119,7 +9051,6 @@ dependencies = [
  "serde",
  "serde_json",
  "turbo-tasks",
- "turbo-tasks-build",
 ]
 
 [[package]]
@@ -9209,6 +9140,7 @@ dependencies = [
  "event-listener",
  "futures",
  "indexmap 2.9.0",
+ "inventory",
  "mopa",
  "once_cell",
  "parking_lot",
@@ -9228,7 +9160,6 @@ dependencies = [
  "triomphe 0.1.12",
  "turbo-dyn-eq-hash",
  "turbo-rcstr",
- "turbo-tasks-build",
  "turbo-tasks-hash",
  "turbo-tasks-macros",
  "turbo-tasks-malloc",
@@ -9270,7 +9201,6 @@ dependencies = [
  "turbo-persistence",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-malloc",
  "turbo-tasks-testing",
 ]
@@ -9288,21 +9218,7 @@ dependencies = [
  "tokio",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-malloc",
-]
-
-[[package]]
-name = "turbo-tasks-build"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cargo-lock",
- "glob",
- "quote",
- "rustc-hash 2.1.1",
- "syn 2.0.104",
- "turbo-tasks-macros-shared",
 ]
 
 [[package]]
@@ -9316,7 +9232,6 @@ dependencies = [
  "serde_bytes",
  "serde_test",
  "turbo-tasks",
- "turbo-tasks-build",
 ]
 
 [[package]]
@@ -9327,7 +9242,6 @@ dependencies = [
  "dotenvs",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
 ]
 
@@ -9344,7 +9258,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-testing",
  "turbopack-core",
@@ -9384,7 +9297,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-hash",
  "turbo-tasks-testing",
  "turbo-unix-path",
@@ -9403,7 +9315,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-fs",
 ]
 
@@ -9448,7 +9359,6 @@ dependencies = [
  "trybuild",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-testing",
 ]
 
@@ -9483,12 +9393,8 @@ name = "turbopack"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "codspeed-criterion-compat",
- "difference",
  "either",
  "regex",
- "rstest",
- "rstest_reuse",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
@@ -9499,11 +9405,9 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
- "turbo-tasks-malloc",
  "turbopack-core",
  "turbopack-css",
  "turbopack-ecmascript",
@@ -9524,9 +9428,9 @@ dependencies = [
  "chromiumoxide",
  "codspeed-criterion-compat",
  "futures",
- "nix 0.26.4",
+ "nix 0.30.1",
  "once_cell",
- "owo-colors 3.5.0",
+ "owo-colors",
  "parking_lot",
  "portpicker",
  "rand 0.9.0",
@@ -9555,7 +9459,6 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack-core",
@@ -9575,7 +9478,7 @@ dependencies = [
  "console-subscriber",
  "dunce",
  "futures",
- "owo-colors 3.5.0",
+ "owo-colors",
  "regex",
  "rustc-hash 2.1.1",
  "serde",
@@ -9586,7 +9489,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
@@ -9611,14 +9513,12 @@ name = "turbopack-cli-utils"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap",
  "crossterm 0.26.1",
- "owo-colors 3.5.0",
+ "owo-colors",
  "rustc-hash 2.1.1",
  "serde",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-resolve",
@@ -9657,7 +9557,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
@@ -9695,7 +9594,6 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
@@ -9728,7 +9626,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-bytes",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
@@ -9773,7 +9670,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbo-tasks-malloc",
@@ -9803,7 +9699,6 @@ dependencies = [
  "anyhow",
  "async-trait",
  "indexmap 2.9.0",
- "modularize_imports",
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
@@ -9816,7 +9711,6 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
@@ -9831,7 +9725,6 @@ dependencies = [
  "serde",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack",
  "turbopack-core",
@@ -9845,7 +9738,6 @@ dependencies = [
  "anyhow",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbopack-core",
@@ -9867,7 +9759,6 @@ dependencies = [
  "serde_with",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
 ]
@@ -9880,7 +9771,6 @@ dependencies = [
  "serde_json",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
@@ -9895,7 +9785,6 @@ dependencies = [
  "mdxjs",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
  "turbopack-ecmascript",
@@ -9917,7 +9806,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
@@ -9942,7 +9830,7 @@ dependencies = [
  "futures-retry",
  "indoc",
  "once_cell",
- "owo-colors 3.5.0",
+ "owo-colors",
  "parking_lot",
  "regex",
  "rustc-hash 2.1.1",
@@ -9953,13 +9841,11 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-bytes",
  "turbo-tasks-env",
  "turbo-tasks-fs",
  "turbopack-cli-utils",
  "turbopack-core",
- "turbopack-dev-server",
  "turbopack-ecmascript",
  "turbopack-resolve",
 ]
@@ -9973,7 +9859,6 @@ dependencies = [
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack-core",
@@ -9987,13 +9872,13 @@ name = "turbopack-resolve"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "next-taskless",
  "regex",
  "serde",
  "serde_json",
  "tracing",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbopack-core",
 ]
@@ -10005,7 +9890,6 @@ dependencies = [
  "anyhow",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack-core",
@@ -10022,7 +9906,6 @@ dependencies = [
  "swc_core",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbopack-core",
 ]
 
@@ -10038,7 +9921,6 @@ dependencies = [
  "similar",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack-cli-utils",
@@ -10061,7 +9943,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
- "turbo-tasks-build",
  "turbo-tasks-bytes",
  "turbo-tasks-env",
  "turbo-tasks-fs",
@@ -10120,6 +10001,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbopack-tracing"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "codspeed-criterion-compat",
+ "difference",
+ "regex",
+ "rstest",
+ "rstest_reuse",
+ "serde",
+ "serde_json",
+ "tokio",
+ "turbo-rcstr",
+ "turbo-tasks",
+ "turbo-tasks-backend",
+ "turbo-tasks-fs",
+ "turbo-tasks-malloc",
+ "turbopack",
+ "turbopack-core",
+ "turbopack-resolve",
+]
+
+[[package]]
 name = "turbopack-wasm"
 version = "0.1.0"
 dependencies = [
@@ -10128,7 +10032,6 @@ dependencies = [
  "serde",
  "turbo-rcstr",
  "turbo-tasks",
- "turbo-tasks-build",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
  "turbopack-core",
@@ -10927,7 +10830,7 @@ dependencies = [
  "libc",
  "libunwind",
  "mach2",
- "memoffset 0.9.0",
+ "memoffset",
  "more-asserts",
  "region",
  "rustversion",
@@ -11621,7 +11524,7 @@ dependencies = [
  "indexmap 2.9.0",
  "inquire",
  "num-format",
- "owo-colors 3.5.0",
+ "owo-colors",
  "plotters",
  "rustc-hash 2.1.1",
  "semver",

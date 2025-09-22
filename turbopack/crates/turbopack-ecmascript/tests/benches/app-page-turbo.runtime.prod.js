@@ -28191,7 +28191,7 @@ ${e}`),
       }
       if (t.renderOpts.dev) {
         let e = rT(t.renderOpts.dir || '', null == n ? void 0 : n[1])
-        if (t.renderOpts.devtoolSegmentExplorer && e) {
+        if (e) {
           let n = t.componentMod.SegmentViewNode
           r = (0, u.jsx)(
             n,

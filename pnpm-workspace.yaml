@@ -1,5 +1,5 @@
 packages:
-  - '!apps/*'
+  - 'apps/*'
   - 'packages/*'
   - 'bench/*'
   - 'crates/*/js'

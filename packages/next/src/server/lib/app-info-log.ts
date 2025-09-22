@@ -12,19 +12,23 @@ export function logStartInfo({
   appUrl,
   envInfo,
   experimentalFeatures,
+  logBundler,
 }: {
   networkUrl: string | null
   appUrl: string | null
   envInfo?: string[]
   experimentalFeatures?: ConfiguredExperimentalFeature[]
+  logBundler: boolean
 }) {
-  let bundlerSuffix
-  if (process.env.TURBOPACK) {
-    bundlerSuffix = ' (Turbopack)'
-  } else if (process.env.NEXT_RSPACK) {
-    bundlerSuffix = ' (Rspack)'
-  } else {
-    bundlerSuffix = ''
+  let bundlerSuffix = ''
+  if (logBundler) {
+    if (process.env.TURBOPACK) {
+      bundlerSuffix = ' (Turbopack)'
+    } else if (process.env.NEXT_RSPACK) {
+      bundlerSuffix = ' (Rspack)'
+    } else {
+      bundlerSuffix = ' (webpack)'
+    }
   }
 
   Log.bootstrap(

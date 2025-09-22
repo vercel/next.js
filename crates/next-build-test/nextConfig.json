@@ -53,8 +53,6 @@
   "productionBrowserSourceMaps": false,
   "optimizeFonts": true,
   "excludeDefaultMomentLocales": true,
-  "serverRuntimeConfig": {},
-  "publicRuntimeConfig": {},
   "reactProductionProfiling": false,
   "reactStrictMode": true,
   "httpAgentOptions": {
@@ -84,7 +82,6 @@
     "scrollRestoration": false,
     "externalDir": false,
     "disableOptimizedLoading": false,
-    "gzipSize": true,
     "craCompat": false,
     "esmExternals": true,
     "fullySpecified": false,

@@ -101,7 +101,7 @@ Then, add the following scripts to your `package.json` file:
 ```json filename="package.json"
 {
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -112,10 +112,12 @@ Then, add the following scripts to your `package.json` file:
 
 These scripts refer to the different stages of developing an application:
 
-- `next dev`: Starts the development server.
+- `next dev --turbopack`: Starts the development server using Turbopack.
 - `next build`: Builds the application for production.
 - `next start`: Starts the production server.
 - `eslint`: Runs ESLint.
+
+Turbopack is stable for `dev`. For production builds, Turbopack is in beta. To try it, run `next build --turbopack`. See the [Turbopack docs](/docs/app/api-reference/turbopack) for status and caveats.
 
 <AppOnly>
 

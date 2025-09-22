@@ -75,37 +75,55 @@ describe('app dir - rsc basics', () => {
 
   it('should correctly render page returning null', async () => {
     const browser = await next.browser('/return-null/page')
-    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
+    expect(
+      await browser
+        .elementByCss('#return-null-layout', { state: 'attached' })
+        .text()
+    ).toBeEmpty()
   })
 
   it('should correctly render component returning null', async () => {
     const browser = await next.browser('/return-null/component')
-    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
+    expect(
+      await browser
+        .elementByCss('#return-null-layout', { state: 'attached' })
+        .text()
+    ).toBeEmpty()
   })
 
   it('should correctly render layout returning null', async () => {
     const browser = await next.browser('/return-null/layout')
-    expect(await browser.elementByCss('#return-null-layout').text()).toBeEmpty()
+    expect(
+      await browser
+        .elementByCss('#return-null-layout', { state: 'attached' })
+        .text()
+    ).toBeEmpty()
   })
 
   it('should correctly render page returning undefined', async () => {
     const browser = await next.browser('/return-undefined/page')
     expect(
-      await browser.elementByCss('#return-undefined-layout').text()
+      await browser
+        .elementByCss('#return-undefined-layout', { state: 'attached' })
+        .text()
     ).toBeEmpty()
   })
 
   it('should correctly render component returning undefined', async () => {
     const browser = await next.browser('/return-undefined/component')
     expect(
-      await browser.elementByCss('#return-undefined-layout').text()
+      await browser
+        .elementByCss('#return-undefined-layout', { state: 'attached' })
+        .text()
     ).toBeEmpty()
   })
 
   it('should correctly render layout returning undefined', async () => {
     const browser = await next.browser('/return-undefined/layout')
     expect(
-      await browser.elementByCss('#return-undefined-layout').text()
+      await browser
+        .elementByCss('#return-undefined-layout', { state: 'attached' })
+        .text()
     ).toBeEmpty()
   })
 

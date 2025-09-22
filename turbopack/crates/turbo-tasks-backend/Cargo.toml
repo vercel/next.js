@@ -62,8 +62,6 @@ tempfile = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 rstest = { workspace = true }
 
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
 
 [[bench]]
 name = "mod"

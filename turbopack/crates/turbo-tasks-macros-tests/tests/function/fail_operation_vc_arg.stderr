@@ -1,7 +1,7 @@
 error[E0277]: the trait bound `Vc<i32>: NonLocalValue` is not satisfied
- --> tests/function/fail_operation_vc_arg.rs:7:26
+ --> tests/function/fail_operation_vc_arg.rs:8:26
   |
-7 | async fn multiply(value: Vc<i32>, coefficient: ResolvedVc<i32>) -> Result<Vc<i32>> {
+8 | async fn multiply(value: Vc<i32>, coefficient: ResolvedVc<i32>) -> Result<Vc<i32>> {
   |                          ^^^^^^^ the trait `NonLocalValue` is not implemented for `Vc<i32>`
   |
   = help: the following other types implement trait `NonLocalValue`:

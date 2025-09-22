@@ -1,6 +1,7 @@
 import { useDevOverlayContext } from '../../dev-overlay.browser'
 import { useClickOutsideAndEscape } from '../components/errors/dev-tools-indicator/utils'
 import {
+  experimental_useEffectEvent as useEffectEvent,
   useLayoutEffect,
   useRef,
   createContext,
@@ -134,14 +135,18 @@ export const DevtoolMenu = ({
       }
     }
   )
-  useLayoutEffect(() => {
-    menuRef.current?.focus() // allows keydown to be captured
+  const fireInitialSelectMenuItem = useEffectEvent(() => {
     selectMenuItem({
       index: selectedIndex === -1 ? 'first' : selectedIndex,
       menuRef,
       setSelectedIndex,
     })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  })
+
+  useLayoutEffect(() => {
+    menuRef.current?.focus() // allows keydown to be captured
+    // eslint-disable-next-line react-hooks/rules-of-hooks -- eprh bug
+    fireInitialSelectMenuItem()
   }, [])
 
   const indicatorOffset = getIndicatorOffset(state)

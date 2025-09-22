@@ -84,6 +84,7 @@ import { INFINITE_CACHE } from '../../../lib/constants'
 import { executeRevalidates } from '../../revalidation-utils'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
 import { InvariantError } from '../../../shared/lib/invariant-error'
+import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
 
 export class WrappedNextRouterError {
   constructor(
@@ -379,6 +380,18 @@ export class AppRouteRouteModule extends RouteModule<
           const cacheSignal = new CacheSignal()
           let dynamicTracking = createDynamicTrackingState(undefined)
 
+          // TODO: Route handlers are never resumed, so it's counter-intuitive
+          // to use an RDC here. However, we need the data cache to store cached
+          // results in memory during the prospective prerender, so that they
+          // can be retrieved during the final prerender within microtasks. This
+          // is crucial when doing revalidations of a deployed route handler,
+          // where the default cache handler does not do any in-memory caching.
+          // We should replace the `prerenderResumeDataCache` and
+          // `renderResumeDataCache` with a single `dataCache` property that is
+          // conceptually not tied to resuming, and also avoids the unnecessary
+          // complexity of using a mutable and an immutable resume data cache.
+          const prerenderResumeDataCache = createPrerenderResumeDataCache()
+
           const prospectiveRoutePrerenderStore: PrerenderStore =
             (prerenderStore = {
               type: 'prerender',
@@ -399,8 +412,7 @@ export class AppRouteRouteModule extends RouteModule<
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
               tags: [...implicitTags.tags],
-              // TODO: Shouldn't we provide an RDC here?
-              prerenderResumeDataCache: null,
+              prerenderResumeDataCache,
               renderResumeDataCache: null,
               hmrRefreshHash: undefined,
               captureOwnerStack: undefined,
@@ -492,8 +504,7 @@ export class AppRouteRouteModule extends RouteModule<
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
             tags: [...implicitTags.tags],
-            // TODO: Shouldn't we provide an RDC here?
-            prerenderResumeDataCache: null,
+            prerenderResumeDataCache,
             renderResumeDataCache: null,
             hmrRefreshHash: undefined,
             captureOwnerStack: undefined,

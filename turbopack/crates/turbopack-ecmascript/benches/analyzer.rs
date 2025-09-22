@@ -18,15 +18,13 @@ use turbopack_core::{
     target::CompileTarget,
 };
 use turbopack_ecmascript::analyzer::{
-    graph::{EvalContext, VarGraph, create_graph},
+    graph::{EvalContext, VarGraph, VarMeta, create_graph},
     imports::ImportAttributes,
     linker::link,
     test_utils::{early_visitor, visitor},
 };
 
 pub fn benchmark(c: &mut Criterion) {
-    turbopack_ecmascript::register();
-
     let tests_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/analyzer/graph");
     let results = fs::read_dir(tests_dir).unwrap();
 
@@ -100,7 +98,7 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
 
     b.to_async(rt).iter(|| async {
         let var_cache = Default::default();
-        for val in input.var_graph.values.values() {
+        for VarMeta { value, .. } in input.var_graph.values.values() {
             VcStorage::with(async {
                 let compile_time_info = CompileTimeInfo::builder(
                     Environment::new(ExecutionEnvironment::NodeJsLambda(
@@ -118,7 +116,7 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                 .await?;
                 link(
                     &input.var_graph,
-                    val.clone(),
+                    value.clone(),
                     &early_visitor,
                     &(|val| visitor(val, compile_time_info, ImportAttributes::empty_ref())),
                     &Default::default(),

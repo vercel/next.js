@@ -50,10 +50,6 @@ import type { PagesRenderContext, PagesSharedContext } from '../server/render'
 import type { AppSharedContext } from '../server/app-render/app-render'
 import { MultiFileWriter } from '../lib/multi-file-writer'
 import { createRenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
-
-const envConfig =
-  require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
-
 ;(globalThis as any).__NEXT_DATA__ = {
   nextExport: true,
 }
@@ -75,7 +71,6 @@ async function exportPageImpl(
     distDir,
     pagesDataDir,
     buildExport = false,
-    serverRuntimeConfig,
     subFolders = false,
     optimizeCss,
     disableOptimizedLoading,
@@ -196,11 +191,6 @@ async function exportPageImpl(
     addRequestMeta(req, 'isLocaleDomain', true)
   }
 
-  envConfig.setConfig({
-    serverRuntimeConfig,
-    publicRuntimeConfig: commonRenderOpts.runtimeConfig,
-  })
-
   const getHtmlFilename = (p: string) =>
     subFolders ? `${p}${sep}index.html` : `${p}.html`
 
@@ -240,6 +230,7 @@ async function exportPageImpl(
     isAppPath: isAppDir,
     isDev: false,
     sriEnabled,
+    needsManifestsForLegacyReasons: true,
   })
 
   // Handle App Routes.
@@ -279,10 +270,6 @@ async function exportPageImpl(
       isRoutePPREnabled,
     },
     renderResumeDataCache,
-  }
-
-  if (hasNextSupport) {
-    renderOpts.isRevalidate = true
   }
 
   // Handle App Pages
@@ -419,7 +406,6 @@ export async function exportPages(
             ampValidatorPath:
               nextConfig.experimental.amp?.validator || undefined,
             trailingSlash: nextConfig.trailingSlash,
-            serverRuntimeConfig: nextConfig.serverRuntimeConfig,
             subFolders: nextConfig.trailingSlash && !options.buildExport,
             buildExport: options.buildExport,
             optimizeCss: nextConfig.experimental.optimizeCss,

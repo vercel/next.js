@@ -333,7 +333,7 @@ export async function webpackBuildImpl(
       throw err
     }
     const err = new Error(
-      `Build failed because of ${process.env.NEXT_RSPACK ? 'rspack' : 'webpack'} errors`
+      `Build failed because of ${process.env.NEXT_RSPACK ? 'Rspack' : 'webpack'} errors`
     ) as NextError
     err.code = 'WEBPACK_ERRORS'
     throw err

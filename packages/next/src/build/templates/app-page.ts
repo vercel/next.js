@@ -89,6 +89,7 @@ import * as entryBase from '../../server/app-render/entry-base' with { 'turbopac
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { scheduleOnNextTick } from '../../lib/scheduler'
+import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes'
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -150,7 +151,6 @@ export async function handler(
     buildId,
     query,
     params,
-    parsedUrl,
     pageIsDynamic,
     buildManifest,
     nextFontManifest,
@@ -167,12 +167,24 @@ export async function handler(
     interceptionRoutePatterns,
   } = prepareResult
 
-  const pathname = parsedUrl.pathname || '/'
   const normalizedSrcPage = normalizeAppPath(srcPage)
 
   let { isOnDemandRevalidate } = prepareResult
 
-  const prerenderInfo = routeModule.match(pathname, prerenderManifest)
+  // We use the resolvedPathname instead of the parsedUrl.pathname because it
+  // is not rewritten as resolvedPathname is. This will ensure that the correct
+  // prerender info is used instead of using the original pathname as the
+  // source. If however PPR is enabled and cacheComponents is disabled, we
+  // treat the pathname as dynamic. Currently, there's a bug in the PPR
+  // implementation that incorrectly leaves %%drp placeholders in the output of
+  // parallel routes. This is addressed with cacheComponents.
+  const prerenderInfo =
+    nextConfig.experimental.ppr &&
+    !nextConfig.experimental.cacheComponents &&
+    isInterceptionRouteAppPath(resolvedPathname)
+      ? null
+      : routeModule.match(resolvedPathname, prerenderManifest)
+
   const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
 
   const userAgent = req.headers['user-agent'] || ''
@@ -447,7 +459,7 @@ export async function handler(
           })
           span.updateName(name)
         } else {
-          span.updateName(`${method} ${req.url}`)
+          span.updateName(`${method} ${srcPage}`)
         }
       })
     }
@@ -516,6 +528,7 @@ export async function handler(
           serverActionsManifest,
           clientReferenceManifest,
           setIsrStatus: routerServerContext?.setIsrStatus,
+          setReactDebugChannel: routerServerContext?.setReactDebugChannel,
 
           dir:
             process.env.NEXT_RUNTIME === 'nodejs'
@@ -526,7 +539,6 @@ export async function handler(
                 )
               : `${process.cwd()}/${routeModule.relativeProjectDir}`,
           isDraftMode,
-          isRevalidate: isSSG && !postponed && !isDynamicRSCRequest,
           botType,
           isOnDemandRevalidate,
           isPossibleServerAction,
@@ -538,8 +550,6 @@ export async function handler(
           deploymentId: nextConfig.deploymentId,
           enableTainting: nextConfig.experimental.taint,
           htmlLimitedBots: nextConfig.htmlLimitedBots,
-          devtoolSegmentExplorer:
-            nextConfig.experimental.devtoolSegmentExplorer,
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
           multiZoneDraftMode,
@@ -555,7 +565,6 @@ export async function handler(
                 nextExport: true,
                 supportsDynamicResponse: false,
                 isStaticGeneration: true,
-                isRevalidate: true,
                 isDebugDynamicAccesses: isDebugDynamicAccesses,
               }
             : {}),
@@ -601,7 +610,6 @@ export async function handler(
       if (isDebugStaticShell || isDebugDynamicAccesses) {
         context.renderOpts.nextExport = true
         context.renderOpts.supportsDynamicResponse = false
-        context.renderOpts.isRevalidate = true
         context.renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
       }
 
@@ -1385,7 +1393,7 @@ export async function handler(
         tracer.trace(
           BaseServerSpan.handleRequest,
           {
-            spanName: `${method} ${req.url}`,
+            spanName: `${method} ${srcPage}`,
             kind: SpanKind.SERVER,
             attributes: {
               'http.method': method,
@@ -1397,8 +1405,7 @@ export async function handler(
       )
     }
   } catch (err) {
-    // if we aren't wrapped by base-server handle here
-    if (!activeSpan && !(err instanceof NoFallbackError)) {
+    if (!(err instanceof NoFallbackError)) {
       await routeModule.onRequestError(
         req,
         err,
@@ -1407,7 +1414,7 @@ export async function handler(
           routePath: srcPage,
           routeType: 'render',
           revalidateReason: getRevalidateReason({
-            isRevalidate: isSSG,
+            isStaticGeneration: isSSG,
             isOnDemandRevalidate,
           }),
         },

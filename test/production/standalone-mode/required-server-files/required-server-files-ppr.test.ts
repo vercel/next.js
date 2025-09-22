@@ -112,6 +112,7 @@ describe('required server files app router', () => {
   })
 
   afterAll(async () => {
+    delete process.env.NOW_BUILDER
     delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)

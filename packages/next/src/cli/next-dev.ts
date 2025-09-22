@@ -76,6 +76,10 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   if (sessionStopHandled) return
   sessionStopHandled = true
 
+  // Capture the child's exit code if it has already exited and caused the
+  // session stop (via the 'exit' event), otherwise assume success (0).
+  const exitCode = child?.exitCode || 0
+
   if (
     signal != null &&
     child?.pid &&
@@ -150,7 +154,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
   // the program, or the cursor could remain hidden
   process.stdout.write('\x1B[?25h')
   process.stdout.write('\n')
-  process.exit(0)
+  process.exit(exitCode)
 }
 
 process.on('SIGINT', () => handleSessionStop('SIGINT'))

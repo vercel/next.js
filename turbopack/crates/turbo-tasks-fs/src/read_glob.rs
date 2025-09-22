@@ -99,7 +99,7 @@ async fn read_glob_internal(
                             }
                         }
                     }
-                    DirectoryEntry::Other(_) | DirectoryEntry::Error => continue,
+                    DirectoryEntry::Other(_) | DirectoryEntry::Error(_) => continue,
                 }
             }
         }
@@ -197,18 +197,23 @@ async fn track_glob_internal(
                             reads.push(fs.read(path.clone()))
                         }
                     }
-                    DirectoryEntry::Symlink(symlink_path) => unreachable!(
-                        "resolve_symlink_safely() should have resolved all symlinks, but found \
-                         unresolved symlink at path: '{}'. Found path: '{}'. Please report this \
-                         as a bug.",
-                        entry_path, symlink_path
+                    DirectoryEntry::Symlink(symlink_path) => bail!(
+                        "resolve_symlink_safely() should have resolved all symlinks or returned \
+                         an error, but found unresolved symlink at path: '{}'. Found path: '{}'. \
+                         Please report this as a bug.",
+                        entry_path,
+                        symlink_path
                     ),
                     DirectoryEntry::Other(path) => {
                         if glob_value.matches(&entry_path) {
                             types.push(path.get_type())
                         }
                     }
-                    DirectoryEntry::Error => {}
+                    // The most likely case of this is actually a sylink resolution error, it is
+                    // fine to ignore since the mere act of attempting to resolve it has triggered
+                    // the ncecessary dependencies.  If this file is actually a dependency we should
+                    // get an error in the actual webpack loader when it reads it.
+                    DirectoryEntry::Error(_) => {}
                 }
             }
         }
@@ -243,7 +248,6 @@ pub mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_glob_basic() {
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
             // Create a simple directory with 2 files, a subdirectory and a dotfile
@@ -313,7 +317,6 @@ pub mod tests {
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_glob_symlinks() {
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
             // root.js
@@ -420,7 +423,6 @@ pub mod tests {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn track_glob_invalidations() {
         use std::os::unix::fs::symlink;
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
 
         // Create a simple directory with 2 files, a subdirectory and a dotfile
@@ -506,7 +508,6 @@ pub mod tests {
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn track_glob_symlinks_loop() {
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
             use std::os::unix::fs::symlink;
@@ -527,8 +528,6 @@ pub mod tests {
         ));
         let path: RcStr = scratch.path().to_str().unwrap().into();
         tt.run_once(async {
-            use turbo_rcstr::rcstr;
-
             let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
             let err = fs
                 .root()
@@ -561,10 +560,105 @@ pub mod tests {
         .unwrap();
     }
 
+    // Reproduces an issue where a dead symlink would cause a panic when tracking/reading a glob
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn dead_symlinks() {
+        let scratch = tempfile::tempdir().unwrap();
+        {
+            use std::os::unix::fs::symlink;
+
+            // Create a simple directory with 1 file and a symlink pointing at a non-existent file
+            let path = scratch.path();
+            let sub = &path.join("sub");
+            create_dir(sub).unwrap();
+            let foo = sub.join("foo.js");
+            File::create_new(&foo).unwrap().write_all(b"foo").unwrap();
+            // put a link in sub that points to a sibling file that doesn't exist
+            symlink(sub.join("doesntexist.js"), sub.join("dead_link.js")).unwrap();
+        }
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let path: RcStr = scratch.path().to_str().unwrap().into();
+        tt.run_once(async {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
+            fs.root()
+                .await?
+                .track_glob(Glob::new(rcstr!("sub/*.js"), GlobOptions::default()), false)
+                .await
+        })
+        .await
+        .unwrap();
+        let path: RcStr = scratch.path().to_str().unwrap().into();
+        tt.run_once(async {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
+            let root = fs.root().owned().await?;
+            let read_dir = root
+                .read_glob(Glob::new(rcstr!("sub/*.js"), GlobOptions::default()))
+                .await?;
+            assert_eq!(read_dir.results.len(), 0);
+            assert_eq!(read_dir.inner.len(), 1);
+            let inner_sub = &*read_dir.inner.get("sub").unwrap().await?;
+            assert_eq!(inner_sub.inner.len(), 0);
+            assert_eq!(
+                inner_sub.results,
+                HashMap::from_iter([
+                    (
+                        "foo.js".into(),
+                        DirectoryEntry::File(root.join("sub/foo.js")?),
+                    ),
+                    // read_glob doesn't resolve symlinks and thus doesn't detect that it is dead
+                    (
+                        "dead_link.js".into(),
+                        DirectoryEntry::Symlink(root.join("sub/dead_link.js")?),
+                    )
+                ])
+            );
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    // Reproduces an issue where a dead symlink would cause a panic when tracking/reading a glob
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn symlink_escapes_fs_root() {
+        let scratch = tempfile::tempdir().unwrap();
+        {
+            use std::os::unix::fs::symlink;
+
+            // Create a simple directory with 1 file and a symlink pointing at a non-existent file
+            let path = scratch.path();
+            let sub = &path.join("sub");
+            create_dir(sub).unwrap();
+            let foo = scratch.path().join("foo.js");
+            File::create_new(&foo).unwrap().write_all(b"foo").unwrap();
+            // put a link in sub that points to a parent file
+            symlink(foo, sub.join("escape.js")).unwrap();
+        }
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let root: RcStr = scratch.path().join("sub").to_str().unwrap().into();
+        tt.run_once(async {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), root));
+            fs.root()
+                .await?
+                .track_glob(Glob::new(rcstr!("*.js"), GlobOptions::default()), false)
+                .await
+        })
+        .await
+        .unwrap();
+    }
+
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn read_glob_symlinks_loop() {
-        crate::register();
         let scratch = tempfile::tempdir().unwrap();
         {
             use std::os::unix::fs::symlink;

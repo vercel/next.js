@@ -120,6 +120,10 @@ export class NextDeployInstance extends NextInstance {
         cwd: this.testDir,
         env: vercelEnv,
         reject: false,
+        // This will print deployment information earlier to the console so we
+        // don't have to wait until the deployment is complete to get the
+        // inspect URL.
+        stderr: 'inherit',
       }
     )
 

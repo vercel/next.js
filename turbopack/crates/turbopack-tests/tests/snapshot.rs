@@ -3,7 +3,7 @@
 
 mod util;
 
-use std::{collections::VecDeque, fs, io, path::PathBuf, sync::Once};
+use std::{collections::VecDeque, fs, io, path::PathBuf};
 
 use anyhow::{Context, Result, bail};
 use dunce::canonicalize;
@@ -11,7 +11,7 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ReadConsistency, ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects};
+use turbo_tasks::{ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -23,7 +23,7 @@ use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType},
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
-        ModuleRuleEffect, RuleCondition,
+        ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
     },
 };
 use turbopack_browser::BrowserChunkingContext;
@@ -41,7 +41,7 @@ use turbopack_core::{
     file_source::FileSource,
     free_var_references,
     ident::Layer,
-    issue::IssueDescriptionExt,
+    issue::CollectibleIssuesExt,
     module::Module,
     module_graph::{
         ModuleGraph,
@@ -63,20 +63,6 @@ use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::snapshot::{UPDATE, diff, expected, matches_expected, snapshot_issues};
 
 use crate::util::REPO_ROOT;
-
-fn register() {
-    turbo_tasks::register();
-    turbo_tasks_env::register();
-    turbo_tasks_fs::register();
-    turbopack::register();
-    turbopack_nodejs::register();
-    turbopack_browser::register();
-    turbopack_env::register();
-    turbopack_ecmascript_plugins::register();
-    turbopack_ecmascript_runtime::register();
-    turbopack_resolve::register();
-    include!(concat!(env!("OUT_DIR"), "/register_test_snapshot.rs"));
-}
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -203,11 +189,8 @@ fn test(resource: PathBuf) {
     run(resource).unwrap();
 }
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn run(resource: PathBuf) -> Result<()> {
-    static REGISTER_ONCE: Once = Once::new();
-    REGISTER_ONCE.call_once(register);
-
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             storage_mode: None,
@@ -218,15 +201,14 @@ async fn run(resource: PathBuf) -> Result<()> {
         },
         noop_backing_storage(),
     ));
-    let task = tt.spawn_once_task(async move {
+    tt.run_once(async move {
         let emit_op = run_inner_operation(resource.to_str().unwrap().into());
         emit_op.read_strongly_consistent().await?;
         apply_effects(emit_op).await?;
 
-        Ok(Vc::<()>::default())
-    });
-    tt.wait_task_completion(task, ReadConsistency::Strong)
-        .await?;
+        Ok(())
+    })
+    .await?;
 
     Ok(())
 }
@@ -235,7 +217,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
     let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
-    let captured_issues = out_op.peek_issues_with_path().await?;
+    let captured_issues = out_op.peek_issues().await?;
 
     let plain_issues = captured_issues.get_plain_issues().await?;
 
@@ -358,6 +340,9 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         compile_time_info,
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                enable_typescript_transform: Some(
+                    TypescriptTransformOptions::default().resolved_cell(),
+                ),
                 enable_jsx: Some(JsxTransformOptions::resolved_cell(JsxTransformOptions {
                     development: true,
                     ..Default::default()
@@ -416,7 +401,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     {
         let evaluatable_assets = runtime_entries
             .unwrap_or_else(EvaluatableAssets::empty)
-            .with_entry(Vc::upcast(ecmascript));
+            .with_entry(ecmascript);
         (
             evaluatable_assets,
             evaluatable_assets

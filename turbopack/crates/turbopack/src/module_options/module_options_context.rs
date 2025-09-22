@@ -3,13 +3,13 @@ use std::fmt::Debug;
 use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::SourceMapsType, compile_time_info::CompileTimeInfo, condition::ContextCondition,
     environment::Environment, resolve::options::ImportMapping,
 };
-use turbopack_ecmascript::{TreeShakingMode, references::esm::UrlRewriteBehavior};
+use turbopack_ecmascript::{TreeShakingMode, TypeofWindow, references::esm::UrlRewriteBehavior};
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
     execution_context::ExecutionContext,
@@ -35,14 +35,6 @@ pub struct LoaderRuleItem {
 #[turbo_tasks::value(transparent)]
 pub struct WebpackRules(Vec<(RcStr, LoaderRuleItem)>);
 
-#[derive(Default)]
-#[turbo_tasks::value(transparent)]
-pub struct WebpackConditions(pub FxIndexMap<RcStr, ConditionItem>);
-
-#[derive(Default)]
-#[turbo_tasks::value(transparent)]
-pub struct OptionWebpackConditions(Option<ResolvedVc<WebpackConditions>>);
-
 #[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum ConditionPath {
     Glob(RcStr),
@@ -66,7 +58,6 @@ pub enum ConditionItem {
 #[derive(Clone, Debug)]
 pub struct WebpackLoadersOptions {
     pub rules: ResolvedVc<WebpackRules>,
-    pub conditions: ResolvedVc<OptionWebpackConditions>,
     pub builtin_conditions: ResolvedVc<Box<dyn WebpackLoaderBuiltinConditionSet>>,
     pub loader_runner_package: Option<ResolvedVc<ImportMapping>>,
 }
@@ -115,13 +106,6 @@ impl WebpackLoaderBuiltinConditionSet for EmptyWebpackLoaderBuiltinConditionSet 
 pub enum DecoratorsKind {
     Legacy,
     Ecma,
-}
-
-/// The types when replacing `typeof window` with a constant.
-#[derive(Copy, Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
-pub enum TypeofWindow {
-    Object,
-    Undefined,
 }
 
 /// Configuration options for the decorators transform.
@@ -232,6 +216,9 @@ pub struct ModuleOptionsContext {
 #[derive(Clone, Default)]
 #[serde(default)]
 pub struct EcmascriptOptionsContext {
+    // TODO this should just be handled via CompileTimeInfo FreeVarReferences, but then it
+    // (currently) wouldn't be possible to have different replacement values in user code vs
+    // node_modules.
     pub enable_typeof_window_inlining: Option<TypeofWindow>,
     pub enable_jsx: Option<ResolvedVc<JsxTransformOptions>>,
     /// Follow type references and resolve declaration files in additional to

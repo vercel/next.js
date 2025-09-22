@@ -94,7 +94,11 @@ export interface RenderOptsPartial {
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
   setIsrStatus?: (key: string, value: boolean) => void
-  isRevalidate?: boolean
+  setReactDebugChannel?: (
+    debugChannel: { readable: ReadableStream<Uint8Array> },
+    htmlRequestId: string,
+    requestId: string
+  ) => void
   nextExport?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   onInstrumentationRequestError?: ServerOnInstrumentationRequestError
@@ -183,11 +187,6 @@ export interface RenderOptsPartial {
    * Prerendering those routes would catch any invalid dynamic accesses.
    */
   allowEmptyStaticShell?: boolean
-
-  /**
-   * next config experimental.devtoolSegmentExplorer
-   */
-  devtoolSegmentExplorer?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

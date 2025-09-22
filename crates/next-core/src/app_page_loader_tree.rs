@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{ModuleAssetContext, transition::Transition};
@@ -219,10 +219,10 @@ impl AppPageLoaderTreeBuilder {
 
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
-        let helper_import: RcStr = "import { fillMetadataSegment } from \
-                                    'next/dist/lib/metadata/get-metadata-route' with { \
-                                    'turbopack-transition': 'next-server-utility' }"
-            .into();
+        let helper_import = rcstr!(
+            "import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route' with \
+             { 'turbopack-transition': 'next-server-utility' }"
+        );
 
         if !self.base.imports.contains(&helper_import) {
             self.base.imports.push(helper_import);
@@ -231,11 +231,11 @@ impl AppPageLoaderTreeBuilder {
         self.base
             .imports
             .push(format!("import {identifier} from \"{inner_module_id}\";").into());
-        let module = Vc::upcast(StructuredImageModuleType::create_module(
+        let module = StructuredImageModuleType::create_module(
             Vc::upcast(FileSource::new(path.clone())),
             BlurPlaceholderMode::None,
             *self.base.module_asset_context,
-        ));
+        );
         let module = self.base.process_module(module).to_resolved().await?;
         self.base
             .inner_assets

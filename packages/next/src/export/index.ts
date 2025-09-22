@@ -100,7 +100,7 @@ async function exportAppImpl(
 
   if (telemetry) {
     telemetry.record(
-      eventCliSession(distDir, nextConfig, {
+      eventCliSession(nextConfig, {
         webpackVersion: null,
         cliCommand: 'export',
         isSrcDir: null,
@@ -420,12 +420,6 @@ async function exportAppImpl(
         ? nextConfig.experimental.turbopackMinify === false
         : nextConfig.experimental.serverMinification === false) &&
       nextConfig.experimental.enablePrerenderSourceMaps === true,
-  }
-
-  const { publicRuntimeConfig } = nextConfig
-
-  if (Object.keys(publicRuntimeConfig).length > 0) {
-    renderOpts.runtimeConfig = publicRuntimeConfig
   }
 
   // We need this for server rendering the Link component.
