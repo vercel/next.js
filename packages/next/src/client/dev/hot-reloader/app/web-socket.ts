@@ -17,6 +17,7 @@ import {
   logQueue,
 } from '../../../../next-devtools/userspace/app/forward-logs'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
+import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants'
 
 let reconnections = 0
 let reloading = false
@@ -126,7 +127,7 @@ export function createWebSocket(
       reconnections++
 
       // After 25 reconnects we'll want to reload the page as it indicates the dev server is no longer running.
-      if (reconnections > 25) {
+      if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
         reloading = true
         window.location.reload()
         return

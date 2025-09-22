@@ -7,6 +7,7 @@ import {
   type HmrMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
 import { getSocketUrl } from '../get-socket-url'
+import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants'
 
 let source: WebSocket
 
@@ -79,7 +80,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
       source.close()
       reconnections++
       // After 25 reconnects we'll want to reload the page as it indicates the dev server is no longer running.
-      if (reconnections > 25) {
+      if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
         reloading = true
         window.location.reload()
         return
