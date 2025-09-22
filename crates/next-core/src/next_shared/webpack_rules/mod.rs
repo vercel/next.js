@@ -49,8 +49,6 @@ pub(crate) mod sass;
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum WebpackLoaderBuiltinCondition {
-    /// Treated as always-present.
-    Default,
     /// Client-side code.
     Browser,
     /// Code in `node_modules` that should typically not be modified by webpack loaders.
@@ -70,7 +68,6 @@ pub enum WebpackLoaderBuiltinCondition {
 impl WebpackLoaderBuiltinCondition {
     pub fn as_str(self) -> &'static str {
         match self {
-            Self::Default => "default",
             Self::Browser => "browser",
             Self::Foreign => "foreign",
             Self::Development => "development",
@@ -86,7 +83,6 @@ impl FromStr for WebpackLoaderBuiltinCondition {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "default" => Ok(Self::Default),
             "browser" => Ok(Self::Browser),
             "foreign" => Ok(Self::Foreign),
             "development" => Ok(Self::Development),
