@@ -15,7 +15,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptOptions, TreeShakingMode,
-    references::analyse_ecmascript_module_internal,
+    references::analyze_ecmascript_module_internal,
 };
 use turbopack_test_utils::noop_asset_context::NoopAssetContext;
 
@@ -127,7 +127,7 @@ where
     b.to_async(rt).iter(async || {
         input
             .storage
-            .run_once(analyse_ecmascript_module_internal(input.module, None))
+            .run_once(analyze_ecmascript_module_internal(input.module, None))
             .await
             .unwrap()
     });

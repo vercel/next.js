@@ -120,7 +120,7 @@ use crate::{
     merged_module::MergedEcmascriptModule,
     parse::generate_js_source_map,
     references::{
-        analyse_ecmascript_module,
+        analyze_ecmascript_module,
         async_module::OptionAsyncModule,
         esm::{base::EsmAssetReferences, export},
     },
@@ -520,7 +520,7 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
 impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyse_ecmascript_module(self, None)
+        analyze_ecmascript_module(self, None)
     }
 
     /// Generates module contents without an analysis pass. This is useful for
@@ -671,7 +671,7 @@ impl EcmascriptModuleAsset {
 
     #[turbo_tasks::function]
     pub fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyse_ecmascript_module(self, None)
+        analyze_ecmascript_module(self, None)
     }
 
     #[turbo_tasks::function]

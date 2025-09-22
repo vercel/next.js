@@ -133,7 +133,7 @@ where
                         done.push(JsValue::unknown(
                             JsValue::Variable(var.clone()),
                             false,
-                            "no value of this variable analysed",
+                            "no value of this variable analyzed",
                         ));
                     }
                 };
@@ -165,7 +165,7 @@ where
                     done.push(JsValue::unknown(
                         JsValue::Argument(func_ident, index),
                         false,
-                        "function calls are not analysed yet",
+                        "function calls are not analyzed yet",
                     ));
                 }
             }
