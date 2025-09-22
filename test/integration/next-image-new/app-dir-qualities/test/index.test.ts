@@ -102,7 +102,7 @@ function runTests(mode: 'dev' | 'server') {
           loaderFile: '',
           remotePatterns: [],
           localPatterns: undefined,
-          minimumCacheTTL: 60,
+          minimumCacheTTL: 86400,
           path: '/_next/image',
           qualities: [42, 69, 88],
           sizes: [
