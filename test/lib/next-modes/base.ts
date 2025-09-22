@@ -80,6 +80,7 @@ export class NextInstance {
   protected resolutions?: PackageJson['resolutions']
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
+  public distDir: string
   tmpRepoDir: string
   protected isStopping: boolean = false
   protected isDestroyed: boolean = false
@@ -209,6 +210,7 @@ export class NextInstance {
           `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`,
           this.subDir
         )
+        this.distDir = getDistDir()
 
         const reactVersion =
           process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
@@ -241,7 +243,7 @@ export class NextInstance {
                 scripts: {
                   // since we can't get the build id as a build artifact, make it
                   // available under the static files
-                  'post-build': `cp ${getDistDir()}/BUILD_ID ${getDistDir()}/static/__BUILD_ID`,
+                  'post-build': `cp ${this.distDir}/BUILD_ID ${this.distDir}/static/__BUILD_ID`,
                   ...pkgScripts,
                   build:
                     (pkgScripts['build'] || this.buildCommand || 'next build') +
@@ -301,6 +303,21 @@ export class NextInstance {
           throw new Error(
             `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
           )
+        }
+
+        if (this.nextConfig?.distDir) {
+          this.distDir = this.nextConfig.distDir
+        }
+        // Same logic as we get the basePath in isNextDeploy
+        if (nextConfigFile) {
+          const content = await fs.readFile(
+            path.join(this.testDir, nextConfigFile),
+            'utf8'
+          )
+          if (content.includes('distDir')) {
+            this.distDir =
+              content.match(/['"`]?distDir['"`]?:.*?['"`](.*?)['"`]/)?.[1] || ''
+          }
         }
 
         if (this.nextConfig || (isNextDeploy && !nextConfigFile)) {
@@ -511,7 +528,7 @@ export class NextInstance {
       if (process.env.TRACE_PLAYWRIGHT) {
         await fs
           .cp(
-            path.join(this.testDir, getDistDir(), 'trace'),
+            path.join(this.testDir, this.distDir, 'trace'),
             path.join(
               __dirname,
               '../../traces',
