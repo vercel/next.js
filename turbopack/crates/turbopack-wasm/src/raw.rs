@@ -14,7 +14,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkType, EcmascriptExports, EcmascriptExportsType,
     },
     runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
@@ -92,7 +92,10 @@ impl ChunkableModule for RawWebAssemblyModuleAsset {
 impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
-        EcmascriptExports::Value.cell()
+        EcmascriptExports {
+            ty: EcmascriptExportsType::Value,
+        }
+        .cell()
     }
 }
 

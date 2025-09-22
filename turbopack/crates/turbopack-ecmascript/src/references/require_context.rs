@@ -41,6 +41,7 @@ use crate::{
     EcmascriptChunkPlaceable,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports,
+        EcmascriptExportsType,
     },
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
@@ -455,7 +456,10 @@ impl ChunkableModule for RequireContextAsset {
 impl EcmascriptChunkPlaceable for RequireContextAsset {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        EcmascriptExports::Value.cell()
+        EcmascriptExports {
+            ty: EcmascriptExportsType::Value,
+        }
+        .cell()
     }
 }
 

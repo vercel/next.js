@@ -16,7 +16,7 @@ use turbopack_core::{
 };
 
 use super::chunk_item::ManifestChunkItem;
-use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
+use crate::chunk::{EcmascriptChunkPlaceable, EcmascriptExports, EcmascriptExportsType};
 
 /// The manifest module is deferred until requested by the manifest loader
 /// item when the dynamic `import()` expression is reached.
@@ -172,6 +172,9 @@ impl ChunkableModule for ManifestAsyncModule {
 impl EcmascriptChunkPlaceable for ManifestAsyncModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        EcmascriptExports::Value.cell()
+        EcmascriptExports {
+            ty: EcmascriptExportsType::Value,
+        }
+        .cell()
     }
 }

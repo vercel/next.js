@@ -16,7 +16,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkType, EcmascriptExports, EcmascriptExportsType,
     },
     references::esm::{EsmExport, EsmExports},
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
@@ -113,13 +113,15 @@ impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
             EsmExport::ImportedBinding(module_reference, default, false),
         );
 
-        Ok(EcmascriptExports::EsmExports(
-            EsmExports {
-                exports,
-                star_exports: vec![module_reference],
-            }
-            .resolved_cell(),
-        )
+        Ok(EcmascriptExports {
+            ty: EcmascriptExportsType::EsmExports(
+                EsmExports {
+                    exports,
+                    star_exports: vec![module_reference],
+                }
+                .resolved_cell(),
+            ),
+        }
         .cell())
     }
 }

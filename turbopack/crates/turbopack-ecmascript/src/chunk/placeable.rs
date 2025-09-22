@@ -1,6 +1,7 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
     FileJsonContent, FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -217,7 +218,12 @@ pub async fn is_marked_as_side_effect_free(
 }
 
 #[turbo_tasks::value(shared)]
-pub enum EcmascriptExports {
+pub struct EcmascriptExports {
+    pub ty: EcmascriptExportsType,
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+pub enum EcmascriptExportsType {
     /// A module using ESM exports.
     EsmExports(ResolvedVc<EsmExports>),
     /// A module using `__turbopack_export_namespace__`, used by custom module types.
@@ -238,8 +244,8 @@ pub enum EcmascriptExports {
 impl EcmascriptExports {
     #[turbo_tasks::function]
     pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
-        Ok(match self {
-            EcmascriptExports::EsmExports(exports) => {
+        Ok(match self.ty {
+            EcmascriptExportsType::EsmExports(exports) => {
                 let exports = exports.await?;
                 let has_reexports = !exports.star_exports.is_empty()
                     || exports.exports.iter().any(|(_, export)| {

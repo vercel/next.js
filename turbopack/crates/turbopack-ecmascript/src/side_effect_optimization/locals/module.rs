@@ -20,7 +20,7 @@ use super::chunk_item::EcmascriptModuleLocalsChunkItem;
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
     EcmascriptModuleContent, EcmascriptModuleContentOptions, MergedEcmascriptModule,
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports, EcmascriptExportsType},
     references::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
@@ -133,7 +133,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
 impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let EcmascriptExports::EsmExports(exports) = *self.module.get_exports().await? else {
+        let EcmascriptExportsType::EsmExports(exports) = self.module.get_exports().await?.ty else {
             bail!("EcmascriptModuleLocalsModule must only be used on modules with EsmExports");
         };
         let esm_exports = exports.await?;
@@ -161,7 +161,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
             star_exports: vec![],
         }
         .resolved_cell();
-        Ok(EcmascriptExports::EsmExports(exports).cell())
+        Ok(EcmascriptExports {
+            ty: EcmascriptExportsType::EsmExports(exports),
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]

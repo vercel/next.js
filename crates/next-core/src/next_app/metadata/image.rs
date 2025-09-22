@@ -18,7 +18,7 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExportsType},
     utils::StringifyJs,
 };
 
@@ -234,7 +234,7 @@ async fn collect_direct_exports(module: Vc<Box<dyn Module>>) -> Result<Vc<Vec<Rc
         return Ok(Default::default());
     };
 
-    if let EcmascriptExports::EsmExports(exports) = &*ecmascript_asset.get_exports().await? {
+    if let EcmascriptExportsType::EsmExports(exports) = &ecmascript_asset.get_exports().await?.ty {
         let exports = &*exports.await?;
         return Ok(Vc::cell(exports.exports.keys().cloned().collect()));
     }

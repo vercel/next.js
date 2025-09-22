@@ -13,7 +13,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkType, EcmascriptExports, EcmascriptExportsType,
     },
     runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
@@ -86,7 +86,10 @@ impl ChunkableModule for StaticUrlJsModule {
 impl EcmascriptChunkPlaceable for StaticUrlJsModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        EcmascriptExports::Value.into()
+        EcmascriptExports {
+            ty: EcmascriptExportsType::Value,
+        }
+        .cell()
     }
 }
 

@@ -19,7 +19,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
-        EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports, EcmascriptExportsType,
     },
     runtime_functions::TURBOPACK_REQUIRE,
     utils::StringifyJs,
@@ -102,7 +102,10 @@ impl Asset for HmrEntryModule {
 impl EcmascriptChunkPlaceable for HmrEntryModule {
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
-        EcmascriptExports::None.cell()
+        EcmascriptExports {
+            ty: EcmascriptExportsType::None,
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]

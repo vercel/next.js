@@ -31,7 +31,7 @@ use super::base::ReferencedAsset;
 use crate::{
     EcmascriptModuleAsset, ScopeHoistingContext,
     analyzer::graph::EvalContext,
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExportsType},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
@@ -82,14 +82,14 @@ pub async fn is_export_missing(
     }
 
     let exports = module.get_exports().await?;
-    let exports = match &*exports {
-        EcmascriptExports::None => return Ok(Vc::cell(true)),
-        EcmascriptExports::Unknown => return Ok(Vc::cell(false)),
-        EcmascriptExports::Value => return Ok(Vc::cell(false)),
-        EcmascriptExports::CommonJs => return Ok(Vc::cell(false)),
-        EcmascriptExports::EmptyCommonJs => return Ok(Vc::cell(export_name != "default")),
-        EcmascriptExports::DynamicNamespace => return Ok(Vc::cell(false)),
-        EcmascriptExports::EsmExports(exports) => *exports,
+    let exports = match &exports.ty {
+        EcmascriptExportsType::None => return Ok(Vc::cell(true)),
+        EcmascriptExportsType::Unknown => return Ok(Vc::cell(false)),
+        EcmascriptExportsType::Value => return Ok(Vc::cell(false)),
+        EcmascriptExportsType::CommonJs => return Ok(Vc::cell(false)),
+        EcmascriptExportsType::EmptyCommonJs => return Ok(Vc::cell(export_name != "default")),
+        EcmascriptExportsType::DynamicNamespace => return Ok(Vc::cell(false)),
+        EcmascriptExportsType::EsmExports(exports) => *exports,
     };
 
     let exports = exports.await?;
@@ -111,16 +111,16 @@ pub async fn is_export_missing(
 
     for &dynamic_module in &all_export_names.dynamic_exporting_modules {
         let exports = dynamic_module.get_exports().await?;
-        match &*exports {
-            EcmascriptExports::Value
-            | EcmascriptExports::CommonJs
-            | EcmascriptExports::DynamicNamespace
-            | EcmascriptExports::Unknown => {
+        match &exports.ty {
+            EcmascriptExportsType::Value
+            | EcmascriptExportsType::CommonJs
+            | EcmascriptExportsType::DynamicNamespace
+            | EcmascriptExportsType::Unknown => {
                 return Ok(Vc::cell(false));
             }
-            EcmascriptExports::None
-            | EcmascriptExports::EmptyCommonJs
-            | EcmascriptExports::EsmExports(_) => {}
+            EcmascriptExportsType::None
+            | EcmascriptExportsType::EmptyCommonJs
+            | EcmascriptExportsType::EsmExports(_) => {}
         }
     }
 
@@ -164,7 +164,7 @@ pub async fn follow_reexports(
     let mut export_name = export_name;
     loop {
         let exports = module.get_exports().await?;
-        let EcmascriptExports::EsmExports(exports) = &*exports else {
+        let EcmascriptExportsType::EsmExports(exports) = &exports.ty else {
             return Ok(FollowExportsResult::cell(FollowExportsResult {
                 module,
                 export_name: Some(export_name),
@@ -356,7 +356,7 @@ async fn get_all_export_names(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<AllExportNamesResult>> {
     let exports = module.get_exports().await?;
-    let EcmascriptExports::EsmExports(exports) = &*exports else {
+    let EcmascriptExportsType::EsmExports(exports) = &exports.ty else {
         return Ok(AllExportNamesResult {
             esm_exports: FxIndexMap::default(),
             dynamic_exporting_modules: vec![module],
@@ -425,8 +425,8 @@ pub async fn expand_star_exports(
     checked_modules.insert(root_module);
     let mut queue = vec![(root_reference, root_module, root_module.get_exports())];
     while let Some((reference, asset, exports)) = queue.pop() {
-        match &*exports.await? {
-            EcmascriptExports::EsmExports(exports) => {
+        match &exports.await?.ty {
+            EcmascriptExportsType::EsmExports(exports) => {
                 let exports = exports.await?;
                 for (key, esm_export) in exports.exports.iter() {
                     if key == "default" {
@@ -452,7 +452,7 @@ pub async fn expand_star_exports(
                     }
                 }
             }
-            EcmascriptExports::None | EcmascriptExports::EmptyCommonJs => {
+            EcmascriptExportsType::None | EcmascriptExportsType::EmptyCommonJs => {
                 emit_star_exports_issue(
                     asset.ident(),
                     format!(
@@ -466,7 +466,7 @@ pub async fn expand_star_exports(
                 )
                 .await?
             }
-            EcmascriptExports::Value => {
+            EcmascriptExportsType::Value => {
                 emit_star_exports_issue(
                     asset.ident(),
                     format!(
@@ -479,7 +479,7 @@ pub async fn expand_star_exports(
                 )
                 .await?
             }
-            EcmascriptExports::CommonJs => {
+            EcmascriptExportsType::CommonJs => {
                 dynamic_exporting_modules.push(asset);
                 emit_star_exports_issue(
                     asset.ident(),
@@ -494,10 +494,10 @@ pub async fn expand_star_exports(
                 )
                 .await?;
             }
-            EcmascriptExports::DynamicNamespace => {
+            EcmascriptExportsType::DynamicNamespace => {
                 dynamic_exporting_modules.push(asset);
             }
-            EcmascriptExports::Unknown => {
+            EcmascriptExportsType::Unknown => {
                 // Propagate the Unknown export type to a certain extent.
                 dynamic_exporting_modules.push(asset);
             }

@@ -20,7 +20,7 @@ use super::chunk_item::EcmascriptModuleFacadeChunkItem;
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleContent,
     EcmascriptModuleContentOptions, EcmascriptOptions, MergedEcmascriptModule, SpecifiedModuleType,
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports, EcmascriptExportsType},
     code_gen::CodeGens,
     export::Liveness,
     references::{
@@ -241,7 +241,8 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
 
         match &self.part {
             ModulePart::Facade => {
-                let EcmascriptExports::EsmExports(esm_exports) = *self.module.get_exports().await?
+                let EcmascriptExportsType::EsmExports(esm_exports) =
+                    self.module.get_exports().await?.ty
                 else {
                     bail!(
                         "EcmascriptModuleFacadeModule must only be used on modules with EsmExports"
@@ -332,7 +333,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
             star_exports,
         }
         .resolved_cell();
-        Ok(EcmascriptExports::EsmExports(exports).cell())
+        Ok(EcmascriptExports {
+            ty: EcmascriptExportsType::EsmExports(exports),
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]

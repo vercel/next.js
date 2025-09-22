@@ -138,7 +138,7 @@ use crate::{
         parse_require_context,
         top_level_await::has_top_level_await,
     },
-    chunk::EcmascriptExports,
+    chunk::{EcmascriptExports, EcmascriptExportsType},
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
     export::Liveness,
     magic_identifier,
@@ -226,7 +226,7 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     esm_references_rewritten: FxHashMap<usize, FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>>,
 
     code_gens: Vec<CodeGen>,
-    exports: EcmascriptExports,
+    exports: EcmascriptExportsType,
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
@@ -244,7 +244,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             esm_references_rewritten: Default::default(),
             esm_references_free_var: Default::default(),
             code_gens: Default::default(),
-            exports: EcmascriptExports::Unknown,
+            exports: EcmascriptExportsType::Unknown,
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
@@ -301,7 +301,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_exports(&mut self, exports: EcmascriptExports) {
+    pub fn set_exports(&mut self, exports: EcmascriptExportsType) {
         self.exports = exports;
     }
 
@@ -411,7 +411,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                     esm_reexport_references.unwrap_or_default(),
                 ),
                 code_generation: ResolvedVc::cell(self.code_gens),
-                exports: self.exports.resolved_cell(),
+                exports: EcmascriptExports { ty: self.exports }.resolved_cell(),
                 async_module: self.async_module,
                 has_side_effect_free_directive: self.has_side_effect_free_directive,
                 successful: self.successful,
@@ -812,7 +812,7 @@ pub async fn analyse_ecmascript_module_internal(
             }
             .cell();
 
-            EcmascriptExports::EsmExports(esm_exports.to_resolved().await?)
+            EcmascriptExportsType::EsmExports(esm_exports.to_resolved().await?)
         } else if specified_type == SpecifiedModuleType::EcmaScript {
             match detect_dynamic_export(program) {
                 DetectedDynamicExportType::CommonJs => {
@@ -825,7 +825,7 @@ pub async fn analyse_ecmascript_module_internal(
                     .resolved_cell()
                     .emit();
 
-                    EcmascriptExports::EsmExports(
+                    EcmascriptExportsType::EsmExports(
                         EsmExports {
                             exports: Default::default(),
                             star_exports: Default::default(),
@@ -833,10 +833,10 @@ pub async fn analyse_ecmascript_module_internal(
                         .resolved_cell(),
                     )
                 }
-                DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
-                DetectedDynamicExportType::Value => EcmascriptExports::Value,
+                DetectedDynamicExportType::Namespace => EcmascriptExportsType::DynamicNamespace,
+                DetectedDynamicExportType::Value => EcmascriptExportsType::Value,
                 DetectedDynamicExportType::UsingModuleDeclarations
-                | DetectedDynamicExportType::None => EcmascriptExports::EsmExports(
+                | DetectedDynamicExportType::None => EcmascriptExportsType::EsmExports(
                     EsmExports {
                         exports: Default::default(),
                         star_exports: Default::default(),
@@ -846,11 +846,11 @@ pub async fn analyse_ecmascript_module_internal(
             }
         } else {
             match detect_dynamic_export(program) {
-                DetectedDynamicExportType::CommonJs => EcmascriptExports::CommonJs,
-                DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
-                DetectedDynamicExportType::Value => EcmascriptExports::Value,
+                DetectedDynamicExportType::CommonJs => EcmascriptExportsType::CommonJs,
+                DetectedDynamicExportType::Namespace => EcmascriptExportsType::DynamicNamespace,
+                DetectedDynamicExportType::Value => EcmascriptExportsType::Value,
                 DetectedDynamicExportType::UsingModuleDeclarations => {
-                    EcmascriptExports::EsmExports(
+                    EcmascriptExportsType::EsmExports(
                         EsmExports {
                             exports: Default::default(),
                             star_exports: Default::default(),
@@ -858,7 +858,7 @@ pub async fn analyse_ecmascript_module_internal(
                         .resolved_cell(),
                     )
                 }
-                DetectedDynamicExportType::None => EcmascriptExports::EmptyCommonJs,
+                DetectedDynamicExportType::None => EcmascriptExportsType::EmptyCommonJs,
             }
         };
         analysis.set_exports(exports);

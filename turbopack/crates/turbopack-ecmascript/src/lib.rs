@@ -112,7 +112,9 @@ use turbopack_core::{
 // TODO remove this
 pub use turbopack_resolve::ecmascript as resolve;
 
-use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
+use self::chunk::{
+    EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports, EcmascriptExportsType,
+};
 use crate::{
     analyzer::graph::EvalContext,
     chunk::{EcmascriptChunkPlaceable, placeable::is_marked_as_side_effect_free},
@@ -749,8 +751,8 @@ impl MergeableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn is_mergeable(self: ResolvedVc<Self>) -> Result<Vc<bool>> {
         if matches!(
-            &*self.get_exports().await?,
-            EcmascriptExports::EsmExports(_)
+            self.get_exports().await?.ty,
+            EcmascriptExportsType::EsmExports(_)
         ) {
             return Ok(Vc::cell(true));
         }
@@ -936,7 +938,7 @@ impl EcmascriptModuleContentOptions {
                 } else {
                     None
                 },
-                if let EcmascriptExports::EsmExports(exports) = *exports.await? {
+                if let EcmascriptExportsType::EsmExports(exports) = exports.await?.ty {
                     Some(
                         exports
                             .code_generation(
@@ -1719,8 +1721,8 @@ async fn process_parse_result(
                         )
                         .into_inner();
                     let preserved_exports =
-                        match &*scope_hoisting_options.module.get_exports().await? {
-                            EcmascriptExports::EsmExports(exports) => exports
+                        match &scope_hoisting_options.module.get_exports().await?.ty {
+                            EcmascriptExportsType::EsmExports(exports) => exports
                                 .await?
                                 .exports
                                 .iter()

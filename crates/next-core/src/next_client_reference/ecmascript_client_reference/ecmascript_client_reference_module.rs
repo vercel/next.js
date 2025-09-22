@@ -24,7 +24,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkType, EcmascriptExports, EcmascriptExportsType,
     },
     runtime_functions::TURBOPACK_EXPORT_NAMESPACE,
     utils::StringifyJs,
@@ -74,7 +74,9 @@ impl EcmascriptClientReferenceModule {
         let server_module_path = &*self.server_ident.to_string().await?;
 
         // Adapted from https://github.com/facebook/react/blob/c5b9375767e2c4102d7e5559d383523736f1c902/packages/react-server-dom-webpack/src/ReactFlightWebpackNodeLoader.js#L323-L354
-        if let EcmascriptExports::EsmExports(exports) = &*self.client_module.get_exports().await? {
+        if let EcmascriptExportsType::EsmExports(exports) =
+            &self.client_module.get_exports().await?.ty
+        {
             is_esm = true;
             let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
 

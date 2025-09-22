@@ -39,7 +39,7 @@ use super::export::{all_known_export_names, is_export_missing};
 use crate::{
     ScopeHoistingContext, TreeShakingMode,
     analyzer::imports::ImportAnnotations,
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExportsType},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     export::Liveness,
     magic_identifier,
@@ -170,7 +170,8 @@ impl ReferencedAsset {
             ReferencedAsset::Some(asset) => {
                 if let Some(ctxt) = scope_hoisting_context.get_module_syntax_context(*asset)
                     && let Some(export) = &export
-                    && let EcmascriptExports::EsmExports(exports) = *asset.get_exports().await?
+                    && let EcmascriptExportsType::EsmExports(exports) =
+                        asset.get_exports().await?.ty
                 {
                     let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
                     let esm_export = exports.exports.get(export);

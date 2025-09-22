@@ -24,7 +24,7 @@ use crate::{
     EcmascriptModuleContent,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkType, EcmascriptExports, EcmascriptExportsType,
     },
     references::async_module::{AsyncModule, OptionAsyncModule},
     runtime_functions::{
@@ -319,9 +319,15 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         if self.external_type == CachedExternalType::CommonJs {
-            EcmascriptExports::CommonJs.cell()
+            EcmascriptExports {
+                ty: EcmascriptExportsType::CommonJs,
+            }
+            .cell()
         } else {
-            EcmascriptExports::DynamicNamespace.cell()
+            EcmascriptExports {
+                ty: EcmascriptExportsType::DynamicNamespace,
+            }
+            .cell()
         }
     }
 
