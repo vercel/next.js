@@ -2818,6 +2818,10 @@ export default async function build(
             )
           )
 
+          const sortedStaticPaths = Array.from(staticPaths.entries()).sort(
+            ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)
+          )
+
           const exportApp = (require('../export') as typeof import('../export'))
             .default as typeof import('../export').default
 
@@ -2885,7 +2889,7 @@ export default async function build(
 
               // TODO: output manifest specific to app paths and their
               // revalidate periods and dynamicParams settings
-              staticPaths.forEach((routes, originalAppPath) => {
+              sortedStaticPaths.forEach(([originalAppPath, routes]) => {
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
 
@@ -3054,7 +3058,7 @@ export default async function build(
             await fs.unlink(serverBundle)
           }
 
-          staticPaths.forEach((prerenderedRoutes, originalAppPath) => {
+          sortedStaticPaths.forEach(([originalAppPath, prerenderedRoutes]) => {
             const page = appNormalizedPaths.get(originalAppPath)
             if (!page) throw new InvariantError('Page not found')
 
