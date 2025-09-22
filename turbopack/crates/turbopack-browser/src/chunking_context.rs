@@ -659,6 +659,8 @@ impl ChunkingContext for BrowserChunkingContext {
                 .try_join()
                 .await?;
 
+            let other_assets = Vc::cell(assets.clone());
+
             let entries = Vc::cell(
                 chunk_group
                     .entries()
@@ -681,7 +683,6 @@ impl ChunkingContext for BrowserChunkingContext {
                             ident.with_modifier(available_modules.hash().await?.to_string().into());
                     }
                 }
-                let other_assets = Vc::cell(assets.clone());
                 assets.push(
                     self.generate_chunk_list_register_chunk(
                         ident,
