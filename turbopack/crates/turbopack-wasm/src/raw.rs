@@ -16,6 +16,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports, EcmascriptExportsType,
     },
+    references::esm::EcmascriptEvaluation,
     runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
@@ -94,6 +95,7 @@ impl EcmascriptChunkPlaceable for RawWebAssemblyModuleAsset {
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
         EcmascriptExports {
             ty: EcmascriptExportsType::Value,
+            evaluation: EcmascriptEvaluation::SideEffects,
         }
         .cell()
     }

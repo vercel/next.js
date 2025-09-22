@@ -26,7 +26,10 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports, EcmascriptExportsType,
     },
-    references::async_module::{AsyncModule, OptionAsyncModule},
+    references::{
+        async_module::{AsyncModule, OptionAsyncModule},
+        esm::EcmascriptEvaluation,
+    },
     runtime_functions::{
         TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXTERNAL_IMPORT,
         TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_LOAD_BY_URL,
@@ -321,11 +324,13 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
         if self.external_type == CachedExternalType::CommonJs {
             EcmascriptExports {
                 ty: EcmascriptExportsType::CommonJs,
+                evaluation: EcmascriptEvaluation::SideEffects,
             }
             .cell()
         } else {
             EcmascriptExports {
                 ty: EcmascriptExportsType::DynamicNamespace,
+                evaluation: EcmascriptEvaluation::SideEffects,
             }
             .cell()
         }

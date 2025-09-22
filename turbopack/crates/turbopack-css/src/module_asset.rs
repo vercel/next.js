@@ -29,6 +29,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkType, EcmascriptExports, EcmascriptExportsType,
     },
     parse::generate_js_source_map,
+    references::esm::EcmascriptEvaluation,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
@@ -265,6 +266,7 @@ impl EcmascriptChunkPlaceable for ModuleCssAsset {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports {
             ty: EcmascriptExportsType::Value,
+            evaluation: EcmascriptEvaluation::SideEffects,
         }
         .cell()
     }

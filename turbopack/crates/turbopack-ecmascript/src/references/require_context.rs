@@ -47,6 +47,7 @@ use crate::{
     create_visitor,
     references::{
         AstPath,
+        esm::EcmascriptEvaluation,
         pattern_mapping::{PatternMapping, ResolveType},
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE},
@@ -458,6 +459,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         EcmascriptExports {
             ty: EcmascriptExportsType::Value,
+            evaluation: EcmascriptEvaluation::SideEffects,
         }
         .cell()
     }

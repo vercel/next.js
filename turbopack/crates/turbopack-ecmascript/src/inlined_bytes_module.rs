@@ -16,8 +16,9 @@ use turbopack_core::{
 use crate::{
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
-        EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkType, EcmascriptExports, EcmascriptExportsType,
     },
+    export::EcmascriptEvaluation,
     runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
@@ -72,7 +73,11 @@ impl ChunkableModule for InlinedBytesJsModule {
 impl EcmascriptChunkPlaceable for InlinedBytesJsModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        EcmascriptExports::Value.cell()
+        EcmascriptExports {
+            ty: EcmascriptExportsType::Value,
+            evaluation: EcmascriptEvaluation::SideEffects,
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]

@@ -124,7 +124,7 @@ use crate::{
     references::{
         analyse_ecmascript_module,
         async_module::OptionAsyncModule,
-        esm::{base::EsmAssetReferences, export},
+        esm::{EcmascriptEvaluation, base::EsmAssetReferences, export},
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
     swc_comments::{CowComments, ImmutableComments},
@@ -218,6 +218,8 @@ pub struct EcmascriptOptions {
     /// If true, it reads a sourceMappingURL comment from the end of the file,
     /// reads and generates a source map.
     pub extract_source_map: bool,
+    /// Packages that are considered side effect free.
+    pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     /// If true, it stores the last successful parse result in state and keeps using it when
     /// parsing fails. This is useful to keep the module graph structure intact when syntax errors
     /// are temporarily introduced.
@@ -638,6 +640,18 @@ impl EcmascriptModuleAsset {
     pub fn options(&self) -> Vc<EcmascriptOptions> {
         *self.options
     }
+
+    #[turbo_tasks::function]
+    async fn check_package_json_side_effect_free(self: Vc<Self>) -> Result<Vc<bool>> {
+        Ok(is_marked_as_side_effect_free(
+            self.ident().path().owned().await?,
+            self.await?
+                .options
+                .await?
+                .side_effect_free_packages
+                .map(|g| *g),
+        ))
+    }
 }
 
 impl EcmascriptModuleAsset {
@@ -724,6 +738,15 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
+    async fn get_evaluation(self: Vc<Self>) -> Result<Vc<EcmascriptEvaluation>> {
+        if *self.check_package_json_side_effect_free().await? {
+            Ok(EcmascriptEvaluation::SideEffectFree.cell())
+        } else {
+            Ok(self.get_exports().await?.evaluation.cell())
+        }
+    }
+
+    #[turbo_tasks::function]
     async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
         Ok(*self.analyze().await?.async_module)
     }
@@ -731,13 +754,10 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn is_marked_as_side_effect_free(
         self: Vc<Self>,
-        side_effect_free_packages: Vc<Glob>,
+        _side_effect_free_packages: Vc<Glob>,
     ) -> Result<Vc<bool>> {
         // Check package.json first, so that we can skip parsing the module if it's marked that way.
-        let pkg_side_effect_free = is_marked_as_side_effect_free(
-            self.ident().path().owned().await?,
-            side_effect_free_packages,
-        );
+        let pkg_side_effect_free = self.check_package_json_side_effect_free();
         Ok(if *pkg_side_effect_free.await? {
             pkg_side_effect_free
         } else {

@@ -22,7 +22,7 @@ use crate::{
     EcmascriptModuleContentOptions, EcmascriptOptions, MergedEcmascriptModule, SpecifiedModuleType,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports, EcmascriptExportsType},
     code_gen::CodeGens,
-    export::Liveness,
+    export::{EcmascriptEvaluation, Liveness},
     references::{
         async_module::{AsyncModule, OptionAsyncModule},
         esm::{EsmExport, EsmExports, base::EsmAssetReferences},
@@ -238,6 +238,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
         let mut exports = BTreeMap::new();
         let mut star_exports = Vec::new();
+        let evaluation;
 
         match &self.part {
             ModulePart::Facade => {
@@ -289,6 +290,15 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                     }
                 }
                 star_exports.extend(esm_exports.star_exports.iter().copied());
+                evaluation = EcmascriptEvaluation::DelegatedSideEffects(ResolvedVc::upcast(
+                    EcmascriptModulePartReference::new_part(
+                        *self.module,
+                        ModulePart::locals(),
+                        ExportUsage::evaluation(),
+                    )
+                    .to_resolved()
+                    .await?,
+                ));
             }
             ModulePart::RenamedExport {
                 original_export,
@@ -310,6 +320,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                         false,
                     ),
                 );
+                evaluation = EcmascriptEvaluation::SideEffectFree;
             }
             ModulePart::RenamedNamespace { export } => {
                 exports.insert(
@@ -324,6 +335,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                         .await?,
                     )),
                 );
+                evaluation = EcmascriptEvaluation::SideEffectFree;
             }
             _ => bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule"),
         }
@@ -335,6 +347,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
         .resolved_cell();
         Ok(EcmascriptExports {
             ty: EcmascriptExportsType::EsmExports(exports),
+            evaluation,
         }
         .cell())
     }

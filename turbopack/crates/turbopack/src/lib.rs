@@ -899,14 +899,17 @@ impl AssetContext for ModuleAssetContext {
 
     #[turbo_tasks::function]
     async fn side_effect_free_packages(&self) -> Result<Vc<Glob>> {
-        let pkgs = &self.module_options_context.await?.side_effect_free_packages;
-
-        let mut globs = String::new();
-        globs.push_str("**/node_modules/{");
-        globs.push_str(&pkgs.join(","));
-        globs.push_str("}/**");
-
-        Ok(Glob::new(globs.into(), GlobOptions::default()))
+        Ok(self
+            .module_options_context
+            .await?
+            .side_effect_free_packages
+            .map_or_else(
+                || {
+                    // If no side effect free packages are configured, return an empty glob.
+                    Glob::new(rcstr!(""), GlobOptions::default())
+                },
+                |glob| *glob,
+            ))
     }
 }
 

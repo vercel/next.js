@@ -227,6 +227,7 @@ impl ModuleOptions {
             execution_context,
             tree_shaking_mode,
             keep_last_successful_parse,
+            side_effect_free_packages,
             is_tracing,
             ..
         } = *module_options_context.await?;
@@ -281,6 +282,7 @@ impl ModuleOptions {
             ignore_dynamic_requests,
             extract_source_map: matches!(ecmascript_source_maps, SourceMapsType::Full),
             keep_last_successful_parse,
+            side_effect_free_packages,
             is_tracing,
             enable_typeof_window_inlining,
             ..Default::default()

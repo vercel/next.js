@@ -133,7 +133,8 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
 impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let EcmascriptExportsType::EsmExports(exports) = self.module.get_exports().await?.ty else {
+        let module_exports = self.module.get_exports().await?;
+        let EcmascriptExportsType::EsmExports(exports) = &module_exports.ty else {
             bail!("EcmascriptModuleLocalsModule must only be used on modules with EsmExports");
         };
         let esm_exports = exports.await?;
@@ -163,6 +164,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
         .resolved_cell();
         Ok(EcmascriptExports {
             ty: EcmascriptExportsType::EsmExports(exports),
+            evaluation: module_exports.evaluation,
         }
         .cell())
     }

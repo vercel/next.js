@@ -10,6 +10,7 @@ use turbopack::{
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
         TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
+        package_list_to_glob,
     },
     resolve_options_context::ResolveOptionsContext,
 };
@@ -335,7 +336,11 @@ pub async fn get_client_module_options_context(
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         enable_postcss_transform,
-        side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
+        side_effect_free_packages: Some(
+            package_list_to_glob(next_config.optimize_package_imports().owned().await?)
+                .to_resolved()
+                .await?,
+        ),
         keep_last_successful_parse: next_mode.is_development(),
         ..Default::default()
     };

@@ -435,7 +435,7 @@ pub async fn expand_star_exports(
                     if let Entry::Vacant(entry) = esm_exports.entry(key.clone()) {
                         entry.insert(match esm_export {
                             EsmExport::LocalBinding(_, liveness) => EsmExport::ImportedBinding(
-                                ResolvedVc::upcast(reference),
+                                reference,
                                 key.clone(),
                                 *liveness == Liveness::Mutable,
                             ),
@@ -524,6 +524,24 @@ async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -
     .await?
     .emit();
     Ok(())
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Default, Copy, Clone)]
+pub enum EcmascriptEvaluation {
+    /// The module has module evaluation side effects.
+    #[default]
+    SideEffects,
+    /// The module has no module evaluation side effects when none of the references have side
+    /// effects.
+    LocalSideEffectFree,
+    /// The module has no module evaluation side effects. It can be ignored when looking for
+    /// the module evaluation.
+    SideEffectFree,
+    /// The module has no module evaluation side effects other than evaluating the referenced
+    /// module. In this case the module itself can be skipped in favor of these module that is
+    /// referenced here.
+    DelegatedSideEffects(ResolvedVc<Box<dyn ModuleReference>>),
 }
 
 #[turbo_tasks::value(shared)]

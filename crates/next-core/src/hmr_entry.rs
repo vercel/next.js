@@ -21,6 +21,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports, EcmascriptExportsType,
     },
+    references::esm::EcmascriptEvaluation,
     runtime_functions::TURBOPACK_REQUIRE,
     utils::StringifyJs,
 };
@@ -104,6 +105,7 @@ impl EcmascriptChunkPlaceable for HmrEntryModule {
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
         EcmascriptExports {
             ty: EcmascriptExportsType::None,
+            evaluation: EcmascriptEvaluation::SideEffects,
         }
         .cell()
     }

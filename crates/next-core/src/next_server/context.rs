@@ -9,7 +9,7 @@ use turbopack::{
     css::chunk::CssChunkType,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ExternalsTracingOptions, JsxTransformOptions,
-        ModuleOptionsContext, ModuleRule, TypescriptTransformOptions,
+        ModuleOptionsContext, ModuleRule, TypescriptTransformOptions, package_list_to_glob,
     },
     resolve_options_context::ResolveOptionsContext,
     transition::Transition,
@@ -589,7 +589,11 @@ pub async fn get_server_module_options_context(
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
-        side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
+        side_effect_free_packages: Some(
+            package_list_to_glob(next_config.optimize_package_imports().owned().await?)
+                .to_resolved()
+                .await?,
+        ),
         enable_externals_tracing: if next_mode.is_production() {
             Some(
                 ExternalsTracingOptions {
