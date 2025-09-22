@@ -43,7 +43,7 @@ function getDesiredCompilerOptions(
   // Jsx
   const jsxEmitReactJSX = typescript.JsxEmit.ReactJSX
 
-  const o: DesiredCompilerOptionsShape = {
+  return {
     target: {
       suggested: 'ES2017',
       reason:
@@ -134,9 +134,7 @@ function getDesiredCompilerOptions(
       value: 'react-jsx',
       reason: 'next.js uses the React automatic runtime',
     },
-  }
-
-  return o
+  } satisfies DesiredCompilerOptionsShape
 }
 
 export function getRequiredConfiguration(
@@ -190,7 +188,7 @@ export async function writeConfigurationDefaults(
 
   const suggestedActions: string[] = []
   const requiredActions: string[] = []
-  for (const optionKey of Object.keys(desiredCompilerOptions)) {
+  for (const optionKey in desiredCompilerOptions) {
     const check = desiredCompilerOptions[optionKey]
     if ('suggested' in check) {
       if (!(optionKey in tsOptions)) {
@@ -207,13 +205,23 @@ export async function writeConfigurationDefaults(
       }
     } else if ('value' in check) {
       const ev = tsOptions[optionKey]
-      if (
-        !('parsedValues' in check
-          ? check.parsedValues?.includes(ev)
-          : 'parsedValue' in check
-            ? check.parsedValue === ev
-            : check.value === ev)
-      ) {
+
+      const decide = () => {
+        // Check if the option has multiple allowed values
+        if ('parsedValues' in check) {
+          return !check.parsedValues?.includes(ev)
+        }
+
+        // Check if the option has a single parsed value
+        if ('parsedValue' in check) {
+          return check.parsedValue !== ev
+        }
+
+        // Fall back to direct value comparison
+        return check.value !== ev
+      }
+
+      if (decide()) {
         if (!userTsConfig.compilerOptions) {
           userTsConfig.compilerOptions = {}
         }
