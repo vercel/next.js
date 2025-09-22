@@ -1,28 +1,29 @@
 const fs = require('fs/promises')
 const path = require('path')
+const { getDistDir } = require('../lib/next-test-utils')
 
 const clientGlobs = [
   {
     name: 'Client Bundles (main, webpack)',
     globs: [
-      '.next/static/runtime/+(main|webpack)-*',
-      '.next/static/chunks/!(polyfills*)',
+      `${getDistDir()}/static/runtime/+(main|webpack)-*`,
+      `${getDistDir()}/static/chunks/!(polyfills*)`,
     ],
   },
   {
     name: 'Legacy Client Bundles (polyfills)',
-    globs: ['.next/static/chunks/+(polyfills)-*'],
+    globs: [`${getDistDir()}/static/chunks/+(polyfills)-*`],
   },
   {
     name: 'Client Pages',
     globs: [
-      '.next/static/BUILD_ID/pages/!(edge-repeated*)',
-      '.next/static/css/**/*',
+      `${getDistDir()}/static/BUILD_ID/pages/!(edge-repeated*)`,
+      `${getDistDir()}/static/css/**/*`,
     ],
   },
   {
     name: 'Client Build Manifests',
-    globs: ['.next/static/BUILD_ID/_buildManifest*'],
+    globs: [`${getDistDir()}/static/BUILD_ID/_buildManifest*`],
   },
   {
     name: 'Rendered Page Sizes',
@@ -31,17 +32,17 @@ const clientGlobs = [
   {
     name: 'Edge SSR bundle Size',
     globs: [
-      '.next/server/pages/edge-ssr.js',
-      '.next/server/app/app-edge-ssr/page.js',
+      `${getDistDir()}/server/pages/edge-ssr.js`,
+      `${getDistDir()}/server/app/app-edge-ssr/page.js`,
     ],
     getRequiredFiles: async (nextAppDir, fileName) => {
-      if (fileName.startsWith('.next/server/app')) {
+      if (fileName.startsWith(`${getDistDir()}/server/app`)) {
         const manifestJson = await fs.readFile(
-          path.join(nextAppDir, '.next/server/middleware-manifest.json')
+          path.join(nextAppDir, getDistDir(), 'server/middleware-manifest.json')
         )
         const manifest = JSON.parse(manifestJson)
         const manifestFileEntry = path.relative(
-          path.join(nextAppDir, '.next'),
+          path.join(nextAppDir, getDistDir()),
           path.join(nextAppDir, fileName)
         )
 
@@ -59,7 +60,7 @@ const clientGlobs = [
         }
 
         return functionEntry.files.map((file) => {
-          return path.join('.next', file)
+          return path.join(getDistDir(), file)
         })
       } else {
         return [fileName]
@@ -69,8 +70,8 @@ const clientGlobs = [
   {
     name: 'Middleware size',
     globs: [
-      '.next/server/middleware*.js',
-      '.next/server/edge-runtime-webpack.js',
+      `${getDistDir()}/server/middleware*.js`,
+      `${getDistDir()}/server/edge-runtime-webpack.js`,
     ],
   },
   {
@@ -79,30 +80,30 @@ const clientGlobs = [
   },
   {
     name: 'build cache',
-    globs: ['.next/cache/**/*'],
+    globs: [`${getDistDir()}/cache/**/*`],
   },
 ]
 
 const renames = [
   {
-    srcGlob: '.next/static/chunks/pages',
-    dest: '.next/static/BUILD_ID/pages',
+    srcGlob: `${getDistDir()}/static/chunks/pages`,
+    dest: `${getDistDir()}/static/BUILD_ID/pages`,
   },
   {
-    srcGlob: '.next/static/BUILD_ID/pages/**/*.js',
+    srcGlob: `${getDistDir()}/static/BUILD_ID/pages/**/*.js`,
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/runtime/*.js',
+    srcGlob: `${getDistDir()}/static/runtime/*.js`,
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/chunks/*.js',
+    srcGlob: `${getDistDir()}/static/chunks/*.js`,
     removeHash: true,
   },
   {
-    srcGlob: '.next/static/*/_buildManifest.js',
-    dest: '.next/static/BUILD_ID/_buildManifest.js',
+    srcGlob: `${getDistDir()}/static/*/_buildManifest.js`,
+    dest: `${getDistDir()}/static/BUILD_ID/_buildManifest.js`,
   },
 ]
 
