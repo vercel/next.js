@@ -529,7 +529,9 @@ describe('Production Usage', () => {
     })
 
     it('should return 412 on static file when If-Unmodified-Since is provided and file is modified', async () => {
-      const buildManifest = await next.readJSON('.next/build-manifest.json')
+      const buildManifest = await next.readJSON(
+        `${getDistDir()}/build-manifest.json`
+      )
 
       const files = buildManifest.pages['/']
 
@@ -552,7 +554,9 @@ describe('Production Usage', () => {
     })
 
     it('should return 200 on static file if If-Unmodified-Since is invalid date', async () => {
-      const buildManifest = await next.readJSON('.next/build-manifest.json')
+      const buildManifest = await next.readJSON(
+        `${getDistDir()}/build-manifest.json`
+      )
 
       const files = buildManifest.pages['/']
 

@@ -9,6 +9,7 @@ import {
 } from './shared-tests.util'
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
+import { getDistDir } from 'next-test-utils'
 
 describe('Trailing slashes with trailingSlash: true', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -62,7 +63,7 @@ describe('Trailing slashes with trailingSlash: true', () => {
     'should have a trailing redirect in the routesmanifest',
     async () => {
       const manifest = await next.readJSON(
-        join('.next', 'routes-manifest.json')
+        join(getDistDir(), 'routes-manifest.json')
       )
       expect(manifest).toEqual(
         expect.objectContaining({

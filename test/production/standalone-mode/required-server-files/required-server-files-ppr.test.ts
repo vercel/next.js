@@ -10,6 +10,7 @@ import {
   initNextServerScript,
   killApp,
   retry,
+  getDistDir,
 } from 'next-test-utils'
 import { ChildProcess } from 'node:child_process'
 
@@ -58,16 +59,21 @@ describe('required server files app router', () => {
 
     // Read the postponed state and the HTML that was generated at build time
     // from the output of the build.
-    delayedPostpone = (await next.readJSON('.next/server/app/delayed.meta'))
-      .postponed
+    delayedPostpone = (
+      await next.readJSON(`${getDistDir()}/server/app/delayed.meta`)
+    ).postponed
     rewritePostpone = (
-      await next.readJSON('.next/server/app/rewrite/first-cookie.meta')
+      await next.readJSON(
+        `${getDistDir()}/server/app/rewrite/first-cookie.meta`
+      )
     ).postponed
     secondCookiePostpone = (
-      await next.readJSON('.next/server/app/rewrite/second-cookie.meta')
+      await next.readJSON(
+        `${getDistDir()}/server/app/rewrite/second-cookie.meta`
+      )
     ).postponed
     secondCookieHTML = await next.readFile(
-      '.next/server/app/rewrite/second-cookie.html'
+      `${getDistDir()}/server/app/rewrite/second-cookie.html`
     )
 
     await fs.rename(
