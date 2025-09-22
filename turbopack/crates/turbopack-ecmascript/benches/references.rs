@@ -69,9 +69,9 @@ pub fn benchmark(c: &mut Criterion) {
                     EcmascriptOptions {
                         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
                         tracing_mode: if tracing_mode {
-                            turbopack_ecmascript::TracingMode::TracingOnly
+                            turbopack_ecmascript::AnalyzeMode::Tracing
                         } else {
-                            turbopack_ecmascript::TracingMode::BundlingWithTracing
+                            turbopack_ecmascript::AnalyzeMode::CodeGenerationAndTracing
                         },
                         ..Default::default()
                     }

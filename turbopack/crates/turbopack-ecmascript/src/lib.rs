@@ -189,28 +189,29 @@ pub enum TreeShakingMode {
     TraceRawVcs,
     NonLocalValue,
 )]
-pub enum TracingMode {
-    /// Only bundling, no tracing of referenced files.
+pub enum AnalyzeMode {
+    /// For bundling only, no tracing of referenced files.
     #[default]
-    Bundling,
-    /// Bundling and tracing of referenced files.
-    BundlingWithTracing,
-    /// Only tracing of referenced files, no bundling (= no codegen).
-    TracingOnly,
+    CodeGeneration,
+    /// For bundling and tracing of referenced files.
+    CodeGenerationAndTracing,
+    /// For tracing of referenced files only, no bundling (i.e. no codegen).
+    Tracing,
 }
 
-impl TracingMode {
+impl AnalyzeMode {
     pub fn is_tracing(self) -> bool {
-        matches!(
-            self,
-            TracingMode::BundlingWithTracing | TracingMode::TracingOnly
-        )
+        match self {
+            AnalyzeMode::Tracing | AnalyzeMode::CodeGenerationAndTracing => true,
+            AnalyzeMode::CodeGeneration => false,
+        }
     }
+
     pub fn is_code_gen(self) -> bool {
-        matches!(
-            self,
-            TracingMode::Bundling | TracingMode::BundlingWithTracing
-        )
+        match self {
+            AnalyzeMode::CodeGeneration | AnalyzeMode::CodeGenerationAndTracing => true,
+            AnalyzeMode::Tracing => false,
+        }
     }
 }
 
@@ -263,7 +264,7 @@ pub struct EcmascriptOptions {
     pub keep_last_successful_parse: bool,
     /// Whether the modules in this context are never chunked/codegen-ed, but only used for
     /// tracing.
-    pub tracing_mode: TracingMode,
+    pub tracing_mode: AnalyzeMode,
     // TODO this should just be handled via CompileTimeInfo FreeVarReferences, but then it
     // (currently) wouldn't be possible to have different replacement values in user code vs
     // node_modules.

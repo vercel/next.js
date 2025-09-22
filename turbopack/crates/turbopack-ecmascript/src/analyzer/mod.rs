@@ -3814,7 +3814,7 @@ mod tests {
         linker::link,
     };
     use crate::{
-        TracingMode,
+        AnalyzeMode,
         analyzer::{
             graph::{AssignmentScopes, VarMeta},
             imports::ImportAttributes,
@@ -3861,7 +3861,7 @@ mod tests {
                 );
 
                 let mut var_graph =
-                    create_graph(&m, &eval_context, TracingMode::BundlingWithTracing);
+                    create_graph(&m, &eval_context, AnalyzeMode::CodeGenerationAndTracing);
                 let var_cache = Default::default();
 
                 let mut named_values = var_graph

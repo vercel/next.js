@@ -18,7 +18,7 @@ use turbopack_core::{
     target::CompileTarget,
 };
 use turbopack_ecmascript::{
-    TracingMode,
+    AnalyzeMode,
     analyzer::{
         graph::{EvalContext, VarGraph, VarMeta, create_graph},
         imports::ImportAttributes,
@@ -65,8 +65,11 @@ pub fn benchmark(c: &mut Criterion) {
                     None,
                     None,
                 );
-                let var_graph =
-                    create_graph(&program, &eval_context, TracingMode::BundlingWithTracing);
+                let var_graph = create_graph(
+                    &program,
+                    &eval_context,
+                    AnalyzeMode::CodeGenerationAndTracing,
+                );
 
                 let input = BenchInput {
                     program,
@@ -96,7 +99,7 @@ fn bench_create_graph(b: &mut Bencher, input: &BenchInput) {
         create_graph(
             &input.program,
             &input.eval_context,
-            TracingMode::BundlingWithTracing,
+            AnalyzeMode::CodeGenerationAndTracing,
         )
     });
 }

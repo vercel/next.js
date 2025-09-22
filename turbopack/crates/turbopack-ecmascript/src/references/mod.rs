@@ -128,8 +128,8 @@ use super::{
 };
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
-    EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable, SpecifiedModuleType,
-    TracingMode, TreeShakingMode, TypeofWindow,
+    AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable,
+    SpecifiedModuleType, TreeShakingMode, TypeofWindow,
     analyzer::{
         ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
         builtin::early_replace_builtin,
@@ -212,7 +212,7 @@ impl AnalyzeEcmascriptModuleResult {
 /// A temporary analysis result builder to pass around, to be turned into an
 /// `Vc<AnalyzeEcmascriptModuleResult>` eventually.
 pub struct AnalyzeEcmascriptModuleResultBuilder {
-    tracing_mode: TracingMode,
+    tracing_mode: AnalyzeMode,
 
     references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
 
@@ -234,7 +234,7 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
 }
 
 impl AnalyzeEcmascriptModuleResultBuilder {
-    pub fn new(tracing_mode: TracingMode) -> Self {
+    pub fn new(tracing_mode: AnalyzeMode) -> Self {
         Self {
             tracing_mode,
             references: Default::default(),
@@ -3238,7 +3238,7 @@ impl StaticAnalyser {
 /// A visitor that walks the AST and collects information about the various
 /// references a module makes to other parts of the code.
 struct ModuleReferencesVisitor<'a> {
-    tracing_mode: TracingMode,
+    tracing_mode: AnalyzeMode,
     eval_context: &'a EvalContext,
     old_analyser: StaticAnalyser,
     import_references: &'a [ResolvedVc<EsmAssetReference>],
@@ -3255,7 +3255,7 @@ impl<'a> ModuleReferencesVisitor<'a> {
         eval_context: &'a EvalContext,
         import_references: &'a [ResolvedVc<EsmAssetReference>],
         analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
-        tracing_mode: TracingMode,
+        tracing_mode: AnalyzeMode,
         var_graph: &'a VarGraph,
     ) -> Self {
         Self {

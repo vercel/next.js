@@ -29,7 +29,7 @@ use super::{
     is_unresolved_id,
 };
 use crate::{
-    SpecifiedModuleType, TracingMode,
+    AnalyzeMode, SpecifiedModuleType,
     analyzer::{WellKnownObjectKind, is_unresolved},
     references::constant_value::parse_single_expr_lit,
     utils::{AstPathRange, unparen},
@@ -333,7 +333,7 @@ impl VarGraph {
 pub fn create_graph(
     m: &Program,
     eval_context: &EvalContext,
-    tracing_mode: TracingMode,
+    tracing_mode: AnalyzeMode,
 ) -> VarGraph {
     let mut graph = VarGraph {
         values: Default::default(),
@@ -864,7 +864,7 @@ pub fn as_parent_path_skip(
 }
 
 struct Analyzer<'a> {
-    tracing_mode: TracingMode,
+    tracing_mode: AnalyzeMode,
 
     data: &'a mut VarGraph,
     state: analyzer_state::AnalyzerState,

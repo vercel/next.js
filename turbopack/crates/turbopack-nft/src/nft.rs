@@ -6,7 +6,7 @@ use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, ValueToString, 
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::TracingMode,
+    ecmascript::AnalyzeMode,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
         TypescriptTransformOptions,
@@ -96,7 +96,7 @@ async fn node_file_trace_operation(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            tracing_mode: TracingMode::TracingOnly,
+            tracing_mode: AnalyzeMode::Tracing,
             ..Default::default()
         }
         .cell(),

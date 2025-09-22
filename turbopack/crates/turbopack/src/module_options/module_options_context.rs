@@ -10,7 +10,7 @@ use turbopack_core::{
     environment::Environment, resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{
-    TracingMode, TreeShakingMode, TypeofWindow, references::esm::UrlRewriteBehavior,
+    AnalyzeMode, TreeShakingMode, TypeofWindow, references::esm::UrlRewriteBehavior,
 };
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
@@ -209,7 +209,7 @@ pub struct ModuleOptionsContext {
 
     /// Whether the modules in this context are never chunked/codegen-ed, but only used for
     /// tracing.
-    pub tracing_mode: TracingMode,
+    pub tracing_mode: AnalyzeMode,
 
     pub placeholder_for_future_extensions: (),
 }
