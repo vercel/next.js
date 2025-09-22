@@ -8,7 +8,12 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP, findPort } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  fetchViaHTTP,
+  findPort,
+  getDistDir,
+} from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
 import { Playwright } from 'next-webdriver'
@@ -236,7 +241,7 @@ export class NextInstance {
                 scripts: {
                   // since we can't get the build id as a build artifact, make it
                   // available under the static files
-                  'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
+                  'post-build': `cp ${getDistDir()}/BUILD_ID ${getDistDir()}/static/__BUILD_ID`,
                   ...pkgScripts,
                   build:
                     (pkgScripts['build'] || this.buildCommand || 'next build') +
@@ -506,7 +511,7 @@ export class NextInstance {
       if (process.env.TRACE_PLAYWRIGHT) {
         await fs
           .cp(
-            path.join(this.testDir, '.next/trace'),
+            path.join(this.testDir, getDistDir(), 'trace'),
             path.join(
               __dirname,
               '../../traces',
