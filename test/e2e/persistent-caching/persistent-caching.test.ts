@@ -6,6 +6,7 @@ describe('persistent-caching', () => {
   const { skipped, next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
+    // We need to use npm here as pnpms symlinks trigger a weird bug (kernel bug?)
     installCommand: 'npm i',
     buildCommand: 'npm next build',
     startCommand: isNextDev ? 'npm exec next dev' : 'npm exec next start',
