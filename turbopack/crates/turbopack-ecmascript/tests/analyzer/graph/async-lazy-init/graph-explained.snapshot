@@ -1,10 +1,10 @@
-computeAsyncValue = (...) => Promise<"async result">
+computeAsyncValue (const after eval) = (...) => Promise<"async result">
 
-ensureAsyncProcessStarted = (...) => lasyInitAsyncProcess
+ensureAsyncProcessStarted (const after eval) = (...) => lasyInitAsyncProcess
 
-getLasyInitAsyncValue = (...) => lasyInitAsyncValue
+getLasyInitAsyncValue (const after eval) = (...) => lasyInitAsyncValue
 
-initLasyInitAsyncProcess = (...) => Promise<undefined>
+initLasyInitAsyncProcess (const after eval) = (...) => Promise<undefined>
 
 lasyInitAsyncProcess = (null | initLasyInitAsyncProcess())
 

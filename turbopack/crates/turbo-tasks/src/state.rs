@@ -35,6 +35,7 @@ impl<T> StateInner<T> {
 
     pub fn set_unconditionally(&mut self, value: T) {
         self.value = value;
+        let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
         for invalidator in take(&mut self.invalidators) {
             invalidator.invalidate();
         }
@@ -44,6 +45,7 @@ impl<T> StateInner<T> {
         if !update(&mut self.value) {
             return false;
         }
+        let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
         for invalidator in take(&mut self.invalidators) {
             invalidator.invalidate();
         }
@@ -89,6 +91,7 @@ impl<T> DerefMut for StateRef<'_, T> {
 impl<T> Drop for StateRef<'_, T> {
     fn drop(&mut self) {
         if self.mutated {
+            let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
             for invalidator in take(&mut self.inner.invalidators) {
                 invalidator.invalidate();
             }
