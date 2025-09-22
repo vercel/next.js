@@ -1511,7 +1511,8 @@ export const defaultConfig = Object.freeze({
     slowModuleDetection: undefined,
     globalNotFound: false,
     browserDebugInfoInTerminal: false,
-    isolatedDevBuild: false,
+    isolatedDevBuild:
+      process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true',
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
