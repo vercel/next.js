@@ -31,7 +31,6 @@ import { Playwright } from 'next-webdriver'
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
 import escapeRegex from 'escape-string-regexp'
-import { isNextDev } from 'e2e-utils'
 
 // TODO: Create dedicated Jest environment that sets up these matchers
 // Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
@@ -1888,6 +1887,9 @@ export function normalizeManifest<T>(
   )
 }
 
-export function getDistDir(): '.next' | '.next/dev' {
-  return isNextDev ? '.next/dev' : '.next'
+export function getDistDir(isNextDev?: boolean): '.next' | '.next/dev' {
+  // global.isNextDev is set in e2e/development/production tests.
+  // TODO: If a test utils that are used in integration/unit tests can set
+  // global.isNextDev flag, we could possibly remove the parameter.
+  return (isNextDev ?? global.isNextDev) ? '.next/dev' : '.next'
 }
