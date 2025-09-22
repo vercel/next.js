@@ -872,5 +872,7 @@
   "871": "Image with src \"%s\" is using a query string which is not configured in images.localPatterns.\\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns",
   "872": "updateTag can only be called from within a Server Action. To invalidate cache tags in Route Handlers or other contexts, use revalidateTag instead. See more info here: https://nextjs.org/docs/app/api-reference/functions/updateTag",
   "873": "Invalid profile provided \"%s\" must be configured under cacheLife in next.config or be \"max\"",
-  "874": "Expected not to install Node.js global behaviors in the edge runtime."
+  "874": "Expected not to install Node.js global behaviors in the edge runtime.",
+  "875": "`pipelineInSequentialTasks` should not be called in edge runtime.",
+  "876": "dynamicInDevStagedRendering should only be used in development mode and when Cache Components is enabled."
 }

@@ -5,6 +5,7 @@
  * and should only be used in codepaths gated with this feature.
  */
 
+import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 export class CacheSignal {
@@ -79,6 +80,23 @@ export class CacheSignal {
     })
   }
 
+  /**
+   * Like `cacheReady`, but for use when rendering (not prerendering).
+   * React schedules work differently between these two, which affects the timing
+   * of waiting for all caches to be discovered.
+   **/
+  async cacheReadyInRender() {
+    // During a render, React pings pending tasks (that are waiting for something async to resolve) using `setImmediate`.
+    // This is unlike a prerender, where they are pinged in a microtask.
+    // This means that, if we're warming caches via a render (not a prerender),
+    // we need to give React more time to continue rendering after a cache has resolved
+    // in order to make sure we've discovered all the caches needed for the current render.
+    do {
+      await this.cacheReady()
+      await waitAtLeastOneReactRenderTask()
+    } while (this.hasPendingReads())
+  }
+
   beginRead() {
     this.count++
 
@@ -112,6 +130,10 @@ export class CacheSignal {
         subscriber.endRead()
       }
     }
+  }
+
+  hasPendingReads(): boolean {
+    return this.count > 0
   }
 
   trackRead<T>(promise: Promise<T>) {

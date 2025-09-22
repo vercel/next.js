@@ -52,3 +52,21 @@ export function trackPendingModules(cacheSignal: CacheSignal): void {
   // we can unsubscribe it.
   cacheSignal.cacheReady().then(unsubscribe)
 }
+
+/**
+ * Like `trackPendingModules`, but for use in a render, not a prerender.
+ * See `CacheSignal#cacheReadyInRender` for an explanation.
+ */
+export function trackPendingModulesInRender(cacheSignal: CacheSignal): void {
+  const moduleLoadingSignal = getModuleLoadingSignal()
+
+  // We can't just use `cacheSignal.trackRead(moduleLoadingSignal.cacheReady())`,
+  // because we might start and finish multiple batches of module loads while waiting for caches,
+  // and `moduleLoadingSignal.cacheReady()` would resolve after the first batch.
+  // Instead, we'll keep notifying `cacheSignal` of each import/chunk-load.
+  const unsubscribe = moduleLoadingSignal.subscribeToReads(cacheSignal)
+
+  // Later, when `cacheSignal` is no longer waiting for any caches (or imports that we've notified it of),
+  // we can unsubscribe it.
+  cacheSignal.cacheReadyInRender().then(unsubscribe)
+}
