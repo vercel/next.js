@@ -13,7 +13,7 @@ use tracing::{Instrument, Level};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, SliceMap, TaskInput,
-    TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
+    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 use turbo_unix_path::normalize_request;
@@ -1402,26 +1402,60 @@ fn merge_results_with_affecting_sources(
     }
 }
 
-// Resolves the pattern without collecting affecting sources
+// Resolves the pattern
 #[turbo_tasks::function]
 pub async fn resolve_raw(
     lookup_dir: FileSystemPath,
     path: Vc<Pattern>,
+    collect_affecting_sources: bool,
     force_in_lookup_dir: bool,
 ) -> Result<Vc<ResolveResult>> {
-    async fn to_result(request: RcStr, path: FileSystemPath) -> Result<Vc<ResolveResult>> {
+    async fn to_result(
+        request: RcStr,
+        path: FileSystemPath,
+        collect_affecting_sources: bool,
+    ) -> Result<Vc<ResolveResult>> {
         let result = &*path.realpath_with_links().await?;
         let path = match &result.path_result {
             Ok(path) => path,
             Err(e) => bail!(e.as_error_message(&path, result)),
         };
-        // NOTE: we do not collect affecting sources here because we are not interested in them
-        // for this function.  Even if we did collect them here, our caller immediately discards
-        // them.
-        Ok(*ResolveResult::source_with_key(
-            RequestKey::new(request),
-            ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?),
-        ))
+        let request_key = RequestKey::new(request);
+        let source = ResolvedVc::upcast(FileSource::new(path.clone()).to_resolved().await?);
+        Ok(*if collect_affecting_sources {
+            ResolveResult::source_with_affecting_sources(
+                request_key,
+                source,
+                result
+                    .symlinks
+                    .iter()
+                    .map(|symlink| {
+                        Vc::upcast::<Box<dyn Source>>(FileSource::new(symlink.clone()))
+                            .to_resolved()
+                    })
+                    .try_join()
+                    .await?,
+            )
+        } else {
+            ResolveResult::source_with_key(request_key, source)
+        })
+    }
+
+    async fn collect_matches(
+        matches: &[PatternMatch],
+        collect_affecting_sources: bool,
+    ) -> Result<Vec<Vc<ResolveResult>>> {
+        matches
+            .iter()
+            .map(|m| async move {
+                Ok(if let PatternMatch::File(request, path) = m {
+                    Some(to_result(request.clone(), path.clone(), collect_affecting_sources).await?)
+                } else {
+                    None
+                })
+            })
+            .try_flat_join()
+            .await
     }
 
     let mut results = Vec::new();
@@ -1449,11 +1483,11 @@ pub async fn resolve_raw(
                 matches.len()
             );
         } else {
-            for m in matches.iter() {
-                if let PatternMatch::File(request, path) = m {
-                    results.push(to_result(request.clone(), path.clone()).await?);
-                }
-            }
+            results.extend(
+                collect_matches(&matches, collect_affecting_sources)
+                    .await?
+                    .into_iter(),
+            );
         }
     }
 
@@ -1467,11 +1501,11 @@ pub async fn resolve_raw(
                 matches.len()
             );
         }
-        for m in matches.iter() {
-            if let PatternMatch::File(request, path) = m {
-                results.push(to_result(request.clone(), path.clone()).await?);
-            }
-        }
+        results.extend(
+            collect_matches(&matches, collect_affecting_sources)
+                .await?
+                .into_iter(),
+        );
     }
 
     Ok(merge_results(results))

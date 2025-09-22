@@ -440,6 +440,7 @@ struct AnalysisState<'a> {
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
     free_var_references: ReadRef<FreeVarReferencesIndividual>,
+    collect_affecting_sources: bool,
 }
 
 impl AnalysisState<'_> {
@@ -513,6 +514,11 @@ pub async fn analyse_ecmascript_module_internal(
     let analyze_mode = options.analyze_mode;
 
     let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
+    let collect_affecting_sources = origin
+        .resolve_options(ReferenceType::Undefined)
+        .await?
+        .await?
+        .collect_affecting_sources;
 
     let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new(analyze_mode);
     let path = &*origin.origin_path().await?;
@@ -974,6 +980,7 @@ pub async fn analyse_ecmascript_module_internal(
                 .free_var_references
                 .individual()
                 .await?,
+            collect_affecting_sources,
         };
 
         enum Action {
@@ -1603,6 +1610,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         compile_time_info,
         ignore_dynamic_requests,
         url_rewrite_behavior,
+        collect_affecting_sources,
         ..
     } = state;
     fn explain_args(args: &[JsValue]) -> (String, String) {
@@ -1948,7 +1956,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     }
                 }
                 analysis.add_reference(
-                    FileSourceReference::new(*source, Pattern::new(pat))
+                    FileSourceReference::new(*source, Pattern::new(pat), collect_affecting_sources)
                         .to_resolved()
                         .await?,
                 );
@@ -1997,7 +2005,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 }
             }
             analysis.add_reference(
-                FileSourceReference::new(*source, Pattern::new(pat))
+                FileSourceReference::new(*source, Pattern::new(pat), collect_affecting_sources)
                     .to_resolved()
                     .await?,
             );
@@ -2086,9 +2094,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 }
                 if !dynamic || !ignore_dynamic_requests {
                     analysis.add_reference(
-                        FileSourceReference::new(*source, Pattern::new(pat))
-                            .to_resolved()
-                            .await?,
+                        FileSourceReference::new(
+                            *source,
+                            Pattern::new(pat),
+                            collect_affecting_sources,
+                        )
+                        .to_resolved()
+                        .await?,
                     );
                 }
                 if show_dynamic_warning {
@@ -2179,6 +2191,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         origin.origin_path().await?.parent(),
                         Pattern::new(pat),
                         compile_time_info.environment().compile_target(),
+                        collect_affecting_sources,
                     )
                     .to_resolved()
                     .await?,
@@ -2218,7 +2231,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     analysis.add_reference(
                         NodeGypBuildReference::new(
                             current_context,
-                            origin.resolve_options(ReferenceType::Undefined).await?,
+                            collect_affecting_sources,
                             compile_time_info.environment().compile_target(),
                         )
                         .to_resolved()
@@ -2250,9 +2263,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     .await?;
                 if let Some(s) = first_arg.as_str() {
                     analysis.add_reference(
-                        NodeBindingsReference::new(origin.origin_path().owned().await?, s.into())
-                            .to_resolved()
-                            .await?,
+                        NodeBindingsReference::new(
+                            origin.origin_path().owned().await?,
+                            s.into(),
+                            collect_affecting_sources,
+                        )
+                        .to_resolved()
+                        .await?,
                     );
                     return Ok(());
                 }

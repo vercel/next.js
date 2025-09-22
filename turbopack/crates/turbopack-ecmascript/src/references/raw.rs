@@ -14,13 +14,22 @@ use turbopack_core::{
 pub struct FileSourceReference {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub path: ResolvedVc<Pattern>,
+    pub collect_affecting_sources: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl FileSourceReference {
     #[turbo_tasks::function]
-    pub fn new(source: ResolvedVc<Box<dyn Source>>, path: ResolvedVc<Pattern>) -> Vc<Self> {
-        Self::cell(FileSourceReference { source, path })
+    pub fn new(
+        source: ResolvedVc<Box<dyn Source>>,
+        path: ResolvedVc<Pattern>,
+        collect_affecting_sources: bool,
+    ) -> Vc<Self> {
+        Self::cell(FileSourceReference {
+            source,
+            path,
+            collect_affecting_sources,
+        })
     }
 }
 
@@ -35,11 +44,15 @@ impl ModuleReference for FileSourceReference {
             pattern = display(self.path.to_string().await?)
         );
         async {
-            // `resolve_raw` does not collect affecting sources, is that correct?
-            resolve_raw(context_dir, *self.path, false)
-                .as_raw_module_result()
-                .resolve()
-                .await
+            resolve_raw(
+                context_dir,
+                *self.path,
+                self.collect_affecting_sources,
+                false,
+            )
+            .as_raw_module_result()
+            .resolve()
+            .await
         }
         .instrument(span)
         .await
