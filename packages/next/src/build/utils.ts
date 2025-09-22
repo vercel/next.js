@@ -383,7 +383,6 @@ export async function printTreeView(
                   ? ` (avg ${getPrettyDuration(avgDuration)})`
                   : ''
               }`,
-              '',
               showRevalidate && initialCacheControl
                 ? formatRevalidate(initialCacheControl)
                 : '',
