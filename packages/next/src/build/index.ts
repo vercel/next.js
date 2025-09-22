@@ -2819,7 +2819,7 @@ export default async function build(
           )
 
           const sortedStaticPaths = Array.from(staticPaths.entries()).sort(
-            ([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)
+            ([a], [b]) => a.localeCompare(b)
           )
 
           const exportApp = (require('../export') as typeof import('../export'))
