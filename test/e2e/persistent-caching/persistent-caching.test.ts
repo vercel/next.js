@@ -8,7 +8,7 @@ describe('persistent-caching', () => {
     skipDeployment: true,
     // We need to use npm here as pnpms symlinks trigger a weird bug (kernel bug?)
     installCommand: 'npm i',
-    buildCommand: 'npm next build',
+    buildCommand: 'npm exec next build',
     startCommand: isNextDev ? 'npm exec next dev' : 'npm exec next start',
   })
 
