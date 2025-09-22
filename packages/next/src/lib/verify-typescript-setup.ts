@@ -1,5 +1,5 @@
 import { bold, cyan, red, yellow } from './picocolors'
-import path from 'path'
+import path, { join } from 'path'
 
 import { hasNecessaryDependencies } from './has-necessary-dependencies'
 import type { NecessaryDependencies } from './has-necessary-dependencies'
@@ -106,12 +106,12 @@ export async function verifyTypeScriptSetup({
     }
 
     // Load TypeScript after we're sure it exists:
-    const tsPath = deps.resolved.get('typescript')!
-    const typescript = (await Promise.resolve(
-      require(tsPath)
-    )) as typeof import('typescript')
+    const tsPackageJsonPath = deps.resolved.get(
+      join('typescript', 'package.json')
+    )!
+    const typescriptPackageJson = require(tsPackageJsonPath)
 
-    const typescriptVersion = typescript.version
+    const typescriptVersion = typescriptPackageJson.version
 
     if (semver.lt(typescriptVersion, '4.5.2')) {
       log.warn(
@@ -121,7 +121,7 @@ export async function verifyTypeScriptSetup({
 
     // Reconfigure (or create) the user's `tsconfig.json` for them:
     await writeConfigurationDefaults(
-      typescript,
+      typescriptVersion,
       resolvedTsConfigPath,
       intent.firstTimeSetup,
       hasAppDir,
@@ -142,6 +142,11 @@ export async function verifyTypeScriptSetup({
     if (typeCheckPreflight) {
       const { runTypeCheck } =
         require('./typescript/runTypeCheck') as typeof import('./typescript/runTypeCheck')
+
+      const tsPath = deps.resolved.get('typescript')!
+      const typescript = (await Promise.resolve(
+        require(tsPath)
+      )) as typeof import('typescript')
 
       // Verify the project passes type-checking before we go to webpack phase:
       result = await runTypeCheck(

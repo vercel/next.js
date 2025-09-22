@@ -40,7 +40,7 @@ describe('writeConfigurationDefaults()', () => {
       })
 
       await writeConfigurationDefaults(
-        ts,
+        ts.version,
         tsConfigPath,
         isFirstTimeSetup,
         hasAppDir,
@@ -128,7 +128,7 @@ describe('writeConfigurationDefaults()', () => {
       )
 
       await writeConfigurationDefaults(
-        ts,
+        ts.version,
         tsConfigPath,
         isFirstTimeSetup,
         hasAppDir,
@@ -150,7 +150,7 @@ describe('writeConfigurationDefaults()', () => {
         nextAppTypes = `${distDir}/types/**/*.ts`
       })
 
-      it('should support empty includes when base provides it', async () => {
+      it('should not change tsconfig with extends', async () => {
         const include = ['**/*.ts', '**/*.tsx', nextAppTypes, '**/*.mts']
         const content = { extends: './tsconfig.base.json' }
         const baseContent = { include }
@@ -160,7 +160,7 @@ describe('writeConfigurationDefaults()', () => {
 
         await expect(
           writeConfigurationDefaults(
-            ts,
+            ts.version,
             tsConfigPath,
             isFirstTimeSetup,
             hasAppDir,
@@ -173,62 +173,9 @@ describe('writeConfigurationDefaults()', () => {
         const parsed = JSON.parse(output)
 
         expect(parsed.include).toBeUndefined()
-      })
-
-      it('should replace includes when base is missing appTypes', async () => {
-        const include = ['**/*.ts', '**/*.tsx', '**/*.mts']
-        const content = { extends: './tsconfig.base.json' }
-        const baseContent = { include }
-
-        await writeFile(tsConfigPath, JSON.stringify(content, null, 2))
-        await writeFile(tsConfigBasePath, JSON.stringify(baseContent, null, 2))
-
-        await expect(
-          writeConfigurationDefaults(
-            ts,
-            tsConfigPath,
-            isFirstTimeSetup,
-            hasAppDir,
-            distDir,
-            hasPagesDir
-          )
-        ).resolves.not.toThrow()
-
-        const output = await readFile(tsConfigPath, 'utf8')
-        const parsed = JSON.parse(output)
-
-        expect(parsed.include.sort()).toMatchInlineSnapshot(`
-         [
-           "**/*.mts",
-           "**/*.ts",
-           "**/*.tsx",
-           ".next/types/**/*.ts",
-         ]
-        `)
-      })
-
-      it('should not add strictNullChecks if base provides it', async () => {
-        const content = { extends: './tsconfig.base.json' }
-
-        const baseContent = {
-          compilerOptions: { strictNullChecks: true, strict: true },
-        }
-
-        await writeFile(tsConfigPath, JSON.stringify(content, null, 2))
-        await writeFile(tsConfigBasePath, JSON.stringify(baseContent, null, 2))
-
-        await writeConfigurationDefaults(
-          ts,
-          tsConfigPath,
-          isFirstTimeSetup,
-          hasAppDir,
-          distDir,
-          hasPagesDir
-        )
-        const output = await readFile(tsConfigPath, 'utf8')
-        const parsed = JSON.parse(output)
-
-        expect(parsed.compilerOptions.strictNullChecks).toBeUndefined()
+        expect(parsed).toStrictEqual({
+          extends: './tsconfig.base.json',
+        })
       })
     })
   })
