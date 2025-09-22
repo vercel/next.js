@@ -8,7 +8,6 @@ import type { SizeLimit } from '../types'
 import type {
   ExportPathMap,
   TurbopackLoaderItem,
-  DeprecatedExperimentalTurboOptions,
   TurbopackOptions,
   TurbopackRuleConfigItem,
   TurbopackRuleConfigCollection,
@@ -163,32 +162,6 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   moduleIds: z.enum(['named', 'deterministic']).optional(),
   root: z.string().optional(),
 })
-
-// Same as zTurbopackConfig but with deprecated properties. Unfortunately, base
-// properties are duplicated here as `ZodType`s do not export `extend()`.
-const zDeprecatedExperimentalTurboConfig: zod.ZodType<DeprecatedExperimentalTurboOptions> =
-  z.strictObject({
-    loaders: z.record(z.string(), z.array(zTurbopackLoaderItem)).optional(),
-    rules: z.record(z.string(), zTurbopackRuleConfigCollection).optional(),
-    resolveAlias: z
-      .record(
-        z.string(),
-        z.union([
-          z.string(),
-          z.array(z.string()),
-          z.record(z.string(), z.union([z.string(), z.array(z.string())])),
-        ])
-      )
-      .optional(),
-    resolveExtensions: z.array(z.string()).optional(),
-    treeShaking: z.boolean().optional(),
-    persistentCaching: z.union([z.number(), z.literal(false)]).optional(),
-    memoryLimit: z.number().optional(),
-    moduleIds: z.enum(['named', 'deterministic']).optional(),
-    minify: z.boolean().optional(),
-    sourceMaps: z.boolean().optional(),
-    root: z.string().optional(),
-  })
 
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
@@ -462,10 +435,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         typedRoutes: z.boolean().optional(),
         webpackBuildWorker: z.boolean().optional(),
         webpackMemoryOptimizations: z.boolean().optional(),
-        /**
-         * @deprecated Use `config.turbopack` instead.
-         */
-        turbo: zDeprecatedExperimentalTurboConfig.optional(),
         turbopackMemoryLimit: z.number().optional(),
         turbopackMinify: z.boolean().optional(),
         turbopackPersistentCaching: z.boolean().optional(),

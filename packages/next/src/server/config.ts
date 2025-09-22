@@ -16,7 +16,6 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
   NextConfig,
-  TurbopackLoaderItem,
 } from './config-shared'
 
 import { loadWebpackHook } from './config-utils'
@@ -1458,7 +1457,7 @@ export default async function loadConfig(
       ) as (keyof ExperimentalConfig)[]) {
         const value = loadedConfig.experimental[name]
 
-        if (name === 'turbo' && !process.env.TURBOPACK) {
+        if (name.startsWith('turbopack') && !process.env.TURBOPACK) {
           // Ignore any Turbopack config if Turbopack is not enabled
           continue
         }
@@ -1500,47 +1499,6 @@ export default async function loadConfig(
 
     if (reactProductionProfiling) {
       userConfig.reactProductionProfiling = reactProductionProfiling
-    }
-
-    if (
-      userConfig.experimental?.turbo?.loaders &&
-      !userConfig.experimental?.turbo?.rules
-    ) {
-      curLog.warn(
-        'experimental.turbo.loaders is now deprecated. Please update next.config.js to use experimental.turbo.rules as soon as possible.\n' +
-          'The new option is similar, but the key should be a glob instead of an extension.\n' +
-          'Example: loaders: { ".mdx": ["mdx-loader"] } -> rules: { "*.mdx": ["mdx-loader"] }" }\n' +
-          'See more info here https://nextjs.org/docs/app/api-reference/next-config-js/turbo'
-      )
-
-      const rules: Record<string, TurbopackLoaderItem[]> = {}
-      for (const [ext, loaders] of Object.entries(
-        userConfig.experimental.turbo.loaders
-      )) {
-        rules['*' + ext] = loaders as TurbopackLoaderItem[]
-      }
-
-      userConfig.experimental.turbo.rules = rules
-    }
-
-    if (userConfig.experimental?.turbo) {
-      curLog.warn(
-        'The config property `experimental.turbo` is deprecated. Move this setting to `config.turbopack` or run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .`'
-      )
-
-      // Merge the two configs, preferring values in `config.turbopack`.
-      userConfig.turbopack = {
-        ...userConfig.experimental.turbo,
-        ...userConfig.turbopack,
-      }
-      userConfig.experimental.turbopackMemoryLimit ??=
-        userConfig.experimental.turbo.memoryLimit
-      userConfig.experimental.turbopackMinify ??=
-        userConfig.experimental.turbo.minify
-      userConfig.experimental.turbopackTreeShaking ??=
-        userConfig.experimental.turbo.treeShaking
-      userConfig.experimental.turbopackSourceMaps ??=
-        userConfig.experimental.turbo.sourceMaps
     }
 
     if (userConfig.experimental?.useLightningcss) {

@@ -25,7 +25,7 @@ export type NextConfigComplete = Required<NextConfig> & {
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
-  experimental: Omit<ExperimentalConfig, 'turbo'>
+  experimental: ExperimentalConfig
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -181,40 +181,6 @@ export interface TurbopackOptions {
    * directory can be resolved by turbopack.
    */
   root?: string
-}
-
-export interface DeprecatedExperimentalTurboOptions extends TurbopackOptions {
-  /**
-   * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
-   *
-   * @deprecated Use `rules` instead.
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)
-   */
-  loaders?: Record<string, TurbopackLoaderItem[]>
-
-  /**
-   * A target memory limit for turbo, in bytes.
-   * @deprecated Use `experimental.turbopackMemoryLimit` instead.
-   */
-  memoryLimit?: number
-
-  /**
-   * Enable minification. Defaults to true in build mode and false in dev mode.
-   * @deprecated Use `experimental.turbopackMinify` instead.
-   */
-  minify?: boolean
-
-  /**
-   * Enable tree shaking for the turbopack dev server and build.
-   * @deprecated Use `experimental.turbopackTreeShaking` instead.
-   */
-  treeShaking?: boolean
-
-  /**
-   * Enable source maps. Defaults to true.
-   * @deprecated Use `experimental.turbopackSourceMaps` instead.
-   */
-  sourceMaps?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -444,12 +410,6 @@ export interface ExperimentalConfig {
    * Optimize React APIs for server builds.
    */
   optimizeServerReact?: boolean
-
-  /**
-   * @deprecated Use `config.turbopack` instead.
-   * Run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .` to migrate automatically.
-   */
-  turbo?: DeprecatedExperimentalTurboOptions
 
   /**
    * A target memory limit for turbo, in bytes.
@@ -1488,7 +1448,6 @@ export const defaultConfig = Object.freeze({
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,
-    turbo: undefined,
     typedEnv: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
