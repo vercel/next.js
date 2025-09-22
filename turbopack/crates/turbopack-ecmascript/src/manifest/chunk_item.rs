@@ -77,13 +77,8 @@ impl ChunkItem for ManifestChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let mut references = vec![];
-        for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter());
-        }
-
-        Ok(Vc::cell(references))
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
+        Ok(self.manifest.chunks())
     }
 
     #[turbo_tasks::function]
