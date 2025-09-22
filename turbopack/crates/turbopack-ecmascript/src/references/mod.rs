@@ -1928,7 +1928,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             );
         }
 
-        JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(name)) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(name))
+            if analysis.tracing_mode.is_tracing() =>
+        {
             let args = linked_args(args).await?;
             if !args.is_empty() {
                 let pat = js_value_to_pattern(&args[0]);
@@ -1960,7 +1962,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             )
         }
 
-        JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(..)) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::PathResolve(..))
+            if analysis.tracing_mode.is_tracing() =>
+        {
             let parent_path = origin.origin_path().owned().await?.parent();
             let args = linked_args(args).await?;
 
@@ -2000,7 +2004,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             return Ok(());
         }
 
-        JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::PathJoin)
+            if analysis.tracing_mode.is_tracing() =>
+        {
             let context_path = source.ident().path().await?;
             // ignore path.join in `node-gyp`, it will includes too many files
             if context_path.path.contains("node_modules/node-gyp") {
@@ -2037,7 +2043,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             );
             return Ok(());
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(name)) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(name))
+            if analysis.tracing_mode.is_tracing() =>
+        {
             let args = linked_args(args).await?;
 
             // Is this specifically `spawn(process.argv[0], ['-e', ...])`?
@@ -2104,7 +2112,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessFork) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessFork)
+            if analysis.tracing_mode.is_tracing() =>
+        {
             let args = linked_args(args).await?;
             if !args.is_empty() {
                 let first_arg = &args[0];
@@ -2143,7 +2153,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodePreGypFind) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::NodePreGypFind)
+            if analysis.tracing_mode.is_tracing() =>
+        {
             use turbopack_resolve::node_native_binding::NodePreGypConfigReference;
 
             let args = linked_args(args).await?;
@@ -2185,7 +2197,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeGypBuild)
+            if analysis.tracing_mode.is_tracing() =>
+        {
             use turbopack_resolve::node_native_binding::NodeGypBuildReference;
 
             let args = linked_args(args).await?;
@@ -2223,7 +2237,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeBindings)
+            if analysis.tracing_mode.is_tracing() =>
+        {
             use turbopack_resolve::node_native_binding::NodeBindingsReference;
 
             let args = linked_args(args).await?;
@@ -2249,7 +2265,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpressSet) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeExpressSet)
+            if analysis.tracing_mode.is_tracing() =>
+        {
             let args = linked_args(args).await?;
             if args.len() == 2
                 && let Some(s) = args.first().and_then(|arg| arg.as_str())
@@ -2328,7 +2346,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeStrongGlobalizeSetRootDir)
+            if analysis.tracing_mode.is_tracing() =>
+        {
             let args = linked_args(args).await?;
             if let Some(p) = args.first().and_then(|arg| arg.as_str()) {
                 let abs_pattern = if p.starts_with("/ROOT/") {
@@ -2370,7 +2390,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom)
+            if analysis.tracing_mode.is_tracing() =>
+        {
             let args = linked_args(args).await?;
             if args.len() == 2 && args.get(1).and_then(|arg| arg.as_str()).is_some() {
                 analysis.add_reference(
@@ -2394,7 +2416,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 ),
             )
         }
-        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeProtobufLoad) => {
+        JsValue::WellKnownFunction(WellKnownFunctionKind::NodeProtobufLoad)
+            if analysis.tracing_mode.is_tracing() =>
+        {
             let args = linked_args(args).await?;
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)
