@@ -2046,14 +2046,14 @@ var isInputEventSupported = !1;
 if (canUseDOM) {
   var JSCompiler_inline_result$jscomp$285;
   if (canUseDOM) {
-    var isSupported$jscomp$inline_428 = "oninput" in document;
-    if (!isSupported$jscomp$inline_428) {
-      var element$jscomp$inline_429 = document.createElement("div");
-      element$jscomp$inline_429.setAttribute("oninput", "return;");
-      isSupported$jscomp$inline_428 =
-        "function" === typeof element$jscomp$inline_429.oninput;
+    var isSupported$jscomp$inline_426 = "oninput" in document;
+    if (!isSupported$jscomp$inline_426) {
+      var element$jscomp$inline_427 = document.createElement("div");
+      element$jscomp$inline_427.setAttribute("oninput", "return;");
+      isSupported$jscomp$inline_426 =
+        "function" === typeof element$jscomp$inline_427.oninput;
     }
-    JSCompiler_inline_result$jscomp$285 = isSupported$jscomp$inline_428;
+    JSCompiler_inline_result$jscomp$285 = isSupported$jscomp$inline_426;
   } else JSCompiler_inline_result$jscomp$285 = !1;
   isInputEventSupported =
     JSCompiler_inline_result$jscomp$285 &&
@@ -10748,6 +10748,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
             !workInProgressRootDidSkipSuspendedSiblings
           );
           if (0 !== getNextLanes(shouldTimeSlice, 0, !0)) break a;
+          pendingEffectsLanes = lanes;
           shouldTimeSlice.timeoutHandle = scheduleTimeout(
             commitRootWhenReady.bind(
               null,
@@ -10762,7 +10763,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
               workInProgressSuspendedRetryLanes,
               workInProgressRootDidSkipSuspendedSiblings,
               renderWasConcurrent,
-              2,
+              "Throttled",
               -0,
               0
             ),
@@ -10782,7 +10783,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
           workInProgressSuspendedRetryLanes,
           workInProgressRootDidSkipSuspendedSiblings,
           renderWasConcurrent,
-          0,
+          null,
           -0,
           0
         );
@@ -10821,6 +10822,7 @@ function commitRootWhenReady(
       imgBytes: 0,
       suspenseyImages: [],
       waitingForImages: !0,
+      waitingForViewTransition: !1,
       unsuspend: noop$1
     };
     accumulateSuspenseyCommitOnFiber(
@@ -10839,6 +10841,7 @@ function commitRootWhenReady(
       timeoutOffset
     );
     if (null !== timeoutOffset) {
+      pendingEffectsLanes = lanes;
       root.cancelPendingCommit = timeoutOffset(
         commitRoot.bind(
           null,
@@ -10853,7 +10856,7 @@ function commitRootWhenReady(
           suspendedRetryLanes,
           exitStatus,
           suspendedCommitReason,
-          1,
+          null,
           completedRenderStartTime,
           completedRenderEndTime
         )
@@ -10958,6 +10961,7 @@ function prepareFreshStack(root, lanes) {
   timeoutHandle = root.cancelPendingCommit;
   null !== timeoutHandle &&
     ((root.cancelPendingCommit = null), timeoutHandle());
+  pendingEffectsLanes = 0;
   resetWorkInProgressStack();
   workInProgressRoot = root;
   workInProgress = timeoutHandle = createWorkInProgress(root.current, null);
@@ -12146,20 +12150,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1590 = 0;
-  i$jscomp$inline_1590 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1590++
+  var i$jscomp$inline_1570 = 0;
+  i$jscomp$inline_1570 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1570++
 ) {
-  var eventName$jscomp$inline_1591 =
-      simpleEventPluginEvents[i$jscomp$inline_1590],
-    domEventName$jscomp$inline_1592 =
-      eventName$jscomp$inline_1591.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1593 =
-      eventName$jscomp$inline_1591[0].toUpperCase() +
-      eventName$jscomp$inline_1591.slice(1);
+  var eventName$jscomp$inline_1571 =
+      simpleEventPluginEvents[i$jscomp$inline_1570],
+    domEventName$jscomp$inline_1572 =
+      eventName$jscomp$inline_1571.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1573 =
+      eventName$jscomp$inline_1571[0].toUpperCase() +
+      eventName$jscomp$inline_1571.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1592,
-    "on" + capitalizedEvent$jscomp$inline_1593
+    domEventName$jscomp$inline_1572,
+    "on" + capitalizedEvent$jscomp$inline_1573
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -15858,16 +15862,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1853 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1833 = React.version;
 if (
-  "19.2.0-canary-d415fd3e-20250919" !==
-  isomorphicReactPackageVersion$jscomp$inline_1853
+  "19.2.0-canary-1eca9a27-20250922" !==
+  isomorphicReactPackageVersion$jscomp$inline_1833
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1853,
-      "19.2.0-canary-d415fd3e-20250919"
+      isomorphicReactPackageVersion$jscomp$inline_1833,
+      "19.2.0-canary-1eca9a27-20250922"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15887,24 +15891,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2356 = {
+var internals$jscomp$inline_2336 = {
   bundleType: 0,
-  version: "19.2.0-canary-d415fd3e-20250919",
+  version: "19.2.0-canary-1eca9a27-20250922",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-canary-d415fd3e-20250919"
+  reconcilerVersion: "19.2.0-canary-1eca9a27-20250922"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2357 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2337 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2357.isDisabled &&
-    hook$jscomp$inline_2357.supportsFiber
+    !hook$jscomp$inline_2337.isDisabled &&
+    hook$jscomp$inline_2337.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2357.inject(
-        internals$jscomp$inline_2356
+      (rendererID = hook$jscomp$inline_2337.inject(
+        internals$jscomp$inline_2336
       )),
-        (injectedHook = hook$jscomp$inline_2357);
+        (injectedHook = hook$jscomp$inline_2337);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -15990,4 +15994,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.2.0-canary-d415fd3e-20250919";
+exports.version = "19.2.0-canary-1eca9a27-20250922";
