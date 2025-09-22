@@ -411,7 +411,7 @@ pub fn project_new(
             let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
             if trace_server.is_some() {
                 thread::spawn(move || {
-                    turbopack_trace_server::start_turbopack_trace_server(trace_file);
+                    turbopack_trace_server::start_turbopack_trace_server(trace_file, None);
                 });
                 println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
             }

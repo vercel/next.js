@@ -461,7 +461,10 @@ export declare function transformSync(
   isModule: boolean,
   options: Buffer
 ): object
-export declare function startTurbopackTraceServer(path: string): void
+export declare function startTurbopackTraceServer(
+  path: string,
+  port?: number | undefined | null
+): void
 export interface NextBuildContext {
   /** The root directory of the workspace. */
   root?: string

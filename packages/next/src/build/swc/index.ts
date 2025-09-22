@@ -1264,7 +1264,10 @@ async function loadWasm(importPath = '') {
           '`turbo.createProject` is not supported by the wasm bindings.'
         )
       },
-      startTurbopackTraceServer(_traceFilePath: string): void {
+      startTurbopackTraceServer(
+        _traceFilePath: string,
+        _port: number | undefined
+      ): void {
         throw new Error(
           '`turbo.startTurbopackTraceServer` is not supported by the wasm bindings.'
         )
@@ -1458,11 +1461,14 @@ function loadNative(importPath?: string) {
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
       turbo: {
         createProject: bindingToApi(customBindings ?? bindings, false),
-        startTurbopackTraceServer(traceFilePath) {
+        startTurbopackTraceServer(traceFilePath, port) {
           Log.warn(
-            'Turbopack trace server started. View trace at https://trace.nextjs.org'
+            `Turbopack trace server started. View trace at https://trace.nextjs.org${port != null ? `?port=${port}` : ''}`
           )
-          ;(customBindings ?? bindings).startTurbopackTraceServer(traceFilePath)
+          ;(customBindings ?? bindings).startTurbopackTraceServer(
+            traceFilePath,
+            port
+          )
         },
       },
       mdx: {

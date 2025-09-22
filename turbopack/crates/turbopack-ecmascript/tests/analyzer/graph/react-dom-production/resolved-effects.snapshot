@@ -10,7 +10,7 @@
 - *4* arguments[0]
   ⚠️  function calls are not analysed yet
 
-6 -> 8 call = (...) => (undefined | 1 | 2 | 4 | 8 | 16 | 32 | ???*0* | 134217728 | 268435456 | 536870912 | 1073741824 | a)(???*1*)
+6 -> 8 call = (...) => (1 | 2 | 4 | 8 | 16 | 32 | ???*0* | 134217728 | 268435456 | 536870912 | 1073741824 | a | undefined)(???*1*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* ???*2*["pendingLanes"]
@@ -40,7 +40,7 @@
 
 6 -> 13 call = (...) => null()
 
-0 -> 14 call = (...) => (undefined | a())((...) => undefined)
+0 -> 14 call = (...) => (a() | undefined)((...) => undefined)
 
 14 -> 15 call = (...) => ((3 === c["tag"]) ? c["stateNode"] : null)(???*0*, 1)
 - *0* arguments[0]
@@ -226,7 +226,7 @@
       | ((???*5* | ???*7*) ? ???*8* : 4)
       | (???*9* ? 16 : (???*10* | undefined | null | ???*17* | ???*18*))
       | ???*20*
-      | (???*22* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*22* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[0]
@@ -320,7 +320,7 @@
       | ((???*12* | ???*14*) ? ???*15* : 4)
       | (???*16* ? 16 : (???*17* | undefined | null | ???*24* | ???*25*))
       | ???*27*
-      | (???*29* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*29* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     ),
     ((???*31* ? ???*33* : ???*34*) | undefined)
 )
@@ -426,7 +426,7 @@
       | ((???*5* | ???*7*) ? ???*8* : 4)
       | (???*9* ? 16 : (???*10* | undefined | null | ???*17* | ???*18*))
       | ???*20*
-      | (???*22* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*22* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[0]
@@ -1309,7 +1309,7 @@
 
 0 -> 151 free var = FreeVar(exports)
 
-0 -> 152 call = (...) => (undefined | a())(???*0*)
+0 -> 152 call = (...) => (a() | undefined)(???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
@@ -1869,7 +1869,7 @@
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-212 -> 213 call = (...) => (undefined | a())((...) => undefined)
+212 -> 213 call = (...) => (a() | undefined)((...) => undefined)
 
 213 -> 214 call = (...) => hl(g)(null, null, ???*0*, false, (...) => undefined)
 - *0* arguments[0]
@@ -2185,7 +2185,7 @@
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 300 call = (...) => (undefined | !(1) | !(0) | !(c["acceptsBooleans"]) | (("data-" !== a) && ("aria-" !== a)))(???*0*, ???*1*, ???*2*, ???*3*)
+0 -> 300 call = (...) => (!(1) | !(0) | !(c["acceptsBooleans"]) | (("data-" !== a) && ("aria-" !== a)) | undefined)(???*0*, ???*1*, ???*2*, ???*3*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* arguments[1]
@@ -2198,12 +2198,12 @@
 0 -> 301 conditional = (
   | (null === ???*0*)
   | ("undefined" === ???*1*)
-  | undefined
   | false
   | true
   | !(???*3*)
   | ("data-" !== (???*5* | ???*6*))
   | ("aria-" !== (???*11* | ???*12*))
+  | undefined
 )
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
@@ -4789,12 +4789,12 @@ ${La}${a}`("SuspenseList")
   ⚠️  This value might have side effects
 
 0 -> 744 call = (...) => (
-  | undefined
   | {
         "getValue": *anonymous function 10089*,
         "setValue": *anonymous function 10119*,
         "stopTracking": *anonymous function 10152*
     }
+  | undefined
 )(???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
@@ -5198,7 +5198,7 @@ ${La}${a}`("SuspenseList")
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 789 call = (...) => (undefined | a | "")((???*0* ? ???*3* : (???*5* | undefined | "")))
+0 -> 789 call = (...) => (a | "" | undefined)((???*0* ? ???*3* : (???*5* | "" | undefined)))
 - *0* (null != ???*1*)
   ⚠️  nested operation
 - *1* ???*2*["value"]
@@ -5248,13 +5248,13 @@ ${La}${a}`("SuspenseList")
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 800 call = (...) => (undefined | a | "")(???*0*)
+0 -> 800 call = (...) => (a | "" | undefined)(???*0*)
 - *0* ???*1*["value"]
   ⚠️  unknown object
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 802 conditional = (null != (undefined | ???*0* | ""))
+0 -> 802 conditional = (null != (???*0* | "" | undefined))
 - *0* ???*1*["value"]
   ⚠️  unknown object
 - *1* arguments[1]
@@ -5266,7 +5266,7 @@ ${La}${a}`("SuspenseList")
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-803 -> 806 conditional = ((0 === (undefined | ???*0* | "")) | ("" === ???*2*) | (???*4* != (undefined | ???*6* | "")))
+803 -> 806 conditional = ((0 === (???*0* | "" | undefined)) | ("" === ???*2*) | (???*4* != (???*6* | "" | undefined)))
 - *0* ???*1*["value"]
   ⚠️  unknown object
 - *1* arguments[1]
@@ -5312,7 +5312,7 @@ ${La}${a}`("SuspenseList")
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-816 -> 818 call = (...) => undefined(???*0*, ???*1*, (undefined | ???*3* | ""))
+816 -> 818 call = (...) => undefined(???*0*, ???*1*, (???*3* | "" | undefined))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["type"]
@@ -5328,13 +5328,13 @@ ${La}${a}`("SuspenseList")
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-816 -> 823 call = (...) => (undefined | a | "")(???*0*)
+816 -> 823 call = (...) => (a | "" | undefined)(???*0*)
 - *0* ???*1*["defaultValue"]
   ⚠️  unknown object
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-816 -> 824 call = (...) => undefined(???*0*, ???*1*, (undefined | ???*3* | ""))
+816 -> 824 call = (...) => undefined(???*0*, ???*1*, (???*3* | "" | undefined))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["type"]
@@ -5384,13 +5384,13 @@ ${La}${a}`("SuspenseList")
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 851 call = (...) => (undefined | null | (a["activeElement"] || a["body"]) | a["body"])(???*0*)
+0 -> 851 call = (...) => (null | (a["activeElement"] || a["body"]) | a["body"] | undefined)(???*0*)
 - *0* ???*1*["ownerDocument"]
   ⚠️  unknown object
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 852 conditional = (("number" !== ???*0*) | ((undefined | null | ???*1*) !== ???*4*))
+0 -> 852 conditional = (("number" !== ???*0*) | ((null | ???*1* | undefined) !== ???*4*))
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["activeElement"]
@@ -5440,7 +5440,7 @@ ${La}${a}`("SuspenseList")
 - *6* ???*7*["value"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *7* ???*8*[(???*9* | 0 | ???*10* | undefined | ???*11* | "")]
+- *7* ???*8*[(???*9* | 0 | ???*10* | ???*11* | "" | undefined)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *8* arguments[0]
@@ -5452,7 +5452,7 @@ ${La}${a}`("SuspenseList")
 - *11* c
   ⚠️  circular variable reference
 
-862 -> 877 call = (...) => (undefined | a | "")((???*0* | 0 | ???*1* | undefined | ???*2* | ""))
+862 -> 877 call = (...) => (a | "" | undefined)((???*0* | 0 | ???*1* | ???*2* | "" | undefined))
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 - *1* updated with update expression
@@ -5460,7 +5460,7 @@ ${La}${a}`("SuspenseList")
 - *2* c
   ⚠️  circular variable reference
 
-862 -> 881 conditional = (???*0* === (???*15* | 0 | ???*16* | undefined | ???*17* | ""))
+862 -> 881 conditional = (???*0* === (???*15* | 0 | ???*16* | ???*17* | "" | undefined))
 - *0* ???*1*["value"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
@@ -5479,7 +5479,7 @@ ${La}${a}`("SuspenseList")
 - *6* ???*7*["value"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *7* ???[(??? | 0 | ??? | undefined | ??? | "")]
+- *7* ???[(??? | 0 | ??? | ??? | "" | undefined)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *8* (undefined | ???*9*)(`$${???*10*}`)
@@ -5490,7 +5490,7 @@ ${La}${a}`("SuspenseList")
 - *10* ???*11*["value"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *11* ???[(??? | 0 | ??? | undefined | ??? | "")]
+- *11* ???[(??? | 0 | ??? | ??? | "" | undefined)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *12* `$${???*13*}`
@@ -5498,7 +5498,7 @@ ${La}${a}`("SuspenseList")
 - *13* ???*14*["value"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
-- *14* ???[(??? | 0 | ??? | undefined | ??? | "")]
+- *14* ???[(??? | 0 | ??? | ??? | "" | undefined)]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *15* arguments[2]
@@ -5635,7 +5635,7 @@ ${La}${a}`("SuspenseList")
 - *1* `https://reactjs.org/docs/error-decoder.html?invariant=${93}`
   ⚠️  nested operation
 
-0 -> 917 call = (...) => (undefined | a | "")(
+0 -> 917 call = (...) => (a | "" | undefined)(
     (???*0* | ""["value"] | ""["children"] | ???*2* | ???*3* | "")
 )
 - *0* ???*1*["value"]
@@ -5647,13 +5647,13 @@ ${La}${a}`("SuspenseList")
 - *3* c
   ⚠️  circular variable reference
 
-0 -> 919 call = (...) => (undefined | a | "")(???*0*)
+0 -> 919 call = (...) => (a | "" | undefined)(???*0*)
 - *0* ???*1*["value"]
   ⚠️  unknown object
 - *1* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 921 call = (...) => (undefined | a | "")(???*0*)
+0 -> 921 call = (...) => (a | "" | undefined)(???*0*)
 - *0* ???*1*["defaultValue"]
   ⚠️  unknown object
 - *1* arguments[1]
@@ -5678,10 +5678,10 @@ ${La}${a}`("SuspenseList")
   ⚠️  function calls are not analysed yet
 
 935 -> 936 call = (...) => (
-  | undefined
   | "http://www.w3.org/2000/svg"
   | "http://www.w3.org/1998/Math/MathML"
   | "http://www.w3.org/1999/xhtml"
+  | undefined
 )(???*0*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
@@ -6587,7 +6587,7 @@ ${La}${a}`("SuspenseList")
 - *0* unreachable
   ⚠️  This value might have side effects
 
-1086 -> 1089 call = ((...) => a(b) | (...) => (undefined | a(b)))(???*0*, ???*1*, ???*2*)
+1086 -> 1089 call = ((...) => a(b) | (...) => (a(b) | undefined))(???*0*, ???*1*, ???*2*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* arguments[1]
@@ -6605,7 +6605,7 @@ ${La}${a}`("SuspenseList")
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1091 -> 1092 call = ((...) => undefined | (...) => (undefined | a()))()
+1091 -> 1092 call = ((...) => undefined | (...) => (a() | undefined))()
 
 1091 -> 1093 call = (...) => undefined()
 
@@ -7921,13 +7921,13 @@ ${La}${a}`("SuspenseList")
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-1284 -> 1285 call = (...) => (undefined | 1 | 2 | 4 | 8 | 16 | 32 | ???*0* | 134217728 | 268435456 | 536870912 | 1073741824 | a)((???*1* | undefined))
+1284 -> 1285 call = (...) => (1 | 2 | 4 | 8 | 16 | 32 | ???*0* | 134217728 | 268435456 | 536870912 | 1073741824 | a | undefined)((???*1* | undefined))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* unsupported expression
   ⚠️  This value might have side effects
 
-1284 -> 1286 call = (...) => (undefined | 1 | 2 | 4 | 8 | 16 | 32 | ???*0* | 134217728 | 268435456 | 536870912 | 1073741824 | a)((???*1* | ???*3* | ???*4*))
+1284 -> 1286 call = (...) => (1 | 2 | 4 | 8 | 16 | 32 | ???*0* | 134217728 | 268435456 | 536870912 | 1073741824 | a | undefined)((???*1* | ???*3* | ???*4*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* ???*2*["pingedLanes"]
@@ -7943,13 +7943,13 @@ ${La}${a}`("SuspenseList")
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-1287 -> 1288 call = (...) => (undefined | 1 | 2 | 4 | 8 | 16 | 32 | ???*0* | 134217728 | 268435456 | 536870912 | 1073741824 | a)(???*1*)
+1287 -> 1288 call = (...) => (1 | 2 | 4 | 8 | 16 | 32 | ???*0* | 134217728 | 268435456 | 536870912 | 1073741824 | a | undefined)(???*1*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* unsupported expression
   ⚠️  This value might have side effects
 
-1287 -> 1289 call = (...) => (undefined | 1 | 2 | 4 | 8 | 16 | 32 | ???*0* | 134217728 | 268435456 | 536870912 | 1073741824 | a)((???*1* | ???*3* | ???*4*))
+1287 -> 1289 call = (...) => (1 | 2 | 4 | 8 | 16 | 32 | ???*0* | 134217728 | 268435456 | 536870912 | 1073741824 | a | undefined)((???*1* | ???*3* | ???*4*))
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* ???*2*["pingedLanes"]
@@ -7963,7 +7963,6 @@ ${La}${a}`("SuspenseList")
 
 1279 -> 1290 conditional = (0 === (
   | 0
-  | undefined
   | 1
   | 2
   | 4
@@ -7975,6 +7974,7 @@ ${La}${a}`("SuspenseList")
   | 268435456
   | 536870912
   | 1073741824
+  | undefined
   | ???*1*
   | ???*3*
 ))
@@ -7995,7 +7995,6 @@ ${La}${a}`("SuspenseList")
   | (0 !== (???*0* | ???*1* | ???*3*))
   | ((???*4* | ???*5* | ???*7*) !== (
       | 0
-      | undefined
       | 1
       | 2
       | 4
@@ -8007,6 +8006,7 @@ ${La}${a}`("SuspenseList")
       | 268435456
       | 536870912
       | 1073741824
+      | undefined
       | ???*9*
       | ???*11*
     ))
@@ -8151,7 +8151,7 @@ ${La}${a}`("SuspenseList")
 - *1* unsupported expression
   ⚠️  This value might have side effects
 
-1312 -> 1314 call = (...) => (undefined | (b + 250) | (b + 5000) | ???*0*)((???*1* | undefined), ???*2*)
+1312 -> 1314 call = (...) => ((b + 250) | (b + 5000) | ???*0* | undefined)((???*1* | undefined), ???*2*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* unsupported expression
@@ -8926,7 +8926,7 @@ ${La}${a}`("SuspenseList")
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-1401 -> 1405 call = (???*0* | (...) => (undefined | b()))(???*1*, (...) => undefined)
+1401 -> 1405 call = (???*0* | (...) => (b() | undefined))(???*1*, (...) => undefined)
 - *0* Ic
   ⚠️  pattern without value
 - *1* ???*2*["priority"]
@@ -11721,7 +11721,7 @@ ${La}${a}`("SuspenseList")
 
 0 -> 1746 conditional = (false | true)
 
-1746 -> 1747 call = (...) => (undefined | (???*0* !== $d["indexOf"](b["keyCode"])) | (229 !== b["keyCode"]) | !(0) | !(1))((???*1* | null | ???*2*), ???*15*)
+1746 -> 1747 call = (...) => ((???*0* !== $d["indexOf"](b["keyCode"])) | (229 !== b["keyCode"]) | !(0) | !(1) | undefined)((???*1* | null | ???*2*), ???*15*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* arguments[0]
@@ -11759,11 +11759,11 @@ ${La}${a}`("SuspenseList")
 1746 -> 1748 conditional = (
   | ("compositionend" === (???*0* | null | ???*1*))
   | !((???*14* | ???*18*))
-  | undefined
   | (???*19* !== ???*20*)
   | (229 !== ???*24*)
   | true
   | false
+  | undefined
 )
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
@@ -12020,11 +12020,11 @@ ${La}${a}`("SuspenseList")
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 1793 call = (...) => (undefined | a["stateNode"])(???*0*)
+0 -> 1793 call = (...) => (a["stateNode"] | undefined)(???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 1794 call = (...) => (!(1) | !(0) | ((a !== c) ? ???*0* : !(1)))((undefined | ???*1*))
+0 -> 1794 call = (...) => (!(1) | !(0) | ((a !== c) ? ???*0* : !(1)))((???*1* | undefined))
 - *0* !(0)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -12033,8 +12033,8 @@ ${La}${a}`("SuspenseList")
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 1795 conditional = (false | true | (???*0* ? ???*15* : false))
-- *0* ((undefined | ???*1* | "" | ???*3*) !== ???*14*)
+0 -> 1795 conditional = (false | true | (???*0* ? ???*18* : false))
+- *0* ((???*1* | undefined | "" | ???*3*) !== ???*14*)
   ⚠️  nested operation
 - *1* ???*2*["stateNode"]
   ⚠️  unknown object
@@ -12062,9 +12062,15 @@ ${La}${a}`("SuspenseList")
   ⚠️  unknown object
 - *13* a
   ⚠️  circular variable reference
-- *14* undefined["_valueTracker"]["getValue"]()
+- *14* ???*15*()
   ⚠️  nested operation
-- *15* !(0)
+- *15* ???*16*["getValue"]
+  ⚠️  unknown object
+- *16* ???*17*["_valueTracker"]
+  ⚠️  unknown object
+- *17* ???["stateNode"]
+  ⚠️  unknown object
+- *18* !(0)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
 
@@ -12151,11 +12157,11 @@ ${La}${a}`("SuspenseList")
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-0 -> 1817 call = (...) => (undefined | a)((null | ???*0*))
+0 -> 1817 call = (...) => (a | undefined)((null | ???*0*))
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-0 -> 1818 conditional = (("value" === ???*0*) | undefined | null | ???*2*)
+0 -> 1818 conditional = (("value" === ???*0*) | null | ???*2* | undefined)
 - *0* ???*1*["propertyName"]
   ⚠️  unknown object
 - *1* arguments[0]
@@ -12209,7 +12215,7 @@ ${La}${a}`("SuspenseList")
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-1818 -> 1821 call = (...) => (undefined | a(b, c) | Gb(a, b, c))((...) => undefined, ([] | undefined))
+1818 -> 1821 call = (...) => (a(b, c) | Gb(a, b, c) | undefined)((...) => undefined, ([] | undefined))
 
 0 -> 1822 conditional = ("focusin" === ???*0*)
 - *0* arguments[0]
@@ -12231,7 +12237,7 @@ ${La}${a}`("SuspenseList")
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1827 -> 1828 call = (...) => (undefined | a)((null | ???*0*))
+1827 -> 1828 call = (...) => (a | undefined)((null | ???*0*))
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
@@ -12243,7 +12249,7 @@ ${La}${a}`("SuspenseList")
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1830 -> 1831 call = (...) => (undefined | a)(???*0*)
+1830 -> 1831 call = (...) => (a | undefined)(???*0*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
@@ -12257,7 +12263,7 @@ ${La}${a}`("SuspenseList")
 - *1* arguments[0]
   ⚠️  function calls are not analysed yet
 
-1833 -> 1834 call = (...) => (undefined | a)(???*0*)
+1833 -> 1834 call = (...) => (a | undefined)(???*0*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
@@ -12652,15 +12658,15 @@ ${La}${a}`("SuspenseList")
 
 0 -> 1901 free var = FreeVar(window)
 
-0 -> 1902 call = (...) => (undefined | null | (a["activeElement"] || a["body"]) | a["body"])()
+0 -> 1902 call = (...) => (null | (a["activeElement"] || a["body"]) | a["body"] | undefined)()
 
 0 -> 1904 typeof = typeof((
-  | undefined["contentWindow"]["location"]["href"]
   | null["contentWindow"]["location"]["href"]
   | ???*0*
   | (???*5* ? ???*8* : undefined)["activeElement"]["contentWindow"]["location"]["href"]
   | (???*9* ? ???*12* : undefined)["body"]["contentWindow"]["location"]["href"]
   | (???*13* ? ???*16* : undefined)["body"]["contentWindow"]["location"]["href"]
+  | undefined["contentWindow"]["location"]["href"]
   | ???*17*
   | (???*22* ? ???*25* : undefined)["activeElement"]["contentWindow"]["location"]["href"]
   | (???*26* ? ???*29* : undefined)["body"]["contentWindow"]["location"]["href"]
@@ -12753,9 +12759,9 @@ ${La}${a}`("SuspenseList")
 
 0 -> 1908 conditional = (("string" === ???*0*) | undefined | false)
 - *0* typeof((
-      | undefined["contentWindow"]["location"]["href"]
       | null["contentWindow"]["location"]["href"]
       | ???*1*
+      | undefined["contentWindow"]["location"]["href"]
       | ???*5*
     ))
   ⚠️  nested operation
@@ -12780,15 +12786,15 @@ ${La}${a}`("SuspenseList")
   ⚠️  unknown object
   ⚠️  This value might have side effects
 
-0 -> 1911 call = (...) => (undefined | null | (a["activeElement"] || a["body"]) | a["body"])(
+0 -> 1911 call = (...) => (null | (a["activeElement"] || a["body"]) | a["body"] | undefined)(
     (
       | ???*0*
-      | undefined["contentWindow"]["document"]
       | null["contentWindow"]["document"]
       | ???*2*
       | (???*6* ? ???*9* : undefined)["activeElement"]["contentWindow"]["document"]
       | (???*10* ? ???*13* : undefined)["body"]["contentWindow"]["document"]
       | (???*14* ? ???*17* : undefined)["body"]["contentWindow"]["document"]
+      | undefined["contentWindow"]["document"]
       | (???*18* ? ???*21* : undefined)["activeElement"]["contentWindow"]["document"]
       | (???*22* ? ???*25* : undefined)["body"]["contentWindow"]["document"]
       | (???*26* ? ???*29* : undefined)["body"]["contentWindow"]["document"]
@@ -13165,7 +13171,7 @@ ${La}${a}`("SuspenseList")
 - *3* max number of linking steps reached
   ⚠️  This value might have side effects
 
-1948 -> 1964 call = (...) => (undefined | {"node": c, "offset": ???*0*})(???*1*, ???*2*)
+1948 -> 1964 call = (...) => ({"node": c, "offset": ???*0*} | undefined)(???*1*, ???*2*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* max number of linking steps reached
@@ -13173,7 +13179,7 @@ ${La}${a}`("SuspenseList")
 - *2* max number of linking steps reached
   ⚠️  This value might have side effects
 
-1948 -> 1965 call = (...) => (undefined | {"node": c, "offset": ???*0*})(???*1*, ???*2*)
+1948 -> 1965 call = (...) => ({"node": c, "offset": ???*0*} | undefined)(???*1*, ???*2*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* max number of linking steps reached
@@ -13288,7 +13294,7 @@ ${La}${a}`("SuspenseList")
 - *1* arguments[2]
   ⚠️  function calls are not analysed yet
 
-0 -> 2022 call = (...) => (undefined | null | (a["activeElement"] || a["body"]) | a["body"])(???*0*)
+0 -> 2022 call = (...) => (null | (a["activeElement"] || a["body"]) | a["body"] | undefined)(???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -14273,7 +14279,7 @@ ${La}${a}`("SuspenseList")
 - *5* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 2199 call = (...) => (undefined | 1 | 4 | 16 | 536870912)(???*0*)
+0 -> 2199 call = (...) => (1 | 4 | 16 | 536870912 | undefined)(???*0*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
@@ -14654,7 +14660,7 @@ ${La}${a}`("SuspenseList")
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 2240 call = (...) => (undefined | a(b, c) | Gb(a, b, c))((...) => undefined)
+0 -> 2240 call = (...) => (a(b, c) | Gb(a, b, c) | undefined)((...) => undefined)
 
 2240 -> 2241 call = (...) => ((3 === a["nodeType"]) ? a["parentNode"] : a)(???*0*)
 - *0* arguments[2]
@@ -14933,7 +14939,7 @@ ${La}${a}`("SuspenseList")
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-2284 -> 2285 call = (...) => (undefined | a["stateNode"])(???*0*)
+2284 -> 2285 call = (...) => (a["stateNode"] | undefined)(???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -14941,7 +14947,7 @@ ${La}${a}`("SuspenseList")
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-2286 -> 2287 call = (...) => (undefined | a["stateNode"])(???*0*)
+2286 -> 2287 call = (...) => (a["stateNode"] | undefined)(???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -15161,7 +15167,7 @@ ${La}${a}`("SuspenseList")
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-2307 -> 2308 call = (...) => (undefined | a["stateNode"])(???*0*)
+2307 -> 2308 call = (...) => (a["stateNode"] | undefined)(???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -15246,11 +15252,11 @@ ${La}${a}`("SuspenseList")
   ⚠️  This value might have side effects
 
 2306 -> 2323 call = (
-  | (...) => (undefined | b)
+  | (...) => (b | undefined)
   | undefined
-  | (...) => (undefined | te(b))
-  | (...) => (undefined | te(qe))
-  | (...) => (undefined | te(b))
+  | (...) => (te(b) | undefined)
+  | (...) => (te(qe) | undefined)
+  | (...) => (te(b) | undefined)
   | ???*0*
 )(???*2*, ???*3*)
 - *0* ???*1*(a, d)
@@ -15263,11 +15269,11 @@ ${La}${a}`("SuspenseList")
   ⚠️  This value might have side effects
 
 2306 -> 2324 conditional = (
-  | (...) => (undefined | b)
+  | (...) => (b | undefined)
   | undefined
-  | (...) => (undefined | te(b))
-  | (...) => (undefined | te(qe))
-  | (...) => (undefined | te(b))
+  | (...) => (te(b) | undefined)
+  | (...) => (te(qe) | undefined)
+  | (...) => (te(b) | undefined)
   | ???*0*
   | ???*2*
 )
@@ -15276,11 +15282,11 @@ ${La}${a}`("SuspenseList")
 - *1* na
   ⚠️  circular variable reference
 - *2* (
-      | (...) => (undefined | b)
+      | (...) => (b | undefined)
       | undefined
-      | (...) => (undefined | te(b))
-      | (...) => (undefined | te(qe))
-      | (...) => (undefined | te(b))
+      | (...) => (te(b) | undefined)
+      | (...) => (te(qe) | undefined)
+      | (...) => (te(b) | undefined)
       | ???*3*
     )(a, d)
   ⚠️  non-function callee
@@ -15292,11 +15298,11 @@ ${La}${a}`("SuspenseList")
 2324 -> 2325 call = (...) => undefined(
     [],
     (
-      | (...) => (undefined | b)
+      | (...) => (b | undefined)
       | undefined
-      | (...) => (undefined | te(b))
-      | (...) => (undefined | te(qe))
-      | (...) => (undefined | te(b))
+      | (...) => (te(b) | undefined)
+      | (...) => (te(qe) | undefined)
+      | (...) => (te(b) | undefined)
       | ???*0*
     ),
     ???*2*,
@@ -15372,7 +15378,7 @@ ${La}${a}`("SuspenseList")
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-2332 -> 2333 call = (...) => (undefined | a["stateNode"])(???*0*)
+2332 -> 2333 call = (...) => (a["stateNode"] | undefined)(???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
@@ -15495,7 +15501,7 @@ ${La}${a}`("SuspenseList")
 
 2339 -> 2341 conditional = (false | true)
 
-2341 -> 2342 call = (...) => (undefined | (???*0* !== $d["indexOf"](b["keyCode"])) | (229 !== b["keyCode"]) | !(0) | !(1))(???*1*, ???*2*)
+2341 -> 2342 call = (...) => ((???*0* !== $d["indexOf"](b["keyCode"])) | (229 !== b["keyCode"]) | !(0) | !(1) | undefined)(???*1*, ???*2*)
 - *0* unsupported expression
   ⚠️  This value might have side effects
 - *1* arguments[0]
@@ -15796,19 +15802,19 @@ ${La}${a}`("SuspenseList")
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-2358 -> 2359 call = (...) => (undefined | he(b) | null | ee | (((a === ee) && fe) ? null : a))(???*0*, ???*1*)
+2358 -> 2359 call = (...) => (he(b) | null | ee | (((a === ee) && fe) ? null : a) | undefined)(???*0*, ???*1*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* arguments[2]
   ⚠️  function calls are not analysed yet
 
 2358 -> 2360 call = (...) => (
-  | undefined
   | ((("compositionend" === a) || (!(ae) && ge(a, b))) ? ???*0* : null)
   | null
   | b["char"]
   | FreeVar(String)["fromCharCode"](b["which"])
   | ((de && ("ko" !== b["locale"])) ? null : b["data"])
+  | undefined
 )(???*1*, ???*2*)
 - *0* a
   ⚠️  sequence with side effects
@@ -18146,11 +18152,11 @@ ${La}${a}`("SuspenseList")
   ⚠️  This value might have side effects
 
 2678 -> 2679 call = (...) => (
-  | undefined
   | ((null !== b) ? ???*0* : !(1))
   | ((null !== b) ? !(0) : !(1))
   | ((null !== b) ? ???*1* : !(1))
   | !(1)
+  | undefined
 )(???*2*, ???*3*)
 - *0* !(0)
   ⚠️  sequence with side effects
@@ -18202,11 +18208,11 @@ ${La}${a}`("SuspenseList")
   ⚠️  This value might have side effects
 
 2680 -> 2688 call = (...) => (
-  | undefined
   | ((null !== b) ? ???*0* : !(1))
   | ((null !== b) ? !(0) : !(1))
   | ((null !== b) ? ???*1* : !(1))
   | !(1)
+  | undefined
 )(???*2*, ???*3*)
 - *0* !(0)
   ⚠️  sequence with side effects
@@ -19870,7 +19876,7 @@ ${La}${a}`("SuspenseList")
       | ((???*17* | ???*19*) ? ???*20* : 4)
       | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
       | ???*32*
-      | (???*34* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*34* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* (0 !== ???*1*)
@@ -19966,7 +19972,7 @@ ${La}${a}`("SuspenseList")
           | ((???*20* | ???*22*) ? ???*23* : 4)
           | (???*24* ? 16 : (???*25* | undefined | null | ???*32* | ???*33*))
           | ???*35*
-          | (???*37* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+          | (???*37* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
         ),
         "tag": 0,
         "payload": null,
@@ -19986,7 +19992,7 @@ ${La}${a}`("SuspenseList")
       | ((???*45* | ???*47*) ? ???*48* : 4)
       | (???*49* ? 16 : (???*50* | undefined | null | ???*57* | ???*58*))
       | ???*60*
-      | (???*62* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*62* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[0]
@@ -20140,7 +20146,7 @@ ${La}${a}`("SuspenseList")
       | ((???*17* | ???*19*) ? ???*20* : 4)
       | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
       | ???*32*
-      | (???*34* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*34* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     ),
     (???*36* ? ???*38* : ???*39*)
 )
@@ -20258,7 +20264,7 @@ ${La}${a}`("SuspenseList")
       | ((???*17* | ???*19*) ? ???*20* : 4)
       | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
       | ???*32*
-      | (???*34* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*34* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[1]
@@ -20371,7 +20377,7 @@ ${La}${a}`("SuspenseList")
       | ((???*17* | ???*19*) ? ???*20* : 4)
       | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
       | ???*32*
-      | (???*34* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*34* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* (0 !== ???*1*)
@@ -20467,7 +20473,7 @@ ${La}${a}`("SuspenseList")
           | ((???*20* | ???*22*) ? ???*23* : 4)
           | (???*24* ? 16 : (???*25* | undefined | null | ???*32* | ???*33*))
           | ???*35*
-          | (???*37* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+          | (???*37* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
         ),
         "tag": 0,
         "payload": null,
@@ -20487,7 +20493,7 @@ ${La}${a}`("SuspenseList")
       | ((???*45* | ???*47*) ? ???*48* : 4)
       | (???*49* ? 16 : (???*50* | undefined | null | ???*57* | ???*58*))
       | ???*60*
-      | (???*62* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*62* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[0]
@@ -20641,7 +20647,7 @@ ${La}${a}`("SuspenseList")
       | ((???*17* | ???*19*) ? ???*20* : 4)
       | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
       | ???*32*
-      | (???*34* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*34* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     ),
     (???*36* ? ???*38* : ???*39*)
 )
@@ -20759,7 +20765,7 @@ ${La}${a}`("SuspenseList")
       | ((???*17* | ???*19*) ? ???*20* : 4)
       | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
       | ???*32*
-      | (???*34* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*34* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[1]
@@ -20872,7 +20878,7 @@ ${La}${a}`("SuspenseList")
       | ((???*17* | ???*19*) ? ???*20* : 4)
       | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
       | ???*32*
-      | (???*34* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*34* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* (0 !== ???*1*)
@@ -20968,7 +20974,7 @@ ${La}${a}`("SuspenseList")
           | ((???*20* | ???*22*) ? ???*23* : 4)
           | (???*24* ? 16 : (???*25* | undefined | null | ???*32* | ???*33*))
           | ???*35*
-          | (???*37* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+          | (???*37* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
         ),
         "tag": 0,
         "payload": null,
@@ -20988,7 +20994,7 @@ ${La}${a}`("SuspenseList")
       | ((???*45* | ???*47*) ? ???*48* : 4)
       | (???*49* ? 16 : (???*50* | undefined | null | ???*57* | ???*58*))
       | ???*60*
-      | (???*62* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*62* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[0]
@@ -21142,7 +21148,7 @@ ${La}${a}`("SuspenseList")
       | ((???*17* | ???*19*) ? ???*20* : 4)
       | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
       | ???*32*
-      | (???*34* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*34* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     ),
     (???*36* ? ???*38* : ???*39*)
 )
@@ -21260,7 +21266,7 @@ ${La}${a}`("SuspenseList")
       | ((???*17* | ???*19*) ? ???*20* : 4)
       | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
       | ???*32*
-      | (???*34* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*34* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[1]
@@ -25981,10 +25987,10 @@ ${La}${a}`("SuspenseList")
       | (???*9* ? ???*11* : ???*13*)["namespaceURI"]
       | null
       | (???*14* ? (
-          | undefined
           | "http://www.w3.org/2000/svg"
           | "http://www.w3.org/1998/Math/MathML"
           | "http://www.w3.org/1999/xhtml"
+          | undefined
         ) : ???*16*)
     )
 )
@@ -25999,10 +26005,10 @@ ${La}${a}`("SuspenseList")
 - *4* b
   ⚠️  circular variable reference
 - *5* ((???*6* | false) ? (
-      | undefined
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
+      | undefined
     ) : null)
   ⚠️  nested operation
 - *6* (null == null)
@@ -26042,10 +26048,10 @@ ${La}${a}`("SuspenseList")
       | (???*3* ? ???*5* : ???*7*)["nodeType"]
       | null["nodeType"]
       | (???*9* ? (
-          | undefined
           | "http://www.w3.org/2000/svg"
           | "http://www.w3.org/1998/Math/MathML"
           | "http://www.w3.org/1999/xhtml"
+          | undefined
         ) : ???*11*)["nodeType"]
       | (???*15* ? (???*17* | null["parentNode"]) : (???*19* | ???*20* | ???*27* | null))
     )
@@ -26065,10 +26071,10 @@ ${La}${a}`("SuspenseList")
 - *6* b
   ⚠️  circular variable reference
 - *7* ((???*8* | false) ? (
-      | undefined
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
+      | undefined
     ) : null)
   ⚠️  nested operation
 - *8* (null == null)
@@ -26106,10 +26112,10 @@ ${La}${a}`("SuspenseList")
 - *24* b
   ⚠️  circular variable reference
 - *25* ((???*26* | false) ? (
-      | undefined
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
+      | undefined
     ) : null)
   ⚠️  nested operation
 - *26* (null == null)
@@ -26127,10 +26133,10 @@ ${La}${a}`("SuspenseList")
   | (???*8* ? ???*10* : ???*12*)["namespaceURI"]["documentElement"]
   | null["documentElement"]
   | (???*13* ? (
-      | undefined
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
+      | undefined
     ) : ???*15*)["documentElement"]
 )
 - *0* ???*1*["documentElement"]
@@ -26146,10 +26152,10 @@ ${La}${a}`("SuspenseList")
 - *5* b
   ⚠️  circular variable reference
 - *6* ((???*7* | false) ? (
-      | undefined
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
+      | undefined
     ) : null)
   ⚠️  nested operation
 - *7* (null == null)
@@ -26209,10 +26215,10 @@ ${La}${a}`("SuspenseList")
 - *13* b
   ⚠️  circular variable reference
 - *14* ((???*15* | false) ? (
-      | undefined
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
+      | undefined
     ) : null)
   ⚠️  nested operation
 - *15* (null == null)
@@ -26230,10 +26236,10 @@ ${La}${a}`("SuspenseList")
       | (???*9* ? ???*11* : ???*13*)["namespaceURI"]
       | null
       | (???*14* ? (
-          | undefined
           | "http://www.w3.org/2000/svg"
           | "http://www.w3.org/1998/Math/MathML"
           | "http://www.w3.org/1999/xhtml"
+          | undefined
         ) : ???*16*)
     ),
     (
@@ -26242,10 +26248,10 @@ ${La}${a}`("SuspenseList")
       | (???*23* ? ???*25* : ???*27*)["nodeType"]
       | null["nodeType"]
       | (???*29* ? (
-          | undefined
           | "http://www.w3.org/2000/svg"
           | "http://www.w3.org/1998/Math/MathML"
           | "http://www.w3.org/1999/xhtml"
+          | undefined
         ) : ???*31*)["nodeType"]
       | (???*35* ? (???*37* | null["parentNode"]) : (???*39* | ???*40* | ???*47* | null))
     )
@@ -26261,10 +26267,10 @@ ${La}${a}`("SuspenseList")
 - *4* b
   ⚠️  circular variable reference
 - *5* ((???*6* | false) ? (
-      | undefined
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
+      | undefined
     ) : null)
   ⚠️  nested operation
 - *6* (null == null)
@@ -26310,10 +26316,10 @@ ${La}${a}`("SuspenseList")
 - *26* b
   ⚠️  circular variable reference
 - *27* ((???*28* | false) ? (
-      | undefined
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
+      | undefined
     ) : null)
   ⚠️  nested operation
 - *28* (null == null)
@@ -26351,10 +26357,10 @@ ${La}${a}`("SuspenseList")
 - *44* b
   ⚠️  circular variable reference
 - *45* ((???*46* | false) ? (
-      | undefined
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
+      | undefined
     ) : null)
   ⚠️  nested operation
 - *46* (null == null)
@@ -26375,10 +26381,10 @@ ${La}${a}`("SuspenseList")
       | (???*9* ? ???*11* : ???*13*)["namespaceURI"]
       | null
       | (???*14* ? (
-          | undefined
           | "http://www.w3.org/2000/svg"
           | "http://www.w3.org/1998/Math/MathML"
           | "http://www.w3.org/1999/xhtml"
+          | undefined
         ) : ???*16*)
     )
 )
@@ -26393,10 +26399,10 @@ ${La}${a}`("SuspenseList")
 - *4* b
   ⚠️  circular variable reference
 - *5* ((???*6* | false) ? (
-      | undefined
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
+      | undefined
     ) : null)
   ⚠️  nested operation
 - *6* (null == null)
@@ -26457,10 +26463,10 @@ ${La}${a}`("SuspenseList")
 0 -> 3646 call = (...) => undefined(
     {"current": {}},
     (???*0* ? (
-      | undefined
       | "http://www.w3.org/2000/svg"
       | "http://www.w3.org/1998/Math/MathML"
       | "http://www.w3.org/1999/xhtml"
+      | undefined
     ) : ???*2*)
 )
 - *0* (null == ({} | ???*1*))
@@ -28482,7 +28488,7 @@ ${La}${a}`("SuspenseList")
 - *68* unknown mutation
   ⚠️  This value might have side effects
 
-0 -> 3865 call = (...) => (undefined | !(He(a, c)) | !(0))(???*0*)
+0 -> 3865 call = (...) => (!(He(a, c)) | !(0) | undefined)(???*0*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
@@ -28494,7 +28500,7 @@ ${La}${a}`("SuspenseList")
 - *0* arguments[2]
   ⚠️  function calls are not analysed yet
 
-3867 -> 3868 call = (...) => (undefined | !(He(a, c)) | !(0))(???*0*)
+3867 -> 3868 call = (...) => (!(He(a, c)) | !(0) | undefined)(???*0*)
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
@@ -29252,7 +29258,7 @@ ${La}${a}`("SuspenseList")
 - *5* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 3949 member call = (...) => (undefined | ???*0*)["bind"](null, ???*1*, ???*2*)
+0 -> 3949 member call = (...) => (???*0* | undefined)["bind"](null, ???*1*, ???*2*)
 - *0* *anonymous function 69020*
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -29264,7 +29270,7 @@ ${La}${a}`("SuspenseList")
 0 -> 3950 call = (...) => undefined(
     4,
     4,
-    (...) => (undefined | ???*0*)["bind"](null, ???*1*, ???*2*),
+    (...) => (???*0* | undefined)["bind"](null, ???*1*, ???*2*),
     (???*3* | (???*4* ? ???*6* : null))
 )
 - *0* *anonymous function 69020*
@@ -29770,7 +29776,7 @@ ${La}${a}`("SuspenseList")
               | ((???*6* | ???*8*) ? ???*9* : 4)
               | (???*10* ? 16 : (???*11* | undefined | null | ???*18* | ???*19*))
               | ???*21*
-              | (???*23* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+              | (???*23* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
             ),
             "action": ???*25*,
             "hasEagerState": false,
@@ -29868,7 +29874,7 @@ ${La}${a}`("SuspenseList")
               | ((???*7* | ???*9*) ? ???*10* : 4)
               | (???*11* ? 16 : (???*12* | undefined | null | ???*19* | ???*20*))
               | ???*22*
-              | (???*24* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+              | (???*24* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
             ),
             "action": ???*26*,
             "hasEagerState": false,
@@ -29889,7 +29895,7 @@ ${La}${a}`("SuspenseList")
       | ((???*38* | ???*40*) ? ???*41* : 4)
       | (???*42* ? 16 : (???*43* | undefined | null | ???*50* | ???*51*))
       | ???*53*
-      | (???*55* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*55* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[0]
@@ -30035,7 +30041,7 @@ ${La}${a}`("SuspenseList")
               | ((???*5* | ???*7*) ? ???*8* : 4)
               | (???*9* ? 16 : (???*10* | undefined | null | ???*17* | ???*18*))
               | ???*20*
-              | (???*22* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+              | (???*22* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
             ),
             "action": ???*24*,
             "hasEagerState": false,
@@ -30057,7 +30063,7 @@ ${La}${a}`("SuspenseList")
       | ((???*37* | ???*39*) ? ???*40* : 4)
       | (???*41* ? 16 : (???*42* | undefined | null | ???*49* | ???*50*))
       | ???*52*
-      | (???*54* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*54* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     ),
     ((???*56* ? ???*58* : ???*59*) | undefined)
 )
@@ -30218,7 +30224,7 @@ ${La}${a}`("SuspenseList")
               | ((???*5* | ???*7*) ? ???*8* : 4)
               | (???*9* ? 16 : (???*10* | undefined | null | ???*17* | ???*18*))
               | ???*20*
-              | (???*22* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+              | (???*22* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
             ),
             "action": ???*24*,
             "hasEagerState": false,
@@ -30240,7 +30246,7 @@ ${La}${a}`("SuspenseList")
       | ((???*37* | ???*39*) ? ???*40* : 4)
       | (???*41* ? 16 : (???*42* | undefined | null | ???*49* | ???*50*))
       | ???*52*
-      | (???*54* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*54* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[2]
@@ -30499,7 +30505,7 @@ ${La}${a}`("SuspenseList")
               | ((???*5* | ???*7*) ? ???*8* : 4)
               | (???*9* ? 16 : (???*10* | undefined | null | ???*17* | ???*18*))
               | ???*20*
-              | (???*22* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+              | (???*22* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
             ),
             "action": (???*24* | (???*25* ? ???*29* : null)),
             "hasEagerState": false,
@@ -30745,7 +30751,7 @@ ${La}${a}`("SuspenseList")
               | ((???*6* | ???*8*) ? ???*9* : 4)
               | (???*10* ? 16 : (???*11* | undefined | null | ???*18* | ???*19*))
               | ???*21*
-              | (???*23* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+              | (???*23* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
             ),
             "action": (???*25* | (???*26* ? ???*30* : null)),
             "hasEagerState": false,
@@ -30766,7 +30772,7 @@ ${La}${a}`("SuspenseList")
       | ((???*48* | ???*50*) ? ???*51* : 4)
       | (???*52* ? 16 : (???*53* | undefined | null | ???*60* | ???*61*))
       | ???*63*
-      | (???*65* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*65* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[0]
@@ -30931,7 +30937,7 @@ ${La}${a}`("SuspenseList")
       | ((???*13* | ???*15*) ? ???*16* : 4)
       | (???*17* ? 16 : (???*18* | undefined | null | ???*25* | ???*26*))
       | ???*28*
-      | (???*30* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*30* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     ),
     (
       | {
@@ -30947,7 +30953,7 @@ ${La}${a}`("SuspenseList")
               | ((???*36* | ???*38*) ? ???*39* : 4)
               | (???*40* ? 16 : (???*41* | undefined | null | ???*48* | ???*49*))
               | ???*51*
-              | (???*53* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+              | (???*53* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
             ),
             "action": (???*55* | (???*56* ? ???*60* : null)),
             "hasEagerState": false,
@@ -31127,7 +31133,7 @@ ${La}${a}`("SuspenseList")
       | ((???*13* | ???*15*) ? ???*16* : 4)
       | (???*17* ? 16 : (???*18* | undefined | null | ???*25* | ???*26*))
       | ???*28*
-      | (???*30* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*30* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[2]
@@ -31270,7 +31276,7 @@ ${La}${a}`("SuspenseList")
 - *5* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 4051 member call = (...) => (undefined | ???*0*)["bind"](null, ???*1*, ???*2*)
+0 -> 4051 member call = (...) => (???*0* | undefined)["bind"](null, ???*1*, ???*2*)
 - *0* *anonymous function 69020*
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -31282,7 +31288,7 @@ ${La}${a}`("SuspenseList")
 0 -> 4052 call = (...) => undefined(
     4194308,
     4,
-    (...) => (undefined | ???*0*)["bind"](null, ???*1*, ???*2*),
+    (...) => (???*0* | undefined)["bind"](null, ???*1*, ???*2*),
     (???*3* | (???*4* ? ???*6* : null))
 )
 - *0* *anonymous function 69020*
@@ -32328,7 +32334,7 @@ ${La}${a}`("SuspenseList")
 - *0* unreachable
   ⚠️  This value might have side effects
 
-0 -> 4147 call = (...) => (undefined | Ma(a["type"]) | Ma("Lazy") | Ma("Suspense") | Ma("SuspenseList") | ???*0* | "")((???*1* | undefined | ???*2*))
+0 -> 4147 call = (...) => (Ma(a["type"]) | Ma("Lazy") | Ma("Suspense") | Ma("SuspenseList") | ???*0* | "" | undefined)((???*1* | undefined | ???*2*))
 - *0* a
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -39887,10 +39893,10 @@ ${La}${a}`("SuspenseList")
   ⚠️  This value might have side effects
 
 5140 -> 5196 call = (...) => (
-  | undefined
   | "http://www.w3.org/2000/svg"
   | "http://www.w3.org/1998/Math/MathML"
   | "http://www.w3.org/1999/xhtml"
+  | undefined
 )(???*0*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
@@ -39976,7 +39982,7 @@ ${La}${a}`("SuspenseList")
 - *0* labeled statement
   ⚠️  This value might have side effects
 
-5225 -> 5226 call = (...) => (undefined | ("string" === typeof(b["is"])) | !(1) | !(0))(???*0*, ???*1*)
+5225 -> 5226 call = (...) => (("string" === typeof(b["is"])) | !(1) | !(0) | undefined)(???*0*, ???*1*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 - *1* max number of linking steps reached
@@ -40199,14 +40205,14 @@ ${La}${a}`("SuspenseList")
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 
-5225 -> 5276 call = (...) => (undefined | a | "")(???*0*)
+5225 -> 5276 call = (...) => (a | "" | undefined)(???*0*)
 - *0* ???*1*["value"]
   ⚠️  unknown object
   ⚠️  This value might have side effects
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-5225 -> 5277 member call = ???*0*["setAttribute"]("value", (undefined | ???*1* | ""))
+5225 -> 5277 member call = ???*0*["setAttribute"]("value", (???*1* | "" | undefined))
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 - *1* ???*2*["value"]
@@ -42242,13 +42248,13 @@ ${La}${a}`("SuspenseList")
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-5925 -> 5929 call = (...) => (undefined | ("string" === typeof(b["is"])) | !(1) | !(0))(???*0*, ???*1*)
+5925 -> 5929 call = (...) => (("string" === typeof(b["is"])) | !(1) | !(0) | undefined)(???*0*, ???*1*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 - *1* max number of linking steps reached
   ⚠️  This value might have side effects
 
-5925 -> 5930 call = (...) => (undefined | ("string" === typeof(b["is"])) | !(1) | !(0))(???*0*, ???*1*)
+5925 -> 5930 call = (...) => (("string" === typeof(b["is"])) | !(1) | !(0) | undefined)(???*0*, ???*1*)
 - *0* max number of linking steps reached
   ⚠️  This value might have side effects
 - *1* max number of linking steps reached
@@ -42761,11 +42767,11 @@ ${La}${a}`("SuspenseList")
 - *2* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 6106 call = (...) => (undefined | null | a["stateNode"])(???*0*)
+0 -> 6106 call = (...) => (null | a["stateNode"] | undefined)(???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 6107 call = (...) => undefined(???*0*, (undefined | null | ???*1*), (???*3* | undefined["stateNode"] | undefined))
+0 -> 6107 call = (...) => undefined(???*0*, (null | ???*1* | undefined), (???*3* | undefined["stateNode"] | undefined))
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 - *1* ???*2*["stateNode"]
@@ -42779,13 +42785,13 @@ ${La}${a}`("SuspenseList")
 - *5* arguments[0]
   ⚠️  function calls are not analysed yet
 
-0 -> 6110 call = (...) => (undefined | null | a["stateNode"])(???*0*)
+0 -> 6110 call = (...) => (null | a["stateNode"] | undefined)(???*0*)
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
 0 -> 6111 call = (...) => undefined(
     ???*0*,
-    (undefined | null | ???*1*),
+    (null | ???*1* | undefined),
     (???*3* | undefined["stateNode"]["containerInfo"] | undefined)
 )
 - *0* arguments[0]
@@ -43246,7 +43252,7 @@ ${La}${a}`("SuspenseList")
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-6266 -> 6268 call = (...) => (undefined | 1 | 4 | 16 | 536870912)(
+6266 -> 6268 call = (...) => (1 | 4 | 16 | 536870912 | undefined)(
     (
       | ???*0*
       | 0["type"]
@@ -43256,7 +43262,7 @@ ${La}${a}`("SuspenseList")
       | ((???*2* | ???*4*) ? ???*5* : 4)["type"]
       | (???*6* ? 16 : (???*7* | undefined | null | ???*14* | ???*15*))["type"]
       | ???*17*
-      | (???*20* ? 16 : (undefined | 1 | 4 | 16 | 536870912))["type"]
+      | (???*20* ? 16 : (1 | 4 | 16 | 536870912 | undefined))["type"]
     )
 )
 - *0* ???*1*["type"]
@@ -43487,7 +43493,6 @@ ${La}${a}`("SuspenseList")
   | ???*0*
   | ???*18*
   | ???*20*
-  | undefined
   | 1
   | 2
   | 4
@@ -43499,6 +43504,7 @@ ${La}${a}`("SuspenseList")
   | 268435456
   | 536870912
   | 1073741824
+  | undefined
 ))
 - *0* (???*1* ? (0 | ???*16* | ???*17*) : 0)
   ⚠️  nested operation
@@ -43680,7 +43686,6 @@ ${La}${a}`("SuspenseList")
       | (???*3* ? (0 | ???*22* | ???*23*) : 0)
       | ???*24*
       | ???*26*
-      | undefined
       | 1
       | 2
       | 4
@@ -43692,6 +43697,7 @@ ${La}${a}`("SuspenseList")
       | 268435456
       | 536870912
       | 1073741824
+      | undefined
     )
 )
 - *0* unsupported expression
@@ -44625,7 +44631,6 @@ ${La}${a}`("SuspenseList")
       | 0
       | ???*1*
       | ???*3*
-      | undefined
       | 1
       | 2
       | 4
@@ -44637,6 +44642,7 @@ ${La}${a}`("SuspenseList")
       | 268435456
       | 536870912
       | 1073741824
+      | undefined
       | (???*5* ? (???*8* | ???*9*) : ???*10*)
     )
 )
@@ -44714,7 +44720,6 @@ ${La}${a}`("SuspenseList")
       | 0
       | ???*1*
       | ???*3*
-      | undefined
       | 1
       | 2
       | 4
@@ -44726,6 +44731,7 @@ ${La}${a}`("SuspenseList")
       | 268435456
       | 536870912
       | 1073741824
+      | undefined
       | (???*5* ? (???*8* | ???*9*) : ???*10*)
     )
 )
@@ -45361,7 +45367,6 @@ ${La}${a}`("SuspenseList")
 0 -> 6634 call = (
   | ???*0*
   | (...) => (
-      | undefined
       | zj(a, b, c)
       | b
       | ???*1*
@@ -45369,6 +45374,7 @@ ${La}${a}`("SuspenseList")
       | cj(a, b, b["type"], b["pendingProps"], c)
       | yj(a, b, c)
       | ej(a, b, c)
+      | undefined
     )
 )(???*2*, ???*4*, (???*5* | 0 | ???*6* | ???*7* | ???*8*))
 - *0* Wk
@@ -45395,7 +45401,6 @@ ${La}${a}`("SuspenseList")
 - *0* (
       | ???*1*
       | (...) => (
-          | undefined
           | zj(a, b, c)
           | b
           | ???*2*
@@ -45403,6 +45408,7 @@ ${La}${a}`("SuspenseList")
           | cj(a, b, b["type"], b["pendingProps"], c)
           | yj(a, b, c)
           | ej(a, b, c)
+          | undefined
         )
     )(a["alternate"], a, gj)
   ⚠️  non-function callee
@@ -45420,7 +45426,7 @@ ${La}${a}`("SuspenseList")
 - *0* unsupported expression
   ⚠️  This value might have side effects
 
-6643 -> 6644 call = (...) => (undefined | ???*0* | null | (???*1* ? b : null) | b | b["child"])(???*2*, (???*3* | ???*4*), (???*6* | 0 | ???*7* | ???*8* | ???*9*))
+6643 -> 6644 call = (...) => (???*0* | null | (???*1* ? b : null) | b | b["child"] | undefined)(???*2*, (???*3* | ???*4*), (???*6* | 0 | ???*7* | ???*8* | ???*9*))
 - *0* null
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -45447,7 +45453,7 @@ ${La}${a}`("SuspenseList")
 - *0* unreachable
   ⚠️  This value might have side effects
 
-6643 -> 6646 call = (...) => (undefined | ???*0* | (???*3* ? ???*4* : null) | null)(???*5*, (???*6* | ???*7*))
+6643 -> 6646 call = (...) => (???*0* | (???*3* ? ???*4* : null) | null | undefined)(???*5*, (???*6* | ???*7*))
 - *0* (???*1* ? ???*2* : null)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -48973,7 +48979,7 @@ ${La}${a}`("SuspenseList")
       | ((???*42* | ???*44*) ? ???*45* : 4)
       | (???*46* ? 16 : (???*47* | undefined | null | ???*54* | ???*55*))
       | ???*57*
-      | (???*59* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*59* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     ),
     (
       | ???*61*
@@ -48993,7 +48999,7 @@ ${La}${a}`("SuspenseList")
               | ((???*95* | ???*97*) ? ???*98* : 4)
               | (???*99* ? 16 : (???*100* | undefined | null | ???*107* | ???*108*))
               | ???*110*
-              | (???*112* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+              | (???*112* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
             ),
             "tag": 0,
             "payload": null,
@@ -49289,7 +49295,7 @@ ${La}${a}`("SuspenseList")
       | ((???*35* | ???*37*) ? ???*38* : 4)
       | (???*39* ? 16 : (???*40* | undefined | null | ???*47* | ???*48*))
       | ???*50*
-      | (???*52* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*52* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[3]
@@ -49430,7 +49436,7 @@ ${La}${a}`("SuspenseList")
               | ((???*39* | ???*41*) ? ???*42* : 4)
               | (???*43* ? 16 : (???*44* | undefined | null | ???*51* | ???*52*))
               | ???*54*
-              | (???*56* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+              | (???*56* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
             ),
             "tag": 0,
             "payload": null,
@@ -49452,7 +49458,7 @@ ${La}${a}`("SuspenseList")
       | ((???*81* | ???*83*) ? ???*84* : 4)
       | (???*85* ? 16 : (???*86* | undefined | null | ???*93* | ???*94*))
       | ???*96*
-      | (???*98* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*98* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* arguments[2]
@@ -49679,7 +49685,7 @@ ${La}${a}`("SuspenseList")
       | ((???*25* | ???*27*) ? ???*28* : 4)
       | (???*29* ? 16 : (???*30* | undefined | null | ???*37* | ???*38*))
       | ???*40*
-      | (???*42* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*42* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     ),
     (???*44* | (???*45* ? ???*47* : ???*48*))
 )
@@ -49906,7 +49912,7 @@ ${La}${a}`("SuspenseList")
       | (???*21* ? 16 : (???*22* | undefined | null | ???*29* | ???*30*))
       | ???*32*
       | ???*33*
-      | (???*35* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*35* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* (0 !== ???*1*)
@@ -50018,7 +50024,7 @@ ${La}${a}`("SuspenseList")
               | (???*24* ? 16 : (???*25* | undefined | null | ???*32* | ???*33*))
               | ???*35*
               | ???*36*
-              | (???*38* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+              | (???*38* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
             ),
             "tag": 0,
             "payload": null,
@@ -50040,7 +50046,7 @@ ${La}${a}`("SuspenseList")
       | (???*50* ? 16 : (???*51* | undefined | null | ???*58* | ???*59*))
       | ???*61*
       | ???*62*
-      | (???*64* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*64* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* ???*1*["current"]
@@ -50199,7 +50205,7 @@ ${La}${a}`("SuspenseList")
       | (???*14* ? 16 : (???*15* | undefined | null | ???*22* | ???*23*))
       | ???*25*
       | ???*26*
-      | (???*28* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*28* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     ),
     (???*30* ? ???*32* : ???*33*)
 )
@@ -50306,7 +50312,7 @@ ${La}${a}`("SuspenseList")
       | (???*14* ? 16 : (???*15* | undefined | null | ???*22* | ???*23*))
       | ???*25*
       | ???*26*
-      | (???*28* ? 16 : (undefined | 1 | 4 | 16 | 536870912))
+      | (???*28* ? 16 : (1 | 4 | 16 | 536870912 | undefined))
     )
 )
 - *0* max number of linking steps reached
@@ -50500,7 +50506,7 @@ ${La}${a}`("SuspenseList")
 - *1* unsupported expression
   ⚠️  This value might have side effects
 
-7458 -> 7461 call = (...) => (undefined | a())((...) => undefined)
+7458 -> 7461 call = (...) => (a() | undefined)((...) => undefined)
 
 7461 -> 7462 call = (...) => g(null, ???*0*, null, null)
 - *0* ???*1*["_internalRoot"]
@@ -50724,14 +50730,14 @@ ${La}${a}`("SuspenseList")
 - *1* arguments[3]
   ⚠️  function calls are not analysed yet
 
-7487 -> 7488 call = (...) => (undefined | null | a["child"]["stateNode"])((???*0* | ???*1* | undefined))
+7487 -> 7488 call = (...) => (null | a["child"]["stateNode"] | undefined)((???*0* | ???*1* | undefined))
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 - *1* node limit reached
   ⚠️  This value might have side effects
 
 7487 -> 7490 member call = (???*0* | (...) => undefined | undefined)["call"](
-    (undefined | null | ???*1* | ???*4* | undefined["child"]["stateNode"])
+    (null | ???*1* | ???*4* | undefined["child"]["stateNode"] | undefined)
 )
 - *0* arguments[3]
   ⚠️  function calls are not analysed yet
@@ -50778,7 +50784,7 @@ ${La}${a}`("SuspenseList")
 - *5* arguments[0]
   ⚠️  function calls are not analysed yet
 
-7485 -> 7499 call = (...) => (undefined | a())()
+7485 -> 7499 call = (...) => (a() | undefined)()
 
 7485 -> 7500 unreachable = ???*0*
 - *0* unreachable
@@ -50804,7 +50810,7 @@ ${La}${a}`("SuspenseList")
 - *1* arguments[3]
   ⚠️  function calls are not analysed yet
 
-7505 -> 7506 call = (...) => (undefined | null | a["child"]["stateNode"])(
+7505 -> 7506 call = (...) => (null | a["child"]["stateNode"] | undefined)(
     (
       | ???*0*
       | new (...) => undefined(???*1*, (0 | 1 | ???*2*), false, "", (...) => undefined)
@@ -50819,10 +50825,10 @@ ${La}${a}`("SuspenseList")
 
 7505 -> 7508 member call = (???*0* | (...) => undefined | undefined)["call"](
     (
-      | undefined
       | null
       | ???*1*
       | new (...) => undefined(???*4*, (0 | 1 | ???*5*), false, "", (...) => undefined)["child"]["stateNode"]
+      | undefined
     )
 )
 - *0* arguments[3]
@@ -50862,7 +50868,7 @@ ${La}${a}`("SuspenseList")
 - *5* arguments[0]
   ⚠️  function calls are not analysed yet
 
-7485 -> 7517 call = (...) => (undefined | a())((...) => undefined)
+7485 -> 7517 call = (...) => (a() | undefined)((...) => undefined)
 
 7517 -> 7518 call = (...) => g(
     ???*0*,
@@ -50906,7 +50912,7 @@ ${La}${a}`("SuspenseList")
 - *1* arguments[4]
   ⚠️  function calls are not analysed yet
 
-7523 -> 7524 call = (...) => (undefined | null | a["child"]["stateNode"])(
+7523 -> 7524 call = (...) => (null | a["child"]["stateNode"] | undefined)(
     (
       | ???*0*
       | undefined
@@ -50930,12 +50936,12 @@ ${La}${a}`("SuspenseList")
 
 7523 -> 7526 member call = (???*0* | (...) => undefined | undefined)["call"](
     (
-      | undefined
       | null
       | ???*1*
       | undefined["child"]["stateNode"]
       | ???*5*
       | new (...) => undefined(???*8*, (0 | 1 | ???*9*), false, "", (...) => undefined)["child"]["stateNode"]
+      | undefined
     )
 )
 - *0* arguments[4]
@@ -51004,7 +51010,7 @@ ${La}${a}`("SuspenseList")
 - *4* arguments[3]
   ⚠️  function calls are not analysed yet
 
-0 -> 7529 call = (...) => (undefined | null | a["child"]["stateNode"])(
+0 -> 7529 call = (...) => (null | a["child"]["stateNode"] | undefined)(
     (
       | ???*0*
       | undefined
