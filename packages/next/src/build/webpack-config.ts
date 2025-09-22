@@ -2459,7 +2459,7 @@ export default async function getBaseWebpackConfig(
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
-    future: config.future,
+    future: (config as any).future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,
     transpilePackages: config.transpilePackages,
@@ -2636,8 +2636,8 @@ export default async function getBaseWebpackConfig(
   }
 
   // Backwards compat with webpack-dev-middleware options object
-  if (typeof config.webpackDevMiddleware === 'function') {
-    const options = config.webpackDevMiddleware({
+  if (typeof (config as any).webpackDevMiddleware === 'function') {
+    const options = (config as any).webpackDevMiddleware({
       watchOptions: webpackConfig.watchOptions,
     })
     if (options.watchOptions) {

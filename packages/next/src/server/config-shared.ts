@@ -16,11 +16,10 @@ import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/canary-only'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 
-export type NextConfigComplete = Required<NextConfig> & {
+export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   images: Required<ImageConfigComplete>
   typescript: TypeScriptConfig
-  configOrigin?: string
-  configFile?: string
+  configFile: string | undefined
   configFileName: string
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
@@ -916,7 +915,7 @@ export type ExportPathMap = {
  *
  * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/app/api-reference/config/next-config-js)
  */
-export interface NextConfig extends Record<string, any> {
+export interface NextConfig {
   allowedDevOrigins?: string[]
 
   exportPathMap?: (
@@ -1331,6 +1330,26 @@ export interface NextConfig extends Record<string, any> {
    * /Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i
    */
   htmlLimitedBots?: RegExp
+
+  /**
+   * @internal
+   */
+  configFile?: string | undefined
+
+  /**
+   * @internal
+   */
+  configOrigin?: string | undefined
+
+  /**
+   * @internal
+   */
+  _originalRedirects?: any
+
+  /**
+   * @internal
+   */
+  _originalRewrites?: any
 }
 
 export const defaultConfig = Object.freeze({
