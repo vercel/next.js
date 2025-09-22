@@ -115,7 +115,7 @@ function checkDeprecations(
   warnOptionHasBeenDeprecated(
     userConfig,
     'env',
-    `\`env\` configuration option is deprecated and will be removed in Next.js 16. Use the \`.env*\` files instead. See https://nextjs.org/docs/app/guides/environment-variables`,
+    `\`env\` configuration option is deprecated and will be removed in Next.js 16. Use \`.env*\` files instead. See https://nextjs.org/docs/app/guides/environment-variables`,
     silent
   )
 
