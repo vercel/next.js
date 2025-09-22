@@ -3044,10 +3044,10 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn connect_task(
         &self,
         task: TaskId,
-        parent_task: TaskId,
+        parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
-        self.0.connect_task(task, Some(parent_task), turbo_tasks);
+        self.0.connect_task(task, parent_task, turbo_tasks);
     }
 
     fn create_transient_task(

@@ -1,4 +1,4 @@
-*arrow function 173* = (...) => (undefined | ???*0*)
+*arrow function 173* = (...) => (???*0* | undefined)
 - *0* spread in function calls is not supported
   ⚠️  This value might have side effects
 
@@ -18,7 +18,7 @@ clientComponentLoadTimes = (0 | (???*0* + ???*1*))
 
 getClientComponentLoaderMetrics = (...) => metrics
 
-metrics = (???*0* ? ???*4* : {"clientComponentLoadTimes": (0 | ???*5*)})
+metrics = (???*0* ? undefined : {"clientComponentLoadTimes": (0 | ???*4*)})
 - *0* ((0 | ???*1*) === 0)
   ⚠️  nested operation
 - *1* (???*2* + ???*3*)
@@ -27,14 +27,11 @@ metrics = (???*0* ? ???*4* : {"clientComponentLoadTimes": (0 | ???*5*)})
   ⚠️  circular variable reference
 - *3* unsupported expression
   ⚠️  This value might have side effects
-- *4* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *5* (???*6* + ???*7*)
+- *4* (???*5* + ???*6*)
   ⚠️  nested operation
-- *6* clientComponentLoadTimes
+- *5* clientComponentLoadTimes
   ⚠️  circular variable reference
-- *7* unsupported expression
+- *6* unsupported expression
   ⚠️  This value might have side effects
 
 options = ???*0*

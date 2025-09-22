@@ -20,7 +20,7 @@ _req = arguments[0]
 
 exports = ({} | undefined)
 
-handler = (...) => undefined
+handler = (...) => Promise<undefined>
 
 hello = await(promises_namespaceObject["readFile"]("./hello.txt", "utf-8"))
 

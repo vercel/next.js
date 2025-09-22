@@ -169,10 +169,13 @@
     (
         "handler",
         Function(
-            2,
+            3,
             760,
-            Constant(
-                Undefined,
+            Promise(
+                2,
+                Constant(
+                    Undefined,
+                ),
             ),
         ),
     ),

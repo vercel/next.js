@@ -1777,6 +1777,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/cache-components-errors/cache-components-console-patch.test.ts": {
+    "passed": [
+      "Cache Components Errors Sync IO in console methods Console Patching does not fail the build for Sync IO if console.log is patched to call new Date() internally"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/cache-components-errors/cache-components-errors.module-scope.test.ts": {
     "passed": [
       "Lazy Module Init should build statically even if module scope uses sync APIs like current time and random"
@@ -7012,6 +7021,20 @@
       "@next/third-parties basic usage renders GTM",
       "@next/third-parties basic usage renders GoogleMapsEmbed",
       "@next/third-parties basic usage renders YoutubeEmbed"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/trace-build-file/trace-build-file.test.ts": {
+    "passed": [
+      "trace-build-file should contain high-level build trace events",
+      "trace-build-file should create .next/trace-build file during production build",
+      "trace-build-file should have consistent traceId across all events",
+      "trace-build-file should have next-build as root span with proper hierarchy",
+      "trace-build-file should only contain allowlisted events",
+      "trace-build-file should work with basic page rendering"
     ],
     "failed": [],
     "pending": [],
@@ -21062,10 +21085,11 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm",
+      "pnpm support should build with dependencies installed via pnpm"
+    ],
+    "failed": [
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
