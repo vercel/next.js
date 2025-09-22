@@ -481,7 +481,6 @@ pub trait ChunkType: ValueToString {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
         batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
-        referenced_output_assets: Vc<OutputAssets>,
     ) -> Vc<Box<dyn Chunk>>;
 
     #[turbo_tasks::function]

@@ -56,7 +56,7 @@ use turbopack_core::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
-    output::{OptionOutputAsset, OutputAsset, OutputAssets},
+    output::{OptionOutputAsset, OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
@@ -756,7 +756,7 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn client_chunks(self: Vc<Self>) -> Result<Vc<ChunkGroupResult>> {
+    async fn client_chunk_group(self: Vc<Self>) -> Result<Vc<ChunkGroupResult>> {
         async move {
             let this = self.await?;
 
@@ -933,7 +933,7 @@ impl PageEndpoint {
             let ssr_module_graph = self.ssr_module_graph();
 
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
-                let client_availability_info = self.client_chunks().await?.availability_info;
+                let client_availability_info = self.client_chunk_group().await?.availability_info;
 
                 let client_module_graph = self.client_module_graph();
 
@@ -998,6 +998,7 @@ impl PageEndpoint {
             };
 
             let mut current_chunks = OutputAssets::empty();
+            let mut current_referenced_assets = OutputAssets::empty();
             let mut current_availability_info = AvailabilityInfo::Root;
             for layout in [document_module, app_module].iter().flatten().copied() {
                 let span = tracing::trace_span!(
@@ -1005,7 +1006,11 @@ impl PageEndpoint {
                     name = display(layout.ident().to_string().await?)
                 );
                 async {
-                    let chunk_group = chunking_context
+                    let ChunkGroupResult {
+                        assets,
+                        referenced_assets,
+                        availability_info,
+                    } = *chunking_context
                         .chunk_group(
                             layout.ident(),
                             ChunkGroup::Shared(layout),
@@ -1014,11 +1019,12 @@ impl PageEndpoint {
                         )
                         .await?;
 
-                    current_chunks = current_chunks
-                        .concatenate(*chunk_group.assets)
+                    current_chunks = current_chunks.concatenate(*assets).resolve().await?;
+                    current_referenced_assets = current_referenced_assets
+                        .concatenate(*referenced_assets)
                         .resolve()
                         .await?;
-                    current_availability_info = chunk_group.availability_info;
+                    current_availability_info = availability_info;
 
                     anyhow::Ok(())
                 }
@@ -1030,15 +1036,27 @@ impl PageEndpoint {
                 .context("could not process page loader entry module")?;
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
-                let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
-                    ssr_module.ident(),
-                    ChunkGroup::Entry(vec![ResolvedVc::upcast(ssr_module_evaluatable)]),
-                    ssr_module_graph,
-                    current_availability_info,
-                );
+                let OutputAssetsWithReferenced {
+                    assets: edge_assets,
+                    referenced_assets: edge_referenced_assets,
+                } = *edge_chunking_context
+                    .evaluated_chunk_group_assets(
+                        ssr_module.ident(),
+                        ChunkGroup::Entry(vec![ResolvedVc::upcast(ssr_module_evaluatable)]),
+                        ssr_module_graph,
+                        current_availability_info,
+                    )
+                    .await?;
 
                 Ok(SsrChunk::Edge {
-                    files: current_chunks.concatenate(edge_files).to_resolved().await?,
+                    assets: current_chunks
+                        .concatenate(*edge_assets)
+                        .to_resolved()
+                        .await?,
+                    referenced_assets: current_referenced_assets
+                        .concatenate(*edge_referenced_assets)
+                        .to_resolved()
+                        .await?,
                     dynamic_import_entries,
                     regions: regions.clone(),
                 }
@@ -1056,6 +1074,7 @@ impl PageEndpoint {
                         EvaluatableAssets::empty().with_entry(*ssr_module_evaluatable),
                         ssr_module_graph,
                         current_chunks,
+                        current_referenced_assets,
                         current_availability_info,
                     )
                     .to_resolved()
@@ -1296,8 +1315,16 @@ impl PageEndpoint {
 
         let ssr_chunk = match this.ty {
             PageEndpointType::Html => {
-                let client_chunks = *self.client_chunks().await?.assets;
+                let client_chunk_group = self.client_chunk_group().await?;
+                let client_chunks = *client_chunk_group.assets;
                 client_assets.extend(client_chunks.await?.iter().map(|asset| **asset));
+                client_assets.extend(
+                    client_chunk_group
+                        .referenced_assets
+                        .await?
+                        .iter()
+                        .map(|asset| **asset),
+                );
 
                 let build_manifest = self.build_manifest(client_chunks).to_resolved().await?;
                 let page_loader = self.page_loader(client_chunks);
@@ -1394,7 +1421,8 @@ impl PageEndpoint {
                 }
             }
             SsrChunk::Edge {
-                files,
+                assets,
+                referenced_assets,
                 dynamic_import_entries,
                 ref regions,
             } => {
@@ -1414,9 +1442,14 @@ impl PageEndpoint {
                         fxindexset![]
                     };
 
-                    let files_value = files.await?;
+                    let all_assets = assets.concatenate(*referenced_assets);
+                    let assets_ref = assets.await?;
 
-                    if let Some(&file) = files_value.first() {
+                    server_assets.extend(referenced_assets.await?.iter().copied());
+
+                    // TODO(sokra): accessing the 1st asset is a bit hacky, we should find a better
+                    // way to get the main entry asset
+                    if let Some(&file) = assets_ref.first() {
                         let pages_manifest = self.pages_manifest(*file).to_resolved().await?;
                         server_assets.push(pages_manifest);
                     }
@@ -1424,9 +1457,9 @@ impl PageEndpoint {
                     // Only include the actual edge files if pages should be created
                     let pages_structure = this.pages_structure.await?;
                     if pages_structure.should_create_pages_entries {
-                        server_assets.extend(files_value.iter().copied());
+                        server_assets.extend(assets_ref.iter().copied());
                         file_paths_from_root
-                            .extend(get_js_paths_from_root(&node_root, &files_value).await?);
+                            .extend(get_js_paths_from_root(&node_root, &assets_ref).await?);
                     }
 
                     if emit_manifests == EmitManifests::Full {
@@ -1444,7 +1477,7 @@ impl PageEndpoint {
 
                     let (wasm_paths_from_root, all_assets) =
                         if pages_structure.should_create_pages_entries {
-                            let all_output_assets = all_assets_from_entries(*files).await?;
+                            let all_output_assets = all_assets_from_entries(all_assets).await?;
 
                             let mut wasm_paths_from_root = fxindexset![];
                             wasm_paths_from_root.extend(
@@ -1512,7 +1545,7 @@ impl PageEndpoint {
                 }
 
                 PageEndpointOutput::Edge {
-                    files,
+                    files: assets,
                     server_assets: ResolvedVc::cell(server_assets),
                     client_assets,
                 }
@@ -1745,7 +1778,8 @@ pub enum SsrChunk {
         server_asset_trace_file: ResolvedVc<OptionOutputAsset>,
     },
     Edge {
-        files: ResolvedVc<OutputAssets>,
+        assets: ResolvedVc<OutputAssets>,
+        referenced_assets: ResolvedVc<OutputAssets>,
         dynamic_import_entries: ResolvedVc<DynamicImportedChunks>,
         regions: Option<Vec<RcStr>>,
     },

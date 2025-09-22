@@ -577,6 +577,7 @@ impl ChunkingContext for BrowserChunkingContext {
             let input_availability_info = availability_info;
             let MakeChunkGroupResult {
                 chunks,
+                referenced_output_assets,
                 availability_info,
             } = make_chunk_group(
                 modules,
@@ -618,6 +619,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
+                referenced_assets: ResolvedVc::cell(referenced_output_assets),
                 availability_info,
             }
             .cell())
@@ -645,6 +647,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let MakeChunkGroupResult {
                 chunks,
+                referenced_output_assets,
                 availability_info,
             } = make_chunk_group(
                 entries,
@@ -693,6 +696,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
+                referenced_assets: ResolvedVc::cell(referenced_output_assets),
                 availability_info,
             }
             .cell())
@@ -708,6 +712,7 @@ impl ChunkingContext for BrowserChunkingContext {
         _evaluatable_assets: Vc<EvaluatableAssets>,
         _module_graph: Vc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
+        _extra_referenced_assets: Vc<OutputAssets>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>> {
         bail!("Browser chunking context does not support entry chunk groups")
