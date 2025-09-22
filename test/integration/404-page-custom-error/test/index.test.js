@@ -11,6 +11,7 @@ import {
   renderViaHTTP,
   fetchViaHTTP,
   getPageFileFromPagesManifest,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -39,12 +40,14 @@ const runTests = (mode) => {
 
   if (!isDev) {
     it('should set pages404 in routes-manifest correctly', async () => {
-      const data = await fs.readJSON(join(appDir, '.next/routes-manifest.json'))
+      const data = await fs.readJSON(
+        join(appDir, getDistDir(true), 'routes-manifest.json')
+      )
       expect(data.pages404).toBe(true)
     })
 
     it('should have output 404.html', async () => {
-      const page = getPageFileFromPagesManifest(appDir, '/404')
+      const page = getPageFileFromPagesManifest(appDir, '/404', true)
       expect(page.endsWith('.html')).toBe(true)
     })
   }

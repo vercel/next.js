@@ -263,6 +263,8 @@ export function runNextCommand(
     ...options.env,
   }
 
+  ;(global as any).isNextDev = false
+
   return new Promise((resolve, reject) => {
     debugPrint(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
@@ -1227,7 +1229,10 @@ function readJson(path: string) {
   return JSON.parse(readFileSync(path, 'utf-8'))
 }
 
-export function getDistDir(): string {
+export function getDistDir(forceProduction?: boolean): string {
+  if (forceProduction) {
+    return '.next'
+  }
   return (global as any).isNextDev ? '.next/dev' : '.next'
 }
 
@@ -1280,8 +1285,12 @@ export function readNextBuildClientPageFile(appDir: string, page: string) {
   return readFileSync(path.join(appDir, getDistDir(), pageFile), 'utf8')
 }
 
-export function getPagesManifest(dir: string) {
-  const serverFile = path.join(dir, getDistDir(), 'server/pages-manifest.json')
+export function getPagesManifest(dir: string, forceProduction?: boolean) {
+  const serverFile = path.join(
+    dir,
+    getDistDir(forceProduction),
+    'server/pages-manifest.json'
+  )
 
   return readJson(serverFile)
 }
@@ -1292,8 +1301,12 @@ export function updatePagesManifest(dir: string, content: any) {
   return writeFile(serverFile, content)
 }
 
-export function getPageFileFromPagesManifest(dir: string, page: string) {
-  const pagesManifest = getPagesManifest(dir)
+export function getPageFileFromPagesManifest(
+  dir: string,
+  page: string,
+  forceProduction?: boolean
+) {
+  const pagesManifest = getPagesManifest(dir, forceProduction)
   const pageFile = pagesManifest[page]
   if (!pageFile) {
     throw new Error(`No file for page ${page}`)
