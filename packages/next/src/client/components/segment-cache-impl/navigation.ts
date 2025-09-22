@@ -77,6 +77,7 @@ export type NavigationResult =
  */
 export function navigate(
   url: URL,
+  currentUrl: URL,
   currentCacheNode: CacheNode,
   currentFlightRouterState: FlightRouterState,
   nextUrl: string | null,
@@ -124,6 +125,7 @@ export function navigate(
     return navigateUsingPrefetchedRouteTree(
       now,
       url,
+      currentUrl,
       nextUrl,
       isSamePageNavigation,
       currentCacheNode,
@@ -156,6 +158,7 @@ export function navigate(
     return navigateUsingPrefetchedRouteTree(
       now,
       url,
+      currentUrl,
       nextUrl,
       isSamePageNavigation,
       currentCacheNode,
@@ -176,6 +179,7 @@ export function navigate(
     data: navigateDynamicallyWithNoPrefetch(
       now,
       url,
+      currentUrl,
       nextUrl,
       isSamePageNavigation,
       currentCacheNode,
@@ -189,6 +193,7 @@ export function navigate(
 function navigateUsingPrefetchedRouteTree(
   now: number,
   url: URL,
+  currentUrl: URL,
   nextUrl: string | null,
   isSamePageNavigation: boolean,
   currentCacheNode: CacheNode,
@@ -210,6 +215,7 @@ function navigateUsingPrefetchedRouteTree(
   const scrollableSegments: Array<FlightSegmentPath> = []
   const task = startPPRNavigation(
     now,
+    currentUrl,
     currentCacheNode,
     currentFlightRouterState,
     prefetchFlightRouterState,
@@ -383,6 +389,7 @@ function readRenderSnapshotFromCache(
 async function navigateDynamicallyWithNoPrefetch(
   now: number,
   url: URL,
+  currentUrl: URL,
   nextUrl: string | null,
   isSamePageNavigation: boolean,
   currentCacheNode: CacheNode,
@@ -442,6 +449,7 @@ async function navigateDynamicallyWithNoPrefetch(
   const scrollableSegments: Array<FlightSegmentPath> = []
   const task = startPPRNavigation(
     now,
+    currentUrl,
     currentCacheNode,
     currentFlightRouterState,
     prefetchFlightRouterState,

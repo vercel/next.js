@@ -203,8 +203,10 @@ export function navigateReducer(
     // Temporary glue code between the router reducer and the new navigation
     // implementation. Eventually we'll rewrite the router reducer to a
     // state machine.
+    const currentUrl = new URL(state.canonicalUrl, location.origin)
     const result = navigateUsingSegmentCache(
       url,
+      currentUrl,
       state.cache,
       state.tree,
       state.nextUrl,
@@ -267,13 +269,14 @@ export function navigateReducer(
         return handleExternalUrl(state, mutable, flightData, pendingPush)
       }
 
+      const oldCanonicalUrl = state.canonicalUrl
       const updatedCanonicalUrl = canonicalUrlOverride
         ? createHrefFromUrl(canonicalUrlOverride)
         : href
 
       const onlyHashChange =
         !!hash &&
-        state.canonicalUrl.split('#', 1)[0] ===
+        oldCanonicalUrl.split('#', 1)[0] ===
           updatedCanonicalUrl.split('#', 1)[0]
 
       // If only the hash has changed, the server hasn't sent us any new data. We can just update
@@ -339,6 +342,7 @@ export function navigateReducer(
           ) {
             const task = startPPRNavigation(
               navigatedAt,
+              new URL(oldCanonicalUrl, url.origin),
               currentCache,
               currentTree,
               treePatch,
