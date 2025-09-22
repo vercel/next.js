@@ -19,9 +19,30 @@ type DesiredCompilerOptionsShape = {
 }
 
 function getDesiredCompilerOptions(
-  ts: typeof import('typescript'),
+  typescript: typeof import('typescript'),
   tsOptions?: CompilerOptions
 ): DesiredCompilerOptionsShape {
+  const typescriptVersion = typescript.version
+
+  // ModuleKind
+  const moduleKindESNext = typescript.ModuleKind.ESNext
+  const moduleKindES2020 = typescript.ModuleKind.ES2020
+  const moduleKindPreserve = typescript.ModuleKind.Preserve
+  const moduleKindNodeNext = typescript.ModuleKind.NodeNext
+  const moduleKindNode16 = typescript.ModuleKind.Node16
+  const moduleKindCommonJS = typescript.ModuleKind.CommonJS
+  const moduleKindAMD = typescript.ModuleKind.AMD
+
+  // ModuleResolutionKind
+  const moduleResolutionKindBundler = typescript.ModuleResolutionKind.Bundler
+  const moduleResolutionKindNode10 = typescript.ModuleResolutionKind.Node10
+  const moduleResolutionKindNode12 = (typescript.ModuleResolutionKind as any)
+    .Node12
+  const moduleResolutionKindNodeJs = typescript.ModuleResolutionKind.NodeJs
+
+  // Jsx
+  const jsxEmitReactJSX = typescript.JsxEmit.ReactJSX
+
   const o: DesiredCompilerOptionsShape = {
     target: {
       suggested: 'ES2017',
@@ -34,11 +55,11 @@ function getDesiredCompilerOptions(
     allowJs: { suggested: true },
     skipLibCheck: { suggested: true },
     strict: { suggested: false },
-    ...(semver.lt(ts.version, '5.0.0')
+    ...(semver.lt(typescriptVersion, '5.0.0')
       ? { forceConsistentCasingInFileNames: { suggested: true } }
       : undefined),
     noEmit: { suggested: true },
-    ...(semver.gte(ts.version, '4.4.2')
+    ...(semver.gte(typescriptVersion, '4.4.2')
       ? { incremental: { suggested: true } }
       : undefined),
 
@@ -46,23 +67,23 @@ function getDesiredCompilerOptions(
     // Keep this in sync with the webpack config
     // 'parsedValue' matches the output value from ts.parseJsonConfigFileContent()
     module: {
-      parsedValue: ts.ModuleKind.ESNext,
+      parsedValue: moduleKindESNext,
       // All of these values work:
       parsedValues: [
-        semver.gte(ts.version, '5.4.0') && (ts.ModuleKind as any).Preserve,
-        ts.ModuleKind.ES2020,
-        ts.ModuleKind.ESNext,
-        ts.ModuleKind.CommonJS,
-        ts.ModuleKind.AMD,
-        ts.ModuleKind.NodeNext,
-        ts.ModuleKind.Node16,
+        semver.gte(typescriptVersion, '5.4.0') && moduleKindPreserve,
+        moduleKindES2020,
+        moduleKindESNext,
+        moduleKindCommonJS,
+        moduleKindAMD,
+        moduleKindNodeNext,
+        moduleKindNode16,
       ],
       value: 'esnext',
       reason: 'for dynamic import() support',
     },
     // TODO: Semver check not needed once Next.js repo uses 5.4.
-    ...(semver.gte(ts.version, '5.4.0') &&
-    tsOptions?.module === (ts.ModuleKind as any).Preserve
+    ...(semver.gte(typescriptVersion, '5.4.0') &&
+    tsOptions?.module === moduleKindPreserve
       ? {
           // TypeScript 5.4 introduced `Preserve`. Using `Preserve` implies
           // - `moduleResolution` is `Bundler`
@@ -78,20 +99,19 @@ function getDesiredCompilerOptions(
           moduleResolution: {
             // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
             parsedValue:
-              ts.ModuleResolutionKind.Bundler ??
-              ts.ModuleResolutionKind.NodeNext ??
-              (ts.ModuleResolutionKind as any).Node10 ??
-              ts.ModuleResolutionKind.NodeJs,
+              moduleResolutionKindBundler ??
+              moduleKindNodeNext ??
+              moduleResolutionKindNode10 ??
+              moduleResolutionKindNodeJs,
             // All of these values work:
             parsedValues: [
-              (ts.ModuleResolutionKind as any).Node10 ??
-                ts.ModuleResolutionKind.NodeJs,
+              moduleResolutionKindNode10 ?? moduleResolutionKindNodeJs,
               // only newer TypeScript versions have this field, it
               // will be filtered for new versions of TypeScript
-              (ts.ModuleResolutionKind as any).Node12,
-              ts.ModuleResolutionKind.Node16,
-              ts.ModuleResolutionKind.NodeNext,
-              ts.ModuleResolutionKind.Bundler,
+              moduleResolutionKindNode12,
+              moduleKindNode16,
+              moduleKindNodeNext,
+              moduleResolutionKindBundler,
             ].filter((val) => typeof val !== 'undefined'),
             value: 'node',
             reason: 'to match webpack resolution',
@@ -110,7 +130,7 @@ function getDesiredCompilerOptions(
           },
         }),
     jsx: {
-      parsedValue: ts.JsxEmit.ReactJSX,
+      parsedValue: jsxEmitReactJSX,
       value: 'react-jsx',
       reason: 'next.js uses the React automatic runtime',
     },
@@ -120,11 +140,11 @@ function getDesiredCompilerOptions(
 }
 
 export function getRequiredConfiguration(
-  ts: typeof import('typescript')
+  typescript: typeof import('typescript')
 ): Partial<import('typescript').CompilerOptions> {
   const res: Partial<import('typescript').CompilerOptions> = {}
 
-  const desiredCompilerOptions = getDesiredCompilerOptions(ts)
+  const desiredCompilerOptions = getDesiredCompilerOptions(typescript)
   for (const optionKey of Object.keys(desiredCompilerOptions)) {
     const ev = desiredCompilerOptions[optionKey]
     if (!('value' in ev)) {
@@ -140,7 +160,7 @@ const localDevTestFilesExcludeAction =
   'NEXT_PRIVATE_LOCAL_DEV_TEST_FILES_EXCLUDE'
 
 export async function writeConfigurationDefaults(
-  ts: typeof import('typescript'),
+  typescript: typeof import('typescript'),
   tsConfigPath: string,
   isFirstTimeSetup: boolean,
   hasAppDir: boolean,
@@ -152,7 +172,7 @@ export async function writeConfigurationDefaults(
   }
 
   const { options: tsOptions, raw: rawConfig } =
-    await getTypeScriptConfiguration(ts, tsConfigPath, true)
+    await getTypeScriptConfiguration(typescript, tsConfigPath, true)
 
   const userTsConfigContent = await fs.readFile(tsConfigPath, {
     encoding: 'utf8',
@@ -163,7 +183,10 @@ export async function writeConfigurationDefaults(
     isFirstTimeSetup = true
   }
 
-  const desiredCompilerOptions = getDesiredCompilerOptions(ts, tsOptions)
+  const desiredCompilerOptions = getDesiredCompilerOptions(
+    typescript,
+    tsOptions
+  )
 
   const suggestedActions: string[] = []
   const requiredActions: string[] = []
