@@ -988,6 +988,7 @@ export interface NextConfig extends Record<string, any> {
    * Next.js comes with built-in support for environment variables
    *
    * @see [Environment Variables documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/env)
+   * @deprecated Use the `.env*` files instead. See https://nextjs.org/docs/app/guides/environment-variables
    */
   env?: Record<string, string | undefined>
 
