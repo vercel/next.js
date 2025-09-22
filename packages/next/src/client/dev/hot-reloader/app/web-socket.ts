@@ -37,7 +37,7 @@ export function createWebSocket(
   let timer: ReturnType<typeof setTimeout>
 
   const sendMessage = (data: string) => {
-    if (webSocket.readyState === webSocket.OPEN) {
+    if (webSocket && webSocket.readyState === webSocket.OPEN) {
       webSocket.send(data)
     }
   }
