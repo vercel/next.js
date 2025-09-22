@@ -20,10 +20,7 @@ Middleware executes before routes are rendered. It's particularly useful for imp
 
 Create a `middleware.ts` (or `.js`) file in the project root, or inside `src` if applicable, so that it is located at the same level as `pages` or `app`.
 
-> **Note**:  
-> By default, Middleware files are named `middleware.js` or `middleware.ts`.  
-> If you’ve customized [`pageExtensions`](/docs/app/api-reference/config/next-config-js/pageExtensions) (e.g. to `.page.ts` / `.page.js`),  
-> you must name your file `middleware.page.ts` or `middleware.page.js`.  
+If you’ve customized [`pageExtensions`](/docs/app/api-reference/config/next-config-js/pageExtensions), for example to `.page.ts` or `.page.js`, name your file `middleware.page.ts` or `middleware.page.js` accordingly.
 
 ```tsx filename="middleware.ts" switcher
 import { NextResponse, NextRequest } from 'next/server'
