@@ -142,7 +142,40 @@ export function getRequiredConfiguration(
     if (!('value' in ev)) {
       continue
     }
-    res[optionKey] = ev.parsedValue ?? ev.value
+
+    const value = ev.parsedValue ?? ev.value
+
+    // Convert string values back to TypeScript enum values
+    if (optionKey === 'module' && typeof value === 'string') {
+      const moduleMap: Record<string, import('typescript').ModuleKind> = {
+        esnext: typescript.ModuleKind.ESNext,
+        es2020: typescript.ModuleKind.ES2020,
+        preserve: typescript.ModuleKind.Preserve,
+        nodenext: typescript.ModuleKind.NodeNext,
+        node16: typescript.ModuleKind.Node16,
+        commonjs: typescript.ModuleKind.CommonJS,
+        amd: typescript.ModuleKind.AMD,
+      }
+      res[optionKey] = moduleMap[value.toLowerCase()] ?? value
+    } else if (optionKey === 'moduleResolution' && typeof value === 'string') {
+      const moduleResolutionMap: Record<
+        string,
+        import('typescript').ModuleResolutionKind
+      > = {
+        bundler: typescript.ModuleResolutionKind.Bundler,
+        node10: typescript.ModuleResolutionKind.Node10,
+        node12: (typescript.ModuleResolutionKind as any).Node12,
+        node: typescript.ModuleResolutionKind.NodeJs,
+      }
+      res[optionKey] = moduleResolutionMap[value.toLowerCase()] ?? value
+    } else if (optionKey === 'jsx' && typeof value === 'string') {
+      const jsxMap: Record<string, import('typescript').JsxEmit> = {
+        'react-jsx': typescript.JsxEmit.ReactJSX,
+      }
+      res[optionKey] = jsxMap[value.toLowerCase()] ?? value
+    } else {
+      res[optionKey] = value
+    }
   }
 
   return res
