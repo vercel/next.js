@@ -1,4 +1,5 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { JSONValue } from '../../../server/config-shared'
 import type { Span } from '../../../trace'
 
 export interface NextJsLoaderContext extends webpack.LoaderContext<{}> {
@@ -17,7 +18,7 @@ export interface NextBabelLoaderBaseOptions {
   /**
    * Custom plugins to be added to the generated babel options.
    */
-  reactCompilerPlugins?: Array<any>
+  reactCompilerPlugins?: Array<JSONValue>
 
   /**
    * Paths that the loader should not apply the react-compiler to.

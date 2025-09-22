@@ -492,7 +492,8 @@ export default async function getBaseWebpackConfig(
         config.experimental?.reactCompiler,
         dir,
         isNodeOrEdgeCompilation,
-        codeCondition.exclude
+        codeCondition.exclude,
+        dev
       )
 
   let swcTraceProfilingInitialized = false
