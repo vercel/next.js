@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getDistDir, retry } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('typed-env', () => {
   const { next } = nextTestSetup({
@@ -11,7 +11,7 @@ describe('typed-env', () => {
 
   it('should have env types from next config', async () => {
     await retry(async () => {
-      const envDTS = await next.readFile(`${getDistDir()}/types/env.d.ts`)
+      const envDTS = await next.readFile(`${next.distDir}/types/env.d.ts`)
       // since NODE_ENV is production, env types will
       // not include development-specific env
       expect(envDTS).not.toContain('FROM_ENV_DEV')

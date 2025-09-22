@@ -1,6 +1,5 @@
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { getDistDir } from 'next-test-utils'
 
 describe('app-dir - server components externals', () => {
   const { next, isTurbopack, skipped } = nextTestSetup({
@@ -36,14 +35,14 @@ describe('app-dir - server components externals', () => {
     it('should externalize serversExternalPackages for server rendering layer', async () => {
       await next.fetch('/client')
       const ssrBundle = await next.readFile(
-        `${getDistDir()}/server/app/client/page.js`
+        `${next.distDir}/server/app/client/page.js`
       )
       expect(ssrBundle).not.toContain('external-package-mark:index')
       expect(ssrBundle).not.toContain('external-package-mark:subpath')
 
       await next.fetch('/')
       const rscBundle = await next.readFile(
-        `${getDistDir()}/server/app/page.js`
+        `${next.distDir}/server/app/page.js`
       )
       expect(rscBundle).not.toContain('external-package-mark:index')
       expect(rscBundle).not.toContain('external-package-mark:subpath')

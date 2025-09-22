@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { fetchViaHTTP, getDistDir, renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import fs from 'fs-extra'
 
@@ -74,7 +74,7 @@ describe('i18n-ignore-rewrite-source-locale', () => {
       async (locale) => {
         const chunks = (
           await fs.readdir(
-            path.join(next.testDir, getDistDir(), 'static', 'chunks')
+            path.join(next.testDir, next.distDir, 'static', 'chunks')
           )
         ).filter((f) => f.endsWith('.js'))
 
