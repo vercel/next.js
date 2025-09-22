@@ -16,7 +16,6 @@ use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     chunk::{ChunkingContext, ModuleChunkItemIdExt},
     ident::AssetIdent,
@@ -155,7 +154,6 @@ pub struct FollowExportsResult {
 pub async fn follow_reexports(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
-    side_effect_free_packages: Vc<Glob>,
     ignore_side_effect_of_entry: bool,
 ) -> Result<Vc<FollowExportsResult>> {
     let mut ignore_side_effects = ignore_side_effect_of_entry;
@@ -163,6 +161,27 @@ pub async fn follow_reexports(
     let mut module = module;
     let mut export_name = export_name;
     loop {
+        if !ignore_side_effects {
+            let evaluation = module.get_evaluation().await?;
+            let has_side_effects = match *evaluation {
+                EcmascriptEvaluation::SideEffects => true,
+                EcmascriptEvaluation::LocalSideEffectFree => false,
+                EcmascriptEvaluation::SideEffectFree => false,
+                EcmascriptEvaluation::DelegatedSideEffects(_) => false,
+            };
+            if has_side_effects {
+                // TODO It's unfortunate that we have to use the whole module here.
+                // This is often the Facade module, which includes all reexports.
+                // Often we could use Locals + the followed reexports instead.
+                return Ok(FollowExportsResult::cell(FollowExportsResult {
+                    module,
+                    export_name: Some(export_name),
+                    ty: FoundExportType::SideEffects,
+                }));
+            }
+        }
+        ignore_side_effects = false;
+
         let exports = module.get_exports().await?;
         let EcmascriptExportsType::EsmExports(exports) = &exports.ty else {
             return Ok(FollowExportsResult::cell(FollowExportsResult {
@@ -171,25 +190,9 @@ pub async fn follow_reexports(
                 ty: FoundExportType::Dynamic,
             }));
         };
-
-        if !ignore_side_effects
-            && !*module
-                .is_marked_as_side_effect_free(side_effect_free_packages)
-                .await?
-        {
-            // TODO It's unfortunate that we have to use the whole module here.
-            // This is often the Facade module, which includes all reexports.
-            // Often we could use Locals + the followed reexports instead.
-            return Ok(FollowExportsResult::cell(FollowExportsResult {
-                module,
-                export_name: Some(export_name),
-                ty: FoundExportType::SideEffects,
-            }));
-        }
-        ignore_side_effects = false;
+        let exports_ref = exports.await?;
 
         // Try to find the export in the local exports
-        let exports_ref = exports.await?;
         if let Some(export) = exports_ref.exports.get(&export_name) {
             match handle_declared_export(module, export_name, export).await? {
                 ControlFlow::Continue((m, n)) => {

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Upcast, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
     FileJsonContent, FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -36,15 +36,22 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
     async fn get_evaluation(self: Vc<Self>) -> Result<Vc<EcmascriptEvaluation>> {
         Ok(self.get_exports().await?.evaluation.cell())
     }
-    #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
-        Ok(is_marked_as_side_effect_free(
-            self.ident().path().owned().await?,
-            Some(side_effect_free_packages),
-        ))
+}
+
+pub trait EcmascriptChunkPlaceableExt {
+    fn is_marked_as_side_effect_free(self: Vc<Self>) -> impl Future<Output = Result<bool>> + Send;
+}
+
+impl<T: EcmascriptChunkPlaceable + Send + Upcast<Box<dyn EcmascriptChunkPlaceable>>>
+    EcmascriptChunkPlaceableExt for T
+{
+    async fn is_marked_as_side_effect_free(self: Vc<Self>) -> Result<bool> {
+        Ok(match *self.get_evaluation().await? {
+            EcmascriptEvaluation::SideEffectFree => true,
+            EcmascriptEvaluation::SideEffects => false,
+            EcmascriptEvaluation::LocalSideEffectFree => false,
+            EcmascriptEvaluation::DelegatedSideEffects(_) => false,
+        })
     }
 }
 

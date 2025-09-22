@@ -3,7 +3,7 @@ use std::io::Write;
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{FileSystem, VirtualFileSystem, glob::Glob, rope::RopeBuilder};
+use turbo_tasks_fs::{FileSystem, VirtualFileSystem, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -108,11 +108,6 @@ impl EcmascriptChunkPlaceable for HmrEntryModule {
             evaluation: EcmascriptEvaluation::SideEffects,
         }
         .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(self: Vc<Self>, _: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(false)
     }
 }
 

@@ -176,7 +176,6 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub code_generation: ResolvedVc<CodeGens>,
     pub exports: ResolvedVc<EcmascriptExports>,
     pub async_module: ResolvedVc<OptionAsyncModule>,
-    pub has_side_effect_free_directive: bool,
     /// `true` when the analysis was successful.
     pub successful: bool,
     pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
@@ -231,7 +230,6 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
-    has_side_effect_free_directive: bool,
 }
 
 impl AnalyzeEcmascriptModuleResultBuilder {
@@ -250,7 +248,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
-            has_side_effect_free_directive: false,
         }
     }
 
@@ -315,11 +312,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     /// Sets the analysis result ES export.
     pub fn set_async_module(&mut self, async_module: ResolvedVc<AsyncModule>) {
         self.async_module = ResolvedVc::cell(Some(async_module));
-    }
-
-    /// Set whether this module is side-efffect free according to a user-provided directive.
-    pub fn set_has_side_effect_free_directive(&mut self, value: bool) {
-        self.has_side_effect_free_directive = value;
     }
 
     /// Sets whether the analysis was successful.
@@ -424,7 +416,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 }
                 .resolved_cell(),
                 async_module: self.async_module,
-                has_side_effect_free_directive: self.has_side_effect_free_directive,
                 successful: self.successful,
                 source_map: self.source_map,
             },
@@ -633,7 +624,6 @@ pub async fn analyse_ecmascript_module_internal(
         },
         _ => false,
     });
-    analysis.set_has_side_effect_free_directive(has_side_effect_free_directive);
 
     let is_esm = eval_context.is_esm(specified_type);
     let compile_time_info = compile_time_info_for_module_options(

@@ -1,7 +1,7 @@
 use anyhow::Result;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{FileSystemPath, glob::Glob};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
@@ -72,10 +72,5 @@ impl AssetContext for NoopAssetContext {
         _transition: RcStr,
     ) -> Result<Vc<Box<dyn AssetContext>>> {
         Ok(Vc::upcast(self))
-    }
-
-    #[turbo_tasks::function]
-    async fn side_effect_free_packages(&self) -> Result<Vc<Glob>> {
-        Ok(Glob::new(rcstr!(""), Default::default()))
     }
 }

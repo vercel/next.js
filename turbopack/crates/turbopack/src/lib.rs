@@ -26,10 +26,7 @@ use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, Modu
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{
-    FileSystemPath,
-    glob::{Glob, GlobOptions},
-};
+use turbo_tasks_fs::FileSystemPath;
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
@@ -56,6 +53,7 @@ use turbopack_core::{
 pub use turbopack_css as css;
 pub use turbopack_ecmascript as ecmascript;
 use turbopack_ecmascript::{
+    chunk::EcmascriptChunkPlaceableExt,
     inlined_bytes_module::InlinedBytesJsModule,
     references::external_module::{
         CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
@@ -156,15 +154,7 @@ async fn apply_module_type(
             } else {
                 if matches!(&part, Some(ModulePart::Evaluation)) {
                     // Skip the evaluation part if the module is marked as side effect free.
-                    let side_effect_free_packages = module_asset_context
-                        .side_effect_free_packages()
-                        .resolve()
-                        .await?;
-
-                    if *module
-                        .is_marked_as_side_effect_free(side_effect_free_packages)
-                        .await?
-                    {
+                    if module.is_marked_as_side_effect_free().await? {
                         return Ok(ProcessResult::Ignore.cell());
                     }
                 }
@@ -185,11 +175,6 @@ async fn apply_module_type(
                                         Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
                                     }
                                     ModulePart::Export(_) => {
-                                        let side_effect_free_packages = module_asset_context
-                                            .side_effect_free_packages()
-                                            .resolve()
-                                            .await?;
-
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(
                                                 EcmascriptModuleFacadeModule::new(
@@ -200,7 +185,6 @@ async fn apply_module_type(
                                                 .await?,
                                             ),
                                             part,
-                                            side_effect_free_packages,
                                         )
                                         .await?
                                     }
@@ -278,14 +262,13 @@ async fn apply_module_type(
 async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
-    side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<Box<dyn Module>>> {
     if let ModulePart::Export(export) = &part {
         let FollowExportsResult {
             module: final_module,
             export_name: new_export,
             ..
-        } = &*follow_reexports(module, export.clone(), side_effect_free_packages, true).await?;
+        } = &*follow_reexports(module, export.clone(), true).await?;
         let module = if let Some(new_export) = new_export {
             if *new_export == *export {
                 Vc::upcast(**final_module)
@@ -895,21 +878,6 @@ impl AssetContext for ModuleAssetContext {
                 ))
             },
         )
-    }
-
-    #[turbo_tasks::function]
-    async fn side_effect_free_packages(&self) -> Result<Vc<Glob>> {
-        Ok(self
-            .module_options_context
-            .await?
-            .side_effect_free_packages
-            .map_or_else(
-                || {
-                    // If no side effect free packages are configured, return an empty glob.
-                    Glob::new(rcstr!(""), GlobOptions::default())
-                },
-                |glob| *glob,
-            ))
     }
 }
 

@@ -17,7 +17,6 @@ use turbopack_core::{
         ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
         ModuleChunkItemIdExt,
     },
-    context::AssetContext,
     issue::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
@@ -39,7 +38,9 @@ use super::export::{all_known_export_names, is_export_missing};
 use crate::{
     ScopeHoistingContext, TreeShakingMode,
     analyzer::imports::ImportAnnotations,
-    chunk::{EcmascriptChunkPlaceable, EcmascriptExportsType},
+    chunk::{
+        EcmascriptChunkPlaceable, EcmascriptExportsType, placeable::EcmascriptChunkPlaceableExt,
+    },
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     export::Liveness,
     magic_identifier,
@@ -408,12 +409,7 @@ impl ModuleReference for EsmAssetReference {
             let tree_shaking_mode = module.options().await?.tree_shaking_mode;
 
             if let Some(TreeShakingMode::ModuleFragments) = tree_shaking_mode {
-                let side_effect_free_packages = module.asset_context().side_effect_free_packages();
-
-                if *module
-                    .is_marked_as_side_effect_free(side_effect_free_packages)
-                    .await?
-                {
+                if module.is_marked_as_side_effect_free().await? {
                     return Ok(ModuleResolveResult {
                         primary: Box::new([(
                             RequestKey::default(),

@@ -750,20 +750,6 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
         Ok(*self.analyze().await?.async_module)
     }
-
-    #[turbo_tasks::function]
-    async fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Result<Vc<bool>> {
-        // Check package.json first, so that we can skip parsing the module if it's marked that way.
-        let pkg_side_effect_free = self.check_package_json_side_effect_free();
-        Ok(if *pkg_side_effect_free.await? {
-            pkg_side_effect_free
-        } else {
-            Vc::cell(self.analyze().await?.has_side_effect_free_directive)
-        })
-    }
 }
 
 #[turbo_tasks::value_impl]

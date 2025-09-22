@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
-    FileContent, FileSystem, FileSystemPath, VirtualFileSystem, glob::Glob, rope::RopeBuilder,
+    FileContent, FileSystem, FileSystemPath, VirtualFileSystem, rope::RopeBuilder,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -354,14 +354,6 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
                 None
             },
         )
-    }
-
-    #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(
-        self: Vc<Self>,
-        _side_effect_free_packages: Vc<Glob>,
-    ) -> Vc<bool> {
-        Vc::cell(false)
     }
 }
 
