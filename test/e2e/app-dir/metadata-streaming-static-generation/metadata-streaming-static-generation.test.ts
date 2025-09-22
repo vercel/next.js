@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, getDistDir } from 'next-test-utils'
 
 const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
@@ -17,7 +17,7 @@ const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       // are all listed in the prerender manifest.
       it('should generate all pages static', async () => {
         const prerenderManifest = JSON.parse(
-          await next.readFile('.next/prerender-manifest.json')
+          await next.readFile(getDistDir() + '/prerender-manifest.json')
         )
         const staticRoutes = prerenderManifest.routes
         expect(Object.keys(staticRoutes).sort()).toEqual([

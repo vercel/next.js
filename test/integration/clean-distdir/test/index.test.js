@@ -2,10 +2,10 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
-const nextDir = join(appDir, '.next')
+const nextDir = join(appDir, getDistDir())
 const customFile = join(nextDir, '/extra-file.txt')
 const cacheDir = join(nextDir, '/cache')
 // const swcCacheDir = join(nextDir, '/cache/swc')

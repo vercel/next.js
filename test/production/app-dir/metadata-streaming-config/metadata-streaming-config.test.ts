@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('app-dir - metadata-streaming-config', () => {
   const { next } = nextTestSetup({
@@ -7,7 +8,7 @@ describe('app-dir - metadata-streaming-config', () => {
 
   it('should have the default streaming metadata config output in routes-manifest.json', async () => {
     const requiredServerFiles = JSON.parse(
-      await next.readFile('.next/required-server-files.json')
+      await next.readFile(getDistDir() + '/required-server-files.json')
     )
 
     expect(requiredServerFiles.config.htmlLimitedBots).toMatchInlineSnapshot(
@@ -15,7 +16,7 @@ describe('app-dir - metadata-streaming-config', () => {
     )
 
     const prerenderManifest = JSON.parse(
-      await next.readFile('.next/prerender-manifest.json')
+      await next.readFile(getDistDir() + '/prerender-manifest.json')
     )
     const { routes } = prerenderManifest
 

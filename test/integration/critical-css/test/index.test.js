@@ -8,6 +8,7 @@ import {
   nextStart,
   nextBuild,
   renderViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 import fs from 'fs-extra'
 
@@ -21,12 +22,12 @@ function runTests() {
   it('should have all CSS files in manifest', async () => {
     const cssFiles = (
       await glob('**/*.css', {
-        cwd: join(appDir, '.next/static'),
+        cwd: join(appDir, getDistDir(), 'static'),
       })
-    ).map((file) => join('.next/static', file))
+    ).map((file) => join(getDistDir(), 'static', file))
 
     const requiredServerFiles = await fs.readJSON(
-      join(appDir, '.next/required-server-files.json')
+      join(appDir, getDistDir(), 'required-server-files.json')
     )
 
     expect(
@@ -67,8 +68,8 @@ describe('CSS optimization for SSR apps', () => {
           'utf8'
         )
 
-        if (fs.pathExistsSync(join(appDir, '.next'))) {
-          await fs.remove(join(appDir, '.next'))
+        if (fs.pathExistsSync(join(appDir, getDistDir()))) {
+          await fs.remove(join(appDir, getDistDir()))
         }
         await nextBuild(appDir)
         appPort = await findPort()

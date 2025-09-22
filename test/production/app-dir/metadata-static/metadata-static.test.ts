@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('app dir - metadata', () => {
   const { next } = nextTestSetup({
@@ -7,7 +8,7 @@ describe('app dir - metadata', () => {
 
   it('should have statically optimized metadata routes by default', async () => {
     const prerenderManifest = JSON.parse(
-      await next.readFile('.next/prerender-manifest.json')
+      await next.readFile(getDistDir() + '/prerender-manifest.json')
     )
 
     for (const key of [

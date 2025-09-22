@@ -8,6 +8,7 @@ import {
   check,
   fetchViaHTTP,
   getClientBuildManifestLoaderChunkUrlPath,
+  getDistDir,
   renderViaHTTP,
   waitFor,
 } from 'next-test-utils'
@@ -121,7 +122,7 @@ describe('basePath', () => {
     if (!isNextDeploy) {
       it('should add basePath to routes-manifest', async () => {
         const routesManifest = JSON.parse(
-          await next.readFile('.next/routes-manifest.json')
+          await next.readFile(getDistDir() + '/routes-manifest.json')
         )
         expect(routesManifest.basePath).toBe(basePath)
       })

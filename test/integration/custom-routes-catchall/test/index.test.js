@@ -9,6 +9,7 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 
 let appDir = join(__dirname, '..')
@@ -63,7 +64,10 @@ describe('Custom routes', () => {
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        buildId = await fs.readFile(
+          join(appDir, getDistDir(), 'BUILD_ID'),
+          'utf8'
+        )
       })
       afterAll(() => killApp(app))
       runTests()

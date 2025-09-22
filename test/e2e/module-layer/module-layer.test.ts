@@ -1,5 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource, retry } from 'next-test-utils'
+import {
+  assertHasRedbox,
+  getRedboxSource,
+  retry,
+  getDistDir,
+} from 'next-test-utils'
 
 describe('module layer', () => {
   const { next, isNextStart, isNextDev } = nextTestSetup({
@@ -67,7 +72,9 @@ describe('module layer', () => {
         expect(cliOutput).toContain('Middleware')
 
         const functionsManifest = JSON.parse(
-          await next.readFile('.next/server/functions-config-manifest.json')
+          await next.readFile(
+            `${getDistDir()}/server/functions-config-manifest.json`
+          )
         )
         expect(functionsManifest.functions).toContainKeys([
           '/app/route-edge',
@@ -77,10 +84,10 @@ describe('module layer', () => {
           '/app/server-edge',
         ])
         const pagesManifest = JSON.parse(
-          await next.readFile('.next/server/pages-manifest.json')
+          await next.readFile(`${getDistDir()}/server/pages-manifest.json`)
         )
         const middlewareManifest = JSON.parse(
-          await next.readFile('.next/server/middleware-manifest.json')
+          await next.readFile(`${getDistDir()}/server/middleware-manifest.json`)
         )
         expect(middlewareManifest.middleware).toBeTruthy()
         expect(pagesManifest).toContainKeys([

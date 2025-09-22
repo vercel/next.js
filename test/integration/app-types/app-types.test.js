@@ -2,7 +2,7 @@
 
 import path from 'path'
 import fs from 'fs-extra'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 
 const appDir = __dirname
 
@@ -20,7 +20,7 @@ describe('app type checking - production mode', () => {
   it('should report link errors', async () => {
     // Make sure the d.ts file is generated
     const dts = (
-      await fs.readFile(path.join(appDir, '.next', 'types', 'link.d.ts'))
+      await fs.readFile(path.join(appDir, getDistDir(), 'types', 'link.d.ts'))
     ).toString()
     expect(dts.includes('`/dashboard/user/')).toBeTruthy()
     expect(dts.includes('`/dashboard/another')).toBeTruthy()

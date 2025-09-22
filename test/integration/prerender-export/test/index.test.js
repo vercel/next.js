@@ -8,6 +8,7 @@ import {
   startStaticServer,
   stopApp,
   waitFor,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -210,12 +211,15 @@ describe('SSG Prerender export', () => {
     () => {
       describe('export mode', () => {
         beforeAll(async () => {
-          await fs.remove(join(appDir, '.next'))
+          await fs.remove(join(appDir, getDistDir()))
           await fs.remove(exportDir)
           await nextBuild(appDir, undefined, { cwd: appDir })
           app = await startStaticServer(exportDir)
           appPort = app.address().port
-          buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+          buildId = await fs.readFile(
+            join(appDir, getDistDir(), 'BUILD_ID'),
+            'utf8'
+          )
         })
 
         afterAll(async () => {

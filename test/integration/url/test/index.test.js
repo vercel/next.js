@@ -13,6 +13,7 @@ import {
   launchApp,
   getBrowserBodyText,
   check,
+  getDistDir,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -26,7 +27,7 @@ for (const dev of [false, true]) {
       let appPort
       let app
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         if (dev) {
           appPort = await findPort()
           app = await launchApp(appDir, appPort)

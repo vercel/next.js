@@ -6,13 +6,14 @@ import {
   check,
   File,
   findPort,
+  getDistDir,
   killApp,
   nextBuild,
   nextStart,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
-const distDir = join(appDir, '.next')
+const distDir = join(appDir, getDistDir())
 const exportDir = join(appDir, 'out')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 let app

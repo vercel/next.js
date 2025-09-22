@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('not-found-with-pages', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -8,7 +9,7 @@ describe('not-found-with-pages', () => {
   if (isNextStart) {
     it('should write all locales to the pages manifest', async () => {
       const pagesManifest = JSON.parse(
-        await next.readFile('.next/server/pages-manifest.json')
+        await next.readFile(getDistDir() + '/server/pages-manifest.json')
       )
 
       expect(pagesManifest['/404']).toBe('pages/404.html')

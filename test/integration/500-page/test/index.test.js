@@ -15,6 +15,7 @@ import {
   getPageFileFromPagesManifest,
   getPagesManifest,
   updatePagesManifest,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -52,7 +53,7 @@ const runTests = (mode = 'server') => {
 
     it('should add /500 to pages-manifest correctly', async () => {
       const manifest = await fs.readJSON(
-        join(appDir, '.next', mode, 'pages-manifest.json')
+        join(appDir, getDistDir(), mode, 'pages-manifest.json')
       )
       expect('/500' in manifest).toBe(true)
     })
@@ -64,7 +65,7 @@ describe('500 Page Support', () => {
     'development mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
       })
@@ -107,7 +108,7 @@ describe('500 Page Support', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
@@ -143,7 +144,7 @@ describe('500 Page Support', () => {
           `
           )
 
-          await fs.remove(join(appDir, '.next'))
+          await fs.remove(join(appDir, getDistDir()))
           const { code } = await nextBuild(appDir, [], {
             stderr: true,
             stdout: true,
@@ -175,7 +176,7 @@ describe('500 Page Support', () => {
         export default page
       `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const {
           stderr,
           stdout: buildStdout,
@@ -191,7 +192,9 @@ describe('500 Page Support', () => {
         expect(buildStdout).not.toContain('rendered 500')
         expect(code).toBe(0)
         expect(
-          await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+          await fs.pathExists(
+            join(appDir, getDistDir(), 'server/pages/500.html')
+          )
         ).toBe(false)
 
         let appStdout = ''
@@ -213,14 +216,16 @@ describe('500 Page Support', () => {
 
       it('builds 500 statically by default with no pages/500', async () => {
         await fs.rename(pages500, `${pages500}.bak`)
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
         await fs.rename(`${pages500}.bak`, pages500)
 
         expect(stderr).not.toMatch(gip500Err)
         expect(code).toBe(0)
         expect(
-          await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+          await fs.pathExists(
+            join(appDir, getDistDir(), 'server/pages/500.html')
+          )
         ).toBe(true)
 
         const pagesManifest = await getPagesManifest(appDir)
@@ -271,7 +276,9 @@ describe('500 Page Support', () => {
         expect(buildStderr).not.toMatch(gip500Err)
         expect(code).toBe(0)
         expect(
-          await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+          await fs.pathExists(
+            join(appDir, getDistDir(), 'server/pages/500.html')
+          )
         ).toBe(true)
       })
 
@@ -309,7 +316,9 @@ describe('500 Page Support', () => {
         expect(buildStderr).not.toMatch(gip500Err)
         expect(code).toBe(0)
         expect(
-          await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+          await fs.pathExists(
+            join(appDir, getDistDir(), 'server/pages/500.html')
+          )
         ).toBe(false)
 
         let appStderr = ''
@@ -382,7 +391,9 @@ describe('500 Page Support', () => {
         expect(buildStderr).not.toMatch(gip500Err)
         expect(code).toBe(0)
         expect(
-          await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+          await fs.pathExists(
+            join(appDir, getDistDir(), 'server/pages/500.html')
+          )
         ).toBe(false)
       })
 

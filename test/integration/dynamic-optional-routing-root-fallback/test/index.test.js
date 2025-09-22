@@ -4,6 +4,7 @@ import fs from 'fs-extra'
 import {
   check,
   findPort,
+  getDistDir,
   killApp,
   launchApp,
   nextBuild,
@@ -55,7 +56,7 @@ describe('Dynamic Optional Routing Root Fallback', () => {
     'development mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
 
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
@@ -69,7 +70,7 @@ describe('Dynamic Optional Routing Root Fallback', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
 
         const curConfig = await fs.readFile(nextConfig, 'utf8')
 

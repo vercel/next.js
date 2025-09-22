@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, retry, waitFor } from 'next-test-utils'
+import { check, retry, waitFor, getDistDir } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
 import {
@@ -59,7 +59,7 @@ describe('app dir - basic', () => {
   if (isNextStart) {
     it('should contain framework.json', async () => {
       const frameworksJson = await next.readJSON(
-        '.next/diagnostics/framework.json'
+        getDistDir() + '/diagnostics/framework.json'
       )
       expect(frameworksJson).toEqual({
         name: 'Next.js',
@@ -69,7 +69,7 @@ describe('app dir - basic', () => {
 
     it('outputs correct build-diagnostics.json', async () => {
       const buildDiagnosticsJson = await next.readJSON(
-        '.next/diagnostics/build-diagnostics.json'
+        getDistDir() + '/diagnostics/build-diagnostics.json'
       )
       expect(buildDiagnosticsJson).toMatchObject({
         buildStage: 'static-generation',
@@ -81,7 +81,7 @@ describe('app dir - basic', () => {
   if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
     it('should have correct preferredRegion values in manifest', async () => {
       const middlewareManifest = JSON.parse(
-        await next.readFile('.next/server/middleware-manifest.json')
+        await next.readFile(getDistDir() + '/server/middleware-manifest.json')
       )
       expect(
         middlewareManifest.functions['/(rootonly)/dashboard/hello/page'].regions
@@ -294,7 +294,8 @@ describe('app dir - basic', () => {
     it('should generate build traces correctly', async () => {
       const trace = JSON.parse(
         await next.readFile(
-          '.next/server/app/dashboard/deployments/[id]/page.js.nft.json'
+          getDistDir() +
+            '/server/app/dashboard/deployments/[id]/page.js.nft.json'
         )
       ) as { files: string[] }
       expect(trace.files.some((file) => file.endsWith('data.json'))).toBe(true)

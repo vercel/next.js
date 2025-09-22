@@ -10,6 +10,7 @@ import {
   check,
   fetchViaHTTP,
   getBrowserBodyText,
+  getDistDir,
   getRedboxHeader,
   normalizeRegEx,
   renderViaHTTP,
@@ -1408,7 +1409,7 @@ describe('Prerender', () => {
       if ((global as any).isNextStart && !isDeploy) {
         it('outputs dataRoutes in routes-manifest correctly', async () => {
           const { dataRoutes } = JSON.parse(
-            await next.readFile('.next/routes-manifest.json')
+            await next.readFile(getDistDir() + '/routes-manifest.json')
           )
 
           for (const route of dataRoutes) {
@@ -1723,7 +1724,7 @@ describe('Prerender', () => {
 
         it('outputs a prerender-manifest correctly', async () => {
           const manifest = JSON.parse(
-            await next.readFile('.next/prerender-manifest.json')
+            await next.readFile(getDistDir() + '/prerender-manifest.json')
           )
           const escapedBuildId = escapeRegex(next.buildId)
 

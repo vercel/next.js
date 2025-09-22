@@ -11,6 +11,7 @@ import {
   nextStart,
   renderViaHTTP,
   launchApp,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -44,7 +45,7 @@ describe('Fallback Dynamic Route Params', () => {
     'development mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
       })
@@ -57,7 +58,7 @@ describe('Fallback Dynamic Route Params', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await nextBuild(appDir, [])
         appPort = await findPort()
         app = await nextStart(appDir, appPort)

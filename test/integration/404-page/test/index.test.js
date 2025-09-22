@@ -13,6 +13,7 @@ import {
   waitFor,
   getPageFileFromPagesManifest,
   check,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -62,7 +63,7 @@ const runTests = (mode = 'server') => {
 
     it('should add /404 to pages-manifest correctly', async () => {
       const manifest = await fs.readJSON(
-        join(appDir, '.next', mode, 'pages-manifest.json')
+        join(appDir, getDistDir(), mode, 'pages-manifest.json')
       )
       expect('/404' in manifest).toBe(true)
     })

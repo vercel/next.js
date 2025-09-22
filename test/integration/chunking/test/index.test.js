@@ -8,6 +8,7 @@ import {
   nextStart,
   findPort,
   renderViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -31,11 +32,13 @@ const existsChunkNamed = (name) => {
         try {
           // If a previous build has left chunks behind, delete them
           const oldChunks = await readdir(
-            join(appDir, '.next', 'static', 'chunks')
+            join(appDir, getDistDir(), 'static', 'chunks')
           )
           await Promise.all(
             oldChunks.map((chunk) => {
-              return unlink(join(appDir, '.next', 'static', 'chunks', chunk))
+              return unlink(
+                join(appDir, getDistDir(), 'static', 'chunks', chunk)
+              )
             })
           )
         } catch (e) {
@@ -43,7 +46,9 @@ const existsChunkNamed = (name) => {
         }
         await nextBuild(appDir, [])
 
-        stats = (await readFile(join(appDir, '.next', 'stats.json'), 'utf8'))
+        stats = (
+          await readFile(join(appDir, getDistDir(), 'stats.json'), 'utf8')
+        )
           // fixes backslashes in keyNames not being escaped on windows
           .replace(/"static\\(.*?":?)/g, (match) =>
             match.replace(/\\/g, '\\\\')
@@ -52,7 +57,7 @@ const existsChunkNamed = (name) => {
         stats = JSON.parse(stats)
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
-        chunks = await readdir(join(appDir, '.next', 'static', 'chunks'))
+        chunks = await readdir(join(appDir, getDistDir(), 'static', 'chunks'))
       })
 
       afterAll(() => killApp(app))

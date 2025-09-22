@@ -1,5 +1,5 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
-import { check, retry } from 'next-test-utils'
+import { check, retry, getDistDir } from 'next-test-utils'
 import path from 'path'
 
 describe('parallel-routes-and-interception', () => {
@@ -909,7 +909,7 @@ describe('parallel-routes-and-interception', () => {
     if (isNextStart) {
       it('should not have /default paths in the prerender manifest', async () => {
         const prerenderManifest = JSON.parse(
-          await next.readFile('.next/prerender-manifest.json')
+          await next.readFile(getDistDir() + '/prerender-manifest.json')
         )
 
         const routes = Object.keys(prerenderManifest.routes)

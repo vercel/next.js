@@ -2,6 +2,7 @@
 import { remove } from 'fs-extra'
 import {
   findPort,
+  getDistDir,
   killApp,
   launchApp,
   nextBuild,
@@ -18,7 +19,7 @@ describe('Ordering with styled-jsx (dev)', () => {
   let appPort
   let app
   beforeAll(async () => {
-    await remove(join(appDir, '.next'))
+    await remove(join(appDir, getDistDir()))
     appPort = await findPort()
     app = await launchApp(appDir, appPort)
   })
@@ -47,7 +48,7 @@ describe('Ordering with styled-jsx (prod)', () => {
       let stdout
       let code
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
         ;({ code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
         }))

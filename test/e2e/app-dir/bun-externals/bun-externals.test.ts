@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('app-dir - bun externals', () => {
   const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
@@ -55,7 +56,9 @@ describe('app-dir - bun externals', () => {
   if (!isTurbopack && !isNextDev) {
     it('should not bundle bun builtins in server bundles', async () => {
       await next.fetch('/')
-      const rscBundle = await next.readFile('.next/server/app/page.js')
+      const rscBundle = await next.readFile(
+        `${getDistDir()}/server/app/page.js`
+      )
 
       expect(rscBundle).not.toContain('bun:ffi implementation')
       expect(rscBundle).not.toContain('bun:jsc implementation')

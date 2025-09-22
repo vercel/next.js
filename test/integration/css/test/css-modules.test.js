@@ -5,6 +5,7 @@ import {
   check,
   File,
   findPort,
+  getDistDir,
   killApp,
   launchApp,
   nextBuild,
@@ -99,7 +100,7 @@ useLightningcss: ${useLightningcss}
       () => {
         // TODO(PACK-2308): Fix the ordering issue of CSS Modules in turbopack
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
         })
         beforeAll(async () => {
           appPort = await findPort()
@@ -116,7 +117,7 @@ useLightningcss: ${useLightningcss}
       'production mode',
       () => {
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
         })
         beforeAll(async () => {
           await nextBuild(appDir, [], {})
@@ -140,13 +141,13 @@ describe('should handle unresolved files gracefully', () => {
       const workDir = join(fixturesDir, 'unresolved-css-url')
 
       it('should build correctly', async () => {
-        await remove(join(workDir, '.next'))
+        await remove(join(workDir, getDistDir()))
         const { code } = await nextBuild(workDir)
         expect(code).toBe(0)
       })
 
       it('should have correct file references in CSS output', async () => {
-        const cssFolder = join(workDir, '.next', 'static')
+        const cssFolder = join(workDir, getDistDir(), 'static')
         const cssFiles = nodeFs
           .readdirSync(cssFolder, {
             recursive: true,
@@ -186,13 +187,13 @@ describe('Data URLs', () => {
       const workDir = join(fixturesDir, 'data-url')
 
       it('should compile successfully', async () => {
-        await remove(join(workDir, '.next'))
+        await remove(join(workDir, getDistDir()))
         const { code } = await nextBuild(workDir)
         expect(code).toBe(0)
       })
 
       it('should have emitted expected files', async () => {
-        const cssFolder = join(workDir, '.next', 'static')
+        const cssFolder = join(workDir, getDistDir(), 'static')
         const cssFiles = nodeFs
           .readdirSync(cssFolder, {
             recursive: true,
@@ -231,7 +232,7 @@ useLightningcss: ${useLightningcss}
     let appPort
     let app
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await remove(join(appDir, getDistDir()))
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -335,7 +336,7 @@ module.exports = {
         let stdout
         let code
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
           ;({ code, stdout } = await nextBuild(appDir, [], {
             stdout: true,
           }))
@@ -525,7 +526,7 @@ module.exports = {
         'development mode',
         () => {
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
           beforeAll(async () => {
             appPort = await findPort()
@@ -542,7 +543,7 @@ module.exports = {
         'production mode',
         () => {
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
           beforeAll(async () => {
             await nextBuild(appDir, [], {})

@@ -12,6 +12,7 @@ import {
   nextBuild,
   nextStart,
   check,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -225,7 +226,7 @@ describe('i18n Support Root Catch-all', () => {
     'development mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
       })
@@ -238,11 +239,11 @@ describe('i18n Support Root Catch-all', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
-        buildPagesDir = join(appDir, '.next/server')
+        buildPagesDir = join(appDir, getDistDir(), 'server')
       })
       afterAll(() => killApp(app))
 

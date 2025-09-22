@@ -11,6 +11,7 @@ import {
   nextStart,
   waitFor,
   check,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -74,11 +75,14 @@ describe('Revalidate asPath Normalizing', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         appPort = await findPort()
         await nextBuild(appDir)
 
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        buildId = await fs.readFile(
+          join(appDir, getDistDir(), 'BUILD_ID'),
+          'utf8'
+        )
 
         app = await nextStart(appDir, appPort, {
           onStdout(msg) {

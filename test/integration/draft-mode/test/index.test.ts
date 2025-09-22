@@ -6,6 +6,7 @@ import fs from 'fs-extra'
 import {
   fetchViaHTTP,
   findPort,
+  getDistDir,
   killApp,
   launchApp,
   nextBuild,
@@ -18,7 +19,7 @@ import { join } from 'path'
 const appDir = join(__dirname, '..')
 
 async function getBuildId() {
-  return fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
+  return fs.readFile(join(appDir, getDistDir(), 'BUILD_ID'), 'utf8')
 }
 
 function getData(html: string) {
@@ -127,7 +128,7 @@ describe('Test Draft Mode', () => {
       const getOpts = () => ({ headers: { Cookie: cookieString } })
 
       it('should compile successfully', async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { code, stdout } = await nextBuild(appDir, [], {
           stdout: true,
         })

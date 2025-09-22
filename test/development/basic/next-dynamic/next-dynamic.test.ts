@@ -2,7 +2,12 @@ import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
-import { assertNoRedbox, renderViaHTTP, check } from 'next-test-utils'
+import {
+  assertNoRedbox,
+  renderViaHTTP,
+  check,
+  getDistDir,
+} from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 
 const customDocumentGipContent = `\
@@ -217,7 +222,9 @@ describe('next/dynamic', () => {
       if (!(global as any).isNextDev) {
         it('should not include ssr:false imports to server trace', async () => {
           const trace = JSON.parse(
-            await next.readFile('.next/server/pages/dynamic/no-ssr.js.nft.json')
+            await next.readFile(
+              getDistDir() + '/server/pages/dynamic/no-ssr.js.nft.json'
+            )
           ) as { files: string[] }
           expect(trace).not.toContain('navigator')
         })

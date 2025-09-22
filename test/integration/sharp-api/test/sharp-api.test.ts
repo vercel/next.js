@@ -3,6 +3,7 @@
 import {
   fetchViaHTTP,
   findPort,
+  getDistDir,
   killApp,
   nextBuild,
   nextStart,
@@ -25,7 +26,7 @@ describe('sharp api', () => {
     if (app) {
       await killApp(app)
     }
-    await fs.remove(join(appDir, '.next'))
+    await fs.remove(join(appDir, getDistDir()))
     await fs.remove(join(appDir, 'node_modules'))
   })
 
@@ -37,7 +38,7 @@ describe('sharp api', () => {
     const traceFile = await fs.readJson(
       join(
         appDir,
-        '.next',
+        getDistDir(),
         'server',
         'pages',
         'api',

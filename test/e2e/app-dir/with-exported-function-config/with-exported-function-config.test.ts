@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('with-exported-function-config', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -8,7 +9,9 @@ describe('with-exported-function-config', () => {
   it('should have correct values in function config manifest', async () => {
     if (isNextStart) {
       const functionsConfigManifest = JSON.parse(
-        await next.readFile('.next/server/functions-config-manifest.json')
+        await next.readFile(
+          `${getDistDir()}/server/functions-config-manifest.json`
+        )
       )
 
       expect(functionsConfigManifest).toEqual({

@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 // Tests Babel, not needed for Turbopack
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
@@ -21,7 +22,9 @@ import { nextTestSetup } from 'e2e-utils'
 
       if (isNextStart) {
         it('should contain og package files in middleware', async () => {
-          const middleware = await next.readFile('.next/server/middleware.js')
+          const middleware = await next.readFile(
+            getDistDir() + '/server/middleware.js'
+          )
           // @vercel/og default font should be bundled
           expect(middleware).not.toContain('noto-sans-v27-latin-regular.ttf')
         })

@@ -1,5 +1,5 @@
 import { remove, writeFile } from 'fs-extra'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 import { join } from 'path'
 
 describe('Middleware validation during build', () => {
@@ -10,7 +10,7 @@ describe('Middleware validation during build', () => {
       const middlewareFile = join(appDir, 'middleware.js')
       const middlewareError = 'Middleware is returning a response body'
 
-      beforeEach(() => remove(join(appDir, '.next')))
+      beforeEach(() => remove(join(appDir, getDistDir())))
 
       afterEach(() =>
         writeFile(middlewareFile, '// this will be populated by each test\n')

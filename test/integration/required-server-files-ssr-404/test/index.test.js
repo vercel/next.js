@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { nextServer, startApp, waitFor } from 'next-test-utils'
+import { nextServer, startApp, waitFor, getDistDir } from 'next-test-utils'
 import { fetchViaHTTP, nextBuild, renderViaHTTP } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -17,30 +17,33 @@ describe('Required Server Files', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await nextBuild(appDir, undefined, {
           env: {
             NOW_BUILDER: '1',
           },
         })
 
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        buildId = await fs.readFile(
+          join(appDir, getDistDir(), 'BUILD_ID'),
+          'utf8'
+        )
         requiredFilesManifest = await fs.readJSON(
-          join(appDir, '.next/required-server-files.json')
+          join(appDir, getDistDir(), 'required-server-files.json')
         )
 
-        let files = await fs.readdir(join(appDir, '.next'))
+        let files = await fs.readdir(join(appDir, getDistDir()))
 
         for (const file of files) {
           if (
             file === 'server' ||
             file === 'required-server-files.json' ||
-            requiredFilesManifest.files.includes(join('.next', file))
+            requiredFilesManifest.files.includes(join(getDistDir(), file))
           ) {
             continue
           }
-          console.log('removing', join('.next', file))
-          await fs.remove(join(appDir, '.next', file))
+          console.log('removing', join(getDistDir(), file))
+          await fs.remove(join(appDir, getDistDir(), file))
         }
         await fs.rename(join(appDir, 'pages'), join(appDir, 'pages-bak'))
 
@@ -80,7 +83,7 @@ describe('Required Server Files', () => {
           expect(await fs.exists(join(appDir, file))).toBe(true)
         }
 
-        expect(await fs.exists(join(appDir, '.next/server'))).toBe(true)
+        expect(await fs.exists(join(appDir, getDistDir(), 'server'))).toBe(true)
       })
 
       it('should render SSR page correctly', async () => {

@@ -6,6 +6,7 @@ import {
   nextBuild,
   nextStart,
   waitFor,
+  getDistDir,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import httpProxy from 'http-proxy'
@@ -23,7 +24,7 @@ describe('react-virtualized wrapping next/image', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
         await nextBuild(appDir)
         const port = await findPort()
         app = await nextStart(appDir, port)

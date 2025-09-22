@@ -11,6 +11,7 @@ import {
   nextStart,
   fetchViaHTTP,
   launchApp,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -4462,7 +4463,10 @@ const runTests = () => {
 }
 
 const copyTestFileToDist = () =>
-  fs.copy(join(appDir, 'test-file.txt'), join(appDir, '.next', 'test-file.txt'))
+  fs.copy(
+    join(appDir, 'test-file.txt'),
+    join(appDir, getDistDir(), 'test-file.txt')
+  )
 
 describe('File Serving', () => {
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(

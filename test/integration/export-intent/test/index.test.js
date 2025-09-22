@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { remove } from 'fs-extra'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 import path, { join } from 'path'
 import fs from 'fs'
 
@@ -13,7 +13,7 @@ describe('Application Export Intent Output', () => {
     () => {
       describe('Default Export', () => {
         const appDir = join(fixturesDir, 'default-export')
-        const distDir = join(appDir, '.next')
+        const distDir = join(appDir, getDistDir())
         const outDir = join(appDir, 'out')
 
         beforeAll(async () => {
@@ -62,7 +62,7 @@ describe('Application Export Intent Output', () => {
       'production mode',
       () => {
         const appDir = join(fixturesDir, 'custom-export')
-        const distDir = join(appDir, '.next')
+        const distDir = join(appDir, getDistDir())
         const outDir = join(appDir, 'out')
 
         beforeAll(async () => {
@@ -111,7 +111,7 @@ describe('Application Export Intent Output', () => {
       'production mode',
       () => {
         const appDir = join(fixturesDir, 'custom-out')
-        const distDir = join(appDir, '.next')
+        const distDir = join(appDir, getDistDir())
         const outDir = join(appDir, 'lel')
 
         beforeAll(async () => {
@@ -160,7 +160,7 @@ describe('Application Export Intent Output', () => {
       'production mode',
       () => {
         const appDir = join(fixturesDir, 'bad-export')
-        const distDir = join(appDir, '.next')
+        const distDir = join(appDir, getDistDir())
         const outDir = join(appDir, 'out')
 
         beforeAll(async () => {
@@ -211,7 +211,7 @@ describe('Application Export Intent Output', () => {
       'production mode',
       () => {
         const appDir = join(fixturesDir, 'no-export')
-        const distDir = join(appDir, '.next')
+        const distDir = join(appDir, getDistDir())
 
         beforeAll(async () => {
           await remove(distDir)

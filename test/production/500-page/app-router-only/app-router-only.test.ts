@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 import fsp from 'fs/promises'
 import path from 'path'
 
@@ -19,7 +20,7 @@ describe('500-page app-router-only', () => {
   if (isNextStart) {
     it('should use app router to generate 500.html when no pages _error.tsx exists', async () => {
       const html = await fsp.readFile(
-        path.join(next.testDir, '.next', 'server', 'pages', '500.html'),
+        path.join(next.testDir, getDistDir(), 'server', 'pages', '500.html'),
         'utf8'
       )
       // Not use pages router to generate 500.html
@@ -31,7 +32,7 @@ describe('500-page app-router-only', () => {
 
     it('pages manifest should only contain 404 and 500', async () => {
       const pagesManifest = await fsp.readFile(
-        path.join(next.testDir, '.next', 'server', 'pages-manifest.json'),
+        path.join(next.testDir, getDistDir(), 'server', 'pages-manifest.json'),
         'utf8'
       )
       const pagesManifestJson = JSON.parse(pagesManifest)
@@ -45,7 +46,7 @@ describe('500-page app-router-only', () => {
 
     it('should not contain pages router routes default assets', async () => {
       // do not contain _app, _document, _error routes folder or files in .next/server/pages
-      const pagesDir = path.join(next.testDir, '.next', 'server', 'pages')
+      const pagesDir = path.join(next.testDir, getDistDir(), 'server', 'pages')
       const files = await fsp.readdir(pagesDir)
       expect(files).not.toContain('500')
       if (isTurbopack) {

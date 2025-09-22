@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoConsoleErrors, retry } from 'next-test-utils'
+import { assertNoConsoleErrors, retry, getDistDir } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { format } from 'util'
 import { Playwright } from 'next-webdriver'
@@ -442,7 +442,7 @@ describe('use-cache', () => {
   if (isNextStart) {
     it('should prerender fully cacheable pages as static HTML', async () => {
       const prerenderManifest = JSON.parse(
-        await next.readFile('.next/prerender-manifest.json')
+        await next.readFile(getDistDir() + '/prerender-manifest.json')
       ) as PrerenderManifest
 
       let prerenderedRoutes = Object.entries(prerenderManifest.routes)
@@ -505,7 +505,7 @@ describe('use-cache', () => {
 
     it('should match the expected revalidate and expire configs on the prerender manifest', async () => {
       const { version, routes, dynamicRoutes } = JSON.parse(
-        await next.readFile('.next/prerender-manifest.json')
+        await next.readFile(getDistDir() + '/prerender-manifest.json')
       ) as PrerenderManifest
 
       expect(version).toBe(4)
@@ -547,20 +547,24 @@ describe('use-cache', () => {
 
     it('should match the expected stale config in the page header', async () => {
       const cacheLifeMeta = JSON.parse(
-        await next.readFile('.next/server/app/cache-life.meta')
+        await next.readFile(getDistDir() + '/server/app/cache-life.meta')
       )
       expect(cacheLifeMeta.headers['x-nextjs-stale-time']).toBe('19')
 
       if (withCacheComponents) {
         const cacheLifeWithDynamicMeta = JSON.parse(
-          await next.readFile('.next/server/app/cache-life-with-dynamic.meta')
+          await next.readFile(
+            getDistDir() + '/server/app/cache-life-with-dynamic.meta'
+          )
         )
         expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe(
           '19'
         )
       } else if (withPPR) {
         const cacheLifeWithDynamicMeta = JSON.parse(
-          await next.readFile('.next/server/app/cache-life-with-dynamic.meta')
+          await next.readFile(
+            getDistDir() + '/server/app/cache-life-with-dynamic.meta'
+          )
         )
         // We don't exclude dynamic caches for the legacy PPR prerendering.
         expect(cacheLifeWithDynamicMeta.headers['x-nextjs-stale-time']).toBe(
@@ -612,7 +616,7 @@ describe('use-cache', () => {
 
     it('should propagate unstable_cache tags correctly', async () => {
       const meta = JSON.parse(
-        await next.readFile('.next/server/app/cache-tag.meta')
+        await next.readFile(getDistDir() + '/server/app/cache-tag.meta')
       )
       expect(meta.headers['x-next-cache-tags']).toContain('a,c,b,f,r')
     })
@@ -1021,7 +1025,8 @@ describe('use-cache', () => {
       await next.fetch('/rdc')
 
       const resumeDataCache = extractResumeDataCacheFromPostponedState(
-        JSON.parse(await next.readFile('.next/server/app/rdc.meta')).postponed
+        JSON.parse(await next.readFile(getDistDir() + '/server/app/rdc.meta'))
+          .postponed
       )
 
       const cacheKeys = Array.from(resumeDataCache.cache.keys())

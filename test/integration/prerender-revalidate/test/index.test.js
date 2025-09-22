@@ -10,6 +10,7 @@ import {
   waitFor,
   getPageFileFromPagesManifest,
   fetchViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 import { join } from 'path'
 
@@ -22,7 +23,7 @@ function runTests(route, routePath) {
   it(`[${route}] should regenerate page when revalidate time exceeded`, async () => {
     const fileName = join(
       appDir,
-      '.next',
+      getDistDir(),
       'server',
       getPageFileFromPagesManifest(appDir, routePath).replace('.js', '.html')
     )
@@ -42,7 +43,7 @@ function runTests(route, routePath) {
   it(`[${route}] should regenerate /_next/data when revalidate time exceeded`, async () => {
     const fileName = join(
       appDir,
-      '.next',
+      getDistDir(),
       'server',
       getPageFileFromPagesManifest(appDir, routePath).replace('.js', '.json')
     )
@@ -70,11 +71,14 @@ describe('SSG Prerender Revalidate', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await nextBuild(appDir, [])
         appPort = await findPort()
         app = await nextStart(appDir, appPort, {})
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        buildId = await fs.readFile(
+          join(appDir, getDistDir(), 'BUILD_ID'),
+          'utf8'
+        )
       })
       afterAll(() => killApp(app))
 
@@ -103,7 +107,7 @@ describe('SSG Prerender Revalidate', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await fs.remove(join(appDir, '.next'))
+          await fs.remove(join(appDir, getDistDir()))
           await nextBuild(appDir, [])
           appPort = await findPort()
           app = await nextStart(appDir, appPort, {
@@ -111,7 +115,10 @@ describe('SSG Prerender Revalidate', () => {
             // this will cause the cache size to always be exceeded
             env: { __NEXT_TEST_MAX_ISR_CACHE: 1 },
           })
-          buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+          buildId = await fs.readFile(
+            join(appDir, getDistDir(), 'BUILD_ID'),
+            'utf8'
+          )
         })
         afterAll(() => killApp(app))
 

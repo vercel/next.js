@@ -12,6 +12,7 @@ import {
   launchApp,
   killApp,
   nextStart,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -108,7 +109,7 @@ const runTests = (isDev = false) => {
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
         // TODO: use browser instead to do checks that now need filesystem access
-        builtServerPagesDir = join(appDir, '.next', 'server', 'pages')
+        builtServerPagesDir = join(appDir, getDistDir(), 'server', 'pages')
       })
       afterAll(() => killApp(app))
       runTests()
@@ -130,7 +131,10 @@ const runTests = (isDev = false) => {
         beforeAll(async () => {
           nextConfig.write(`module.exports = { output: 'export' }`)
           await nextBuild(appDir)
-          buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+          buildId = await fs.readFile(
+            join(appDir, getDistDir(), 'BUILD_ID'),
+            'utf8'
+          )
         })
 
         afterAll(() => nextConfig.delete())

@@ -4,6 +4,7 @@ import {
   killApp,
   nextStart,
   launchApp,
+  getDistDir,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -47,7 +48,10 @@ const runTests = () => {
   () => {
     beforeAll(async () => {
       await nextBuild(appDir)
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      buildId = await fs.readFile(
+        join(appDir, getDistDir(), 'BUILD_ID'),
+        'utf8'
+      )
       appPort = await findPort()
       app = await nextStart(appDir, appPort)
     })

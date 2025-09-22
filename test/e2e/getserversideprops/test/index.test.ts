@@ -13,6 +13,7 @@ import {
   renderViaHTTP,
   waitFor,
   assertHasRedbox,
+  getDistDir,
 } from 'next-test-utils'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
@@ -816,7 +817,7 @@ const runTests = (isDev = false, isDeploy = false) => {
     if (!isDeploy) {
       it('should output routes-manifest correctly', async () => {
         const { dataRoutes } = JSON.parse(
-          await next.readFile('.next/routes-manifest.json')
+          await next.readFile(getDistDir() + '/routes-manifest.json')
         )
         for (const route of dataRoutes) {
           route.dataRouteRegex = normalizeRegEx(route.dataRouteRegex)

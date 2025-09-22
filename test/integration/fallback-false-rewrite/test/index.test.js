@@ -11,6 +11,7 @@ import {
   nextStart,
   launchApp,
   fetchViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -111,7 +112,7 @@ describe('fallback: false rewrite', () => {
     'development mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
       })
@@ -124,7 +125,7 @@ describe('fallback: false rewrite', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await nextBuild(appDir, [])
         appPort = await findPort()
         app = await nextStart(appDir, appPort)

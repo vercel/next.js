@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import fs from 'fs-extra'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 import { join } from 'path'
 
 const appDir = join(__dirname, '..')
@@ -22,7 +22,7 @@ describe('getServerSideProps', () => {
     'production mode',
     () => {
       afterAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await fs.remove(join(appDir, 'out'))
       })
 

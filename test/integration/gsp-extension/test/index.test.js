@@ -5,6 +5,7 @@ import { join } from 'path'
 import {
   fetchViaHTTP,
   findPort,
+  getDistDir,
   killApp,
   nextBuild,
   nextStart,
@@ -22,7 +23,7 @@ describe('GS(S)P with file extension', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { code } = await nextBuild(appDir)
         if (code !== 0) throw new Error(`build failed with code ${code}`)
 
@@ -32,7 +33,7 @@ describe('GS(S)P with file extension', () => {
       afterAll(() => killApp(app))
 
       it('should support slug with different extensions', async () => {
-        const baseDir = join(appDir, '.next/server/pages')
+        const baseDir = join(appDir, getDistDir(), 'server/pages')
         fileNames.forEach((name) => {
           const filePath = join(baseDir, name)
           expect(fs.existsSync(filePath + '.html')).toBe(true)
@@ -53,7 +54,7 @@ describe('GS(S)P with file extension', () => {
 
       it('should contain extension in name of json files in _next/data', async () => {
         const buildId = await fs.readFile(
-          join(appDir, '.next/BUILD_ID'),
+          join(appDir, getDistDir(), 'BUILD_ID'),
           'utf8'
         )
         const requests = fileNames.map((name) => {

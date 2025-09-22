@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs'
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, getDistDir } from 'next-test-utils'
 import { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
 
 function getServerReferenceIdsFromBundle(source: string): string[] {
@@ -81,17 +81,17 @@ describe('app-dir - client-actions-tree-shaking', () => {
 
     const bundle1Contents = await Promise.all(
       bundle1Files.map((file: string) =>
-        fs.readFile(join(appDir, '.next', file), 'utf8')
+        fs.readFile(join(appDir, getDistDir(), file), 'utf8')
       )
     )
     const bundle2Contents = await Promise.all(
       bundle2Files.map((file: string) =>
-        fs.readFile(join(appDir, '.next', file), 'utf8')
+        fs.readFile(join(appDir, getDistDir(), file), 'utf8')
       )
     )
     const bundle3Contents = await Promise.all(
       bundle3Files.map((file: string) =>
-        fs.readFile(join(appDir, '.next', file), 'utf8')
+        fs.readFile(join(appDir, getDistDir(), file), 'utf8')
       )
     )
 

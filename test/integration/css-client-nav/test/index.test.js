@@ -11,6 +11,7 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -154,7 +155,7 @@ describe('CSS Module client-side navigation', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
         await nextBuild(appDir)
         const port = await findPort()
         app = await nextStart(appDir, port)
@@ -225,7 +226,7 @@ describe('CSS Module client-side navigation', () => {
 
   describe('dev', () => {
     beforeAll(async () => {
-      await remove(join(appDir, '.next'))
+      await remove(join(appDir, getDistDir()))
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })

@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP, normalizeRegEx } from 'next-test-utils'
+import { fetchViaHTTP, normalizeRegEx, getDistDir } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
 import escapeStringRegexp from 'escape-string-regexp'
@@ -153,7 +153,7 @@ describe('edge-render-getserversideprops', () => {
   if ((global as any).isNextStart) {
     it('should have data routes in routes-manifest', async () => {
       const manifest = JSON.parse(
-        await next.readFile('.next/routes-manifest.json')
+        await next.readFile(`${getDistDir()}/routes-manifest.json`)
       )
 
       for (const route of manifest.dataRoutes) {

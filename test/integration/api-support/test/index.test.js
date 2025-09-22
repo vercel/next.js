@@ -15,6 +15,7 @@ import {
   getPageFileFromBuildManifest,
   getPageFileFromPagesManifest,
   check,
+  getDistDir,
 } from 'next-test-utils'
 import json from '../big.json'
 
@@ -38,7 +39,7 @@ function runTests(dev = false) {
 
     const buildId = dev
       ? 'development'
-      : await fs.readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
+      : await fs.readFile(join(appDir, getDistDir(), 'BUILD_ID'), 'utf8')
 
     const res2 = await fetchViaHTTP(
       appPort,

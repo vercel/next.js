@@ -18,6 +18,7 @@ import {
   check,
   getRedboxHeader,
   normalizeManifest,
+  getDistDir,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 
@@ -25,7 +26,7 @@ let app
 let appPort
 let buildId
 const appDir = join(__dirname, '../')
-const buildIdPath = join(appDir, '.next/BUILD_ID')
+const buildIdPath = join(appDir, getDistDir(), 'BUILD_ID')
 
 function runTests({ dev }) {
   if (!dev) {
@@ -1231,7 +1232,7 @@ function runTests({ dev }) {
   } else {
     it('should output a routes-manifest correctly', async () => {
       const manifest = await fs.readJson(
-        join(appDir, '.next/routes-manifest.json')
+        join(appDir, getDistDir(), 'routes-manifest.json')
       )
 
       for (const route of manifest.dynamicRoutes) {

@@ -14,6 +14,7 @@ import {
   waitFor,
   normalizeRegEx,
   check,
+  getDistDir,
 } from 'next-test-utils'
 
 const domainLocales = ['go', 'go-BE', 'do', 'do-BE']
@@ -728,7 +729,7 @@ export function runTests(ctx) {
   if (!ctx.isDev) {
     it('should add i18n config to routes-manifest', async () => {
       const routesManifest = await fs.readJSON(
-        join(ctx.appDir, '.next/routes-manifest.json')
+        join(ctx.appDir, getDistDir(), 'routes-manifest.json')
       )
 
       expect(routesManifest.i18n).toEqual({

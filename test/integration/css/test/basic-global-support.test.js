@@ -9,6 +9,7 @@ import {
   killApp,
   fetchViaHTTP,
   renderViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 import { join } from 'path'
 
@@ -38,7 +39,7 @@ module.exports = {
         })
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
           const { code } = await nextBuild(appDir)
           if (code !== 0) {
             throw new Error('Failed to build')
@@ -122,7 +123,7 @@ module.exports = {
         })
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
           const { code } = await nextBuild(appDir)
           if (code !== 0) {
             throw new Error('Failed to build')
@@ -202,7 +203,7 @@ module.exports = {
         })
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
           const { code } = await nextBuild(appDir)
           if (code !== 0) {
             throw new Error('Failed to build')
@@ -281,7 +282,7 @@ module.exports = {
         })
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
           const { code } = await nextBuild(appDir)
           if (code !== 0) {
             throw new Error('Failed to build')
@@ -363,7 +364,7 @@ module.exports = {
         })
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
           const { code } = await nextBuild(appDir)
           if (code !== 0) {
             throw new Error('Failed to build')
@@ -450,7 +451,7 @@ module.exports = {
         })
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
           const { code } = await nextBuild(appDir)
           if (code !== 0) {
             throw new Error('Failed to build')
@@ -532,7 +533,7 @@ module.exports = {
         })
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
           const { code } = await nextBuild(appDir)
           if (code !== 0) {
             throw new Error('Failed to build')

@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, getDistDir } from 'next-test-utils'
 
 describe('app dir - not-found - basic', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
@@ -36,7 +36,9 @@ describe('app dir - not-found - basic', () => {
   if (isNextStart) {
     it('should include not found client reference manifest in the file trace', async () => {
       const fileTrace = JSON.parse(
-        await next.readFile('.next/server/app/_not-found/page.js.nft.json')
+        await next.readFile(
+          getDistDir() + '/server/app/_not-found/page.js.nft.json'
+        )
       )
 
       const isTraced = fileTrace.files.some((filePath) =>
@@ -53,7 +55,9 @@ describe('app dir - not-found - basic', () => {
 
     it('should use root not-found content for 404 html', async () => {
       // static /404 page will use /_not-found content
-      const page404 = await next.readFile('.next/server/pages/404.html')
+      const page404 = await next.readFile(
+        getDistDir() + '/server/pages/404.html'
+      )
       expect(page404).toContain('Root Not Found')
     })
   }
@@ -140,10 +144,12 @@ describe('app dir - not-found - basic', () => {
 
     if (!isNextDev && !isEdge) {
       it('should create the 404 mapping and copy the file to pages', async () => {
-        const html = await next.readFile('.next/server/pages/404.html')
+        const html = await next.readFile(
+          getDistDir() + '/server/pages/404.html'
+        )
         expect(html).toContain('Root Not Found')
         expect(
-          await next.readFile('.next/server/pages-manifest.json')
+          await next.readFile(getDistDir() + '/server/pages-manifest.json')
         ).toContain('"pages/404.html"')
       })
     }

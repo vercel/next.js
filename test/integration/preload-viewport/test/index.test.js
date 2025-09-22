@@ -9,6 +9,7 @@ import {
   nextStart,
   waitFor,
   getClientBuildManifestLoaderChunkUrlPath,
+  getDistDir,
 } from 'next-test-utils'
 import http from 'http'
 import httpProxy from 'http-proxy'
@@ -546,7 +547,7 @@ describe('Prefetching Links in viewport', () => {
 
       it('should correctly omit pre-generated dynamic pages from SSG manifest', async () => {
         const content = await readFile(
-          join(appDir, '.next', 'static', 'test-build', '_ssgManifest.js'),
+          join(appDir, getDistDir(), 'static', 'test-build', '_ssgManifest.js'),
           'utf8'
         )
 

@@ -10,6 +10,7 @@ import {
   createNowRouteMatches,
   fetchViaHTTP,
   findPort,
+  getDistDir,
   initNextServerScript,
   killApp,
   renderViaHTTP,
@@ -91,7 +92,7 @@ describe('required server files', () => {
     await next.stop()
 
     requiredFilesManifest = JSON.parse(
-      await next.readFile('.next/required-server-files.json')
+      await next.readFile(`${getDistDir()}/required-server-files.json`)
     )
     await fs.move(
       join(next.testDir, '.next/standalone'),
@@ -499,7 +500,7 @@ describe('required server files', () => {
 
   it('should not 404 for onlyGenerated on-demand revalidate in minimal mode', async () => {
     const previewProps = JSON.parse(
-      await next.readFile('standalone/.next/prerender-manifest.json')
+      await next.readFile(`standalone/${getDistDir()}/prerender-manifest.json`)
     ).preview
 
     const res = await fetchViaHTTP(

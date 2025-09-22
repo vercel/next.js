@@ -1,8 +1,14 @@
 import fs from 'fs'
 import path from 'path'
+import { getDistDir } from 'next-test-utils'
 
 export function deleteBrowserDynamicChunks(next) {
-  const clientChunkDir = path.join(next.testDir, '.next', 'static', 'chunks')
+  const clientChunkDir = path.join(
+    next.testDir,
+    getDistDir(),
+    'static',
+    'chunks'
+  )
   const clientChunkFiles = fs
     .readdirSync(clientChunkDir)
     // filter out the js file that contains the text "large test content"

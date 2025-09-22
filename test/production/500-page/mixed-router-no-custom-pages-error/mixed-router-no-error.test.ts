@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import fsp from 'fs/promises'
 import path from 'path'
+import { getDistDir } from 'next-test-utils'
 
 describe('500-page - mixed-router-no-custom-pages-error', () => {
   const { next, skipped } = nextTestSetup({
@@ -21,7 +22,7 @@ describe('500-page - mixed-router-no-custom-pages-error', () => {
 
   it('pages manifest should only contain 404 and 500', async () => {
     const pagesManifest = await fsp.readFile(
-      path.join(next.testDir, '.next', 'server', 'pages-manifest.json'),
+      path.join(next.testDir, getDistDir(), 'server', 'pages-manifest.json'),
       'utf8'
     )
     const pagesManifestJson = JSON.parse(pagesManifest)
@@ -38,7 +39,7 @@ describe('500-page - mixed-router-no-custom-pages-error', () => {
 
   it('should generate 500.html with pages builtin _error', async () => {
     const html = await fsp.readFile(
-      path.join(next.testDir, '.next', 'server', 'pages', '500.html'),
+      path.join(next.testDir, getDistDir(), 'server', 'pages', '500.html'),
       'utf8'
     )
     expect(html).toContain('500')

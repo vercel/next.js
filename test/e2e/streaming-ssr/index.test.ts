@@ -5,6 +5,7 @@ import {
   check,
   fetchViaHTTP,
   findPort,
+  getDistDir,
   initNextServerScript,
   killApp,
   renderViaHTTP,
@@ -183,7 +184,9 @@ if (isNextProd) {
 
     if (isNextProd) {
       it('should have generated a static 404 page', async () => {
-        expect(await next.readFile('.next/server/pages/404.html')).toBeTruthy()
+        expect(
+          await next.readFile(getDistDir() + '/server/pages/404.html')
+        ).toBeTruthy()
 
         const res = await fetchViaHTTP(next.url, '/non-existent')
         expect(res.status).toBe(404)

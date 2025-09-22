@@ -3,6 +3,7 @@ import {
   check,
   fetchViaHTTP,
   findPort,
+  getDistDir,
   killApp,
   launchApp,
   nextBuild,
@@ -72,7 +73,7 @@ describe('development mode', () => {
     const context = createContext()
 
     beforeAll(async () => {
-      await remove(path.join(appDir, '.next'))
+      await remove(path.join(appDir, getDistDir()))
       await nextBuild(appDir, undefined, {
         stderr: true,
         stdout: true,

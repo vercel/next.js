@@ -10,6 +10,7 @@ import {
   killApp,
   launchApp,
   check,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -44,7 +45,7 @@ describe('Hydration', () => {
     'development mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(path.join(appDir, '.next'))
+        await fs.remove(path.join(appDir, getDistDir()))
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
       })
@@ -57,7 +58,7 @@ describe('Hydration', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(path.join(appDir, '.next'))
+        await fs.remove(path.join(appDir, getDistDir()))
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort)

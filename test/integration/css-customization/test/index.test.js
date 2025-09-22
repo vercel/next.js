@@ -2,7 +2,7 @@
 
 import { join } from 'path'
 import { readdir, readFile, remove } from 'fs-extra'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
 const fixturesDir = join(__dirname, '../..', 'css-fixtures')
@@ -18,7 +18,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
         const appDir = join(fixturesDir, 'custom-configuration')
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
         })
 
         describe('Basic CSS', () => {
@@ -31,7 +31,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           })
 
           it(`should've compiled and prefixed`, async () => {
-            const cssFolder = join(appDir, '.next/static/css')
+            const cssFolder = join(appDir, getDistDir(), 'static/css')
 
             const files = await readdir(cssFolder)
             const cssFiles = files.filter((f) => /\.css$/.test(f))
@@ -54,7 +54,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           })
 
           it(`should've emitted a source map`, async () => {
-            const cssFolder = join(appDir, '.next/static/css')
+            const cssFolder = join(appDir, getDistDir(), 'static/css')
 
             const files = await readdir(cssFolder)
             const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
@@ -94,7 +94,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           const appDir = join(fixturesDir, 'custom-configuration-arr')
 
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
 
           it('should compile successfully', async () => {
@@ -106,7 +106,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           })
 
           it(`should've compiled and prefixed`, async () => {
-            const cssFolder = join(appDir, '.next/static/css')
+            const cssFolder = join(appDir, getDistDir(), 'static/css')
 
             const files = await readdir(cssFolder)
             const cssFiles = files.filter((f) => /\.css$/.test(f))
@@ -129,7 +129,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           })
 
           it(`should've emitted a source map`, async () => {
-            const cssFolder = join(appDir, '.next/static/css')
+            const cssFolder = join(appDir, getDistDir(), 'static/css')
 
             const files = await readdir(cssFolder)
             const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
@@ -172,7 +172,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           const appDir = join(fixturesDir, 'custom-configuration-loader')
 
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
 
           it('should compile successfully', async () => {
@@ -186,7 +186,11 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           })
 
           it(`should've applied style`, async () => {
-            const pagesFolder = join(appDir, '.next/static/chunks/pages')
+            const pagesFolder = join(
+              appDir,
+              getDistDir(),
+              'static/chunks/pages'
+            )
 
             const files = await readdir(pagesFolder)
             const indexFiles = files.filter((f) => /^index.+\.js$/.test(f))
@@ -204,7 +208,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           const appDir = join(fixturesDir, 'bad-custom-configuration')
 
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
 
           it('should compile successfully', async () => {
@@ -228,7 +232,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           })
 
           it(`should've compiled and prefixed`, async () => {
-            const cssFolder = join(appDir, '.next/static/css')
+            const cssFolder = join(appDir, getDistDir(), 'static/css')
 
             const files = await readdir(cssFolder)
             const cssFiles = files.filter((f) => /\.css$/.test(f))
@@ -251,7 +255,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           })
 
           it(`should've emitted a source map`, async () => {
-            const cssFolder = join(appDir, '.next/static/css')
+            const cssFolder = join(appDir, getDistDir(), 'static/css')
 
             const files = await readdir(cssFolder)
             const cssMapFiles = files.filter((f) => /\.css\.map$/.test(f))
@@ -264,7 +268,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           const appDir = join(fixturesDir, 'bad-custom-configuration-arr-1')
 
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
 
           it('should fail the build', async () => {
@@ -281,7 +285,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           const appDir = join(fixturesDir, 'bad-custom-configuration-arr-2')
 
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
 
           it('should fail the build', async () => {
@@ -301,7 +305,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           const appDir = join(fixturesDir, 'bad-custom-configuration-arr-3')
 
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
 
           it('should fail the build', async () => {
@@ -318,7 +322,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           const appDir = join(fixturesDir, 'bad-custom-configuration-arr-4')
 
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
 
           it('should fail the build', async () => {
@@ -335,7 +339,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           const appDir = join(fixturesDir, 'bad-custom-configuration-arr-5')
 
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
 
           it('should fail the build', async () => {
@@ -352,7 +356,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           const appDir = join(fixturesDir, 'bad-custom-configuration-arr-6')
 
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
 
           it('should fail the build', async () => {
@@ -369,7 +373,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           const appDir = join(fixturesDir, 'bad-custom-configuration-arr-7')
 
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
 
           it('should fail the build', async () => {
@@ -386,7 +390,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           const appDir = join(fixturesDir, 'bad-custom-configuration-arr-8')
 
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
 
           it('should fail the build', async () => {
@@ -403,7 +407,7 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
           const appDir = join(fixturesDir, 'bad-custom-configuration-func')
 
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
 
           it('should fail the build', async () => {

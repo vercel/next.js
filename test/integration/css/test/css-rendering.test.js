@@ -4,6 +4,7 @@ import {
   check,
   findPort,
   File,
+  getDistDir,
   killApp,
   nextBuild,
   nextStart,
@@ -38,7 +39,7 @@ module.exports = {
               )
             })
             beforeAll(async () => {
-              await remove(join(appDir, '.next'))
+              await remove(join(appDir, getDistDir()))
             })
 
             it('should fail the build', async () => {
@@ -212,7 +213,7 @@ module.exports = {
       'production mode',
       () => {
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
         })
         beforeAll(async () => {
           await nextBuild(appDir, [], {})
@@ -297,7 +298,7 @@ module.exports = {
           'production mode',
           () => {
             beforeAll(async () => {
-              await remove(join(appDir, '.next'))
+              await remove(join(appDir, getDistDir()))
             })
             beforeAll(async () => {
               await nextBuild(appDir, [], {})
@@ -376,14 +377,14 @@ module.exports = {
 
             // Remove other page CSS files:
             const manifest = await readJSON(
-              join(appDir, '.next', 'build-manifest.json')
+              join(appDir, getDistDir(), 'build-manifest.json')
             )
             const files = manifest['pages']['/other'].filter((e) =>
               e.endsWith('.css')
             )
             if (files.length < 1) throw new Error()
             await Promise.all(
-              files.map((f) => remove(join(appDir, '.next', f)))
+              files.map((f) => remove(join(appDir, getDistDir(), f)))
             )
           })
           afterAll(async () => {
@@ -490,11 +491,11 @@ module.exports = {
             app = await nextStart(appDir, appPort)
 
             const buildId = (
-              await readFile(join(appDir, '.next', 'BUILD_ID'), 'utf8')
+              await readFile(join(appDir, getDistDir(), 'BUILD_ID'), 'utf8')
             ).trim()
             const fileName = join(
               appDir,
-              '.next/static/',
+              getDistDir() + '/static/',
               buildId,
               '_buildManifest.js'
             )

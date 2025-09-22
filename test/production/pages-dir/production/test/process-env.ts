@@ -1,6 +1,9 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { getContentOfPageFilesFromBuildManifest } from 'next-test-utils'
+import {
+  getContentOfPageFilesFromBuildManifest,
+  getDistDir,
+} from 'next-test-utils'
 import { NextInstance } from 'e2e-utils'
 import path from 'node:path'
 import fs from 'fs-extra'
@@ -33,7 +36,7 @@ export default (next: NextInstance) => {
       let allServerCodeForPage = ''
       const chunksFilesDir = path.join(
         next.testDir,
-        '.next',
+        getDistDir(),
         'server',
         'chunks'
       )
@@ -50,7 +53,12 @@ export default (next: NextInstance) => {
         allServerCodeForPage += content
       }
 
-      const pagesFilesDir = path.join(next.testDir, '.next', 'server', 'pages')
+      const pagesFilesDir = path.join(
+        next.testDir,
+        getDistDir(),
+        'server',
+        'pages'
+      )
       const allFilesInDotNextServerPages = await fs
         .readdirSync(pagesFilesDir, {
           recursive: true,

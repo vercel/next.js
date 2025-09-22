@@ -15,6 +15,7 @@ import {
   check,
   startStaticServer,
   stopApp,
+  getDistDir,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -45,7 +46,7 @@ const appDir = join(__dirname, '../')
         let appPort
         let app
         beforeAll(async () => {
-          await fs.remove(join(appDir, '.next'))
+          await fs.remove(join(appDir, getDistDir()))
           if (dev) {
             appPort = await findPort()
             app = await launchApp(appDir, appPort)

@@ -23,6 +23,7 @@ import {
   normalizeRegEx,
   check,
   normalizeManifest,
+  getDistDir,
 } from 'next-test-utils'
 
 let appDir = join(__dirname, '..')
@@ -1478,7 +1479,7 @@ const runTests = (isDev = false) => {
   if (!isDev) {
     it('should output routes-manifest successfully', async () => {
       const manifest = await fs.readJSON(
-        join(appDir, '.next/routes-manifest.json')
+        join(appDir, getDistDir(), 'routes-manifest.json')
       )
 
       for (const route of [
@@ -2505,7 +2506,7 @@ const runTests = (isDev = false) => {
 
     it('should have redirects/rewrites in build output with debug flag', async () => {
       const manifest = await fs.readJSON(
-        join(appDir, '.next/routes-manifest.json')
+        join(appDir, getDistDir(), 'routes-manifest.json')
       )
       const cleanStdout = stripAnsi(stdout)
       expect(cleanStdout).toContain('Redirects')
@@ -2580,7 +2581,7 @@ describe('Custom routes', () => {
       beforeAll(async () => {
         // ensure cache with rewrites disabled doesn't persist
         // after enabling rewrites
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         nextConfigContent = await fs.readFile(nextConfigPath, 'utf8')
         await fs.writeFile(
           nextConfigPath,
@@ -2641,7 +2642,10 @@ describe('Custom routes', () => {
         stderr = buildStderr
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        buildId = await fs.readFile(
+          join(appDir, getDistDir(), 'BUILD_ID'),
+          'utf8'
+        )
       })
       afterAll(() => killApp(app))
       runTests()

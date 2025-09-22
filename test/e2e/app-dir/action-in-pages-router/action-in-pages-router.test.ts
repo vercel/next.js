@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, retry } from 'next-test-utils'
+import { assertNoRedbox, retry, getDistDir } from 'next-test-utils'
 
 describe('app-dir - action-in-pages-router', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -25,7 +25,9 @@ describe('app-dir - action-in-pages-router', () => {
     // Disabling for turbopack because the chunk path are different
     if (!process.env.IS_TURBOPACK_TEST) {
       it('should not contain server action in page bundle', async () => {
-        const pageBundle = await next.readFile('.next/server/pages/foo.js')
+        const pageBundle = await next.readFile(
+          getDistDir() + '/server/pages/foo.js'
+        )
         // Should not contain the RSC client import source for the server action
         expect(pageBundle).not.toContain('react-server-dom-webpack/client')
       })
@@ -34,12 +36,16 @@ describe('app-dir - action-in-pages-router', () => {
     it('should not contain server action in manifest', async () => {
       if (process.env.IS_TURBOPACK_TEST) {
         const manifest = JSON.parse(
-          await next.readFile('.next/server/server-reference-manifest.json')
+          await next.readFile(
+            getDistDir() + '/server/server-reference-manifest.json'
+          )
         )
         expect(Object.keys(manifest.node).length).toBe(0)
       } else {
         expect(
-          await next.hasFile('.next/server/server-reference-manifest.json')
+          await next.hasFile(
+            getDistDir() + '/server/server-reference-manifest.json'
+          )
         ).toBe(false)
       }
     })

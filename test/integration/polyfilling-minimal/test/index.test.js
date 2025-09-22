@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { remove } from 'fs-extra'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 import { join } from 'path'
 
 const appDir = join(__dirname, '../')
@@ -11,7 +11,7 @@ describe('Polyfilling (minimal)', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
       })
 
       it('should compile successfully', async () => {

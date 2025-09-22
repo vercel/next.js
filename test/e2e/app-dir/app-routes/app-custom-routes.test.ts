@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check, waitFor, retry } from 'next-test-utils'
+import { check, waitFor, retry, getDistDir } from 'next-test-utils'
 import { Readable } from 'stream'
 
 import {
@@ -23,10 +23,10 @@ describe('app-custom-routes', () => {
     it('statically generates correctly with no dynamic usage', async () => {
       if (isNextStart) {
         expect(
-          await next.readFile('.next/server/app/api/hello.json.body')
+          await next.readFile(`${getDistDir()}/server/app/api/hello.json.body`)
         ).toBeTruthy()
         expect(
-          await next.readFile('.next/server/app/api/hello.json.meta')
+          await next.readFile(`${getDistDir()}/server/app/api/hello.json.meta`)
         ).toBeTruthy()
       }
       expect(
@@ -40,12 +40,12 @@ describe('app-custom-routes', () => {
       if (isNextStart) {
         expect(
           await next
-            .readFile('.next/server/app/api/dynamic.body')
+            .readFile(`${getDistDir()}/server/app/api/dynamic.body`)
             .catch(() => '')
         ).toBeFalsy()
         expect(
           await next
-            .readFile('.next/server/app/api/dynamic.meta')
+            .readFile(`${getDistDir()}/server/app/api/dynamic.meta`)
             .catch(() => '')
         ).toBeFalsy()
       }
@@ -69,10 +69,10 @@ describe('app-custom-routes', () => {
       if (isNextStart) {
         await check(async () => {
           expect(
-            await next.readFile(`.next/server/app/${path}.body`)
+            await next.readFile(`${getDistDir()}/server/app/${path}.body`)
           ).toBeTruthy()
           expect(
-            await next.readFile(`.next/server/app/${path}.meta`)
+            await next.readFile(`${getDistDir()}/server/app/${path}.meta`)
           ).toBeTruthy()
           return 'success'
         }, 'success')
@@ -98,10 +98,10 @@ describe('app-custom-routes', () => {
       if (isNextStart) {
         await check(async () => {
           expect(
-            await next.readFile(`.next/server/app/${path}.body`)
+            await next.readFile(`${getDistDir()}/server/app/${path}.body`)
           ).toBeTruthy()
           expect(
-            await next.readFile(`.next/server/app/${path}.meta`)
+            await next.readFile(`${getDistDir()}/server/app/${path}.meta`)
           ).toBeTruthy()
           return 'success'
         }, 'success')

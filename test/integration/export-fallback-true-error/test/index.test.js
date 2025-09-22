@@ -2,7 +2,7 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 
@@ -11,7 +11,7 @@ describe('Export error for fallback: true', () => {
     'production mode',
     () => {
       it('should build successfully', async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { code, stderr } = await nextBuild(appDir, [], {
           stderr: true,
           stdout: true,

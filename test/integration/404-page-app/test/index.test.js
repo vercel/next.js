@@ -9,6 +9,7 @@ import {
   nextStart,
   nextBuild,
   fetchViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import cheerio from 'cheerio'
@@ -48,7 +49,7 @@ describe('404 Page Support with _app', () => {
 
       it('specify to use the 404 page still in the routes-manifest', async () => {
         const manifest = await fs.readJSON(
-          join(appDir, '.next/routes-manifest.json')
+          join(appDir, getDistDir(), 'routes-manifest.json')
         )
         expect(manifest.pages404).toBe(true)
       })

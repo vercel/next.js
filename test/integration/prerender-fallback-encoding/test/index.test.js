@@ -12,6 +12,7 @@ import {
   nextStart,
   fetchViaHTTP,
   check,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -52,7 +53,7 @@ const urlPaths = [
 ]
 
 const modePaths = ['fallback-blocking', 'fallback-false', 'fallback-true']
-const pagesDir = join(appDir, '.next/server/pages')
+const pagesDir = join(appDir, getDistDir(), 'server/pages')
 
 function runTests(isDev) {
   if (!isDev) {
@@ -329,7 +330,7 @@ describe('Fallback path encoding', () => {
     'development mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
         buildId = 'development'
@@ -343,12 +344,15 @@ describe('Fallback path encoding', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         appPort = await findPort()
         await nextBuild(appDir)
 
         app = await nextStart(appDir, appPort)
-        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+        buildId = await fs.readFile(
+          join(appDir, getDistDir(), 'BUILD_ID'),
+          'utf8'
+        )
       })
       afterAll(() => killApp(app))
 

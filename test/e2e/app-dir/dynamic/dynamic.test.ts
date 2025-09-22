@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, getDistDir } from 'next-test-utils'
 import path from 'path'
 
 describe('app dir - next/dynamic', () => {
@@ -105,7 +105,7 @@ describe('app dir - next/dynamic', () => {
       // in the server bundle should not contain client component imported through ssr: false
       if (isNextStart) {
         const middlewareManifest = JSON.parse(
-          await next.readFile('.next/server/middleware-manifest.json')
+          await next.readFile(`${getDistDir()}/server/middleware-manifest.json`)
         )
 
         const uniquePageFiles = [
@@ -117,7 +117,7 @@ describe('app dir - next/dynamic', () => {
         ]
 
         for (const file of uniquePageFiles) {
-          const contents = await next.readFile(path.join('.next', file))
+          const contents = await next.readFile(path.join(getDistDir(), file))
           expect(contents).not.toContain('ssr-false-client-module-text')
         }
       }
@@ -138,7 +138,7 @@ describe('app dir - next/dynamic', () => {
       // in the server bundle should not contain both server and client component imported through ssr: false
       if (isNextStart) {
         const pageServerChunk = await next.readFile(
-          '.next/server/app/dynamic-mixed-ssr-false/client/page.js'
+          `${getDistDir()}/server/app/dynamic-mixed-ssr-false/client/page.js`
         )
         expect(pageServerChunk).not.toContain('ssr-false-client-module-text')
       }

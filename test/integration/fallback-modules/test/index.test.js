@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { remove } from 'fs-extra'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 import { join } from 'path'
 import { readFileSync, statSync } from 'fs'
 
@@ -15,7 +15,7 @@ describe('Fallback Modules', () => {
         const appDir = join(fixturesDir, 'with-crypto')
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
         })
 
         it('should not include crypto', async () => {
@@ -28,7 +28,11 @@ describe('Fallback Modules', () => {
           })
 
           // Read build manifest to get chunk files for the index page
-          const buildManifestPath = join(appDir, '.next', 'build-manifest.json')
+          const buildManifestPath = join(
+            appDir,
+            getDistDir(),
+            'build-manifest.json'
+          )
           const buildManifest = JSON.parse(
             readFileSync(buildManifestPath, 'utf8')
           )
@@ -39,7 +43,7 @@ describe('Fallback Modules', () => {
           // Calculate total size of all chunks for the index page
           let totalSize = 0
           for (const chunkPath of indexPageChunks) {
-            const fullChunkPath = join(appDir, '.next', chunkPath)
+            const fullChunkPath = join(appDir, getDistDir(), chunkPath)
             try {
               const stats = statSync(fullChunkPath)
               totalSize += stats.size

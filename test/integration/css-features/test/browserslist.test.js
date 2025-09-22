@@ -8,6 +8,7 @@ import {
   findPort,
   nextStart,
   killApp,
+  getDistDir,
 } from 'next-test-utils'
 import { join } from 'path'
 import cheerio from 'cheerio'
@@ -23,7 +24,7 @@ describe('Browserslist: Old', () => {
       let appPort
       let app
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
         const { code } = await nextBuild(appDir, [], {
           stdout: true,
         })
@@ -77,7 +78,7 @@ describe('Browserslist: New', () => {
       let appPort
       let app
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
         const { code } = await nextBuild(appDir, [], {
           stdout: true,
         })

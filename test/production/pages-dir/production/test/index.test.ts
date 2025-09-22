@@ -8,6 +8,7 @@ import {
   getPageFileFromPagesManifest,
   check,
   fetchViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import {
@@ -611,7 +612,7 @@ describe('Production Usage', () => {
       }
 
       const cssStaticAssets = await recursiveReadDir(
-        join(next.testDir, '.next', 'static'),
+        join(next.testDir, getDistDir(), 'static'),
         { pathnameFilter: (f) => /\.css$/.test(f) }
       )
       expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
@@ -619,7 +620,7 @@ describe('Production Usage', () => {
         expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
       }
       const mediaStaticAssets = await recursiveReadDir(
-        join(next.testDir, '.next', 'static'),
+        join(next.testDir, getDistDir(), 'static'),
         { pathnameFilter: (f) => /\.svg$/.test(f) }
       )
       expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
@@ -1081,7 +1082,7 @@ describe('Production Usage', () => {
     // Whatever platform you build on, pages-manifest.json should use forward slash (/)
     // See: https://github.com/vercel/next.js/issues/4920
     const pagesManifest = require(
-      join(next.testDir, '.next', 'server', PAGES_MANIFEST)
+      join(next.testDir, getDistDir(), 'server', PAGES_MANIFEST)
     )
 
     for (let key of Object.keys(pagesManifest)) {

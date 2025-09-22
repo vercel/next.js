@@ -11,6 +11,7 @@ import {
   nextStart,
   fetchViaHTTP,
   check,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -523,7 +524,7 @@ describe('GS(S)P Redirect Support', () => {
       let output = ''
 
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort, {

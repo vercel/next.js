@@ -11,6 +11,7 @@ import {
   fetchViaHTTP,
   File,
   findPort,
+  getDistDir,
   getRedboxHeader,
   getRedboxSource,
   killApp,
@@ -22,7 +23,7 @@ import {
 
 const glob = promisify(globOrig)
 export const appDir = join(__dirname, '..')
-export const distDir = join(appDir, '.next')
+export const distDir = join(appDir, getDistDir())
 export const exportDir = join(appDir, 'out')
 export const nextConfig = new File(join(appDir, 'next.config.js'))
 const slugPage = new File(join(appDir, 'app/another/[slug]/page.js'))

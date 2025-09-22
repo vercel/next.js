@@ -10,6 +10,7 @@ import {
   killApp,
   renderViaHTTP,
   launchApp,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -23,7 +24,7 @@ describe('distDir', () => {
       'production mode',
       () => {
         beforeAll(async () => {
-          await fs.remove(join(appDir, '.next'))
+          await fs.remove(join(appDir, getDistDir()))
           await fs.remove(join(appDir, 'dist'))
           await nextBuild(appDir, [], { lint: true })
           appPort = await findPort()
@@ -51,7 +52,7 @@ describe('distDir', () => {
     'development mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await fs.remove(join(appDir, 'dist'))
         appPort = await findPort()
         app = await launchApp(appDir, appPort)

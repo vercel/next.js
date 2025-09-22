@@ -90,7 +90,10 @@ describe('SSG Prerender No Revalidate', () => {
             stderr += msg
           },
         })
-        buildId = await fs.readFile(join(appDir, getDistDir(true), 'BUILD_ID'), 'utf8')
+        buildId = await fs.readFile(
+          join(appDir, getDistDir(true), 'BUILD_ID'),
+          'utf8'
+        )
       })
       afterAll(() => killApp(app))
 

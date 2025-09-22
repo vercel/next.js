@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('preferred-region', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -29,12 +30,14 @@ describe('preferred-region', () => {
       try {
         // Check Functions Config Manifest (for Node.js runtime)
         functionsConfigManifest = JSON.parse(
-          await next.readFile('.next/server/functions-config-manifest.json')
+          await next.readFile(
+            getDistDir() + '/server/functions-config-manifest.json'
+          )
         )
 
         // Check Middleware Manifest (for Edge runtime)
         middlewareManifest = JSON.parse(
-          await next.readFile('.next/server/middleware-manifest.json')
+          await next.readFile(getDistDir() + '/server/middleware-manifest.json')
         )
       } catch (error) {
         console.error('Error reading manifests:', error)

@@ -10,6 +10,7 @@ import {
   File,
   launchApp,
   waitFor,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -89,7 +90,7 @@ describe('i18n Support', () => {
     'development mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         appPort = await findPort()
         app = await launchApp(appDir, appPort)
       })
@@ -105,7 +106,7 @@ describe('i18n Support', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort)

@@ -3,7 +3,7 @@
 import glob from 'glob'
 import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
-import { isNextStart, NextInstance } from 'e2e-utils'
+import { isNextStart, NextInstance, getDistDir } from 'e2e-utils'
 
 describe('Middleware Runtime', () => {
   let next: NextInstance
@@ -56,7 +56,7 @@ describe('Middleware Runtime', () => {
   if (isNextStart && !process.env.IS_TURBOPACK_TEST) {
     it('should match middleware of _next/static', async () => {
       const cssChunks = glob.sync('*.css', {
-        cwd: join(next.testDir, '.next', 'static', 'css'),
+        cwd: join(next.testDir, getDistDir(), 'static', 'css'),
       })
 
       if (cssChunks.length < 1) {

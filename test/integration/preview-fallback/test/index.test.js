@@ -14,6 +14,7 @@ import {
   nextStart,
   renderViaHTTP,
   check,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -23,7 +24,7 @@ let appPort
 let previewCookie
 
 const getCacheFile = (path = '') => {
-  return join(appDir, '.next', 'server', 'pages', path)
+  return join(appDir, getDistDir(), 'server', 'pages', path)
 }
 
 function runTests(isDev) {
@@ -283,7 +284,7 @@ describe('Preview mode with fallback pages', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await nextBuild(appDir)
         appPort = await findPort()
         app = await nextStart(appDir, appPort)

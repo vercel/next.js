@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('ppr-use-server-inserted-html', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -8,7 +9,7 @@ describe('ppr-use-server-inserted-html', () => {
   if (isNextStart) {
     it('should mark the route as ppr rendered', async () => {
       const prerenderManifest = JSON.parse(
-        await next.readFile('.next/prerender-manifest.json')
+        await next.readFile(getDistDir() + '/prerender-manifest.json')
       )
       expect(prerenderManifest.routes['/partial-resume'].renderingMode).toBe(
         'PARTIALLY_STATIC'

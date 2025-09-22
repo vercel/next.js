@@ -10,6 +10,7 @@ import {
   nextBuild,
   nextStart,
   getClientBuildManifestLoaderChunkUrlPath,
+  getDistDir,
 } from 'next-test-utils'
 
 jest.setTimeout(1000 * 60 * 2)
@@ -32,7 +33,7 @@ describe('Middleware Production Prefetch', () => {
         })
 
         context.buildId = await fs.readFile(
-          join(context.appDir, '.next/BUILD_ID'),
+          join(context.appDir, getDistDir(), 'BUILD_ID'),
           'utf8'
         )
 

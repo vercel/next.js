@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 import fsp from 'fs/promises'
 import path from 'path'
 
@@ -19,7 +20,7 @@ describe('500-page - mixed-router-with-custom-pages-error', () => {
 
   it('should generate 500.html with pages builtin _error', async () => {
     const html = await fsp.readFile(
-      path.join(next.testDir, '.next', 'server', 'pages', '500.html'),
+      path.join(next.testDir, getDistDir(), 'server', 'pages', '500.html'),
       'utf8'
     )
     expect(html).toContain('pages-custom-error')

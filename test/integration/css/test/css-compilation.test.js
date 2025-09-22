@@ -9,6 +9,7 @@ import {
   nextStart,
   renderViaHTTP,
   fetchViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
@@ -24,7 +25,7 @@ describe('CSS Support', () => {
         const nextConfig = new File(join(appDir, 'next.config.js'))
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
         })
 
         describe.each([true, false])(
@@ -254,7 +255,7 @@ module.exports = {
         const appDir = join(fixturesDir, 'transition-react')
         const nextConfig = new File(join(appDir, 'next.config.js'))
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
         })
 
         describe.each([true, false])(
@@ -331,7 +332,7 @@ module.exports = {
             let appPort
             let app
             beforeAll(async () => {
-              await remove(join(appDir, '.next'))
+              await remove(join(appDir, getDistDir()))
               const { code } = await nextBuild(appDir)
               if (code !== 0) {
                 throw new Error('Build failed')
@@ -402,7 +403,7 @@ module.exports = {
             let appPort
             let app
             beforeAll(async () => {
-              await remove(join(appDir, '.next'))
+              await remove(join(appDir, getDistDir()))
               const { code } = await nextBuild(appDir)
               if (code !== 0) {
                 throw new Error('Build failed')
@@ -462,7 +463,7 @@ module.exports = {
             let appPort
             let app
             beforeAll(async () => {
-              await remove(join(appDir, '.next'))
+              await remove(join(appDir, getDistDir()))
               const { code } = await nextBuild(appDir)
               if (code !== 0) {
                 throw new Error('Build failed')
@@ -545,7 +546,7 @@ module.exports = {
         let appPort
         let app
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
           const { code } = await nextBuild(appDir)
           if (code !== 0) {
             throw new Error('Build failed')

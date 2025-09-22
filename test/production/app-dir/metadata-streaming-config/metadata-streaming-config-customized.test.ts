@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('app-dir - metadata-streaming-config-customized', () => {
   const { next } = nextTestSetup({
@@ -18,7 +19,7 @@ describe('app-dir - metadata-streaming-config-customized', () => {
 
   it('should have the customized streaming metadata config output in routes-manifest.json', async () => {
     const prerenderManifest = JSON.parse(
-      await next.readFile('.next/prerender-manifest.json')
+      await next.readFile(getDistDir() + '/prerender-manifest.json')
     )
     const { routes } = prerenderManifest
 

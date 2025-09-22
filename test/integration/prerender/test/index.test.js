@@ -7,6 +7,7 @@ import {
   killApp,
   launchApp,
   renderViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -23,7 +24,7 @@ describe('SSG Prerender', () => {
         // aren't being cached at the jest-worker level
         `module.exports = { experimental: { cpus: 1 } }`
       )
-      await fs.remove(join(appDir, '.next'))
+      await fs.remove(join(appDir, getDistDir()))
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { remove } from 'fs-extra'
-import { File, nextBuild, waitFor } from 'next-test-utils'
+import { File, nextBuild, waitFor, getDistDir } from 'next-test-utils'
 import { join } from 'path'
 
 const appDir = join(__dirname, '../')
@@ -57,7 +57,7 @@ describe('Build warnings', () => {
       )
 
       it('should not warn about missing cache in non-CI', async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
 
         const { stdout } = await nextBuild(appDir, undefined, {
           stdout: true,
@@ -74,7 +74,7 @@ describe('Build warnings', () => {
       })
 
       it('should not warn about missing cache on supported platforms', async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
 
         const { stdout } = await nextBuild(appDir, undefined, {
           stdout: true,
@@ -84,7 +84,7 @@ describe('Build warnings', () => {
       })
 
       it('should warn about missing cache in CI', async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
 
         let { stdout } = await nextBuild(appDir, undefined, {
           stdout: true,

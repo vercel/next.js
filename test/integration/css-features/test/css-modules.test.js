@@ -8,6 +8,7 @@ import {
   nextStart,
   renderViaHTTP,
   fetchViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
@@ -24,7 +25,7 @@ const fixturesDir = join(__dirname, '../fixtures')
         const appDir = join(fixturesDir, 'cp-global-modules')
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
         })
 
         it('should fail to build', async () => {
@@ -48,7 +49,7 @@ describe('Custom Properties: Fail for global element in CSS Modules', () => {
       const appDir = join(fixturesDir, 'cp-el-modules')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
       })
 
       it('should fail to build', async () => {
@@ -78,7 +79,7 @@ describe('CSS Modules: Import Global CSS', () => {
       let appPort
       let app
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
         const { code } = await nextBuild(appDir)
         if (code !== 0) {
           throw new Error('failed to build')
@@ -128,7 +129,7 @@ describe('CSS Modules: Import Global CSS', () => {
         const appDir = join(fixturesDir, 'module-import-global-invalid')
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
         })
 
         // eslint-disable-next-line jest/no-identical-title
@@ -158,7 +159,7 @@ describe('CSS Modules: Import Global CSS', () => {
         let appPort
         let app
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
           const { code } = await nextBuild(appDir)
           if (code !== 0) {
             throw new Error('failed to build')

@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import { remove } from 'fs-extra'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 import { join } from 'path'
 // In order for the global isNextStart to be set
 import 'e2e-utils'
@@ -13,7 +13,7 @@ describe.skip('Invalid CSS Global Module Usage in node_modules', () => {
       const appDir = __dirname
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
       })
 
       it('should fail to build', async () => {

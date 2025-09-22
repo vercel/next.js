@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { check, getDistDir } from 'next-test-utils'
 
 describe('app-dir edge SSR', () => {
   const { next, skipped } = nextTestSetup({
@@ -81,7 +81,7 @@ describe('app-dir edge SSR', () => {
     // Production tests
     it('should generate matchers correctly in middleware manifest', async () => {
       const manifest = JSON.parse(
-        await next.readFile('.next/server/middleware-manifest.json')
+        await next.readFile(getDistDir() + '/server/middleware-manifest.json')
       )
       if (process.env.IS_TURBOPACK_TEST) {
         expect(manifest.functions['/(group)/group/page'].matchers).toEqual([

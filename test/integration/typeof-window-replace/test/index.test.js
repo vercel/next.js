@@ -2,7 +2,7 @@
 
 import fs from 'fs-extra'
 import path from 'path'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '../app')
 let buildManifest
@@ -15,7 +15,8 @@ describe('typeof window replace', () => {
         await nextBuild(appDir)
         buildManifest = require(path.join(
           appDir,
-          '.next/build-manifest.json'
+          getDistDir(),
+          'build-manifest.json'
         ), 'utf8')
       })
 
@@ -26,7 +27,7 @@ describe('typeof window replace', () => {
         )
         for (const file of files) {
           const content = await fs.readFile(
-            path.join(appDir, '.next', file),
+            path.join(appDir, getDistDir(), file),
             'utf8'
           )
           allContent += content
@@ -36,7 +37,12 @@ describe('typeof window replace', () => {
 
       it('Replaces `typeof window` with undefined for server code', async () => {
         let allContent = ''
-        const chunksFilesDir = path.join(appDir, '.next', 'server', 'chunks')
+        const chunksFilesDir = path.join(
+          appDir,
+          getDistDir(),
+          'server',
+          'chunks'
+        )
         const allFilesInDotNextServerChunks = await fs
           .readdirSync(chunksFilesDir, {
             recursive: true,
@@ -50,7 +56,7 @@ describe('typeof window replace', () => {
           allContent += content
         }
 
-        const pagesFilesDir = path.join(appDir, '.next', 'server', 'pages')
+        const pagesFilesDir = path.join(appDir, getDistDir(), 'server', 'pages')
         const allFilesInDotNextServerPages = await fs
           .readdirSync(pagesFilesDir, {
             recursive: true,
@@ -74,7 +80,7 @@ describe('typeof window replace', () => {
         )
         for (const file of files) {
           const content = await fs.readFile(
-            path.join(appDir, '.next', file),
+            path.join(appDir, getDistDir(), file),
             'utf8'
           )
           allContent += content

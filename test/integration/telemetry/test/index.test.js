@@ -6,6 +6,7 @@ import {
   runNextCommand,
   nextBuild,
   findAllTelemetryEvents,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -99,7 +100,7 @@ describe('Telemetry CLI', () => {
     'production mode',
     () => {
       it('emits event when swc fails to load', async () => {
-        await fs.remove(path.join(appDir, '.next'))
+        await fs.remove(path.join(appDir, getDistDir()))
         const { stderr } = await runNextCommand(['build', appDir], {
           stderr: true,
           env: {

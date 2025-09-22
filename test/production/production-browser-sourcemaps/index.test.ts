@@ -1,6 +1,6 @@
 import fs from 'fs-extra'
 import path from 'path'
-import { getBuildManifest } from 'next-test-utils'
+import { getBuildManifest, getDistDir } from 'next-test-utils'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -48,7 +48,12 @@ describe('Production browser sourcemaps', () => {
           buildManifest.polyfillFiles.map((f) => '/' + path.basename(f))
         )
 
-        const staticDir = path.join(next.testDir, '.next', 'static', 'chunks')
+        const staticDir = path.join(
+          next.testDir,
+          getDistDir(),
+          'static',
+          'chunks'
+        )
         const browserFiles = await recursiveReadDir(staticDir)
         const jsFiles = browserFiles.filter(
           (file) => file.endsWith('.js') && !polyfillFiles.has(file)
@@ -66,7 +71,7 @@ describe('Production browser sourcemaps', () => {
         for (let page of ['/ssr', '/static']) {
           const jsFiles = buildManifest.pages[page]
           for (const file of jsFiles) {
-            const jsPath = path.join(next.testDir, '.next', file)
+            const jsPath = path.join(next.testDir, getDistDir(), file)
             expect(await sourceMapExistsForFile(jsPath)).toBe(
               productionBrowserSourceMaps
             )

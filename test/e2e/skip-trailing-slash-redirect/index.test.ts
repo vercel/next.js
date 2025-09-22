@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check, fetchViaHTTP } from 'next-test-utils'
+import { check, fetchViaHTTP, getDistDir } from 'next-test-utils'
 import { join } from 'path'
 import cheerio from 'cheerio'
 import webdriver from 'next-webdriver'
@@ -278,7 +278,7 @@ describe('skip-trailing-slash-redirect', () => {
   if ((global as any).isNextStart) {
     it('should not have trailing slash redirects in manifest', async () => {
       const routesManifest = JSON.parse(
-        await next.readFile('.next/routes-manifest.json')
+        await next.readFile(getDistDir() + '/routes-manifest.json')
       )
 
       expect(

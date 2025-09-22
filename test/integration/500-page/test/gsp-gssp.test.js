@@ -10,6 +10,7 @@ import {
   nextBuild,
   renderViaHTTP,
   waitFor,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
@@ -36,7 +37,7 @@ describe('gsp-gssp', () => {
       export default page
     `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
         await fs.remove(pages500)
         await fs.move(`${pages500}.bak`, pages500)
@@ -54,7 +55,7 @@ describe('gsp-gssp', () => {
         export default page
       `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
         await fs.remove(pages500)
         await fs.move(`${pages500}.bak`, pages500)
@@ -91,7 +92,7 @@ describe('gsp-gssp', () => {
         }
       `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const {
           stderr,
           stdout: buildStdout,
@@ -109,7 +110,9 @@ describe('gsp-gssp', () => {
         expect(buildStdout).toContain('rendered 500')
         expect(code).toBe(0)
         expect(
-          await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+          await fs.pathExists(
+            join(appDir, getDistDir(), 'server/pages/500.html')
+          )
         ).toBe(true)
 
         let appStdout = ''
@@ -155,7 +158,7 @@ describe('gsp-gssp', () => {
           export default Error
         `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { stderr: buildStderr, code } = await nextBuild(appDir, [], {
           stderr: true,
         })
@@ -165,7 +168,9 @@ describe('gsp-gssp', () => {
         expect(buildStderr).not.toMatch(gip500Err)
         expect(code).toBe(0)
         expect(
-          await fs.pathExists(join(appDir, '.next/server/pages/500.html'))
+          await fs.pathExists(
+            join(appDir, getDistDir(), 'server/pages/500.html')
+          )
         ).toBe(false)
 
         let appStderr = ''

@@ -8,6 +8,7 @@ import {
   checkMetaNameContentPair,
   checkLink,
   retry,
+  getDistDir,
 } from 'next-test-utils'
 import fs from 'fs/promises'
 import path from 'path'
@@ -749,7 +750,7 @@ describe('app dir - metadata', () => {
     if (isNextStart) {
       it('should build favicon.ico as a custom route', async () => {
         const appPathsManifest = JSON.parse(
-          await next.readFile('.next/server/app-paths-manifest.json')
+          await next.readFile(getDistDir() + '/server/app-paths-manifest.json')
         )
         expect(appPathsManifest['/robots.txt/route']).toBe(
           'app/robots.txt/route.js'

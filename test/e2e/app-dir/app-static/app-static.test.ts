@@ -6,6 +6,7 @@ import { nextTestSetup } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
+  getDistDir,
   normalizeRegEx,
   retry,
   waitFor,
@@ -34,7 +35,7 @@ describe('app-dir static/dynamic handling', () => {
   beforeAll(async () => {
     if (isNextStart) {
       prerenderManifest = JSON.parse(
-        await next.readFile('.next/prerender-manifest.json')
+        await next.readFile(getDistDir() + '/prerender-manifest.json')
       )
       buildCliOutputIndex = next.cliOutput.length
     }
@@ -784,8 +785,10 @@ describe('app-dir static/dynamic handling', () => {
   if (isNextStart) {
     it('should not encode dynamic parameters as search parameters in RSC data', async () => {
       const data = process.env.__NEXT_EXPERIMENTAL_PPR
-        ? await next.readFile('.next/server/app/blog/seb.prefetch.rsc')
-        : await next.readFile('.next/server/app/blog/seb.rsc')
+        ? await next.readFile(
+            getDistDir() + '/server/app/blog/seb.prefetch.rsc'
+          )
+        : await next.readFile(getDistDir() + '/server/app/blog/seb.rsc')
 
       // During SSG, pages that correspond with dynamic routes shouldn't have any search
       // parameters in the `__PAGE__` segment string. The only time we expect to see
@@ -2873,7 +2876,7 @@ describe('app-dir static/dynamic handling', () => {
 
     it('should log fetch metrics to the diagnostics directory', async () => {
       const fetchMetrics = JSON.parse(
-        await next.readFile('.next/diagnostics/fetch-metrics.json')
+        await next.readFile(getDistDir() + '/diagnostics/fetch-metrics.json')
       )
 
       const indexFetchMetrics = fetchMetrics['/']

@@ -5,6 +5,7 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import {
   fetchViaHTTP,
   findPort,
+  getDistDir,
   killApp,
   launchApp,
   nextBuild,
@@ -120,7 +121,7 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
       let buildResult
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
         buildResult = await nextBuild(appDir, undefined, {
           stderr: true,
           stdout: true,
