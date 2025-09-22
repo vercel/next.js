@@ -111,6 +111,7 @@ import {
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
+import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -732,6 +733,9 @@ export async function createHotReloaderTurbopack(
         })
       },
     }),
+    ...(nextConfig.experimental.mcpServer
+      ? [getMcpMiddleware(projectPath)]
+      : []),
   ]
 
   let versionInfoCached: ReturnType<typeof getVersionInfo> | undefined

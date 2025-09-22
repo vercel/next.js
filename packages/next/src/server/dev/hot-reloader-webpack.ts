@@ -104,6 +104,7 @@ import {
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
+import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -1620,6 +1621,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           })
         },
       }),
+      ...(this.config.experimental.mcpServer
+        ? [getMcpMiddleware(this.dir)]
+        : []),
     ]
   }
 

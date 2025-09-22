@@ -818,6 +818,15 @@ export interface ExperimentalConfig {
    * instead of `{distDir}`.
    */
   isolatedDevBuild?: boolean
+
+  /**
+   * Enable the Model Context Protocol (MCP) server for AI-assisted development.
+   * When enabled, Next.js will expose an MCP server at `/_next/mcp` that provides
+   * code intelligence and project context to AI assistants.
+   *
+   * @default false
+   */
+  mcpServer?: boolean
 }
 
 export type ExportPathMap = {

@@ -415,6 +415,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         proxyTimeout: z.number().gte(0).optional(),
         rootParams: z.boolean().optional(),
         isolatedDevBuild: z.boolean().optional(),
+        mcpServer: z.boolean().optional(),
         routerBFCache: z.boolean().optional(),
         removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
         validateRSCRequestHeaders: z.boolean().optional(),

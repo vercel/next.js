@@ -2216,6 +2216,32 @@ export async function ncc_ws(task, opts) {
     .target('src/compiled/ws')
 }
 
+// eslint-disable-next-line camelcase
+export async function ncc_modelcontextprotocol_sdk(task, opts) {
+  await task
+    .source(
+      relative(
+        __dirname,
+        require.resolve('@modelcontextprotocol/sdk/server/mcp.js')
+      )
+    )
+    .ncc({
+      externals,
+    })
+    .target('src/compiled/@modelcontextprotocol/sdk/server')
+  await task
+    .source(
+      relative(
+        __dirname,
+        require.resolve('@modelcontextprotocol/sdk/server/streamableHttp.js')
+      )
+    )
+    .ncc({
+      externals,
+    })
+    .target('src/compiled/@modelcontextprotocol/sdk/server')
+}
+
 externals['path-to-regexp'] = 'next/dist/compiled/path-to-regexp'
 export async function ncc_path_to_regexp(task, opts) {
   await task
@@ -2421,6 +2447,7 @@ export async function ncc(task, opts) {
       'ncc_busboy',
       'ncc_mswjs_interceptors',
       'ncc_rsc_poison_packages',
+      'ncc_modelcontextprotocol_sdk',
     ],
     opts
   )

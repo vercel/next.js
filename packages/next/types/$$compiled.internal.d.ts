@@ -745,6 +745,14 @@ declare module 'next/dist/compiled/ws' {
   export = m
 }
 
+declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp' {
+  export * from '@modelcontextprotocol/sdk/server/mcp'
+}
+
+declare module 'next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp' {
+  export * from '@modelcontextprotocol/sdk/server/streamableHttp'
+}
+
 declare module 'next/dist/compiled/comment-json' {
   import m from 'comment-json'
   export = m
