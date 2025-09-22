@@ -440,6 +440,8 @@ struct AnalysisState<'a> {
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
     free_var_references: ReadRef<FreeVarReferencesIndividual>,
+    // Whether we should collect affecting sources from referenced files. Only usedful when
+    // tracing.
     collect_affecting_sources: bool,
 }
 
@@ -514,12 +516,6 @@ pub async fn analyse_ecmascript_module_internal(
     let analyze_mode = options.analyze_mode;
 
     let origin = ResolvedVc::upcast::<Box<dyn ResolveOrigin>>(module);
-    let collect_affecting_sources = origin
-        .resolve_options(ReferenceType::Undefined)
-        .await?
-        .await?
-        .collect_affecting_sources;
-
     let mut analysis = AnalyzeEcmascriptModuleResultBuilder::new(analyze_mode);
     let path = &*origin.origin_path().await?;
 
@@ -980,7 +976,7 @@ pub async fn analyse_ecmascript_module_internal(
                 .free_var_references
                 .individual()
                 .await?,
-            collect_affecting_sources,
+            collect_affecting_sources: options.analyze_mode.is_tracing(),
         };
 
         enum Action {
