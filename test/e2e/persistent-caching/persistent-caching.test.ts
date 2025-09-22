@@ -170,6 +170,7 @@ describe('persistent-caching', () => {
         await textCheck('/next-config', 'hello persistent caching')
         await textCheck('/next-config/client', 'hello persistent caching')
       },
+      fullInvalidation: !isTurbopack,
     },
     'env var change': {
       async checkInitial() {
