@@ -1,0 +1,178 @@
+[
+    (
+        "*arrow function 907*",
+        Function(
+            2,
+            907,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "ConstAfterEvalClass",
+        Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
+    ),
+    (
+        "d1",
+        Constant(
+            Num(
+                ConstantNumber(
+                    2.0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "default_function_export_const_after_eval",
+        Function(
+            2,
+            251,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "i",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            0.0,
+                        ),
+                    ),
+                ),
+                Unknown {
+                    original_value: None,
+                    reason: "updated with update expression",
+                    has_side_effects: true,
+                },
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "named_const_export_const_after_eval",
+        Constant(
+            Num(
+                ConstantNumber(
+                    3.0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "named_function_export_const_after_eval",
+        Alternatives {
+            total_nodes: 4,
+            values: [
+                Function(
+                    2,
+                    65,
+                    Constant(
+                        Undefined,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            2.0,
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "named_let_export_const_after_eval",
+        Constant(
+            Num(
+                ConstantNumber(
+                    2.0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "named_let_export_const_after_eval_2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Unknown {
+                    original_value: Some(
+                        Variable(
+                            (
+                                "named_let_export_const_after_eval_2",
+                                #2,
+                            ),
+                        ),
+                    ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            5.0,
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "named_let_export_not_const_after_eval",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            5.0,
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "named_let_export_not_const_after_eval_2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            1.0,
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            3.0,
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+]

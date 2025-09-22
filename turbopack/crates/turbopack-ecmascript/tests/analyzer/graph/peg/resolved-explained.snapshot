@@ -297,10 +297,10 @@ ctor = (...) => undefined
 describeExpectation = (...) => DESCRIBE_EXPECTATION_FNS[expectation["type"]](expectation)
 
 describeExpected = (...) => (
-  | undefined
   | descriptions[0]
   | `${descriptions[0]} or ${descriptions[1]}`
   | `${descriptions["slice"](0, ???*0*)["join"](", ")}, or ${descriptions[???*1*]}`
+  | undefined
 )
 - *0* unsupported expression
   ⚠️  This value might have side effects
@@ -356,7 +356,7 @@ endPos = ???*0*
 - *0* arguments[1]
   ⚠️  function calls are not analysed yet
 
-endPosDetails = (undefined | {"line": 1, "column": 1} | ???*0* | {"line": ???*2*, "column": ???*4*})
+endPosDetails = ({"line": 1, "column": 1} | ???*0* | {"line": ???*2*, "column": ???*4*})
 - *0* [][???*1*]
   ⚠️  unknown array prototype methods or values
 - *1* arguments[1]
@@ -1207,7 +1207,7 @@ peg$computeLocation = (...) => {
     "end": {"offset": endPos, "line": endPosDetails["line"], "column": endPosDetails["column"]}
 }
 
-peg$computePosDetails = (...) => (undefined | details)
+peg$computePosDetails = (...) => details
 
 peg$currPos = ???*0*
 - *0* max number of linking steps reached
@@ -1227,7 +1227,7 @@ peg$maxFailPos = ???*0*
 
 peg$otherExpectation = (...) => {"type": "other", "description": description}
 
-peg$parse = (...) => (undefined | peg$result)
+peg$parse = (...) => (peg$result | undefined)
 
 peg$parse_ = (...) => s0
 
@@ -3596,7 +3596,7 @@ startPos = ???*0*
 - *0* arguments[0]
   ⚠️  function calls are not analysed yet
 
-startPosDetails = (undefined | {"line": 1, "column": 1} | ???*0* | {"line": ???*2*, "column": ???*4*})
+startPosDetails = ({"line": 1, "column": 1} | ???*0* | {"line": ???*2*, "column": ???*4*})
 - *0* [][???*1*]
   ⚠️  unknown array prototype methods or values
 - *1* arguments[0]

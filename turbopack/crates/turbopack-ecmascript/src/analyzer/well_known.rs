@@ -345,10 +345,10 @@ fn path_dirname(mut args: Vec<JsValue>) -> JsValue {
 pub fn import(args: Vec<JsValue>) -> JsValue {
     match &args[..] {
         [JsValue::Constant(ConstantValue::Str(v))] => {
-            JsValue::promise(Box::new(JsValue::Module(ModuleValue {
+            JsValue::promise(JsValue::Module(ModuleValue {
                 module: v.as_atom().into_owned(),
                 annotations: ImportAnnotations::default(),
-            })))
+            }))
         }
         _ => JsValue::unknown(
             JsValue::call(
