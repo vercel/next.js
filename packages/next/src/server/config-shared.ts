@@ -822,15 +822,6 @@ export interface ExperimentalConfig {
       }
 
   /**
-   * When enabled, will only opt-in to special smooth scroll handling when
-   * data-scroll-behavior="smooth" is present on the <html> element.
-   * This will be the default, non-configurable behavior in the next major version.
-   *
-   * @default false
-   */
-  optimizeRouterScrolling?: boolean
-
-  /**
    * Enable accessing root params via the `next/root-params` module.
    */
   rootParams?: boolean
@@ -1516,7 +1507,6 @@ export const defaultConfig = Object.freeze({
     slowModuleDetection: undefined,
     globalNotFound: false,
     browserDebugInfoInTerminal: false,
-    optimizeRouterScrolling: false,
     isolatedDevBuild: false,
   },
   htmlLimitedBots: undefined,
