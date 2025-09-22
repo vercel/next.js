@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, renderViaHTTP, getDistDir } from 'next-test-utils'
 import fs from 'fs-extra'
 import { join } from 'path'
 
@@ -58,7 +58,7 @@ describe('og-api', () => {
       let manifest = await fs.readJSON(
         join(
           next.testDir,
-          '.next/standalone/.next/server/middleware-manifest.json'
+          `${getDistDir()}/standalone/${getDistDir()}/server/middleware-manifest.json`
         )
       )
       let apiOg = manifest.functions['/api/og']
@@ -68,7 +68,7 @@ describe('og-api', () => {
 
       for (let f of files) {
         expect(
-          await fs.pathExists(join(next.testDir, '.next/standalone/.next', f))
+          await fs.pathExists(join(next.testDir, `${getDistDir()}/standalone/${getDistDir()}`, f))
         ).toBe(true)
       }
     })
