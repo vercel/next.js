@@ -1,8 +1,6 @@
 [
     FreeVar {
-        var: FreeVar(
-            "d1",
-        ),
+        var: "d1",
         ast_path: [
             Program(
                 Module,
@@ -52,12 +50,9 @@
             ),
         ],
         span: 342..344,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "e4",
-        ),
+        var: "e4",
         ast_path: [
             Program(
                 Module,
@@ -89,12 +84,9 @@
             ),
         ],
         span: 814..816,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "setTimeout",
-        ),
+        var: "setTimeout",
         ast_path: [
             Program(
                 Module,
@@ -127,7 +119,6 @@
             ),
         ],
         span: 896..906,
-        in_try: false,
     },
     Call {
         func: FreeVar(
