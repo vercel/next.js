@@ -3,6 +3,7 @@
 import {
   check,
   findPort,
+  getDistDir,
   killApp,
   launchApp,
   nextBuild,
@@ -90,7 +91,7 @@ describe('CLI Usage', () => {
       describe('start', () => {
         test('should exit when SIGINT is signalled', async () => {
           require('console').log('before build')
-          await fs.remove(join(dirBasic, '.next'))
+          await fs.remove(join(dirBasic, getDistDir()))
           await nextBuild(dirBasic, undefined, {
             onStdout(msg) {
               console.log(msg)
@@ -109,7 +110,7 @@ describe('CLI Usage', () => {
           )
         })
         test('should exit when SIGTERM is signalled', async () => {
-          await fs.remove(join(dirBasic, '.next'))
+          await fs.remove(join(dirBasic, getDistDir()))
           await nextBuild(dirBasic, undefined, {
             onStdout(msg) {
               console.log(msg)

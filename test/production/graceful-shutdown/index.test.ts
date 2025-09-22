@@ -3,6 +3,7 @@ import { NextInstance, createNext, FileRef } from 'e2e-utils'
 import {
   fetchViaHTTP,
   findPort,
+  getDistDir,
   initNextServerScript,
   killApp,
   launchApp,
@@ -73,7 +74,7 @@ describe('Graceful Shutdown', () => {
       await next.stop()
 
       await fs.move(
-        join(next.testDir, '.next/standalone'),
+        join(next.testDir, getDistDir(), 'standalone'),
         join(next.testDir, 'standalone')
       )
 
@@ -89,7 +90,7 @@ describe('Graceful Shutdown', () => {
 
       for (const file of files) {
         if (file.endsWith('.json') || file.endsWith('.html')) {
-          await fs.remove(join(next.testDir, '.next/server', file))
+          await fs.remove(join(next.testDir, getDistDir(), 'server', file))
         }
       }
 

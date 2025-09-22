@@ -8,6 +8,7 @@ import {
   nextBuild,
   nextStart,
   killApp,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -23,7 +24,7 @@ describe('Static 404 page', () => {
     await fs.remove(errorPage)
     await fs.remove(nextConfig)
   })
-  beforeEach(() => fs.remove(join(appDir, '.next/server')))
+  beforeEach(() => fs.remove(join(appDir, getDistDir(), 'server')))
 
   describe('With config enabled', () => {
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(

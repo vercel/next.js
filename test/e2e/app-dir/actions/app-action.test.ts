@@ -33,7 +33,7 @@ describe('app-dir action handling', () => {
   if (isNextStart) {
     it('should output exportName and filename info in manifest', async () => {
       const referenceManifest = await next.readJSON(
-        '.next/server/server-reference-manifest.json'
+        getDistDir() + '/server/server-reference-manifest.json'
       )
       let foundExportNames = []
 
@@ -1030,7 +1030,7 @@ describe('app-dir action handling', () => {
         const chunkPaths = pageBundle.matchAll(/R\.c\("([^"]*)"\)/g)
         const reads = [...chunkPaths].map(async (match) => {
           const bundle = await fs.readFile(
-            join(next.testDir, '.next', ...match[1].split(/[\\/]/g)),
+            join(next.testDir, getDistDir(), ...match[1].split(/[\\/]/g)),
             { encoding: 'utf8' }
           )
           return bundle.includes('node_modules/nanoid/index.js')

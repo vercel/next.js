@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import imageSize from 'image-size'
 import path from 'path'
+import { getDistDir } from 'next-test-utils'
 
 describe('app dir - Metadata API on the Edge runtime', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -11,7 +12,9 @@ describe('app dir - Metadata API on the Edge runtime', () => {
     if (isNextStart) {
       it('should not bundle `ImageResponse` into the page worker', async () => {
         const middlewareManifest = JSON.parse(
-          await next.readFile('.next/server/middleware-manifest.json')
+          await next.readFile(
+            path.join(getDistDir(), 'server/middleware-manifest.json')
+          )
         )
 
         const uniquePageFiles = [
@@ -21,7 +24,7 @@ describe('app dir - Metadata API on the Edge runtime', () => {
         const pageFilesThatHaveImageResponse = uniquePageFiles.filter(
           (file) => {
             return next
-              .readFileSync(path.join('.next', file))
+              .readFileSync(path.join(getDistDir(), file))
               .includes('experimental_FigmaImageResponse')
           }
         )
@@ -38,7 +41,7 @@ describe('app dir - Metadata API on the Edge runtime', () => {
           (file) => {
             return (
               next
-                .readFileSync(path.join('.next', file))
+                .readFileSync(path.join(getDistDir(), file))
                 // This export is not used but it checks if the `@vercel/og` package is shared between the two routes.
                 .includes('experimental_FigmaImageResponse')
             )

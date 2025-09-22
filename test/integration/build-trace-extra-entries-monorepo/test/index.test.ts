@@ -2,7 +2,7 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 
 const appDir = join(__dirname, '../app')
 
@@ -21,7 +21,7 @@ describe('build trace with extra entries in monorepo', () => {
         console.log(result.stdout)
 
         const appDirRoute1Trace = await fs.readJSON(
-          join(appDir, '.next/server/app/route1/route.js.nft.json')
+          join(appDir, getDistDir(), 'server/app/route1/route.js.nft.json')
         )
 
         expect(appDirRoute1Trace.files).toContain(

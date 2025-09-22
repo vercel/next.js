@@ -5,7 +5,7 @@ import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
+import { check, fetchViaHTTP, waitFor, getDistDir } from 'next-test-utils'
 
 describe('Middleware Runtime trailing slash', () => {
   let next: NextInstance
@@ -107,7 +107,7 @@ describe('Middleware Runtime trailing slash', () => {
     if ((global as any).isNextStart) {
       it('should have valid middleware field in manifest', async () => {
         const manifest = await fs.readJSON(
-          join(next.testDir, '.next/server/middleware-manifest.json')
+          join(next.testDir, getDistDir(), 'server/middleware-manifest.json')
         )
         const middlewareWithoutEnvs = {
           ...manifest.middleware['/'],
@@ -130,7 +130,7 @@ describe('Middleware Runtime trailing slash', () => {
 
       it('should have correct files in manifest', async () => {
         const manifest = await fs.readJSON(
-          join(next.testDir, '.next/server/middleware-manifest.json')
+          join(next.testDir, getDistDir(), 'server/middleware-manifest.json')
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
@@ -147,7 +147,9 @@ describe('Middleware Runtime trailing slash', () => {
 
       it('should not run middleware for on-demand revalidate', async () => {
         const bypassToken = (
-          await fs.readJSON(join(next.testDir, '.next/prerender-manifest.json'))
+          await fs.readJSON(
+            join(next.testDir, getDistDir(), 'prerender-manifest.json')
+          )
         ).preview.previewModeId
 
         const res = await fetchViaHTTP(next.url, '/ssg/first/', undefined, {

@@ -23,9 +23,9 @@ function runTests(route, routePath) {
   it(`[${route}] should not revalidate when set to false`, async () => {
     const fileName = join(
       appDir,
-      getDistDir(true),
+      getDistDir(),
       'server',
-      getPageFileFromPagesManifest(appDir, routePath, true)
+      getPageFileFromPagesManifest(appDir, routePath)
     )
     const initialHtml = await renderViaHTTP(appPort, route)
     const initialFileHtml = await fs.readFile(fileName, 'utf8')
@@ -52,9 +52,9 @@ function runTests(route, routePath) {
   it(`[${route}] should not revalidate /_next/data when set to false`, async () => {
     const fileName = join(
       appDir,
-      getDistDir(true),
+      getDistDir(),
       'server',
-      getPageFileFromPagesManifest(appDir, routePath, true)
+      getPageFileFromPagesManifest(appDir, routePath)
     )
     const route = join(`/_next/data/${buildId}`, `${routePath}.json`)
 
@@ -81,7 +81,7 @@ describe('SSG Prerender No Revalidate', () => {
     'production mode',
     () => {
       beforeAll(async () => {
-        await fs.remove(join(appDir, getDistDir(true)))
+        await fs.remove(join(appDir, getDistDir()))
         await nextBuild(appDir, [])
         appPort = await findPort()
         stderr = ''
@@ -91,7 +91,7 @@ describe('SSG Prerender No Revalidate', () => {
           },
         })
         buildId = await fs.readFile(
-          join(appDir, getDistDir(true), 'BUILD_ID'),
+          join(appDir, getDistDir(), 'BUILD_ID'),
           'utf8'
         )
       })

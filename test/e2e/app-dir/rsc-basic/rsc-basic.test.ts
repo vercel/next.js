@@ -638,7 +638,9 @@ describe('app dir - rsc basics', () => {
       const files = ['middleware-build-manifest.js', 'middleware-manifest.json']
 
       let promises = files.map(async (file) => {
-        expect(await next.hasFile(path.join('.next/server', file))).toBe(true)
+        expect(
+          await next.hasFile(path.join(getDistDir(), 'server', file))
+        ).toBe(true)
       })
       await Promise.all(promises)
 

@@ -368,7 +368,7 @@ module.exports = {
         'production mode',
         () => {
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
           beforeAll(async () => {
             await nextBuild(appDir, [], {})
@@ -483,7 +483,7 @@ module.exports = {
         'production mode',
         () => {
           beforeAll(async () => {
-            await remove(join(appDir, '.next'))
+            await remove(join(appDir, getDistDir()))
           })
           beforeAll(async () => {
             await nextBuild(appDir, [], {})

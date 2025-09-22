@@ -2,6 +2,7 @@ import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import webdriver from 'next-webdriver'
+import { getDistDir } from 'next-test-utils'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
@@ -104,7 +105,7 @@ describe('prerender native module', () => {
 
       for (const check of checks) {
         const contents = await next.readFile(
-          path.join('.next/server/pages/', check.page + '.js.nft.json')
+          path.join(getDistDir(), 'server/pages/', check.page + '.js.nft.json')
         )
         const { version, files } = JSON.parse(contents)
         expect(version).toBe(1)

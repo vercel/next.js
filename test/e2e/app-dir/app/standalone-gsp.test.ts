@@ -7,6 +7,7 @@ import {
   initNextServerScript,
   killApp,
   fetchViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 
 if (!(globalThis as any).isNextStart) {
@@ -58,7 +59,10 @@ if (!(globalThis as any).isNextStart) {
 
     it('should work correctly with output standalone', async () => {
       const tmpFolder = path.join(os.tmpdir(), 'next-standalone-' + Date.now())
-      await fs.move(path.join(next.testDir, '.next/standalone'), tmpFolder)
+      await fs.move(
+        path.join(next.testDir, getDistDir(), 'standalone'),
+        tmpFolder
+      )
       let server: any
 
       try {

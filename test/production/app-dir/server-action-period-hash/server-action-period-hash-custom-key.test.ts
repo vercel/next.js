@@ -1,8 +1,9 @@
 import { nextTestSetup, type NextInstance } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 async function getServerActionManifestNodeKeys(next: NextInstance) {
   const manifest = await next.readJSON(
-    '.next/server/server-reference-manifest.json'
+    getDistDir() + '/server/server-reference-manifest.json'
   )
   return Object.keys(manifest.node)
 }

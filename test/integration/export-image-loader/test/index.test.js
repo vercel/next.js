@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { nextBuild, File } from 'next-test-utils'
+import { nextBuild, File, getDistDir } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
@@ -27,7 +27,7 @@ describe('Export with cloudinary loader next/image component', () => {
         )
       })
       it('should build successfully', async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { code } = await nextBuild(appDir)
         if (code !== 0) throw new Error(`build failed with status ${code}`)
       })
@@ -65,7 +65,7 @@ describe('Export with custom loader next/image component', () => {
         )
       })
       it('should build successfully', async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { code } = await nextBuild(appDir)
         if (code !== 0) throw new Error(`build failed with status ${code}`)
       })
@@ -100,7 +100,7 @@ describe('Export with custom loader config but no loader prop on next/image', ()
         )
       })
       it('should fail build', async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
         expect(code).toBe(1)
         expect(stderr).toContain(
@@ -133,7 +133,7 @@ describe('Export with loaderFile config next/image component', () => {
         )
       })
       it('should build successfully', async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { code } = await nextBuild(appDir)
         if (code !== 0) throw new Error(`build failed with status ${code}`)
       })
@@ -168,7 +168,7 @@ describe('Export with unoptimized next/image component', () => {
         )
       })
       it('should build successfully', async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { code } = await nextBuild(appDir)
         if (code !== 0) throw new Error(`build failed with status ${code}`)
       })

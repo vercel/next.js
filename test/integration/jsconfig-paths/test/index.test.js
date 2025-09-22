@@ -13,6 +13,7 @@ import {
   killApp,
   retry,
   File,
+  getDistDir,
 } from 'next-test-utils'
 import * as JSON5 from 'json5'
 
@@ -90,16 +91,20 @@ function runTests() {
         })
         it('should trace correctly', async () => {
           const singleAliasTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/single-alias.js.nft.json')
+            join(appDir, getDistDir(), 'server/pages/single-alias.js.nft.json')
           )
           const resolveOrderTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/resolve-order.js.nft.json')
+            join(appDir, getDistDir(), 'server/pages/resolve-order.js.nft.json')
           )
           const resolveFallbackTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/resolve-fallback.js.nft.json')
+            join(
+              appDir,
+              getDistDir(),
+              'server/pages/resolve-fallback.js.nft.json'
+            )
           )
           const basicAliasTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/basic-alias.js.nft.json')
+            join(appDir, getDistDir(), 'server/pages/basic-alias.js.nft.json')
           )
 
           expect(

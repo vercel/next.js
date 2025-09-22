@@ -2,13 +2,13 @@ import fs from 'fs-extra'
 
 import { join } from 'path'
 
-import { nextLint } from 'next-test-utils'
+import { nextLint, getDistDir } from 'next-test-utils'
 
 const dirEslintCache = join(__dirname, '../eslint-cache')
 const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 
 test('eslint caching is enabled by default', async () => {
-  const cacheDir = join(dirEslintCache, '.next', 'cache')
+  const cacheDir = join(dirEslintCache, getDistDir(), 'cache')
 
   await fs.remove(cacheDir)
   await nextLint(dirEslintCache, [])
@@ -20,7 +20,7 @@ test('eslint caching is enabled by default', async () => {
 })
 
 test('eslint caching is disabled with the --no-cache flag', async () => {
-  const cacheDir = join(dirEslintCache, '.next', 'cache')
+  const cacheDir = join(dirEslintCache, getDistDir(), 'cache')
 
   await fs.remove(cacheDir)
   await nextLint(dirEslintCache, ['--no-cache'])
@@ -29,7 +29,7 @@ test('eslint caching is disabled with the --no-cache flag', async () => {
 })
 
 test('the default eslint cache lives in the user defined build directory', async () => {
-  const oldCacheDir = join(dirEslintCacheCustomDir, '.next', 'cache')
+  const oldCacheDir = join(dirEslintCacheCustomDir, getDistDir(), 'cache')
   const newCacheDir = join(dirEslintCacheCustomDir, 'build', 'cache')
 
   await fs.remove(oldCacheDir)
@@ -66,7 +66,7 @@ const getEslintCacheContent = async (cacheDir) => {
 }
 
 test('the default eslint caching strategy is metadata', async () => {
-  const cacheDir = join(dirEslintCache, '.next', 'cache')
+  const cacheDir = join(dirEslintCache, getDistDir(), 'cache')
 
   await fs.remove(cacheDir)
   await nextLint(dirEslintCache)
@@ -82,7 +82,7 @@ test('the default eslint caching strategy is metadata', async () => {
 })
 
 test('cache with content strategy is different from the one with default strategy', async () => {
-  const cacheDir = join(dirEslintCache, '.next', 'cache')
+  const cacheDir = join(dirEslintCache, getDistDir(), 'cache')
 
   await fs.remove(cacheDir)
   await nextLint(dirEslintCache)

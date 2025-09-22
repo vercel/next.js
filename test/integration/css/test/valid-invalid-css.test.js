@@ -7,6 +7,7 @@ import {
   nextStart,
   renderViaHTTP,
   fetchViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { join } from 'path'
@@ -23,7 +24,7 @@ const fixturesDir = join(__dirname, '../..', 'css-fixtures')
         const appDir = join(fixturesDir, 'invalid-module-document')
 
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
         })
 
         it('should fail to build', async () => {
@@ -53,7 +54,7 @@ describe('Invalid Global CSS', () => {
       const appDir = join(fixturesDir, 'invalid-global')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
       })
 
       // eslint-disable-next-line jest/no-identical-title
@@ -85,7 +86,7 @@ describe('Valid Global CSS from npm', () => {
       let appPort
       let app
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
         const { code } = await nextBuild(appDir)
         if (code !== 0) {
           throw new Error('failed to build')
@@ -125,7 +126,7 @@ describe('Invalid Global CSS with Custom App', () => {
       const appDir = join(fixturesDir, 'invalid-global-with-app')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
       })
 
       // eslint-disable-next-line jest/no-identical-title
@@ -155,7 +156,7 @@ describe('Valid and Invalid Global CSS with Custom App', () => {
       const appDir = join(fixturesDir, 'valid-and-invalid-global')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
       })
 
       // eslint-disable-next-line jest/no-identical-title

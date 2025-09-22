@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import { NextInstance, nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 type Md5Hash = string & { __brand: 'Md5Hash' }
 
@@ -18,7 +19,7 @@ function generateMD5(text: string): Md5Hash {
 function getNodeFileHashes(next: NextInstance): RouteFileHashRecords {
   const nodeBuildFileMd5Hashes: RouteFileHashRecords = {}
   for (const file of nodeFilePaths) {
-    const content = next.readFileSync(`.next/server/${file}.js`)
+    const content = next.readFileSync(`${getDistDir()}/server/${file}.js`)
     const md5 = generateMD5(content)
     nodeBuildFileMd5Hashes[file] = [[file, md5, content]]
   }
@@ -35,7 +36,7 @@ const nodeFilePaths = [
 
 function getEdgeRouteFileHashes(next: NextInstance): RouteFileHashRecords {
   const manifest: any = JSON.parse(
-    next.readFileSync('.next/server/middleware-manifest.json')
+    next.readFileSync(`${getDistDir()}/server/middleware-manifest.json`)
   )
   const routeKeys = Object.keys(manifest.functions)
   const hashMap: RouteFileHashRecords = {}
@@ -44,7 +45,7 @@ function getEdgeRouteFileHashes(next: NextInstance): RouteFileHashRecords {
 
     const hashes: Record[] = []
     for (const filePath of files) {
-      const content = next.readFileSync(`.next/${filePath}`)
+      const content = next.readFileSync(`${getDistDir()}/${filePath}`)
       hashes.push([filePath, generateMD5(content), content])
     }
     hashMap[route] = hashes

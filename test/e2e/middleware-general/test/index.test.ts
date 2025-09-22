@@ -4,7 +4,7 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
 import { isNextStart, NextInstance } from 'e2e-utils'
-import { check, fetchViaHTTP, waitFor } from 'next-test-utils'
+import { check, fetchViaHTTP, waitFor, getDistDir } from 'next-test-utils'
 import { createNext, FileRef } from 'e2e-utils'
 
 const urlsError = 'Please use only absolute URLs'
@@ -120,7 +120,7 @@ describe('Middleware Runtime', () => {
       if (isNextStart) {
         it('should have added middleware in functions manifest', async () => {
           const { functions } = await next.readJSON(
-            '.next/server/functions-config-manifest.json'
+            getDistDir() + '/server/functions-config-manifest.json'
           )
 
           expect(functions['/_middleware']).toEqual({
@@ -209,7 +209,7 @@ describe('Middleware Runtime', () => {
     if ((global as any).isNextStart && !isNodeMiddleware) {
       it('should have valid middleware field in manifest', async () => {
         const manifest = await fs.readJSON(
-          join(next.testDir, '.next/server/middleware-manifest.json')
+          join(next.testDir, getDistDir(), 'server/middleware-manifest.json')
         )
         const middlewareWithoutEnvs = {
           ...manifest.middleware['/'],
@@ -244,7 +244,7 @@ describe('Middleware Runtime', () => {
 
       it('should have the custom config in the manifest', async () => {
         const manifest = await fs.readJSON(
-          join(next.testDir, '.next/server/middleware-manifest.json')
+          join(next.testDir, getDistDir(), 'server/middleware-manifest.json')
         )
 
         expect(manifest.functions['/api/edge-search-params']).toHaveProperty(
@@ -255,7 +255,7 @@ describe('Middleware Runtime', () => {
 
       it('should have correct files in manifest', async () => {
         const manifest = await fs.readJSON(
-          join(next.testDir, '.next/server/middleware-manifest.json')
+          join(next.testDir, getDistDir(), 'server/middleware-manifest.json')
         )
         for (const key of Object.keys(manifest.middleware)) {
           const middleware = manifest.middleware[key]
@@ -273,7 +273,9 @@ describe('Middleware Runtime', () => {
 
       it('should not run middleware for on-demand revalidate', async () => {
         const bypassToken = (
-          await fs.readJSON(join(next.testDir, '.next/prerender-manifest.json'))
+          await fs.readJSON(
+            join(next.testDir, getDistDir(), 'prerender-manifest.json')
+          )
         ).preview.previewModeId
 
         const res = await fetchViaHTTP(next.url, '/ssg/first', undefined, {

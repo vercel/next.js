@@ -11,6 +11,7 @@ import {
   killApp,
   nextBuild,
   retry,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -76,7 +77,7 @@ describe('jsconfig.json baseurl', () => {
         })
         it('should trace correctly', async () => {
           const helloTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/hello.js.nft.json')
+            join(appDir, getDistDir(), 'server/pages/hello.js.nft.json')
           )
           expect(
             helloTrace.files.some((file) =>

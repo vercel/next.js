@@ -10,6 +10,7 @@ import {
   renderViaHTTP,
   initNextServerScript,
   fetchViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 
 describe('minimal-mode-response-cache', () => {
@@ -30,7 +31,7 @@ describe('minimal-mode-response-cache', () => {
     await next.stop()
 
     await fs.move(
-      join(next.testDir, '.next/standalone'),
+      join(next.testDir, getDistDir() + '/standalone'),
       join(next.testDir, 'standalone')
     )
     for (const file of await fs.readdir(next.testDir)) {
@@ -40,17 +41,19 @@ describe('minimal-mode-response-cache', () => {
       }
     }
     const files = glob.sync('**/*', {
-      cwd: join(next.testDir, 'standalone/.next/server'),
+      cwd: join(next.testDir, 'standalone', getDistDir(), 'server'),
       nodir: true,
       dot: true,
     })
 
     for (const file of files) {
       if (file.match(/(pages|app)[/\\]/) && !file.endsWith('.js')) {
-        await fs.remove(join(next.testDir, 'standalone/.next/server', file))
+        await fs.remove(
+          join(next.testDir, 'standalone', getDistDir(), 'server', file)
+        )
         console.log(
           'removing',
-          join(next.testDir, 'standalone/.next/server', file)
+          join(next.testDir, 'standalone', getDistDir(), 'server', file)
         )
       }
     }

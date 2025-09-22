@@ -6,6 +6,7 @@ import {
   findPort,
   initNextServerScript,
   killApp,
+  getDistDir,
 } from 'next-test-utils'
 
 describe('type-module', () => {
@@ -18,7 +19,7 @@ describe('type-module', () => {
 
   it('should work', async () => {
     await next.stop()
-    const standalonePath = join(next.testDir, '.next/standalone')
+    const standalonePath = join(next.testDir, getDistDir(), 'standalone')
 
     expect(fs.existsSync(join(standalonePath, 'package.json'))).toBe(true)
 

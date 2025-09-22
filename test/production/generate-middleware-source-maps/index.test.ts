@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import path from 'path'
+import { getDistDir } from 'next-test-utils'
 
 function extractSourceMappingURL(jsContent) {
   // Matches both //# and //@ sourceMappingURL=...
@@ -16,14 +17,14 @@ describe('Middleware source maps', () => {
 
   it('generates a source map for Middleware', async () => {
     const middlewareManifest = await next.readJSON(
-      '.next/server/middleware-manifest.json'
+      getDistDir() + '/server/middleware-manifest.json'
     )
 
     for (const key in middlewareManifest.middleware) {
       const middleware = middlewareManifest.middleware[key]
       expect(middleware.files).toBeDefined()
       for (const file of middleware.files) {
-        const filePath = path.join(next.testDir, '.next', file)
+        const filePath = path.join(next.testDir, getDistDir(), file)
         expect(await fs.pathExists(filePath)).toEqual(true)
         let sourcemap = decodeURI(
           extractSourceMappingURL(await fs.readFile(filePath, 'utf8'))
@@ -37,7 +38,7 @@ describe('Middleware source maps', () => {
 
   it('generates a source map for Edge API', async () => {
     const middlewareManifest = await next.readJSON(
-      '.next/server/middleware-manifest.json'
+      getDistDir() + '/server/middleware-manifest.json'
     )
     for (const key in middlewareManifest.functions) {
       const edgeFunction = middlewareManifest.functions[key]
@@ -45,7 +46,7 @@ describe('Middleware source maps', () => {
       for (const file of edgeFunction.files.filter(
         (f) => f.includes('server/edge') || f.includes('server/pages')
       )) {
-        const filePath = path.join(next.testDir, '.next', file)
+        const filePath = path.join(next.testDir, getDistDir(), file)
         expect(await fs.pathExists(filePath)).toEqual(true)
         if (
           filePath.endsWith('.js') &&

@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('browser-chunks', () => {
   const { next } = nextTestSetup({
@@ -8,8 +9,9 @@ describe('browser-chunks', () => {
 
   let sources = []
   beforeAll(async () => {
-    const sourcemaps = await next.readFiles('.next/static/chunks', (filename) =>
-      filename.endsWith('.js.map')
+    const sourcemaps = await next.readFiles(
+      getDistDir() + '/static/chunks',
+      (filename) => filename.endsWith('.js.map')
     )
 
     sources = sourcemaps.flatMap((sourcemap) => JSON.parse(sourcemap).sources)

@@ -602,7 +602,7 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
       const appDir = join(fixturesDir, 'url-global-asset-prefix-1')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
         const { code } = await nextBuild(appDir)
         if (code !== 0) {
           throw new Error('Failed to build')
@@ -654,7 +654,7 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
       const appDir = join(fixturesDir, 'url-global-asset-prefix-2')
 
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
         const { code } = await nextBuild(appDir)
         if (code !== 0) {
           throw new Error('Failed to build')

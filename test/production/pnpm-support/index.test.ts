@@ -6,6 +6,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
   findPort,
+  getDistDir,
   initNextServerScript,
   killApp,
   renderViaHTTP,
@@ -45,7 +46,7 @@ describe('pnpm support', () => {
     expect(html).toContain('Hello World')
 
     const manifest = JSON.parse(
-      await next.readFile('.next/next-server.js.nft.json')
+      await next.readFile(getDistDir() + '/next-server.js.nft.json')
     )
     for (const ignore of ['next/dist/pages', '.wasm', 'compiled/@ampproject']) {
       let matchingFile
@@ -89,15 +90,15 @@ describe('pnpm support', () => {
       appPort = await findPort()
       const standaloneDir = path.join(
         next.testDir,
-        '.next/standalone/',
+        getDistDir() + '/standalone/',
         path.basename(next.testDir)
       )
 
       // simulate what happens in a Dockerfile
       await fs.remove(path.join(next.testDir, 'node_modules'))
       await fs.copy(
-        path.join(next.testDir, './.next/static'),
-        path.join(standaloneDir, './.next/static'),
+        path.join(next.testDir, './' + getDistDir() + '/static'),
+        path.join(standaloneDir, './' + getDistDir() + '/static'),
         { overwrite: true }
       )
       server = await initNextServerScript(

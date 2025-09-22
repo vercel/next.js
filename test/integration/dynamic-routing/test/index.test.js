@@ -1507,7 +1507,7 @@ function runTests({ dev }) {
 
     it('should output a pages-manifest correctly', async () => {
       const manifest = await fs.readJson(
-        join(appDir, '.next/server/pages-manifest.json')
+        join(appDir, getDistDir(), 'server/pages-manifest.json')
       )
 
       if (process.env.IS_TURBOPACK_TEST) {

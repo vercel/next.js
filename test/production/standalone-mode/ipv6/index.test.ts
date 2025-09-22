@@ -3,6 +3,7 @@ import fs from 'fs-extra'
 import glob from 'glob'
 import {
   findPort,
+  getDistDir,
   initNextServerScript,
   killApp,
   renderViaHTTP,
@@ -22,7 +23,7 @@ describe('standalone mode: ipv6 hostname', () => {
     await next.stop()
 
     await fs.move(
-      join(next.testDir, '.next/standalone'),
+      join(next.testDir, getDistDir(), 'standalone'),
       join(next.testDir, 'standalone')
     )
 
@@ -33,13 +34,13 @@ describe('standalone mode: ipv6 hostname', () => {
       }
     }
     const files = glob.sync('**/*', {
-      cwd: join(next.testDir, 'standalone/.next/server/pages'),
+      cwd: join(next.testDir, 'standalone', getDistDir(), 'server/pages'),
       dot: true,
     })
 
     for (const file of files) {
       if (file.endsWith('.json') || file.endsWith('.html')) {
-        await fs.remove(join(next.testDir, '.next/server', file))
+        await fs.remove(join(next.testDir, getDistDir(), 'server', file))
       }
     }
 

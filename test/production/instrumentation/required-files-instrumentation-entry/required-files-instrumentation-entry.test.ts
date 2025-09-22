@@ -15,6 +15,8 @@ describe('instrumentation - required-files-instrumentation-entry', () => {
 
   it('should not contain edge entry in required files manifest', async () => {
     const requiredFiles = await readRequiredFilesManifest(next)
-    expect(requiredFiles).not.toContain('.next/server/edge-instrumentation.js')
+    expect(requiredFiles).not.toContain(
+      getDistDir() + '/server/edge-instrumentation.js'
+    )
   })
 })

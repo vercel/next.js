@@ -1,6 +1,7 @@
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { join } from 'path'
 import { existsSync, readFileSync } from 'fs'
+import { getDistDir } from 'next-test-utils'
 
 type SpanId = number
 
@@ -82,7 +83,7 @@ describe('trace-build-file', () => {
       await next.build()
 
       // Check that trace-build file exists
-      const traceBuildPath = join(next.testDir, '.next/trace-build')
+      const traceBuildPath = join(next.testDir, getDistDir(), 'trace-build')
       expect(existsSync(traceBuildPath)).toBe(true)
     })
 
@@ -90,7 +91,7 @@ describe('trace-build-file', () => {
       // Ensure we have a fresh build
       await next.build()
 
-      const traceBuildPath = join(next.testDir, '.next/trace-build')
+      const traceBuildPath = join(next.testDir, getDistDir(), 'trace-build')
       expect(existsSync(traceBuildPath)).toBe(true)
 
       const traceStructure = parseTraceFile(traceBuildPath)
@@ -116,7 +117,7 @@ describe('trace-build-file', () => {
     it('should only contain allowlisted events', async () => {
       await next.build()
 
-      const traceBuildPath = join(next.testDir, '.next/trace-build')
+      const traceBuildPath = join(next.testDir, getDistDir(), 'trace-build')
       const traceStructure = parseTraceFile(traceBuildPath)
 
       const allowlistedEvents = new Set([
@@ -138,7 +139,7 @@ describe('trace-build-file', () => {
     it('should have next-build as root span with proper hierarchy', async () => {
       await next.build()
 
-      const traceBuildPath = join(next.testDir, '.next/trace-build')
+      const traceBuildPath = join(next.testDir, getDistDir(), 'trace-build')
       const traceStructure = parseTraceFile(traceBuildPath)
 
       // Should have no orphaned events (all events should have valid parent references)
@@ -183,7 +184,7 @@ describe('trace-build-file', () => {
     it('should have consistent traceId across all events', async () => {
       await next.build()
 
-      const traceBuildPath = join(next.testDir, '.next/trace-build')
+      const traceBuildPath = join(next.testDir, getDistDir(), 'trace-build')
       const traceStructure = parseTraceFile(traceBuildPath)
 
       expect(traceStructure.events.length).toBeGreaterThan(0)
@@ -206,7 +207,7 @@ describe('trace-build-file', () => {
       await next.render('/')
 
       // Check that trace-build file does not exist
-      const traceBuildPath = join(next.testDir, '.next/trace-build')
+      const traceBuildPath = join(next.testDir, getDistDir(), 'trace-build')
       expect(existsSync(traceBuildPath)).toBe(false)
     })
   }

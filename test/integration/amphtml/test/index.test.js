@@ -7,6 +7,7 @@ import {
   check,
   findPort,
   getBrowserBodyText,
+  getDistDir,
   killApp,
   launchApp,
   nextBuild,
@@ -66,7 +67,10 @@ const context = {}
 
     it('should have amp optimizer in trace', async () => {
       const trace = JSON.parse(
-        readFileSync(join(appDir, '.next/next-server.js.nft.json'), 'utf8')
+        readFileSync(
+          join(appDir, getDistDir(), 'next-server.js.nft.json'),
+          'utf8'
+        )
       )
       expect(
         trace.files.some((file) =>

@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('app fetch build cache', () => {
   const { next } = nextTestSetup({
@@ -16,7 +17,7 @@ describe('app fetch build cache', () => {
   })
 
   it('should bundle @aws-sdk/client-s3 as a transpiled package', async () => {
-    const output = await next.readFile('.next/server/app/page.js')
+    const output = await next.readFile(getDistDir() + '/server/app/page.js')
     expect(output).not.toContain('require("@aws-sdk/client-s3")')
   })
 })

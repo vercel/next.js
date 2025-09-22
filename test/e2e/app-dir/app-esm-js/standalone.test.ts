@@ -7,6 +7,7 @@ import {
   initNextServerScript,
   killApp,
   fetchViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 
 if (!(globalThis as any).isNextStart) {
@@ -42,7 +43,10 @@ if (!(globalThis as any).isNextStart) {
         '{"type": "module"}'
       )
       const distFolder = path.join(tmpFolder, 'test')
-      await fs.move(path.join(next.testDir, '.next/standalone'), distFolder)
+      await fs.move(
+        path.join(next.testDir, getDistDir(), 'standalone'),
+        distFolder
+      )
       let server: any
       try {
         const testServer = path.join(distFolder, 'server.js')

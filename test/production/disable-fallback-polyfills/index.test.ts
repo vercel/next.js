@@ -2,6 +2,7 @@ import { createNext } from 'e2e-utils'
 import type { NextInstance } from 'e2e-utils'
 import { statSync } from 'fs'
 import { join } from 'path'
+import { getDistDir } from 'next-test-utils'
 
 // TODO: Implement experimental.fallbackNodePolyfills
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
@@ -12,7 +13,9 @@ import { join } from 'path'
     async function getIndexPageSize() {
       // Read build manifest to get chunk files for the index page
       // this only works reliably for pages router and simple examples.
-      const buildManifest = await next.readJSON('.next/build-manifest.json')
+      const buildManifest = await next.readJSON(
+        getDistDir() + '/build-manifest.json'
+      )
 
       // Get chunks for the '/' page
       const indexPageChunks = buildManifest.pages['/'] || []
@@ -20,7 +23,7 @@ import { join } from 'path'
       // Calculate total size of all chunks for the index page
       let totalSize = 0
       for (const chunkPath of indexPageChunks) {
-        const fullChunkPath = join(next.testDir, '.next', chunkPath)
+        const fullChunkPath = join(next.testDir, getDistDir(), chunkPath)
         try {
           const stats = statSync(fullChunkPath)
           totalSize += stats.size

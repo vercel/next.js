@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import fs from 'fs'
+import { getDistDir } from 'next-test-utils'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
@@ -74,7 +75,9 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
     }
 
     it('should not trace too many files in next-server.js.nft.json', async () => {
-      let trace = await readNormalizedNFT('.next/next-server.js.nft.json')
+      let trace = await readNormalizedNFT(
+        path.join(getDistDir(), 'next-server.js.nft.json')
+      )
 
       // Group the entries together so that the snapshot doesn't change too often.
       // This trace contains quite a lot of files that aren't actually needed. But there isn't much
@@ -236,7 +239,7 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
     it('should not trace too many files in next-minimal-server.js.nft.json', async () => {
       let trace = await readNormalizedNFT(
-        '.next/next-minimal-server.js.nft.json'
+        path.join(getDistDir(), 'next-minimal-server.js.nft.json')
       )
       expect(trace).toMatchInlineSnapshot(`
        [

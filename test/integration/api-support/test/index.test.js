@@ -627,7 +627,10 @@ function runTests(dev = false) {
       expect(json).toEqual({ post: 'nextjs' })
 
       const buildManifest = JSON.parse(
-        await fs.readFile(join(appDir, '.next/build-manifest.json'), 'utf8')
+        await fs.readFile(
+          join(appDir, getDistDir(), 'build-manifest.json'),
+          'utf8'
+        )
       )
       expect(
         Object.keys(buildManifest.pages).includes('/api-conflict')

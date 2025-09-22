@@ -2,6 +2,7 @@ import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import {
   assertNoRedbox,
+  getDistDir,
   getRouteTypeFromDevToolsIndicator,
   retry,
 } from 'next-test-utils'
@@ -14,7 +15,7 @@ describe('async imports in cacheComponents', () => {
   if (isNextStart) {
     it('does not cause any routes to become (partially) dynamic', async () => {
       const prerenderManifest = JSON.parse(
-        await next.readFile('.next/prerender-manifest.json')
+        await next.readFile(path.join(getDistDir(), 'prerender-manifest.json'))
       )
 
       // For the purpose of this test we don't consider an incomplete shell.
@@ -24,7 +25,9 @@ describe('async imports in cacheComponents', () => {
           const filename = route.replace(/^\//, '').replace(/^$/, 'index')
           try {
             return next
-              .readFileSync(`.next/server/app/${filename}.html`)
+              .readFileSync(
+                path.join(getDistDir(), `server/app/${filename}.html`)
+              )
               .endsWith('</html>')
           } catch (err) {
             if ('code' in err && err.code === 'ENOENT') {

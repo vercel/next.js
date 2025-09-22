@@ -8,6 +8,7 @@ import {
   check,
   fetchViaHTTP,
   findPort,
+  getDistDir,
   getRedboxHeader,
   killApp,
   launchApp,
@@ -1346,7 +1347,9 @@ function runTests(mode) {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
       expect(
-        await pathExists(join(appDir, '.next/server/chunks/static/media'))
+        await pathExists(
+          join(appDir, getDistDir(), 'server/chunks/static/media')
+        )
       ).toBeFalsy()
     })
     it('should render as unoptimized with missing src prop', async () => {
@@ -1605,7 +1608,7 @@ function runTests(mode) {
     })
 
     it('should create images folder in static/media for edge runtime', async () => {
-      const files = await fs.readdir(join(appDir, '.next/static/media'))
+      const files = await fs.readdir(join(appDir, getDistDir(), 'static/media'))
       expect(files).toEqual(
         expect.arrayContaining([expect.stringMatching(/small\.\w+\.jpg/)])
       )

@@ -7,6 +7,7 @@ import {
   launchApp,
   nextBuild,
   renderViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = path.join(__dirname, '..')
@@ -79,9 +80,9 @@ describe('page features telemetry', () => {
       expect(event1).toMatch(/"pagesDir": true/)
       expect(event1).toMatch(/"turboFlag": true/)
 
-      expect(await fs.pathExists(path.join(appDir, '.next/_events.json'))).toBe(
-        false
-      )
+      expect(
+        await fs.pathExists(path.join(appDir, getDistDir(), '_events.json'))
+      ).toBe(false)
     })
   } else {
     it('detects correctly for `next dev` stopped (no turbo)', async () => {
@@ -116,9 +117,9 @@ describe('page features telemetry', () => {
       expect(event1).toMatch(/"pagesDir": true/)
       expect(event1).toMatch(/"appDir": true/)
 
-      expect(await fs.pathExists(path.join(appDir, '.next/_events.json'))).toBe(
-        false
-      )
+      expect(
+        await fs.pathExists(path.join(appDir, getDistDir(), '_events.json'))
+      ).toBe(false)
     })
     ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',

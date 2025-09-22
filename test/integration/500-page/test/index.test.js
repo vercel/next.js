@@ -266,7 +266,7 @@ describe('500 Page Support', () => {
         export default Error
       `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { stderr: buildStderr, code } = await nextBuild(appDir, [], {
           stderr: true,
         })
@@ -306,7 +306,7 @@ describe('500 Page Support', () => {
           export default Error
         `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { stderr: buildStderr, code } = await nextBuild(appDir, [], {
           stderr: true,
         })
@@ -380,7 +380,7 @@ describe('500 Page Support', () => {
           export default App
         `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { stderr: buildStderr, code } = await nextBuild(appDir, [], {
           stderr: true,
         })
@@ -407,7 +407,7 @@ describe('500 Page Support', () => {
         export default page
       `
         )
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
         await fs.remove(pages500)
         await fs.move(`${pages500}.bak`, pages500)

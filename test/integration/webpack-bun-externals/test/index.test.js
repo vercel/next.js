@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import fs from 'fs-extra'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 import { join } from 'path'
 
 const appDir = join(__dirname, '../')
@@ -26,7 +26,7 @@ const IS_TURBOPACK = process.env.IS_TURBOPACK_TEST === '1'
   it('should externalize Bun builtins in server bundles', async () => {
     // Check the server bundle
     const serverBundle = await fs.readFile(
-      join(appDir, '.next/server/pages/index.js'),
+      join(appDir, getDistDir(), 'server/pages/index.js'),
       'utf8'
     )
 
@@ -51,7 +51,7 @@ const IS_TURBOPACK = process.env.IS_TURBOPACK_TEST === '1'
 
   it('should not bundle Bun module implementations', async () => {
     const serverBundle = await fs.readFile(
-      join(appDir, '.next/server/pages/index.js'),
+      join(appDir, getDistDir(), 'server/pages/index.js'),
       'utf8'
     )
 

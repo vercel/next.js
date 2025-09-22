@@ -60,7 +60,7 @@ export function runTests(ctx) {
 
   it('should 404 for locale prefixed static assets correctly', async () => {
     const assets = glob.sync('**/*.js', {
-      cwd: join(ctx.appDir, '.next/static'),
+      cwd: join(ctx.appDir, getDistDir(), 'static'),
     })
 
     // Only use a subset of the locales to speed up the test
@@ -753,7 +753,7 @@ export function runTests(ctx) {
 
     it('should output correct prerender-manifest', async () => {
       const prerenderManifest = await fs.readJSON(
-        join(ctx.appDir, '.next/prerender-manifest.json')
+        join(ctx.appDir, getDistDir(), 'prerender-manifest.json')
       )
       const staticRoutes = {}
       const dynamicRoutes = {}

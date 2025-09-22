@@ -8,6 +8,7 @@ import {
   createNowRouteMatches,
   fetchViaHTTP,
   findPort,
+  getDistDir,
   initNextServerScript,
   killApp,
 } from 'next-test-utils'
@@ -52,7 +53,7 @@ describe('required server files app router', () => {
     await next.stop()
 
     await fs.move(
-      join(next.testDir, '.next/standalone'),
+      join(next.testDir, getDistDir(), 'standalone'),
       join(next.testDir, 'standalone')
     )
     for (const file of await fs.readdir(next.testDir)) {
@@ -68,7 +69,7 @@ describe('required server files app router', () => {
 
     for (const file of files) {
       if (file.endsWith('.json') || file.endsWith('.html')) {
-        await fs.remove(join(next.testDir, '.next/server', file))
+        await fs.remove(join(next.testDir, getDistDir(), 'server', file))
       }
     }
 

@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('standalone mode - NFT in node_modules', () => {
   const dependencies = require('./package.json').dependencies
@@ -14,7 +15,9 @@ describe('standalone mode - NFT in node_modules', () => {
   }
 
   it('should not trace process.cwd calls in node_modules', async () => {
-    let trace = await next.readJSON('.next/server/app/page.js.nft.json')
+    let trace = await next.readJSON(
+      getDistDir() + '/server/app/page.js.nft.json'
+    )
 
     expect(trace.files).toContain('../../../app/static-from-app.txt')
     expect(trace.files).not.toContain('../../../app/static-from-pkg.txt')

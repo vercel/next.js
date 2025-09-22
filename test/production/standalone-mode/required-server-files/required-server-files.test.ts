@@ -95,7 +95,7 @@ describe('required server files', () => {
       await next.readFile(`${getDistDir()}/required-server-files.json`)
     )
     await fs.move(
-      join(next.testDir, '.next/standalone'),
+      join(next.testDir, getDistDir(), 'standalone'),
       join(next.testDir, 'standalone')
     )
     for (const file of await fs.readdir(next.testDir)) {
@@ -111,7 +111,7 @@ describe('required server files', () => {
 
     for (const file of files) {
       if (file.endsWith('.json') || file.endsWith('.html')) {
-        await fs.remove(join(next.testDir, '.next/server', file))
+        await fs.remove(join(next.testDir, getDistDir(), 'server', file))
       }
     }
   }
@@ -1386,11 +1386,15 @@ describe('required server files', () => {
       if (!process.env.TEST_NODE_MIDDLEWARE) {
         if (process.env.IS_TURBOPACK_TEST) {
           expect(
-            fs.existsSync(join(standaloneDir, '.next/server/edge/chunks'))
+            fs.existsSync(
+              join(standaloneDir, getDistDir(), 'server/edge/chunks')
+            )
           ).toBe(true)
         } else {
           expect(
-            fs.existsSync(join(standaloneDir, '.next/server/edge-chunks'))
+            fs.existsSync(
+              join(standaloneDir, getDistDir(), 'server/edge-chunks')
+            )
           ).toBe(true)
         }
       }

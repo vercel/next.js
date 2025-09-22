@@ -2,7 +2,7 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 
@@ -16,7 +16,7 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
 
       it('should have no externals with the config set', async () => {
         if (process.env.IS_TURBOPACK_TEST) {
-          const ssrPath = join(appDir, '.next/server/chunks/ssr')
+          const ssrPath = join(appDir, getDistDir(), 'server/chunks/ssr')
           const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
             p.match(/\.js$/)
           )
@@ -31,7 +31,7 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
           expect(allBundles).toContain('"external-package content"')
         } else {
           const output = await fs.readFile(
-            join(appDir, '.next/server/pages/index.js'),
+            join(appDir, getDistDir(), 'server/pages/index.js'),
             'utf8'
           )
           expect(output).not.toContain('require("external-package")')
@@ -40,7 +40,7 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
 
       it('should respect the serverExternalPackages config', async () => {
         if (process.env.IS_TURBOPACK_TEST) {
-          const ssrPath = join(appDir, '.next/server/chunks/ssr')
+          const ssrPath = join(appDir, getDistDir(), 'server/chunks/ssr')
           const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
             p.match(/\.js$/)
           )
@@ -57,7 +57,7 @@ describe('bundle pages externals with config.bundlePagesRouterDependencies', () 
           )
         } else {
           const output = await fs.readFile(
-            join(appDir, '.next/server/pages/index.js'),
+            join(appDir, getDistDir(), 'server/pages/index.js'),
             'utf8'
           )
           expect(output).toContain('require("opted-out-external-package")')

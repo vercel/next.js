@@ -122,7 +122,9 @@ describe('Production Usage', () => {
   })
 
   it('should output traces', async () => {
-    const serverTrace = await next.readJSON('.next/next-server.js.nft.json')
+    const serverTrace = await next.readJSON(
+      path.join(getDistDir(), 'next-server.js.nft.json')
+    )
 
     expect(serverTrace.version).toBe(1)
     expect(
@@ -138,7 +140,7 @@ describe('Production Usage', () => {
     const repoRoot = join(next.testDir, '../../../../')
     expect(
       serverTrace.files.some((file) => {
-        const fullPath = join(next.testDir, '.next', file)
+        const fullPath = join(next.testDir, getDistDir(), file)
         if (!fullPath.startsWith(repoRoot)) {
           console.error(`Found next-server trace file outside repo root`, {
             repoRoot,
@@ -288,7 +290,7 @@ describe('Production Usage', () => {
     for (const check of checks) {
       require('console').log('checking', check.page)
       const { version, files } = await next.readJSON(
-        join('.next/server/pages/', check.page + '.js.nft.json')
+        join(getDistDir(), 'server/pages/', check.page + '.js.nft.json')
       )
       expect(version).toBe(1)
       expect([...new Set(files)].length).toBe(files.length)
@@ -325,7 +327,7 @@ describe('Production Usage', () => {
     'should not contain currentScript usage for publicPath',
     async () => {
       const globResult = await glob('webpack-*.js', {
-        cwd: join(next.testDir, '.next/static/chunks'),
+        cwd: join(next.testDir, getDistDir(), 'static/chunks'),
       })
 
       if (!globResult || globResult.length !== 1) {
@@ -333,7 +335,7 @@ describe('Production Usage', () => {
       }
 
       const content = await next.readFile(
-        join('.next/static/chunks', globResult[0])
+        join(getDistDir(), 'static/chunks', globResult[0])
       )
 
       // eslint-disable-next-line jest/no-standalone-expect
@@ -346,7 +348,7 @@ describe('Production Usage', () => {
     'should not contain amp, rsc APIs in main chunk',
     async () => {
       const globResult = await glob('main-*.js', {
-        cwd: join(next.testDir, '.next/static/chunks'),
+        cwd: join(next.testDir, getDistDir(), 'static/chunks'),
       })
 
       if (!globResult || globResult.length !== 1) {
@@ -354,7 +356,7 @@ describe('Production Usage', () => {
       }
 
       const content = await fs.readFile(
-        join(next.testDir, '.next/static/chunks', globResult[0]),
+        join(next.testDir, getDistDir(), 'static/chunks', globResult[0]),
         'utf8'
       )
 
@@ -1146,9 +1148,9 @@ describe('Production Usage', () => {
   })
 
   it('should not emit stats', async () => {
-    expect(existsSync(join(next.testDir, '.next', 'next-stats.json'))).toBe(
-      false
-    )
+    expect(
+      existsSync(join(next.testDir, getDistDir(), 'next-stats.json'))
+    ).toBe(false)
   })
 
   it('should contain the Next.js version in window export', async () => {

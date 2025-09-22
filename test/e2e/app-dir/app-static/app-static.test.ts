@@ -198,7 +198,8 @@ describe('app-dir static/dynamic handling', () => {
     it('should propagate unstable_cache tags correctly', async () => {
       const meta = JSON.parse(
         await next.readFile(
-          '.next/server/app/variable-revalidate/revalidate-360-isr.meta'
+          getDistDir() +
+            '/server/app/variable-revalidate/revalidate-360-isr.meta'
         )
       )
       expect(meta.headers['x-next-cache-tags']).toContain('unstable_cache_tag1')
@@ -801,7 +802,7 @@ describe('app-dir static/dynamic handling', () => {
     it('should output HTML/RSC files for static paths', async () => {
       const files = (
         await glob('**/*', {
-          cwd: join(next.testDir, '.next/server/app'),
+          cwd: join(next.testDir, getDistDir(), 'server/app'),
         })
       )
         // Manifests are output per-page in Turbopack
@@ -2911,10 +2912,10 @@ describe('app-dir static/dynamic handling', () => {
 
     it('should have correct cache tags for prerendered path', async () => {
       const firstMeta = await next.readJSON(
-        '.next/server/app/prerendered-not-found/first.meta'
+        getDistDir() + '/server/app/prerendered-not-found/first.meta'
       )
       const secondMeta = await next.readJSON(
-        '.next/server/app/prerendered-not-found/second.meta'
+        getDistDir() + '/server/app/prerendered-not-found/second.meta'
       )
 
       expect(firstMeta.status).toBe(404)

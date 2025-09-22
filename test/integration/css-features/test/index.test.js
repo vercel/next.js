@@ -8,6 +8,7 @@ import {
   nextStart,
   renderViaHTTP,
   fetchViaHTTP,
+  getDistDir,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 
@@ -24,7 +25,7 @@ describe('Custom Properties: Pass-Through IE11', () => {
       let appPort
       let app
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
         const { code } = await nextBuild(appDir)
         if (code !== 0) {
           throw new Error('failed to build')
@@ -74,7 +75,7 @@ describe('Custom Properties: Pass-Through Modern', () => {
       let appPort
       let app
       beforeAll(async () => {
-        await remove(join(appDir, '.next'))
+        await remove(join(appDir, getDistDir()))
         const { code } = await nextBuild(appDir)
         if (code !== 0) {
           throw new Error('failed to build')
@@ -127,7 +128,7 @@ describe('Custom Properties: Pass-Through Modern', () => {
         let appPort
         let app
         beforeAll(async () => {
-          await remove(join(appDir, '.next'))
+          await remove(join(appDir, getDistDir()))
           const { code } = await nextBuild(appDir)
           if (code !== 0) {
             throw new Error('failed to build')

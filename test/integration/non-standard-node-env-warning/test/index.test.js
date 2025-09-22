@@ -10,6 +10,7 @@ import {
   initNextServerScript,
   nextBuild,
   nextStart,
+  getDistDir,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -90,7 +91,7 @@ describe('Non-Standard NODE_ENV', () => {
         })
 
         const staticFiles = glob.sync('**/*.js', {
-          cwd: join(appDir, '.next/static'),
+          cwd: join(appDir, getDistDir(), 'static'),
         })
         expect(staticFiles.length).toBeGreaterThan(0)
 
@@ -98,7 +99,7 @@ describe('Non-Standard NODE_ENV', () => {
         let foundOtherValue = false
         for (const file of staticFiles) {
           const content = await fs.readFile(
-            join(appDir, '.next/static', file),
+            join(appDir, getDistDir(), 'static', file),
             'utf8'
           )
 

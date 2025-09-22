@@ -2,7 +2,7 @@ import fs from 'fs-extra'
 
 import { join } from 'path'
 
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 
 const dirCustomConfig = join(__dirname, '../custom-config')
 const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
@@ -164,7 +164,7 @@ describe('Next Build', () => {
       })
 
       test('eslint caching is enabled', async () => {
-        const cacheDir = join(dirEslintCache, '.next', 'cache')
+        const cacheDir = join(dirEslintCache, getDistDir(), 'cache')
 
         await fs.remove(cacheDir)
         await nextBuild(dirEslintCache, [], {
@@ -178,7 +178,7 @@ describe('Next Build', () => {
       })
 
       test('eslint cache lives in the user defined build directory', async () => {
-        const oldCacheDir = join(dirEslintCacheCustomDir, '.next', 'cache')
+        const oldCacheDir = join(dirEslintCacheCustomDir, getDistDir(), 'cache')
         const newCacheDir = join(dirEslintCacheCustomDir, 'build', 'cache')
 
         await fs.remove(oldCacheDir)

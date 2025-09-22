@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import cheerio from 'cheerio'
-import { nextBuild, File } from 'next-test-utils'
+import { nextBuild, File, getDistDir } from 'next-test-utils'
 
 const appDir = join(__dirname, '../')
 const outdir = join(appDir, 'out')
@@ -27,7 +27,7 @@ describe('Export with cloudinary loader next/legacy/image component', () => {
         )
       })
       it('should build successfully', async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await fs.remove(outdir)
         const { code } = await nextBuild(appDir)
         expect(code).toBe(0)
@@ -66,7 +66,7 @@ describe('Export with custom loader next/legacy/image component', () => {
         )
       })
       it('should build successfully', async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await fs.remove(outdir)
         const { code } = await nextBuild(appDir)
         expect(code).toBe(0)
@@ -102,7 +102,7 @@ describe('Export with custom loader config but no loader prop on next/legacy/ima
         )
       })
       it('should fail build', async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await fs.remove(outdir)
         const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
         expect(code).toBe(1)
@@ -135,7 +135,7 @@ describe('Export with unoptimized next/legacy/image component', () => {
         )
       })
       it('should build successfully', async () => {
-        await fs.remove(join(appDir, '.next'))
+        await fs.remove(join(appDir, getDistDir()))
         await fs.remove(outdir)
         const { code } = await nextBuild(appDir)
         expect(code).toBe(0)

@@ -2,7 +2,7 @@
 
 import fs from 'fs-extra'
 import { join } from 'path'
-import { nextBuild } from 'next-test-utils'
+import { nextBuild, getDistDir } from 'next-test-utils'
 
 const appDir = join(__dirname, '../app')
 
@@ -22,16 +22,16 @@ const appDir = join(__dirname, '../app')
           expect(result.code).toBe(0)
 
           const appTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/_app.js.nft.json')
+            join(appDir, getDistDir(), 'server/pages/_app.js.nft.json')
           )
           const indexTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/index.js.nft.json')
+            join(appDir, getDistDir(), 'server/pages/index.js.nft.json')
           )
           const anotherTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/another.js.nft.json')
+            join(appDir, getDistDir(), 'server/pages/another.js.nft.json')
           )
           const imageTrace = await fs.readJSON(
-            join(appDir, '.next/server/pages/image-import.js.nft.json')
+            join(appDir, getDistDir(), 'server/pages/image-import.js.nft.json')
           )
 
           const tracedFiles = [

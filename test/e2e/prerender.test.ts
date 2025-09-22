@@ -1923,8 +1923,12 @@ describe('Prerender', () => {
           ]
 
           for (const route of routes) {
-            await next.readFile(join('.next/server/pages', `${route}.html`))
-            await next.readFile(join('.next/server/pages', `${route}.json`))
+            await next.readFile(
+              join(getDistDir(), 'server/pages', `${route}.html`)
+            )
+            await next.readFile(
+              join(getDistDir(), 'server/pages', `${route}.json`)
+            )
           }
         })
 
@@ -2268,7 +2272,7 @@ describe('Prerender', () => {
 
         for (const check of checks) {
           const contents = await next.readFile(
-            join('.next/server/pages/', check.page + '.js.nft.json')
+            join(getDistDir(), 'server/pages/', check.page + '.js.nft.json')
           )
           const { version, files } = JSON.parse(contents)
           expect(version).toBe(1)

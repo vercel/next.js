@@ -8,6 +8,7 @@ import {
   check,
   fetchViaHTTP,
   findPort,
+  getDistDir,
   getImagesManifest,
   getRedboxHeader,
   killApp,
@@ -1344,7 +1345,7 @@ function runTests(mode: 'dev' | 'server') {
     //server-only tests
     it('should not create an image folder in server/chunks', async () => {
       expect(
-        existsSync(join(appDir, '.next/server/chunks/static/media'))
+        existsSync(join(appDir, getDistDir(), 'server/chunks/static/media'))
       ).toBeFalsy()
     })
     it('should render as unoptimized with missing src prop', async () => {

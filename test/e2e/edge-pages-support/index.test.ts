@@ -17,23 +17,27 @@ describe('edge-render-getserversideprops', () => {
       'should not output trace files for edge routes',
       async () => {
         /* eslint-disable jest/no-standalone-expect */
-        expect(await fs.pathExists(join(next.testDir, '.next/pages'))).toBe(
-          false
-        )
         expect(
-          await fs.pathExists(join(next.testDir, '.next/server/pages/[id].js'))
+          await fs.pathExists(join(next.testDir, getDistDir(), 'pages'))
+        ).toBe(false)
+        expect(
+          await fs.pathExists(
+            join(next.testDir, getDistDir(), 'server/pages/[id].js')
+          )
         ).toBe(true)
         expect(
           await fs.pathExists(
-            join(next.testDir, '.next/server/pages/[id].js.nft.json')
+            join(next.testDir, getDistDir(), 'server/pages/[id].js.nft.json')
           )
         ).toBe(false)
         expect(
-          await fs.pathExists(join(next.testDir, '.next/server/pages/index.js'))
+          await fs.pathExists(
+            join(next.testDir, getDistDir(), 'server/pages/index.js')
+          )
         ).toBe(true)
         expect(
           await fs.pathExists(
-            join(next.testDir, '.next/server/pages/index.js.nft.json')
+            join(next.testDir, getDistDir(), 'server/pages/index.js.nft.json')
           )
         ).toBe(false)
         /* eslint-enable jest/no-standalone-expect */

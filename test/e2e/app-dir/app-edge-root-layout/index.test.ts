@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('app-dir edge runtime root layout', () => {
   const { next, isNextStart, skipped } = nextTestSetup({
@@ -23,7 +24,7 @@ describe('app-dir edge runtime root layout', () => {
   if (isNextStart) {
     it('should mark static contain metadata routes as edge functions', async () => {
       const middlewareManifest = await next.readFile(
-        '.next/server/middleware-manifest.json'
+        getDistDir() + '/server/middleware-manifest.json'
       )
       expect(middlewareManifest).not.toContain('/favicon')
     })

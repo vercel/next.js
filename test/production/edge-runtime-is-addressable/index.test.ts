@@ -1,6 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { fetchViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, getDistDir } from 'next-test-utils'
 import path from 'path'
 
 const files = {
@@ -55,14 +55,14 @@ describe('Edge Runtime is addressable', () => {
 
   test('removes the undefined branch with dead code elimination', async () => {
     const middlewareManifest = await next.readJSON(
-      '.next/server/middleware-manifest.json'
+      getDistDir() + '/server/middleware-manifest.json'
     )
 
     const files = middlewareManifest.middleware['/'].files
 
     let allContentCombined = ''
     for (const file of files) {
-      const content = await next.readFile(path.join('.next', file))
+      const content = await next.readFile(path.join(getDistDir(), file))
       allContentCombined += content
     }
 

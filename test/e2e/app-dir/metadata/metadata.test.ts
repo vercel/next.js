@@ -767,17 +767,26 @@ describe('app dir - metadata', () => {
       it('should build static files into static route', async () => {
         expect(
           await next.hasFile(
-            '.next/server/app/opengraph/static/opengraph-image.png.meta'
+            path.join(
+              getDistDir(),
+              'server/app/opengraph/static/opengraph-image.png.meta'
+            )
           )
         ).toBe(true)
         expect(
           await next.hasFile(
-            '.next/server/app/opengraph/static/opengraph-image.png.body'
+            path.join(
+              getDistDir(),
+              'server/app/opengraph/static/opengraph-image.png.body'
+            )
           )
         ).toBe(true)
         expect(
           await next.hasFile(
-            '.next/server/app/opengraph/static/opengraph-image.png/[__metadata_id__]/route.js'
+            path.join(
+              getDistDir(),
+              'server/app/opengraph/static/opengraph-image.png/[__metadata_id__]/route.js'
+            )
           )
         ).toBe(false)
       })

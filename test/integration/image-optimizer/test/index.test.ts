@@ -4,6 +4,7 @@ import {
   fetchViaHTTP,
   File,
   findPort,
+  getDistDir,
   killApp,
   launchApp,
   nextBuild,
@@ -15,7 +16,7 @@ import { join } from 'path'
 import { cleanImagesDir, expectWidth, fsToJson } from './util'
 
 const appDir = join(__dirname, '../app')
-const imagesDir = join(appDir, '.next', 'cache', 'images')
+const imagesDir = join(appDir, getDistDir(), 'cache', 'images')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const largeSize = 1080 // defaults defined in server/config.ts
 

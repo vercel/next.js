@@ -3,6 +3,7 @@ import { createNext, FileRef, NextInstance } from 'e2e-utils'
 import {
   fetchViaHTTP,
   findPort,
+  getDistDir,
   initNextServerScript,
   killApp,
   retry,
@@ -21,7 +22,7 @@ describe('global-default-cache-handler', () => {
     })
     await next.build()
 
-    const standaloneServer = '.next/standalone/server.js'
+    const standaloneServer = path.join(getDistDir(), 'standalone/server.js')
     await next.patchFile(
       standaloneServer,
       `

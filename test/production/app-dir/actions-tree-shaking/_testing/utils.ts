@@ -1,12 +1,13 @@
 // @ts-ignore avoid ts errors during manual testing
 import { type NextInstance } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 async function getActionsMappingByRuntime(
   next: NextInstance,
   runtime: 'node' | 'edge'
 ) {
   const manifest = JSON.parse(
-    await next.readFile('.next/server/server-reference-manifest.json')
+    await next.readFile(getDistDir() + '/server/server-reference-manifest.json')
   )
 
   return manifest[runtime]

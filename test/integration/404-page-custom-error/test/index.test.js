@@ -41,13 +41,13 @@ const runTests = (mode) => {
   if (!isDev) {
     it('should set pages404 in routes-manifest correctly', async () => {
       const data = await fs.readJSON(
-        join(appDir, getDistDir(true), 'routes-manifest.json')
+        join(appDir, getDistDir(), 'routes-manifest.json')
       )
       expect(data.pages404).toBe(true)
     })
 
     it('should have output 404.html', async () => {
-      const page = getPageFileFromPagesManifest(appDir, '/404', true)
+      const page = getPageFileFromPagesManifest(appDir, '/404')
       expect(page.endsWith('.html')).toBe(true)
     })
   }

@@ -1,5 +1,6 @@
 import { createNext } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
+import { getDistDir } from 'next-test-utils'
 
 describe('ES Check .next output', () => {
   let next: NextInstance
@@ -11,7 +12,7 @@ describe('ES Check .next output', () => {
       dependencies: { 'es-check': '7.0.1' },
       packageJson: {
         scripts: {
-          build: 'next build && es-check es2020 ".next/static/**/*.js"',
+          build: `next build && es-check es2020 "${getDistDir()}/static/**/*.js"`,
         },
       },
       installCommand: 'pnpm i',
