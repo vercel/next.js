@@ -1,9 +1,9 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 
 describe('persistent-caching', () => {
   process.env.NEXT_PUBLIC_ENV_VAR = 'hello world'
-  const { skipped, next, isNextDev, isTurbopack } = nextTestSetup({
+  const { skipped, next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     installCommand: 'npm i',
