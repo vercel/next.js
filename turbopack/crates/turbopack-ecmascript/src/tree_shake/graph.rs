@@ -24,7 +24,6 @@ use swc_core::{
         utils::{ExprCtx, ExprExt, find_pat_ids, quote_ident},
     },
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::FxIndexSet;
 
 use super::{
@@ -254,7 +253,7 @@ pub(super) struct SplitModuleResult {
     pub entrypoints: FxHashMap<Key, u32>,
 
     /// Dependency between parts.
-    pub part_deps: FxHashMap<u32, Vec<PartId>>,
+    pub part_deps: FxHashMap<u32, Vec<(u32, bool)>>,
     pub modules: Vec<Module>,
 
     pub star_reexports: Vec<ExportAll>,
@@ -295,7 +294,7 @@ impl DepGraph {
     ) -> SplitModuleResult {
         let groups = self.finalize(data);
         let mut outputs = FxHashMap::default();
-        let mut part_deps = FxHashMap::<_, Vec<PartId>>::default();
+        let mut part_deps = FxHashMap::<_, Vec<(u32, bool)>>::default();
 
         let star_reexports: Vec<_> = data
             .values()
@@ -396,10 +395,7 @@ impl DepGraph {
                     && *dep != ix as u32
                     && part_deps_done.insert(*dep)
                 {
-                    part_deps
-                        .entry(ix as u32)
-                        .or_default()
-                        .push(PartId::Internal(*dep, true));
+                    part_deps.entry(ix as u32).or_default().push((*dep, true));
 
                     chunk
                         .body
@@ -408,9 +404,7 @@ impl DepGraph {
                             specifiers: vec![],
                             src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                             type_only: false,
-                            with: Some(Box::new(create_turbopack_part_id_assert(
-                                PartId::Internal(*dep, true),
-                            ))),
+                            with: Some(Box::new(create_turbopack_part_id_assert(*dep, true))),
                             phase: Default::default(),
                         })));
                 }
@@ -439,7 +433,7 @@ impl DepGraph {
                                     src: Some(Box::new(TURBOPACK_PART_IMPORT_SOURCE.into())),
                                     type_only: false,
                                     with: Some(Box::new(create_turbopack_part_id_assert(
-                                        PartId::Export(export.as_str().into()),
+                                        ix as u32, false,
                                     ))),
                                 }),
                             ));
@@ -477,7 +471,6 @@ impl DepGraph {
 
                     required_vars.swap_remove(var);
 
-                    let dep_part_id = PartId::Export(export.as_str().into());
                     let specifiers = vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
                         local: var.clone().into(),
@@ -485,10 +478,7 @@ impl DepGraph {
                         is_type_only: false,
                     })];
 
-                    part_deps
-                        .entry(ix as u32)
-                        .or_default()
-                        .push(dep_part_id.clone());
+                    part_deps.entry(ix as u32).or_default().push((dep, true));
 
                     chunk
                         .body
@@ -497,7 +487,7 @@ impl DepGraph {
                             specifiers,
                             src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                             type_only: false,
-                            with: Some(Box::new(create_turbopack_part_id_assert(dep_part_id))),
+                            with: Some(Box::new(create_turbopack_part_id_assert(dep, true))),
                             phase: Default::default(),
                         })));
                 }
@@ -537,7 +527,7 @@ impl DepGraph {
                             part_deps
                                 .entry(ix as u32)
                                 .or_default()
-                                .push(PartId::Internal(*import_dep, true));
+                                .push((*import_dep, true));
 
                             chunk.body.push(ModuleItem::ModuleDecl(ModuleDecl::Import(
                                 ImportDecl {
@@ -546,7 +536,8 @@ impl DepGraph {
                                     src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                                     type_only: false,
                                     with: Some(Box::new(create_turbopack_part_id_assert(
-                                        PartId::Internal(*import_dep, true),
+                                        *import_dep,
+                                        true,
                                     ))),
                                     phase: Default::default(),
                                 },
@@ -581,10 +572,7 @@ impl DepGraph {
                     is_type_only: false,
                 })];
 
-                part_deps
-                    .entry(ix as u32)
-                    .or_default()
-                    .push(PartId::Internal(dep, false));
+                part_deps.entry(ix as u32).or_default().push((dep, false));
 
                 chunk
                     .body
@@ -593,9 +581,7 @@ impl DepGraph {
                         specifiers,
                         src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                         type_only: false,
-                        with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
-                            dep, false,
-                        )))),
+                        with: Some(Box::new(create_turbopack_part_id_assert(dep, false))),
                         phase: Default::default(),
                     })));
             }
@@ -613,10 +599,7 @@ impl DepGraph {
                     continue;
                 }
 
-                part_deps
-                    .entry(ix as u32)
-                    .or_default()
-                    .push(PartId::Internal(dep, true));
+                part_deps.entry(ix as u32).or_default().push((dep, true));
 
                 chunk
                     .body
@@ -625,9 +608,7 @@ impl DepGraph {
                         specifiers: vec![],
                         src: Box::new(TURBOPACK_PART_IMPORT_SOURCE.into()),
                         type_only: false,
-                        with: Some(Box::new(create_turbopack_part_id_assert(PartId::Internal(
-                            dep, true,
-                        )))),
+                        with: Some(Box::new(create_turbopack_part_id_assert(dep, true))),
                         phase: Default::default(),
                     })));
             }
@@ -1646,54 +1627,29 @@ impl DepGraph {
 
 const ASSERT_CHUNK_KEY: &str = "__turbopack_part__";
 
-#[derive(Debug, Clone)]
-pub(crate) enum PartId {
-    ModuleEvaluation,
-    Exports,
-    Export(RcStr),
-    /// `(part_id, is_for_eval)`
-    Internal(u32, bool),
-}
-
-pub(crate) fn create_turbopack_part_id_assert(dep: PartId) -> ObjectLit {
+pub(crate) fn create_turbopack_part_id_assert(dep: u32, is_for_eval: bool) -> ObjectLit {
     // We can't use quote! as `with` is not standard yet
     ObjectLit {
         span: DUMMY_SP,
         props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
             key: PropName::Ident(IdentName::new(ASSERT_CHUNK_KEY.into(), DUMMY_SP)),
-            value: match dep {
-                PartId::ModuleEvaluation => "module evaluation".into(),
-                PartId::Exports => "exports".into(),
-                PartId::Export(e) => format!("export {e}").into(),
-                PartId::Internal(dep, is_for_eval) => {
-                    let v = dep as f64;
-                    if is_for_eval { v } else { -v }
-                }
-                .into(),
+            value: {
+                let v = dep as f64;
+                if is_for_eval { v } else { -v }.into()
             },
         })))],
     }
 }
 
-pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<PartId> {
+pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<(u32, bool)> {
     asserts.props.iter().find_map(|prop| match prop {
         PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
             key: PropName::Ident(key),
             value: box Expr::Lit(Lit::Num(chunk_id)),
-        })) if &*key.sym == ASSERT_CHUNK_KEY => Some(PartId::Internal(
+        })) if &*key.sym == ASSERT_CHUNK_KEY => Some((
             chunk_id.value.abs() as u32,
             chunk_id.value.is_sign_positive(),
         )),
-
-        PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
-            key: PropName::Ident(key),
-            value: box Expr::Lit(Lit::Str(s)),
-        })) if &*key.sym == ASSERT_CHUNK_KEY => match &*s.value {
-            "module evaluation" => Some(PartId::ModuleEvaluation),
-            "exports" => Some(PartId::Exports),
-            _ if s.value.starts_with("export ") => Some(PartId::Export(s.value[7..].into())),
-            _ => None,
-        },
         _ => None,
     })
 }

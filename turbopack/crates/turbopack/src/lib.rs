@@ -58,8 +58,9 @@ use turbopack_ecmascript::{
     references::external_module::{
         CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
     },
+    rename::module::EcmascriptModuleRenameModule,
     side_effect_optimization::locals::module::EcmascriptModuleLocalsModule,
-    tree_shake::asset::EcmascriptModulePartAsset,
+    tree_shake::part::module::EcmascriptModulePartAsset,
 };
 use turbopack_json::JsonModuleAsset;
 pub use turbopack_resolve::{resolve::resolve_options, resolve_options_context};
@@ -177,10 +178,9 @@ async fn apply_module_type(
                                     ModulePart::Export(_) => {
                                         apply_reexport_tree_shaking(
                                             Vc::upcast(
-                                                EcmascriptModuleFacadeModule::new(
-                                                    Vc::upcast(*module),
-                                                    ModulePart::facade(),
-                                                )
+                                                EcmascriptModuleFacadeModule::new(Vc::upcast(
+                                                    *module,
+                                                ))
                                                 .resolve()
                                                 .await?,
                                             ),
@@ -195,10 +195,7 @@ async fn apply_module_type(
                                     ),
                                 }
                             } else {
-                                Vc::upcast(EcmascriptModuleFacadeModule::new(
-                                    Vc::upcast(*module),
-                                    ModulePart::facade(),
-                                ))
+                                Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
                             }
                         } else {
                             Vc::upcast(*module)
@@ -273,13 +270,13 @@ async fn apply_reexport_tree_shaking(
             if *new_export == *export {
                 Vc::upcast(**final_module)
             } else {
-                Vc::upcast(EcmascriptModuleFacadeModule::new(
+                Vc::upcast(EcmascriptModuleRenameModule::new(
                     **final_module,
                     ModulePart::renamed_export(new_export.clone(), export.clone()),
                 ))
             }
         } else {
-            Vc::upcast(EcmascriptModuleFacadeModule::new(
+            Vc::upcast(EcmascriptModuleRenameModule::new(
                 **final_module,
                 ModulePart::renamed_namespace(export.clone()),
             ))

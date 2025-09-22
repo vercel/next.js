@@ -11,10 +11,6 @@ use turbopack_core::{
     resolve::{ExportUsage, ModulePart},
 };
 
-use super::{
-    SplitResult, chunk_item::EcmascriptModulePartChunkItem, get_part_id, part_of_module,
-    split_module,
-};
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptModuleAsset,
     EcmascriptModuleAssetType, EcmascriptModuleContent, EcmascriptModuleContentOptions,
@@ -24,8 +20,11 @@ use crate::{
     references::{
         FollowExportsResult, analyse_ecmascript_module, esm::FoundExportType, follow_reexports,
     },
-    side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
-    tree_shake::{Key, side_effect_module::SideEffectsModule},
+    rename::module::EcmascriptModuleRenameModule,
+    tree_shake::{
+        Key, SplitResult, get_part_id, part::chunk_item::EcmascriptModulePartChunkItem,
+        part_of_module, side_effects::module::SideEffectsModule, split_module,
+    },
 };
 
 /// A reference to part of an ES module.
@@ -42,6 +41,7 @@ impl EcmascriptParsable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn failsafe_parse(&self) -> Result<Vc<ParseResult>> {
         let split_data = split_module(*self.full_module);
+        assert_ne!(self.part, ModulePart::Facade);
         Ok(part_of_module(split_data, self.part.clone()))
     }
     #[turbo_tasks::function]
@@ -188,7 +188,7 @@ impl EcmascriptModulePartAsset {
                         *final_module
                     } else {
                         ResolvedVc::upcast(
-                            EcmascriptModuleFacadeModule::new(
+                            EcmascriptModuleRenameModule::new(
                                 **final_module,
                                 ModulePart::renamed_export(new_export.clone(), export.clone()),
                             )
@@ -198,7 +198,7 @@ impl EcmascriptModulePartAsset {
                     }
                 } else {
                     ResolvedVc::upcast(
-                        EcmascriptModuleFacadeModule::new(
+                        EcmascriptModuleRenameModule::new(
                             **final_module,
                             ModulePart::renamed_namespace(export.clone()),
                         )

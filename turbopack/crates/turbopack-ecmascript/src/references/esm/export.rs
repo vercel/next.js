@@ -34,7 +34,7 @@ use crate::{
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
-    tree_shake::asset::EcmascriptModulePartAsset,
+    tree_shake::part::module::EcmascriptModulePartAsset,
     utils::module_id_to_lit,
 };
 

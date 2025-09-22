@@ -25,6 +25,7 @@ use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     references::esm::base::{ReferencedAsset, ReferencedAssetIdent},
+    rename::module::EcmascriptModuleRenameModule,
     runtime_functions::TURBOPACK_IMPORT,
     utils::module_id_to_lit,
 };
@@ -111,11 +112,15 @@ impl ModuleReference for EcmascriptModulePartReference {
                         };
                         Vc::upcast::<Box<dyn Module>>(EcmascriptModuleLocalsModule::new(*module))
                     }
-                    ModulePart::Facade
-                    | ModulePart::RenamedExport { .. }
-                    | ModulePart::RenamedNamespace { .. } => Vc::upcast(
-                        EcmascriptModuleFacadeModule::new(*self.module, self.part.clone()),
-                    ),
+                    ModulePart::Facade => {
+                        Vc::upcast(EcmascriptModuleFacadeModule::new(*self.module))
+                    }
+                    ModulePart::RenamedExport { .. } | ModulePart::RenamedNamespace { .. } => {
+                        Vc::upcast(EcmascriptModuleRenameModule::new(
+                            *self.module,
+                            self.part.clone(),
+                        ))
+                    }
                     _ => {
                         bail!(
                             "Unexpected ModulePart \"{}\" for EcmascriptModulePartReference",

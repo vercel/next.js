@@ -22,6 +22,7 @@ pub mod minify;
 pub mod parse;
 mod path_visitor;
 pub mod references;
+pub mod rename;
 pub mod runtime_functions;
 pub mod side_effect_optimization;
 pub mod source_map;
