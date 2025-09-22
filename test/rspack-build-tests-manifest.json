@@ -382,9 +382,7 @@
   },
   "test/e2e/app-dir/app-alias/app-alias.test.ts": {
     "passed": [
-      "app-dir alias should generate app-build-manifest correctly",
       "app-dir alias should handle typescript paths alias correctly",
-      "app-dir alias should not contain installed react/react-dom version in client chunks",
       "app-dir alias should resolve css imports from outside with src folder presented"
     ],
     "failed": [],
@@ -1536,7 +1534,6 @@
       "app dir - basic should have correct preferredRegion values in manifest",
       "app dir - basic should have correct searchParams and params (client)",
       "app dir - basic should have correct searchParams and params (server)",
-      "app dir - basic should have correct size in build output",
       "app dir - basic should include document html and body",
       "app dir - basic should include layouts when no direct parent layout",
       "app dir - basic should include parent document when no direct parent layout",
@@ -1699,13 +1696,6 @@
     "passed": [
       "RSC binary serialization should correctly encode/decode binaries and hydrate"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/build-size/index.test.ts": {
-    "passed": ["app-dir build size should have correct size in build output"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -10248,6 +10238,13 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/turbopack-import-type-bytes/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["turbopack-import-type-bytes support import type: bytes"],
     "flakey": [],
     "runtimeError": false
   },
@@ -21085,11 +21082,10 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm"
-    ],
-    "failed": [
+      "pnpm support should build with dependencies installed via pnpm",
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
