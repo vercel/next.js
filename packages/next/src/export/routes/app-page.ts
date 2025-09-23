@@ -84,7 +84,6 @@ export async function exportAppPage(
       fallbackRouteParams,
       renderOpts,
       undefined,
-      false,
       sharedContext
     )
 

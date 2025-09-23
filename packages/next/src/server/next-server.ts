@@ -711,7 +711,6 @@ export default class NextNodeServer extends BaseServer<
           null,
           renderOpts,
           this.getServerComponentsHmrCache(),
-          false,
           {
             buildId: this.buildId,
           }

@@ -261,7 +261,6 @@ export type AppRenderContext = {
 }
 
 interface ParseRequestHeadersOptions {
-  readonly isDevWarmup: undefined | boolean
   readonly isRoutePPREnabled: boolean
   readonly previewModeId: string | undefined
 }
@@ -287,7 +286,6 @@ interface ParsedRequestHeaders {
   readonly isPrefetchRequest: boolean
   readonly isRuntimePrefetchRequest: boolean
   readonly isRouteTreePrefetchRequest: boolean
-  readonly isDevWarmupRequest: boolean
   readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
   readonly nonce: string | undefined
@@ -300,20 +298,17 @@ function parseRequestHeaders(
   headers: IncomingHttpHeaders,
   options: ParseRequestHeadersOptions
 ): ParsedRequestHeaders {
-  const isDevWarmupRequest = options.isDevWarmup === true
-
   // dev warmup requests are treated as prefetch RSC requests
   // runtime prefetch requests are *not* treated as prefetch requests
   // (TODO: this is confusing, we should refactor this to express this better)
-  const isPrefetchRequest =
-    isDevWarmupRequest || headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
+  const isPrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '1'
 
   const isRuntimePrefetchRequest = headers[NEXT_ROUTER_PREFETCH_HEADER] === '2'
 
   const isHmrRefresh = headers[NEXT_HMR_REFRESH_HEADER] !== undefined
 
   // dev warmup requests are treated as prefetch RSC requests
-  const isRSCRequest = isDevWarmupRequest || headers[RSC_HEADER] !== undefined
+  const isRSCRequest = headers[RSC_HEADER] !== undefined
 
   const shouldProvideFlightRouterState =
     isRSCRequest && (!isPrefetchRequest || !options.isRoutePPREnabled)
@@ -365,7 +360,6 @@ function parseRequestHeaders(
     isRouteTreePrefetchRequest,
     isHmrRefresh,
     isRSCRequest,
-    isDevWarmupRequest,
     nonce,
     previouslyRevalidatedTags,
     requestId,
@@ -973,129 +967,6 @@ async function finalRuntimeServerPrerender(
 }
 
 /**
- * Performs a "warmup" render of the RSC payload for a given route. This function is called by the server
- * prior to an actual render request in Dev mode only. It's purpose is to fill caches so the actual render
- * can accurately log activity in the right render context (Prerender vs Render).
- *
- * At the moment this implementation is mostly a fork of generateDynamicFlightRenderResult
- */
-async function warmupDevRender(
-  req: BaseNextRequest,
-  ctx: AppRenderContext
-): Promise<RenderResult> {
-  const {
-    clientReferenceManifest,
-    componentMod: ComponentMod,
-    getDynamicParamFromSegment,
-    implicitTags,
-    renderOpts,
-    workStore,
-  } = ctx
-
-  const {
-    allowEmptyStaticShell = false,
-    dev,
-    onInstrumentationRequestError,
-  } = renderOpts
-
-  if (!dev) {
-    throw new InvariantError(
-      'generateDynamicFlightRenderResult should never be called in `next start` mode.'
-    )
-  }
-
-  const rootParams = getRootParams(
-    ComponentMod.routeModule.userland.loaderTree,
-    getDynamicParamFromSegment
-  )
-
-  function onFlightDataRenderError(err: DigestedError) {
-    return onInstrumentationRequestError?.(
-      err,
-      req,
-      createErrorContext(ctx, 'react-server-components-payload')
-    )
-  }
-  const onError = createFlightReactServerErrorHandler(
-    true,
-    onFlightDataRenderError
-  )
-
-  // We're doing a dev warmup, so we should create a new resume data cache so
-  // we can fill it.
-  const prerenderResumeDataCache = createPrerenderResumeDataCache()
-
-  const renderController = new AbortController()
-  const prerenderController = new AbortController()
-  const reactController = new AbortController()
-  const cacheSignal = new CacheSignal()
-
-  const prerenderStore: PrerenderStore = {
-    type: 'prerender',
-    phase: 'render',
-    rootParams,
-    implicitTags,
-    renderSignal: renderController.signal,
-    controller: prerenderController,
-    cacheSignal,
-    dynamicTracking: null,
-    allowEmptyStaticShell,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [],
-    prerenderResumeDataCache,
-    renderResumeDataCache: null,
-    hmrRefreshHash: req.cookies[NEXT_HMR_REFRESH_HASH_COOKIE],
-    captureOwnerStack: ComponentMod.captureOwnerStack,
-    // warmup is a dev only feature and no fallback params are used in the
-    // primary render which is static. We only use a prerender store here to
-    // allow the warmup to halt on Request data APIs and fetches.
-    fallbackRouteParams: null,
-  }
-
-  const rscPayload = await workUnitAsyncStorage.run(
-    prerenderStore,
-    generateDynamicRSCPayload,
-    ctx
-  )
-
-  // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
-  // which contains the subset React.
-  workUnitAsyncStorage.run(
-    prerenderStore,
-    ComponentMod.renderToReadableStream,
-    rscPayload,
-    clientReferenceManifest.clientModules,
-    {
-      filterStackFrame,
-      onError,
-      signal: renderController.signal,
-    }
-  )
-
-  // Wait for all caches to be finished filling and for async imports to resolve
-  trackPendingModules(cacheSignal)
-  await cacheSignal.cacheReady()
-
-  // We unset the cache so any late over-run renders aren't able to write into this cache
-  prerenderStore.prerenderResumeDataCache = null
-  // Abort the render
-  reactController.abort()
-  renderController.abort()
-
-  // We don't really want to return a result here but the stack of functions
-  // that calls into renderToHTML... expects a result. We should refactor this to
-  // lift the warmup pathway outside of renderToHTML... but for now this suffices
-  return new FlightRenderResult('', {
-    fetchMetrics: workStore.fetchMetrics,
-    renderResumeDataCache: createRenderResumeDataCache(
-      prerenderResumeDataCache
-    ),
-  })
-}
-
-/**
  * Crawlers will inadvertently think the canonicalUrl in the RSC payload should be crawled
  * when our intention is to just seed the router state with the current URL.
  * This function splits up the pathname so that we can later join it on
@@ -1677,7 +1548,6 @@ async function renderToHTMLOrFlightImpl(
     isPrefetchRequest,
     isRuntimePrefetchRequest,
     isRSCRequest,
-    isDevWarmupRequest,
     isHmrRefresh,
     nonce,
   } = parsedRequestHeaders
@@ -1875,9 +1745,7 @@ async function renderToHTMLOrFlightImpl(
       })
     }
 
-    if (isDevWarmupRequest) {
-      return warmupDevRender(req, ctx)
-    } else if (isRSCRequest) {
+    if (isRSCRequest) {
       if (isRuntimePrefetchRequest) {
         return generateRuntimePrefetchResult(req, res, ctx, requestStore)
       } else {
@@ -2006,7 +1874,6 @@ export type AppPageRender = (
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   renderOpts: RenderOpts,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
-  isDevWarmup: boolean,
   sharedContext: AppSharedContext
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
@@ -2018,7 +1885,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
   fallbackRouteParams,
   renderOpts,
   serverComponentsHmrCache,
-  isDevWarmup,
   sharedContext
 ) => {
   if (!req.url) {
@@ -2030,7 +1896,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
   // We read these values from the request object as, in certain cases,
   // base-server will strip them to opt into different rendering behavior.
   const parsedRequestHeaders = parseRequestHeaders(req.headers, {
-    isDevWarmup,
     isRoutePPREnabled: renderOpts.experimental.isRoutePPREnabled === true,
     previewModeId: renderOpts.previewProps?.previewModeId,
   })

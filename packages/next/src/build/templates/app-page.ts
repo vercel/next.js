@@ -402,26 +402,6 @@ export async function handler(
       const nextReq = new NodeNextRequest(req)
       const nextRes = new NodeNextResponse(res)
 
-      // TODO: adapt for putting the RDC inside the postponed data
-      // If we're in dev, and this isn't a prefetch or a server action,
-      // we should seed the resume data cache.
-      if (process.env.NODE_ENV === 'development') {
-        if (
-          nextConfig.experimental.cacheComponents &&
-          !isPrefetchRSCRequest &&
-          !context.renderOpts.isPossibleServerAction
-        ) {
-          const warmup = await routeModule.warmup(nextReq, nextRes, context)
-
-          // If the warmup is successful, we should use the resume data
-          // cache from the warmup.
-          if (warmup.metadata.renderResumeDataCache) {
-            context.renderOpts.renderResumeDataCache =
-              warmup.metadata.renderResumeDataCache
-          }
-        }
-      }
-
       return routeModule.render(nextReq, nextRes, context).finally(() => {
         if (!span) return
 
