@@ -142,8 +142,7 @@ pub async fn get_babel_loader_rules(
 
     // Create extended react compiler options with environment.enableNameAnonymousFunctions if in
     // development
-    let react_compiler_options = if let Some(ref opts) = configured_react_compiler_options.as_ref()
-    {
+    let react_compiler_options = if let Some(opts) = configured_react_compiler_options.as_ref() {
         let environment =
             if builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Development) {
                 Some(ReactCompilerEnvironmentConfig {
@@ -154,7 +153,7 @@ pub async fn get_babel_loader_rules(
             };
 
         Some(ResolvedReactCompilerOptions {
-            inner: (**opts).clone(),
+            inner: (*opts),
             environment,
         })
     } else {
