@@ -110,13 +110,14 @@ export async function turbopackBuild(): Promise<{
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
 
-    let hasPagesEntries = false
-    entrypoints.routes.values().forEach((route) => {
-      // if any pages router route exists, we are not in app-dir-only mode
-      if (route.type === 'page' || route.type === 'page-api') {
-        hasPagesEntries = true
+    const hasPagesEntries = Array.from(entrypoints.routes.values()).some(
+      (route) => {
+        if (route.type === 'page' || route.type === 'page-api') {
+          return true
+        }
+        return false
       }
-    })
+    )
     // If there's no pages entries, then we are in app-dir-only mode
     if (!hasPagesEntries) {
       appDirOnly = true
