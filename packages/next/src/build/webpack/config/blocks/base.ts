@@ -47,7 +47,10 @@ export const base = curry(function base(
       // Enable browser sourcemaps:
       (ctx.productionBrowserSourceMaps && ctx.isClient)
     ) {
-      config.devtool = 'source-map'
+      // Use hidden-source-map if hiddenSourceMaps is enabled for client builds
+      config.devtool = ctx.isClient && ctx.hiddenSourceMaps 
+        ? 'hidden-source-map' 
+        : 'source-map'
     } else {
       config.devtool = false
     }

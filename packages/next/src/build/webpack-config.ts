@@ -2312,6 +2312,7 @@ export default async function getBaseWebpackConfig(
         ? undefined
         : config.devIndicators.position,
     productionBrowserSourceMaps: !!config.productionBrowserSourceMaps,
+    hiddenSourceMaps: !!config.hiddenSourceMaps,
     reactStrictMode: config.reactStrictMode,
     optimizeCss: config.experimental.optimizeCss,
     nextScriptWorkers: config.experimental.nextScriptWorkers,
@@ -2459,6 +2460,7 @@ export default async function getBaseWebpackConfig(
     assetPrefix: config.assetPrefix || '',
     sassOptions: config.sassOptions,
     productionBrowserSourceMaps: config.productionBrowserSourceMaps,
+    hiddenSourceMaps: config.hiddenSourceMaps,
     future: (config as any).future,
     experimental: config.experimental,
     disableStaticImages: config.images.disableStaticImages,

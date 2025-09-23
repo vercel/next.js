@@ -1095,6 +1095,13 @@ export interface NextConfig {
   productionBrowserSourceMaps?: boolean
 
   /**
+   * Generate hidden source maps for production browser builds.
+   * When enabled, source maps are generated without sourceMappingURL comments.
+   * Only takes effect when productionBrowserSourceMaps is true.
+   */
+  hiddenSourceMaps?: boolean
+
+  /**
    * Enable react profiling in production
    *
    */
@@ -1352,6 +1359,7 @@ export const defaultConfig = Object.freeze({
   trailingSlash: false,
   i18n: null,
   productionBrowserSourceMaps: false,
+  hiddenSourceMaps: false,
   excludeDefaultMomentLocales: true,
   reactProductionProfiling: false,
   reactStrictMode: null,

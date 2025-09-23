@@ -21,6 +21,7 @@ export async function buildConfiguration(
     assetPrefix,
     sassOptions,
     productionBrowserSourceMaps,
+    hiddenSourceMaps,
     future,
     transpilePackages,
     experimental,
@@ -38,6 +39,7 @@ export async function buildConfiguration(
     assetPrefix: string
     sassOptions: any
     productionBrowserSourceMaps: boolean
+    hiddenSourceMaps: boolean
     transpilePackages: NextConfigComplete['transpilePackages']
     // @ts-expect-error TODO: remove any
     future: NextConfigComplete['future']
@@ -64,6 +66,7 @@ export async function buildConfiguration(
       : '',
     sassOptions,
     productionBrowserSourceMaps,
+    hiddenSourceMaps,
     transpilePackages,
     future,
     experimental,
