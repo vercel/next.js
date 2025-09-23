@@ -176,31 +176,27 @@ export async function GET(_, ctx) {
     const { __metadata_id__, ...rest } = params
     return rest
   })
-  
-  ${/* we need a dev assertion for id since dynamicParams=false won't work well in dev */ ''}
-  if (process.env.NODE_ENV !== 'production') {
-    const restParams = await restParamsPromise
-    const __metadata_id__ = await idPromise
-    const imageMetadata = await generateImageMetadata({ params: restParams })
-    const id = imageMetadata.find((item) => {
-      if (item?.id == null) {
-        throw new Error('id property is required for every item returned from generateImageMetadata')
-      }
 
-      return item.id.toString() === __metadata_id__
-    })?.id
-
-    if (id == null) {
-      return new NextResponse('Not Found', {
-        status: 404,
-      })
+  const restParams = await restParamsPromise
+  const __metadata_id__ = await idPromise
+  const imageMetadata = await generateImageMetadata({ params: restParams })
+  const id = imageMetadata.find((item) => {
+    if (item?.id == null) {
+      throw new Error('id property is required for every item returned from generateImageMetadata')
     }
+
+    return item.id.toString() === __metadata_id__
+  })?.id
+
+  if (id == null) {
+    return new NextResponse('Not Found', {
+      status: 404,
+    })
   }
 
   return handler({ params: restParamsPromise, id: idPromise })
 }
 
-export const dynamicParams = false
 export async function generateStaticParams({ params }) {
   const imageMetadata = await generateImageMetadata({ params })
   const staticParams = []
@@ -303,26 +299,24 @@ export async function GET(_, ctx) {
   const paramsPromise = ctx.params
   const idPromise = paramsPromise.then(params => params?.__metadata_id__)
 
-  if (process.env.NODE_ENV !== 'production') {
-    const id = await idPromise
-    const hasXmlExtension = id ? id.endsWith('.xml') : false
-    const sitemaps = await generateSitemaps()
-    let foundId
-    for (const item of sitemaps) {
-      if (item?.id == null) {
-        throw new Error('id property is required for every item returned from generateSitemaps')
-      }
-      
-      const baseId = id && hasXmlExtension ? id.slice(0, -4) : undefined
-      if (item.id.toString() === baseId) {
-        foundId = item.id
-      }
+  const id = await idPromise
+  const hasXmlExtension = id ? id.endsWith('.xml') : false
+  const sitemaps = await generateSitemaps()
+  let foundId
+  for (const item of sitemaps) {
+    if (item?.id == null) {
+      throw new Error('id property is required for every item returned from generateSitemaps')
     }
-    if (foundId == null) {
-      return new NextResponse('Not Found', {
-        status: 404,
-      })
+
+    const baseId = id && hasXmlExtension ? id.slice(0, -4) : undefined
+    if (item.id.toString() === baseId) {
+      foundId = item.id
     }
+  }
+  if (foundId == null) {
+    return new NextResponse('Not Found', {
+      status: 404,
+    })
   }
 
   const targetIdPromise = idPromise.then(id => {
@@ -340,7 +334,6 @@ export async function GET(_, ctx) {
   })
 }
 
-export const dynamicParams = false
 export async function generateStaticParams() {
   const sitemaps = await generateSitemaps()
   const params = []
