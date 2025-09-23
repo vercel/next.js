@@ -809,5 +809,14 @@
   "808": "Invalid binary HMR message: insufficient data (expected %s bytes, got %s)",
   "809": "Invalid binary HMR message of type %s",
   "810": "React debug channel stream error",
-  "811": "unsupported transformMode in loader options: %s"
+  "811": "unsupported transformMode in loader options: %s",
+  "812": "`cacheLife()` is only available with the `experimental.cacheComponents` config.",
+  "813": "`cacheTag()` is only available with the `experimental.cacheComponents` config.",
+  "814": "Invalid `cacheLife()` option. Either pass a profile name or object.",
+  "815": "Unknown \\`cacheLife()\\` profile \"%s\" is not configured in next.config.js\\nmodule.exports = {\n  experimental: {\n    cacheLife: {\n      \"%s\": ...\\n    }\n  }\n}",
+  "816": "Unknown \\`cacheLife()\\` profile \"%s\" is not configured in next.config.js\\nDid you mean \"%s\" without the spaces?",
+  "817": "`cacheLifeProfiles` should always be provided.",
+  "818": "`cacheLife()` can only be called inside a \"use cache\" function.",
+  "819": "`cacheTag()` can only be called inside a \"use cache\" function.",
+  "820": "`cacheLife()` can only be called during App Router rendering at the moment."
 }
