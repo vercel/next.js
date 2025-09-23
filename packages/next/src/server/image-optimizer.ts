@@ -323,7 +323,7 @@ export class ImageOptimizerCache {
       deviceSizes = [],
       imageSizes = [],
       domains = [],
-      minimumCacheTTL = 60,
+      minimumCacheTTL = 86400,
       formats = ['image/webp'],
     } = imageData
     const remotePatterns = nextConfig.images?.remotePatterns || []
