@@ -199,18 +199,23 @@ impl PagesProject {
                         .to_resolved()
                         .await?,
                     ),
-                    data_endpoint: ResolvedVc::upcast(
-                        PageEndpoint::new(
-                            PageEndpointType::Data,
-                            self,
-                            pathname,
-                            original_name,
-                            page,
-                            pages_structure,
-                        )
-                        .to_resolved()
-                        .await?,
-                    ),
+                    // The data endpoint is only needed in development mode to support HMR
+                    data_endpoint: if self.project().next_mode().await?.is_development() {
+                        Some(ResolvedVc::upcast(
+                            PageEndpoint::new(
+                                PageEndpointType::Data,
+                                self,
+                                pathname,
+                                original_name,
+                                page,
+                                pages_structure,
+                            )
+                            .to_resolved()
+                            .await?,
+                        ))
+                    } else {
+                        None
+                    },
                 })
             })
         };
@@ -653,7 +658,7 @@ impl PageEndpoint {
             if self.ty == PageEndpointType::Data {
                 rcstr!("?server-data")
             } else {
-                RcStr::default()
+                rcstr!("")
             },
         )))
     }
@@ -719,8 +724,8 @@ impl PageEndpoint {
         let this = self.await?;
         let project = this.pages_project.project();
 
-        let should_trace = project.next_mode().await?.is_production();
         if *project.per_page_module_graph().await? {
+            let should_trace = project.next_mode().await?.is_production();
             let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
             // Implements layout segment optimization to compute a graph "chain" for document, app,
             // page
