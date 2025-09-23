@@ -12,15 +12,15 @@ describe('persistent-caching', () => {
     startCommand: isNextDev ? 'npm exec next dev' : 'npm exec next start',
   })
 
+  if (skipped) {
+    return
+  }
+
   beforeAll(() => {
     // We can skip the dev watch delay since this is not an HMR test
     ;(next as any).handleDevWatchDelayBeforeChange = () => {}
     ;(next as any).handleDevWatchDelayAfterChange = () => {}
   })
-
-  if (skipped) {
-    return
-  }
 
   async function restartCycle() {
     await stop()
