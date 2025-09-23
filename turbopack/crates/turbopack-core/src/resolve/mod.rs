@@ -1464,7 +1464,6 @@ pub async fn resolve_raw(
 
     let mut results = Vec::new();
 
-    let lookup_dir_str = lookup_dir.value_to_string().await?;
     let pat = path.await?;
     if let Some(pat) = pat
         .filter_could_match("/ROOT/")
@@ -1483,7 +1482,7 @@ pub async fn resolve_raw(
             println!(
                 "WARN: resolving abs pattern {} in {} leads to {} results",
                 path_str,
-                lookup_dir_str,
+                lookup_dir.value_to_string().await?,
                 matches.len()
             );
         } else {
@@ -1496,12 +1495,13 @@ pub async fn resolve_raw(
     }
 
     {
-        let matches = read_matches(lookup_dir, rcstr!(""), force_in_lookup_dir, path).await?;
+        let matches =
+            read_matches(lookup_dir.clone(), rcstr!(""), force_in_lookup_dir, path).await?;
         if matches.len() > 10000 {
             println!(
                 "WARN: resolving pattern {} in {} leads to {} results",
                 pat.describe_as_string(),
-                lookup_dir_str,
+                lookup_dir.value_to_string().await?,
                 matches.len()
             );
         }
