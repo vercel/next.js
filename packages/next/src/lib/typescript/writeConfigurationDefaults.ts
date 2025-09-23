@@ -150,7 +150,9 @@ export function getRequiredConfiguration(
       const moduleMap: Record<string, import('typescript').ModuleKind> = {
         esnext: typescript.ModuleKind.ESNext,
         es2020: typescript.ModuleKind.ES2020,
-        preserve: typescript.ModuleKind.Preserve,
+        ...(typescript.ModuleKind.Preserve !== undefined
+          ? { preserve: typescript.ModuleKind.Preserve }
+          : {}),
         nodenext: typescript.ModuleKind.NodeNext,
         node16: typescript.ModuleKind.Node16,
         commonjs: typescript.ModuleKind.CommonJS,
