@@ -526,13 +526,13 @@ impl<B: Backend + 'static> TurboTasks<B> {
     ) -> Result<T> {
         let (tx, rx) = tokio::sync::oneshot::channel();
         self.spawn_once_task(async move {
-            let result = future.await?;
+            let result = future.await;
             tx.send(result)
                 .map_err(|_| anyhow!("unable to send result"))?;
             Ok(Completion::new())
         });
 
-        Ok(rx.await?)
+        rx.await?
     }
 
     pub async fn run<T: TraceRawVcs + Send + 'static>(
