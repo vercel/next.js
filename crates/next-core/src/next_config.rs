@@ -734,33 +734,23 @@ pub enum MdxRsOptions {
 }
 
 #[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum ReactCompilerCompilationMode {
+    #[default]
     Infer,
     Annotation,
     All,
 }
 
-impl Default for ReactCompilerCompilationMode {
-    fn default() -> Self {
-        Self::Infer
-    }
-}
-
 #[turbo_tasks::value(shared, operation)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ReactCompilerPanicThreshold {
+    #[default]
     None,
     CriticalErrors,
     AllErrors,
-}
-
-impl Default for ReactCompilerPanicThreshold {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 /// Subset of react compiler options
