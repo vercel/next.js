@@ -33,13 +33,6 @@ import type { SetupOpts } from '../../../server/lib/router-utils/setup-dev-bundl
 import { deleteCache } from '../../../server/dev/require-cache'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
-import {
-  type ClientBuildManifest,
-  normalizeRewritesForBuildManifest,
-  srcEmptySsgManifest,
-  processRoute,
-  createEdgeRuntimeManifest,
-} from '../../../build/webpack/plugins/build-manifest-plugin'
 import getAssetPathFromRoute from '../router/utils/get-asset-path-from-route'
 import { getEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
@@ -53,6 +46,13 @@ import {
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 import { safePathToRegexp } from '../router/utils/route-match-utils'
 import type { Entrypoints } from '../../../build/swc/types'
+import {
+  normalizeRewritesForBuildManifest,
+  type ClientBuildManifest,
+  srcEmptySsgManifest,
+  processRoute,
+  createEdgeRuntimeManifest,
+} from '../../../build/webpack/plugins/build-manifest-plugin-utils'
 
 interface InstrumentationDefinition {
   files: string[]

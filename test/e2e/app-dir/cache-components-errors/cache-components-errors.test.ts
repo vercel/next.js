@@ -664,7 +664,7 @@ describe('Cache Components Errors', () => {
             } else {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
-                   at a (bundler:///app/dynamic-root/indirection.tsx:7:34)
+                   at <unknown> (bundler:///app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -2080,7 +2080,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (bundler:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at <unknown> (bundler:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2210,12 +2210,9 @@ describe('Cache Components Errors', () => {
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense
                      at a (<anonymous>)
                      at main (<anonymous>)
-                     at b (<anonymous>)
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at c (<anonymous>)
-                     at d (<anonymous>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2389,7 +2386,7 @@ describe('Cache Components Errors', () => {
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (bundler:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at <unknown> (bundler:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -3398,63 +3395,6 @@ describe('Cache Components Errors', () => {
               '/use-cache-private-connection',
               { pushErrorAsConsoleLog: true }
             )
-
-            expect(await browser.elementById('private').text()).toBe('Private')
-
-            expect(await browser.log()).not.toContainEqual(
-              expect.objectContaining({ source: 'error' })
-            )
-
-            expect(next.cliOutput.slice(cliOutputLength)).not.toInclude('Error')
-          })
-        }
-      })
-
-      describe('with `headers()`', () => {
-        if (isNextDev) {
-          it('should show a redbox error', async () => {
-            const browser = await next.browser('/use-cache-private-headers')
-
-            if (isTurbopack) {
-              await expect(browser).toDisplayRedbox(`
-               {
-                 "description": "Route /use-cache-private-headers used "headers" inside "use cache: private". Accessing "headers" inside a private cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-private-headers/page.tsx (25:18) @ Private
-               > 25 |     await headers()
-                    |                  ^",
-                 "stack": [
-                   "Private app/use-cache-private-headers/page.tsx (25:18)",
-                 ],
-               }
-              `)
-            } else {
-              await expect(browser).toDisplayRedbox(`
-               {
-                 "description": "Route /use-cache-private-headers used "headers" inside "use cache: private". Accessing "headers" inside a private cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-private-headers/page.tsx (25:18) @ Private
-               > 25 |     await headers()
-                    |                  ^",
-                 "stack": [
-                   "Private app/use-cache-private-headers/page.tsx (25:18)",
-                 ],
-               }
-              `)
-            }
-          })
-        } else {
-          // TODO: With prefetch sentinels this should yield a build error.
-          it('should not fail the build and show no runtime error (caught in userland)', async () => {
-            await prerender('/use-cache-private-headers')
-            await next.start({ skipBuild: true })
-            cliOutputLength = next.cliOutput.length
-
-            const browser = await next.browser('/use-cache-private-headers', {
-              pushErrorAsConsoleLog: true,
-            })
 
             expect(await browser.elementById('private').text()).toBe('Private')
 

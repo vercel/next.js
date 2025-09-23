@@ -20,7 +20,6 @@ import {
   urlQueryToSearchParams,
   assign,
 } from '../shared/lib/router/utils/querystring'
-import { setConfig } from '../shared/lib/runtime-config.external'
 import { getURL, loadGetInitialProps, ST } from '../shared/lib/utils'
 import type { NextWebVitalsMetric, NEXT_DATA } from '../shared/lib/utils'
 import { Portal } from './portal'
@@ -211,12 +210,6 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   // With dynamic assetPrefix it's no longer possible to set assetPrefix at the build time
   // So, this is how we do it in the client side at runtime
   ;(self as any).__next_set_public_path__(`${prefix}/_next/`) //eslint-disable-line
-
-  // Initialize next/config with the environment configuration
-  setConfig({
-    serverRuntimeConfig: {},
-    publicRuntimeConfig: initialData.runtimeConfig || {},
-  })
 
   asPath = getURL()
 

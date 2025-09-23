@@ -4,25 +4,38 @@
 const nextConfig = {
   turbopack: {
     rules: {
-      './app/page.tsx': {
-        loaders: ['./my-loader.js'],
+      './app/**/page.{jsx,tsx}': {
+        loaders: ['./my-timestamp-loader.js'],
       },
-      './app/client/page.tsx': {
+      './app/loader/page.tsx': {
         loaders: ['./my-loader.js'],
       },
       './pages/pages.tsx': {
-        loaders: ['./my-loader.js'],
+        loaders: ['./my-timestamp-loader.js'],
       },
     },
   },
   experimental: {
     turbopackPersistentCaching: true,
   },
-  webpack(config) {
+  env: {
+    NEXT_PUBLIC_CONFIG_ENV: 'hello world',
+  },
+  webpack(config, { dev }) {
     config.module.rules.push({
-      test: /app\/page\.tsx|app\/client\/page\.tsx|pages\/pages\.tsx/,
+      test: /app(?:\/.*)?\/page\.[tj]sx|pages\/pages\.tsx/,
+      use: ['./my-timestamp-loader.js'],
+    })
+    config.module.rules.push({
+      test: /app\/loader(?:\/client)?\/page\.tsx/,
       use: ['./my-loader.js'],
     })
+    if (dev) {
+      // Make webpack consider the build as large change which makes it persistent cache it sooner
+      config.plugins.push((compiler) => {
+        compiler.__extra_delay = true
+      })
+    }
 
     return config
   },

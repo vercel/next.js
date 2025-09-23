@@ -1345,9 +1345,8 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
     }
 
     fn connect_task(&self, task: TaskId) {
-        if let Some(current_task) = current_task_if_available("connecting task") {
-            self.backend.connect_task(task, current_task, self);
-        }
+        self.backend
+            .connect_task(task, current_task_if_available("connecting task"), self);
     }
 
     fn mark_own_task_as_finished(&self, task: TaskId) {

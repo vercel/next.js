@@ -405,7 +405,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraphRef) -> Result<Vc<Chunk
 
         // First, compute the depth for each module in the graph
         let module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = {
-            let mut module_depth = FxHashMap::default();
+            let mut module_depth =
+                FxHashMap::with_capacity_and_hasher(module_count, Default::default());
             graph.traverse_edges_from_entries_bfs(
                 entries.iter().flat_map(|e| e.entries()),
                 |parent, node| {

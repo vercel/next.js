@@ -48,7 +48,9 @@
               '" in the React Server Manifest. This is probably a bug in the React Server Components bundler.'
           );
       }
-      return [resolvedModuleData.id, resolvedModuleData.chunks, name];
+      return resolvedModuleData.async
+        ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
+        : [resolvedModuleData.id, resolvedModuleData.chunks, name];
     }
     function requireAsyncModule(id) {
       var promise = __turbopack_require__(id);
@@ -3687,10 +3689,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.2.0-canary-84af9085-20250917",
+      version: "19.2.0-canary-d415fd3e-20250919",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.2.0-canary-84af9085-20250917",
+      reconcilerVersion: "19.2.0-canary-d415fd3e-20250919",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

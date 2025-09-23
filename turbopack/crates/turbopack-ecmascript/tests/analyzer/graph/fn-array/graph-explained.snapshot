@@ -2,10 +2,10 @@ a = arguments[0]
 
 b = arguments[1]
 
-c = (...) => [`${a}${b}`, a]
+c (const after eval) = (...) => [`${a}${b}`, a]
 
-d = c("1", "2")
+d (const after eval) = c("1", "2")
 
-e = d[0]
+e (const after eval) = d[0]
 
-f = d[1]
+f (const after eval) = d[1]

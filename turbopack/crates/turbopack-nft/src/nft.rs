@@ -6,7 +6,11 @@ use turbo_tasks::{ResolvedVc, TransientInstance, TryJoinIterExt, ValueToString, 
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack::{
     ModuleAssetContext,
-    module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
+    ecmascript::AnalyzeMode,
+    module_options::{
+        CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
+        TypescriptTransformOptions,
+    },
 };
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
@@ -80,6 +84,9 @@ async fn node_file_trace_operation(
         CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                enable_typescript_transform: Some(
+                    TypescriptTransformOptions::default().resolved_cell(),
+                ),
                 ..Default::default()
             },
             css: CssOptionsContext {
@@ -89,7 +96,7 @@ async fn node_file_trace_operation(
             // Environment is not passed in order to avoid downleveling JS / CSS for
             // node-file-trace.
             environment: None,
-            is_tracing: true,
+            analyze_mode: AnalyzeMode::Tracing,
             ..Default::default()
         }
         .cell(),

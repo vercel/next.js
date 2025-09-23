@@ -411,7 +411,7 @@ pub fn project_new(
             let trace_server = std::env::var("NEXT_TURBOPACK_TRACE_SERVER").ok();
             if trace_server.is_some() {
                 thread::spawn(move || {
-                    turbopack_trace_server::start_turbopack_trace_server(trace_file);
+                    turbopack_trace_server::start_turbopack_trace_server(trace_file, None);
                 });
                 println!("Turbopack trace server started. View trace at https://trace.nextjs.org");
             }
@@ -455,13 +455,13 @@ pub fn project_new(
 
         let options: ProjectOptions = options.into();
         let container = turbo_tasks
-            .run_once(async move {
+            .run(async move {
                 let project = ProjectContainer::new(rcstr!("next.js"), options.dev);
                 let project = project.to_resolved().await?;
                 project.initialize(options).await?;
                 Ok(project)
             })
-            .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e))
+            .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
             .await?;
 
         turbo_tasks.start_once_process({
@@ -580,11 +580,11 @@ pub async fn project_update(
     let options = options.into();
     let container = project.container;
     ctx.turbo_tasks()
-        .run_once(async move {
+        .run(async move {
             container.update(options).await?;
             Ok(())
         })
-        .or_else(|e| ctx.throw_turbopack_internal_result(&e))
+        .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await
 }
 

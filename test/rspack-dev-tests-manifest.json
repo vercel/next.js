@@ -540,8 +540,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/build-error-logs/build-error-logs.test.ts": {
-    "passed": [],
-    "failed": ["build-error-logs should only log error a single time"],
+    "passed": ["build-error-logs should only log error a single time"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -851,6 +851,16 @@
       "hydration-error-count should display runtime error separately from hydration errors",
       "hydration-error-count should have correct hydration error count for bad nesting",
       "hydration-error-count should have correct hydration error count for html diff"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/isolated-dev-build/isolated-dev-build.test.ts": {
+    "passed": [
+      "isolated-dev-build should create dev artifacts in .next/dev/ directory",
+      "isolated-dev-build should work with HMR"
     ],
     "failed": [],
     "pending": [],
@@ -1662,7 +1672,8 @@
       "next.rs api should have working HMR on server-side change on a app page 2",
       "next.rs api should have working HMR on server-side change on a page 0",
       "next.rs api should have working HMR on server-side change on a page 1",
-      "next.rs api should have working HMR on server-side change on a page 2"
+      "next.rs api should have working HMR on server-side change on a page 2",
+      "next.rs api writeToDisk multiple times should allow to write to disk multiple times"
     ],
     "failed": [],
     "pending": ["next.rs api should allow to make many HMR updates"],
@@ -3674,7 +3685,6 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -3689,6 +3699,7 @@
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
+      "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
       "app dir - basic server components should not serve .client.js as a path",
@@ -3732,7 +3743,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components next/router should support router.back and router.forward"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -3867,13 +3878,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/build-size/index.test.ts": {
-    "passed": ["app-dir build size should skip next dev for now"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/bun-externals/bun-externals.test.ts": {
     "passed": [
       "app-dir - bun externals should handle bun builtins as external modules",
@@ -3933,6 +3937,15 @@
       "async imports in cacheComponents outside of render client import of module with top-level-await",
       "async imports in cacheComponents outside of render server import of a sync module",
       "async imports in cacheComponents outside of render server import of module with top-level-await"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components-errors/cache-components-console-patch.test.ts": {
+    "passed": [
+      "Cache Components Errors Sync IO in console methods Console Patching does not warn about sync IO if console.log is patched to call new Date() internally"
     ],
     "failed": [],
     "pending": [],
@@ -8798,6 +8811,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/trace-build-file/trace-build-file.test.ts": {
+    "passed": [
+      "trace-build-file should not create trace-build file in development mode",
+      "trace-build-file should work with basic page rendering"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/trailingslash/trailingslash.test.ts": {
     "passed": [
       "app-dir trailingSlash handling should contain trailing slash to canonical url",
@@ -11968,6 +11991,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/turbopack-import-type-bytes/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["turbopack-import-type-bytes support import type: bytes"],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/turbopack-loader-config/index.test.ts": {
     "passed": ["turbopack-loader-config should only run the test in turbopack"],
     "failed": [],
@@ -14110,16 +14140,6 @@
   },
   "test/integration/development-hmr-refresh/test/index.test.js": {
     "passed": ["page should not reload when the file is not changed"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/development-runtime-config/test/index.test.js": {
-    "passed": [
-      "should work with runtime-config in next.config.js empty runtime-config",
-      "should work with runtime-config in next.config.js with runtime-config"
-    ],
     "failed": [],
     "pending": [],
     "flakey": [],

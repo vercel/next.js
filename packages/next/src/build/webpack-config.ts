@@ -491,7 +491,6 @@ export default async function getBaseWebpackConfig(
     : getReactCompilerLoader(
         config.experimental?.reactCompiler,
         dir,
-        dev,
         isNodeOrEdgeCompilation,
         codeCondition.exclude
       )

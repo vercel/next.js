@@ -2,7 +2,7 @@ module.exports = {
   experimental: {
     reactCompiler: {
       compilationMode: 'annotation',
-      panicThreshold: 'CRITICAL_ERRORS'
+      panicThreshold: 'critical_errors'
     }
   }
 }

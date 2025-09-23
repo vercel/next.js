@@ -309,7 +309,6 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
          "/node_modules/next/dist/shared/lib/is-plain-object.js",
          "/node_modules/next/dist/shared/lib/is-thenable.js",
          "/node_modules/next/dist/shared/lib/no-fallback-error.external.js",
-         "/node_modules/next/dist/shared/lib/runtime-config.external.js",
          "/node_modules/next/dist/shared/lib/server-reference-info.js",
          "/node_modules/react/cjs/react.production.js",
          "/node_modules/react/index.js",

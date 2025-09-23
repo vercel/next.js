@@ -5,6 +5,8 @@
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$intermediate$2d$tree$2d$shake$2f$reexport$2d$with$2d$locals$2f$input$2f$node_modules$2f$lib$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$locals$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/intermediate-tree-shake/reexport-with-locals/input/node_modules/lib/index.js [test] (ecmascript) <locals>");
 ;
 (0, __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$intermediate$2d$tree$2d$shake$2f$reexport$2d$with$2d$locals$2f$input$2f$node_modules$2f$lib$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$locals$3e$__["local"])();
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$intermediate$2d$tree$2d$shake$2f$reexport$2d$with$2d$locals$2f$input$2f$node_modules$2f$lib$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$locals$3e$__["namedFunction"])();
+(0, __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$intermediate$2d$tree$2d$shake$2f$reexport$2d$with$2d$locals$2f$input$2f$node_modules$2f$lib$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$locals$3e$__["default"])();
 __turbopack_context__.s([]);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/intermediate-tree-shake/reexport-with-locals/input/node_modules/lib/unused.js [test] (ecmascript)", ((__turbopack_context__) => {
@@ -33,9 +35,18 @@ function localUnused() {
     console.log('This is a local unused function');
 }
 ;
+function namedFunction() {}
+function defaultFunction() {}
 __turbopack_context__.s([
+    "default",
+    0,
+    defaultFunction,
     "local",
-    ()=>local
+    0,
+    local,
+    "namedFunction",
+    0,
+    namedFunction
 ]);
 }),
 ]);

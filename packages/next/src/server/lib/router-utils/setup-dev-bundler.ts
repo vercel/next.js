@@ -66,7 +66,6 @@ import {
   isStaticMetadataFile,
 } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
-import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
@@ -1080,6 +1079,9 @@ async function startWatcher(
               true
             )
 
+            const createEnvDefinitions = (
+              require('../experimental/create-env-definitions') as typeof import('../experimental/create-env-definitions')
+            ).createEnvDefinitions
             await createEnvDefinitions({
               distDir,
               loadedEnvFiles: [

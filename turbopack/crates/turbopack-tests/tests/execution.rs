@@ -161,7 +161,7 @@ fn get_messages(js_results: JsResult) -> Vec<String> {
     messages
 }
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsResult> {
     // Clean up old output files.
     let output_path = resource.join("output");

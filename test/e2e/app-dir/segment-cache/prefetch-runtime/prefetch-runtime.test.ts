@@ -376,6 +376,59 @@ describe('runtime prefetching', () => {
       )
     })
 
+    it('includes headers, but not dynamic content', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page)
+
+      // Reveal the link to trigger a runtime prefetch for one value of the search param
+      await act(async () => {
+        const linkToggle = await browser.elementByCss(
+          `input[data-link-accordion="/${prefix}/headers"]`
+        )
+        await linkToggle.click()
+      }, [
+        // Should allow reading headers
+        {
+          includes: 'Header: present',
+        },
+        // Should not prefetch the dynamic content
+        {
+          includes: 'Dynamic content',
+          block: 'reject',
+        },
+      ])
+
+      // Navigate to the page
+      await act(async () => {
+        await act(
+          async () => {
+            await browser.elementByCss(`a[href="/${prefix}/headers"]`).click()
+          },
+          {
+            // Temporarily block the navigation request.
+            // The runtime-prefetched parts of the tree should be visible before it finishes.
+            includes: 'Dynamic content',
+            block: true,
+          }
+        )
+        expect(await browser.elementById('header-value').text()).toEqual(
+          'Header: present'
+        )
+      })
+      // After navigating, we should see both the parts that we prefetched and dynamic content.
+      expect(await browser.elementById('header-value').text()).toEqual(
+        'Header: present'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Dynamic content'
+      )
+    })
+
     it('includes cookies, but not dynamic content', async () => {
       let page: Playwright.Page
       const browser = await next.browser('/', {
@@ -982,6 +1035,10 @@ describe('runtime prefetching', () => {
       {
         description: 'when sync IO is used after awaiting cookies()',
         path: '/errors/sync-io-after-runtime-api/cookies',
+      },
+      {
+        description: 'when sync IO is used after awaiting headers()',
+        path: '/errors/sync-io-after-runtime-api/headers',
       },
       // TODO(dynamic-ppr):
       // A tree prefetch for "/dynamic-params/123" currently causes it to be prerendered on demand,

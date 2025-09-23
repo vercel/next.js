@@ -20,10 +20,12 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::{EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType},
+    ecmascript::{
+        AnalyzeMode, EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType,
+    },
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
-        ModuleRuleEffect, RuleCondition,
+        ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
     },
 };
 use turbopack_browser::BrowserChunkingContext;
@@ -48,7 +50,7 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         export_usage::compute_export_usage_info,
     },
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -189,7 +191,7 @@ fn test(resource: PathBuf) {
     run(resource).unwrap();
 }
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main(flavor = "multi_thread", worker_threads = 2)]
 async fn run(resource: PathBuf) -> Result<()> {
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
@@ -340,6 +342,9 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         compile_time_info,
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
+                enable_typescript_transform: Some(
+                    TypescriptTransformOptions::default().resolved_cell(),
+                ),
                 enable_jsx: Some(JsxTransformOptions::resolved_cell(JsxTransformOptions {
                     development: true,
                     ..Default::default()
@@ -353,12 +358,14 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 ModuleOptionsContext {
                     environment: Some(env),
                     tree_shaking_mode: options.tree_shaking_mode,
+                    analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
                     ..Default::default()
                 }
                 .resolved_cell(),
             )],
             module_rules: vec![module_rules],
             tree_shaking_mode: options.tree_shaking_mode,
+            analyze_mode: AnalyzeMode::CodeGenerationAndTracing,
             ..Default::default()
         }
         .into(),
@@ -504,28 +511,33 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             AvailabilityInfo::Root,
         ),
         Runtime::NodeJs => {
-            Vc::cell(vec![
-                Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
-                    .await?
-                    .unwrap()
-                    .entry_chunk_group(
-                        // `expected` expects a completely flat output directory.
-                        chunk_root_path
-                            .join(entry_module.ident().path().await?.file_stem().unwrap())?
-                            .with_extension("entry.js"),
-                        evaluatable_assets,
-                        module_graph,
-                        OutputAssets::empty(),
-                        AvailabilityInfo::Root,
-                    )
-                    .await?
-                    .asset,
-            ])
+            OutputAssetsWithReferenced {
+                assets: ResolvedVc::cell(vec![
+                    Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
+                        .await?
+                        .unwrap()
+                        .entry_chunk_group(
+                            // `expected` expects a completely flat output directory.
+                            chunk_root_path
+                                .join(entry_module.ident().path().await?.file_stem().unwrap())?
+                                .with_extension("entry.js"),
+                            evaluatable_assets,
+                            module_graph,
+                            OutputAssets::empty(),
+                            OutputAssets::empty(),
+                            AvailabilityInfo::Root,
+                        )
+                        .await?
+                        .asset,
+                ]),
+                referenced_assets: ResolvedVc::cell(vec![]),
+            }
+            .cell()
         }
     };
 
     let mut seen = FxHashSet::default();
-    let mut queue: VecDeque<_> = chunks.await?.iter().copied().collect();
+    let mut queue: VecDeque<_> = chunks.all_assets().await?.iter().copied().collect();
 
     let output_path = project_path.clone();
     while let Some(asset) = queue.pop_front() {

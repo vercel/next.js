@@ -4,7 +4,6 @@ import 'next/app'
 // import 'next/babel';
 import 'next/cache'
 import 'next/client'
-import 'next/config'
 import 'next/constants'
 import 'next/document'
 import 'next/dynamic'

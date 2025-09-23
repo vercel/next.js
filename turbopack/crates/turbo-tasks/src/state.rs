@@ -1,4 +1,5 @@
 use std::{
+    any::type_name,
     fmt::Debug,
     mem::take,
     ops::{Deref, DerefMut},
@@ -7,6 +8,7 @@ use std::{
 use auto_hash_map::AutoSet;
 use parking_lot::{Mutex, MutexGuard};
 use serde::{Deserialize, Serialize};
+use tracing::trace_span;
 
 use crate::{
     Invalidator, OperationValue, SerializationInvalidator, get_invalidator, mark_session_dependent,
@@ -33,6 +35,7 @@ impl<T> StateInner<T> {
 
     pub fn set_unconditionally(&mut self, value: T) {
         self.value = value;
+        let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
         for invalidator in take(&mut self.invalidators) {
             invalidator.invalidate();
         }
@@ -42,6 +45,7 @@ impl<T> StateInner<T> {
         if !update(&mut self.value) {
             return false;
         }
+        let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
         for invalidator in take(&mut self.invalidators) {
             invalidator.invalidate();
         }
@@ -54,6 +58,7 @@ impl<T: PartialEq> StateInner<T> {
         if self.value == value {
             return false;
         }
+        let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
         self.value = value;
         for invalidator in take(&mut self.invalidators) {
             invalidator.invalidate();
@@ -86,6 +91,7 @@ impl<T> DerefMut for StateRef<'_, T> {
 impl<T> Drop for StateRef<'_, T> {
     fn drop(&mut self) {
         if self.mutated {
+            let _span = trace_span!("state value changed", value_type = type_name::<T>()).entered();
             for invalidator in take(&mut self.inner.invalidators) {
                 invalidator.invalidate();
             }
