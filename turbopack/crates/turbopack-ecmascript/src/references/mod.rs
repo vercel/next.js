@@ -2001,7 +2001,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 }
             }
             analysis.add_reference(
-                FileSourceReference::new(*source, Pattern::new(pat), collect_affecting_sources)
+                DirAssetReference::new(*source, Pattern::new(pat))
                     .to_resolved()
                     .await?,
             );
