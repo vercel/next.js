@@ -38,13 +38,16 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 
 ### Language features
 
-| Feature                     | Status                | Notes                                                                                                                                                                                                   |
-| --------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **JavaScript & TypeScript** | **Supported**         | Uses SWC under the hood. Type-checking is not done by Turbopack (run `tsc --watch` or rely on your IDE for type checks).                                                                                |
-| **ECMAScript (ESNext)**     | **Supported**         | Turbopack supports the latest ECMAScript features, matching SWC’s coverage.                                                                                                                             |
-| **CommonJS**                | **Supported**         | `require()` syntax is handled out of the box.                                                                                                                                                           |
-| **ESM**                     | **Supported**         | Static and dynamic `import` are fully supported.                                                                                                                                                        |
-| **Babel**                   | Partially Unsupported | Turbopack does not include Babel by default. However, you can [configure `babel-loader` via the Turbopack config](/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders). |
+| Feature                     | Status        | Notes                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **JavaScript & TypeScript** | **Supported** | Uses SWC under the hood. Type-checking is not done by Turbopack (run `tsc --watch` or rely on your IDE for type checks).                                                                                                                                                                                                                                                                                                |
+| **ECMAScript (ESNext)**     | **Supported** | Turbopack supports the latest ECMAScript features, matching SWC’s coverage.                                                                                                                                                                                                                                                                                                                                             |
+| **CommonJS**                | **Supported** | `require()` syntax is handled out of the box.                                                                                                                                                                                                                                                                                                                                                                           |
+| **ESM**                     | **Supported** | Static and dynamic `import` are fully supported.                                                                                                                                                                                                                                                                                                                                                                        |
+| **Babel**                   | **Supported** | Starting in Next.js 16, Turbopack uses Babel automatically if it detects [a configuration file][babel-config]. Unlike in webpack, SWC is always used for Next.js's internal transforms and downleveling to older ECMAScript revisions. Next.js with webpack disables SWC if a Babel configuration file is present. Files in `node_modules` are excluded, unless you [manually configure `babel-loader`][manual-loader]. |
+
+[babel-config]: https://babeljs.io/docs/config-files
+[manual-loader]: /docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders
 
 ### Framework and React features
 
@@ -220,8 +223,9 @@ Stay tuned for more updates as we continue to improve Turbopack and add producti
 
 ## Version Changes
 
-| Version   | Changes                            |
-| --------- | ---------------------------------- |
-| `v15.5.0` | Turbopack support for `build` beta |
-| `v15.3.0` | Experimental support for `build`   |
-| `v15.0.0` | Turbopack for `dev` stable         |
+| Version   | Changes                                                        |
+| --------- | -------------------------------------------------------------- |
+| `v16.0.0` | Automatic support for Babel when a configuration file is found |
+| `v15.5.0` | Turbopack support for `build` beta                             |
+| `v15.3.0` | Experimental support for `build`                               |
+| `v15.0.0` | Turbopack for `dev` stable                                     |

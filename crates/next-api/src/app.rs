@@ -39,8 +39,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    fxindexset, trace::TraceRawVcs,
+    Completion, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc, fxindexset,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -63,7 +63,7 @@ use turbopack_core::{
         GraphEntries, ModuleGraph, SingleModuleGraph, VisitedModules,
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     raw_output::RawOutput,
     reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
@@ -1240,13 +1240,16 @@ impl AppEndpoint {
             .await?;
 
             let mut client_shared_chunks = vec![];
-            for chunk in client_shared_chunk_group.assets.await?.iter().copied() {
+            for &chunk in client_shared_chunk_group.assets.await? {
                 client_assets.insert(chunk);
 
                 let chunk_path = chunk.path().await?;
                 if chunk_path.has_extension(".js") {
                     client_shared_chunks.push(chunk);
                 }
+            }
+            for &chunk in client_shared_chunk_group.referenced_assets.await? {
+                client_assets.insert(chunk);
             }
 
             (
@@ -1285,38 +1288,45 @@ impl AppEndpoint {
         .await?;
         let client_references_chunks_ref = client_references_chunks.await?;
 
-        let mut entry_client_chunks = FxIndexSet::default();
-        // TODO(alexkirsz) In which manifest does this go?
-        let mut entry_ssr_chunks = FxIndexSet::default();
-        for chunks in client_references_chunks_ref
+        for OutputAssetsWithReferenced {
+            assets,
+            referenced_assets,
+        } in client_references_chunks_ref
             .layout_segment_client_chunks
             .values()
         {
-            entry_client_chunks.extend(chunks.await?.iter().copied());
+            client_assets.extend(assets.await?.iter().copied());
+            client_assets.extend(referenced_assets.await?.iter().copied());
         }
-        for (chunks, _) in client_references_chunks_ref
+        for ChunkGroupResult {
+            assets,
+            referenced_assets,
+            availability_info: _,
+        } in client_references_chunks_ref
             .client_component_client_chunks
             .values()
         {
-            client_assets.extend(chunks.await?.iter().copied());
+            client_assets.extend(assets.await?.iter().copied());
+            client_assets.extend(referenced_assets.await?.iter().copied());
         }
-        for (chunks, _) in client_references_chunks_ref
+        for ChunkGroupResult {
+            assets,
+            referenced_assets,
+            availability_info: _,
+        } in client_references_chunks_ref
             .client_component_ssr_chunks
             .values()
         {
-            entry_ssr_chunks.extend(chunks.await?.iter().copied());
+            // TODO(alexkirsz) In which manifest does this go?
+            server_assets.extend(assets.await?.iter().copied());
+            server_assets.extend(referenced_assets.await?.iter().copied());
         }
-
-        client_assets.extend(entry_client_chunks.iter().copied());
-        server_assets.extend(entry_ssr_chunks.iter().copied());
 
         let manifest_path_prefix = &app_entry.original_name;
 
         // polyfill-nomodule.js is a pre-compiled asset distributed as part of next,
         // load it as a RawModule.
-        let next_package = get_next_package(project.project_path().owned().await?)
-            .owned()
-            .await?;
+        let next_package = get_next_package(project.project_path().owned().await?).await?;
         let polyfill_source =
             FileSource::new(next_package.join("dist/build/polyfills/polyfill-nomodule.js")?);
         let polyfill_output_path = client_chunking_context
@@ -1379,12 +1389,16 @@ impl AppEndpoint {
             // initialization
             let client_references_chunks = &*client_references_chunks.await?;
 
-            for (ssr_chunks, _) in client_references_chunks
+            for ChunkGroupResult {
+                assets,
+                referenced_assets,
+                availability_info: _,
+            } in client_references_chunks
                 .client_component_ssr_chunks
                 .values()
             {
-                let ssr_chunks = ssr_chunks.await?;
-                middleware_assets.extend(ssr_chunks);
+                middleware_assets.extend(assets.await?);
+                middleware_assets.extend(referenced_assets.await?);
             }
         }
 
@@ -1428,8 +1442,17 @@ impl AppEndpoint {
             )
             .to_resolved()
             .await?;
+        let app_entry_chunk_group_ref = app_entry_chunks.await?;
+        let app_entry_chunks = app_entry_chunk_group_ref.assets;
         let app_entry_chunks_ref = app_entry_chunks.await?;
         server_assets.extend(app_entry_chunks_ref.iter().copied());
+        server_assets.extend(
+            app_entry_chunk_group_ref
+                .referenced_assets
+                .await?
+                .iter()
+                .copied(),
+        );
 
         let client_assets = OutputAssets::new(client_assets.iter().map(|asset| **asset).collect())
             .to_resolved()
@@ -1703,7 +1726,7 @@ impl AppEndpoint {
         server_path: FileSystemPath,
         process_client_assets: bool,
         module_graph: Vc<ModuleGraph>,
-    ) -> Result<Vc<OutputAssets>> {
+    ) -> Result<Vc<OutputAssetsWithReferenced>> {
         let this = self.await?;
         let project = this.app_project.project();
         let app_entry = self.app_endpoint_entry().await?;
@@ -1715,6 +1738,7 @@ impl AppEndpoint {
             NextRuntime::Edge => {
                 let ChunkGroupResult {
                     assets,
+                    referenced_assets,
                     availability_info,
                 } = *chunking_context
                     .chunk_group(
@@ -1729,17 +1753,25 @@ impl AppEndpoint {
                     )
                     .await?;
 
-                assets.concatenate(
-                    chunking_context
-                        .evaluated_chunk_group_assets(
-                            app_entry.rsc_entry.ident(),
-                            ChunkGroup::Entry(vec![app_entry.rsc_entry]),
-                            module_graph,
-                            availability_info,
-                        )
-                        .resolve()
+                let chunk_group = chunking_context
+                    .evaluated_chunk_group_assets(
+                        app_entry.rsc_entry.ident(),
+                        ChunkGroup::Entry(vec![app_entry.rsc_entry]),
+                        module_graph,
+                        availability_info,
+                    )
+                    .await?;
+                OutputAssetsWithReferenced {
+                    assets: assets
+                        .concatenate(*chunk_group.assets)
+                        .to_resolved()
                         .await?,
-                )
+                    referenced_assets: referenced_assets
+                        .concatenate(*chunk_group.referenced_assets)
+                        .to_resolved()
+                        .await?,
+                }
+                .cell()
             }
             NextRuntime::NodeJs => {
                 let Some(rsc_entry) = ResolvedVc::try_downcast(app_entry.rsc_entry) else {
@@ -1750,6 +1782,7 @@ impl AppEndpoint {
 
                 async {
                     let mut current_chunks = OutputAssets::empty();
+                    let mut current_referenced_assets = OutputAssets::empty();
                     let mut current_availability_info = AvailabilityInfo::Root;
 
                     let client_references = client_references.await?;
@@ -1761,7 +1794,11 @@ impl AppEndpoint {
                             .map(async |m| Ok(ResolvedVc::upcast(m.await?.module)))
                             .try_join()
                             .await?;
-                        let chunk_group = chunking_context
+                        let ChunkGroupResult {
+                            assets,
+                            referenced_assets,
+                            availability_info,
+                        } = *chunking_context
                             .chunk_group(
                                 AssetIdent::from_path(
                                     this.app_project.project().project_path().owned().await?,
@@ -1774,11 +1811,12 @@ impl AppEndpoint {
                             )
                             .await?;
 
-                        current_chunks = current_chunks
-                            .concatenate(*chunk_group.assets)
+                        current_chunks = current_chunks.concatenate(*assets).resolve().await?;
+                        current_referenced_assets = current_referenced_assets
+                            .concatenate(*referenced_assets)
                             .resolve()
                             .await?;
-                        current_availability_info = chunk_group.availability_info;
+                        current_availability_info = availability_info;
 
                         anyhow::Ok(())
                     }
@@ -1800,7 +1838,11 @@ impl AppEndpoint {
                             name = server_component.ident().to_string().await?.as_str()
                         );
                         async {
-                            let chunk_group = chunking_context
+                            let ChunkGroupResult {
+                                assets,
+                                referenced_assets,
+                                availability_info,
+                            } = *chunking_context
                                 .chunk_group(
                                     server_component.ident(),
                                     // TODO this should be ChunkGroup::Shared
@@ -1812,11 +1854,12 @@ impl AppEndpoint {
                                 )
                                 .await?;
 
-                            current_chunks = current_chunks
-                                .concatenate(*chunk_group.assets)
+                            current_chunks = current_chunks.concatenate(*assets).resolve().await?;
+                            current_referenced_assets = current_referenced_assets
+                                .concatenate(*referenced_assets)
                                 .resolve()
                                 .await?;
-                            current_availability_info = chunk_group.availability_info;
+                            current_availability_info = availability_info;
 
                             anyhow::Ok(())
                         }
@@ -1825,7 +1868,11 @@ impl AppEndpoint {
                     }
 
                     {
-                        let chunk_group = chunking_context
+                        let ChunkGroupResult {
+                            assets,
+                            referenced_assets,
+                            availability_info,
+                        } = *chunking_context
                             .chunk_group(
                                 server_action_manifest_loader.ident(),
                                 ChunkGroup::Entry(vec![ResolvedVc::upcast(
@@ -1836,28 +1883,36 @@ impl AppEndpoint {
                             )
                             .await?;
 
-                        current_chunks = current_chunks
-                            .concatenate(*chunk_group.assets)
+                        current_chunks = current_chunks.concatenate(*assets).resolve().await?;
+                        current_referenced_assets = current_referenced_assets
+                            .concatenate(*referenced_assets)
                             .resolve()
                             .await?;
-                        current_availability_info = chunk_group.availability_info;
+                        current_availability_info = availability_info;
                     }
 
-                    anyhow::Ok(Vc::cell(vec![
-                        chunking_context
-                            .entry_chunk_group_asset(
-                                server_path.join(&format!(
-                                    "app{original_name}.js",
-                                    original_name = app_entry.original_name
-                                ))?,
-                                evaluatable_assets,
-                                module_graph,
-                                current_chunks,
-                                current_availability_info,
-                            )
-                            .to_resolved()
-                            .await?,
-                    ]))
+                    anyhow::Ok(
+                        OutputAssetsWithReferenced {
+                            assets: ResolvedVc::cell(vec![
+                                chunking_context
+                                    .entry_chunk_group_asset(
+                                        server_path.join(&format!(
+                                            "app{original_name}.js",
+                                            original_name = app_entry.original_name
+                                        ))?,
+                                        evaluatable_assets,
+                                        module_graph,
+                                        current_chunks,
+                                        current_referenced_assets,
+                                        current_availability_info,
+                                    )
+                                    .to_resolved()
+                                    .await?,
+                            ]),
+                            referenced_assets: ResolvedVc::cell(vec![]),
+                        }
+                        .cell(),
+                    )
                 }
                 .instrument(tracing::trace_span!("server node entrypoint"))
                 .await?

@@ -178,14 +178,33 @@ async fn test_dyn_trait_methods() -> Result<()> {
 async fn test_no_execution() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         enable_stats();
-        // don't await this!
-        let _ = wrap_vc(double_vc(double(123))).double().double_vc();
+        wrap_vc(double_vc(double(123)))
+            .double()
+            .double_vc()
+            .as_side_effect()
+            .await?;
         assert_eq!(
             stats_json(),
             json!({
-                "double": {
-                    "cache_miss": 1,
+                "WrappedU64::Doublable::double": {
                     "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "WrappedU64::Doublable::double_vc":  {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "double":  {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "double_vc":  {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "wrap_vc": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
                 },
             })
         );

@@ -17,11 +17,14 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
     target::CompileTarget,
 };
-use turbopack_ecmascript::analyzer::{
-    graph::{EvalContext, VarGraph, VarMeta, create_graph},
-    imports::ImportAttributes,
-    linker::link,
-    test_utils::{early_visitor, visitor},
+use turbopack_ecmascript::{
+    AnalyzeMode,
+    analyzer::{
+        graph::{EvalContext, VarGraph, VarMeta, create_graph},
+        imports::ImportAttributes,
+        linker::link,
+        test_utils::{early_visitor, visitor},
+    },
 };
 
 pub fn benchmark(c: &mut Criterion) {
@@ -62,7 +65,11 @@ pub fn benchmark(c: &mut Criterion) {
                     None,
                     None,
                 );
-                let var_graph = create_graph(&program, &eval_context, false);
+                let var_graph = create_graph(
+                    &program,
+                    &eval_context,
+                    AnalyzeMode::CodeGenerationAndTracing,
+                );
 
                 let input = BenchInput {
                     program,
@@ -88,7 +95,13 @@ struct BenchInput {
 }
 
 fn bench_create_graph(b: &mut Bencher, input: &BenchInput) {
-    b.iter(|| create_graph(&input.program, &input.eval_context, false));
+    b.iter(|| {
+        create_graph(
+            &input.program,
+            &input.eval_context,
+            AnalyzeMode::CodeGenerationAndTracing,
+        )
+    });
 }
 
 fn bench_link(b: &mut Bencher, input: &BenchInput) {

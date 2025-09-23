@@ -330,7 +330,7 @@ async fn get_pages_structure_for_directory(
 ) -> Result<Vc<PagesDirectoryStructure>> {
     let span = {
         let path = project_path.value_to_string().await?.to_string();
-        tracing::info_span!("analyse pages structure", name = path)
+        tracing::info_span!("analyze pages structure", name = path)
     };
     async move {
         let page_extensions_raw = &*page_extensions.await?;

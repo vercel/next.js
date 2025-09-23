@@ -24,7 +24,7 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     parse::ParseResult,
     references::{
-        FollowExportsResult, analyse_ecmascript_module, esm::FoundExportType, follow_reexports,
+        FollowExportsResult, analyze_ecmascript_module, esm::FoundExportType, follow_reexports,
     },
     side_effect_optimization::facade::module::EcmascriptModuleFacadeModule,
     tree_shake::{Key, side_effect_module::SideEffectsModule},
@@ -61,7 +61,7 @@ impl EcmascriptParsable for EcmascriptModulePartAsset {
 impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn analyze(&self) -> Vc<AnalyzeEcmascriptModuleResult> {
-        analyse_ecmascript_module(*self.full_module, Some(self.part.clone()))
+        analyze_ecmascript_module(*self.full_module, Some(self.part.clone()))
     }
 
     #[turbo_tasks::function]
@@ -410,7 +410,7 @@ fn analyze(
     module: Vc<EcmascriptModuleAsset>,
     part: ModulePart,
 ) -> Vc<AnalyzeEcmascriptModuleResult> {
-    analyse_ecmascript_module(module, Some(part))
+    analyze_ecmascript_module(module, Some(part))
 }
 
 #[turbo_tasks::value_impl]

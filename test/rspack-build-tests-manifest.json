@@ -382,9 +382,7 @@
   },
   "test/e2e/app-dir/app-alias/app-alias.test.ts": {
     "passed": [
-      "app-dir alias should generate app-build-manifest correctly",
       "app-dir alias should handle typescript paths alias correctly",
-      "app-dir alias should not contain installed react/react-dom version in client chunks",
       "app-dir alias should resolve css imports from outside with src folder presented"
     ],
     "failed": [],
@@ -1536,7 +1534,6 @@
       "app dir - basic should have correct preferredRegion values in manifest",
       "app dir - basic should have correct searchParams and params (client)",
       "app dir - basic should have correct searchParams and params (server)",
-      "app dir - basic should have correct size in build output",
       "app dir - basic should include document html and body",
       "app dir - basic should include layouts when no direct parent layout",
       "app dir - basic should include parent document when no direct parent layout",
@@ -1699,13 +1696,6 @@
     "passed": [
       "RSC binary serialization should correctly encode/decode binaries and hydrate"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/build-size/index.test.ts": {
-    "passed": ["app-dir build size should have correct size in build output"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -10251,6 +10241,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/turbopack-import-type-bytes/index.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": ["turbopack-import-type-bytes support import type: bytes"],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/turbopack-loader-config/index.test.ts": {
     "passed": ["turbopack-loader-config should only run the test in turbopack"],
     "failed": [],
@@ -12395,16 +12392,6 @@
   },
   "test/integration/development-hmr-refresh/test/index.test.js": {
     "passed": ["page should not reload when the file is not changed"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/development-runtime-config/test/index.test.js": {
-    "passed": [
-      "should work with runtime-config in next.config.js empty runtime-config",
-      "should work with runtime-config in next.config.js with runtime-config"
-    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -20988,7 +20975,6 @@
       "Production Usage Misc should handle already finished responses",
       "Production Usage Misc should have default runtime values when not defined",
       "Production Usage Misc should not add autoExport for non pre-rendered pages",
-      "Production Usage Misc should not have runtimeConfig in __NEXT_DATA__",
       "Production Usage Misc should reload the page on page script error",
       "Production Usage Misc should reload the page on page script error with prefetch",
       "Production Usage Runtime errors should call getInitialProps on _error page during a client side component error",
@@ -21085,11 +21071,10 @@
   },
   "test/production/pnpm-support/index.test.ts": {
     "passed": [
-      "pnpm support should build with dependencies installed via pnpm"
-    ],
-    "failed": [
+      "pnpm support should build with dependencies installed via pnpm",
       "pnpm support should execute client-side JS on each page in output: \"standalone\""
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false

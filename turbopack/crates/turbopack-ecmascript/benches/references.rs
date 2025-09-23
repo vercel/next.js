@@ -15,7 +15,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptOptions, TreeShakingMode,
-    references::analyse_ecmascript_module_internal,
+    references::analyze_ecmascript_module_internal,
 };
 use turbopack_test_utils::noop_asset_context::NoopAssetContext;
 
@@ -50,7 +50,7 @@ pub fn benchmark(c: &mut Criterion) {
             .resolved_cell();
 
             let mut cases = vec![];
-            for (file, is_tracing) in [
+            for (file, analyze_mode) in [
                 (r#"packages-bundle.js"#, false),
                 (r#"packages-bundle.js"#, true),
                 (r#"app-page-turbo.runtime.prod.js"#, false),
@@ -68,7 +68,11 @@ pub fn benchmark(c: &mut Criterion) {
                     EcmascriptInputTransforms::empty().to_resolved().await?,
                     EcmascriptOptions {
                         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
-                        is_tracing,
+                        analyze_mode: if analyze_mode {
+                            turbopack_ecmascript::AnalyzeMode::Tracing
+                        } else {
+                            turbopack_ecmascript::AnalyzeMode::CodeGenerationAndTracing
+                        },
                         ..Default::default()
                     }
                     .resolved_cell(),
@@ -80,7 +84,7 @@ pub fn benchmark(c: &mut Criterion) {
 
                 cases.push((
                     file.rsplit("/").next().unwrap(),
-                    if is_tracing { "tracing" } else { "full" },
+                    if analyze_mode { "tracing" } else { "full" },
                     module,
                 ));
             }
@@ -123,7 +127,7 @@ where
     b.to_async(rt).iter(async || {
         input
             .storage
-            .run_once(analyse_ecmascript_module_internal(input.module, None))
+            .run_once(analyze_ecmascript_module_internal(input.module, None))
             .await
             .unwrap()
     });

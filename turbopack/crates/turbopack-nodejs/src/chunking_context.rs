@@ -388,6 +388,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             let modules = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
+                referenced_output_assets,
                 availability_info,
             } = make_chunk_group(
                 modules,
@@ -405,6 +406,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
+                referenced_assets: ResolvedVc::cell(referenced_output_assets),
                 availability_info,
             }
             .cell())
@@ -420,6 +422,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         evaluatable_assets: Vc<EvaluatableAssets>,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
+        extra_referenced_assets: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>> {
         let evaluatable_assets_ref = evaluatable_assets.await?;
@@ -429,6 +432,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
         let MakeChunkGroupResult {
             chunks,
+            mut referenced_output_assets,
             availability_info,
         } = make_chunk_group(
             entries,
@@ -439,17 +443,14 @@ impl ChunkingContext for NodeJsChunkingContext {
         .await?;
 
         let extra_chunks = extra_chunks.await?;
-        let other_chunks: Vec<_> = extra_chunks
+        let mut other_chunks = chunks
             .iter()
-            .copied()
-            .chain(
-                chunks
-                    .iter()
-                    .map(|chunk| self.generate_chunk(**chunk).to_resolved())
-                    .try_join()
-                    .await?,
-            )
-            .collect();
+            .map(|chunk| self.generate_chunk(**chunk).to_resolved())
+            .try_join()
+            .await?;
+        other_chunks.extend(extra_chunks.iter().copied());
+
+        referenced_output_assets.extend(extra_referenced_assets.await?.iter().copied());
 
         let Some(module) = ResolvedVc::try_sidecast(*evaluatable_assets_ref.last().unwrap()) else {
             bail!("module must be placeable in an ecmascript chunk");
@@ -461,6 +462,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 Vc::cell(other_chunks),
                 evaluatable_assets,
                 *module,
+                Vc::cell(referenced_output_assets),
                 module_graph,
                 *self,
             )

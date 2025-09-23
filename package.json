@@ -100,7 +100,6 @@
     "@babel/parser": "7.27.0",
     "@babel/plugin-syntax-explicit-resource-management": "7.25.7",
     "@babel/plugin-transform-object-rest-spread": "7.25.9",
-    "@babel/preset-flow": "7.25.9",
     "@babel/preset-react": "7.26.3",
     "@changesets/changelog-github": "0.5.1",
     "@changesets/cli": "2.29.3",

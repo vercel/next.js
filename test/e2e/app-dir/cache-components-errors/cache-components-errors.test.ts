@@ -3406,63 +3406,6 @@ describe('Cache Components Errors', () => {
           })
         }
       })
-
-      describe('with `headers()`', () => {
-        if (isNextDev) {
-          it('should show a redbox error', async () => {
-            const browser = await next.browser('/use-cache-private-headers')
-
-            if (isTurbopack) {
-              await expect(browser).toDisplayRedbox(`
-               {
-                 "description": "Route /use-cache-private-headers used "headers" inside "use cache: private". Accessing "headers" inside a private cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-private-headers/page.tsx (25:18) @ Private
-               > 25 |     await headers()
-                    |                  ^",
-                 "stack": [
-                   "Private app/use-cache-private-headers/page.tsx (25:18)",
-                 ],
-               }
-              `)
-            } else {
-              await expect(browser).toDisplayRedbox(`
-               {
-                 "description": "Route /use-cache-private-headers used "headers" inside "use cache: private". Accessing "headers" inside a private cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
-                 "environmentLabel": null,
-                 "label": "Runtime Error",
-                 "source": "app/use-cache-private-headers/page.tsx (25:18) @ Private
-               > 25 |     await headers()
-                    |                  ^",
-                 "stack": [
-                   "Private app/use-cache-private-headers/page.tsx (25:18)",
-                 ],
-               }
-              `)
-            }
-          })
-        } else {
-          // TODO: With prefetch sentinels this should yield a build error.
-          it('should not fail the build and show no runtime error (caught in userland)', async () => {
-            await prerender('/use-cache-private-headers')
-            await next.start({ skipBuild: true })
-            cliOutputLength = next.cliOutput.length
-
-            const browser = await next.browser('/use-cache-private-headers', {
-              pushErrorAsConsoleLog: true,
-            })
-
-            expect(await browser.elementById('private').text()).toBe('Private')
-
-            expect(await browser.log()).not.toContainEqual(
-              expect.objectContaining({ source: 'error' })
-            )
-
-            expect(next.cliOutput.slice(cliOutputLength)).not.toInclude('Error')
-          })
-        }
-      })
     })
 
     describe('Sync IO - Current Time - Date()', () => {

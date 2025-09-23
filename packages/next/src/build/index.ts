@@ -1734,21 +1734,27 @@ export default async function build(
                   }
                 ) as Worker & typeof import('./collect-build-traces')
 
-                buildTracesPromise = buildTraceWorker
-                  .collectBuildTraces({
-                    dir,
-                    config,
-                    distDir,
-                    // Serialize Map as this is sent to the worker.
-                    edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(new Map()),
-                    staticPages: [],
-                    hasSsrAmpPages: false,
-                    buildTraceContext,
-                    outputFileTracingRoot,
-                  })
-                  .catch((err) => {
-                    console.error(err)
-                    process.exit(1)
+                buildTracesPromise = nextBuildSpan
+                  .traceChild('collect-build-traces')
+                  .traceAsyncFn(() => {
+                    return buildTraceWorker
+                      .collectBuildTraces({
+                        dir,
+                        config,
+                        distDir,
+                        // Serialize Map as this is sent to the worker.
+                        edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(
+                          new Map()
+                        ),
+                        staticPages: [],
+                        hasSsrAmpPages: false,
+                        buildTraceContext,
+                        outputFileTracingRoot,
+                      })
+                      .catch((err) => {
+                        console.error(err)
+                        process.exit(1)
+                      })
                   })
               }
             })
@@ -1903,9 +1909,7 @@ export default async function build(
           }
         }
 
-        const { configFileName, publicRuntimeConfig, serverRuntimeConfig } =
-          config
-        const runtimeEnvConfig = { publicRuntimeConfig, serverRuntimeConfig }
+        const { configFileName } = config
         const sriEnabled = Boolean(config.experimental.sri?.algorithm)
 
         const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
@@ -1918,7 +1922,6 @@ export default async function build(
               (await worker.hasCustomGetInitialProps({
                 page: '/_error',
                 distDir,
-                runtimeEnvConfig,
                 checkingApp: false,
                 sriEnabled,
               }))
@@ -1932,7 +1935,6 @@ export default async function build(
               page: '/_error',
               distDir,
               configFileName,
-              runtimeEnvConfig,
               cacheComponents: isAppCacheComponentsEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               httpAgentOptions: config.httpAgentOptions,
@@ -1952,7 +1954,6 @@ export default async function build(
           ? worker.hasCustomGetInitialProps({
               page: appPageToCheck,
               distDir,
-              runtimeEnvConfig,
               checkingApp: true,
               sriEnabled,
             })
@@ -1962,7 +1963,6 @@ export default async function build(
           ? worker.getDefinedNamedExports({
               page: appPageToCheck,
               distDir,
-              runtimeEnvConfig,
               sriEnabled,
             })
           : Promise.resolve([])
@@ -2149,7 +2149,6 @@ export default async function build(
                             originalAppPath,
                             distDir,
                             configFileName,
-                            runtimeEnvConfig,
                             httpAgentOptions: config.httpAgentOptions,
                             locales: config.i18n?.locales,
                             defaultLocale: config.i18n?.defaultLocale,
@@ -2617,20 +2616,24 @@ export default async function build(
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
 
       if (!isTurbopack && !isGenerateMode && !buildTracesPromise) {
-        buildTracesPromise = collectBuildTraces({
-          dir,
-          config,
-          distDir,
-          edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(pageInfos),
-          staticPages: [...staticPages],
-          nextBuildSpan,
-          hasSsrAmpPages,
-          buildTraceContext,
-          outputFileTracingRoot,
-        }).catch((err) => {
-          console.error(err)
-          process.exit(1)
-        })
+        buildTracesPromise = nextBuildSpan
+          .traceChild('collect-build-traces')
+          .traceAsyncFn(() => {
+            return collectBuildTraces({
+              dir,
+              config,
+              distDir,
+              edgeRuntimeRoutes: collectRoutesUsingEdgeRuntime(pageInfos),
+              staticPages: [...staticPages],
+              nextBuildSpan,
+              hasSsrAmpPages,
+              buildTraceContext,
+              outputFileTracingRoot,
+            }).catch((err) => {
+              console.error(err)
+              process.exit(1)
+            })
+          })
       }
 
       if (serverPropsPages.size > 0 || ssgPages.size > 0) {
@@ -2818,6 +2821,10 @@ export default async function build(
             )
           )
 
+          const sortedStaticPaths = Array.from(staticPaths.entries()).sort(
+            ([a], [b]) => a.localeCompare(b)
+          )
+
           const exportApp = (require('../export') as typeof import('../export'))
             .default as typeof import('../export').default
 
@@ -2885,7 +2892,7 @@ export default async function build(
 
               // TODO: output manifest specific to app paths and their
               // revalidate periods and dynamicParams settings
-              staticPaths.forEach((routes, originalAppPath) => {
+              sortedStaticPaths.forEach(([originalAppPath, routes]) => {
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
 
@@ -3054,7 +3061,7 @@ export default async function build(
             await fs.unlink(serverBundle)
           }
 
-          staticPaths.forEach((prerenderedRoutes, originalAppPath) => {
+          sortedStaticPaths.forEach(([originalAppPath, prerenderedRoutes]) => {
             const page = appNormalizedPaths.get(originalAppPath)
             if (!page) throw new InvariantError('Page not found')
 
@@ -4086,43 +4093,52 @@ export default async function build(
           })
       }
 
-      if (config.experimental.adapterPath) {
-        await handleBuildComplete({
-          dir,
-          distDir,
-          config,
-          staticPages,
-          nextVersion: process.env.__NEXT_VERSION as string,
-          tracingRoot: outputFileTracingRoot,
-          hasNodeMiddleware,
-          hasInstrumentationHook,
-          adapterPath: config.experimental.adapterPath,
-          pageKeys: pageKeys.pages,
-          appPageKeys: denormalizedAppPages,
-          routesManifest,
-          prerenderManifest,
-          middlewareManifest,
-          functionsConfigManifest,
-          hasStatic404: useStaticPages404,
-          requiredServerFiles: requiredServerFilesManifest.files,
-        })
+      const adapterPath = config.experimental.adapterPath
+      if (adapterPath) {
+        await nextBuildSpan
+          .traceChild('adapter-handle-build-complete')
+          .traceAsyncFn(async () => {
+            await handleBuildComplete({
+              dir,
+              distDir,
+              config,
+              staticPages,
+              nextVersion: process.env.__NEXT_VERSION as string,
+              tracingRoot: outputFileTracingRoot,
+              hasNodeMiddleware,
+              hasInstrumentationHook,
+              adapterPath,
+              pageKeys: pageKeys.pages,
+              appPageKeys: denormalizedAppPages,
+              routesManifest,
+              prerenderManifest,
+              middlewareManifest,
+              functionsConfigManifest,
+              hasStatic404: useStaticPages404,
+              requiredServerFiles: requiredServerFilesManifest.files,
+            })
+          })
       }
 
       if (config.output === 'standalone') {
-        await writeStandaloneDirectory(
-          nextBuildSpan,
-          distDir,
-          pageKeys,
-          denormalizedAppPages,
-          outputFileTracingRoot,
-          requiredServerFilesManifest,
-          middlewareManifest,
-          hasNodeMiddleware,
-          hasInstrumentationHook,
-          staticPages,
-          loadedEnvFiles,
-          appDir
-        )
+        await nextBuildSpan
+          .traceChild('output-standalone')
+          .traceAsyncFn(async () => {
+            await writeStandaloneDirectory(
+              nextBuildSpan,
+              distDir,
+              pageKeys,
+              denormalizedAppPages,
+              outputFileTracingRoot,
+              requiredServerFilesManifest,
+              middlewareManifest,
+              hasNodeMiddleware,
+              hasInstrumentationHook,
+              staticPages,
+              loadedEnvFiles,
+              appDir
+            )
+          })
       }
 
       if (postBuildSpinner) postBuildSpinner.stopAndPersist()

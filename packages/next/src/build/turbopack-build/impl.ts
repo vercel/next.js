@@ -104,13 +104,7 @@ export async function turbopackBuild(): Promise<{
     })
     await fs.writeFile(
       path.join(distDir, 'package.json'),
-      JSON.stringify(
-        {
-          type: 'commonjs',
-        },
-        null,
-        2
-      )
+      '{"type": "commonjs"}'
     )
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars

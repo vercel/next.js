@@ -3813,9 +3813,12 @@ mod tests {
         graph::{ConditionalKind, Effect, EffectArg, EvalContext, VarGraph, create_graph},
         linker::link,
     };
-    use crate::analyzer::{
-        graph::{AssignmentScopes, VarMeta},
-        imports::ImportAttributes,
+    use crate::{
+        AnalyzeMode,
+        analyzer::{
+            graph::{AssignmentScopes, VarMeta},
+            imports::ImportAttributes,
+        },
     };
 
     #[fixture("tests/analyzer/graph/**/input.js")]
@@ -3857,7 +3860,8 @@ mod tests {
                     None,
                 );
 
-                let mut var_graph = create_graph(&m, &eval_context, false);
+                let mut var_graph =
+                    create_graph(&m, &eval_context, AnalyzeMode::CodeGenerationAndTracing);
                 let var_cache = Default::default();
 
                 let mut named_values = var_graph
