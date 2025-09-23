@@ -12,10 +12,7 @@ import {
   processMessage,
   type StaticIndicatorState,
 } from './hot-reloader-app'
-import {
-  isTerminalLoggingEnabled,
-  logQueue,
-} from '../../../../next-devtools/userspace/app/forward-logs'
+import { logQueue } from '../../../../next-devtools/userspace/app/forward-logs'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
 import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants'
 
@@ -57,9 +54,7 @@ export function createWebSocket(
     newWebSocket.binaryType = 'arraybuffer'
 
     function handleOnline() {
-      if (isTerminalLoggingEnabled) {
-        logQueue.onSocketReady(newWebSocket)
-      }
+      logQueue.onSocketReady(newWebSocket)
 
       reconnections = 0
       window.console.log('[HMR] connected')
