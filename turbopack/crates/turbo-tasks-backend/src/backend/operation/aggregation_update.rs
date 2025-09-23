@@ -1419,7 +1419,7 @@ impl AggregationUpdateQueue {
             if retry > MAX_RETRIES {
                 panic!(
                     "inner_of_uppers_lost_follower is not able to remove follower \
-                     {lost_follower_id:?} ({}) from {} as they don't exist as upper or follower \
+                     {lost_follower_id} ({}) from {} as they don't exist as upper or follower \
                      edges",
                     ctx.get_task_description(lost_follower_id),
                     upper_ids
@@ -1577,9 +1577,14 @@ impl AggregationUpdateQueue {
             retry += 1;
             if retry > MAX_RETRIES {
                 panic!(
-                    "inner_of_upper_lost_followers is not able to remove followers \
-                     {lost_follower_ids:?} from {upper_id:?} as they don't exist as upper or \
-                     follower edges"
+                    "inner_of_upper_lost_followers is not able to remove followers {} from \
+                     {upper_id} ({}) as they don't exist as upper or follower edges",
+                    lost_follower_ids
+                        .iter()
+                        .map(|id| format!("{} ({})", id, ctx.get_task_description(*id)))
+                        .collect::<Vec<_>>()
+                        .join(", "),
+                    ctx.get_task_description(upper_id),
                 )
             }
             self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
