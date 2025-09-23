@@ -636,7 +636,6 @@ import path from 'path'
         stderr: true,
         stdout: true,
       })
-      console.log(stderr + stdout)
       expect(stderr + stdout).not.toContain('isolatedModules')
       expect(code).toBe(0)
 
