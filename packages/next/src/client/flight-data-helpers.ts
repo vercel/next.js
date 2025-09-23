@@ -30,13 +30,8 @@ export function prepareFlightRouterStateForRequest(
 function stripClientOnlyDataFromFlightRouterState(
   flightRouterState: FlightRouterState
 ): FlightRouterState {
-  const [
-    segment,
-    parallelRoutes,
-    _url, // Intentionally unused - URLs are client-only
-    refreshMarker,
-    isRootLayout,
-  ] = flightRouterState
+  const [segment, parallelRoutes, , refreshMarker, isRootLayout] =
+    flightRouterState
 
   // __PAGE__ segments are always fetched from the server, so there's
   // no need to send them up
