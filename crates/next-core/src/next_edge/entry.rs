@@ -40,14 +40,7 @@ pub fn wrap_edge_entry(
                 }},
             }});
         "#,
-        StringifyJs(&format_args!(
-            "{}_{pathname}",
-            if pathname == "/proxy" || pathname == "/src/proxy" {
-                "proxy"
-            } else {
-                "middleware"
-            }
-        ))
+        StringifyJs(&format_args!("middleware_{pathname}"))
     );
     let file = File::from(source);
 
