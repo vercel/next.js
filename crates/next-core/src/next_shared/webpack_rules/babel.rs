@@ -2,6 +2,7 @@ use std::{collections::BTreeSet, sync::LazyLock};
 
 use anyhow::{Context, Result};
 use regex::Regex;
+use serde::Serialize;
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
@@ -16,29 +17,12 @@ use turbopack_core::{
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 use crate::{
-    next_config::{NextConfig, ReactCompilerCompilationMode},
+    next_config::{NextConfig, ReactCompilerCompilationMode, ReactCompilerOptions},
     next_import_map::try_get_next_package,
     next_shared::webpack_rules::{
         ManuallyConfiguredBuiltinLoaderIssue, WebpackLoaderBuiltinCondition,
     },
 };
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct ReactCompilerEnvironmentConfig {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(rename = "enableNameAnonymousFunctions")]
-    enable_name_anonymous_functions: Option<bool>,
-}
-
-// Wrapper struct to augment the configured React Compiler options with defaults determined by
-// Next.js
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct ResolvedReactCompilerOptions<T: serde::Serialize + Clone> {
-    #[serde(flatten)]
-    inner: T,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    environment: Option<ReactCompilerEnvironmentConfig>,
-}
 
 // https://babeljs.io/docs/config-files
 // TODO: Also support a `babel` key in a package.json file
@@ -130,35 +114,15 @@ pub async fn get_babel_loader_rules(
         }
     }
 
-    let configured_react_compiler_options = next_config.react_compiler_options().await?;
+    let react_compiler_options = next_config.react_compiler_options().await?;
 
     // if there's no babel config and react-compiler shouldn't be enabled, bail out early
     if babel_config_path.is_none()
-        && (configured_react_compiler_options.is_none()
+        && (react_compiler_options.is_none()
             || !builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Browser))
     {
         return Ok(Vec::new());
     }
-
-    // Create extended react compiler options with environment.enableNameAnonymousFunctions if in
-    // development
-    let react_compiler_options = if let Some(opts) = configured_react_compiler_options.as_ref() {
-        let environment =
-            if builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Development) {
-                Some(ReactCompilerEnvironmentConfig {
-                    enable_name_anonymous_functions: Some(true),
-                })
-            } else {
-                None
-            };
-
-        Some(ResolvedReactCompilerOptions {
-            inner: (*opts),
-            environment,
-        })
-    } else {
-        None
-    };
 
     // - See `packages/next/src/build/babel/loader/types.d.ts` for all the configuration options.
     // - See `packages/next/src/build/get-babel-loader-config.ts` for how we use this in webpack.
@@ -182,14 +146,38 @@ pub async fn get_babel_loader_rules(
     }
 
     let mut loader_conditions = Vec::new();
-    if let Some(react_compiler_plugin_options) = react_compiler_options.as_ref()
+    if let Some(react_compiler_options) = react_compiler_options.as_ref()
         && let Some(babel_plugin_path) =
             resolve_babel_plugin_react_compiler(next_config, project_path).await?
     {
+        let react_compiler_options = react_compiler_options.await?;
+
+        // we don't want to accept user-supplied `environment` options, but we do want to pass
+        // `enableNameAnonymousFunctions` down to the babel plugin based on dev/prod.
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct EnvironmentOptions {
+            enable_name_anonymous_functions: bool,
+        }
+
+        #[derive(Serialize)]
+        struct ResolvedOptions<'a> {
+            #[serde(flatten)]
+            base: &'a ReactCompilerOptions,
+            environment: EnvironmentOptions,
+        }
+
+        let resolved_options = ResolvedOptions {
+            base: &react_compiler_options,
+            environment: EnvironmentOptions {
+                enable_name_anonymous_functions: builtin_conditions
+                    .contains(&WebpackLoaderBuiltinCondition::Development),
+            },
+        };
         let react_compiler_plugins =
             serde_json::Value::Array(vec![serde_json::Value::Array(vec![
                 serde_json::Value::String(babel_plugin_path.into_owned()),
-                serde_json::to_value(react_compiler_plugin_options)
+                serde_json::to_value(resolved_options)
                     .expect("react compiler options JSON serialization should never fail"),
             ])]);
 
@@ -201,8 +189,7 @@ pub async fn get_babel_loader_rules(
             //
             // NOTE: we already bail out at the earlier if `foreign` condition is set or if
             // `browser` is not set.
-            let inner_opts = react_compiler_plugin_options.inner.await?;
-            match inner_opts.compilation_mode {
+            match react_compiler_options.compilation_mode {
                 ReactCompilerCompilationMode::Annotation => {
                     loader_conditions.push(ConditionItem::Base {
                         path: None,
