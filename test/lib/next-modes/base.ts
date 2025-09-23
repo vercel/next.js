@@ -315,7 +315,9 @@ export class NextInstance {
             'utf8'
           )
           if (content.includes('distDir')) {
-            const match = content.match(/['"`]?distDir['"`]?:.*?['"`](.*?)['"`]/)?.[1]
+            const match = content.match(
+              /['"`]?distDir['"`]?:.*?['"`](.*?)['"`]/
+            )?.[1]
             if (match) {
               this.distDir = match
             }
