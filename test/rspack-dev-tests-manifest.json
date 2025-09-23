@@ -4022,7 +4022,6 @@
       "Cache Components Errors Dev With `use cache: private` in `unstable_cache` should show a redbox error",
       "Cache Components Errors Dev With `use cache: private` in `use cache` should show a redbox error",
       "Cache Components Errors Dev With `use cache: private` with `connection()` should show a redbox error",
-      "Cache Components Errors Dev With `use cache: private` with `headers()` should show a redbox error",
       "Cache Components Errors Dev With `use cache: private` without Suspense should show a redbox error"
     ],
     "failed": [],
@@ -7852,20 +7851,10 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/router-disable-smooth-scroll/router-disable-smooth-scroll.legacy.test.ts": {
-    "passed": [
-      "router smooth scroll optimization (legacy with data attribute) should not warn when data attribute is present even in legacy mode",
-      "router smooth scroll optimization (legacy) should work with smooth scroll CSS and warn in development"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/router-disable-smooth-scroll/router-disable-smooth-scroll.optimized.test.ts": {
     "passed": [
-      "router smooth scroll optimization (optimized early exit) should exit early when CSS smooth scroll detected but no data attribute",
-      "router smooth scroll optimization (optimized) should work with smooth scroll CSS and data attribute without warning"
+      "router smooth scroll optimization (optimized early exit) should warn in dev when CSS smooth scroll detected but no data attribute",
+      "router smooth scroll optimization should work with smooth scroll CSS and data attribute without warning"
     ],
     "failed": [],
     "pending": [],
@@ -8864,6 +8853,7 @@
   "test/e2e/app-dir/typed-routes/typed-routes.test.ts": {
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
+      "typed-routes should exit typegen successfully",
       "typed-routes should generate RouteContext type for route handlers",
       "typed-routes should generate route types correctly",
       "typed-routes should update route types file when routes change"
@@ -9211,7 +9201,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/with-babel/with-babel.test.ts": {
-    "passed": ["with babel with babel should support babel in app dir"],
+    "passed": ["with babel should support babel in app dir"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -9312,6 +9302,13 @@
       "Async modules can render async AMP pages",
       "Async modules can render async error page"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/babel/index.test.js": {
+    "passed": ["Babel Should compile a page with flowtype correctly"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -11957,6 +11954,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/transpile-packages-typescript-foreign/index.test.ts": {
+    "passed": [
+      "transpile-packages-typescript-foreign with transpilePackages should work"
+    ],
+    "failed": [
+      "transpile-packages-typescript-foreign without transpilePackages should fail"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/transpile-packages/index.test.ts": {
     "passed": [
       "transpile packages css should handle css modules imports inside transpiled modules",
@@ -12830,15 +12838,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/babel/test/index.test.js": {
-    "passed": [
-      "Babel Rendering via HTTP Should compile a page with flowtype correctly"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/basepath-root-catch-all/test/index.test.js": {
     "passed": [
       "development mode should use correct data URL for root catch-all"
@@ -13123,10 +13122,8 @@
   "test/integration/config-mjs/test/index.test.ts": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
-      "Configuration renders public config on the server only",
-      "Configuration renders server config on the server only",
       "Configuration should disable X-Powered-By header support",
-      "Configuration should have config available on the client"
+      "Configuration should have env variables available on the client"
     ],
     "failed": [],
     "pending": [],
@@ -13201,10 +13198,8 @@
   "test/integration/config/test/index.test.js": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
-      "Configuration renders public config on the server only",
-      "Configuration renders server config on the server only",
       "Configuration should disable X-Powered-By header support",
-      "Configuration should have config available on the client"
+      "Configuration should have env variables available on the client"
     ],
     "failed": [],
     "pending": [],
