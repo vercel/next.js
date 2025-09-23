@@ -61,7 +61,7 @@ export const base = curry(function base(
   }
 
   config.plugins ??= []
-  if (config.devtool === 'source-map' && !process.env.NEXT_RSPACK) {
+  if ((config.devtool === 'source-map' || config.devtool === 'hidden-source-map') && !process.env.NEXT_RSPACK) {
     config.plugins.push(
       new DevToolsIgnorePlugin({
         shouldIgnorePath,
