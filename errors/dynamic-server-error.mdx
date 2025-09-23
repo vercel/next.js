@@ -24,9 +24,10 @@ import { cookies } from 'next/headers'
 
 async function getCookieData() {
   return new Promise((resolve) =>
-    setTimeout(() => {
+    setTimeout(async () => {
       // cookies will be called outside of the async context, causing a build-time error
-      resolve(cookies().getAll())
+      const cookieStore = await cookies()
+      resolve(cookieStore.getAll())
     }, 1000)
   )
 }
