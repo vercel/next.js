@@ -16,20 +16,24 @@ export default function transformer(file: FileInfo) {
     const newFileName = fileName.replace(/^middleware\./, 'proxy.')
     const newFilePath = path.join(path.dirname(file.path), newFileName)
 
-    // Rename the file
     try {
       fs.renameSync(file.path, newFilePath)
-      console.log(`Renamed ${file.path} -> ${newFilePath}`)
-    } catch (error) {
-      console.warn(`Failed to rename ${file.path}: ${error}`)
+    } catch (cause) {
+      console.error(
+        `Failed to rename "${file.path}" to "${newFilePath}".\n${JSON.stringify({ cause })}`
+      )
+      return file.source
     }
   }
 
-  // Parse and transform the AST
-  const source = j(file.source)
+  const root = j(file.source)
+
+  if (!root.length) {
+    return file.source
+  }
 
   // Handle export declarations in a single traversal
-  source.find(j.ExportNamedDeclaration).forEach((nodePath) => {
+  root.find(j.ExportNamedDeclaration).forEach((nodePath) => {
     const declaration = nodePath.node.declaration
 
     // Handle: export function middleware() {} or export async function middleware() {}
@@ -66,7 +70,7 @@ export default function transformer(file: FileInfo) {
   // Handle function declarations that are later exported
   // Find: function middleware() {} followed by export { middleware }
   // But exclude default exports
-  source
+  root
     .find(j.FunctionDeclaration, {
       id: { name: 'middleware' },
     })
@@ -84,7 +88,7 @@ export default function transformer(file: FileInfo) {
 
   // Handle variable declarations: const middleware = ...
   // But exclude those that are part of default exports
-  source
+  root
     .find(j.VariableDeclarator, {
       id: { name: 'middleware' },
     })
@@ -104,7 +108,7 @@ export default function transformer(file: FileInfo) {
   // export default function middleware() {} works as-is with proxy files
 
   if (hasChanges) {
-    return source.toSource()
+    return root.toSource()
   }
 
   return file.source
