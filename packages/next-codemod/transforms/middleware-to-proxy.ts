@@ -4,33 +4,22 @@ import path from 'path'
 import fs from 'fs'
 
 export default function transformer(file: FileInfo) {
-  const j = createParserFromPath(file.path)
-  let hasChanges = false
-
-  // Handle file renaming first
-  const fileName = path.basename(file.path)
-  const fileNameWithoutExt = path.basename(file.path, path.extname(file.path))
-  const isMiddlewareFile = fileNameWithoutExt === 'middleware'
-
-  if (isMiddlewareFile) {
-    const newFileName = fileName.replace(/^middleware\./, 'proxy.')
-    const newFilePath = path.join(path.dirname(file.path), newFileName)
-
-    try {
-      fs.renameSync(file.path, newFilePath)
-    } catch (cause) {
-      console.error(
-        `Failed to rename "${file.path}" to "${newFilePath}".\n${JSON.stringify({ cause })}`
-      )
-      return file.source
-    }
+  if (
+    !/(^|[/\\])middleware\.|[/\\]src[/\\]middleware\./.test(file.path) &&
+    // fixtures have unique basenames in test
+    process.env.NODE_ENV !== 'test'
+  ) {
+    return file.source
   }
 
+  const j = createParserFromPath(file.path)
   const root = j(file.source)
 
   if (!root.length) {
     return file.source
   }
+
+  let hasChanges = false
 
   // Handle export declarations in a single traversal
   root.find(j.ExportNamedDeclaration).forEach((nodePath) => {
@@ -107,9 +96,28 @@ export default function transformer(file: FileInfo) {
   // Skip default exports - they don't need to be renamed
   // export default function middleware() {} works as-is with proxy files
 
-  if (hasChanges) {
-    return root.toSource()
+  if (!hasChanges) {
+    return file.source
   }
 
-  return file.source
+  const source = root.toSource()
+
+  // We will not modify the original file in real world,
+  // so return the source here for testing.
+  if (process.env.NODE_ENV === 'test') {
+    return source
+  }
+
+  const { dir, ext } = path.parse(file.path)
+  const newFilePath = path.join(dir, 'proxy' + ext)
+
+  try {
+    fs.writeFileSync(newFilePath, source)
+    fs.unlinkSync(file.path)
+  } catch (cause) {
+    console.error(
+      `Failed to write "${newFilePath}" and delete "${file.path}".\n${JSON.stringify({ cause })}`
+    )
+    return file.source
+  }
 }
