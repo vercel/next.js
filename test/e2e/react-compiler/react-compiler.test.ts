@@ -98,8 +98,9 @@ describe.each(['default', 'babelrc'] as const)(
         .elementByCss('[data-testid="call-frame"]')
         .text()
       const devFunctionName =
-        variant === 'babelrc'
+        variant === 'babelrc' && !isTurbopack
           ? // next/babel transpiles away arrow functions defeating the React Compiler naming
+            // TODO: Does Webpack or Turbopack get the Babel config right?
             'PageUseEffect'
           : // expected naming heuristic from React Compiler. This may change in future.
             // Just make sure this is the heuristic from the React Compiler not something else.

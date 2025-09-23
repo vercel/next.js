@@ -26,13 +26,14 @@ use crate::{
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct ReactCompilerEnvironmentConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "enableNameAnonymousFunctions")]
     enable_name_anonymous_functions: Option<bool>,
 }
 
 // Wrapper struct to augment the configured React Compiler options with defaults determined by
 // Next.js
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct ParsedReactCompilerOptions<T: serde::Serialize + Clone> {
+struct ResolvedReactCompilerOptions<T: serde::Serialize + Clone> {
     #[serde(flatten)]
     inner: T,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -129,10 +130,20 @@ pub async fn get_babel_loader_rules(
         }
     }
 
-    let react_compiler_options = next_config.react_compiler_options().await?;
+    let configured_react_compiler_options = next_config.react_compiler_options().await?;
 
-    // Enable environment.enableNameAnonymousFunctions in development
-    let parsed_react_compiler_options = if let Some(ref opts) = react_compiler_options.as_ref() {
+    // if there's no babel config and react-compiler shouldn't be enabled, bail out early
+    if babel_config_path.is_none()
+        && (configured_react_compiler_options.is_none()
+            || !builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Browser))
+    {
+        return Ok(Vec::new());
+    }
+
+    // Create extended react compiler options with environment.enableNameAnonymousFunctions if in
+    // development
+    let react_compiler_options = if let Some(ref opts) = configured_react_compiler_options.as_ref()
+    {
         let environment =
             if builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Development) {
                 Some(ReactCompilerEnvironmentConfig {
@@ -141,31 +152,14 @@ pub async fn get_babel_loader_rules(
             } else {
                 None
             };
-        Some(ParsedReactCompilerOptions {
+
+        Some(ResolvedReactCompilerOptions {
             inner: (**opts).clone(),
             environment,
         })
     } else {
         None
     };
-
-    // print serialized parsed_react_compiler_options
-    if let Some(parsed_react_compiler_options) = &parsed_react_compiler_options {
-        // debug print
-        println!(
-            "Parsed React Compiler Options: {}",
-            serde_json::to_string_pretty(parsed_react_compiler_options)
-                .expect("parsed react compiler options JSON serialization should never fail")
-        );
-    }
-
-    // if there's no babel config and react-compiler shouldn't be enabled, bail out early
-    if babel_config_path.is_none()
-        && (react_compiler_options.is_none()
-            || !builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Browser))
-    {
-        return Ok(Vec::new());
-    }
 
     // - See `packages/next/src/build/babel/loader/types.d.ts` for all the configuration options.
     // - See `packages/next/src/build/get-babel-loader-config.ts` for how we use this in webpack.
@@ -189,15 +183,15 @@ pub async fn get_babel_loader_rules(
     }
 
     let mut loader_conditions = Vec::new();
-    if let Some(parsed_opts) = parsed_react_compiler_options.as_ref()
+    if let Some(react_compiler_plugin_options) = react_compiler_options.as_ref()
         && let Some(babel_plugin_path) =
             resolve_babel_plugin_react_compiler(next_config, project_path).await?
     {
         let react_compiler_plugins =
             serde_json::Value::Array(vec![serde_json::Value::Array(vec![
                 serde_json::Value::String(babel_plugin_path.into_owned()),
-                serde_json::to_value(parsed_opts)
-                    .expect("parsed react compiler options JSON serialization should never fail"),
+                serde_json::to_value(react_compiler_plugin_options)
+                    .expect("react compiler options JSON serialization should never fail"),
             ])]);
 
         loader_options.insert("reactCompilerPlugins".to_owned(), react_compiler_plugins);
@@ -208,7 +202,8 @@ pub async fn get_babel_loader_rules(
             //
             // NOTE: we already bail out at the earlier if `foreign` condition is set or if
             // `browser` is not set.
-            match parsed_opts.inner.compilation_mode {
+            let inner_opts = react_compiler_plugin_options.inner.await?;
+            match inner_opts.compilation_mode {
                 ReactCompilerCompilationMode::Annotation => {
                     loader_conditions.push(ConditionItem::Base {
                         path: None,
