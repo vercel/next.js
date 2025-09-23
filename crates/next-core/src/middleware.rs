@@ -31,16 +31,8 @@ pub async fn get_middleware_module(
 
     // Determine if this is a proxy file by checking the module path
     let userland_path = userland_module.ident().path().await?.to_string();
-    let is_proxy = userland_path.contains("/proxy.") || userland_path.contains("/src/proxy.");
-    let page_path = if is_proxy {
-        if userland_path.contains("/src/proxy.") {
-            "/src/proxy"
-        } else {
-            "/proxy"
-        }
-    } else {
-        "/middleware"
-    };
+    let is_proxy = userland_path.contains("proxy.");
+    let page_path = if is_proxy { "/proxy" } else { "/middleware" };
 
     // Load the file from the next.js codebase.
     let source = load_next_js_template(
