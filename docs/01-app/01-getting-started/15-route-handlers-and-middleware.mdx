@@ -147,6 +147,8 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/users/[id]'>) {
 
 Middleware allows you to run code before a request is completed. Then, based on the incoming request, you can modify the response by rewriting, redirecting, modifying the request or response headers, or responding directly.
 
+> **Note**: The `middleware` file convention is deprecated and has been renamed to `proxy`. Please use `proxy.js|ts` instead of `middleware.js|ts`. The `middleware` convention will be removed by default in Next.js 17.
+
 ### Use cases
 
 Some common scenarios where Middleware is effective include:
