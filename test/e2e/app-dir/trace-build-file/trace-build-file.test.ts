@@ -136,17 +136,32 @@ describe('trace-build-file', () => {
         foundEvents.add(event.name)
       }
 
-      expect([...foundEvents].sort()).toMatchInlineSnapshot(`
-       [
-         "next-build",
-         "run-eslint",
-         "run-turbopack",
-         "run-typescript",
-         "static-check",
-         "static-generation",
-         "telemetry-flush",
-       ]
-      `)
+      if (process.env.IS_TURBOPACK_TEST) {
+        expect([...foundEvents].sort()).toMatchInlineSnapshot(`
+                [
+                  "next-build",
+                  "run-eslint",
+                  "run-turbopack",
+                  "run-typescript",
+                  "static-check",
+                  "static-generation",
+                  "telemetry-flush",
+                ]
+              `)
+      } else {
+        expect([...foundEvents].sort()).toMatchInlineSnapshot(`
+         [
+           "collect-build-traces",
+           "next-build",
+           "run-eslint",
+           "run-typescript",
+           "run-webpack",
+           "static-check",
+           "static-generation",
+           "telemetry-flush",
+         ]
+        `)
+      }
     })
 
     it('should have next-build as root span with proper hierarchy', async () => {
