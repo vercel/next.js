@@ -25,13 +25,14 @@ use crate::{
         },
         module_batches::{BatchingConfig, ModuleBatchesGraphEdge},
     },
-    output::OutputAssets,
+    output::{OutputAsset, OutputAssets},
     reference::ModuleReference,
     traced_asset::TracedAsset,
 };
 
 pub struct MakeChunkGroupResult {
     pub chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
+    pub referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     pub availability_info: AvailabilityInfo,
 }
 
@@ -155,12 +156,12 @@ pub async fn make_chunk_group(
         chunk_items,
         chunk_item_batch_groups,
         rcstr!(""),
-        ResolvedVc::cell(referenced_output_assets),
     )
     .await?;
 
     Ok(MakeChunkGroupResult {
         chunks,
+        referenced_output_assets,
         availability_info,
     })
 }

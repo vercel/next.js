@@ -23,8 +23,8 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkingConfig, ChunkingContext, EvaluatableAsset, EvaluatableAssets, MangleType,
-        MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
+        ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
+        MangleType, MinifyType, SourceMapsType, availability_info::AvailabilityInfo,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
@@ -35,7 +35,7 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         export_usage::compute_export_usage_info,
     },
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
@@ -428,8 +428,8 @@ async fn build_internal(
                     {
                         match target {
                             Target::Browser => {
-                                chunking_context
-                                    .evaluated_chunk_group(
+                                *chunking_context
+                                    .evaluated_chunk_group_assets(
                                         AssetIdent::from_path(
                                             build_output_root
                                                 .join(
@@ -449,29 +449,32 @@ async fn build_internal(
                                         AvailabilityInfo::Root,
                                     )
                                     .await?
-                                    .assets
                             }
-                            Target::Node => ResolvedVc::cell(vec![
-                                chunking_context
-                                    .entry_chunk_group(
-                                        build_output_root
-                                            .join(
-                                                ecmascript
-                                                    .ident()
-                                                    .path()
-                                                    .await?
-                                                    .file_stem()
-                                                    .unwrap(),
-                                            )?
-                                            .with_extension("entry.js"),
-                                        EvaluatableAssets::one(*ecmascript),
-                                        module_graph,
-                                        OutputAssets::empty(),
-                                        AvailabilityInfo::Root,
-                                    )
-                                    .await?
-                                    .asset,
-                            ]),
+                            Target::Node => OutputAssetsWithReferenced {
+                                assets: ResolvedVc::cell(vec![
+                                    chunking_context
+                                        .entry_chunk_group(
+                                            build_output_root
+                                                .join(
+                                                    ecmascript
+                                                        .ident()
+                                                        .path()
+                                                        .await?
+                                                        .file_stem()
+                                                        .unwrap(),
+                                                )?
+                                                .with_extension("entry.js"),
+                                            EvaluatableAssets::one(*ecmascript),
+                                            module_graph,
+                                            OutputAssets::empty(),
+                                            OutputAssets::empty(),
+                                            AvailabilityInfo::Root,
+                                        )
+                                        .await?
+                                        .asset,
+                                ]),
+                                referenced_assets: ResolvedVc::cell(vec![]),
+                            },
                         }
                     } else {
                         bail!(
@@ -485,16 +488,27 @@ async fn build_internal(
         .try_join()
         .await?;
 
-    let mut chunks: FxHashSet<ResolvedVc<Box<dyn OutputAsset>>> = FxHashSet::default();
-    for chunk_group in entry_chunk_groups {
-        chunks.extend(
-            &*async move { all_assets_from_entries(*chunk_group).await }
-                .instrument(tracing::info_span!("list chunks"))
-                .await?,
-        );
+    let all_assets = async move {
+        let mut all_assets: FxHashSet<ResolvedVc<Box<dyn OutputAsset>>> = FxHashSet::default();
+        for OutputAssetsWithReferenced {
+            assets,
+            referenced_assets,
+        } in entry_chunk_groups
+        {
+            all_assets.extend(all_assets_from_entries(*assets).await?.into_iter().copied());
+            all_assets.extend(
+                all_assets_from_entries(*referenced_assets)
+                    .await?
+                    .into_iter()
+                    .copied(),
+            );
+        }
+        anyhow::Ok(all_assets)
     }
+    .instrument(tracing::info_span!("list chunks"))
+    .await?;
 
-    chunks
+    all_assets
         .iter()
         .map(|c| async move { c.content().write(c.path().owned().await?).await })
         .try_join()

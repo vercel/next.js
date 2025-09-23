@@ -114,7 +114,6 @@ const zTurbopackLoaderItem: zod.ZodType<TurbopackLoaderItem> = z.union([
 
 const zTurbopackLoaderBuiltinCondition: zod.ZodType<TurbopackLoaderBuiltinCondition> =
   z.union([
-    z.literal('default'),
     z.literal('browser'),
     z.literal('foreign'),
     z.literal('development'),

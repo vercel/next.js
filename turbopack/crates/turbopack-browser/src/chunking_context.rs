@@ -573,13 +573,14 @@ impl ChunkingContext for BrowserChunkingContext {
         let span = tracing::info_span!("chunking", name = ident.to_string().await?.to_string());
         async move {
             let this = self.await?;
-            let modules = chunk_group.entries();
+            let entries = chunk_group.entries();
             let input_availability_info = availability_info;
             let MakeChunkGroupResult {
                 chunks,
+                referenced_output_assets,
                 availability_info,
             } = make_chunk_group(
-                modules,
+                entries,
                 module_graph,
                 ResolvedVc::upcast(self),
                 input_availability_info,
@@ -604,11 +605,12 @@ impl ChunkingContext for BrowserChunkingContext {
                             ident.with_modifier(available_modules.hash().await?.to_string().into());
                     }
                 }
+                let other_assets = Vc::cell(assets.clone());
                 assets.push(
                     self.generate_chunk_list_register_chunk(
                         ident,
                         EvaluatableAssets::empty(),
-                        Vc::cell(assets.clone()),
+                        other_assets,
                         EcmascriptDevChunkListSource::Dynamic,
                     )
                     .to_resolved()
@@ -618,6 +620,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
+                referenced_assets: ResolvedVc::cell(referenced_output_assets),
                 availability_info,
             }
             .cell())
@@ -632,7 +635,7 @@ impl ChunkingContext for BrowserChunkingContext {
         ident: Vc<AssetIdent>,
         chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
-        availability_info: AvailabilityInfo,
+        input_availability_info: AvailabilityInfo,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = {
             let ident = ident.to_string().await?.to_string();
@@ -640,17 +643,16 @@ impl ChunkingContext for BrowserChunkingContext {
         };
         async move {
             let this = self.await?;
-
             let entries = chunk_group.entries();
-
             let MakeChunkGroupResult {
                 chunks,
+                referenced_output_assets,
                 availability_info,
             } = make_chunk_group(
                 entries,
                 module_graph,
                 ResolvedVc::upcast(self),
-                availability_info,
+                input_availability_info,
             )
             .await?;
 
@@ -673,6 +675,17 @@ impl ChunkingContext for BrowserChunkingContext {
             );
 
             if this.enable_hot_module_replacement {
+                let mut ident = ident;
+                match input_availability_info {
+                    AvailabilityInfo::Root => {}
+                    AvailabilityInfo::Untracked => {
+                        ident = ident.with_modifier(rcstr!("untracked"));
+                    }
+                    AvailabilityInfo::Complete { available_modules } => {
+                        ident =
+                            ident.with_modifier(available_modules.hash().await?.to_string().into());
+                    }
+                }
                 assets.push(
                     self.generate_chunk_list_register_chunk(
                         ident,
@@ -693,6 +706,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
             Ok(ChunkGroupResult {
                 assets: ResolvedVc::cell(assets),
+                referenced_assets: ResolvedVc::cell(referenced_output_assets),
                 availability_info,
             }
             .cell())
@@ -708,6 +722,7 @@ impl ChunkingContext for BrowserChunkingContext {
         _evaluatable_assets: Vc<EvaluatableAssets>,
         _module_graph: Vc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
+        _extra_referenced_assets: Vc<OutputAssets>,
         _availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>> {
         bail!("Browser chunking context does not support entry chunk groups")

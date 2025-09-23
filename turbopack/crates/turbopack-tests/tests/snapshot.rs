@@ -50,7 +50,7 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
         export_usage::compute_export_usage_info,
     },
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
 };
@@ -511,28 +511,33 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             AvailabilityInfo::Root,
         ),
         Runtime::NodeJs => {
-            Vc::cell(vec![
-                Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
-                    .await?
-                    .unwrap()
-                    .entry_chunk_group(
-                        // `expected` expects a completely flat output directory.
-                        chunk_root_path
-                            .join(entry_module.ident().path().await?.file_stem().unwrap())?
-                            .with_extension("entry.js"),
-                        evaluatable_assets,
-                        module_graph,
-                        OutputAssets::empty(),
-                        AvailabilityInfo::Root,
-                    )
-                    .await?
-                    .asset,
-            ])
+            OutputAssetsWithReferenced {
+                assets: ResolvedVc::cell(vec![
+                    Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
+                        .await?
+                        .unwrap()
+                        .entry_chunk_group(
+                            // `expected` expects a completely flat output directory.
+                            chunk_root_path
+                                .join(entry_module.ident().path().await?.file_stem().unwrap())?
+                                .with_extension("entry.js"),
+                            evaluatable_assets,
+                            module_graph,
+                            OutputAssets::empty(),
+                            OutputAssets::empty(),
+                            AvailabilityInfo::Root,
+                        )
+                        .await?
+                        .asset,
+                ]),
+                referenced_assets: ResolvedVc::cell(vec![]),
+            }
+            .cell()
         }
     };
 
     let mut seen = FxHashSet::default();
-    let mut queue: VecDeque<_> = chunks.await?.iter().copied().collect();
+    let mut queue: VecDeque<_> = chunks.all_assets().await?.iter().copied().collect();
 
     let output_path = project_path.clone();
     while let Some(asset) = queue.pop_front() {

@@ -107,7 +107,6 @@ export type TurbopackLoaderItem =
     }
 
 export type TurbopackLoaderBuiltinCondition =
-  | 'default'
   | 'browser'
   | 'foreign'
   | 'development'

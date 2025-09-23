@@ -183,7 +183,6 @@ module.exports = {
 
 In addition, a number of built-in conditions are supported:
 
-- `default`: Always matched. A no-op.
 - `browser`: Matches code that will execute on the client. Server code can be matched using `{not: 'browser'}`.
 - `foreign`: Matches code in `node_modules`, as well as some Next.js internals. Usually you'll want to restrict loaders to `{not: 'foreign'}`. This can improve performance by reducing the number of files the loader is invoked on.
 - `development`: Matches when using `next dev --turbopack`.

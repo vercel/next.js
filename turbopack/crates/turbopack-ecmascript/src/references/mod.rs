@@ -477,28 +477,28 @@ where
 
 /// Analyse a provided [EcmascriptModuleAsset] and return a [AnalyzeEcmascriptModuleResult].
 #[turbo_tasks::function]
-pub(crate) async fn analyse_ecmascript_module(
+pub(crate) async fn analyze_ecmascript_module(
     module: ResolvedVc<EcmascriptModuleAsset>,
     part: Option<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let span = {
         let module = module.ident().to_string().await?.to_string();
-        tracing::info_span!("analyse ecmascript module", name = module)
+        tracing::info_span!("analyze ecmascript module", name = module)
     };
-    let result = analyse_ecmascript_module_internal(module, part)
+    let result = analyze_ecmascript_module_internal(module, part)
         .instrument(span)
         .await;
 
     match result {
         Ok(result) => Ok(result),
         Err(err) => Err(err.context(format!(
-            "failed to analyse ecmascript module '{}'",
+            "failed to analyze ecmascript module '{}'",
             module.ident().to_string().await?
         ))),
     }
 }
 
-pub async fn analyse_ecmascript_module_internal(
+pub async fn analyze_ecmascript_module_internal(
     module: ResolvedVc<EcmascriptModuleAsset>,
     part: Option<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
@@ -1651,7 +1651,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             span,
                             &format!("new URL({args}) is very dynamic{hints}",),
                             DiagnosticId::Lint(
-                                errors::failed_to_analyse::ecmascript::NEW_URL_IMPORT_META
+                                errors::failed_to_analyze::ecmascript::NEW_URL_IMPORT_META
                                     .to_string(),
                             ),
                         );
@@ -1683,7 +1683,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             span,
                             &format!("new Worker({args}) is very dynamic{hints}",),
                             DiagnosticId::Lint(
-                                errors::failed_to_analyse::ecmascript::NEW_WORKER.to_string(),
+                                errors::failed_to_analyze::ecmascript::NEW_WORKER.to_string(),
                             ),
                         );
                         if ignore_dynamic_requests {
@@ -1771,7 +1771,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         span,
                         &format!("import({args}) is very dynamic{hints}",),
                         DiagnosticId::Lint(
-                            errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.to_string(),
+                            errors::failed_to_analyze::ecmascript::DYNAMIC_IMPORT.to_string(),
                         ),
                     );
                     if ignore_dynamic_requests {
@@ -1796,9 +1796,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let (args, hints) = explain_args(&args);
             handler.span_warn_with_code(
                 span,
-                &format!("import({args}) is not statically analyse-able{hints}",),
+                &format!("import({args}) is not statically analyze-able{hints}",),
                 DiagnosticId::Error(
-                    errors::failed_to_analyse::ecmascript::DYNAMIC_IMPORT.to_string(),
+                    errors::failed_to_analyze::ecmascript::DYNAMIC_IMPORT.to_string(),
                 ),
             )
         }
@@ -1812,7 +1812,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         span,
                         &format!("require({args}) is very dynamic{hints}",),
                         DiagnosticId::Lint(
-                            errors::failed_to_analyse::ecmascript::REQUIRE.to_string(),
+                            errors::failed_to_analyze::ecmascript::REQUIRE.to_string(),
                         ),
                     );
                     if ignore_dynamic_requests {
@@ -1834,8 +1834,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let (args, hints) = explain_args(&args);
             handler.span_warn_with_code(
                 span,
-                &format!("require({args}) is not statically analyse-able{hints}",),
-                DiagnosticId::Error(errors::failed_to_analyse::ecmascript::REQUIRE.to_string()),
+                &format!("require({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(errors::failed_to_analyze::ecmascript::REQUIRE.to_string()),
             )
         }
         JsValue::WellKnownFunction(WellKnownFunctionKind::Define) => {
@@ -1856,7 +1856,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let args = linked_args(args).await?;
             if args.len() == 1 || args.len() == 2 {
                 // TODO error TP1003 require.resolve(???*0*, {"paths": [???*1*]}) is not statically
-                // analyse-able with ignore_dynamic_requests = true
+                // analyze-able with ignore_dynamic_requests = true
                 let pat = js_value_to_pattern(&args[0]);
                 if !pat.has_constant_parts() {
                     let (args, hints) = explain_args(&args);
@@ -1864,7 +1864,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         span,
                         &format!("require.resolve({args}) is very dynamic{hints}",),
                         DiagnosticId::Lint(
-                            errors::failed_to_analyse::ecmascript::REQUIRE_RESOLVE.to_string(),
+                            errors::failed_to_analyze::ecmascript::REQUIRE_RESOLVE.to_string(),
                         ),
                     );
                     if ignore_dynamic_requests {
@@ -1886,9 +1886,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let (args, hints) = explain_args(&args);
             handler.span_warn_with_code(
                 span,
-                &format!("require.resolve({args}) is not statically analyse-able{hints}",),
+                &format!("require.resolve({args}) is not statically analyze-able{hints}",),
                 DiagnosticId::Error(
-                    errors::failed_to_analyse::ecmascript::REQUIRE_RESOLVE.to_string(),
+                    errors::failed_to_analyze::ecmascript::REQUIRE_RESOLVE.to_string(),
                 ),
             )
         }
@@ -1906,7 +1906,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             PrettyPrintError(&err)
                         ),
                         DiagnosticId::Error(
-                            errors::failed_to_analyse::ecmascript::REQUIRE_CONTEXT.to_string(),
+                            errors::failed_to_analyze::ecmascript::REQUIRE_CONTEXT.to_string(),
                         ),
                     );
                     return Ok(());
@@ -1940,7 +1940,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         span,
                         &format!("fs.{name}({args}) is very dynamic{hints}",),
                         DiagnosticId::Lint(
-                            errors::failed_to_analyse::ecmascript::FS_METHOD.to_string(),
+                            errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
                         ),
                     );
                     if ignore_dynamic_requests {
@@ -1957,8 +1957,8 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let (args, hints) = explain_args(&args);
             handler.span_warn_with_code(
                 span,
-                &format!("fs.{name}({args}) is not statically analyse-able{hints}",),
-                DiagnosticId::Error(errors::failed_to_analyse::ecmascript::FS_METHOD.to_string()),
+                &format!("fs.{name}({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(errors::failed_to_analyze::ecmascript::FS_METHOD.to_string()),
             )
         }
 
@@ -1989,7 +1989,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     span,
                     &format!("path.resolve({args}) is very dynamic{hints}",),
                     DiagnosticId::Lint(
-                        errors::failed_to_analyse::ecmascript::PATH_METHOD.to_string(),
+                        errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
                     ),
                 );
                 if ignore_dynamic_requests {
@@ -2029,7 +2029,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     span,
                     &format!("path.join({args}) is very dynamic{hints}",),
                     DiagnosticId::Lint(
-                        errors::failed_to_analyse::ecmascript::PATH_METHOD.to_string(),
+                        errors::failed_to_analyze::ecmascript::PATH_METHOD.to_string(),
                     ),
                 );
                 if ignore_dynamic_requests {
@@ -2097,7 +2097,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         span,
                         &format!("child_process.{name}({args}) is very dynamic{hints}",),
                         DiagnosticId::Lint(
-                            errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
+                            errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
                         ),
                     );
                 }
@@ -2106,9 +2106,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let (args, hints) = explain_args(&args);
             handler.span_warn_with_code(
                 span,
-                &format!("child_process.{name}({args}) is not statically analyse-able{hints}",),
+                &format!("child_process.{name}({args}) is not statically analyze-able{hints}",),
                 DiagnosticId::Error(
-                    errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
+                    errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
                 ),
             )
         }
@@ -2125,7 +2125,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         span,
                         &format!("child_process.fork({args}) is very dynamic{hints}",),
                         DiagnosticId::Lint(
-                            errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
+                            errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
                         ),
                     );
                     if ignore_dynamic_requests {
@@ -2147,9 +2147,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let (args, hints) = explain_args(&args);
             handler.span_warn_with_code(
                 span,
-                &format!("child_process.fork({args}) is not statically analyse-able{hints}",),
+                &format!("child_process.fork({args}) is not statically analyze-able{hints}",),
                 DiagnosticId::Error(
-                    errors::failed_to_analyse::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
+                    errors::failed_to_analyze::ecmascript::CHILD_PROCESS_SPAWN.to_string(),
                 ),
             )
         }
@@ -2168,7 +2168,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         span,
                         &format!("node-pre-gyp.find({args}) is very dynamic{hints}",),
                         DiagnosticId::Lint(
-                            errors::failed_to_analyse::ecmascript::NODE_PRE_GYP_FIND.to_string(),
+                            errors::failed_to_analyze::ecmascript::NODE_PRE_GYP_FIND.to_string(),
                         ),
                     );
                     // Always ignore this dynamic request
@@ -2190,10 +2190,10 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 span,
                 &format!(
                     "require('@mapbox/node-pre-gyp').find({args}) is not statically \
-                     analyse-able{hints}",
+                     analyze-able{hints}",
                 ),
                 DiagnosticId::Error(
-                    errors::failed_to_analyse::ecmascript::NODE_PRE_GYP_FIND.to_string(),
+                    errors::failed_to_analyze::ecmascript::NODE_PRE_GYP_FIND.to_string(),
                 ),
             )
         }
@@ -2230,10 +2230,10 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             handler.span_warn_with_code(
                 span,
                 &format!(
-                    "require('node-gyp-build')({args}) is not statically analyse-able{hints}",
+                    "require('node-gyp-build')({args}) is not statically analyze-able{hints}",
                 ),
                 DiagnosticId::Error(
-                    errors::failed_to_analyse::ecmascript::NODE_GYP_BUILD.to_string(),
+                    errors::failed_to_analyze::ecmascript::NODE_GYP_BUILD.to_string(),
                 ),
             )
         }
@@ -2259,9 +2259,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let (args, hints) = explain_args(&args);
             handler.span_warn_with_code(
                 span,
-                &format!("require('bindings')({args}) is not statically analyse-able{hints}",),
+                &format!("require('bindings')({args}) is not statically analyze-able{hints}",),
                 DiagnosticId::Error(
-                    errors::failed_to_analyse::ecmascript::NODE_BINDINGS.to_string(),
+                    errors::failed_to_analyze::ecmascript::NODE_BINDINGS.to_string(),
                 ),
             )
         }
@@ -2280,7 +2280,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         span,
                         &format!("require('express')().set({args}) is very dynamic{hints}",),
                         DiagnosticId::Lint(
-                            errors::failed_to_analyse::ecmascript::NODE_EXPRESS.to_string(),
+                            errors::failed_to_analyze::ecmascript::NODE_EXPRESS.to_string(),
                         ),
                     );
                     // Always ignore this dynamic request
@@ -2340,9 +2340,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let (args, hints) = explain_args(&args);
             handler.span_warn_with_code(
                 span,
-                &format!("require('express')().set({args}) is not statically analyse-able{hints}",),
+                &format!("require('express')().set({args}) is not statically analyze-able{hints}",),
                 DiagnosticId::Error(
-                    errors::failed_to_analyse::ecmascript::NODE_EXPRESS.to_string(),
+                    errors::failed_to_analyze::ecmascript::NODE_EXPRESS.to_string(),
                 ),
             )
         }
@@ -2383,10 +2383,10 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 span,
                 &format!(
                     "require('strong-globalize').SetRootDir({args}) is not statically \
-                     analyse-able{hints}",
+                     analyze-able{hints}",
                 ),
                 DiagnosticId::Error(
-                    errors::failed_to_analyse::ecmascript::NODE_GYP_BUILD.to_string(),
+                    errors::failed_to_analyze::ecmascript::NODE_GYP_BUILD.to_string(),
                 ),
             )
         }
@@ -2410,9 +2410,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             let (args, hints) = explain_args(&args);
             handler.span_warn_with_code(
                 span,
-                &format!("require('resolve-from')({args}) is not statically analyse-able{hints}",),
+                &format!("require('resolve-from')({args}) is not statically analyze-able{hints}",),
                 DiagnosticId::Error(
-                    errors::failed_to_analyse::ecmascript::NODE_RESOLVE_FROM.to_string(),
+                    errors::failed_to_analyze::ecmascript::NODE_RESOLVE_FROM.to_string(),
                 ),
             )
         }
@@ -2453,10 +2453,10 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 span,
                 &format!(
                     "require('@grpc/proto-loader').load({args}) is not statically \
-                     analyse-able{hints}",
+                     analyze-able{hints}",
                 ),
                 DiagnosticId::Error(
-                    errors::failed_to_analyse::ecmascript::NODE_PROTOBUF_LOADER.to_string(),
+                    errors::failed_to_analyze::ecmascript::NODE_PROTOBUF_LOADER.to_string(),
                 ),
             )
         }
@@ -2608,7 +2608,7 @@ async fn handle_free_var_reference(
             span,
             error_message,
             DiagnosticId::Error(
-                errors::failed_to_analyse::ecmascript::FREE_VAR_REFERENCE.to_string(),
+                errors::failed_to_analyze::ecmascript::FREE_VAR_REFERENCE.to_string(),
             ),
         ),
         FreeVarReference::Value(value) => {
@@ -2799,7 +2799,7 @@ async fn analyze_amd_define(
             handler.span_err_with_code(
                 span,
                 "unsupported AMD define() form",
-                DiagnosticId::Error(errors::failed_to_analyse::ecmascript::AMD_DEFINE.to_string()),
+                DiagnosticId::Error(errors::failed_to_analyze::ecmascript::AMD_DEFINE.to_string()),
             );
         }
     }
@@ -2830,7 +2830,7 @@ async fn analyze_amd_define_with_deps(
                         span,
                         "using \"require\" as dependency in an AMD define() is not yet supported",
                         DiagnosticId::Error(
-                            errors::failed_to_analyse::ecmascript::AMD_DEFINE.to_string(),
+                            errors::failed_to_analyze::ecmascript::AMD_DEFINE.to_string(),
                         ),
                     );
                     requests.push(AmdDefineDependencyElement::Require);
@@ -2861,7 +2861,7 @@ async fn analyze_amd_define_with_deps(
                 // `JsValue`s do not keep a hold of their original span.
                 span,
                 "unsupported AMD define() dependency element form",
-                DiagnosticId::Error(errors::failed_to_analyse::ecmascript::AMD_DEFINE.to_string()),
+                DiagnosticId::Error(errors::failed_to_analyze::ecmascript::AMD_DEFINE.to_string()),
             );
         }
     }
@@ -2870,7 +2870,7 @@ async fn analyze_amd_define_with_deps(
         handler.span_warn_with_code(
             span,
             "passing an ID to AMD define() is not yet fully supported",
-            DiagnosticId::Lint(errors::failed_to_analyse::ecmascript::AMD_DEFINE.to_string()),
+            DiagnosticId::Lint(errors::failed_to_analyze::ecmascript::AMD_DEFINE.to_string()),
         );
     }
 
@@ -3240,7 +3240,7 @@ impl StaticAnalyser {
 struct ModuleReferencesVisitor<'a> {
     analyze_mode: AnalyzeMode,
     eval_context: &'a EvalContext,
-    old_analyser: StaticAnalyser,
+    old_analyzer: StaticAnalyser,
     import_references: &'a [ResolvedVc<EsmAssetReference>],
     analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
     esm_exports: BTreeMap<RcStr, EsmExport>,
@@ -3261,7 +3261,7 @@ impl<'a> ModuleReferencesVisitor<'a> {
         Self {
             analyze_mode,
             eval_context,
-            old_analyser: StaticAnalyser::default(),
+            old_analyzer: StaticAnalyser::default(),
             import_references,
             analysis,
             esm_exports: BTreeMap::new(),
@@ -3552,7 +3552,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             match specifier {
                 ImportSpecifier::Named(named) => {
                     if !named.is_type_only {
-                        self.old_analyser.imports.insert(
+                        self.old_analyzer.imports.insert(
                             named.local.sym.to_string(),
                             (
                                 src.clone(),
@@ -3566,13 +3566,13 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                     }
                 }
                 ImportSpecifier::Default(default_import) => {
-                    self.old_analyser.imports.insert(
+                    self.old_analyzer.imports.insert(
                         default_import.local.sym.to_string(),
                         (src.clone(), vec!["default".to_string()]),
                     );
                 }
                 ImportSpecifier::Namespace(namespace) => {
-                    self.old_analyser
+                    self.old_analyzer
                         .imports
                         .insert(namespace.local.sym.to_string(), (src.clone(), Vec::new()));
                 }
@@ -3610,7 +3610,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         if let Callee::Expr(expr) = &call.callee
-            && let StaticExpr::FreeVar(var) = self.old_analyser.evaluate_expr(expr)
+            && let StaticExpr::FreeVar(var) = self.old_analyzer.evaluate_expr(expr)
         {
             match &var[..] {
                 [webpack_require, property]

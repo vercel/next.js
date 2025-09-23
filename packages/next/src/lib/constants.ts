@@ -100,6 +100,8 @@ export const SERVER_RUNTIME: Record<string, ServerRuntime> = {
   nodejs: 'nodejs',
 }
 
+export const WEB_SOCKET_MAX_RECONNECTIONS = 12
+
 /**
  * The names of the webpack layers. These layers are the primitives for the
  * webpack chunks.

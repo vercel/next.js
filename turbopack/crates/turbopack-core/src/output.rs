@@ -59,3 +59,18 @@ impl OutputAssets {
 /// A set of [OutputAsset]s
 #[turbo_tasks::value(transparent)]
 pub struct OutputAssetsSet(FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>>);
+
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Copy)]
+pub struct OutputAssetsWithReferenced {
+    pub assets: ResolvedVc<OutputAssets>,
+    pub referenced_assets: ResolvedVc<OutputAssets>,
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsWithReferenced {
+    #[turbo_tasks::function]
+    pub fn all_assets(&self) -> Vc<OutputAssets> {
+        self.assets.concatenate(*self.referenced_assets)
+    }
+}

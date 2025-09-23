@@ -13,9 +13,11 @@ use turbo_tasks::{
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
+    chunk::{
+        ChunkGroupResult, ChunkingContext, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId,
+    },
     module_graph::async_module_info::AsyncModulesInfo,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsWithReferenced},
     virtual_output::VirtualOutputAsset,
 };
 use turbopack_ecmascript::utils::StringifyJs;
@@ -172,44 +174,50 @@ impl ClientReferenceManifest {
                     .chunk_item_id(*client_chunking_context)
                     .await?;
 
-                let (client_chunks_paths, client_is_async) =
-                    if let Some((client_chunks, _client_availability_info)) =
-                        client_component_client_chunks.get(&app_client_reference_ty)
-                    {
-                        let client_chunks = client_chunks.await?;
-                        references.extend(client_chunks.iter());
-                        let client_chunks_paths = cached_chunk_paths(
-                            &mut client_chunk_path_cache,
-                            client_chunks.iter().copied(),
-                        )
-                        .await?;
+                let (client_chunks_paths, client_is_async) = if let Some(ChunkGroupResult {
+                    assets: client_chunks,
+                    referenced_assets: client_referenced_assets,
+                    availability_info: _,
+                }) =
+                    client_component_client_chunks.get(&app_client_reference_ty)
+                {
+                    let client_chunks = client_chunks.await?;
+                    let client_referenced_assets = client_referenced_assets.await?;
+                    references.extend(client_chunks.iter());
+                    references.extend(client_referenced_assets.iter());
 
-                        let chunk_paths = client_chunks_paths
-                            .filter_map(|(_, chunk_path)| {
-                                client_relative_path
-                                    .get_path_to(&chunk_path)
-                                    .map(ToString::to_string)
-                            })
-                            // It's possible that a chunk also emits CSS files, that will
-                            // be handled separately.
-                            .filter(|path| path.ends_with(".js"))
-                            .map(|path| {
-                                format!(
-                                    "{}{}{}",
-                                    prefix_path,
-                                    path.split('/').map(encode_uri_component).format("/"),
-                                    suffix_path
-                                )
-                            })
-                            .map(RcStr::from)
-                            .collect::<Vec<_>>();
+                    let client_chunks_paths = cached_chunk_paths(
+                        &mut client_chunk_path_cache,
+                        client_chunks.iter().copied(),
+                    )
+                    .await?;
 
-                        let is_async = async_modules.contains(&ResolvedVc::upcast(client_module));
+                    let chunk_paths = client_chunks_paths
+                        .filter_map(|(_, chunk_path)| {
+                            client_relative_path
+                                .get_path_to(&chunk_path)
+                                .map(ToString::to_string)
+                        })
+                        // It's possible that a chunk also emits CSS files, that will
+                        // be handled separately.
+                        .filter(|path| path.ends_with(".js"))
+                        .map(|path| {
+                            format!(
+                                "{}{}{}",
+                                prefix_path,
+                                path.split('/').map(encode_uri_component).format("/"),
+                                suffix_path
+                            )
+                        })
+                        .map(RcStr::from)
+                        .collect::<Vec<_>>();
 
-                        (chunk_paths, is_async)
-                    } else {
-                        (Vec::new(), false)
-                    };
+                    let is_async = async_modules.contains(&ResolvedVc::upcast(client_module));
+
+                    (chunk_paths, is_async)
+                } else {
+                    (Vec::new(), false)
+                };
 
                 if let Some(ssr_chunking_context) = ssr_chunking_context {
                     let ssr_module = client_reference_module_ref.ssr_module;
@@ -225,11 +233,16 @@ impl ClientReferenceManifest {
                         // edge runtime doesn't support dynamically
                         // loading chunks.
                         (Vec::new(), false)
-                    } else if let Some((ssr_chunks, _ssr_availability_info)) =
-                        client_component_ssr_chunks.get(&app_client_reference_ty)
+                    } else if let Some(ChunkGroupResult {
+                        assets: ssr_chunks,
+                        referenced_assets: ssr_referenced_assets,
+                        availability_info: _,
+                    }) = client_component_ssr_chunks.get(&app_client_reference_ty)
                     {
                         let ssr_chunks = ssr_chunks.await?;
+                        let ssr_referenced_assets = ssr_referenced_assets.await?;
                         references.extend(ssr_chunks.iter());
+                        references.extend(ssr_referenced_assets.iter());
 
                         let ssr_chunks_paths = cached_chunk_paths(
                             &mut ssr_chunk_path_cache,
@@ -317,7 +330,14 @@ impl ClientReferenceManifest {
             }
 
             // per layout segment chunks need to be emitted into the manifest too
-            for (server_component, client_chunks) in layout_segment_client_chunks.iter() {
+            for (
+                server_component,
+                OutputAssetsWithReferenced {
+                    assets: client_chunks,
+                    referenced_assets: _,
+                },
+            ) in layout_segment_client_chunks.iter()
+            {
                 let server_component_name = server_component
                     .server_path()
                     .await?

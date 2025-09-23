@@ -22,7 +22,7 @@
 
 6 -> 8 call = (...) => (a | (r((a + 1)) + 1))((???*0* + 1))
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 6 -> 9 unreachable = ???*0*
 - *0* unreachable
