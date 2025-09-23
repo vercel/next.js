@@ -86,7 +86,7 @@ jobs:
         with:
           save-if: 'true'
           cache-provider: 'turbo'
-          shared-key: build-turbopack-benchmark-small-apps-${{ hashFiles('.cargo/config.toml') }}
+          shared-key: build-turbopack-benchmark-analyzer-${{ hashFiles('.cargo/config.toml') }}
 
       - name: Install pnpm dependencies
         working-directory: turbopack/benchmark-apps
