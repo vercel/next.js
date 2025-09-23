@@ -30,8 +30,7 @@ impl GenerateSourceMap for InlineSourceMap {
     #[turbo_tasks::function]
     pub async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
         let source_map = maybe_decode_data_url(&self.source_map);
-        let source_map =
-            resolve_source_map_sources(source_map.as_ref(), self.origin_path.clone()).await?;
+        let source_map = resolve_source_map_sources(source_map.as_ref(), &self.origin_path).await?;
         Ok(Vc::cell(source_map))
     }
 }

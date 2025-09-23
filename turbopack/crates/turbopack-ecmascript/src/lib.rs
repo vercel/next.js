@@ -891,7 +891,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let span = tracing::info_span!(
             "code generation",
-            name = self.asset_ident().to_string().await?.to_string()
+            name = display(self.asset_ident().to_string().await?)
         );
         async {
             let this = self.await?;
