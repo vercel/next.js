@@ -21,6 +21,7 @@ import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
   PUBLIC_DIR_MIDDLEWARE_CONFLICT,
   MIDDLEWARE_FILENAME,
+  PROXY_FILENAME,
   PAGES_DIR_ALIAS,
   INSTRUMENTATION_HOOK_FILENAME,
   RSC_PREFETCH_SUFFIX,
@@ -1163,6 +1164,10 @@ export default async function build(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
 
+      const proxyDetectionRegExp = new RegExp(
+        `^${PROXY_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
+      )
+
       const instrumentationHookDetectionRegExp = new RegExp(
         `^${INSTRUMENTATION_HOOK_FILENAME}\\.(?:${config.pageExtensions.join(
           '|'
@@ -1172,6 +1177,7 @@ export default async function build(
       const rootDir = path.join((pagesDir || appDir)!, '..')
       const includes = [
         middlewareDetectionRegExp,
+        proxyDetectionRegExp,
         instrumentationHookDetectionRegExp,
       ]
 
@@ -1186,6 +1192,17 @@ export default async function build(
       const hasMiddlewareFile = rootPaths.some((p) =>
         p.includes(MIDDLEWARE_FILENAME)
       )
+      const hasProxyFile = rootPaths.some((p) => p.includes(PROXY_FILENAME))
+      if (hasMiddlewareFile) {
+        if (hasProxyFile) {
+          throw new Error(
+            `Both "${MIDDLEWARE_FILENAME}" and "${PROXY_FILENAME}" files are detected. Please use "${PROXY_FILENAME}" instead.`
+          )
+        }
+        Log.warn(
+          `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
+        )
+      }
 
       NextBuildContext.hasInstrumentationHook = hasInstrumentationHook
 
@@ -2543,8 +2560,8 @@ export default async function build(
           return serverFilesManifest
         })
 
-      const middlewareFile = rootPaths.find((p) =>
-        p.includes(MIDDLEWARE_FILENAME)
+      const middlewareFile = rootPaths.find(
+        (p) => p.includes(MIDDLEWARE_FILENAME) || p.includes(PROXY_FILENAME)
       )
       let hasNodeMiddleware = false
 
@@ -3918,7 +3935,7 @@ export default async function build(
           rewritesWithHasCount: combinedRewrites.filter((r: any) => !!r.has)
             .length,
           redirectsWithHasCount: redirects.filter((r: any) => !!r.has).length,
-          middlewareCount: hasMiddlewareFile ? 1 : 0,
+          middlewareCount: hasMiddlewareFile || hasProxyFile ? 1 : 0,
           totalAppPagesCount,
           staticAppPagesCount,
           serverAppPagesCount,

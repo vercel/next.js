@@ -948,7 +948,12 @@ export async function createEntrypoints(
                 isDev: false,
               })
           } else if (isMiddlewareFile(page)) {
-            server[serverBundlePath.replace('src/', '')] = getEdgeServerEntry({
+            server[
+              serverBundlePath
+                // proxy.js still uses middleware.js for bundle path
+                .replace('proxy', 'middleware')
+                .replace('src/', '')
+            ] = getEdgeServerEntry({
               ...params,
               rootDir,
               absolutePagePath: absolutePagePath,
@@ -1023,20 +1028,21 @@ export async function createEntrypoints(
                   : undefined,
               }).import
             }
-            edgeServer[serverBundlePath] = getEdgeServerEntry({
-              ...params,
-              rootDir,
-              absolutePagePath: absolutePagePath,
-              bundlePath: clientBundlePath,
-              isDev: false,
-              isServerComponent,
-              page,
-              middleware: staticInfo?.middleware,
-              pagesType,
-              appDirLoader,
-              preferredRegion: staticInfo.preferredRegion,
-              middlewareConfig: staticInfo.middleware,
-            })
+            edgeServer[serverBundlePath.replace('proxy', 'middleware')] =
+              getEdgeServerEntry({
+                ...params,
+                rootDir,
+                absolutePagePath: absolutePagePath,
+                bundlePath: clientBundlePath,
+                isDev: false,
+                isServerComponent,
+                page,
+                middleware: staticInfo?.middleware,
+                pagesType,
+                appDirLoader,
+                preferredRegion: staticInfo.preferredRegion,
+                middlewareConfig: staticInfo.middleware,
+              })
           }
         },
       })
