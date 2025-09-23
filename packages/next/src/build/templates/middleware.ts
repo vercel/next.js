@@ -13,7 +13,7 @@ const mod = { ..._mod }
 
 const page = 'VAR_DEFINITION_PAGE'
 // @ts-expect-error `page` will be replaced during build
-const isProxy = page === '/proxy'
+const isProxy = page === '/proxy' || page === '/src/proxy'
 const handler = (isProxy ? mod.proxy : mod.middleware) || mod.default
 
 if (typeof handler !== 'function') {
