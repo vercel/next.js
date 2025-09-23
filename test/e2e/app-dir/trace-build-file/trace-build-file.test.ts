@@ -119,20 +119,34 @@ describe('trace-build-file', () => {
       const traceBuildPath = join(next.testDir, '.next/trace-build')
       const traceStructure = parseTraceFile(traceBuildPath)
 
-      const allowlistedEvents = new Set([
-        'next-build',
-        'run-turbopack',
-        'run-webpack',
-        'run-typescript',
-        'run-eslint',
-        'static-check',
-        'static-generation',
-        'output-export-full-static-export',
-      ])
+      // const allowlistedEvents = new Set([
+      //   'next-build',
+      //   'run-turbopack',
+      //   'run-webpack',
+      //   'run-typescript',
+      //   'run-eslint',
+      //   'static-check',
+      //   'static-generation',
+      //   'output-export-full-static-export',
+      // ])
+
+      const foundEvents = new Set<string>()
 
       for (const event of traceStructure.events) {
-        expect(allowlistedEvents.has(event.name)).toBe(true)
+        foundEvents.add(event.name)
       }
+
+      expect([...foundEvents].sort()).toMatchInlineSnapshot(`
+       [
+         "next-build",
+         "run-eslint",
+         "run-turbopack",
+         "run-typescript",
+         "static-check",
+         "static-generation",
+         "telemetry-flush",
+       ]
+      `)
     })
 
     it('should have next-build as root span with proper hierarchy', async () => {
