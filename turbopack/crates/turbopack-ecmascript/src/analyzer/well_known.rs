@@ -105,7 +105,7 @@ pub async fn well_known_function_call(
         WellKnownFunctionKind::ProcessCwd => {
             if define_process_cwd && let Some(cwd) = &*compile_time_info.environment().cwd().await?
             {
-                cwd.clone().into()
+                format!("/ROOT/{}", cwd.path).into()
             } else {
                 JsValue::unknown(
                     JsValue::call(Box::new(JsValue::WellKnownFunction(kind)), args),

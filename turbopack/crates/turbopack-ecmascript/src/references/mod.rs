@@ -1951,11 +1951,17 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         return Ok(());
                     }
                 }
-                analysis.add_reference(
-                    FileSourceReference::new(*source, Pattern::new(pat), collect_affecting_sources)
+                if let Some(context_dir) = compile_time_info.environment().cwd().owned().await? {
+                    analysis.add_reference(
+                        FileSourceReference::new(
+                            context_dir,
+                            Pattern::new(pat),
+                            collect_affecting_sources,
+                        )
                         .to_resolved()
                         .await?,
-                );
+                    );
+                }
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -2000,11 +2006,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     return Ok(());
                 }
             }
-            analysis.add_reference(
-                DirAssetReference::new(*source, Pattern::new(pat))
-                    .to_resolved()
-                    .await?,
-            );
+            if let Some(context_dir) = compile_time_info.environment().cwd().owned().await? {
+                analysis.add_reference(
+                    DirAssetReference::new(context_dir, Pattern::new(pat))
+                        .to_resolved()
+                        .await?,
+                );
+            }
             return Ok(());
         }
 
@@ -2040,11 +2048,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     return Ok(());
                 }
             }
-            analysis.add_reference(
-                DirAssetReference::new(*source, Pattern::new(pat))
-                    .to_resolved()
-                    .await?,
-            );
+            if let Some(context_dir) = compile_time_info.environment().cwd().owned().await? {
+                analysis.add_reference(
+                    DirAssetReference::new(context_dir, Pattern::new(pat))
+                        .to_resolved()
+                        .await?,
+                );
+            }
             return Ok(());
         }
         JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(name))
@@ -2089,15 +2099,18 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     show_dynamic_warning = true;
                 }
                 if !dynamic || !ignore_dynamic_requests {
-                    analysis.add_reference(
-                        FileSourceReference::new(
-                            *source,
-                            Pattern::new(pat),
-                            collect_affecting_sources,
-                        )
-                        .to_resolved()
-                        .await?,
-                    );
+                    if let Some(context_dir) = compile_time_info.environment().cwd().owned().await?
+                    {
+                        analysis.add_reference(
+                            FileSourceReference::new(
+                                context_dir,
+                                Pattern::new(pat),
+                                collect_affecting_sources,
+                            )
+                            .to_resolved()
+                            .await?,
+                        );
+                    }
                 }
                 if show_dynamic_warning {
                     let (args, hints) = explain_args(&args);
@@ -2322,11 +2335,15 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                     .await?;
                                 js_value_to_pattern(&linked_func_call)
                             };
-                            analysis.add_reference(
-                                DirAssetReference::new(*source, Pattern::new(abs_pattern))
-                                    .to_resolved()
-                                    .await?,
-                            );
+                            if let Some(context_dir) =
+                                compile_time_info.environment().cwd().owned().await?
+                            {
+                                analysis.add_reference(
+                                    DirAssetReference::new(context_dir, Pattern::new(abs_pattern))
+                                        .to_resolved()
+                                        .await?,
+                                );
+                            }
                             return Ok(());
                         }
                     }
@@ -2385,11 +2402,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         .await?;
                     js_value_to_pattern(&linked_func_call)
                 };
-                analysis.add_reference(
-                    DirAssetReference::new(*source, Pattern::new(abs_pattern))
-                        .to_resolved()
-                        .await?,
-                );
+                if let Some(context_dir) = compile_time_info.environment().cwd().owned().await? {
+                    analysis.add_reference(
+                        DirAssetReference::new(context_dir, Pattern::new(abs_pattern))
+                            .to_resolved()
+                            .await?,
+                    );
+                }
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -2437,27 +2456,32 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)
             {
-                let resolved_dirs = parts
-                    .iter()
-                    .filter_map(|object_part| match object_part {
-                        ObjectPart::KeyValue(
-                            JsValue::Constant(key),
-                            JsValue::Array { items: dirs, .. },
-                        ) if key.as_str() == Some("includeDirs") => {
-                            Some(dirs.iter().filter_map(|dir| dir.as_str()))
-                        }
-                        _ => None,
-                    })
-                    .flatten()
-                    .map(|dir| {
-                        DirAssetReference::new(*source, Pattern::new(Pattern::Constant(dir.into())))
+                if let Some(context_dir) = compile_time_info.environment().cwd().owned().await? {
+                    let resolved_dirs = parts
+                        .iter()
+                        .filter_map(|object_part| match object_part {
+                            ObjectPart::KeyValue(
+                                JsValue::Constant(key),
+                                JsValue::Array { items: dirs, .. },
+                            ) if key.as_str() == Some("includeDirs") => {
+                                Some(dirs.iter().filter_map(|dir| dir.as_str()))
+                            }
+                            _ => None,
+                        })
+                        .flatten()
+                        .map(|dir| {
+                            DirAssetReference::new(
+                                context_dir.clone(),
+                                Pattern::new(Pattern::Constant(dir.into())),
+                            )
                             .to_resolved()
-                    })
-                    .try_join()
-                    .await?;
+                        })
+                        .try_join()
+                        .await?;
 
-                for resolved_dir_ref in resolved_dirs {
-                    analysis.add_reference(resolved_dir_ref);
+                    for resolved_dir_ref in resolved_dirs {
+                        analysis.add_reference(resolved_dir_ref);
+                    }
                 }
 
                 return Ok(());
