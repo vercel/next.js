@@ -21,7 +21,6 @@ describe('app dir - middleware without pages dir', () => {
     },
   })
 
-  // eslint-disable-next-line jest/no-identical-title
   it('Updates headers', async () => {
     const html = await next.render('/headers')
 
