@@ -7,9 +7,9 @@ description: Customize stale-while-revalidate expire time for ISR enabled pages.
 
 You can specify a custom `stale-while-revalidate` expire time for CDNs to consume in the `Cache-Control` header for ISR enabled pages.
 
-Open `next.config.ts` and add the `expireTime` config:
+Open your Next.js config file and add the `expireTime` config:
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

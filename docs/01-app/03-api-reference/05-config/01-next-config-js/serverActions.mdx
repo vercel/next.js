@@ -9,7 +9,7 @@ Options for configuring Server Actions behavior in your Next.js application.
 
 A list of extra safe origin domains from which Server Actions can be invoked. Next.js compares the origin of a Server Action request with the host domain, ensuring they match to prevent CSRF attacks. If not provided, only the same origin is allowed.
 
-```ts filename="next.config.ts" highlight={5-7} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -23,7 +23,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={6-8} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -44,7 +44,7 @@ By default, the maximum size of the request body sent to a Server Action is 1MB,
 
 However, you can configure this limit using the `serverActions.bodySizeLimit` option. It can take the number of bytes or any string format supported by bytes, for example `1000`, `'500kb'` or `'3mb'`.
 
-```ts filename="next.config.ts" highlight={5-7} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -58,7 +58,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={6-8} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -77,7 +77,7 @@ export default nextConfig
 
 Server Actions became a stable feature in Next.js 14, and are enabled by default. However, if you are using an earlier version of Next.js, you can enable them by setting `experimental.serverActions` to `true`.
 
-```ts filename="next.config.ts" highlight={4-6} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -89,7 +89,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-7} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

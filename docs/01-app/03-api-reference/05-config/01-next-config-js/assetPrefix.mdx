@@ -27,9 +27,9 @@ description: Learn how to use the assetPrefix config option to configure your CD
 
 To set up a [CDN](https://en.wikipedia.org/wiki/Content_delivery_network), you can set up an asset prefix and configure your CDN's origin to resolve to the domain that Next.js is hosted on.
 
-Open `next.config.mjs` and add the `assetPrefix` config based on the [phase](/docs/app/api-reference/config/next-config-js#async-configuration):
+To add a prefix to your assets, open your Next.js config file and add the `assetPrefix` config based on the [phase](/docs/app/api-reference/config/next-config-js#async-configuration):
 
-```ts filename="next.config.ts" highlight={8} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 
@@ -43,7 +43,7 @@ export default (phase: string): NextConfig => {
 }
 ```
 
-```js filename="next.config.mjs" highlight={9} switcher
+```js filename="next.config.mjs" switcher
 // @ts-check
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 

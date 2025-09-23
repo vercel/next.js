@@ -5,7 +5,7 @@ description: Specify a list of user agents that should receive blocking metadata
 
 The `htmlLimitedBots` config allows you to specify a list of user agents that should receive blocking metadata instead of [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata).
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const config: NextConfig = {
@@ -15,7 +15,7 @@ const config: NextConfig = {
 export default config
 ```
 
-```js filename="next.config.mjs" highlight={5} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

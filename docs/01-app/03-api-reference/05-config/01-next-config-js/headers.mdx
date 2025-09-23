@@ -7,9 +7,9 @@ description: Add custom HTTP headers to your Next.js app.
 
 Headers allow you to set custom HTTP headers on the response to an incoming request on a given path.
 
-To set custom HTTP headers you can use the `headers` key in `next.config.js`:
+To set custom HTTP headers you can use the `headers` key in your Next.js config file:
 
-```ts filename="next.config.ts" highlight={4-20} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -35,7 +35,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-21} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -77,7 +77,7 @@ Headers are checked before the filesystem which includes pages and `/public` fil
 
 If two headers match the same path and set the same header key, the last header key will override the first. Using the below headers, the path `/hello` will result in the header `x-hello` being `world` due to the last header value set being `world`.
 
-```ts filename="next.config.ts" highlight={4-25} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -108,7 +108,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-26} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -144,7 +144,7 @@ export default nextConfig
 
 Path matches are allowed, for example `/blog/:slug` will match `/blog/hello-world` (no nested paths):
 
-```ts filename="next.config.ts" highlight={4-20} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -170,7 +170,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-21} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -201,7 +201,7 @@ export default nextConfig
 
 To match a wildcard path you can use `*` after a parameter, for example `/blog/:slug*` will match `/blog/a/b/c/d/hello-world`:
 
-```ts filename="next.config.ts" highlight={4-20} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -227,7 +227,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-21} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -258,7 +258,7 @@ export default nextConfig
 
 To match a regex path you can wrap the regex in parenthesis after a parameter, for example `/blog/:slug(\\d{1,})` will match `/blog/123` but not `/blog/abc`:
 
-```ts filename="next.config.ts" highlight={4-16} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -280,7 +280,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-17} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -305,7 +305,7 @@ export default nextConfig
 
 The following characters `(`, `)`, `{`, `}`, `:`, `*`, `+`, `?` are used for regex path matching, so when used in the `source` as non-special values they must be escaped by adding `\\` before them:
 
-```ts filename="next.config.ts" highlight={4-17} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -328,7 +328,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-18} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -362,7 +362,7 @@ To only apply a header when header, cookie, or query values also match the `has`
 - `key`: `String` - the key from the selected type to match against.
 - `value`: `String` or `undefined` - the value to check for, if undefined any value will match. A regex like string can be used to capture a specific part of the value, e.g. if the value `first-(?<paramName>.*)` is used for `first-second` then `second` will be usable in the destination with `:paramName`.
 
-```ts filename="next.config.ts" highlight={4-102} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -470,7 +470,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-103} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -583,7 +583,7 @@ export default nextConfig
 
 When leveraging [`basePath` support](/docs/app/api-reference/config/next-config-js/basePath) with headers each `source` is automatically prefixed with the `basePath` unless you add `basePath: false` to the header:
 
-```ts filename="next.config.ts" highlight={4-28} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -617,7 +617,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={7-29} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -666,7 +666,7 @@ When leveraging [`i18n` support](/docs/pages/guides/internationalization) with h
 
 </PagesOnly>
 
-```ts filename="next.config.ts" highlight={4-54} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -726,7 +726,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-55} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

@@ -7,7 +7,7 @@ Dependencies used inside [Server Components](/docs/app/getting-started/server-an
 
 If a dependency is using Node.js specific features, you can choose to opt-out specific dependencies from the Server Components bundling and use native Node.js `require`.
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

@@ -6,9 +6,9 @@ version: experimental
 
 `viewTransition` is an experimental flag that enables the new [View Transitions API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API) in React. This API allows you to leverage the native View Transitions browser API to create seamless transitions between UI states.
 
-To enable this feature, you need to set the `viewTransition` property to `true` in your `next.config.js` file.
+To enable this feature, you need to set the `viewTransition` property to `true` in your Next.js config file.
 
-```ts filename="next.config.ts" highlight={5} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={4} switcher
+```js filename="next.config.mjs" switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {

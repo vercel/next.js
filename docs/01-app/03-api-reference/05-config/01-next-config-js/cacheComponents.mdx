@@ -12,9 +12,9 @@ It is expected to be used in conjunction with [`use cache`](/docs/app/api-refere
 
 ## Usage
 
-To enable the `cacheComponents` flag, set it to `true` in the `experimental` section of your `next.config.ts` file:
+To enable the `cacheComponents` flag, set it to `true` in the `experimental` section of your Next.js config file:
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

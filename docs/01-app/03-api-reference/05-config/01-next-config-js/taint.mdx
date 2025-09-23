@@ -13,7 +13,7 @@ The `taint` option enables support for experimental React APIs for tainting obje
 
 > **Good to know**: Activating this flag also enables the React `experimental` channel for `app` directory.
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -77,7 +77,7 @@ function getUserDetails(id: string): UserDetails {
 }
 ```
 
-```js highlight={5} switcher
+```js switcher
 import { experimental_taintObjectReference } from 'react'
 
 function getUserDetails(id) {
@@ -94,7 +94,7 @@ function getUserDetails(id) {
 
 We can still access individual fields from the tainted `userDetails` object.
 
-```tsx filename="app/contact/page.tsx" highlight={5} switcher
+```tsx filename="app/contact/page.tsx" switcher
 export async function ContactPage({
   params,
 }: {
@@ -112,7 +112,7 @@ export async function ContactPage({
 }
 ```
 
-```jsx filename="app/contact/page.js" highlight={5} switcher
+```jsx filename="app/contact/page.js" switcher
 export async function ContactPage({ params }) {
   const { id } = await params
   const userDetails = await getUserDetails(id)
@@ -128,7 +128,7 @@ export async function ContactPage({ params }) {
 
 Now, passing the entire object to the Client Component will throw an error.
 
-```tsx filename="app/contact/page.tsx" highlight={5} switcher
+```tsx filename="app/contact/page.tsx" switcher
 export async function ContactPage({
   params,
 }: {
@@ -141,7 +141,7 @@ export async function ContactPage({
 }
 ```
 
-```jsx filename="app/contact/page.js" highlight={5} switcher
+```jsx filename="app/contact/page.js" switcher
 export async function ContactPage({ params }) {
   const { id } = await params
   const userDetails = await getUserDetails(id)
@@ -157,7 +157,7 @@ In this case, we can access the server configuration by awaiting calls to `confi
 
 We can taint the `config.SERVICE_API_KEY` value.
 
-```ts filename="app/contact/page.tsx" highlight={5} switcher
+```ts filename="app/contact/page.tsx" switcher
 import { experimental_taintUniqueValue } from 'react'
 
 function getSystemConfig(): SystemConfig {
@@ -173,7 +173,7 @@ function getSystemConfig(): SystemConfig {
 }
 ```
 
-```js filename="app/contact/page.js" highlight={5} switcher
+```js filename="app/contact/page.js" switcher
 import { experimental_taintUniqueValue } from 'react'
 
 function getSystemConfig() {
@@ -191,7 +191,7 @@ function getSystemConfig() {
 
 We can still access other properties of the `systemConfig` object.
 
-```tsx filename="app/contact/page.tsx" highlight={5} switcher
+```tsx filename="app/contact/page.tsx" switcher
 export async function Dashboard() {
   const systemConfig = await getSystemConfig()
 
@@ -201,7 +201,7 @@ export async function Dashboard() {
 
 However, passing `SERVICE_API_KEY` to `ClientDashboard` throws an error.
 
-```tsx filename="app/contact/page.tsx" highlight={5} switcher
+```tsx filename="app/contact/page.tsx" switcher
 export async function Dashboard() {
   const systemConfig = await getSystemConfig()
   // Someone makes a mistake in a PR
@@ -215,7 +215,7 @@ Note that, even though, `systemConfig.SERVICE_API_KEY` is reassigned to a new va
 
 Whereas, a value derived from a tainted unique value, will be exposed to the client.
 
-```tsx filename="app/contact/page.tsx" highlight={5} switcher
+```tsx filename="app/contact/page.tsx" switcher
 export async function Dashboard() {
   const systemConfig = await getSystemConfig()
   // Someone makes a mistake in a PR

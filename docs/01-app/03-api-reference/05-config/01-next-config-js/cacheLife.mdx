@@ -8,7 +8,7 @@ The `cacheLife` option allows you to define **custom cache profiles** when using
 
 ## Usage
 
-To define a profile, enable the [`cacheComponents` flag](/docs/app/api-reference/config/next-config-js/cacheComponents) and add the cache profile in the `cacheLife` object in the `next.config.js` file. For example, a `blog` profile:
+To define a profile, enable the [`cacheComponents` flag](/docs/app/api-reference/config/next-config-js/cacheComponents) and add the cache profile in the `cacheLife` object in the Next.js config file. For example, a `blog` profile:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -29,7 +29,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-14} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -51,7 +51,7 @@ export default nextConfig
 
 You can now use this custom `blog` configuration in your component or function as follows:
 
-```tsx filename="app/actions.ts" highlight={4} switcher
+```tsx filename="app/actions.ts" highlight={4,5} switcher
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 export async function getCachedData() {
@@ -62,7 +62,7 @@ export async function getCachedData() {
 }
 ```
 
-```jsx filename="app/actions.js" highlight={4} switcher
+```jsx filename="app/actions.js" highlight={4,5} switcher
 import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 export async function getCachedData() {

@@ -11,9 +11,9 @@ If you'd like Next.js to dangerously produce production code even when your appl
 
 If disabled, be sure you are running type checks as part of your build or deploy process, otherwise this can be very dangerous.
 
-Open `next.config.ts` and enable the `ignoreBuildErrors` option in the `typescript` config:
+Open your Next.js config file and enable the `ignoreBuildErrors` option in the `typescript` config:
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -29,7 +29,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

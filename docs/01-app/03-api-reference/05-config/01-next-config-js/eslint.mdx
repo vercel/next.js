@@ -9,9 +9,9 @@ When ESLint is detected in your project, Next.js fails your **production build**
 
 If you'd like Next.js to produce production code even when your application has ESLint errors, you can disable the built-in linting step completely. This is not recommended unless you already have ESLint configured to run in a separate part of your workflow (for example, in CI or a pre-commit hook).
 
-Open `next.config.ts` and enable the `ignoreDuringBuilds` option in the `eslint` config:
+Open your Next.js config file and enable the `ignoreDuringBuilds` option in the `eslint` config:
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

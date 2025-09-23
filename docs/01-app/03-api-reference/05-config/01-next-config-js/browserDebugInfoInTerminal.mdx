@@ -13,7 +13,7 @@ This option is disabled by default. When enabled it only works in development mo
 
 Enable forwarding:
 
-```ts filename="next.config.ts" highlight={4-6} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-7} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -45,7 +45,7 @@ Deeply nested objects/arrays are truncated using **sensible defaults**. You can 
 - **depthLimit**: (optional) Limit stringification depth for nested objects/arrays. Default: 5
 - **edgeLimit**: (optional) Max number of properties or elements to include per object or array. Default: 100
 
-```ts filename="next.config.ts" highlight={5-8} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -60,7 +60,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={6-9} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -107,7 +107,7 @@ To suppress them, set `showSourceLocation: false`.
 
 - **showSourceLocation**: Include source location info when available.
 
-```ts filename="next.config.ts" highlight={5-7} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -121,7 +121,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={6-8} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

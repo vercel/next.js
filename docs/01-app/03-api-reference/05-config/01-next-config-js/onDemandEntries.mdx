@@ -7,9 +7,9 @@ description: Configure how Next.js will dispose and keep in memory pages created
 
 Next.js exposes some options that give you some control over how the server will dispose or keep in memory built pages in development.
 
-To change the defaults, open `next.config.ts` and add the `onDemandEntries` config:
+To change the defaults, open your Next.js config file and add the `onDemandEntries` config:
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

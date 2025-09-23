@@ -13,7 +13,7 @@ You can configure the logging level and whether the full URL is logged to the co
 
 Currently, `logging` only applies to data fetching using the `fetch` API. It does not yet apply to other logs inside of Next.js.
 
-```ts filename="next.config.ts" highlight={4-8} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-9} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -44,7 +44,7 @@ export default nextConfig
 
 Any `fetch` requests that are restored from the [Server Components HMR cache](/docs/app/api-reference/config/next-config-js/serverComponentsHmrCache) are not logged by default. However, this can be enabled by setting `logging.fetches.hmrRefreshes` to `true`.
 
-```ts filename="next.config.ts" highlight={4-8} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -58,7 +58,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-9} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -78,7 +78,7 @@ export default nextConfig
 By default all the incoming requests will be logged in the console during development. You can use the `incomingRequests` option to decide which requests to ignore.
 Since this is only logged in development, this option doesn't affect production builds.
 
-```ts filename="next.config.ts" highlight={4-8} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -92,7 +92,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-9} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -109,7 +109,7 @@ export default nextConfig
 
 Or you can disable incoming request logging by setting `incomingRequests` to `false`.
 
-```ts filename="next.config.ts" highlight={4-6} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -121,7 +121,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-7} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -138,7 +138,7 @@ export default nextConfig
 
 In addition, you can disable the development logging by setting `logging` to `false`.
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -148,7 +148,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

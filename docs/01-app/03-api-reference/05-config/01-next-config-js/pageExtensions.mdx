@@ -9,7 +9,7 @@ description: Extend the default page extensions used by Next.js when resolving p
 
 By default, Next.js accepts files with the following extensions: `.tsx`, `.ts`, `.jsx`, `.js`. This can be modified to allow other extensions like markdown (`.md`, `.mdx`).
 
-```ts filename="next.config.ts" highlight={5} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 import withMDX from '@next/mdx'
 
@@ -20,7 +20,7 @@ const nextConfig: NextConfig = {
 export default withMDX()(nextConfig)
 ```
 
-```js filename="next.config.mjs" highlight={6} switcher
+```js filename="next.config.mjs" switcher
 import withMDX from '@next/mdx'
 
 /**
@@ -37,9 +37,9 @@ export default withMDX()(nextConfig)
 
 <PagesOnly>
 
-You can extend the default Page extensions (`.tsx`, `.ts`, `.jsx`, `.js`) used by Next.js. Inside `next.config.ts`, add the `pageExtensions` config:
+You can extend the default Page extensions (`.tsx`, `.ts`, `.jsx`, `.js`) used by Next.js. Inside your Next.js config file, add the `pageExtensions` config:
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -49,7 +49,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -72,9 +72,9 @@ For example, if you reconfigure `.ts` page extensions to `.page.ts`, you would n
 
 ## Including non-page files in the `pages` directory
 
-You can colocate test files or other files used by components in the `pages` directory. Inside `next.config.ts`, add the `pageExtensions` config:
+You can colocate test files or other files used by components in the `pages` directory. Inside your Next.js config file, add the `pageExtensions` config:
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -84,7 +84,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

@@ -11,7 +11,7 @@ The `turbopack` option lets you customize [Turbopack](/docs/app/api-reference/tu
 >
 > If you are using an older version of Next.js, run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .` to automatically migrate your configuration.
 
-```ts filename="next.config.ts" highlight={5-7} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -70,7 +70,7 @@ Next.js automatically detects the root directory of your project. It does so by 
 
 If you have a different project structure, for example if you don't use workspaces, you can manually set the `root` option:
 
-```ts filename="next.config.ts" highlight={5-7} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 import path from 'path'
 
@@ -83,7 +83,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={7-9} switcher
+```js filename="next.config.mjs" switcher
 import path from 'path'
 
 /**
@@ -106,11 +106,11 @@ If you need loader support beyond what's built in, many webpack loaders already 
 - Only loaders that return JavaScript code are supported. Loaders that transform files like stylesheets or images are not currently supported.
 - Options passed to webpack loaders must be plain JavaScript primitives, objects, and arrays. For example, it's not possible to pass `require()` plugin modules as option values.
 
-To configure loaders, add the names of the loaders you've installed and any options in `next.config.js`, mapping file extensions to a list of loaders. Rules are evaluated in order.
+To configure loaders, add the names of the loaders you've installed and any options in your Next.js config file, mapping file extensions to a list of loaders. Rules are evaluated in order.
 
 Here is an example below using the [`@svgr/webpack`](https://www.npmjs.com/package/@svgr/webpack) loader, which enables importing `.svg` files and rendering them as React components.
 
-```ts filename="next.config.ts" highlight={5-10} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -127,7 +127,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={6-11} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -151,7 +151,7 @@ export default nextConfig
 
 For loaders that require configuration options, you can use an object format instead of a string:
 
-```ts filename="next.config.ts" highlight={5-17} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -175,7 +175,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={6-18} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -279,9 +279,9 @@ module.exports = {
 
 Turbopack can be configured to modify module resolution through aliases, similar to webpack's [`resolve.alias`](https://webpack.js.org/configuration/resolve/#resolvealias) configuration.
 
-To configure resolve aliases, map imported patterns to their new destination in `next.config.js`:
+To configure resolve aliases, map imported patterns to their new destination in your Next.js config file:
 
-```ts filename="next.config.ts" highlight={5-8} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -296,7 +296,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={6-9} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -320,9 +320,9 @@ Turbopack also supports conditional aliasing through this field, similar to Node
 
 Turbopack can be configured to resolve modules with custom extensions, similar to webpack's [`resolve.extensions`](https://webpack.js.org/configuration/resolve/#resolveextensions) configuration.
 
-To configure resolve extensions, use the `resolveExtensions` field in `next.config.js`:
+To configure resolve extensions, use the `resolveExtensions` field in your Next.js config file:
 
-```ts filename="next.config.ts" highlight={5} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -334,7 +334,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={6} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

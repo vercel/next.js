@@ -5,9 +5,9 @@ description: Learn how to configure your application with next.config.js.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-Next.js can be configured through a `next.config.js` file in the root of your project directory (for example, by `package.json`) with a default export.
+Next.js can be configured through a Next.js config file (`next.config.js` or `next.config.mjs`) in the root of your project directory.
 
-```ts filename="next.config.ts" highlight={3-5} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={6-8} switcher
+```js filename="next.config.mjs" switcher
 // @ts-check
 
 /**
@@ -32,7 +32,7 @@ export default nextConfig
 
 ## ECMAScript Modules
 
-`next.config.js` is a regular Node.js module, not a JSON file. It gets used by the Next.js server and build phases, and it's not included in the browser build.
+The Next.js config is a regular Node.js module, not a JSON file. It gets used by the Next.js server and build phases, and it's not included in the browser build.
 
 If you need [ECMAScript modules](https://nodejs.org/api/esm.html), you can use `next.config.mjs`:
 
@@ -55,7 +55,7 @@ export default nextConfig
 
 You can also use a function:
 
-```ts filename="next.config.ts" highlight={3-11} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 export default async function (
@@ -69,7 +69,7 @@ export default async function (
 }
 ```
 
-```js filename="next.config.mjs" highlight={3-11} switcher
+```js filename="next.config.mjs" switcher
 // @ts-check
 
 export default async (phase, { defaultConfig }) => {
@@ -87,11 +87,39 @@ export default async (phase, { defaultConfig }) => {
 
 Since Next.js 12.1.0, you can use an async function:
 
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+export default async function (
+  phase: string,
+  { defaultConfig }: { defaultConfig: NextConfig }
+) {
+  const nextConfig: NextConfig = {
+    /* config options here */
+  }
+  return nextConfig
+}
+```
+
+```js filename="next.config.mjs" switcher
+// @ts-check
+
+export default async (phase, { defaultConfig }) => {
+  /**
+   * @type {import('next').NextConfig}
+   */
+  const nextConfig = {
+    /* config options here */
+  }
+  return nextConfig
+}
+```
+
 ### Phase
 
 `phase` is the current context in which the configuration is loaded. You can see the [available phases](https://github.com/vercel/next.js/blob/5e6b008b561caf2710ab7be63320a3d549474a5b/packages/next/shared/lib/constants.ts#L19-L23). Phases can be imported from `next/constants`:
 
-```ts filename="next.config.ts" highlight={5-9} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 
@@ -108,7 +136,7 @@ export default (phase: string): NextConfig | Record<string, unknown> => {
 }
 ```
 
-```js filename="next.config.mjs" highlight={5-9} switcher
+```js filename="next.config.mjs" switcher
 // @ts-check
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 
@@ -139,21 +167,21 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-The commented lines are the place where you can put the configs allowed by `next.config.js`, which are [defined in this file](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/config-shared.ts).
+The commented lines are the place where you can put the configs allowed by the Next.js config, which are [defined in this file](https://github.com/vercel/next.js/blob/canary/packages/next/src/server/config-shared.ts).
 
 However, none of the configs are required, and it's not necessary to understand what each config does. Instead, search for the features you need to enable or modify in this section and they will show you what to do.
 
-> Avoid using new JavaScript features not available in your target Node.js version. `next.config.js` will not be parsed by Webpack or Babel.
+> Avoid using new JavaScript features not available in your target Node.js version. The Next.js config file will not be parsed by Webpack or Babel.
 
 This page documents all the available configuration options:
 
 ## Unit Testing (experimental)
 
-Starting in Next.js 15.1, the `next/experimental/testing/server` package contains utilities to help unit test `next.config.js` files.
+Starting in Next.js 15.1, the `next/experimental/testing/server` package contains utilities to help unit test Next.js config files.
 
-The `unstable_getResponseFromNextConfig` function runs the [`headers`](/docs/app/api-reference/config/next-config-js/headers), [`redirects`](/docs/app/api-reference/config/next-config-js/redirects), and [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) functions from `next.config.js` with the provided request information and returns `NextResponse` with the results of the routing.
+The `unstable_getResponseFromNextConfig` function runs the [`headers`](/docs/app/api-reference/config/next-config-js/headers), [`redirects`](/docs/app/api-reference/config/next-config-js/redirects), and [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites) functions from the Next.js config with the provided request information and returns `NextResponse` with the results of the routing.
 
-> The response from `unstable_getResponseFromNextConfig` only considers `next.config.js` fields and does not consider middleware or filesystem routes, so the result in production may be different than the unit test.
+> The response from `unstable_getResponseFromNextConfig` only considers fields in the Next.js config and does not consider middleware or filesystem routes, so the result in production may be different than the unit test.
 
 ```js
 import {

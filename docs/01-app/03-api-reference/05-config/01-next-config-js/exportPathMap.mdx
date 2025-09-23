@@ -18,7 +18,7 @@ Let's start with an example, to create a custom `exportPathMap` for an app with 
 
 Open your Next.js config and add the following `exportPathMap` config:
 
-```ts filename="next.config.ts" highlight={4-15} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -39,7 +39,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-16} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -86,7 +86,7 @@ It is possible to configure Next.js to export pages as `index.html` files and re
 
 To switch back and add a trailing slash, enable the `trailingSlash` config:
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -96,7 +96,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

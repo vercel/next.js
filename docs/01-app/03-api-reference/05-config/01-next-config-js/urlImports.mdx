@@ -10,9 +10,9 @@ URL imports are an experimental feature that allows you to import modules direct
 
 > **Warning**: Only use domains that you trust to download and execute on your machine. Please exercise discretion, and caution until the feature is flagged as stable.
 
-To opt-in, add the allowed URL prefixes inside `next.config.ts`:
+To opt-in, add the allowed URL prefixes inside your Next.js config file:
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -24,7 +24,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={4} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

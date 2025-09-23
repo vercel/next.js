@@ -19,9 +19,9 @@ To use it, install the `babel-plugin-react-compiler`:
 npm install babel-plugin-react-compiler
 ```
 
-Then, add `reactCompiler` option in `next.config.js`:
+Then, add `reactCompiler` option in your Next.js config file:
 
-```ts filename="next.config.ts" highlight={4-6} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-7} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
@@ -46,7 +46,7 @@ export default nextConfig
 
 You can configure the compiler to run in "opt-in" mode as follows:
 
-```ts filename="next.config.ts" highlight={4-8} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -58,7 +58,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5-9} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */

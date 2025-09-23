@@ -5,9 +5,9 @@ description: Next.js will add the `x-powered-by` header by default. Learn to opt
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-By default Next.js will add the `x-powered-by` header. To opt-out of it, open `next.config.ts` and disable the `poweredByHeader` config:
+By default Next.js will add the `x-powered-by` header. To opt-out of it, open your Next.js config file and disable the `poweredByHeader` config:
 
-```ts filename="next.config.ts" highlight={4} switcher
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.mjs" highlight={5} switcher
+```js filename="next.config.mjs" switcher
 /**
  * @type {import('next').NextConfig}
  */
