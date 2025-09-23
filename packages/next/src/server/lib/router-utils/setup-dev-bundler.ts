@@ -76,7 +76,11 @@ import {
 import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
-import { JSON_CONTENT_TYPE_HEADER } from '../../../lib/constants'
+import {
+  JSON_CONTENT_TYPE_HEADER,
+  MIDDLEWARE_FILENAME,
+  PROXY_FILENAME,
+} from '../../../lib/constants'
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
@@ -467,6 +471,13 @@ async function startWatcher(
             continue
           }
           serverFields.actualMiddlewareFile = rootFile
+
+          if (rootFile.includes(MIDDLEWARE_FILENAME)) {
+            Log.warn(
+              `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.`
+            )
+          }
+
           await propagateServerField(
             opts,
             'actualMiddlewareFile',
