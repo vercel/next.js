@@ -64,7 +64,7 @@ jobs:
         uses: CodSpeedHQ/action@v4
         with:
           mode: instrumentation
-          run: cargo codspeed run
+          run: cargo codspeed run -p turbopack-cli small_apps
           token: ${{ secrets.CODSPEED_TOKEN }}
 
   benchmark-analyzer:
@@ -104,7 +104,7 @@ jobs:
         uses: CodSpeedHQ/action@v4
         with:
           mode: instrumentation
-          run: cargo codspeed run
+          run: cargo codspeed run -p turbopack-ecmascript references
           token: ${{ secrets.CODSPEED_TOKEN }}
 
   benchmark-large:
