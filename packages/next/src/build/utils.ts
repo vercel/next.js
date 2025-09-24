@@ -567,6 +567,7 @@ export async function isPageStatic({
   page,
   distDir,
   configFileName,
+  runtimeEnvConfig,
   httpAgentOptions,
   locales,
   defaultLocale,
@@ -593,6 +594,7 @@ export async function isPageStatic({
   cacheComponents: boolean
   authInterrupts: boolean
   configFileName: string
+  runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   locales?: readonly string[]
   defaultLocale?: string
@@ -642,6 +644,9 @@ export async function isPageStatic({
   const isPageStaticSpan = trace('is-page-static-utils', parentId)
   return isPageStaticSpan
     .traceAsyncFn(async (): Promise<PageIsStaticResult> => {
+      ;(
+        require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
+      ).setConfig(runtimeEnvConfig)
       setHttpClientAndAgentOptions({
         httpAgentOptions,
       })
@@ -950,14 +955,20 @@ export function reduceAppConfig(
 export async function hasCustomGetInitialProps({
   page,
   distDir,
+  runtimeEnvConfig,
   checkingApp,
   sriEnabled,
 }: {
   page: string
   distDir: string
+  runtimeEnvConfig: any
   checkingApp: boolean
   sriEnabled: boolean
 }): Promise<boolean> {
+  ;(
+    require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
+  ).setConfig(runtimeEnvConfig)
+
   const { ComponentMod } = await loadComponents({
     distDir,
     page: page,
@@ -980,12 +991,17 @@ export async function hasCustomGetInitialProps({
 export async function getDefinedNamedExports({
   page,
   distDir,
+  runtimeEnvConfig,
   sriEnabled,
 }: {
   page: string
   distDir: string
+  runtimeEnvConfig: any
   sriEnabled: boolean
 }): Promise<ReadonlyArray<string>> {
+  ;(
+    require('../shared/lib/runtime-config.external') as typeof import('../shared/lib/runtime-config.external')
+  ).setConfig(runtimeEnvConfig)
   const { ComponentMod } = await loadComponents({
     distDir,
     page: page,

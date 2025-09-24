@@ -185,7 +185,7 @@ describe('static export', () => {
         .elementByCss('#about-page p')
         .text()
 
-      expect(text).toBe('This is the About page')
+      expect(text).toBe('This is the About page foo')
       await browser.close()
     })
 
@@ -198,7 +198,7 @@ describe('static export', () => {
         .elementByCss('#about-page p')
         .text()
 
-      expect(text).toBe('This is the About page')
+      expect(text).toBe('This is the About page foo')
       await browser.close()
     })
 
@@ -396,7 +396,7 @@ describe('static export', () => {
 
     it('should render the about page', async () => {
       const html = await renderViaHTTP(port, '/about')
-      expect(html).toMatch(/This is the About page/)
+      expect(html).toMatch(/This is the About page foobar/)
     })
 
     it('should render links correctly', async () => {
@@ -456,7 +456,7 @@ describe('static export', () => {
     it('Should serve public files', async () => {
       const html = await renderViaHTTP(port, '/about')
       const data = await renderViaHTTP(port, '/about/data.txt')
-      expect(html).toMatch(/This is the About page/)
+      expect(html).toMatch(/This is the About page foobar/)
       expect(data).toBe('data')
     })
 

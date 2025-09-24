@@ -44,16 +44,32 @@ describe('Configuration', () => {
     expect(header).not.toBe('Next.js')
   })
 
+  test('renders server config on the server only', async () => {
+    const $ = await get$('/next-config')
+    expect($('#server-only').text()).toBe('server-only: secret')
+  })
+
+  test('renders public config on the server only', async () => {
+    const $ = await get$('/next-config')
+    expect($('#server-and-client').text()).toBe('/static')
+  })
+
   test('correctly imports a package that defines `module` but no `main` in package.json', async () => {
     const $ = await get$('/module-only-content')
     expect($('#messageInAPackage').text()).toBe('OK')
   })
 
-  it('should have env variables available on the client', async () => {
+  it('should have config available on the client', async () => {
     const browser = await webdriver(context.appPort, '/next-config')
 
+    const serverText = await browser.elementByCss('#server-only').text()
+    const serverClientText = await browser
+      .elementByCss('#server-and-client')
+      .text()
     const envValue = await browser.elementByCss('#env').text()
 
+    expect(serverText).toBe('server-only: ***')
+    expect(serverClientText).toBe('/static')
     expect(envValue).toBe('hello')
     await browser.close()
   })

@@ -1909,7 +1909,9 @@ export default async function build(
           }
         }
 
-        const { configFileName } = config
+        const { configFileName, publicRuntimeConfig, serverRuntimeConfig } =
+          config
+        const runtimeEnvConfig = { publicRuntimeConfig, serverRuntimeConfig }
         const sriEnabled = Boolean(config.experimental.sri?.algorithm)
 
         const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
@@ -1922,6 +1924,7 @@ export default async function build(
               (await worker.hasCustomGetInitialProps({
                 page: '/_error',
                 distDir,
+                runtimeEnvConfig,
                 checkingApp: false,
                 sriEnabled,
               }))
@@ -1935,6 +1938,7 @@ export default async function build(
               page: '/_error',
               distDir,
               configFileName,
+              runtimeEnvConfig,
               cacheComponents: isAppCacheComponentsEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               httpAgentOptions: config.httpAgentOptions,
@@ -1954,6 +1958,7 @@ export default async function build(
           ? worker.hasCustomGetInitialProps({
               page: appPageToCheck,
               distDir,
+              runtimeEnvConfig,
               checkingApp: true,
               sriEnabled,
             })
@@ -1963,6 +1968,7 @@ export default async function build(
           ? worker.getDefinedNamedExports({
               page: appPageToCheck,
               distDir,
+              runtimeEnvConfig,
               sriEnabled,
             })
           : Promise.resolve([])
@@ -2149,6 +2155,7 @@ export default async function build(
                             originalAppPath,
                             distDir,
                             configFileName,
+                            runtimeEnvConfig,
                             httpAgentOptions: config.httpAgentOptions,
                             locales: config.i18n?.locales,
                             defaultLocale: config.i18n?.defaultLocale,

@@ -91,6 +91,7 @@ export type NEXT_DATA = {
   query: ParsedUrlQuery
   buildId: string
   assetPrefix?: string
+  runtimeConfig?: { [key: string]: any }
   nextExport?: boolean
   autoExport?: boolean
   isFallback?: boolean

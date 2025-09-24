@@ -243,6 +243,7 @@ function renderPageTree(
 
 export type RenderOptsPartial = {
   canonicalBase: string
+  runtimeConfig?: { [key: string]: any }
   assetPrefix?: string
   err?: Error | null
   nextExport?: boolean
@@ -1490,6 +1491,7 @@ export async function renderToHTMLImpl(
     domainLocales,
     locale,
     locales,
+    runtimeConfig,
   } = renderOpts
   const htmlProps: HtmlProps = {
     __NEXT_DATA__: {
@@ -1498,6 +1500,7 @@ export async function renderToHTMLImpl(
       query, // querystring parsed / passed by the user
       buildId: sharedContext.buildId,
       assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
+      runtimeConfig, // runtimeConfig if provided, otherwise don't sent in the resulting HTML
       nextExport: nextExport === true ? true : undefined, // If this is a page exported by `next export`
       autoExport: isAutoExport === true ? true : undefined, // If this is an auto exported page
       isFallback,
