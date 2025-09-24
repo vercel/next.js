@@ -15,7 +15,6 @@ import {
   delayUntilRuntimeStage,
   postponeWithTracking,
   trackDynamicDataInDynamicRender,
-  trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
@@ -82,90 +81,18 @@ function createOrGetCachedDraftMode(
     return cachedDraftMode
   }
 
-  let promise: Promise<DraftMode>
-
   if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
     const route = workStore?.route
-
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
-      return createDraftModeWithDevWarnings(draftModeProvider, route)
-    }
-
-    promise = createExoticDraftModeWithDevWarnings(draftModeProvider, route)
+    return createDraftModeWithDevWarnings(draftModeProvider, route)
   } else {
-    if (process.env.__NEXT_CACHE_COMPONENTS) {
-      return Promise.resolve(new DraftMode(draftModeProvider))
-    }
-
-    promise = createExoticDraftMode(draftModeProvider)
+    return Promise.resolve(new DraftMode(draftModeProvider))
   }
-
-  CachedDraftModes.set(cacheKey, promise)
-
-  return promise
 }
 
 interface CacheLifetime {}
 const NullDraftMode = {}
 const CachedDraftModes = new WeakMap<CacheLifetime, Promise<DraftMode>>()
 
-function createExoticDraftMode(
-  underlyingProvider: null | DraftModeProvider
-): Promise<DraftMode> {
-  const instance = new DraftMode(underlyingProvider)
-  const promise = Promise.resolve(instance)
-
-  Object.defineProperty(promise, 'isEnabled', {
-    get() {
-      return instance.isEnabled
-    },
-    enumerable: true,
-    configurable: true,
-  })
-  ;(promise as any).enable = instance.enable.bind(instance)
-  ;(promise as any).disable = instance.disable.bind(instance)
-
-  return promise
-}
-
-function createExoticDraftModeWithDevWarnings(
-  underlyingProvider: null | DraftModeProvider,
-  route: undefined | string
-): Promise<DraftMode> {
-  const instance = new DraftMode(underlyingProvider)
-  const promise = Promise.resolve(instance)
-
-  Object.defineProperty(promise, 'isEnabled', {
-    get() {
-      const expression = '`draftMode().isEnabled`'
-      syncIODev(route, expression)
-      return instance.isEnabled
-    },
-    enumerable: true,
-    configurable: true,
-  })
-
-  Object.defineProperty(promise, 'enable', {
-    value: function get() {
-      const expression = '`draftMode().enable()`'
-      syncIODev(route, expression)
-      return instance.enable.apply(instance, arguments as any)
-    },
-  })
-
-  Object.defineProperty(promise, 'disable', {
-    value: function get() {
-      const expression = '`draftMode().disable()`'
-      syncIODev(route, expression)
-      return instance.disable.apply(instance, arguments as any)
-    },
-  })
-
-  return promise
-}
-
-// Similar to `createExoticDraftModeWithDevWarnings`, but just logging the sync
-// access without actually defining the draftMode properties on the promise.
 function createDraftModeWithDevWarnings(
   underlyingProvider: null | DraftModeProvider,
   route: undefined | string
@@ -226,37 +153,6 @@ class DraftMode {
     }
   }
 }
-
-function syncIODev(route: string | undefined, expression: string) {
-  const workUnitStore = workUnitAsyncStorage.getStore()
-
-  if (workUnitStore) {
-    switch (workUnitStore.type) {
-      case 'request':
-        if (workUnitStore.prerenderPhase === true) {
-          // When we're rendering dynamically in dev, we need to advance out of
-          // the Prerender environment when we read Request data synchronously.
-          trackSynchronousRequestDataAccessInDev(workUnitStore)
-        }
-        break
-      case 'prerender':
-      case 'prerender-client':
-      case 'prerender-runtime':
-      case 'prerender-ppr':
-      case 'prerender-legacy':
-      case 'cache':
-      case 'private-cache':
-      case 'unstable-cache':
-        break
-      default:
-        workUnitStore satisfies never
-    }
-  }
-
-  // In all cases we warn normally
-  warnForSyncAccess(route, expression)
-}
-
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
   createDraftModeAccessError
 )

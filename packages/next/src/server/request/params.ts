@@ -8,7 +8,6 @@ import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   throwToInterruptStaticGeneration,
   postponeWithTracking,
-  trackSynchronousRequestDataAccessInDev,
   delayUntilRuntimeStage,
 } from '../app-render/dynamic-rendering'
 
@@ -279,11 +278,7 @@ function createStaticPrerenderParams(
       prerenderStore satisfies never
   }
 
-  if (process.env.__NEXT_CACHE_COMPONENTS) {
-    return makeUntrackedParams(underlyingParams)
-  } else {
-    return makeUntrackedExoticParams(underlyingParams)
-  }
+  return makeUntrackedParams(underlyingParams)
 }
 
 function createRuntimePrerenderParams(
@@ -292,18 +287,12 @@ function createRuntimePrerenderParams(
 ): Promise<Params> {
   return delayUntilRuntimeStage(
     workUnitStore,
-    process.env.__NEXT_CACHE_COMPONENTS
-      ? makeUntrackedParams(underlyingParams)
-      : makeUntrackedExoticParams(underlyingParams)
+    makeUntrackedParams(underlyingParams)
   )
 }
 
 function createRenderParamsInProd(underlyingParams: Params): Promise<Params> {
-  if (process.env.__NEXT_CACHE_COMPONENTS) {
-    return makeUntrackedParams(underlyingParams)
-  }
-
-  return makeUntrackedExoticParams(underlyingParams)
+  return makeUntrackedParams(underlyingParams)
 }
 
 function createRenderParamsInDev(
@@ -320,15 +309,8 @@ function createRenderParamsInDev(
       }
     }
   }
-  if (process.env.__NEXT_CACHE_COMPONENTS) {
-    return makeDynamicallyTrackedParamsWithDevWarnings(
-      underlyingParams,
-      hasFallbackParams,
-      workStore
-    )
-  }
 
-  return makeDynamicallyTrackedExoticParamsWithDevWarnings(
+  return makeDynamicallyTrackedParamsWithDevWarnings(
     underlyingParams,
     hasFallbackParams,
     workStore
@@ -485,30 +467,6 @@ function makeErroringExoticParams(
   return promise
 }
 
-function makeUntrackedExoticParams(underlyingParams: Params): Promise<Params> {
-  const cachedParams = CachedParams.get(underlyingParams)
-  if (cachedParams) {
-    return cachedParams
-  }
-
-  // We don't use makeResolvedReactPromise here because params
-  // supports copying with spread and we don't want to unnecessarily
-  // instrument the promise with spreadable properties of ReactPromise.
-  const promise = Promise.resolve(underlyingParams)
-  CachedParams.set(underlyingParams, promise)
-
-  Object.keys(underlyingParams).forEach((prop) => {
-    if (wellKnownProperties.has(prop)) {
-      // These properties cannot be shadowed because they need to be the
-      // true underlying value for Promises to work correctly at runtime
-    } else {
-      ;(promise as any)[prop] = underlyingParams[prop]
-    }
-  })
-
-  return promise
-}
-
 function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
@@ -521,70 +479,6 @@ function makeUntrackedParams(underlyingParams: Params): Promise<Params> {
   return promise
 }
 
-function makeDynamicallyTrackedExoticParamsWithDevWarnings(
-  underlyingParams: Params,
-  hasFallbackParams: boolean,
-  store: WorkStore
-): Promise<Params> {
-  const cachedParams = CachedParams.get(underlyingParams)
-  if (cachedParams) {
-    return cachedParams
-  }
-
-  // We don't use makeResolvedReactPromise here because params
-  // supports copying with spread and we don't want to unnecessarily
-  // instrument the promise with spreadable properties of ReactPromise.
-  const promise = hasFallbackParams
-    ? makeDevtoolsIOAwarePromise(underlyingParams)
-    : // We don't want to force an environment transition when this params is not part of the fallback params set
-      Promise.resolve(underlyingParams)
-
-  const proxiedProperties = new Set<string>()
-  const unproxiedProperties: Array<string> = []
-
-  Object.keys(underlyingParams).forEach((prop) => {
-    if (wellKnownProperties.has(prop)) {
-      // These properties cannot be shadowed because they need to be the
-      // true underlying value for Promises to work correctly at runtime
-      unproxiedProperties.push(prop)
-    } else {
-      proxiedProperties.add(prop)
-      ;(promise as any)[prop] = underlyingParams[prop]
-    }
-  })
-
-  const proxiedPromise = new Proxy(promise, {
-    get(target, prop, receiver) {
-      if (typeof prop === 'string') {
-        if (
-          // We are accessing a property that was proxied to the promise instance
-          proxiedProperties.has(prop)
-        ) {
-          const expression = describeStringPropertyAccess('params', prop)
-          syncIODev(store.route, expression)
-        }
-      }
-      return ReflectAdapter.get(target, prop, receiver)
-    },
-    set(target, prop, value, receiver) {
-      if (typeof prop === 'string') {
-        proxiedProperties.delete(prop)
-      }
-      return ReflectAdapter.set(target, prop, value, receiver)
-    },
-    ownKeys(target) {
-      const expression = '`...params` or similar expression'
-      syncIODev(store.route, expression, unproxiedProperties)
-      return Reflect.ownKeys(target)
-    },
-  })
-
-  CachedParams.set(underlyingParams, proxiedPromise)
-  return proxiedPromise
-}
-
-// Similar to `makeDynamicallyTrackedExoticParamsWithDevWarnings`, but just
-// logging the sync access without actually defining the params on the promise.
 function makeDynamicallyTrackedParamsWithDevWarnings(
   underlyingParams: Params,
   hasFallbackParams: boolean,
@@ -644,42 +538,6 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
 
   CachedParams.set(underlyingParams, proxiedPromise)
   return proxiedPromise
-}
-
-function syncIODev(
-  route: string | undefined,
-  expression: string,
-  missingProperties?: Array<string>
-) {
-  const workUnitStore = workUnitAsyncStorage.getStore()
-  if (workUnitStore) {
-    switch (workUnitStore.type) {
-      case 'request':
-        if (workUnitStore.prerenderPhase === true) {
-          // When we're rendering dynamically in dev, we need to advance out of
-          // the Prerender environment when we read Request data synchronously.
-          trackSynchronousRequestDataAccessInDev(workUnitStore)
-        }
-        break
-      case 'prerender':
-      case 'prerender-client':
-      case 'prerender-runtime':
-      case 'prerender-ppr':
-      case 'prerender-legacy':
-      case 'cache':
-      case 'private-cache':
-      case 'unstable-cache':
-        break
-      default:
-        workUnitStore satisfies never
-    }
-  }
-  // In all cases we warn normally
-  if (missingProperties && missingProperties.length > 0) {
-    warnForIncompleteEnumeration(route, expression, missingProperties)
-  } else {
-    warnForSyncAccess(route, expression)
-  }
 }
 
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
