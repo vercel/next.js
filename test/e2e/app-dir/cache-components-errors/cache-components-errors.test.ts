@@ -1339,12 +1339,12 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at CookiesReadingComponent (bundler:///app/sync-cookies/page.tsx:17:66)
+                     at CookiesReadingComponent (bundler:///app/sync-cookies/page.tsx:17:36)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
                  > 17 |   const token = (cookies() as any).get('token')
-                      |                                                                  ^
+                      |                                    ^
                    18 |
                    19 |   return (
                    20 |     <div> {
@@ -1727,15 +1727,15 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at HeadersReadingComponent (bundler:///app/sync-headers/page.tsx:17:70)
+                     at HeadersReadingComponent (bundler:///app/sync-headers/page.tsx:17:40)
                      at stringify (<anonymous>)
                    15 |
                    16 | async function HeadersReadingComponent() {
-                 > 17 |   const userAgent = (headers() as any).get(
-                      |                                                                      ^
-                   18 |     'user-agent'
-                   19 |   )
-                   20 |   return ( {
+                 > 17 |   const userAgent = (headers() as any).get('user-agent')
+                      |                                        ^
+                   18 |   return (
+                   19 |     <div>
+                   20 |       this component reads the \`user-agent\` header synchronously: {userAgent} {
                    digest: '<error-digest>'
                  }
 
