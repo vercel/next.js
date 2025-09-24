@@ -47,7 +47,7 @@ describe('log-file', () => {
         .filter((line) => {
           // filter out the noise logs
           if (
-            /Download the React DevTools|connected to ws at|received ws message/.test(
+            /Download the React DevTools|connected to ws at|received ws message|Next.js page already hydrated|Next.js hydrate callback fired/.test(
               line
             )
           ) {
@@ -95,7 +95,6 @@ describe('log-file', () => {
          [xx:xx:xx.xxx] [Server] LOG     RSC: This is a log message from server component
          [xx:xx:xx.xxx] [Server] ERROR   RSC: This is an error message from server component
          [xx:xx:xx.xxx] [Server] WARN    RSC: This is a warning message from server component
-         [xx:xx:xx.xxx] [Browser] LOG     Next.js hydrate callback fired
          "
         `)
       })
@@ -134,7 +133,6 @@ describe('log-file', () => {
          [xx:xx:xx.xxx] [Browser] LOG     Client: This is a log message from client component
          [xx:xx:xx.xxx] [Browser] ERROR   Client: This is an error message from client component
          [xx:xx:xx.xxx] [Browser] WARN    Client: This is a warning message from client component
-         [xx:xx:xx.xxx] [Browser] LOG     Next.js hydrate callback fired
          "
         `)
       }, 2 * 1000)
@@ -160,7 +158,6 @@ describe('log-file', () => {
          [xx:xx:xx.xxx] [Server] WARN    Pages Router SSR: This is a warning message from getServerSideProps
          [xx:xx:xx.xxx] [Server] LOG     Pages Router isomorphic: This is a log message from render
          [xx:xx:xx.xxx] [Browser] LOG     Pages Router isomorphic: This is a log message from render
-         [xx:xx:xx.xxx] [Browser] LOG     Next.js hydrate callback fired
          "
         `)
       })
