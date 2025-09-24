@@ -1531,16 +1531,17 @@ pub async fn resolve_inline(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
-    let span = {
-        let lookup_path = lookup_path.value_to_string().await?.to_string();
-        let request = request.to_string().await?.to_string();
-        tracing::info_span!(
-            "resolving",
-            lookup_path = lookup_path,
-            name = request,
-            reference_type = display(&reference_type),
-        )
-    };
+    let span = tracing::info_span!(
+        "resolving",
+        lookup_path = display(lookup_path.value_to_string().await?),
+        name = tracing::field::Empty,
+        reference_type = display(&reference_type),
+    );
+    if !span.is_disabled() {
+        // You can't await multiple times in the span macro call parameters.
+        span.record("name", request.to_string().await?.as_str());
+    }
+
     async {
         let before_plugins_result = handle_before_resolve_plugins(
             lookup_path.clone(),
@@ -1740,15 +1741,16 @@ async fn resolve_internal_inline(
     request: Vc<Request>,
     options: Vc<ResolveOptions>,
 ) -> Result<Vc<ResolveResult>> {
-    let span = {
-        let lookup_path = lookup_path.value_to_string().await?.to_string();
-        let request = request.to_string().await?.to_string();
-        tracing::info_span!(
-            "internal resolving",
-            lookup_path = lookup_path,
-            name = request
-        )
-    };
+    let span = tracing::info_span!(
+        "internal resolving",
+        lookup_path = display(lookup_path.value_to_string().await?),
+        name = tracing::field::Empty
+    );
+    if !span.is_disabled() {
+        // You can't await multiple times in the span macro call parameters.
+        span.record("name", request.to_string().await?.as_str());
+    }
+
     async move {
         let options_value: &ResolveOptions = &*options.await?;
 

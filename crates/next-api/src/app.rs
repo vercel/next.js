@@ -1835,7 +1835,7 @@ impl AppEndpoint {
                     {
                         let span = tracing::trace_span!(
                             "layout segment",
-                            name = server_component.ident().to_string().await?.as_str()
+                            name = display(server_component.ident().to_string().await?)
                         );
                         async {
                             let ChunkGroupResult {

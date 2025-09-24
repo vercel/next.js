@@ -174,8 +174,11 @@ pub async fn parse(
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
-    let name = source.ident().to_string().await?.to_string();
-    let span = tracing::info_span!("parse ecmascript", name = name, ty = display(&ty));
+    let span = tracing::info_span!(
+        "parse ecmascript",
+        name = name,
+        ty = display(&source.ident().to_string().await?)
+    );
 
     match parse_internal(source, ty, transforms)
         .instrument(span)
