@@ -1239,18 +1239,10 @@ impl AppEndpoint {
             )
             .await?;
 
-            let mut client_shared_chunks = vec![];
-            for &chunk in client_shared_chunk_group.assets.await? {
-                client_assets.insert(chunk);
+            client_assets.extend(client_shared_chunk_group.referenced_assets.await?);
 
-                let chunk_path = chunk.path().await?;
-                if chunk_path.has_extension(".js") {
-                    client_shared_chunks.push(chunk);
-                }
-            }
-            for &chunk in client_shared_chunk_group.referenced_assets.await? {
-                client_assets.insert(chunk);
-            }
+            let client_shared_chunks = client_shared_chunk_group.assets.owned().await?;
+            client_assets.extend(client_shared_chunks.iter().copied());
 
             (
                 client_shared_chunk_group.availability_info,

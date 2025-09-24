@@ -7,8 +7,8 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
-    trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
+    Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -46,10 +46,18 @@ impl OutputAsset for BuildManifest {
     async fn references(&self) -> Result<Vc<OutputAssets>> {
         let chunks: Vec<ReadRef<OutputAssets>> = self.pages.values().try_join().await?;
 
+        let root_main_files = self
+            .root_main_files
+            .iter()
+            .map(async |c| Ok(c.path().await?.has_extension(".js").then_some(*c)))
+            .try_flat_join()
+            .await?;
+
         let references = chunks
             .into_iter()
-            .flat_map(|c| c.into_iter().copied()) // once again, rustc struggles here
-            .chain(self.root_main_files.iter().copied())
+            .flatten()
+            .copied()
+            .chain(root_main_files.into_iter())
             .chain(self.polyfill_files.iter().copied())
             .collect();
 
@@ -78,7 +86,7 @@ impl Asset for BuildManifest {
         let pages: Vec<(RcStr, Vec<RcStr>)> = self
             .pages
             .iter()
-            .map(|(k, chunks)| async move {
+            .map(async |(k, chunks)| {
                 Ok((
                     k.clone(),
                     chunks
@@ -116,15 +124,20 @@ impl Asset for BuildManifest {
         let root_main_files: Vec<RcStr> = self
             .root_main_files
             .iter()
-            .copied()
             .map(async |chunk| {
                 let chunk_path = chunk.path().await?;
-                Ok(client_relative_path
-                    .get_path_to(&chunk_path)
-                    .context("failed to resolve client-relative path to root_main_file")?
-                    .into())
+                if !chunk_path.has_extension(".js") {
+                    Ok(None)
+                } else {
+                    Ok(Some(
+                        client_relative_path
+                            .get_path_to(&chunk_path)
+                            .context("failed to resolve client-relative path to root_main_file")?
+                            .into(),
+                    ))
+                }
             })
-            .try_join()
+            .try_flat_join()
             .await?;
 
         let manifest = SerializedBuildManifest {
