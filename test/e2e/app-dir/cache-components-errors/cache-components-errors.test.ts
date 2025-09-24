@@ -1099,19 +1099,19 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(`${pathname}?foo=test`)
 
             await expect(browser).toDisplayCollapsedRedbox(`
-                        {
-                          "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                          "environmentLabel": null,
-                          "label": "Console Error",
-                          "source": "app/sync-client-search/page.tsx (22:42) @ SearchParamsReadingComponent
-                        > 22 |   const fooParam = (searchParams as any).foo
-                             |                                          ^",
-                          "stack": [
-                            "SearchParamsReadingComponent app/sync-client-search/page.tsx (22:42)",
-                            "Page app/sync-client-search/page.tsx (12:7)",
-                          ],
-                        }
-                      `)
+             {
+               "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "environmentLabel": null,
+               "label": "Console Error",
+               "source": "app/sync-client-search/page.tsx (23:42) @ SearchParamsReadingComponent
+             > 23 |   const fooParam = (searchParams as any).foo
+                  |                                          ^",
+               "stack": [
+                 "SearchParamsReadingComponent app/sync-client-search/page.tsx (23:42)",
+                 "Page app/sync-client-search/page.tsx (12:7)",
+               ],
+             }
+            `)
           })
         }
       })
@@ -1136,19 +1136,19 @@ describe('Cache Components Errors', () => {
             const browser = await next.browser(`${pathname}?foo=test`)
 
             await expect(browser).toDisplayCollapsedRedbox(`
-                        {
-                          "description": "Route "/sync-server-search" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                          "environmentLabel": "Prerender",
-                          "label": "Console Error",
-                          "source": "app/sync-server-search/page.tsx (28:42) @ SearchParamsReadingComponent
-                        > 28 |   const fooParam = (searchParams as any).foo
-                             |                                          ^",
-                          "stack": [
-                            "SearchParamsReadingComponent app/sync-server-search/page.tsx (28:42)",
-                            "Page app/sync-server-search/page.tsx (15:7)",
-                          ],
-                        }
-                      `)
+             {
+               "description": "Route "/sync-server-search" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "environmentLabel": "Prerender",
+               "label": "Console Error",
+               "source": "app/sync-server-search/page.tsx (29:42) @ SearchParamsReadingComponent
+             > 29 |   const fooParam = (searchParams as any).foo
+                  |                                          ^",
+               "stack": [
+                 "SearchParamsReadingComponent app/sync-server-search/page.tsx (29:42)",
+                 "Page app/sync-server-search/page.tsx (15:7)",
+               ],
+             }
+            `)
           })
         }
       })
@@ -1171,11 +1171,11 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
-                   "source": "app/sync-cookies/page.tsx (17:25) @ CookiesReadingComponent
-               > 17 |   const token = (cookies() as any).get('token')
+                   "source": "app/sync-cookies/page.tsx (18:25) @ CookiesReadingComponent
+               > 18 |   const token = (cookies() as any).get('token')
                     |                         ^",
                    "stack": [
-                     "CookiesReadingComponent app/sync-cookies/page.tsx (17:25)",
+                     "CookiesReadingComponent app/sync-cookies/page.tsx (18:25)",
                      "Page app/sync-cookies/page.tsx (11:7)",
                    ],
                  },
@@ -1183,11 +1183,11 @@ describe('Cache Components Errors', () => {
                    "description": "(0 , <turbopack-module-id>.cookies)(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
-                   "source": "app/sync-cookies/page.tsx (17:36) @ CookiesReadingComponent
-               > 17 |   const token = (cookies() as any).get('token')
+                   "source": "app/sync-cookies/page.tsx (18:36) @ CookiesReadingComponent
+               > 18 |   const token = (cookies() as any).get('token')
                     |                                    ^",
                    "stack": [
-                     "CookiesReadingComponent app/sync-cookies/page.tsx (17:36)",
+                     "CookiesReadingComponent app/sync-cookies/page.tsx (18:36)",
                    ],
                  },
                ]
@@ -1227,11 +1227,11 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
-                   "source": "app/sync-cookies/page.tsx (17:17) @ CookiesReadingComponent
-               > 17 |   const token = (cookies() as any).get('token')
+                   "source": "app/sync-cookies/page.tsx (18:17) @ CookiesReadingComponent
+               > 18 |   const token = (cookies() as any).get('token')
                     |                 ^",
                    "stack": [
-                     "CookiesReadingComponent app/sync-cookies/page.tsx (17:17)",
+                     "CookiesReadingComponent app/sync-cookies/page.tsx (18:17)",
                      "Page app/sync-cookies/page.tsx (11:7)",
                    ],
                  },
@@ -1239,11 +1239,11 @@ describe('Cache Components Errors', () => {
                    "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
-                   "source": "app/sync-cookies/page.tsx (17:36) @ CookiesReadingComponent
-               > 17 |   const token = (cookies() as any).get('token')
+                   "source": "app/sync-cookies/page.tsx (18:36) @ CookiesReadingComponent
+               > 18 |   const token = (cookies() as any).get('token')
                     |                                    ^",
                    "stack": [
-                     "CookiesReadingComponent app/sync-cookies/page.tsx (17:36)",
+                     "CookiesReadingComponent app/sync-cookies/page.tsx (18:36)",
                    ],
                  },
                ]
@@ -1268,15 +1268,15 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at CookiesReadingComponent (bundler:///app/sync-cookies/page.tsx:17:36)
+                     at CookiesReadingComponent (bundler:///app/sync-cookies/page.tsx:18:36)
                      at stringify (<anonymous>)
-                   15 |
                    16 | async function CookiesReadingComponent() {
-                 > 17 |   const token = (cookies() as any).get('token')
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                 > 18 |   const token = (cookies() as any).get('token')
                       |                                    ^
-                   18 |
-                   19 |   return (
-                   20 |     <div> {
+                   19 |
+                   20 |   return (
+                   21 |     <div> {
                    digest: '<error-digest>'
                  }
 
@@ -1287,15 +1287,15 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (bundler:///app/sync-cookies/page.tsx:17:36)
+                     at a (bundler:///app/sync-cookies/page.tsx:18:36)
                      at b (<anonymous>)
-                   15 |
                    16 | async function CookiesReadingComponent() {
-                 > 17 |   const token = (cookies() as any).get('token')
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                 > 18 |   const token = (cookies() as any).get('token')
                       |                                    ^
-                   18 |
-                   19 |   return (
-                   20 |     <div> {
+                   19 |
+                   20 |   return (
+                   21 |     <div> {
                    digest: '<error-digest>'
                  }
                  Export encountered an error on /sync-cookies/page: /sync-cookies, exiting the build."
@@ -1306,15 +1306,15 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-cookies". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at CookiesReadingComponent (bundler:///app/sync-cookies/page.tsx:17:36)
+                     at CookiesReadingComponent (bundler:///app/sync-cookies/page.tsx:18:36)
                      at stringify (<anonymous>)
-                   15 |
                    16 | async function CookiesReadingComponent() {
-                 > 17 |   const token = (cookies() as any).get('token')
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                 > 18 |   const token = (cookies() as any).get('token')
                       |                                    ^
-                   18 |
-                   19 |   return (
-                   20 |     <div> {
+                   19 |
+                   20 |   return (
+                   21 |     <div> {
                    digest: '<error-digest>'
                  }
 
@@ -1460,11 +1460,11 @@ describe('Cache Components Errors', () => {
                  "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                  "environmentLabel": "Prerender",
                  "label": "Console Error",
-                 "source": "app/sync-draft-mode/page.tsx (23:31) @ DraftModeReadingComponent
-               > 23 |   const isEnabled = (draftMode() as any).isEnabled
+                 "source": "app/sync-draft-mode/page.tsx (24:31) @ DraftModeReadingComponent
+               > 24 |   const isEnabled = (draftMode() as any).isEnabled
                     |                               ^",
                  "stack": [
-                   "DraftModeReadingComponent app/sync-draft-mode/page.tsx (23:31)",
+                   "DraftModeReadingComponent app/sync-draft-mode/page.tsx (24:31)",
                    "Page app/sync-draft-mode/page.tsx (13:7)",
                  ],
                }
@@ -1486,19 +1486,19 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               await expect(browser).toDisplayCollapsedRedbox(`
-                            {
-                              "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                              "environmentLabel": "Prerender",
-                              "label": "Console Error",
-                              "source": "app/sync-draft-mode/page.tsx (23:21) @ DraftModeReadingComponent
-                            > 23 |   const isEnabled = (draftMode() as any).isEnabled
-                                 |                     ^",
-                              "stack": [
-                                "DraftModeReadingComponent app/sync-draft-mode/page.tsx (23:21)",
-                                "Page app/sync-draft-mode/page.tsx (13:7)",
-                              ],
-                            }
-                          `)
+               {
+                 "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                 "environmentLabel": "Prerender",
+                 "label": "Console Error",
+                 "source": "app/sync-draft-mode/page.tsx (24:21) @ DraftModeReadingComponent
+               > 24 |   const isEnabled = (draftMode() as any).isEnabled
+                    |                     ^",
+                 "stack": [
+                   "DraftModeReadingComponent app/sync-draft-mode/page.tsx (24:21)",
+                   "Page app/sync-draft-mode/page.tsx (13:7)",
+                 ],
+               }
+              `)
             }
           })
         }
@@ -1522,11 +1522,11 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
-                   "source": "app/sync-headers/page.tsx (17:29) @ HeadersReadingComponent
-               > 17 |   const userAgent = (headers() as any).get('user-agent')
+                   "source": "app/sync-headers/page.tsx (18:29) @ HeadersReadingComponent
+               > 18 |   const userAgent = (headers() as any).get('user-agent')
                     |                             ^",
                    "stack": [
-                     "HeadersReadingComponent app/sync-headers/page.tsx (17:29)",
+                     "HeadersReadingComponent app/sync-headers/page.tsx (18:29)",
                      "Page app/sync-headers/page.tsx (11:7)",
                    ],
                  },
@@ -1534,11 +1534,11 @@ describe('Cache Components Errors', () => {
                    "description": "(0 , <turbopack-module-id>.headers)(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
-                   "source": "app/sync-headers/page.tsx (17:40) @ HeadersReadingComponent
-               > 17 |   const userAgent = (headers() as any).get('user-agent')
+                   "source": "app/sync-headers/page.tsx (18:40) @ HeadersReadingComponent
+               > 18 |   const userAgent = (headers() as any).get('user-agent')
                     |                                        ^",
                    "stack": [
-                     "HeadersReadingComponent app/sync-headers/page.tsx (17:40)",
+                     "HeadersReadingComponent app/sync-headers/page.tsx (18:40)",
                    ],
                  },
                ]
@@ -1573,32 +1573,32 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               await expect(browser).toDisplayRedbox(`
-                            [
-                              {
-                                "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                                "environmentLabel": "Prerender",
-                                "label": "Console Error",
-                                "source": "app/sync-headers/page.tsx (17:21) @ HeadersReadingComponent
-                            > 17 |   const userAgent = (headers() as any).get('user-agent')
-                                 |                     ^",
-                                "stack": [
-                                  "HeadersReadingComponent app/sync-headers/page.tsx (17:21)",
-                                  "Page app/sync-headers/page.tsx (11:7)",
-                                ],
-                              },
-                              {
-                                "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
-                                "environmentLabel": "Prerender",
-                                "label": "Runtime TypeError",
-                                "source": "app/sync-headers/page.tsx (17:40) @ HeadersReadingComponent
-                            > 17 |   const userAgent = (headers() as any).get('user-agent')
-                                 |                                        ^",
-                                "stack": [
-                                  "HeadersReadingComponent app/sync-headers/page.tsx (17:40)",
-                                ],
-                              },
-                            ]
-                          `)
+               [
+                 {
+                   "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "environmentLabel": "Prerender",
+                   "label": "Console Error",
+                   "source": "app/sync-headers/page.tsx (18:21) @ HeadersReadingComponent
+               > 18 |   const userAgent = (headers() as any).get('user-agent')
+                    |                     ^",
+                   "stack": [
+                     "HeadersReadingComponent app/sync-headers/page.tsx (18:21)",
+                     "Page app/sync-headers/page.tsx (11:7)",
+                   ],
+                 },
+                 {
+                   "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
+                   "environmentLabel": "Prerender",
+                   "label": "Runtime TypeError",
+                   "source": "app/sync-headers/page.tsx (18:40) @ HeadersReadingComponent
+               > 18 |   const userAgent = (headers() as any).get('user-agent')
+                    |                                        ^",
+                   "stack": [
+                     "HeadersReadingComponent app/sync-headers/page.tsx (18:40)",
+                   ],
+                 },
+               ]
+              `)
             }
           })
         } else {
@@ -1619,15 +1619,15 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at HeadersReadingComponent (bundler:///app/sync-headers/page.tsx:17:40)
+                     at HeadersReadingComponent (bundler:///app/sync-headers/page.tsx:18:40)
                      at stringify (<anonymous>)
-                   15 |
                    16 | async function HeadersReadingComponent() {
-                 > 17 |   const userAgent = (headers() as any).get('user-agent')
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                 > 18 |   const userAgent = (headers() as any).get('user-agent')
                       |                                        ^
-                   18 |   return (
-                   19 |     <div>
-                   20 |       this component reads the \`user-agent\` header synchronously: {userAgent} {
+                   19 |   return (
+                   20 |     <div>
+                   21 |       this component reads the \`user-agent\` header synchronously: {userAgent} {
                    digest: '<error-digest>'
                  }
 
@@ -1638,15 +1638,15 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at a (bundler:///app/sync-headers/page.tsx:17:40)
+                     at a (bundler:///app/sync-headers/page.tsx:18:40)
                      at b (<anonymous>)
-                   15 |
                    16 | async function HeadersReadingComponent() {
-                 > 17 |   const userAgent = (headers() as any).get('user-agent')
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                 > 18 |   const userAgent = (headers() as any).get('user-agent')
                       |                                        ^
-                   18 |   return (
-                   19 |     <div>
-                   20 |       this component reads the \`user-agent\` header synchronously: {userAgent} {
+                   19 |   return (
+                   20 |     <div>
+                   21 |       this component reads the \`user-agent\` header synchronously: {userAgent} {
                    digest: '<error-digest>'
                  }
                  Export encountered an error on /sync-headers/page: /sync-headers, exiting the build."
@@ -1657,15 +1657,15 @@ describe('Cache Components Errors', () => {
                 expect(output).toMatchInlineSnapshot(`
                  "Error occurred prerendering page "/sync-headers". Read more: https://nextjs.org/docs/messages/prerender-error
                  TypeError: <module-function>().get is not a function
-                     at HeadersReadingComponent (bundler:///app/sync-headers/page.tsx:17:40)
+                     at HeadersReadingComponent (bundler:///app/sync-headers/page.tsx:18:40)
                      at stringify (<anonymous>)
-                   15 |
                    16 | async function HeadersReadingComponent() {
-                 > 17 |   const userAgent = (headers() as any).get('user-agent')
+                   17 |   // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
+                 > 18 |   const userAgent = (headers() as any).get('user-agent')
                       |                                        ^
-                   18 |   return (
-                   19 |     <div>
-                   20 |       this component reads the \`user-agent\` header synchronously: {userAgent} {
+                   19 |   return (
+                   20 |     <div>
+                   21 |       this component reads the \`user-agent\` header synchronously: {userAgent} {
                    digest: '<error-digest>'
                  }
 
