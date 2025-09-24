@@ -293,3 +293,52 @@ export function getMaxOldSpaceSize() {
 
   return parseInt(size, 10)
 }
+
+/**
+ * Parse the bundler arguments and potentially sets the `TURBOPACK` environment variable.
+ *
+ * @param options The options to parse.
+ * @returns The boolean value of the isTurbopack flag.
+ */
+export function parseBundlerArgs(options: {
+  turbo?: boolean
+  turbopack?: boolean
+  webpack?: boolean
+}): boolean {
+  const isTurbopackFlagSet = Boolean(
+    options.turbo ||
+      options.turbopack ||
+      process.env.IS_TURBOPACK_TEST ||
+      // We don't really want to support this but it is trivial and not really confusing.
+      // If we don't support it and someone sets it, we would have inconsistent behavior
+      // since some parts of next would read the return valuye of this function and other
+      // parts will read the env variable.
+      process.env.TURBOPACK
+  )
+  const isWebpackFlagSet = Boolean(
+    options.webpack || process.env.IS_WEBPACK_TEST
+  )
+  if (isWebpackFlagSet && isTurbopackFlagSet) {
+    const turboFlag = options.turbopack
+      ? ' --turbopack'
+      : options.turbo
+        ? ' --turbo'
+        : process.env.TURBOPACK
+          ? 'TURBOPACK'
+          : 'IS_TURBOPACK_TEST'
+    const webpackFlag = options.webpack ? ' --webpack' : 'IS_WEBPACK_TEST'
+    printAndExit(`Cannot set both ${turboFlag} and ${webpackFlag}.`)
+  }
+  if (!isWebpackFlagSet && !isTurbopackFlagSet) {
+    // Use a special value to indicate that the bundler is auto-detected.
+    process.env.TURBOPACK = 'auto'
+    return true
+  }
+  if (isTurbopackFlagSet) {
+    process.env.TURBOPACK = '1'
+    return true
+  }
+  // There is no need to clear the environment variable for webpack since if it
+  // was already set, we would have already exited above
+  return false
+}

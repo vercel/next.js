@@ -11,6 +11,7 @@ import {
   printAndExit,
   formatNodeOptions,
   formatDebugAddress,
+  parseBundlerArgs,
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -168,12 +169,7 @@ const nextDev = async (
   portSource: PortSource,
   directory?: string
 ) => {
-  const isTurbopack = Boolean(
-    options.turbo || options.turbopack || process.env.IS_TURBOPACK_TEST
-  )
-  if (isTurbopack) {
-    process.env.TURBOPACK = '1'
-  }
+  const isTurbopack = parseBundlerArgs(options)
 
   isTurboSession = isTurbopack
 

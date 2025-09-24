@@ -52,6 +52,7 @@ const unsupportedProductionSpecificTurbopackNextConfigOptions: string[] = [
   // 'productionBrowserSourceMaps',
 ]
 
+/**  */
 export async function validateTurboNextConfig({
   dir,
   isDev,
@@ -71,7 +72,7 @@ export async function validateTurboNextConfig({
   let hasWebpackConfig = false
   let hasTurboConfig = false
 
-  let unsupportedConfig: string[] = []
+  const unsupportedConfig: string[] = []
   let rawNextConfig: NextConfig = {}
 
   const phase = isDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD
