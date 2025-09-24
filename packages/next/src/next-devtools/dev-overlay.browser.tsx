@@ -301,6 +301,9 @@ export function renderAppDevOverlay(
 
     const root = createRoot(container, {
       identifierPrefix: 'ndt-',
+      // We don't have design for a default Transition indicator for the NDT frontend.
+      // So we disable React's built-in one to not conflict with the one for the actual Next.js app.
+      onDefaultTransitionIndicator: () => () => {},
     })
 
     const shadowRoot = container.attachShadow({ mode: 'open' })
