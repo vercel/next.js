@@ -1747,7 +1747,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         )
         else {
             // Task was stale and has been rescheduled
-            return false;
+            return true;
         };
 
         // When restoring from persistent caching the following might not be executed (since we can
@@ -1761,10 +1761,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             has_children,
             is_now_immutable,
         ) {
+            // Task was stale and has been rescheduled
             return true;
         }
 
         if self.task_execution_completed_finish(&mut ctx, task_id, &mut removed_data) {
+            // Task was stale and has been rescheduled
             return true;
         }
 
