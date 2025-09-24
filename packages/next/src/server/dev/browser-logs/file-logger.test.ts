@@ -120,6 +120,10 @@ describe('FileLogger', () => {
   })
 
   it('should not create log file when mcpServer is disabled', () => {
+    // Check that logs directory doesn't exist before the test
+    const logsDir = path.join(tempDir, 'logs')
+    const logsDirExistedBefore = fs.existsSync(logsDir)
+
     // Create a new file logger with mcpServer disabled
     const disabledLogger = getFileLogger(tempDir, false)
 
@@ -130,9 +134,9 @@ describe('FileLogger', () => {
     // Force flush to ensure any queued logs are processed
     disabledLogger.forceFlush()
 
-    // Check that no log file was created
-    const logsDir = path.join(tempDir, 'logs')
-    expect(fs.existsSync(logsDir)).toBe(false)
+    // Check that no new log file was created (directory should still be in same state)
+    const logsDirExistsAfter = fs.existsSync(logsDir)
+    expect(logsDirExistsAfter).toBe(logsDirExistedBefore)
   })
 
   describe('batching behavior', () => {

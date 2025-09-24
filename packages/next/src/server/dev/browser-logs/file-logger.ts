@@ -112,6 +112,11 @@ class FileLogger {
   }
 
   log(source: 'Server' | 'Browser', level: string, message: string): void {
+    // Don't log anything if mcpServer is disabled
+    if (!this.mcpServerEnabled) {
+      return
+    }
+
     this.initialize()
 
     if (!this.isInitialized) {
@@ -163,7 +168,7 @@ export function getFileLogger(
   distDir: string,
   mcpServerEnabled: boolean
 ): FileLogger {
-  if (!fileLogger) {
+  if (!fileLogger || process.env.NODE_ENV === 'test') {
     fileLogger = new FileLogger(distDir, mcpServerEnabled)
   }
   return fileLogger

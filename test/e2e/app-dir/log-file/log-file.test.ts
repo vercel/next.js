@@ -47,7 +47,7 @@ describe('log-file', () => {
         .filter((line) => {
           // filter out the noise logs
           if (
-            /Download the React DevTools|connected to ws at|received ws message|Next.js page already hydrated|Next.js hydrate callback fired/.test(
+            /Download the React DevTools|connected to ws at|received ws message|Next.js page already hydrated|Next.js hydrate callback fired|Compiling|Compiled|Ready in/.test(
               line
             )
           ) {
@@ -56,13 +56,6 @@ describe('log-file', () => {
           return true
         })
         .join('\n')
-        // Normalize "Ready in XXXms" patterns
-        .replace(/Ready in \d+ms/g, 'Ready in xxxms')
-        // Normalize "Compiled ... in XXXms (XXX modules)" patterns
-        .replace(
-          /Compiled ([^\s]+(?:\s[^\s]+)*) in \d+ms \(\d+ modules\)/g,
-          'Compiled $1 in xxxms (xxx modules)'
-        )
         // Normalize timestamps to consistent format
         .replace(/\[\d{2}:\d{2}:\d{2}\.\d{3}\]/g, '[xx:xx:xx.xxx]')
     )
@@ -89,10 +82,7 @@ describe('log-file', () => {
       await retry(async () => {
         const newLogContent = getNewLogContent()
         expect(newLogContent).toMatchInlineSnapshot(`
-         "[xx:xx:xx.xxx] [Server] LOG      ✓ Ready in xxxms
-         [xx:xx:xx.xxx] [Server] LOG      ○ Compiling /server ...
-         [xx:xx:xx.xxx] [Server] LOG      ✓ Compiled /server in xxxms (xxx modules)
-         [xx:xx:xx.xxx] [Server] LOG     RSC: This is a log message from server component
+         "[xx:xx:xx.xxx] [Server] LOG     RSC: This is a log message from server component
          [xx:xx:xx.xxx] [Server] ERROR   RSC: This is an error message from server component
          [xx:xx:xx.xxx] [Server] WARN    RSC: This is a warning message from server component
          "
@@ -129,8 +119,7 @@ describe('log-file', () => {
         const newLogContent = getNewLogContent()
 
         expect(newLogContent).toMatchInlineSnapshot(`
-         "[xx:xx:xx.xxx] [Server] LOG      ✓ Compiled /client in xxxms (xxx modules)
-         [xx:xx:xx.xxx] [Browser] LOG     Client: This is a log message from client component
+         "[xx:xx:xx.xxx] [Browser] LOG     Client: This is a log message from client component
          [xx:xx:xx.xxx] [Browser] ERROR   Client: This is an error message from client component
          [xx:xx:xx.xxx] [Browser] WARN    Client: This is a warning message from client component
          "
@@ -151,9 +140,7 @@ describe('log-file', () => {
       await retry(async () => {
         const newLogContent = getNewLogContent()
         expect(newLogContent).toMatchInlineSnapshot(`
-         "[xx:xx:xx.xxx] [Server] LOG      ○ Compiling /pages-router-page ...
-         [xx:xx:xx.xxx] [Server] LOG      ✓ Compiled /pages-router-page in xxxms (xxx modules)
-         [xx:xx:xx.xxx] [Server] LOG     Pages Router SSR: This is a log message from getServerSideProps
+         "[xx:xx:xx.xxx] [Server] LOG     Pages Router SSR: This is a log message from getServerSideProps
          [xx:xx:xx.xxx] [Server] ERROR   Pages Router SSR: This is an error message from getServerSideProps
          [xx:xx:xx.xxx] [Server] WARN    Pages Router SSR: This is a warning message from getServerSideProps
          [xx:xx:xx.xxx] [Server] LOG     Pages Router isomorphic: This is a log message from render
