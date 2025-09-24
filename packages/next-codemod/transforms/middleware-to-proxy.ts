@@ -21,7 +21,7 @@ export default function transformer(file: FileInfo) {
 
   let hasChanges = false
 
-  // Handle export declarations in a single traversal
+  // Handle named export declarations
   root.find(j.ExportNamedDeclaration).forEach((nodePath) => {
     const declaration = nodePath.node.declaration
 
@@ -56,19 +56,27 @@ export default function transformer(file: FileInfo) {
     }
   })
 
+  // Handle default export declarations
+  root.find(j.ExportDefaultDeclaration).forEach((nodePath) => {
+    const declaration = nodePath.node.declaration
+
+    // Handle: export default function middleware() {} or export default async function middleware() {}
+    if (
+      j.FunctionDeclaration.check(declaration) &&
+      declaration.id?.name === 'middleware'
+    ) {
+      declaration.id.name = 'proxy'
+      hasChanges = true
+    }
+  })
+
   // Handle function declarations that are later exported
   // Find: function middleware() {} followed by export { middleware }
-  // But exclude default exports
   root
     .find(j.FunctionDeclaration, {
       id: { name: 'middleware' },
     })
     .forEach((nodePath) => {
-      // Skip if this function is part of a default export
-      if (nodePath.parent?.node?.type === 'ExportDefaultDeclaration') {
-        return
-      }
-
       if (nodePath.node.id) {
         nodePath.node.id.name = 'proxy'
         hasChanges = true
@@ -76,25 +84,16 @@ export default function transformer(file: FileInfo) {
     })
 
   // Handle variable declarations: const middleware = ...
-  // But exclude those that are part of default exports
   root
     .find(j.VariableDeclarator, {
       id: { name: 'middleware' },
     })
     .forEach((nodePath) => {
-      // Skip if this variable is part of a default export
-      if (nodePath.parent?.parent?.node?.type === 'ExportDefaultDeclaration') {
-        return
-      }
-
       if (j.Identifier.check(nodePath.node.id)) {
         nodePath.node.id.name = 'proxy'
         hasChanges = true
       }
     })
-
-  // Skip default exports - they don't need to be renamed
-  // export default function middleware() {} works as-is with proxy files
 
   if (!hasChanges) {
     return file.source
