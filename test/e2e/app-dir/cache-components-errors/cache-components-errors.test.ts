@@ -1325,7 +1325,7 @@ describe('Cache Components Errors', () => {
                    15 |
                    16 | async function CookiesReadingComponent() {
                  > 17 |   const token = (cookies() as any).get('token')
-                      |                                                                  ^
+                      |                                    ^
                    18 |
                    19 |   return (
                    20 |     <div> {
@@ -1454,11 +1454,11 @@ describe('Cache Components Errors', () => {
                    "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
-                   "source": "app/sync-cookies-runtime/page.tsx (24:66) @ CookiesReadingComponent
+                   "source": "app/sync-cookies-runtime/page.tsx (24:36) @ CookiesReadingComponent
                > 24 |   const token = (cookies() as any).get('token')
-                    |                                                                  ^",
+                    |                                    ^",
                    "stack": [
-                     "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:66)",
+                     "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:36)",
                    ],
                  },
                ]
@@ -1511,19 +1511,19 @@ describe('Cache Components Errors', () => {
 
             if (isTurbopack) {
               await expect(browser).toDisplayCollapsedRedbox(`
-                            {
-                              "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                              "environmentLabel": "Prerender",
-                              "label": "Console Error",
-                              "source": "app/sync-draft-mode/page.tsx (23:31) @ DraftModeReadingComponent
-                            > 23 |   const isEnabled = (draftMode() as any)
-                                 |                               ^",
-                              "stack": [
-                                "DraftModeReadingComponent app/sync-draft-mode/page.tsx (23:31)",
-                                "Page app/sync-draft-mode/page.tsx (13:7)",
-                              ],
-                            }
-                          `)
+               {
+                 "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                 "environmentLabel": "Prerender",
+                 "label": "Console Error",
+                 "source": "app/sync-draft-mode/page.tsx (23:31) @ DraftModeReadingComponent
+               > 23 |   const isEnabled = (draftMode() as any).isEnabled
+                    |                               ^",
+                 "stack": [
+                   "DraftModeReadingComponent app/sync-draft-mode/page.tsx (23:31)",
+                   "Page app/sync-draft-mode/page.tsx (13:7)",
+                 ],
+               }
+              `)
             } else if (isRspack) {
               await expect(browser).toDisplayCollapsedRedbox(`
                {
@@ -1587,32 +1587,32 @@ describe('Cache Components Errors', () => {
 
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
-                            [
-                              {
-                                "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
-                                "environmentLabel": "Prerender",
-                                "label": "Console Error",
-                                "source": "app/sync-headers/page.tsx (17:29) @ HeadersReadingComponent
-                            > 17 |   const userAgent = (headers() as any).get(
-                                 |                             ^",
-                                "stack": [
-                                  "HeadersReadingComponent app/sync-headers/page.tsx (17:29)",
-                                  "Page app/sync-headers/page.tsx (11:7)",
-                                ],
-                              },
-                              {
-                                "description": "(0 , <turbopack-module-id>.headers)(...).get is not a function",
-                                "environmentLabel": "Prerender",
-                                "label": "Runtime TypeError",
-                                "source": "app/sync-headers/page.tsx (17:40) @ HeadersReadingComponent
-                            > 17 |   const userAgent = (headers() as any).get('user-agent')
-                                 |                                        ^",
-                                "stack": [
-                                  "HeadersReadingComponent app/sync-headers/page.tsx (17:40)",
-                                ],
-                              },
-                            ]
-                          `)
+               [
+                 {
+                   "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "environmentLabel": "Prerender",
+                   "label": "Console Error",
+                   "source": "app/sync-headers/page.tsx (17:29) @ HeadersReadingComponent
+               > 17 |   const userAgent = (headers() as any).get('user-agent')
+                    |                             ^",
+                   "stack": [
+                     "HeadersReadingComponent app/sync-headers/page.tsx (17:29)",
+                     "Page app/sync-headers/page.tsx (11:7)",
+                   ],
+                 },
+                 {
+                   "description": "(0 , <turbopack-module-id>.headers)(...).get is not a function",
+                   "environmentLabel": "Prerender",
+                   "label": "Runtime TypeError",
+                   "source": "app/sync-headers/page.tsx (17:40) @ HeadersReadingComponent
+               > 17 |   const userAgent = (headers() as any).get('user-agent')
+                    |                                        ^",
+                   "stack": [
+                     "HeadersReadingComponent app/sync-headers/page.tsx (17:40)",
+                   ],
+                 },
+               ]
+              `)
             } else if (isRspack) {
               await expect(browser).toDisplayRedbox(`
                [
@@ -1775,7 +1775,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-headers-runtime/page.tsx (24:29) @ HeadersReadingComponent
-               > 24 |   const userAgent = (headers() as any).get(
+               > 24 |   const userAgent = (headers() as any).get('user-agent')
                     |                             ^",
                    "stack": [
                      "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:29)",
@@ -1831,7 +1831,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-headers-runtime/page.tsx (24:21) @ HeadersReadingComponent
-               > 24 |   const userAgent = (headers() as any).get(
+               > 24 |   const userAgent = (headers() as any).get('user-agent')
                     |                     ^",
                    "stack": [
                      "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:21)",
@@ -1842,11 +1842,11 @@ describe('Cache Components Errors', () => {
                    "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
-                   "source": "app/sync-headers-runtime/page.tsx (24:70) @ HeadersReadingComponent
-               > 24 |   const userAgent = (headers() as any).get(
-                    |                                                                      ^",
+                   "source": "app/sync-headers-runtime/page.tsx (24:40) @ HeadersReadingComponent
+               > 24 |   const userAgent = (headers() as any).get('user-agent')
+                    |                                        ^",
                    "stack": [
-                     "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:70)",
+                     "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:40)",
                    ],
                  },
                ]
