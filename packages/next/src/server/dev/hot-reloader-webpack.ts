@@ -577,13 +577,18 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   rootDirectory: this.dir,
                   distDir: this.distDir,
                   config: this.config.experimental.browserDebugInfoInTerminal,
+                  mcpServerEnabled: !!this.config.experimental.mcpServer,
                 })
               }
               break
             }
             case 'client-file-logs': {
               // Always log to file regardless of terminal flag
-              await handleClientFileLogs(payload.logs, this.distDir)
+              await handleClientFileLogs(
+                payload.logs,
+                this.distDir,
+                !!this.config.experimental.mcpServer
+              )
               break
             }
             default: {

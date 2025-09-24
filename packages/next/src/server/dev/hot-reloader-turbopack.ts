@@ -937,13 +937,18 @@ export async function createHotReloaderTurbopack(
                   projectPath,
                   distDir,
                   config: nextConfig.experimental.browserDebugInfoInTerminal,
+                  mcpServerEnabled: !!nextConfig.experimental.mcpServer,
                 })
               }
               break
             }
             case 'client-file-logs': {
               // Always log to file regardless of terminal flag
-              await handleClientFileLogs(parsedData.logs, distDir)
+              await handleClientFileLogs(
+                parsedData.logs,
+                distDir,
+                !!nextConfig.experimental.mcpServer
+              )
               break
             }
 

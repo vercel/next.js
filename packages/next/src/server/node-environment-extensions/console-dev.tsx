@@ -3,6 +3,10 @@ import { devLogsAsyncStorage } from '../app-render/dev-logs-async-storage.extern
 import { getFileLogger } from '../dev/browser-logs/file-logger'
 import { formatConsoleArgs } from '../../client/lib/console'
 import { traceGlobals } from '../../trace/shared'
+import {
+  routerServerGlobal,
+  RouterServerContextSymbol,
+} from '../lib/router-utils/router-server-context'
 
 type InterceptableConsoleMethod =
   | 'error'
@@ -168,13 +172,18 @@ function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
     const wrapperMethod = function (this: typeof console, ...args: any[]) {
       const devLogsStore = devLogsAsyncStorage.getStore()
 
-      // Log to file logger for server-side console logs only if mcpServer is enabled
+      // Log to file logger for server-side console logs
       try {
         const distDir = traceGlobals.get('distDir')
-        const nextConfig = traceGlobals.get('nextConfig')
+        if (distDir) {
+          // Get mcpServer flag from RouterServerContext
+          const context = routerServerGlobal[RouterServerContextSymbol]
+          const mcpServerEnabled = context
+            ? Object.values(context)[0]?.nextConfig?.experimental?.mcpServer ===
+              true
+            : false
 
-        if (distDir && nextConfig?.experimental?.mcpServer) {
-          const fileLogger = getFileLogger(distDir)
+          const fileLogger = getFileLogger(distDir, mcpServerEnabled)
           const message = formatConsoleArgs(args)
           // Strip ANSI escape codes for file logging
           // eslint-disable-next-line no-control-regex

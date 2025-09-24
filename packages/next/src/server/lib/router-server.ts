@@ -132,7 +132,6 @@ export async function initialize(opts: {
       distDir: path.join(opts.dir, config.distDir),
     })
     traceGlobals.set('telemetry', telemetry)
-    traceGlobals.set('nextConfig', config)
 
     const { pagesDir, appDir } = findPagesDir(opts.dir)
 

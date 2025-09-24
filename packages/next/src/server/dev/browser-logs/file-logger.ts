@@ -15,13 +15,20 @@ class FileLogger {
   private flushTimer: NodeJS.Timeout | null = null
   private readonly flushInterval: number = 1000 // Flush every 1 second
   private readonly maxQueueSize: number = 100 // Flush immediately if queue gets too large
+  private mcpServerEnabled: boolean = false
 
-  constructor(distDir: string) {
+  constructor(distDir: string, mcpServerEnabled: boolean) {
     this.logFilePath = path.join(distDir, 'logs', `next-development.log`)
+    this.mcpServerEnabled = mcpServerEnabled
   }
 
   private initialize(): void {
     if (this.isInitialized) {
+      return
+    }
+
+    // Only initialize if mcpServer is enabled
+    if (!this.mcpServerEnabled) {
       return
     }
 
@@ -66,6 +73,13 @@ class FileLogger {
 
   private flush(): void {
     if (this.logQueue.length === 0) {
+      return
+    }
+
+    // Only flush to disk if mcpServer is enabled
+    if (!this.mcpServerEnabled) {
+      this.logQueue = [] // Clear the queue without writing
+      this.flushTimer = null
       return
     }
 
@@ -145,11 +159,19 @@ class FileLogger {
 // Singleton instance
 let fileLogger: FileLogger | null = null
 let currentDistDir: string | null = null
+let currentMcpServerEnabled: boolean = false
 
-export function getFileLogger(distDir: string): FileLogger {
-  if (!fileLogger || currentDistDir !== distDir) {
-    fileLogger = new FileLogger(distDir)
-    currentDistDir = distDir
+export function getFileLogger(
+  distDir: string,
+  mcpServerEnabled: boolean
+): FileLogger {
+  if (
+    !fileLogger ||
+    currentDistDir !== distDir ||
+    currentMcpServerEnabled !== mcpServerEnabled
+  ) {
+    fileLogger = new FileLogger(distDir, mcpServerEnabled)
+    currentMcpServerEnabled = mcpServerEnabled
   }
   return fileLogger
 }
@@ -160,4 +182,5 @@ export function resetFileLogger(): void {
   }
   fileLogger = null
   currentDistDir = null
+  currentMcpServerEnabled = false
 }
