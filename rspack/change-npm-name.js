@@ -13,6 +13,7 @@ const bindingPackageName = newPackageName.replace(/core/g, 'binding');
 
 console.log(`Core package name: ${newPackageName}`);
 console.log(`Binding package name: ${bindingPackageName}`);
+console.log(`GitHub Repository: ${process.env.GITHUB_REPOSITORY || 'not set'}`);
 
 function updatePackageJson(filePath, packageName) {
   try {
@@ -23,6 +24,17 @@ function updatePackageJson(filePath, packageName) {
 
     const packageJson = JSON.parse(fs.readFileSync(filePath, 'utf8'));
     packageJson.name = packageName;
+    
+    // Update repository URL to match current GitHub repo for provenance validation
+    if (packageJson.repository && packageJson.repository.url) {
+      const githubRepo = process.env.GITHUB_REPOSITORY;
+      if (githubRepo) {
+        packageJson.repository.url = `git+https://github.com/${githubRepo}.git`;
+        console.log(`📝 Updated repository URL to: ${packageJson.repository.url}`);
+      } else {
+        console.log(`⚠️  GITHUB_REPOSITORY not found, keeping original repository URL: ${packageJson.repository.url}`);
+      }
+    }
     
     fs.writeFileSync(filePath, JSON.stringify(packageJson, null, 2) + '\n');
     console.log(`✅ Updated ${filePath} with name: ${packageName}`);
