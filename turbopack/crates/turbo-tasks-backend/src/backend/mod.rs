@@ -419,7 +419,6 @@ impl<B: BackingStorage> Drop for OperationGuard<'_, B> {
 struct TaskExecutionCompletePrepareResult {
     pub new_children: FxHashSet<TaskId>,
     pub removed_data: Vec<CachedDataItem>,
-    pub has_children: bool,
     pub is_now_immutable: bool,
 }
 
@@ -1735,7 +1734,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let Some(TaskExecutionCompletePrepareResult {
             new_children,
             mut removed_data,
-            has_children,
             is_now_immutable,
         }) = self.task_execution_completed_prepare(
             &mut ctx,
@@ -1754,13 +1752,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // suspend in `CleanupOldEdgesOperation`), but that's ok as the task is still dirty and
         // would be executed again.
 
-        if self.task_execution_completed_connect(
-            &mut ctx,
-            task_id,
-            new_children,
-            has_children,
-            is_now_immutable,
-        ) {
+        if self.task_execution_completed_connect(&mut ctx, task_id, new_children, is_now_immutable)
+        {
             // Task was stale and has been rescheduled
             return true;
         }
@@ -1908,13 +1901,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             None
         };
 
-        // Prepare all new children
         if has_children {
+            // Prepare all new children
             prepare_new_children(task_id, &mut task, &new_children, &mut queue);
-        }
 
-        // Filter actual new children
-        if has_children {
+            // Filter actual new children
             old_edges.extend(
                 iter_many!(task, Child { task } => task)
                     .filter(|task| !new_children.remove(task))
@@ -1997,7 +1988,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         Some(TaskExecutionCompletePrepareResult {
             new_children,
             removed_data,
-            has_children,
             is_now_immutable,
         })
     }
@@ -2007,7 +1997,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
         new_children: FxHashSet<TaskId>,
-        has_children: bool,
         is_now_immutable: bool,
     ) -> bool {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -2058,7 +2047,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut queue = AggregationUpdateQueue::new();
 
-        if has_children {
+        let has_new_children = !new_children.is_empty();
+        if has_new_children {
             let has_active_count = ctx.should_track_activeness()
                 && get!(task, Activeness).map_or(false, |activeness| activeness.active_counter > 0);
             connect_children(
@@ -2073,7 +2063,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         drop(task);
 
-        if has_children {
+        if has_new_children {
             #[cfg(feature = "trace_task_completion")]
             let _span = tracing::trace_span!("connect new children").entered();
             queue.execute(ctx);
