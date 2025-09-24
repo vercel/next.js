@@ -2,10 +2,6 @@ import { dim } from '../../lib/picocolors'
 import { devLogsAsyncStorage } from '../app-render/dev-logs-async-storage.external'
 import { getFileLogger } from '../dev/browser-logs/file-logger'
 import { formatConsoleArgs } from '../../client/lib/console'
-import {
-  routerServerGlobal,
-  RouterServerContextSymbol,
-} from '../lib/router-utils/router-server-context'
 
 type InterceptableConsoleMethod =
   | 'error'
@@ -171,36 +167,19 @@ function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
     const wrapperMethod = function (this: typeof console, ...args: any[]) {
       const devLogsStore = devLogsAsyncStorage.getStore()
 
-      // Log to file logger for server-side console logs
-      try {
-        const context = routerServerGlobal[RouterServerContextSymbol]
-        const nextConfig = context
-          ? Object.values(context)[0]?.nextConfig
-          : undefined
-        if (nextConfig) {
-          const distDir = nextConfig.distDir
-          // Get mcpServer flag from RouterServerContext
-          const mcpServerEnabled = context
-            ? Object.values(context)[0]?.nextConfig?.experimental?.mcpServer ===
-              true
-            : false
-
-          const fileLogger = getFileLogger(distDir, mcpServerEnabled)
-          const message = formatConsoleArgs(args)
-          // Strip ANSI escape codes for file logging
-          // eslint-disable-next-line no-control-regex
-          const ansiEscapeRegex = new RegExp('\u001b\\[[0-9;]*m', 'g')
-          const cleanMessage = message.replace(ansiEscapeRegex, '')
-          fileLogger.logServer(methodName.toUpperCase(), cleanMessage)
-        }
-      } catch (error) {
-        // Silently fail to avoid recursion
-      }
-
       if (devLogsStore?.dim === true) {
         return originalMethod.apply(this, dimConsoleCall(methodName, args))
       } else {
-        return originalMethod.apply(this, args)
+        const ret = originalMethod.apply(this, args)
+
+        const fileLogger = getFileLogger()
+        const message = formatConsoleArgs(args)
+        // Strip ANSI escape codes for file logging
+        // eslint-disable-next-line no-control-regex
+        const ansiEscapeRegex = new RegExp('\u001b\\[[0-9;]*m', 'g')
+        const cleanMessage = message.replace(ansiEscapeRegex, '')
+        fileLogger.logServer(methodName.toUpperCase(), cleanMessage)
+        return ret
       }
     }
     if (originalName) {

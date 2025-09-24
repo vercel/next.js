@@ -118,6 +118,7 @@ import {
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
+import { getFileLogger } from './browser-logs/file-logger'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -213,6 +214,12 @@ export async function createHotReloaderTurbopack(
   // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
+
+  // Initialize log monitor for file logging
+  // Enable logging by default in development mode
+  const mcpServerEnabled = nextConfig.experimental?.mcpServer !== false
+  const fileLogger = getFileLogger()
+  fileLogger.initialize(distDir, mcpServerEnabled)
 
   const encryptionKey = await generateEncryptionKeyBase64({
     isBuild: false,
@@ -937,18 +944,18 @@ export async function createHotReloaderTurbopack(
                   projectPath,
                   distDir,
                   config: nextConfig.experimental.browserDebugInfoInTerminal,
-                  mcpServerEnabled: !!nextConfig.experimental.mcpServer,
                 })
               }
               break
             }
             case 'client-file-logs': {
               // Always log to file regardless of terminal flag
-              await handleClientFileLogs(
-                parsedData.logs,
-                distDir,
-                !!nextConfig.experimental.mcpServer
-              )
+              await handleClientFileLogs(parsedData.logs)
+              break
+            }
+            case 'ping': {
+              // Handle ping events to keep WebSocket connections alive
+              // No-op - just acknowledge the ping
               break
             }
 

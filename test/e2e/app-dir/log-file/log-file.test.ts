@@ -134,7 +134,7 @@ describe('log-file', () => {
     // Make request to page with getServerSideProps
     await next.browser('/pages-router-page')
     // Wait for logs to be written (increased timeout for batched logging)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await new Promise((resolve) => setTimeout(resolve, 500))
 
     if (isNextDev) {
       await retry(async () => {

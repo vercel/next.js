@@ -8,19 +8,17 @@ export interface LogEntry {
   message: string
 }
 
-class FileLogger {
-  private logFilePath: string
+export class FileLogger {
+  private logFilePath: string = ''
   private isInitialized: boolean = false
   private logQueue: string[] = []
   private flushTimer: NodeJS.Timeout | null = null
   private mcpServerEnabled: boolean = false
 
-  constructor(distDir: string, mcpServerEnabled: boolean) {
+  public initialize(distDir: string, mcpServerEnabled: boolean): void {
     this.logFilePath = path.join(distDir, 'logs', `next-development.log`)
     this.mcpServerEnabled = mcpServerEnabled
-  }
 
-  private initialize(): void {
     if (this.isInitialized) {
       return
     }
@@ -44,12 +42,19 @@ class FileLogger {
   }
 
   private formatTimestamp(): string {
-    const now = new Date()
-    const hours = now.getHours().toString().padStart(2, '0')
-    const minutes = now.getMinutes().toString().padStart(2, '0')
-    const seconds = now.getSeconds().toString().padStart(2, '0')
-    const milliseconds = now.getMilliseconds().toString().padStart(3, '0')
-
+    const now = performance.now()
+    const hours = Math.floor(now / 3600000)
+      .toString()
+      .padStart(2, '0')
+    const minutes = Math.floor((now % 3600000) / 60000)
+      .toString()
+      .padStart(2, '0')
+    const seconds = Math.floor((now % 60000) / 1000)
+      .toString()
+      .padStart(2, '0')
+    const milliseconds = Math.floor(now % 1000)
+      .toString()
+      .padStart(3, '0')
     return `${hours}:${minutes}:${seconds}.${milliseconds}`
   }
 
@@ -61,12 +66,18 @@ class FileLogger {
 
   private scheduleFlush(): void {
     if (this.flushTimer) {
+      clearTimeout(this.flushTimer)
+      this.flushTimer = null
       return // Timer already scheduled
     }
 
     this.flushTimer = setTimeout(() => {
       this.flush()
     }, 100)
+  }
+
+  public getLogQueue(): string[] {
+    return this.logQueue
   }
 
   private flush(): void {
@@ -117,8 +128,6 @@ class FileLogger {
       return
     }
 
-    this.initialize()
-
     if (!this.isInitialized) {
       return
     }
@@ -164,17 +173,15 @@ class FileLogger {
 // Singleton instance
 let fileLogger: FileLogger | null = null
 
-export function getFileLogger(
-  distDir: string,
-  mcpServerEnabled: boolean
-): FileLogger {
+export function getFileLogger(): FileLogger {
   if (!fileLogger || process.env.NODE_ENV === 'test') {
-    fileLogger = new FileLogger(distDir, mcpServerEnabled)
+    fileLogger = new FileLogger()
   }
   return fileLogger
 }
 
-export function resetFileLogger(): void {
+// Only used for testing
+export function test__resetFileLogger(): void {
   if (fileLogger) {
     fileLogger.destroy()
   }

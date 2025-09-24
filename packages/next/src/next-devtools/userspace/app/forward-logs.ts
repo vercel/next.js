@@ -194,7 +194,9 @@ const sendClientFileLogs = () => {
     logQueue.socket.send(payload)
     clientFileLogger.clear()
   } catch (error) {
-    // Silently fail to avoid recursion
+    // Clear logs regardless of send success to prevent memory leaks
+    clientFileLogger.clear()
+    console.error(error)
   }
 }
 

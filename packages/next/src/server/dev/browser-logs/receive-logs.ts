@@ -13,8 +13,8 @@ import {
   type ConsoleEntry,
   UNDEFINED_MARKER,
 } from '../../../next-devtools/shared/forward-logs-shared'
-import { getFileLogger } from './file-logger'
 import { formatConsoleArgs } from '../../../client/lib/console'
+import { getFileLogger } from './file-logger'
 
 export function restoreUndefined(x: any): any {
   if (x === UNDEFINED_MARKER) return undefined
@@ -417,13 +417,12 @@ async function handleDefaultConsole(
   ctx: MappingContext,
   distDir: string,
   config: boolean | { logDepth?: number; showSourceLocation?: boolean },
-  isServerLog: boolean,
-  mcpServerEnabled: boolean
+  isServerLog: boolean
 ) {
-  const loggableEntry = await prepareConsoleArgs(entry, ctx, distDir)
+  const consoleArgs = await prepareConsoleArgs(entry, ctx, distDir)
   const withStackEntry = await withLocation(
     {
-      original: loggableEntry,
+      original: consoleArgs,
       stack: (entry as any).consoleMethodStack || null,
     },
     ctx,
@@ -433,11 +432,11 @@ async function handleDefaultConsole(
   const consoleMethod = forwardConsole[entry.method] || forwardConsole.log
   ;(consoleMethod as (...args: any[]) => void)(browserPrefix, ...withStackEntry)
 
+  // Process enqueued logs and write to file
   // Log to file with correct source based on context
-  const fileLogger = getFileLogger(distDir, mcpServerEnabled)
+  const fileLogger = getFileLogger()
 
   // Use cleaned console args to strip out background and color format specifiers
-  const consoleArgs = await prepareConsoleArgs(entry, ctx, distDir)
   const message = cleanConsoleArgsForFileLogging(consoleArgs)
   if (isServerLog) {
     fileLogger.logServer(entry.method.toUpperCase(), message)
@@ -450,13 +449,12 @@ export async function handleLog(
   entries: ServerLogEntry[],
   ctx: MappingContext,
   distDir: string,
-  config: boolean | { logDepth?: number; showSourceLocation?: boolean },
-  mcpServerEnabled: boolean
+  config: boolean | { logDepth?: number; showSourceLocation?: boolean }
 ): Promise<void> {
   // Determine the source based on the context
   const isServerLog = ctx.isServer || ctx.isEdgeServer
   const browserPrefix = isServerLog ? cyan('[server]') : cyan('[browser]')
-  const fileLogger = getFileLogger(distDir, mcpServerEnabled)
+  const fileLogger = getFileLogger()
 
   for (const entry of entries) {
     try {
@@ -502,8 +500,7 @@ export async function handleLog(
                 ctx,
                 distDir,
                 config,
-                isServerLog,
-                mcpServerEnabled
+                isServerLog
               )
               break
             }
@@ -518,9 +515,11 @@ export async function handleLog(
           const consoleArgs = await prepareConsoleErrorArgs(entry, ctx, distDir)
           forwardConsole.error(browserPrefix, ...consoleArgs)
 
-          // Log to file
-          const message = cleanConsoleArgsForFileLogging(consoleArgs)
-          fileLogger.logBrowser('ERROR', message)
+          // Process enqueued logs and write to file
+          fileLogger.logBrowser(
+            'ERROR',
+            cleanConsoleArgsForFileLogging(consoleArgs)
+          )
           break
         }
         // formatted error is an explicit error event (rejections, uncaught errors)
@@ -532,9 +531,11 @@ export async function handleLog(
           )
           forwardConsole.error(browserPrefix, ...formattedArgs)
 
-          // Log to file
-          const message = cleanConsoleArgsForFileLogging(formattedArgs)
-          fileLogger.logBrowser('ERROR', message)
+          // Process enqueued logs and write to file
+          fileLogger.logBrowser(
+            'ERROR',
+            cleanConsoleArgsForFileLogging(formattedArgs)
+          )
           break
         }
         default: {
@@ -545,14 +546,11 @@ export async function handleLog(
         case 'any-logged-error': {
           const consoleArgs = await prepareConsoleErrorArgs(entry, ctx, distDir)
           forwardConsole.error(browserPrefix, ...consoleArgs)
-
-          // Log to file with correct source based on context
-          const message = cleanConsoleArgsForFileLogging(consoleArgs)
-          if (isServerLog) {
-            fileLogger.logServer('ERROR', message)
-          } else {
-            fileLogger.logBrowser('ERROR', message)
-          }
+          // Process enqueued logs and write to file
+          fileLogger.logBrowser(
+            'ERROR',
+            cleanConsoleArgsForFileLogging(consoleArgs)
+          )
           break
         }
         case 'console': {
@@ -564,27 +562,21 @@ export async function handleLog(
             ...consoleArgs
           )
 
-          // Log to file with correct source based on context
-          const message = cleanConsoleArgsForFileLogging(consoleArgs)
-          if (isServerLog) {
-            fileLogger.logServer(entry.method.toUpperCase(), message)
-          } else {
-            fileLogger.logBrowser(entry.method.toUpperCase(), message)
-          }
+          // Process enqueued logs and write to file
+          fileLogger.logBrowser(
+            'ERROR',
+            cleanConsoleArgsForFileLogging(consoleArgs)
+          )
           break
         }
         case 'formatted-error': {
           forwardConsole.error(browserPrefix, `${entry.prefix}\n`, entry.stack)
 
-          // Log to file with correct source based on context
-          const message = cleanConsoleArgsForFileLogging([
-            `${entry.prefix}\n${entry.stack}`,
-          ])
-          if (isServerLog) {
-            fileLogger.logServer('ERROR', message)
-          } else {
-            fileLogger.logBrowser('ERROR', message)
-          }
+          // Process enqueued logs and write to file
+          fileLogger.logBrowser(
+            'ERROR',
+            cleanConsoleArgsForFileLogging([`${entry.prefix}\n${entry.stack}`])
+          )
           break
         }
         default: {
@@ -605,7 +597,6 @@ export async function receiveBrowserLogsWebpack(opts: {
   rootDirectory: string
   distDir: string
   config: boolean | { logDepth?: number; showSourceLocation?: boolean }
-  mcpServerEnabled: boolean
 }): Promise<void> {
   const {
     entries,
@@ -633,7 +624,7 @@ export async function receiveBrowserLogsWebpack(opts: {
     rootDirectory,
   }
 
-  await handleLog(entries, ctx, distDir, opts.config, opts.mcpServerEnabled)
+  await handleLog(entries, ctx, distDir, opts.config)
 }
 
 export async function receiveBrowserLogsTurbopack(opts: {
@@ -644,7 +635,6 @@ export async function receiveBrowserLogsTurbopack(opts: {
   projectPath: string
   distDir: string
   config: boolean | { logDepth?: number; showSourceLocation?: boolean }
-  mcpServerEnabled: boolean
 }): Promise<void> {
   const { entries, router, sourceType, project, projectPath, distDir } = opts
 
@@ -661,16 +651,14 @@ export async function receiveBrowserLogsTurbopack(opts: {
     isAppDirectory,
   }
 
-  await handleLog(entries, ctx, distDir, opts.config, opts.mcpServerEnabled)
+  await handleLog(entries, ctx, distDir, opts.config)
 }
 
 // Handle client file logs (always logged regardless of terminal flag)
 export async function handleClientFileLogs(
-  logs: Array<{ timestamp: string; level: string; message: string }>,
-  distDir: string,
-  mcpServerEnabled: boolean
+  logs: Array<{ timestamp: string; level: string; message: string }>
 ): Promise<void> {
-  const fileLogger = getFileLogger(distDir, mcpServerEnabled)
+  const fileLogger = getFileLogger()
 
   for (const log of logs) {
     fileLogger.logBrowser(log.level, log.message)

@@ -110,6 +110,8 @@ import {
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
+import type { FileLogger} from './browser-logs/file-logger';
+import { getFileLogger } from './browser-logs/file-logger'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -260,6 +262,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   public activeWebpackConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
   >
+  private fileLogger: FileLogger
 
   constructor(
     dir: string,
@@ -316,6 +319,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
     // of the current `next dev` invocation.
     this.hotReloaderSpan.stop()
+
+    // Initialize log monitor for file logging
+    // Enable logging by default in development mode
+    const mcpServerEnabled = config.experimental?.mcpServer !== false
+    this.fileLogger = getFileLogger()
+    this.fileLogger.initialize(this.distDir, mcpServerEnabled)
   }
 
   public async run(
@@ -577,18 +586,18 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   rootDirectory: this.dir,
                   distDir: this.distDir,
                   config: this.config.experimental.browserDebugInfoInTerminal,
-                  mcpServerEnabled: !!this.config.experimental.mcpServer,
                 })
               }
               break
             }
             case 'client-file-logs': {
               // Always log to file regardless of terminal flag
-              await handleClientFileLogs(
-                payload.logs,
-                this.distDir,
-                !!this.config.experimental.mcpServer
-              )
+              await handleClientFileLogs(payload.logs)
+              break
+            }
+            case 'ping': {
+              // Handle ping events to keep WebSocket connections alive
+              // No-op - just acknowledge the ping
               break
             }
             default: {

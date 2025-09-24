@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
-import { getFileLogger, resetFileLogger } from './file-logger'
+import { getFileLogger, test__resetFileLogger } from './file-logger'
 
 describe('FileLogger', () => {
   let tempDir: string
@@ -10,8 +10,9 @@ describe('FileLogger', () => {
   beforeEach(() => {
     // Create a temporary directory for testing
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'next-file-logger-test-'))
-    resetFileLogger() // Reset singleton
-    fileLogger = getFileLogger(tempDir, true) // Enable mcpServer for testing
+    test__resetFileLogger() // Reset singleton
+    fileLogger = getFileLogger()
+    fileLogger.initialize(tempDir, true) // Enable mcpServer for testing
   })
 
   afterEach(() => {
@@ -125,7 +126,8 @@ describe('FileLogger', () => {
     const logsDirExistedBefore = fs.existsSync(logsDir)
 
     // Create a new file logger with mcpServer disabled
-    const disabledLogger = getFileLogger(tempDir, false)
+    const disabledLogger = getFileLogger()
+    disabledLogger.initialize(tempDir, false)
 
     // Log a message
     disabledLogger.logBrowser('LOG', 'This should not be logged')
