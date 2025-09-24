@@ -17,34 +17,10 @@ import {
   trackDynamicDataInDynamicRender,
   trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
-import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
-
-/**
- * In this version of Next.js `draftMode()` returns a Promise however you can still reference the properties of the underlying draftMode object
- * synchronously to facilitate migration. The `UnsafeUnwrappedDraftMode` type is added to your code by a codemod that attempts to automatically
- * updates callsites to reflect the new Promise return type. There are some cases where `draftMode()` cannot be automatically converted, namely
- * when it is used inside a synchronous function and we can't be sure the function can be made async automatically. In these cases we add an
- * explicit type case to `UnsafeUnwrappedDraftMode` to enable typescript to allow for the synchronous usage only where it is actually necessary.
- *
- * You should should update these callsites to either be async functions where the `draftMode()` value can be awaited or you should call `draftMode()`
- * from outside and await the return value before passing it into this function.
- *
- * You can find instances that require manual migration by searching for `UnsafeUnwrappedDraftMode` in your codebase or by search for a comment that
- * starts with `@next-codemod-error`.
- *
- * In a future version of Next.js `draftMode()` will only return a Promise and you will not be able to access the underlying draftMode object directly
- * without awaiting the return value first. When this change happens the type `UnsafeUnwrappedDraftMode` will be updated to reflect that is it no longer
- * usable.
- *
- * This type is marked deprecated to help identify it as target for refactoring away.
- *
- * @deprecated
- */
-export type UnsafeUnwrappedDraftMode = DraftMode
 
 export function draftMode(): Promise<DraftMode> {
   const callingExpression = 'draftMode'
@@ -200,11 +176,11 @@ function createDraftModeWithDevWarnings(
     get(target, prop, receiver) {
       switch (prop) {
         case 'isEnabled':
-          warnForSyncAccess(route, `\`draftMode().${prop}\``)
+          throwForSyncAccess(route, `\`draftMode().${prop}\``)
           break
         case 'enable':
         case 'disable': {
-          warnForSyncAccess(route, `\`draftMode().${prop}()\``)
+          throwForSyncAccess(route, `\`draftMode().${prop}()\``)
           break
         }
         default: {
@@ -276,20 +252,13 @@ function syncIODev(route: string | undefined, expression: string) {
     }
   }
 
-  // In all cases we warn normally
-  warnForSyncAccess(route, expression)
+  // In all cases we throw normally
+  throwForSyncAccess(route, expression)
 }
 
-const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
-  createDraftModeAccessError
-)
-
-function createDraftModeAccessError(
-  route: string | undefined,
-  expression: string
-) {
+function throwForSyncAccess(route: string | undefined, expression: string) {
   const prefix = route ? `Route "${route}" ` : 'This route '
-  return new Error(
+  throw new Error(
     `${prefix}used ${expression}. ` +
       `\`draftMode()\` should be awaited before using its value. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`

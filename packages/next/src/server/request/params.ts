@@ -30,39 +30,10 @@ import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
-import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 
 export type ParamValue = string | Array<string> | undefined
 export type Params = Record<string, ParamValue>
-
-/**
- * In this version of Next.js the `params` prop passed to Layouts, Pages, and other Segments is a Promise.
- * However to facilitate migration to this new Promise type you can currently still access params directly on the Promise instance passed to these Segments.
- * The `UnsafeUnwrappedParams` type is available if you need to temporarily access the underlying params without first awaiting or `use`ing the Promise.
- *
- * In a future version of Next.js the `params` prop will be a plain Promise and this type will be removed.
- *
- * Typically instances of `params` can be updated automatically to be treated as a Promise by a codemod published alongside this Next.js version however if you
- * have not yet run the codemod of the codemod cannot detect certain instances of `params` usage you should first try to refactor your code to await `params`.
- *
- * If refactoring is not possible but you still want to be able to access params directly without typescript errors you can cast the params Promise to this type
- *
- * ```tsx
- * type Props = { params: Promise<{ id: string }>}
- *
- * export default async function Layout(props: Props) {
- *  const directParams = (props.params as unknown as UnsafeUnwrappedParams<typeof props.params>)
- *  return ...
- * }
- * ```
- *
- * This type is marked deprecated to help identify it as target for refactoring away.
- *
- * @deprecated
- */
-export type UnsafeUnwrappedParams<P> =
-  P extends Promise<infer U> ? Omit<U, 'then' | 'status' | 'value'> : never
 
 export function createParamsFromClient(
   underlyingParams: Params,
@@ -652,7 +623,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
           proxiedProperties.has(prop)
         ) {
           const expression = describeStringPropertyAccess('params', prop)
-          warnForSyncAccess(store.route, expression)
+          throwForSyncAccess(store.route, expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -665,7 +636,11 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     },
     ownKeys(target) {
       const expression = '`...params` or similar expression'
-      warnForIncompleteEnumeration(store.route, expression, unproxiedProperties)
+      throwForIncompleteEnumeration(
+        store.route,
+        expression,
+        unproxiedProperties
+      )
       return Reflect.ownKeys(target)
     },
   })
@@ -702,40 +677,30 @@ function syncIODev(
         workUnitStore satisfies never
     }
   }
-  // In all cases we warn normally
+  // In all cases we throw normally
   if (missingProperties && missingProperties.length > 0) {
-    warnForIncompleteEnumeration(route, expression, missingProperties)
+    throwForIncompleteEnumeration(route, expression, missingProperties)
   } else {
-    warnForSyncAccess(route, expression)
+    throwForSyncAccess(route, expression)
   }
 }
 
-const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
-  createParamsAccessError
-)
-
-const warnForIncompleteEnumeration =
-  createDedupedByCallsiteServerErrorLoggerDev(createIncompleteEnumerationError)
-
-function createParamsAccessError(
-  route: string | undefined,
-  expression: string
-) {
+function throwForSyncAccess(route: string | undefined, expression: string) {
   const prefix = route ? `Route "${route}" ` : 'This route '
-  return new Error(
+  throw new Error(
     `${prefix}used ${expression}. ` +
       `\`params\` should be awaited before using its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
 
-function createIncompleteEnumerationError(
+function throwForIncompleteEnumeration(
   route: string | undefined,
   expression: string,
   missingProperties: Array<string>
 ) {
   const prefix = route ? `Route "${route}" ` : 'This route '
-  return new Error(
+  throw new Error(
     `${prefix}used ${expression}. ` +
       `\`params\` should be awaited before using its properties. ` +
       `The following properties were not available through enumeration ` +

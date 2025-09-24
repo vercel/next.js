@@ -423,8 +423,6 @@ function createServerDefinitions(
     export type { ImageResponseOptions } from 'next/dist/compiled/@vercel/og/types'
     export { after } from 'next/dist/server/after'
     export { connection } from 'next/dist/server/request/connection'
-    export type { UnsafeUnwrappedSearchParams } from 'next/dist/server/request/search-params'
-    export type { UnsafeUnwrappedParams } from 'next/dist/server/request/params'
     export function unstable_rootParams(): Promise<{ ${rootParams
       .map(
         ({ param, optional }) =>

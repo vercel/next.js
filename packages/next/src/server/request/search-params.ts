@@ -24,7 +24,6 @@ import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
-import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import {
   describeStringPropertyAccess,
   describeHasCheckingStringProperty,
@@ -36,34 +35,6 @@ import {
 } from './utils'
 
 export type SearchParams = { [key: string]: string | string[] | undefined }
-
-/**
- * In this version of Next.js the `params` prop passed to Layouts, Pages, and other Segments is a Promise.
- * However to facilitate migration to this new Promise type you can currently still access params directly on the Promise instance passed to these Segments.
- * The `UnsafeUnwrappedSearchParams` type is available if you need to temporarily access the underlying params without first awaiting or `use`ing the Promise.
- *
- * In a future version of Next.js the `params` prop will be a plain Promise and this type will be removed.
- *
- * Typically instances of `params` can be updated automatically to be treated as a Promise by a codemod published alongside this Next.js version however if you
- * have not yet run the codemod of the codemod cannot detect certain instances of `params` usage you should first try to refactor your code to await `params`.
- *
- * If refactoring is not possible but you still want to be able to access params directly without typescript errors you can cast the params Promise to this type
- *
- * ```tsx
- * type Props = { searchParams: Promise<{ foo: string }> }
- *
- * export default async function Page(props: Props) {
- *  const { searchParams } = (props.searchParams as unknown as UnsafeUnwrappedSearchParams<typeof props.searchParams>)
- *  return ...
- * }
- * ```
- *
- * This type is marked deprecated to help identify it as target for refactoring away.
- *
- * @deprecated
- */
-export type UnsafeUnwrappedSearchParams<P> =
-  P extends Promise<infer U> ? Omit<U, 'then' | 'status' | 'value'> : never
 
 export function createSearchParamsFromClient(
   underlyingSearchParams: SearchParams,
@@ -770,7 +741,7 @@ function makeUntrackedSearchParamsWithDevWarnings(
             Reflect.has(target, prop) === false)
         ) {
           const expression = describeStringPropertyAccess('searchParams', prop)
-          warnForSyncAccess(store.route, expression)
+          throwForSyncAccess(store.route, expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -794,14 +765,14 @@ function makeUntrackedSearchParamsWithDevWarnings(
             'searchParams',
             prop
           )
-          warnForSyncAccess(store.route, expression)
+          throwForSyncAccess(store.route, expression)
         }
       }
       return Reflect.has(target, prop)
     },
     ownKeys(target) {
       const expression = '`Object.keys(searchParams)` or similar'
-      warnForIncompleteEnumeration(store.route, expression, unproxiedProperties)
+      syncIODev(store.route, expression, unproxiedProperties)
       return Reflect.ownKeys(target)
     },
   })
@@ -815,13 +786,6 @@ function syncIODev(
   expression: string,
   missingProperties?: Array<string>
 ) {
-  // In all cases we warn normally
-  if (missingProperties && missingProperties.length > 0) {
-    warnForIncompleteEnumeration(route, expression, missingProperties)
-  } else {
-    warnForSyncAccess(route, expression)
-  }
-
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -845,34 +809,31 @@ function syncIODev(
         workUnitStore satisfies never
     }
   }
+
+  // In all cases we throw normally
+  if (missingProperties && missingProperties.length > 0) {
+    throwForIncompleteEnumeration(route, expression, missingProperties)
+  } else {
+    throwForSyncAccess(route, expression)
+  }
 }
 
-const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
-  createSearchAccessError
-)
-
-const warnForIncompleteEnumeration =
-  createDedupedByCallsiteServerErrorLoggerDev(createIncompleteEnumerationError)
-
-function createSearchAccessError(
-  route: string | undefined,
-  expression: string
-) {
+function throwForSyncAccess(route: string | undefined, expression: string) {
   const prefix = route ? `Route "${route}" ` : 'This route '
-  return new Error(
+  throw new Error(
     `${prefix}used ${expression}. ` +
       `\`searchParams\` should be awaited before using its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
 
-function createIncompleteEnumerationError(
+function throwForIncompleteEnumeration(
   route: string | undefined,
   expression: string,
   missingProperties: Array<string>
 ) {
   const prefix = route ? `Route "${route}" ` : 'This route '
-  return new Error(
+  throw new Error(
     `${prefix}used ${expression}. ` +
       `\`searchParams\` should be awaited before using its properties. ` +
       `The following properties were not available through enumeration ` +
