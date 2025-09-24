@@ -1008,7 +1008,8 @@ export function onDemandEntryHandler({
           ) {
             handleErrorStateResponse(
               parsedData.requestId,
-              parsedData.errorState
+              parsedData.errorState,
+              parsedData.url
             )
           }
         } catch {}

@@ -1,7 +1,9 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
-import { retry } from 'next-test-utils'
+import { retry, debugPrint, getFullUrl } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
+import { chromium, firefox, webkit } from 'playwright'
+import type { Browser } from 'playwright'
 
 describe('mcp-server get_errors tool', () => {
   const { next } = nextTestSetup({
@@ -40,7 +42,7 @@ describe('mcp-server get_errors tool', () => {
     await next.browser('/')
     const errors = await callGetErrors('test-1')
     expect(stripAnsi(errors)).toMatchInlineSnapshot(
-      `"No errors detected in the browser."`
+      `"No errors detected in 1 browser session(s)."`
     )
   })
 
@@ -52,17 +54,35 @@ describe('mcp-server get_errors tool', () => {
     await retry(async () => {
       const sessionId = 'test-2-' + Date.now()
       errors = await callGetErrors(sessionId)
-      expect(errors).toContain('=== RUNTIME ERRORS ===')
+      expect(errors).toContain('Runtime Errors')
+      expect(errors).toContain('Found errors in 1 browser session')
     })
 
-    expect(stripAnsi(errors)).toMatchInlineSnapshot(`
-     "Found 1 error(s) in the browser:
+    const strippedErrors = stripAnsi(errors)
+      // Replace dynamic port with placeholder
+      .replace(/localhost:\d+/g, 'localhost:PORT')
 
-     === RUNTIME ERRORS ===
+    // Verify proper URL display in session header (now shows pathname only)
+    expect(strippedErrors).toContain('Session: /runtime-error')
 
-     [Error 1] (Type: runtime)
-     Error: Test runtime error
-       at RuntimeErrorPage (app/runtime-error/page.tsx:2:9)"
+    expect(strippedErrors).toMatchInlineSnapshot(`
+      "# Found errors in 1 browser session(s)
+
+      ## Session: /runtime-error
+
+      **1 error(s) found**
+
+      ### Runtime Errors
+
+      #### Error 1 (Type: runtime)
+
+      **Error**: Test runtime error
+
+      \`\`\`
+        at RuntimeErrorPage (app/runtime-error/page.tsx:2:9)
+      \`\`\`
+
+      ---"
     `)
   })
 
@@ -73,10 +93,17 @@ describe('mcp-server get_errors tool', () => {
     await retry(async () => {
       const sessionId = 'test-4-' + Date.now()
       errors = await callGetErrors(sessionId)
-      expect(errors).toContain('=== BUILD ERROR ===')
+      expect(errors).toContain('Build Error')
+      expect(errors).toContain('Found errors in 1 browser session')
     })
 
     let strippedErrors = stripAnsi(errors)
+      // Replace dynamic port with placeholder
+      .replace(/localhost:\d+/g, 'localhost:PORT')
+
+    // Verify proper URL display in session header (now shows pathname only)
+    expect(strippedErrors).toContain('Session: /build-error')
+
     const isTurbopack = process.env.IS_TURBOPACK_TEST === '1'
 
     // Normalize paths in turbopack output to remove temp directory prefix
@@ -87,9 +114,15 @@ describe('mcp-server get_errors tool', () => {
     if (isTurbopack) {
       // Turbopack output
       expect(strippedErrors).toMatchInlineSnapshot(`
-       "Found 2 error(s) in the browser:
+       "# Found errors in 1 browser session(s)
 
-       === BUILD ERROR ===
+       ## Session: /build-error
+
+       **2 error(s) found**
+
+       ### Build Error
+
+       \`\`\`
        ./app/build-error/page.tsx:4:1
        Parsing ecmascript source code failed
          2 |   // Syntax error - missing closing brace
@@ -98,11 +131,13 @@ describe('mcp-server get_errors tool', () => {
            | ^
 
        Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+       \`\`\`
 
-       === RUNTIME ERRORS ===
+       ### Runtime Errors
 
-       [Error 1] (Type: runtime)
-       Error: ./app/build-error/page.tsx:4:1
+       #### Error 1 (Type: runtime)
+
+       **Error**: ./app/build-error/page.tsx:4:1
        Parsing ecmascript source code failed
          2 |   // Syntax error - missing closing brace
          3 |   return <div>Page
@@ -112,15 +147,26 @@ describe('mcp-server get_errors tool', () => {
        Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
 
 
+
+       \`\`\`
          at <unknown> (Error: ./app/build-error/page.tsx:4:1)
-         at <unknown> (Error: (./app/build-error/page.tsx:4:1)"
+         at <unknown> (Error: (./app/build-error/page.tsx:4:1)
+       \`\`\`
+
+       ---"
       `)
     } else {
       // Webpack output
       expect(strippedErrors).toMatchInlineSnapshot(`
-       "Found 1 error(s) in the browser:
+       "# Found errors in 1 browser session(s)
 
-       === BUILD ERROR ===
+       ## Session: /build-error
+
+       **1 error(s) found**
+
+       ### Build Error
+
+       \`\`\`
        ./app/build-error/page.tsx
        Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
           ,-[4:1]
@@ -139,8 +185,135 @@ describe('mcp-server get_errors tool', () => {
           \`----
 
        Caused by:
-           Syntax Error"
+           Syntax Error
+       \`\`\`
+
+       ---"
       `)
     }
   })
+
+  it('should capture errors from multiple browser sessions', async () => {
+    // Restart the server
+    await next.stop()
+    await next.start()
+
+    // Open two independent browser sessions concurrently
+    const [s1, s2] = await Promise.all([
+      launchStandaloneSession(next.url, '/runtime-error'),
+      launchStandaloneSession(next.url, '/runtime-error-2'),
+    ])
+
+    try {
+      // Wait for server to be ready
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      let errors: string = ''
+      await retry(async () => {
+        const sessionId = 'test-multi-' + Date.now()
+        errors = await callGetErrors(sessionId)
+        // Check that we have at least the 2 sessions we created
+        expect(errors).toMatch(/Found errors in \d+ browser session/)
+        // Ensure both our sessions are present
+        expect(errors).toContain('/runtime-error')
+        expect(errors).toContain('/runtime-error-2')
+      })
+
+      const strippedErrors = stripAnsi(errors).replace(
+        /localhost:\d+/g,
+        'localhost:PORT'
+      )
+
+      // Extract each session's content to check them independently
+      const session1Match = strippedErrors.match(
+        /## Session: \/runtime-error\n[\s\S]*?(?=---)/
+      )
+      const session2Match = strippedErrors.match(
+        /## Session: \/runtime-error-2\n[\s\S]*?(?=---)/
+      )
+
+      expect(session1Match).toBeTruthy()
+      expect(session2Match).toBeTruthy()
+
+      expect(session1Match?.[0]).toMatchInlineSnapshot(`
+        "## Session: /runtime-error
+
+        **1 error(s) found**
+
+        ### Runtime Errors
+
+        #### Error 1 (Type: runtime)
+
+        **Error**: Test runtime error
+
+        \`\`\`
+          at RuntimeErrorPage (app/runtime-error/page.tsx:2:9)
+        \`\`\`
+
+        "
+      `)
+
+      expect(session2Match?.[0]).toMatchInlineSnapshot(`
+        "## Session: /runtime-error-2
+
+        **1 error(s) found**
+
+        ### Runtime Errors
+
+        #### Error 1 (Type: runtime)
+
+        **Error**: Test runtime error 2
+
+        \`\`\`
+          at RuntimeErrorPage (app/runtime-error-2/page.tsx:2:9)
+        \`\`\`
+
+        "
+      `)
+    } finally {
+      await s1.close()
+      await s2.close()
+    }
+  })
 })
+
+/**
+ * Minimal standalone browser session launcher for testing multiple concurrent browser tabs.
+ * The standard test harness (next.browser) uses a singleton browser instance which doesn't
+ * support concurrent tabs needed for testing errors across multiple browser sessions.
+ */
+async function launchStandaloneSession(
+  appPortOrUrl: string | number,
+  url: string
+) {
+  const headless = !!process.env.HEADLESS
+  const browserName = (process.env.BROWSER_NAME || 'chrome').toLowerCase()
+
+  let browser: Browser
+  if (browserName === 'safari') {
+    browser = await webkit.launch({ headless })
+  } else if (browserName === 'firefox') {
+    browser = await firefox.launch({ headless })
+  } else {
+    browser = await chromium.launch({ headless })
+  }
+
+  const context = await browser.newContext()
+  const page = await context.newPage()
+
+  const fullUrl = getFullUrl(appPortOrUrl, url)
+  debugPrint(`Loading standalone browser with ${fullUrl}`)
+
+  page.on('pageerror', (error) => debugPrint('Standalone page error', error))
+
+  await page.goto(fullUrl, { waitUntil: 'load' })
+  debugPrint(`Loaded standalone browser with ${fullUrl}`)
+
+  return {
+    page,
+    close: async () => {
+      await page.close().catch(() => {})
+      await context.close().catch(() => {})
+      await browser.close().catch(() => {})
+    },
+  }
+}

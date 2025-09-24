@@ -8,7 +8,7 @@ let mcpServer: McpServer | undefined
 export const getOrCreateMcpServer = (
   projectPath: string,
   sendHmrMessage: (message: HmrMessageSentToBrowser) => void,
-  hasActiveHmrConnections: () => boolean
+  getActiveConnectionCount: () => number
 ) => {
   if (mcpServer) {
     return mcpServer
@@ -20,7 +20,7 @@ export const getOrCreateMcpServer = (
   })
 
   registerGetProjectPathTool(mcpServer, projectPath)
-  registerGetErrorsTool(mcpServer, sendHmrMessage, hasActiveHmrConnections)
+  registerGetErrorsTool(mcpServer, sendHmrMessage, getActiveConnectionCount)
 
   return mcpServer
 }

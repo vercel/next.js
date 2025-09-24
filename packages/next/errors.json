@@ -821,5 +821,6 @@
   "820": "`cacheLife()` can only be called during App Router rendering at the moment.",
   "821": "Unprocessable request",
   "822": "Stack frame resolver not initialized. This is a bug in Next.js.",
-  "823": "Timeout waiting for error state from frontend. The browser may not be responding to HMR messages."
+  "823": "Timeout waiting for error state from frontend. The browser may not be responding to HMR messages.",
+  "824": "URL is required in MCP error state response. This is a bug in Next.js."
 }

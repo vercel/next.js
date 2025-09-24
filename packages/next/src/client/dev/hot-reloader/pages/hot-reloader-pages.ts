@@ -401,13 +401,13 @@ function processMessage(message: HmrMessageSentToBrowser) {
       break
     case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE: {
       const errorState = getSerializedOverlayState()
-      sendMessage(
-        JSON.stringify({
-          event: HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE,
-          requestId: message.requestId,
-          errorState,
-        })
-      )
+      const response = {
+        event: HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE,
+        requestId: message.requestId,
+        errorState,
+        url: window.location.href,
+      }
+      sendMessage(JSON.stringify(response))
       break
     }
     default:

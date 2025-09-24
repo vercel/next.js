@@ -113,10 +113,8 @@ import {
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
-import {
-  setStackFrameResolver,
-  handleErrorStateResponse,
-} from '../mcp/tools/get-errors'
+import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -743,7 +741,7 @@ export async function createHotReloaderTurbopack(
           getMcpMiddleware(
             projectPath,
             (message) => hotReloader.send(message),
-            () => clients.size > 0
+            () => clients.size
           ),
         ]
       : []),
@@ -944,7 +942,8 @@ export async function createHotReloaderTurbopack(
             case 'mcp-error-state-response': {
               handleErrorStateResponse(
                 parsedData.requestId,
-                parsedData.errorState
+                parsedData.errorState,
+                parsedData.url
               )
               break
             }

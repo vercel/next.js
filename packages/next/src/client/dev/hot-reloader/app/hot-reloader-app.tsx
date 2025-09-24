@@ -25,6 +25,7 @@ import type {
   HmrMessageSentToBrowser,
   TurbopackMessageSentToBrowser,
 } from '../../../../server/dev/hot-reloader-types'
+import type { McpErrorStateResponse } from '../../../../shared/lib/mcp-error-types'
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import reportHmrLatency from '../../report-hmr-latency'
 import { TurbopackHmr } from '../turbopack-hot-reloader-common'
@@ -477,13 +478,13 @@ export function processMessage(
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE: {
       const errorState = getSerializedOverlayState()
-      sendMessage(
-        JSON.stringify({
-          event: HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE,
-          requestId: message.requestId,
-          errorState,
-        })
-      )
+      const response: McpErrorStateResponse = {
+        event: HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE,
+        requestId: message.requestId,
+        errorState,
+        url: window.location.href,
+      }
+      sendMessage(JSON.stringify(response))
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:

@@ -7,7 +7,7 @@ import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 export function getMcpMiddleware(
   projectPath: string,
   sendHmrMessage: (message: HmrMessageSentToBrowser) => void,
-  hasActiveHmrConnections: () => boolean
+  getActiveConnectionCount: () => number
 ) {
   return async function (
     req: IncomingMessage,
@@ -21,7 +21,7 @@ export function getMcpMiddleware(
     const mcpServer = getOrCreateMcpServer(
       projectPath,
       sendHmrMessage,
-      hasActiveHmrConnections
+      getActiveConnectionCount
     )
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

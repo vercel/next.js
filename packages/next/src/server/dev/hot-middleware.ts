@@ -293,4 +293,8 @@ export class WebpackHotMiddleware {
   hasClients = () => {
     return this.clients.size > 0
   }
+
+  getClientCount = () => {
+    return this.clients.size
+  }
 }

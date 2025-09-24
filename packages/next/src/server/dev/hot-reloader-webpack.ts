@@ -106,7 +106,7 @@ import {
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
-import { setStackFrameResolver } from '../mcp/tools/get-errors'
+import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -1628,7 +1628,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             getMcpMiddleware(
               this.dir,
               (message) => this.send(message),
-              () => this.webpackHotMiddleware?.hasClients() ?? false
+              () => this.webpackHotMiddleware?.getClientCount() ?? 0
             ),
           ]
         : []),

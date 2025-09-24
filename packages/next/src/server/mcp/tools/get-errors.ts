@@ -8,50 +8,35 @@
  *   MCP client → server generates request ID → HMR message to browser →
  *   browser queries error overlay state → HMR response back → server performs source mapping →
  *   formatted output.
- *
- * The browser can access both build errors and runtime errors, including raw stack traces.
- * Source mapping is performed on the server to convert bundled stack traces back to their original
- * source locations before formatting them for human consumption.
  */
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import type { OverlayState } from '../../../next-devtools/dev-overlay/shared'
-import type { SupportedErrorEvent } from '../../../next-devtools/dev-overlay/container/runtime-error/render-error'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
 } from '../../dev/hot-reloader-types'
-import { getErrorSource } from '../../../shared/lib/error-source'
 import { nanoid } from 'next/dist/compiled/nanoid'
-import type {
-  OriginalStackFramesRequest,
-  OriginalStackFramesResponse,
-} from '../../../next-devtools/server/shared'
+import type { OverlayStateWithUrl } from '../../../shared/lib/mcp-error-types'
+import { formatErrors } from './utils/format-errors'
 
+// These promises are created when the MCP endpoint is called but before the browser has responded
+// with its error state. They are resolved when the browser has responded with its error state
+// or when the timeout is reached.
 const pendingRequests = new Map<
   string,
   {
-    resolve: (value: OverlayState | null) => void
+    responses: OverlayStateWithUrl[]
+    expectedCount: number
+    resolve: (value: OverlayStateWithUrl[]) => void
     reject: (reason?: any) => void
     timeout: NodeJS.Timeout
   }
 >()
 
-export function handleErrorStateResponse(
-  requestId: string,
-  errorState: OverlayState | null
-) {
-  const pending = pendingRequests.get(requestId)
-  if (pending) {
-    clearTimeout(pending.timeout)
-    pending.resolve(errorState)
-    pendingRequests.delete(requestId)
-  }
-}
-
 export function registerGetErrorsTool(
   server: McpServer,
   sendHmrMessage: (message: HmrMessageSentToBrowser) => void,
-  hasActiveHmrConnections: () => boolean
+  getActiveConnectionCount: () => number
 ) {
   server.registerTool(
     'get_errors',
@@ -62,7 +47,8 @@ export function registerGetErrorsTool(
     },
     async (_request) => {
       try {
-        if (!hasActiveHmrConnections()) {
+        const connectionCount = getActiveConnectionCount()
+        if (connectionCount === 0) {
           return {
             content: [
               {
@@ -74,74 +60,76 @@ export function registerGetErrorsTool(
         }
 
         const requestId = `mcp-error-state-${nanoid()}`
-        const responsePromise = new Promise<OverlayState | null>(
+
+        // The promise will be resolved when all active browser sessions have responded
+        // with their respective error states. We will resolve the promise after 5 seconds
+        // with whatever responses we have received so far.
+        const responsePromise = new Promise<OverlayStateWithUrl[]>(
           (resolve, reject) => {
             const timeout = setTimeout(() => {
-              pendingRequests.delete(requestId)
-              reject(
-                new Error(
-                  'Timeout waiting for error state from frontend. The browser may not be responding to HMR messages.'
+              const pending = pendingRequests.get(requestId)
+              if (pending && pending.responses.length > 0) {
+                resolve(pending.responses)
+              } else {
+                reject(
+                  new Error(
+                    'Timeout waiting for error state from frontend. The browser may not be responding to HMR messages.'
+                  )
                 )
-              )
+              }
+              pendingRequests.delete(requestId)
             }, 5000)
-            pendingRequests.set(requestId, { resolve, reject, timeout })
+            pendingRequests.set(requestId, {
+              responses: [],
+              expectedCount: connectionCount,
+              resolve,
+              reject,
+              timeout,
+            })
           }
         )
 
+        // When browser receives this HMR message, it will send back a response with
+        // its client-side error state, which will be handled by `handleErrorStateResponse`.
         sendHmrMessage({
           type: HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE,
           requestId,
         })
 
-        const overlayState = await responsePromise
+        const clientStates = await responsePromise
 
-        if (!overlayState) {
+        const errorsByUrl = new Map<string, OverlayState>()
+        for (const state of clientStates) {
+          if (state.errorState) {
+            errorsByUrl.set(state.url, state.errorState)
+          }
+        }
+
+        const hasErrors = Array.from(errorsByUrl.values()).some(
+          (state) => state.errors.length > 0 || !!state.buildError
+        )
+
+        if (!hasErrors) {
           return {
             content: [
               {
                 type: 'text',
-                text: 'No errors detected in the browser.',
+                text:
+                  clientStates.length === 0
+                    ? 'No browser sessions responded.'
+                    : `No errors detected in ${clientStates.length} browser session(s).`,
               },
             ],
           }
         }
 
-        const totalErrorCount =
-          overlayState.errors.length + (overlayState.buildError ? 1 : 0)
-
-        if (totalErrorCount === 0) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: 'No errors detected in the browser.',
-              },
-            ],
-          }
-        }
-
-        let output = `Found ${totalErrorCount} error(s) in the browser:\n\n`
-
-        // Build errors
-        if (overlayState.buildError) {
-          output += '=== BUILD ERROR ===\n'
-          output += overlayState.buildError
-          output += '\n\n'
-        }
-
-        // Runtime errors with source-mapped stack traces
-        if (overlayState.errors.length > 0) {
-          output += await formatRuntimeError(
-            overlayState.errors,
-            overlayState.routerType === 'app'
-          )
-        }
+        const output = await formatErrors(errorsByUrl)
 
         return {
           content: [
             {
               type: 'text',
-              text: output.trim(),
+              text: output,
             },
           ],
         }
@@ -159,113 +147,27 @@ export function registerGetErrorsTool(
   )
 }
 
-// Stack frame formatting utilities
-type StackFrameForFormatting = {
-  file: string | null
-  methodName: string
-  line1: number | null
-  column1: number | null
-}
-
-const formatStackFrame = (frame: StackFrameForFormatting): string => {
-  const file = frame.file || '<unknown>'
-  const method = frame.methodName || '<anonymous>'
-  const { line1: line, column1: column } = frame
-  return line && column
-    ? `  at ${method} (${file}:${line}:${column})`
-    : line
-      ? `  at ${method} (${file}:${line})`
-      : `  at ${method} (${file})`
-}
-
-const formatErrorFrames = async (
-  frames: readonly StackFrameForFormatting[],
-  context: { isServer: boolean; isEdgeServer: boolean; isAppDirectory: boolean }
-): Promise<string> => {
-  try {
-    const resolvedFrames = await resolveStackFrames({
-      frames: frames.map((frame) => ({
-        file: frame.file || null,
-        methodName: frame.methodName || '<anonymous>',
-        arguments: [],
-        line1: frame.line1 || null,
-        column1: frame.column1 || null,
-      })),
-      isServer: context.isServer,
-      isEdgeServer: context.isEdgeServer,
-      isAppDirectory: context.isAppDirectory,
-    })
-
-    return (
-      resolvedFrames
-        .filter(
-          (resolvedFrame) =>
-            // Keep frames that are not ignored
-            !(
-              resolvedFrame.status === 'fulfilled' &&
-              resolvedFrame.value.originalStackFrame?.ignored
-            )
-        )
-        .map((resolvedFrame, j) =>
-          resolvedFrame.status === 'fulfilled' &&
-          resolvedFrame.value.originalStackFrame
-            ? formatStackFrame(resolvedFrame.value.originalStackFrame)
-            : formatStackFrame(frames[j])
-        )
-        .join('\n') + '\n'
-    )
-  } catch {
-    return frames.map(formatStackFrame).join('\n') + '\n'
-  }
-}
-
-async function formatRuntimeError(
-  errors: readonly SupportedErrorEvent[],
-  isAppDirectory: boolean
-): Promise<string> {
-  const formatError = async (
-    error: SupportedErrorEvent,
-    index: number
-  ): Promise<string> => {
-    const errorHeader = `\n[Error ${index + 1}] (Type: ${error.type})\n`
-    const errorMessage = `${error.error?.name || 'Error'}: ${error.error?.message || 'Unknown error'}\n`
-
-    if (!error.frames?.length) {
-      return errorHeader + errorMessage + (error.error?.stack || '')
-    }
-
-    const errorSource = getErrorSource(error.error)
-    const frames = await formatErrorFrames(error.frames, {
-      isServer: errorSource === 'server',
-      isEdgeServer: errorSource === 'edge-server',
-      isAppDirectory,
-    })
-
-    return errorHeader + errorMessage + frames
-  }
-
-  const formattedErrors = await Promise.all(errors.map(formatError))
-  return '=== RUNTIME ERRORS ===\n' + formattedErrors.join('\n---\n')
-}
-
-// Dependency injection for stack frame resolver
-type StackFrameResolver = (
-  request: OriginalStackFramesRequest
-) => Promise<OriginalStackFramesResponse>
-
-let stackFrameResolver: StackFrameResolver | undefined
-
-export function setStackFrameResolver(fn: StackFrameResolver) {
-  stackFrameResolver = fn
-}
-
-async function resolveStackFrames(
-  request: OriginalStackFramesRequest
-): Promise<OriginalStackFramesResponse> {
-  if (!stackFrameResolver) {
+// Browser will first receive an HMR message from server to send back its error state.
+// The actual state is sent back in a subsequent HMR message, which is handled by this function
+// on the server.
+export function handleErrorStateResponse(
+  requestId: string,
+  errorState: OverlayState | null,
+  url: string | undefined
+) {
+  if (!url) {
     throw new Error(
-      'Stack frame resolver not initialized. This is a bug in Next.js.'
+      'URL is required in MCP error state response. This is a bug in Next.js.'
     )
   }
-  return stackFrameResolver(request)
+
+  const pending = pendingRequests.get(requestId)
+  if (pending) {
+    pending.responses.push({ url, errorState })
+    if (pending.responses.length >= pending.expectedCount) {
+      clearTimeout(pending.timeout)
+      pending.resolve(pending.responses)
+      pendingRequests.delete(requestId)
+    }
+  }
 }
