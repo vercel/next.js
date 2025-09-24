@@ -521,6 +521,18 @@ function makeUntrackedSearchParamsWithDevWarnings(
 
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {
+      if (
+        // This was preserved from `makeDynamicallyTrackedExoticSearchParamsWithDevWarnings`
+        !process.env.__NEXT_CACHE_COMPONENTS &&
+        prop === 'then' &&
+        store.dynamicShouldError
+      ) {
+        const expression = '`searchParams.then`'
+        throwWithStaticGenerationBailoutErrorWithDynamicError(
+          store.route,
+          expression
+        )
+      }
       if (typeof prop === 'string') {
         if (
           !wellKnownProperties.has(prop) &&
