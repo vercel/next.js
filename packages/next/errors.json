@@ -824,5 +824,10 @@
   "823": "Timeout waiting for error state from frontend. The browser may not be responding to HMR messages.",
   "824": "URL is required in MCP browser response. This is a bug in Next.js.",
   "825": "Timeout waiting for response from frontend. The browser may not be responding to HMR messages.",
-  "826": "unknown bundler: %s"
+  "826": "unknown bundler: %s",
+  "827": "params are being enumerated. \\`params\\` should be unwrapped with \\`React.use()\\` before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+  "828": "A param property was accessed directly with %s. \\`params\\` is now a Promise and should be unwrapped with \\`React.use()\\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \\`params\\` with \\`React.use()\\`.",
+  "829": "A searchParam property was accessed directly with %s. \\`searchParams\\` should be unwrapped with \\`React.use()\\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+  "830": "The keys of \\`searchParams\\` were accessed directly. \\`searchParams\\` should be unwrapped with \\`React.use()\\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+  "831": "params are being enumerated incompletely missing these properties: %s. \\`params\\` should be unwrapped with \\`React.use()\\` before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis"
 }
