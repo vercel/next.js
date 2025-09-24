@@ -225,6 +225,14 @@ export class NextInstance {
           ...this.packageJson?.dependencies,
         }
 
+        if (
+          process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
+          !finalDependencies['babel-plugin-react-compiler']
+        ) {
+          finalDependencies['babel-plugin-react-compiler'] =
+            '0.0.0-experimental-3fde738-20250918'
+        }
+
         if (skipInstall || skipIsolatedNext) {
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
           await fs.mkdir(this.testDir, { recursive: true })
