@@ -653,6 +653,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     pageExtensions: z.array(z.string()).min(1).optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
+    hiddenSourceMaps: z.boolean().optional(),
     reactProductionProfiling: z.boolean().optional(),
     reactStrictMode: z.boolean().nullable().optional(),
     reactMaxHeadersLength: z.number().nonnegative().int().optional(),
