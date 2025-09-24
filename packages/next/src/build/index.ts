@@ -2704,6 +2704,28 @@ export default async function build(
         )
       }
 
+      // Under standalone mode, we need to ensure that the cache entry debug
+      // handler is copied so that it can be used in the test. This is required
+      // for the turbopack test to run as it's more strict about the build
+      // directories. This is only used for testing and is not used in
+      // production.
+      if (
+        process.env.__NEXT_TEST_MODE &&
+        process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+      ) {
+        requiredServerFilesManifest.files.push(
+          path.relative(
+            dir,
+            path.isAbsolute(process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS)
+              ? process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+              : path.join(
+                  dir,
+                  process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+                )
+          )
+        )
+      }
+
       const features: EventBuildFeatureUsage[] = [
         {
           featureName: 'experimental/cacheComponents',

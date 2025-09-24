@@ -1078,9 +1078,10 @@ export default abstract class Server<
           if (this.normalizers.data?.match(urlPathname)) {
             addRequestMeta(req, 'isNextDataReq', true)
           }
-          // In minimal mode, if PPR is enabled, then we should check to see if
-          // the request should be a resume request.
-          else if (
+
+          // It's important to execute the following block even it the request
+          // matches a pages data route from above.
+          if (
             this.isAppPPREnabled &&
             this.minimalMode &&
             req.headers[NEXT_RESUME_HEADER] === '1' &&
@@ -1096,6 +1097,22 @@ export default abstract class Server<
             const postponed = Buffer.concat(body).toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
+          }
+
+          // If the request is a next data request and it has a postponed state,
+          // we should error, as it represents an unprocessable request.
+          if (
+            getRequestMeta(req, 'isNextDataReq') &&
+            getRequestMeta(req, 'postponed')
+          ) {
+            // The server understood that this is a PPR resume request, as the
+            // headers were included to correctly indicate a resume request, but
+            // because the request URL indicates that this should render a next
+            // data route (a pages router route), this represents an
+            // unprocessable request.
+            res.statusCode = 422
+            res.send()
+            return
           }
 
           matchedPath = this.normalize(matchedPath)
