@@ -11,7 +11,7 @@ describe('FileLogger', () => {
     // Create a temporary directory for testing
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'next-file-logger-test-'))
     resetFileLogger() // Reset singleton
-    fileLogger = getFileLogger(tempDir)
+    fileLogger = getFileLogger(tempDir, true) // Enable mcpServer for testing
   })
 
   afterEach(() => {
@@ -117,6 +117,22 @@ describe('FileLogger', () => {
     expect(lines[0]).toMatch(/\[Browser\] LOG {5}Short level/)
     expect(lines[1]).toMatch(/\[Browser\] WARN {4}Medium level/)
     expect(lines[2]).toMatch(/\[Browser\] ERROR {3}Long level/)
+  })
+
+  it('should not create log file when mcpServer is disabled', () => {
+    // Create a new file logger with mcpServer disabled
+    const disabledLogger = getFileLogger(tempDir, false)
+
+    // Log a message
+    disabledLogger.logBrowser('LOG', 'This should not be logged')
+    disabledLogger.logServer('ERROR', 'This should also not be logged')
+
+    // Force flush to ensure any queued logs are processed
+    disabledLogger.forceFlush()
+
+    // Check that no log file was created
+    const logsDir = path.join(tempDir, 'logs')
+    expect(fs.existsSync(logsDir)).toBe(false)
   })
 
   describe('batching behavior', () => {
