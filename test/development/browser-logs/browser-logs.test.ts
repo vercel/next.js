@@ -40,6 +40,21 @@ function setupLogCapture() {
 }
 
 describe(`Terminal Logging (${bundlerName})`, () => {
+  let originalBrowserLogsEnv: string | undefined
+
+  beforeAll(() => {
+    originalBrowserLogsEnv = process.env.NEXT_TEST_BROWSER_LOGS
+    process.env.NEXT_TEST_BROWSER_LOGS = 'true'
+  })
+
+  afterAll(() => {
+    if (originalBrowserLogsEnv === undefined) {
+      delete process.env.NEXT_TEST_BROWSER_LOGS
+    } else {
+      process.env.NEXT_TEST_BROWSER_LOGS = originalBrowserLogsEnv
+    }
+  })
+
   describe('Pages Router', () => {
     let next: NextInstance
     let logs: string[] = []
@@ -53,13 +68,6 @@ describe(`Terminal Logging (${bundlerName})`, () => {
       next = await createNext({
         files: {
           pages: new FileRef(join(__dirname, 'fixtures/pages')),
-          'next.config.js': `
-            module.exports = {
-              experimental: {
-                browserDebugInfoInTerminal: true
-              }
-            }
-          `,
         },
       })
     })
@@ -162,13 +170,6 @@ describe(`Terminal Logging (${bundlerName})`, () => {
       next = await createNext({
         files: {
           app: new FileRef(join(__dirname, 'fixtures/app')),
-          'next.config.js': `
-            module.exports = {
-              experimental: {
-                browserDebugInfoInTerminal: true
-              }
-            }
-          `,
         },
       })
     })
@@ -226,13 +227,6 @@ describe(`Terminal Logging (${bundlerName})`, () => {
       next = await createNext({
         files: {
           app: new FileRef(join(__dirname, 'fixtures/app')),
-          'next.config.js': `
-            module.exports = {
-              experimental: {
-                browserDebugInfoInTerminal: true
-              }
-            }
-          `,
         },
       })
     })
@@ -292,13 +286,6 @@ describe(`Terminal Logging (${bundlerName})`, () => {
       next = await createNext({
         files: {
           app: new FileRef(join(__dirname, 'fixtures/app')),
-          'next.config.js': `
-            module.exports = {
-              experimental: {
-                browserDebugInfoInTerminal: true
-              }
-            }
-          `,
         },
       })
     })
@@ -341,15 +328,6 @@ describe(`Terminal Logging (${bundlerName})`, () => {
         next = await createNext({
           files: {
             pages: new FileRef(join(__dirname, 'fixtures/pages')),
-            'next.config.js': `
-              module.exports = {
-                experimental: {
-                  browserDebugInfoInTerminal: {
-                    showSourceLocation: false
-                  }
-                }
-              }
-            `,
           },
         })
       })

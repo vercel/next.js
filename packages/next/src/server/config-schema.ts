@@ -284,6 +284,16 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         z.literal(false),
       ])
       .optional(),
+    browserDebugInfoInTerminal: z
+      .union([
+        z.boolean(),
+        z.object({
+          depthLimit: z.number().int().positive().optional(),
+          edgeLimit: z.number().int().positive().optional(),
+          showSourceLocation: z.boolean().optional(),
+        }),
+      ])
+      .optional(),
     distDir: z.string().min(1).optional(),
     env: z.record(z.string(), z.union([z.string(), z.undefined()])).optional(),
     eslint: z

@@ -763,23 +763,25 @@ export interface ExperimentalConfig {
 
   /**
    * Enable debug information to be forwarded from browser to dev server stdout/stderr
+   * @deprecated Use top-level `browserDebugInfoInTerminal` instead
    */
   browserDebugInfoInTerminal?:
     | boolean
     | {
         /**
-         * Option to limit stringification at a specific nesting depth when logging circular objects.
+         * Limit stringification depth for nested objects/arrays
          * @default 5
          */
         depthLimit?: number
 
         /**
-         * Maximum number of properties/elements to stringify when logging objects/arrays with circular references.
+         * Max number of properties or elements to include per object or array
          * @default 100
          */
         edgeLimit?: number
         /**
          * Whether to include source location information in debug output when available
+         * @default false
          */
         showSourceLocation?: boolean
       }
@@ -1047,6 +1049,33 @@ export interface NextConfig {
          * @default "bottom-left"
          * */
         position?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
+      }
+
+  /**
+   * Enable debug information to be forwarded from browser to dev server stdout/stderr
+   * @default true
+   * @see [Browser Debug Info](https://nextjs.org/docs/app/api-reference/config/next-config-js/browserDebugInfoInTerminal)
+   */
+  browserDebugInfoInTerminal?:
+    | boolean
+    | {
+        /**
+         * Limit stringification depth for nested objects/arrays
+         * @default 5
+         */
+        depthLimit?: number
+
+        /**
+         * Max number of properties or elements to include per object or array.
+         * @default 100
+         */
+        edgeLimit?: number
+
+        /**
+         * Whether to include source location information in debug output when available
+         * @default false
+         */
+        showSourceLocation?: boolean
       }
 
   /**
@@ -1340,6 +1369,7 @@ export const defaultConfig = Object.freeze({
   devIndicators: {
     position: 'bottom-left',
   },
+  browserDebugInfoInTerminal: true,
   onDemandEntries: {
     maxInactiveAge: 60 * 1000,
     pagesBufferLength: 5,

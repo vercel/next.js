@@ -561,7 +561,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               break
             }
             case 'browser-logs': {
-              if (this.config.experimental.browserDebugInfoInTerminal) {
+              const browserDebugConfig =
+                this.config.experimental?.browserDebugInfoInTerminal ??
+                this.config.browserDebugInfoInTerminal ??
+                true
+              if (browserDebugConfig) {
                 await receiveBrowserLogsWebpack({
                   entries: payload.entries,
                   router: payload.router,
@@ -571,7 +575,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   edgeServerStats: () => this.edgeServerStats,
                   rootDirectory: this.dir,
                   distDir: this.distDir,
-                  config: this.config.experimental.browserDebugInfoInTerminal,
+                  config: browserDebugConfig,
                 })
               }
               break

@@ -16,7 +16,7 @@ import {
   type LogMethod,
   patchConsoleMethod,
   UNDEFINED_MARKER,
-} from '../../shared/forward-logs-shared'
+} from '../../shared/console-patch'
 
 const terminalLoggingConfig = getTerminalLoggingConfig()
 export const PROMISE_MARKER = 'Promise {}'

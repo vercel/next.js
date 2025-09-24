@@ -1,3 +1,7 @@
+/**
+ * Do not haphazardly change the name of this file, users that do not have ignore
+ * listing configured will see the name of this source file in chrome devtools console
+ */
 export type LogMethod =
   | 'log'
   | 'info'
@@ -92,6 +96,13 @@ export function patchConsoleMethod<T extends keyof Console>(
     ) {
       wrapper(methodName, ...args)
 
+      /*
+       * Your console call is being intercepted by Next.js, which makes your dev tools show the wrong source location.
+       *
+       * To see the true source location of the console method call, you can do one of the following:
+       * - open your browser's DevTools before the log happens (ensure you have ignore listing on https://developer.chrome.com/docs/devtools/settings/ignore-list)
+       * - set browserDebugInfoInTerminal to false in your next.config file.
+       */
       originalMethod.apply(this, args)
     }
     if (originalName) {

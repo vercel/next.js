@@ -1,4 +1,4 @@
-import { UNDEFINED_MARKER } from '../../shared/forward-logs-shared'
+import { UNDEFINED_MARKER } from '../../shared/console-patch'
 import {
   preLogSerializationClone,
   PROMISE_MARKER,

@@ -1,10 +1,11 @@
 import { getOriginalStackFrames as getOriginalStackFramesWebpack } from '../middleware-webpack'
 import { getOriginalStackFrames as getOriginalStackFramesTurbopack } from '../middleware-turbopack'
 import type { Project } from '../../../build/swc/types'
-import { dim } from '../../../lib/picocolors'
 import { parseStack, type StackFrame } from '../../lib/parse-stack'
 import path from 'path'
 import { LRUCache } from '../../lib/lru-cache'
+import { getDisplayedSourceLocation } from './receive-logs'
+import type { NextConfigComplete } from '../../config-shared'
 
 type WebpackMappingContext = {
   bundler: 'webpack'
@@ -261,23 +262,21 @@ export const withLocation = async (
   },
   ctx: MappingContext,
   distDir: string,
-  config: boolean | { logDepth?: number; showSourceLocation?: boolean }
+  config: NextConfigComplete['browserDebugInfoInTerminal']
 ) => {
-  if (typeof config === 'object' && config.showSourceLocation === false) {
-    return original
-  }
   if (!stack) {
     return original
   }
 
   const res = await getSourceMappedStackFrames(stack, ctx, distDir)
   const location = getConsoleLocation(res)
+  const displayedSourceLocation = getDisplayedSourceLocation(location, config)
 
-  if (!location) {
+  if (!displayedSourceLocation) {
     return original
   }
 
-  return [...original, dim(`(${location})`)]
+  return [...original, displayedSourceLocation]
 }
 
 export const getConsoleLocation = (
