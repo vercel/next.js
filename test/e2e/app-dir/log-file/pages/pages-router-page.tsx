@@ -4,7 +4,8 @@ interface Props {
   message: string
 }
 
-export default function ServerSidePropsPage({ message }: Props) {
+export default function Page({ message }: Props) {
+  console.log('Pages Router isomorphic: This is a log message from render')
   return (
     <div>
       <h1>Pages Router Server-Side Props Test</h1>

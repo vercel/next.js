@@ -42,6 +42,10 @@ describe('log-file', () => {
   function normalizeLogContent(content: string): string {
     return (
       content
+        // Strip lines containing "Download the React DevTools"
+        .split('\n')
+        .filter((line) => !line.includes('Download the React DevTools'))
+        .join('\n')
         // Normalize "Ready in XXXms" patterns
         .replace(/Ready in \d+ms/g, 'Ready in xxxms')
         // Normalize "Compiled ... in XXXms (XXX modules)" patterns
@@ -57,18 +61,22 @@ describe('log-file', () => {
   function getNewLogContent(): string {
     const currentContent = readLogFile()
     const newContent = currentContent.slice(previousLogContent.length)
-    previousLogContent = currentContent
     return normalizeLogContent(newContent)
   }
 
-  it('should capture RSC logging in log file', async () => {
-    // Make request to RSC page
-    await next.fetch('/server')
-    // Wait for logs to be written (increased timeout for batched logging)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+  beforeEach(() => {
+    // Reset log tracking at the start of each test to only capture new logs
+    previousLogContent = readLogFile()
+  })
 
-    await retry(async () => {
-      if (isNextDev) {
+  it('should capture RSC logging in log file', async () => {
+    // Request to RSC page and wait for hydration
+    await next.browser('/server')
+    // Wait for logs to be written (increased timeout for batched logging)
+    await new Promise((resolve) => setTimeout(resolve, 1000))
+
+    if (isNextDev) {
+      await retry(async () => {
         const newLogContent = getNewLogContent()
         expect(newLogContent).toMatchInlineSnapshot(`
          "[xx:xx:xx.xxx] [Server] LOG      ✓ Ready in xxxms
@@ -77,102 +85,77 @@ describe('log-file', () => {
          [xx:xx:xx.xxx] [Server] LOG     RSC: This is a log message from server component
          [xx:xx:xx.xxx] [Server] ERROR   RSC: This is an error message from server component
          [xx:xx:xx.xxx] [Server] WARN    RSC: This is a warning message from server component
+         [xx:xx:xx.xxx] [Browser] LOG     Next.js hydrate callback fired
          "
         `)
-      } else {
-        expect(hasLogFile()).toBe(false)
-      }
-    })
+      })
+    } else {
+      expect(hasLogFile()).toBe(false)
+    }
   })
 
   it('should capture client logging in log file', async () => {
     // Make request to client page and wait for hydration
-    await next.browser('/client')
-    // Wait for logs to be written (increased timeout for batched logging)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
+    const browser = await next.browser('/client')
+    // Wait for console.log to be logged in browser
     await retry(async () => {
-      if (isNextDev) {
+      const logs = await browser.log()
+      expect(logs).toContainEqual(
+        expect.objectContaining({
+          message: 'Client: This is a log message from client component',
+          source: 'log',
+        })
+      )
+      expect(logs).toContainEqual(
+        expect.objectContaining({
+          message: 'Client: This is an error message from client component',
+          source: 'error',
+        })
+      )
+    }, 3 * 1000)
+    // Wait for logs to be written (reduced timeout with faster flush)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    if (isNextDev) {
+      await retry(async () => {
         const newLogContent = getNewLogContent()
 
         expect(newLogContent).toMatchInlineSnapshot(`
          "[xx:xx:xx.xxx] [Server] LOG      ✓ Compiled /client in xxxms (xxx modules)
-         [xx:xx:xx.xxx] [Browser] INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+         [xx:xx:xx.xxx] [Browser] LOG     Client: This is a log message from client component
+         [xx:xx:xx.xxx] [Browser] ERROR   Client: This is an error message from client component
+         [xx:xx:xx.xxx] [Browser] WARN    Client: This is a warning message from client component
+         [xx:xx:xx.xxx] [Browser] LOG     Next.js hydrate callback fired
          "
         `)
-      } else {
-        expect(hasLogFile()).toBe(false)
-      }
-    })
+      }, 2 * 1000)
+    } else {
+      expect(hasLogFile()).toBe(false)
+    }
   })
 
-  describe('Pages Router', () => {
-    it('should capture client-side logging in pages router', async () => {
-      // Make request to pages router page and wait for hydration
-      await next.browser('/')
-      // Wait for logs to be written (increased timeout for batched logging)
-      await new Promise((resolve) => setTimeout(resolve, 1500))
+  it('should capture logging in pages router', async () => {
+    // Make request to page with getServerSideProps
+    await next.browser('/pages-router-page')
+    // Wait for logs to be written (increased timeout for batched logging)
+    await new Promise((resolve) => setTimeout(resolve, 1000))
 
+    if (isNextDev) {
       await retry(async () => {
-        if (isNextDev) {
-          const newLogContent = getNewLogContent()
-          expect(newLogContent).toMatchInlineSnapshot(`
-           "[xx:xx:xx.xxx] [Server] LOG      ○ Compiling / ...
-           [xx:xx:xx.xxx] [Server] LOG      ✓ Compiled / in xxxms (xxx modules)
-           "
-          `)
-        } else {
-          expect(hasLogFile()).toBe(false)
-        }
+        const newLogContent = getNewLogContent()
+        expect(newLogContent).toMatchInlineSnapshot(`
+         "[xx:xx:xx.xxx] [Server] LOG      ○ Compiling /pages-router-page ...
+         [xx:xx:xx.xxx] [Server] LOG      ✓ Compiled /pages-router-page in xxxms (xxx modules)
+         [xx:xx:xx.xxx] [Server] LOG     Pages Router SSR: This is a log message from getServerSideProps
+         [xx:xx:xx.xxx] [Server] ERROR   Pages Router SSR: This is an error message from getServerSideProps
+         [xx:xx:xx.xxx] [Server] WARN    Pages Router SSR: This is a warning message from getServerSideProps
+         [xx:xx:xx.xxx] [Server] LOG     Pages Router isomorphic: This is a log message from render
+         [xx:xx:xx.xxx] [Browser] LOG     Pages Router isomorphic: This is a log message from render
+         [xx:xx:xx.xxx] [Browser] LOG     Next.js hydrate callback fired
+         "
+        `)
       })
-    })
-
-    it('should capture get_server_side_props logging in pages router', async () => {
-      // Make request to page with getServerSideProps
-      await next.fetch('/get_server_side_props')
-      // Wait for logs to be written (increased timeout for batched logging)
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      await retry(async () => {
-        if (isNextDev) {
-          const newLogContent = getNewLogContent()
-          expect(newLogContent).toMatchInlineSnapshot(`
-           "[xx:xx:xx.xxx] [Server] LOG      ✓ Compiled /get_server_side_props in xxxms (xxx modules)
-           [xx:xx:xx.xxx] [Server] LOG     Pages Router SSR: This is a log message from getServerSideProps
-           [xx:xx:xx.xxx] [Server] ERROR   Pages Router SSR: This is an error message from getServerSideProps
-           [xx:xx:xx.xxx] [Server] WARN    Pages Router SSR: This is a warning message from getServerSideProps
-           [xx:xx:xx.xxx] [Browser] LOG     Pages Router: This is a log message from client component
-           [xx:xx:xx.xxx] [Browser] ERROR   Pages Router: This is an error message from client component
-           [xx:xx:xx.xxx] [Browser] WARN    Pages Router: This is a warning message from client component
-           [xx:xx:xx.xxx] [Browser] LOG     Next.js hydrate callback fired
-           "
-          `)
-        } else {
-          expect(hasLogFile()).toBe(false)
-        }
-      })
-    })
-
-    it('should capture both client and server logging in pages router', async () => {
-      // Make requests to both client and server pages
-      await next.browser('/')
-      await next.fetch('/get_server_side_props')
-      // Wait for logs to be written (increased timeout for batched logging)
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      await retry(async () => {
-        if (isNextDev) {
-          const newLogContent = getNewLogContent()
-          expect(newLogContent).toMatchInlineSnapshot(`
-           "[xx:xx:xx.xxx] [Server] LOG     Pages Router SSR: This is a log message from getServerSideProps
-           [xx:xx:xx.xxx] [Server] ERROR   Pages Router SSR: This is an error message from getServerSideProps
-           [xx:xx:xx.xxx] [Server] WARN    Pages Router SSR: This is a warning message from getServerSideProps
-           "
-          `)
-        } else {
-          expect(hasLogFile()).toBe(false)
-        }
-      })
-    })
+    } else {
+      expect(hasLogFile()).toBe(false)
+    }
   })
 })

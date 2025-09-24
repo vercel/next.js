@@ -13,8 +13,6 @@ class FileLogger {
   private isInitialized: boolean = false
   private logQueue: string[] = []
   private flushTimer: NodeJS.Timeout | null = null
-  private readonly flushInterval: number = 1000 // Flush every 1 second
-  private readonly maxQueueSize: number = 100 // Flush immediately if queue gets too large
   private mcpServerEnabled: boolean = false
 
   constructor(distDir: string, mcpServerEnabled: boolean) {
@@ -68,7 +66,7 @@ class FileLogger {
 
     this.flushTimer = setTimeout(() => {
       this.flush()
-    }, this.flushInterval)
+    }, 100)
   }
 
   private flush(): void {
@@ -91,7 +89,8 @@ class FileLogger {
       }
 
       const logsToWrite = this.logQueue.join('')
-      fs.appendFileSync(this.logFilePath, logsToWrite)
+      // Writing logs to files but do not block
+      fs.promises.appendFile(this.logFilePath, logsToWrite).catch(console.error)
       this.logQueue = []
     } catch (error) {
       console.error('Failed to flush logs to file:', error)
@@ -103,12 +102,13 @@ class FileLogger {
   private enqueueLog(formattedEntry: string): void {
     this.logQueue.push(formattedEntry)
 
-    // Flush immediately if queue gets too large
-    if (this.logQueue.length >= this.maxQueueSize) {
-      this.flush()
-    } else {
-      this.scheduleFlush()
+    // Cancel existing timer and start a new one to ensure all logs are flushed together
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer)
+      this.flushTimer = null
     }
+
+    this.scheduleFlush()
   }
 
   log(source: 'Server' | 'Browser', level: string, message: string): void {

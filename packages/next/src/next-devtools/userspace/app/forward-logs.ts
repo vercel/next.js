@@ -79,12 +79,14 @@ let logFlushTimeout: NodeJS.Timeout | null = null
 let heartbeatInterval: NodeJS.Timeout | null = null
 
 const scheduleLogFlush = () => {
-  if (logFlushTimeout) return // Already scheduled, dedupe
+  if (logFlushTimeout) {
+    clearTimeout(logFlushTimeout)
+  }
 
   logFlushTimeout = setTimeout(() => {
     sendClientFileLogs()
     logFlushTimeout = null
-  }, 2000) // Send after 2 seconds
+  }, 100) // Send after 100ms (much faster with debouncing)
 }
 
 const cancelLogFlush = () => {
