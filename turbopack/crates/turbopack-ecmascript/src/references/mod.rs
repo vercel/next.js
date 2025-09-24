@@ -427,7 +427,10 @@ struct AnalysisState<'a> {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
     var_graph: &'a VarGraph,
-    define_process_cwd: bool,
+    /// Whether to allow tracing to reference files from the project root. This is used to prevent
+    /// random node_modules packages from tracing the entire project due to some dynamic
+    /// `path.join(foo, bar)` call.
+    allow_project_root_tracing: bool,
     /// This is the current state of known values of function
     /// arguments.
     fun_args_values: Mutex<FxHashMap<u32, Vec<JsValue>>>,
@@ -460,7 +463,7 @@ impl AnalysisState<'_> {
                     &self.free_var_references,
                     self.var_graph,
                     attributes,
-                    self.define_process_cwd,
+                    self.allow_project_root_tracing,
                 )
             },
             &self.fun_args_values,
@@ -963,7 +966,12 @@ pub async fn analyze_ecmascript_module_internal(
             origin,
             compile_time_info,
             var_graph: &var_graph,
-            define_process_cwd: !source.ident().path().await?.path.contains("/node_modules/"),
+            allow_project_root_tracing: !source
+                .ident()
+                .path()
+                .await?
+                .path
+                .contains("/node_modules/"),
             fun_args_values: Default::default(),
             var_cache: Default::default(),
             first_import_meta: true,
@@ -1607,6 +1615,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         ignore_dynamic_requests,
         url_rewrite_behavior,
         collect_affecting_sources,
+        allow_project_root_tracing,
         ..
     } = state;
     fn explain_args(args: &[JsValue]) -> (String, String) {
@@ -1722,6 +1731,18 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         }
         return Ok(());
     }
+
+    let get_traced_project_dir = async || {
+        // readFileSync("./foo") should always be relative to the project root, but this is
+        // dangerous inside of node_modules as it can cause a lot of false positives in the
+        // tracing, if some package does `path.join(dynamic)`, it would include everything from
+        // the project root as well.
+        if allow_project_root_tracing {
+            compile_time_info.environment().cwd().owned().await
+        } else {
+            Ok(Some(source.ident().path().await?.parent()))
+        }
+    };
 
     match func {
         JsValue::Alternatives {
@@ -1951,7 +1972,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         return Ok(());
                     }
                 }
-                if let Some(context_dir) = compile_time_info.environment().cwd().owned().await? {
+                if let Some(context_dir) = get_traced_project_dir().await? {
                     analysis.add_reference(
                         FileSourceReference::new(
                             context_dir,
@@ -2006,7 +2027,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     return Ok(());
                 }
             }
-            if let Some(context_dir) = compile_time_info.environment().cwd().owned().await? {
+            if let Some(context_dir) = get_traced_project_dir().await? {
                 analysis.add_reference(
                     DirAssetReference::new(context_dir, Pattern::new(pat))
                         .to_resolved()
@@ -2048,7 +2069,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     return Ok(());
                 }
             }
-            if let Some(context_dir) = compile_time_info.environment().cwd().owned().await? {
+            if let Some(context_dir) = get_traced_project_dir().await? {
                 analysis.add_reference(
                     DirAssetReference::new(context_dir, Pattern::new(pat))
                         .to_resolved()
@@ -2098,19 +2119,18 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 if dynamic {
                     show_dynamic_warning = true;
                 }
-                if !dynamic || !ignore_dynamic_requests {
-                    if let Some(context_dir) = compile_time_info.environment().cwd().owned().await?
-                    {
-                        analysis.add_reference(
-                            FileSourceReference::new(
-                                context_dir,
-                                Pattern::new(pat),
-                                collect_affecting_sources,
-                            )
-                            .to_resolved()
-                            .await?,
-                        );
-                    }
+                if (!dynamic || !ignore_dynamic_requests)
+                    && let Some(context_dir) = get_traced_project_dir().await?
+                {
+                    analysis.add_reference(
+                        FileSourceReference::new(
+                            context_dir,
+                            Pattern::new(pat),
+                            collect_affecting_sources,
+                        )
+                        .to_resolved()
+                        .await?,
+                    );
                 }
                 if show_dynamic_warning {
                     let (args, hints) = explain_args(&args);
@@ -2335,9 +2355,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                     .await?;
                                 js_value_to_pattern(&linked_func_call)
                             };
-                            if let Some(context_dir) =
-                                compile_time_info.environment().cwd().owned().await?
-                            {
+                            if let Some(context_dir) = get_traced_project_dir().await? {
                                 analysis.add_reference(
                                     DirAssetReference::new(context_dir, Pattern::new(abs_pattern))
                                         .to_resolved()
@@ -2402,7 +2420,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         .await?;
                     js_value_to_pattern(&linked_func_call)
                 };
-                if let Some(context_dir) = compile_time_info.environment().cwd().owned().await? {
+                if let Some(context_dir) = get_traced_project_dir().await? {
                     analysis.add_reference(
                         DirAssetReference::new(context_dir, Pattern::new(abs_pattern))
                             .to_resolved()
@@ -2456,7 +2474,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)
             {
-                if let Some(context_dir) = compile_time_info.environment().cwd().owned().await? {
+                if let Some(context_dir) = get_traced_project_dir().await? {
                     let resolved_dirs = parts
                         .iter()
                         .filter_map(|object_part| match object_part {
@@ -2954,7 +2972,7 @@ async fn value_visitor(
     >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
-    define_process_cwd: bool,
+    allow_project_root_tracing: bool,
 ) -> Result<(JsValue, bool)> {
     let (mut v, modified) = value_visitor_inner(
         origin,
@@ -2963,7 +2981,7 @@ async fn value_visitor(
         free_var_references,
         var_graph,
         attributes,
-        define_process_cwd,
+        allow_project_root_tracing,
     )
     .await?;
     v.normalize_shallow();
@@ -2980,7 +2998,7 @@ async fn value_visitor_inner(
     >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
-    define_process_cwd: bool,
+    allow_project_root_tracing: bool,
 ) -> Result<(JsValue, bool)> {
     let ImportAttributes { ignore, .. } = *attributes;
     // This check is just an optimization
@@ -3107,7 +3125,7 @@ async fn value_visitor_inner(
         }
         _ => {
             let (mut v, mut modified) =
-                replace_well_known(v, compile_time_info, define_process_cwd).await?;
+                replace_well_known(v, compile_time_info, allow_project_root_tracing).await?;
             modified = replace_builtin(&mut v) || modified;
             modified = modified || v.make_nested_operations_unknown();
             return Ok((v, modified));
