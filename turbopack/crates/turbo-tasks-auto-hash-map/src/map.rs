@@ -840,6 +840,15 @@ where
 {
 }
 
+impl<K: Eq + Hash, V: Eq + Hash, MH: BuildHasher, const I: usize> Hash for AutoMap<K, V, MH, I> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        for (k, v) in self.iter() {
+            k.hash(state);
+            v.hash(state);
+        }
+    }
+}
+
 impl<K, V, H, const I: usize> FromIterator<(K, V)> for AutoMap<K, V, H, I>
 where
     K: Eq + Hash,
