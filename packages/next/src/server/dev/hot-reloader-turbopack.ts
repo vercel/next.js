@@ -97,7 +97,10 @@ import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../../build/utils'
-import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
+import {
+  receiveBrowserLogsTurbopack,
+  handleClientFileLogs,
+} from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
 import {
   devToolsConfigMiddleware,
@@ -936,6 +939,11 @@ export async function createHotReloaderTurbopack(
                   config: nextConfig.experimental.browserDebugInfoInTerminal,
                 })
               }
+              break
+            }
+            case 'client-file-logs': {
+              // Always log to file regardless of terminal flag
+              await handleClientFileLogs(parsedData.logs, distDir)
               break
             }
 

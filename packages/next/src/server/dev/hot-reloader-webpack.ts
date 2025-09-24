@@ -89,7 +89,10 @@ import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { checkPersistentCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
-import { receiveBrowserLogsWebpack } from './browser-logs/receive-logs'
+import {
+  receiveBrowserLogsWebpack,
+  handleClientFileLogs,
+} from './browser-logs/receive-logs'
 import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
@@ -576,6 +579,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                   config: this.config.experimental.browserDebugInfoInTerminal,
                 })
               }
+              break
+            }
+            case 'client-file-logs': {
+              // Always log to file regardless of terminal flag
+              await handleClientFileLogs(payload.logs, this.distDir)
               break
             }
             default: {

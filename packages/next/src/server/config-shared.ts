@@ -288,6 +288,12 @@ export interface ExperimentalConfig {
   clientSegmentCache?: boolean | 'client-only'
 
   /**
+   * Enables MCP Server for enhanced logging and development features.
+   * When enabled, file logging and log forwarding will be active.
+   */
+  mcpServer?: boolean
+
+  /**
    * Enables RDC for Dynamic Navigations. This is only supported for App Router
    * when Partial Prerendering is also enabled. This is enabled by default when
    * Partial Prerendering is enabled.

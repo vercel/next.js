@@ -14,6 +14,111 @@ import {
 } from '../../shared/forward-logs-shared'
 import { preLogSerializationClone, logStringify } from './forward-logs-utils'
 
+// Client-side file logger for browser logs
+class ClientFileLogger {
+  private logEntries: Array<{
+    timestamp: string
+    level: string
+    message: string
+  }> = []
+
+  private formatTimestamp(): string {
+    const now = new Date()
+    const hours = now.getHours().toString().padStart(2, '0')
+    const minutes = now.getMinutes().toString().padStart(2, '0')
+    const seconds = now.getSeconds().toString().padStart(2, '0')
+    const milliseconds = now.getMilliseconds().toString().padStart(3, '0')
+
+    return `${hours}:${minutes}:${seconds}.${milliseconds}`
+  }
+
+  log(level: string, args: any[]): void {
+    if (isIgnoredLog(args)) {
+      return
+    }
+
+    // Format the args into a message string
+    const message = args
+      .map((arg) => {
+        if (typeof arg === 'string') return arg
+        if (typeof arg === 'number' || typeof arg === 'boolean')
+          return String(arg)
+        if (arg === null) return 'null'
+        if (arg === undefined) return 'undefined'
+        try {
+          return JSON.stringify(arg)
+        } catch {
+          return '[Circular or complex object]'
+        }
+      })
+      .join(' ')
+
+    const logEntry = {
+      timestamp: this.formatTimestamp(),
+      level: level.toUpperCase(),
+      message,
+    }
+    this.logEntries.push(logEntry)
+
+    // Schedule flush when new log is added
+    scheduleLogFlush()
+  }
+  getLogs(): Array<{ timestamp: string; level: string; message: string }> {
+    return [...this.logEntries]
+  }
+
+  clear(): void {
+    this.logEntries = []
+  }
+}
+
+const clientFileLogger = new ClientFileLogger()
+
+// Set up flush-based sending of client file logs
+let logFlushTimeout: NodeJS.Timeout | null = null
+let heartbeatInterval: NodeJS.Timeout | null = null
+
+const scheduleLogFlush = () => {
+  if (logFlushTimeout) return // Already scheduled, dedupe
+
+  logFlushTimeout = setTimeout(() => {
+    sendClientFileLogs()
+    logFlushTimeout = null
+  }, 2000) // Send after 2 seconds
+}
+
+const cancelLogFlush = () => {
+  if (logFlushTimeout) {
+    clearTimeout(logFlushTimeout)
+    logFlushTimeout = null
+  }
+}
+
+const startHeartbeat = () => {
+  if (heartbeatInterval) return
+
+  heartbeatInterval = setInterval(() => {
+    if (logQueue.socket && logQueue.socket.readyState === WebSocket.OPEN) {
+      try {
+        // Send a ping to keep the connection alive
+        logQueue.socket.send(JSON.stringify({ event: 'ping' }))
+      } catch (error) {
+        // Connection might be closed, stop heartbeat
+        stopHeartbeat()
+      }
+    } else {
+      stopHeartbeat()
+    }
+  }, 5000) // Send ping every 5 seconds
+}
+
+const stopHeartbeat = () => {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval)
+    heartbeatInterval = null
+  }
+}
+
 const isTerminalLoggingEnabled = getIsTerminalLoggingEnabled()
 
 const methods: Array<LogMethod> = [
@@ -67,6 +172,30 @@ const serializeEntries = (entries: Array<ClientLogEntry>) =>
     }
   })
 
+// Function to send client file logs to server
+const sendClientFileLogs = () => {
+  if (!logQueue.socket || logQueue.socket.readyState !== WebSocket.OPEN) {
+    return
+  }
+
+  const logs = clientFileLogger.getLogs()
+  if (logs.length === 0) {
+    return
+  }
+
+  try {
+    const payload = JSON.stringify({
+      event: 'client-file-logs',
+      logs: logs,
+    })
+
+    logQueue.socket.send(payload)
+    clientFileLogger.clear()
+  } catch (error) {
+    // Silently fail to avoid recursion
+  }
+}
+
 // Combined state and public API
 export const logQueue: {
   entries: Array<ClientLogEntry>
@@ -115,6 +244,9 @@ export const logQueue: {
         socket.send(payload)
         logQueue.entries = []
         logQueue.sourceType = undefined
+
+        // Also send client file logs
+        sendClientFileLogs()
       } catch {
         // error (make sure u don't infinite loop)
         /* noop */
@@ -122,10 +254,7 @@ export const logQueue: {
     })
   },
   onSocketReady: (socket: WebSocket) => {
-    if (!isTerminalLoggingEnabled) {
-      return
-    }
-
+    // Always set up socket for file logging, regardless of terminal setting
     if (socket.readyState !== WebSocket.OPEN) {
       // invariant
       return
@@ -134,20 +263,36 @@ export const logQueue: {
     // incase an existing timeout was going to run with a stale socket
     logQueue.cancelFlush?.()
     logQueue.socket = socket
-    try {
-      const payload = JSON.stringify({
-        event: 'browser-logs',
-        entries: serializeEntries(logQueue.entries),
-        router: logQueue.router,
-        sourceType: logQueue.sourceType,
-      })
 
-      socket.send(payload)
-      logQueue.entries = []
-      logQueue.sourceType = undefined
-    } catch {
-      /** noop just incase */
+    // Add socket event listeners to track connection state
+    socket.addEventListener('close', () => {
+      cancelLogFlush()
+      stopHeartbeat()
+    })
+
+    // Only send terminal logs if enabled
+    if (isTerminalLoggingEnabled) {
+      try {
+        const payload = JSON.stringify({
+          event: 'browser-logs',
+          entries: serializeEntries(logQueue.entries),
+          router: logQueue.router,
+          sourceType: logQueue.sourceType,
+        })
+
+        socket.send(payload)
+        logQueue.entries = []
+        logQueue.sourceType = undefined
+      } catch {
+        /** noop just incase */
+      }
     }
+
+    // Always send client file logs when socket is ready
+    sendClientFileLogs()
+
+    // Start heartbeat to keep connection alive
+    startHeartbeat()
   },
 }
 
@@ -180,6 +325,14 @@ const createErrorArg = (error: Error) => {
 }
 
 const createLogEntry = (level: LogMethod, args: any[]) => {
+  // Always log to client file logger with args (formatting done inside log method)
+  clientFileLogger.log(level, args)
+
+  // Only forward to terminal if enabled
+  if (!isTerminalLoggingEnabled) {
+    return
+  }
+
   // do not abstract this, it implicitly relies on which functions call it. forcing the inlined implementation makes you think about callers
   // error capture stack trace maybe
   const stack = stackWithOwners(new Error())
@@ -204,6 +357,9 @@ const createLogEntry = (level: LogMethod, args: any[]) => {
 }
 
 export const forwardErrorLog = (args: any[]) => {
+  // Always log to client file logger with args (formatting done inside log method)
+  clientFileLogger.log('error', args)
+  // Only forward to terminal if enabled
   if (!isTerminalLoggingEnabled) {
     return
   }
@@ -267,6 +423,14 @@ const stackWithOwners = (error: Error) => {
 }
 
 export function logUnhandledRejection(reason: unknown) {
+  // Always log to client file logger
+  const message =
+    reason instanceof Error
+      ? `${reason.name}: ${reason.message}`
+      : JSON.stringify(reason)
+  clientFileLogger.log('error', [`unhandledRejection: ${message}`])
+
+  // Only forward to terminal if enabled
   if (!isTerminalLoggingEnabled) {
     return
   }
@@ -355,6 +519,12 @@ const isIgnoredLog = (args: any[]) => {
 }
 
 export function forwardUnhandledError(error: Error) {
+  // Always log to client file logger
+  clientFileLogger.log('error', [
+    `uncaughtError: ${error.name}: ${error.message}`,
+  ])
+
+  // Only forward to terminal if enabled
   if (!isTerminalLoggingEnabled) {
     return
   }
@@ -364,10 +534,6 @@ export function forwardUnhandledError(error: Error) {
 
 // TODO: this router check is brittle, we need to update based on the current router the user is using
 export const initializeDebugLogForwarding = (router: 'app' | 'pages'): void => {
-  if (!isTerminalLoggingEnabled) {
-    return
-  }
-
   // probably don't need this
   if (isPatched) {
     return
@@ -393,4 +559,12 @@ export const initializeDebugLogForwarding = (router: 'app' | 'pages'): void => {
   } catch {}
   logQueue.router = router
   isPatched = true
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => {
+    cancelLogFlush()
+    stopHeartbeat()
+    // Send any remaining logs before page unloads
+    sendClientFileLogs()
+  })
 }
