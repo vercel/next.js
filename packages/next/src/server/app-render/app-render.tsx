@@ -174,7 +174,7 @@ import {
   workUnitAsyncStorage,
   type PrerenderStore,
 } from './work-unit-async-storage.external'
-import { devLogsAsyncStorage } from './dev-logs-async-storage.external'
+import { consoleAsyncStorage } from './console-async-storage.external'
 import { CacheSignal } from './cache-signal'
 import { getTracedMetadata } from '../lib/trace/utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -2309,7 +2309,7 @@ async function renderToStream(
         }
       )
 
-      devLogsAsyncStorage.run(
+      consoleAsyncStorage.run(
         { dim: true },
         spawnDynamicValidationInDev,
         resolveValidation,
