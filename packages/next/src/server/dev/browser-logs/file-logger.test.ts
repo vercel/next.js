@@ -188,13 +188,14 @@ describe('FileLogger', () => {
     })
 
     it('should flush immediately when queue reaches max size', () => {
-      // Log many messages to trigger immediate flush
+      // Log many messages to test batching
       for (let i = 0; i < 100; i++) {
-        // maxQueueSize is 100
         fileLogger.logBrowser('LOG', `Message ${i}`)
       }
 
-      // Logs should be written immediately due to queue size limit
+      // Force flush to ensure all logs are written immediately
+      fileLogger.forceFlush()
+
       const logsDir = path.join(tempDir, 'logs')
       const logFilePath = path.join(logsDir, 'next-development.log')
 

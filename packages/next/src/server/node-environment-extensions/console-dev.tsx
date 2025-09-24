@@ -2,7 +2,6 @@ import { dim } from '../../lib/picocolors'
 import { devLogsAsyncStorage } from '../app-render/dev-logs-async-storage.external'
 import { getFileLogger } from '../dev/browser-logs/file-logger'
 import { formatConsoleArgs } from '../../client/lib/console'
-import { traceGlobals } from '../../trace/shared'
 import {
   routerServerGlobal,
   RouterServerContextSymbol,
@@ -174,10 +173,13 @@ function patchConsoleMethodDEV(methodName: InterceptableConsoleMethod): void {
 
       // Log to file logger for server-side console logs
       try {
-        const distDir = traceGlobals.get('distDir')
-        if (distDir) {
+        const context = routerServerGlobal[RouterServerContextSymbol]
+        const nextConfig = context
+          ? Object.values(context)[0]?.nextConfig
+          : undefined
+        if (nextConfig) {
+          const distDir = nextConfig.distDir
           // Get mcpServer flag from RouterServerContext
-          const context = routerServerGlobal[RouterServerContextSymbol]
           const mcpServerEnabled = context
             ? Object.values(context)[0]?.nextConfig?.experimental?.mcpServer ===
               true

@@ -89,8 +89,8 @@ class FileLogger {
       }
 
       const logsToWrite = this.logQueue.join('')
-      // Writing logs to files but do not block
-      fs.promises.appendFile(this.logFilePath, logsToWrite).catch(console.error)
+      // Writing logs to files synchronously to ensure they're written before returning
+      fs.appendFileSync(this.logFilePath, logsToWrite)
       this.logQueue = []
     } catch (error) {
       console.error('Failed to flush logs to file:', error)

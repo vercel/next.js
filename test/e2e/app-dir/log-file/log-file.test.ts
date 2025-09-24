@@ -44,7 +44,17 @@ describe('log-file', () => {
       content
         // Strip lines containing "Download the React DevTools"
         .split('\n')
-        .filter((line) => !line.includes('Download the React DevTools'))
+        .filter((line) => {
+          // filter out the noise logs
+          if (
+            /Download the React DevTools|connected to ws at|received ws message/.test(
+              line
+            )
+          ) {
+            return false
+          }
+          return true
+        })
         .join('\n')
         // Normalize "Ready in XXXms" patterns
         .replace(/Ready in \d+ms/g, 'Ready in xxxms')
