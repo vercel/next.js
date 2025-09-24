@@ -158,20 +158,13 @@ class FileLogger {
 
 // Singleton instance
 let fileLogger: FileLogger | null = null
-let currentDistDir: string | null = null
-let currentMcpServerEnabled: boolean = false
 
 export function getFileLogger(
   distDir: string,
   mcpServerEnabled: boolean
 ): FileLogger {
-  if (
-    !fileLogger ||
-    currentDistDir !== distDir ||
-    currentMcpServerEnabled !== mcpServerEnabled
-  ) {
+  if (!fileLogger) {
     fileLogger = new FileLogger(distDir, mcpServerEnabled)
-    currentMcpServerEnabled = mcpServerEnabled
   }
   return fileLogger
 }
@@ -181,6 +174,4 @@ export function resetFileLogger(): void {
     fileLogger.destroy()
   }
   fileLogger = null
-  currentDistDir = null
-  currentMcpServerEnabled = false
 }
