@@ -3,6 +3,8 @@ import isInternal from '../../shared/lib/is-internal'
 import type { StackFrame } from '../../server/lib/parse-stack'
 import { ignoreListAnonymousStackFramesIfSandwiched as ignoreListAnonymousStackFramesIfSandwichedGeneric } from '../../server/lib/source-maps'
 
+console.log({ codeFrameColumns })
+
 export type { StackFrame }
 
 export interface IgnorableStackFrame extends StackFrame {

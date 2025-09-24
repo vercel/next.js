@@ -1068,6 +1068,9 @@ const babelCorePackages = {
 externals['next/dist/compiled/babel/code-frame'] =
   'next/dist/compiled/babel/code-frame'
 
+externals['next/dist/compiled/babel-code-frame'] =
+  'next/dist/compiled/babel-code-frame'
+
 Object.assign(externals, babelCorePackages)
 
 // eslint-disable-next-line camelcase
@@ -1087,6 +1090,15 @@ export async function ncc_babel_bundle(task, opts) {
       externals: bundleExternals,
     })
     .target('src/compiled/babel')
+
+  await task
+    .source('src/bundles/babel-code-frame/index.js')
+    .ncc({
+      packageName: '@babel/code-frame',
+      bundleName: 'babel-code-frame',
+      externals: bundleExternals,
+    })
+    .target('src/compiled/babel-code-frame')
 }
 
 // eslint-disable-next-line camelcase
