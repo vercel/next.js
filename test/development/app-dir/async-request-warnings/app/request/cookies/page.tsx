@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 
 function Component() {
+  // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
   ;(cookies() as any).get('component')
   ;(cookies() as any).has('component')
 

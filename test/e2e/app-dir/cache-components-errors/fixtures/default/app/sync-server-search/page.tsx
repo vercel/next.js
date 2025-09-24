@@ -25,6 +25,7 @@ async function SearchParamsReadingComponent({
 }: {
   searchParams: Promise<SearchParams>
 }) {
+  // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
   const fooParam = (searchParams as any).foo
   return (
     <div>

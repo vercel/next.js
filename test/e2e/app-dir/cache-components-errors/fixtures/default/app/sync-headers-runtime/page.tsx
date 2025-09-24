@@ -20,7 +20,7 @@ export default async function Page() {
 async function HeadersReadingComponent() {
   // Await a connection to test the subsequent sync headers access at runtime.
   await connection()
-
+  // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
   const userAgent = (headers() as any).get('user-agent')
   return (
     <div>

@@ -1,6 +1,7 @@
 import { headers } from 'next/headers'
 
 function Component() {
+  // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
   ;(headers() as any).get('component')
   ;(headers() as any).has('component')
 

@@ -14,6 +14,7 @@ export default async function Page() {
 }
 
 async function HeadersReadingComponent() {
+  // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
   const userAgent = (headers() as any).get('user-agent')
   return (
     <div>

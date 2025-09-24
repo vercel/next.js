@@ -20,6 +20,7 @@ export default async function Page() {
 
 async function DraftModeReadingComponent() {
   await new Promise((r) => process.nextTick(r))
+  // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
   const isEnabled = (draftMode() as any).isEnabled
   return (
     <div>

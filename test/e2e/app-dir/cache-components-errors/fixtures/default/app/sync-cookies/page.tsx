@@ -14,6 +14,7 @@ export default async function Page() {
 }
 
 async function CookiesReadingComponent() {
+  // Cast to any as we removed UnsafeUnwrapped types, but still need to test with the sync access
   const token = (cookies() as any).get('token')
 
   return (
