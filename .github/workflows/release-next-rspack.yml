@@ -8,6 +8,11 @@ on:
         required: false
         default: false
         type: boolean
+      npm-name:
+        description: 'NPM package name to publish'
+        required: false
+        default: '@next/rspack-core'
+        type: string
       npm-tag:
         description: 'NPM tag for publishing'
         required: false
@@ -48,12 +53,17 @@ jobs:
         run: |
           echo "🚀 Release Configuration:"
           echo "  - Dry-run mode: ${{ inputs.dry-run }}"
+          echo "  - NPM name: ${{ inputs.npm-name || '@next/rspack-core' }}"
           echo "  - NPM tag: ${{ inputs.npm-tag || 'latest' }}"
           if [ "${{ inputs.dry-run }}" == "true" ]; then
             echo "  - ⚠️  This is a DRY RUN - no packages will be published"
           else
             echo "  - 📦 This will PUBLISH packages to npm"
           fi
+      
+      - name: Change npm name
+        run: pnpm run change-npm-name "${{ inputs.npm-name }}"
+        working-directory: ./rspack
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
