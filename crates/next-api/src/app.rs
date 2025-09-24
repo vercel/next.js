@@ -23,9 +23,9 @@ use next_core::{
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        AppPathsManifest, BuildManifest, ClientReferenceManifest, EdgeFunctionDefinition,
-        MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
-        client_reference_manifest::ClientReferenceManifestOptions,
+        AppPathsManifest, BuildManifest, EdgeFunctionDefinition, MiddlewareMatcher,
+        MiddlewaresManifestV2, PagesManifest, Regions,
+        client_reference_manifest::ClientReferenceManifest,
     },
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
@@ -1462,8 +1462,8 @@ impl AppEndpoint {
         let mut client_reference_manifest = None;
 
         if emit_rsc_manifests {
-            let entry_manifest =
-                ClientReferenceManifest::build_output(ClientReferenceManifestOptions {
+            let entry_manifest = ResolvedVc::upcast(
+                ClientReferenceManifest {
                     node_root: node_root.clone(),
                     client_relative_path: client_relative_path.clone(),
                     entry_name: app_entry.original_name.clone(),
@@ -1475,9 +1475,9 @@ impl AppEndpoint {
                     next_config: project.next_config().to_resolved().await?,
                     runtime,
                     mode: *project.next_mode().await?,
-                })
-                .to_resolved()
-                .await?;
+                }
+                .resolved_cell(),
+            );
             server_assets.insert(entry_manifest);
             if runtime == NextRuntime::Edge {
                 middleware_assets.insert(entry_manifest);
