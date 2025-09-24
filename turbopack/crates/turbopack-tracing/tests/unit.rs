@@ -186,9 +186,13 @@ async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<
     let input_dir = workspace_fs.root().owned().await?;
     let input = input_dir.join(&input)?;
 
-    let source = FileSource::new(input);
+    let source = FileSource::new(input.clone());
     let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
-        NodeJsEnvironment::default().resolved_cell(),
+        NodeJsEnvironment {
+            cwd: ResolvedVc::cell(Some(input.parent())),
+            ..Default::default()
+        }
+        .resolved_cell(),
     ));
     let module_asset_context = ModuleAssetContext::new(
         Default::default(),
