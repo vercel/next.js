@@ -1,13 +1,9 @@
-import { configure } from 'next/dist/compiled/safe-stable-stringify'
 import {
   getOwnerStack,
   setOwnerStackIfAvailable,
 } from './errors/stitched-error'
 import { getErrorSource } from '../../../shared/lib/error-source'
-import {
-  getTerminalLoggingConfig,
-  getIsTerminalLoggingEnabled,
-} from './terminal-logging-config'
+import { getIsTerminalLoggingEnabled } from './terminal-logging-config'
 import {
   type ConsoleEntry,
   type ConsoleErrorEntry,
@@ -15,28 +11,10 @@ import {
   type ClientLogEntry,
   type LogMethod,
   patchConsoleMethod,
-  UNDEFINED_MARKER,
 } from '../../shared/forward-logs-shared'
+import { preLogSerializationClone, logStringify } from './forward-logs-utils'
 
-const terminalLoggingConfig = getTerminalLoggingConfig()
-export const PROMISE_MARKER = 'Promise {}'
-export const UNAVAILABLE_MARKER = '[Unable to view]'
-
-const maximumDepth =
-  typeof terminalLoggingConfig === 'object' && terminalLoggingConfig.depthLimit
-    ? terminalLoggingConfig.depthLimit
-    : 5
-const maximumBreadth =
-  typeof terminalLoggingConfig === 'object' && terminalLoggingConfig.edgeLimit
-    ? terminalLoggingConfig.edgeLimit
-    : 100
-
-const stringify = configure({
-  maximumDepth,
-  maximumBreadth,
-})
-
-export const isTerminalLoggingEnabled = getIsTerminalLoggingEnabled()
+const isTerminalLoggingEnabled = getIsTerminalLoggingEnabled()
 
 const methods: Array<LogMethod> = [
   'log',
@@ -52,71 +30,6 @@ const methods: Array<LogMethod> = [
   'groupEnd',
   'trace',
 ]
-/**
- * allows us to:
- * - revive the undefined log in the server as it would look in the browser
- * - not read/attempt to serialize promises (next will console error if you do that, and will cause this program to infinitely recurse)
- * - if we read a proxy that throws (no way to detect if something is a proxy), explain to the user we can't read this data
- */
-export function preLogSerializationClone<T>(
-  value: T,
-  seen = new WeakMap()
-): any {
-  if (value === undefined) return UNDEFINED_MARKER
-  if (value === null || typeof value !== 'object') return value
-  if (seen.has(value as object)) return seen.get(value as object)
-
-  try {
-    Object.keys(value as object)
-  } catch {
-    return UNAVAILABLE_MARKER
-  }
-
-  try {
-    if (typeof (value as any).then === 'function') return PROMISE_MARKER
-  } catch {
-    return UNAVAILABLE_MARKER
-  }
-
-  if (Array.isArray(value)) {
-    const out: any[] = []
-    seen.set(value, out)
-    for (const item of value) {
-      try {
-        out.push(preLogSerializationClone(item, seen))
-      } catch {
-        out.push(UNAVAILABLE_MARKER)
-      }
-    }
-    return out
-  }
-
-  const proto = Object.getPrototypeOf(value)
-  if (proto === Object.prototype || proto === null) {
-    const out: Record<string, unknown> = {}
-    seen.set(value as object, out)
-    for (const key of Object.keys(value as object)) {
-      try {
-        out[key] = preLogSerializationClone((value as any)[key], seen)
-      } catch {
-        out[key] = UNAVAILABLE_MARKER
-      }
-    }
-    return out
-  }
-
-  return Object.prototype.toString.call(value)
-}
-
-// only safe if passed safeClone data
-export const logStringify = (data: unknown): string => {
-  try {
-    const result = stringify(data)
-    return result ?? `"${UNAVAILABLE_MARKER}"`
-  } catch {
-    return `"${UNAVAILABLE_MARKER}"`
-  }
-}
 
 const afterThisFrame = (cb: () => void) => {
   let timeout: ReturnType<typeof setTimeout> | undefined
@@ -154,6 +67,7 @@ const serializeEntries = (entries: Array<ClientLogEntry>) =>
     }
   })
 
+// Combined state and public API
 export const logQueue: {
   entries: Array<ClientLogEntry>
   onSocketReady: (socket: WebSocket) => void
@@ -208,6 +122,10 @@ export const logQueue: {
     })
   },
   onSocketReady: (socket: WebSocket) => {
+    if (!isTerminalLoggingEnabled) {
+      return
+    }
+
     if (socket.readyState !== WebSocket.OPEN) {
       // invariant
       return
@@ -286,6 +204,10 @@ const createLogEntry = (level: LogMethod, args: any[]) => {
 }
 
 export const forwardErrorLog = (args: any[]) => {
+  if (!isTerminalLoggingEnabled) {
+    return
+  }
+
   const errorObjects = args.filter((arg) => arg instanceof Error)
   const first = errorObjects.at(0)
   if (first) {
@@ -345,6 +267,10 @@ const stackWithOwners = (error: Error) => {
 }
 
 export function logUnhandledRejection(reason: unknown) {
+  if (!isTerminalLoggingEnabled) {
+    return
+  }
+
   if (reason instanceof Error) {
     createUnhandledRejectionErrorEntry(reason, stackWithOwners(reason))
     return
@@ -429,11 +355,19 @@ const isIgnoredLog = (args: any[]) => {
 }
 
 export function forwardUnhandledError(error: Error) {
+  if (!isTerminalLoggingEnabled) {
+    return
+  }
+
   createUncaughtErrorEntry(error.name, error.message, stackWithOwners(error))
 }
 
 // TODO: this router check is brittle, we need to update based on the current router the user is using
 export const initializeDebugLogForwarding = (router: 'app' | 'pages'): void => {
+  if (!isTerminalLoggingEnabled) {
+    return
+  }
+
   // probably don't need this
   if (isPatched) {
     return
