@@ -30,6 +30,7 @@ import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 
 export type ParamValue = string | Array<string> | undefined
@@ -623,7 +624,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
           proxiedProperties.has(prop)
         ) {
           const expression = describeStringPropertyAccess('params', prop)
-          throwForSyncAccess(store.route, expression)
+          warnForSyncAccess(store.route, expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -636,11 +637,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     },
     ownKeys(target) {
       const expression = '`...params` or similar expression'
-      throwForIncompleteEnumeration(
-        store.route,
-        expression,
-        unproxiedProperties
-      )
+      warnForIncompleteEnumeration(store.route, expression, unproxiedProperties)
       return Reflect.ownKeys(target)
     },
   })
@@ -677,30 +674,40 @@ function syncIODev(
         workUnitStore satisfies never
     }
   }
-  // In all cases we throw normally
+  // In all cases we warn normally
   if (missingProperties && missingProperties.length > 0) {
-    throwForIncompleteEnumeration(route, expression, missingProperties)
+    warnForIncompleteEnumeration(route, expression, missingProperties)
   } else {
-    throwForSyncAccess(route, expression)
+    warnForSyncAccess(route, expression)
   }
 }
 
-function throwForSyncAccess(route: string | undefined, expression: string) {
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createParamsAccessError
+)
+
+const warnForIncompleteEnumeration =
+  createDedupedByCallsiteServerErrorLoggerDev(createIncompleteEnumerationError)
+
+function createParamsAccessError(
+  route: string | undefined,
+  expression: string
+) {
   const prefix = route ? `Route "${route}" ` : 'This route '
-  throw new Error(
+  return new Error(
     `${prefix}used ${expression}. ` +
       `\`params\` should be awaited before using its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
 
-function throwForIncompleteEnumeration(
+function createIncompleteEnumerationError(
   route: string | undefined,
   expression: string,
   missingProperties: Array<string>
 ) {
   const prefix = route ? `Route "${route}" ` : 'This route '
-  throw new Error(
+  return new Error(
     `${prefix}used ${expression}. ` +
       `\`params\` should be awaited before using its properties. ` +
       `The following properties were not available through enumeration ` +

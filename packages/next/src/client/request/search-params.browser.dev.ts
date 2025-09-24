@@ -45,7 +45,7 @@ function makeUntrackedExoticSearchParamsWithDevWarnings(
             Reflect.has(target, prop) === false)
         ) {
           const expression = describeStringPropertyAccess('searchParams', prop)
-          throwForSyncAccess(expression)
+          warnForSyncAccess(expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -69,13 +69,13 @@ function makeUntrackedExoticSearchParamsWithDevWarnings(
             'searchParams',
             prop
           )
-          throwForSyncAccess(expression)
+          warnForSyncAccess(expression)
         }
       }
       return Reflect.has(target, prop)
     },
     ownKeys(target) {
-      throwForSyncSpread()
+      warnForSyncSpread()
       return Reflect.ownKeys(target)
     },
   })
@@ -119,7 +119,7 @@ function makeUntrackedSearchParamsWithDevWarnings(
             Reflect.has(target, prop) === false)
         ) {
           const expression = describeStringPropertyAccess('searchParams', prop)
-          throwForSyncAccess(expression)
+          warnForSyncAccess(expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -143,13 +143,13 @@ function makeUntrackedSearchParamsWithDevWarnings(
             'searchParams',
             prop
           )
-          throwForSyncAccess(expression)
+          warnForSyncAccess(expression)
         }
       }
       return Reflect.has(target, prop)
     },
     ownKeys(target) {
-      throwForSyncSpread()
+      warnForSyncSpread()
       return Reflect.ownKeys(target)
     },
   })
@@ -158,16 +158,16 @@ function makeUntrackedSearchParamsWithDevWarnings(
   return proxiedPromise
 }
 
-function throwForSyncAccess(expression: string) {
-  throw new Error(
+function warnForSyncAccess(expression: string) {
+  console.error(
     `A searchParam property was accessed directly with ${expression}. ` +
       `\`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
 
-function throwForSyncSpread() {
-  throw new Error(
+function warnForSyncSpread() {
+  console.error(
     `The keys of \`searchParams\` were accessed directly. ` +
       `\`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`

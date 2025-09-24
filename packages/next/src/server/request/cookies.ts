@@ -26,6 +26,7 @@ import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestAPICallableInsideAfter } from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
@@ -426,7 +427,7 @@ function makeUntrackedCookiesWithDevWarnings(
     get(target, prop, receiver) {
       switch (prop) {
         case Symbol.iterator: {
-          throwForSyncAccess(route, '`...cookies()` or similar iteration')
+          warnForSyncAccess(route, '`...cookies()` or similar iteration')
           break
         }
         case 'size':
@@ -437,7 +438,7 @@ function makeUntrackedCookiesWithDevWarnings(
         case 'delete':
         case 'clear':
         case 'toString': {
-          throwForSyncAccess(route, `\`cookies().${prop}\``)
+          warnForSyncAccess(route, `\`cookies().${prop}\``)
           break
         }
         default: {
@@ -490,13 +491,20 @@ function syncIODev(route: string | undefined, expression: string) {
     }
   }
 
-  // In all cases we throw normally
-  throwForSyncAccess(route, expression)
+  // In all cases we warn normally
+  warnForSyncAccess(route, expression)
 }
 
-function throwForSyncAccess(route: string | undefined, expression: string) {
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createCookiesAccessError
+)
+
+function createCookiesAccessError(
+  route: string | undefined,
+  expression: string
+) {
   const prefix = route ? `Route "${route}" ` : 'This route '
-  throw new Error(
+  return new Error(
     `${prefix}used ${expression}. ` +
       `\`cookies()\` should be awaited before using its value. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`

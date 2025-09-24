@@ -23,6 +23,7 @@ import {
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestAPICallableInsideAfter } from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
@@ -389,7 +390,7 @@ function makeUntrackedHeadersWithDevWarnings(
     get(target, prop, receiver) {
       switch (prop) {
         case Symbol.iterator: {
-          throwForSyncAccess(route, '`...headers()` or similar iteration')
+          warnForSyncAccess(route, '`...headers()` or similar iteration')
           break
         }
         case 'append':
@@ -402,7 +403,7 @@ function makeUntrackedHeadersWithDevWarnings(
         case 'keys':
         case 'values':
         case 'entries': {
-          throwForSyncAccess(route, `\`headers().${prop}\``)
+          warnForSyncAccess(route, `\`headers().${prop}\``)
           break
         }
         default: {
@@ -449,13 +450,20 @@ function syncIODev(route: string | undefined, expression: string) {
     }
   }
 
-  // In all cases we throw normally
-  throwForSyncAccess(route, expression)
+  // In all cases we warn normally
+  warnForSyncAccess(route, expression)
 }
 
-function throwForSyncAccess(route: string | undefined, expression: string) {
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createHeadersAccessError
+)
+
+function createHeadersAccessError(
+  route: string | undefined,
+  expression: string
+) {
   const prefix = route ? `Route "${route}" ` : 'This route '
-  throw new Error(
+  return new Error(
     `${prefix}used ${expression}. ` +
       `\`headers()\` should be awaited before using its value. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`

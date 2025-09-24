@@ -17,6 +17,7 @@ import {
   trackDynamicDataInDynamicRender,
   trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { InvariantError } from '../../shared/lib/invariant-error'
@@ -176,11 +177,11 @@ function createDraftModeWithDevWarnings(
     get(target, prop, receiver) {
       switch (prop) {
         case 'isEnabled':
-          throwForSyncAccess(route, `\`draftMode().${prop}\``)
+          warnForSyncAccess(route, `\`draftMode().${prop}\``)
           break
         case 'enable':
         case 'disable': {
-          throwForSyncAccess(route, `\`draftMode().${prop}()\``)
+          warnForSyncAccess(route, `\`draftMode().${prop}()\``)
           break
         }
         default: {
@@ -252,13 +253,20 @@ function syncIODev(route: string | undefined, expression: string) {
     }
   }
 
-  // In all cases we throw normally
-  throwForSyncAccess(route, expression)
+  // In all cases we warn normally
+  warnForSyncAccess(route, expression)
 }
 
-function throwForSyncAccess(route: string | undefined, expression: string) {
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createDraftModeAccessError
+)
+
+function createDraftModeAccessError(
+  route: string | undefined,
+  expression: string
+) {
   const prefix = route ? `Route "${route}" ` : 'This route '
-  throw new Error(
+  return new Error(
     `${prefix}used ${expression}. ` +
       `\`draftMode()\` should be awaited before using its value. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
