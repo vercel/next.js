@@ -18,13 +18,24 @@ describe('standalone mode - tracing', () => {
 
     // should trace process.cwd and relative calls relative to the root
     expect(trace.files).toContain('../../../data/static-from-app-cwd.txt')
-    expect(trace.files).toContain('../../../data/static-from-app-rel-join.txt')
-    expect(trace.files).toContain('../../../data/static-from-app-rel-read.txt')
+    if (process.env.IS_TURBOPACK_TEST) {
+      // Webpack doesn't trace these relative reference
+      expect(trace.files).toContain(
+        '../../../data/static-from-app-rel-join.txt'
+      )
+      expect(trace.files).toContain(
+        '../../../data/static-from-app-rel-read.txt'
+      )
+    }
+
+    if (process.env.IS_TURBOPACK_TEST) {
+      // Webpack doesn't trace these relative reference
+      expect(trace.files).toContainEqual(
+        expect.stringMatching(/.*\/node_modules\/foo\/foo.txt/)
+      )
+    }
 
     // should not trace process.cwd or relative calls in node_modules (only relative to file)
-    expect(trace.files).toContainEqual(
-      expect.stringMatching(/.*\/node_modules\/foo\/foo.txt/)
-    )
     expect(trace.files).not.toContain('../../../app/static-from-pkg.txt')
     expect(trace.files).not.toContain('../../../foo/foo.txt')
   })
