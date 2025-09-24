@@ -24,22 +24,14 @@ const getReactCompilerPlugins = (
     return undefined
   }
 
-  const defaultOptions: ReactCompilerOptions & {
-    environment?: {
-      enableNameAnonymousFunctions?: EnvironmentConfig['enableNameAnonymousFunctions']
-    }
-  } = isDev
-    ? {
-        environment: {
-          enableNameAnonymousFunctions: true,
-        },
-      }
-    : {}
+  const environment: Pick<EnvironmentConfig, 'enableNameAnonymousFunctions'> = {
+    enableNameAnonymousFunctions: isDev,
+  }
   const options: ReactCompilerOptions =
     typeof maybeOptions === 'boolean' ? {} : maybeOptions
   const compilerOptions: JSONValue = {
-    ...defaultOptions,
     ...options,
+    environment,
   }
   return [[getReactCompiler(), compilerOptions]]
 }
