@@ -69,7 +69,7 @@ use crate::{
     dynamic_imports::{
         DynamicImportedChunks, NextDynamicChunkAvailability, collect_next_dynamic_chunks,
     },
-    font::create_font_manifest,
+    font::FontManifest,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::get_global_information_for_endpoint,
     nft_json::NftJsonAsset,
@@ -1350,17 +1350,19 @@ impl PageEndpoint {
         let node_root = this.pages_project.project().node_root().owned().await?;
 
         if emit_manifests == EmitManifests::Full {
-            let next_font_manifest_output = create_font_manifest(
-                this.pages_project.project().client_root().owned().await?,
-                node_root.clone(),
-                this.pages_project.pages_dir().owned().await?,
-                &this.original_name,
-                &manifest_path_prefix,
-                &this.pathname,
-                *client_assets,
-                false,
-            )
-            .await?;
+            let next_font_manifest_output = ResolvedVc::upcast(
+                FontManifest {
+                    client_root: this.pages_project.project().client_root().owned().await?,
+                    node_root: node_root.clone(),
+                    dir: this.pages_project.pages_dir().owned().await?,
+                    original_name: this.original_name.clone(),
+                    manifest_path_prefix: manifest_path_prefix.clone().into(),
+                    pathname: this.pathname.clone(),
+                    client_assets,
+                    app_dir: false,
+                }
+                .resolved_cell(),
+            );
             server_assets.push(next_font_manifest_output);
         }
 

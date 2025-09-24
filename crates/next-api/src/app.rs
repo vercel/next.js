@@ -74,7 +74,7 @@ use turbopack_ecmascript::resolve::cjs_resolve;
 
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
-    font::create_font_manifest,
+    font::FontManifest,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::get_global_information_for_endpoint,
     nft_json::NftJsonAsset,
@@ -1485,17 +1485,19 @@ impl AppEndpoint {
             client_reference_manifest = Some(entry_manifest);
         }
         if emit_manifests == EmitManifests::Full {
-            let next_font_manifest_output = create_font_manifest(
-                project.client_root().owned().await?,
-                node_root.clone(),
-                this.app_project.app_dir().owned().await?,
-                &app_entry.original_name,
-                &app_entry.original_name,
-                &app_entry.original_name,
-                *client_assets,
-                true,
-            )
-            .await?;
+            let next_font_manifest_output = ResolvedVc::upcast(
+                FontManifest {
+                    client_root: project.client_root().owned().await?,
+                    node_root: node_root.clone(),
+                    dir: this.app_project.app_dir().owned().await?,
+                    original_name: app_entry.original_name.clone(),
+                    manifest_path_prefix: app_entry.original_name.clone(),
+                    pathname: app_entry.original_name.clone(),
+                    client_assets,
+                    app_dir: true,
+                }
+                .resolved_cell(),
+            );
             server_assets.insert(next_font_manifest_output);
         }
 
