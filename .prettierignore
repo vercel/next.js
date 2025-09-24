@@ -55,6 +55,7 @@ test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/ignored.js
 test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js
 test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js
 test/e2e/async-modules/amp-validator-wasm.js
+test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx
 
 # turbopack crates, disable for some tests and precompiled dependencies.
 /turbopack/crates/*/js/src/compiled

@@ -819,5 +819,7 @@
   "818": "`cacheLife()` can only be called inside a \"use cache\" function.",
   "819": "`cacheTag()` can only be called inside a \"use cache\" function.",
   "820": "`cacheLife()` can only be called during App Router rendering at the moment.",
-  "821": "Unprocessable request"
+  "821": "Unprocessable request",
+  "822": "Stack frame resolver not initialized. This is a bug in Next.js.",
+  "823": "Timeout waiting for error state from frontend. The browser may not be responding to HMR messages."
 }
