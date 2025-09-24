@@ -639,8 +639,8 @@ impl ChunkingContext for BrowserChunkingContext {
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!(
             "chunking",
+            name = display(ident.to_string().await?),
             chunking_type = "evaluated",
-            ident = display(ident.to_string().await?)
         );
         async move {
             let this = self.await?;

@@ -176,8 +176,8 @@ pub async fn parse(
 ) -> Result<Vc<ParseResult>> {
     let span = tracing::info_span!(
         "parse ecmascript",
-        name = name,
-        ty = display(&source.ident().to_string().await?)
+        name = display(source.ident().to_string().await?),
+        ty = display(&ty)
     );
 
     match parse_internal(source, ty, transforms)
