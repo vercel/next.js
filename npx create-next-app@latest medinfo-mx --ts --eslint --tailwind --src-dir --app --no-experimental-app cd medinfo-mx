@@ -1,0 +1,5 @@
+npm i lucide-react
+# Inicializa shadcn/ui
+npx shadcn@latest init
+# Añade los componentes que usamos
+npx shadcn@latest add card button
