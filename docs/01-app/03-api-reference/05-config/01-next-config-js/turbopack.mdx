@@ -23,6 +23,19 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
+```js filename="next.config.mjs" switcher
+/**
+ * @type {import('next').NextConfig}
+ */
+const nextConfig = {
+  turbopack: {
+    // ...
+  },
+}
+
+export default nextConfig
+```
+
 > **Good to know**:
 >
 > - Turbopack for Next.js does not require loaders or loader configuration for built-in functionality. Turbopack has built-in support for CSS and compiling modern JavaScript, so there's no need for `css-loader`, `postcss-loader`, or `babel-loader` if you're using `@babel/preset-env`.

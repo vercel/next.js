@@ -89,7 +89,10 @@ import path from 'path'
 
 const nextConfig: NextConfig = {
   // this includes files from the monorepo base two directories up
-  outputFileTracingRoot: path.join(__dirname, '../../'),
+  outputFileTracingRoot: path.join(
+    new URL('.', import.meta.url).pathname,
+    '../../'
+  ),
 }
 
 export default nextConfig
@@ -103,7 +106,10 @@ import path from 'path'
  */
 const nextConfig = {
   // this includes files from the monorepo base two directories up
-  outputFileTracingRoot: path.join(__dirname, '../../'),
+  outputFileTracingRoot: path.join(
+    new URL('.', import.meta.url).pathname,
+    '../../'
+  ),
 }
 
 export default nextConfig
@@ -225,7 +231,10 @@ import path from 'path'
 
 const nextConfig: NextConfig = {
   // Trace from the monorepo root
-  outputFileTracingRoot: path.join(__dirname, '../../'),
+  outputFileTracingRoot: path.join(
+    new URL('.', import.meta.url).pathname,
+    '../../'
+  ),
   outputFileTracingIncludes: {
     '/route1': ['../shared/assets/**/*'],
   },
@@ -242,7 +251,10 @@ import path from 'path'
  */
 const nextConfig = {
   // Trace from the monorepo root
-  outputFileTracingRoot: path.join(__dirname, '../../'),
+  outputFileTracingRoot: path.join(
+    new URL('.', import.meta.url).pathname,
+    '../../'
+  ),
   outputFileTracingIncludes: {
     '/route1': ['../shared/assets/**/*'],
   },
