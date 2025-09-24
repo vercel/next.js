@@ -2006,7 +2006,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         ctx: &mut impl ExecuteContext<'_>,
         task_id: TaskId,
-        new_children: std::collections::HashSet<TaskId, rustc_hash::FxBuildHasher>,
+        new_children: FxHashSet<TaskId>,
         has_children: bool,
         is_now_immutable: bool,
     ) -> bool {
