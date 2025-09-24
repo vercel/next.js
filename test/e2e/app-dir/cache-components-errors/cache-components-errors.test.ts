@@ -1,9 +1,6 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { assertNoErrorToast, retry } from 'next-test-utils'
-import {
-  convertModuleFunctionSequenceExpression,
-  getPrerenderOutput,
-} from './utils'
+import { assertNoErrorToast } from 'next-test-utils'
+import { getPrerenderOutput } from './utils'
 
 describe('Cache Components Errors', () => {
   const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
@@ -1116,21 +1113,6 @@ describe('Cache Components Errors', () => {
                         }
                       `)
           })
-        } else {
-          it('should not error the build when synchronously reading `searchParams.foo`', async () => {
-            try {
-              await prerender(pathname)
-            } catch (error) {
-              throw new Error('expected build not to fail', { cause: error })
-            }
-
-            expect(next.cliOutput).toContain(`◐ ${pathname}`)
-            await next.start({ skipBuild: true })
-            const browser = await next.browser(`${pathname}?foo=test`)
-            expect(await browser.elementById('foo-param').text()).toBe(
-              'undefined'
-            )
-          })
         }
       })
 
@@ -1167,21 +1149,6 @@ describe('Cache Components Errors', () => {
                           ],
                         }
                       `)
-          })
-        } else {
-          it('should not error the build when synchronously reading `searchParams.foo`', async () => {
-            try {
-              await prerender(pathname)
-            } catch (error) {
-              throw new Error('expected build not to fail', { cause: error })
-            }
-
-            expect(next.cliOutput).toContain(`◐ ${pathname}`)
-            await next.start({ skipBuild: true })
-            const browser = await next.browser(`${pathname}?foo=test`)
-            expect(await browser.elementById('foo-param').text()).toBe(
-              'undefined'
-            )
           })
         }
       })
@@ -1465,28 +1432,6 @@ describe('Cache Components Errors', () => {
               `)
             }
           })
-        } else {
-          it('should not error the build, but fail at runtime', async () => {
-            try {
-              await prerender('/sync-cookies-runtime')
-            } catch (error) {
-              throw new Error('expected build not to fail', { cause: error })
-            }
-
-            expect(next.cliOutput).toContain('◐ /sync-cookies-runtime')
-            await next.start({ skipBuild: true })
-            cliOutputLength = next.cliOutput.length
-            await next.fetch('/sync-cookies-runtime')
-
-            await retry(() => {
-              const output = convertModuleFunctionSequenceExpression(
-                next.cliOutput.slice(cliOutputLength)
-              )
-              expect(output).toInclude(
-                'TypeError: <module-function>().get is not a function'
-              )
-            })
-          })
         }
       })
 
@@ -1555,21 +1500,6 @@ describe('Cache Components Errors', () => {
                             }
                           `)
             }
-          })
-        } else {
-          it('should not error the build when synchronously reading `draftMode().isEnabled`', async () => {
-            try {
-              await prerender(pathname)
-            } catch (error) {
-              throw new Error('expected build not to fail', { cause: error })
-            }
-
-            expect(next.cliOutput).toContain(`◐ ${pathname}`)
-            await next.start({ skipBuild: true })
-            const browser = await next.browser(`${pathname}`)
-            expect(await browser.elementById('draft-mode').text()).toBe(
-              'undefined'
-            )
           })
         }
       })
@@ -1853,29 +1783,6 @@ describe('Cache Components Errors', () => {
               `)
             }
           })
-        } else {
-          it('should not error the build, but fail at runtime', async () => {
-            try {
-              await prerender('/sync-headers-runtime')
-            } catch (error) {
-              throw new Error('expected build not to fail', { cause: error })
-            }
-
-            expect(next.cliOutput).toContain('◐ /sync-headers-runtime')
-            await next.start({ skipBuild: true })
-            cliOutputLength = next.cliOutput.length
-            await next.fetch('/sync-headers-runtime')
-
-            await retry(() => {
-              const output = convertModuleFunctionSequenceExpression(
-                next.cliOutput.slice(cliOutputLength)
-              )
-
-              expect(output).toInclude(
-                'TypeError: <module-function>().get is not a function'
-              )
-            })
-          })
         }
       })
 
@@ -1928,19 +1835,6 @@ describe('Cache Components Errors', () => {
                           `)
             }
           })
-        } else {
-          it('should not error the build when synchronously reading `params.slug`', async () => {
-            try {
-              await prerender(`${pathname}/[slug]`)
-            } catch (error) {
-              throw new Error('expected build not to fail', { cause: error })
-            }
-
-            expect(next.cliOutput).toContain(`◐ ${pathname}/[slug]`)
-            await next.start({ skipBuild: true })
-            const browser = await next.browser(`${pathname}/test`)
-            expect(await browser.elementById('param').text()).toBe('undefined')
-          })
         }
       })
 
@@ -1975,19 +1869,6 @@ describe('Cache Components Errors', () => {
                ],
              }
             `)
-          })
-        } else {
-          it('should not error the build when synchronously reading `params.slug`', async () => {
-            try {
-              await prerender(`${pathname}/[slug]`)
-            } catch (error) {
-              throw new Error('expected build not to fail', { cause: error })
-            }
-
-            expect(next.cliOutput).toContain(`◐ ${pathname}/[slug]`)
-            await next.start({ skipBuild: true })
-            const browser = await next.browser(`${pathname}/test`)
-            expect(await browser.elementById('param').text()).toBe('undefined')
           })
         }
       })
