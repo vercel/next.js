@@ -49,19 +49,39 @@ pub fn connect_children(
         has_active_count: bool,
         should_track_activeness: bool,
     ) {
+        debug_assert!(!new_follower_ids.is_empty());
+
         let mut queue = AggregationUpdateQueue::new();
 
         if let Some(upper_ids) = upper_ids {
-            // We need to decrease the active count because we temporarily increased it during
-            // connect_child. We need to increase the active count when the parent has active
-            // count, because it's added as follower.
-            if should_track_activeness && !has_active_count {
+            // We need to add new followers when there are upper ids as the parent is a leaf node
+            // and new children are new followers.
+            let add_followers = !upper_ids.is_empty();
+
+            // And we need decrease the active count when parent doesn't have an active count as the
+            // active count was temporarily increased during connect_child. We need to
+            // increase the active count when the parent has active count, because it's
+            // added as follower.
+            let decrease_active_count = should_track_activeness && !has_active_count;
+
+            // We special case the situation when we need to do both operations to avoid
+            // cloning the new follower ids unnecessarily.
+            if decrease_active_count && add_followers {
+                queue.push(
+                    InnerOfUppersHasNewFollowersJob {
+                        upper_ids,
+                        new_follower_ids: new_follower_ids.clone(),
+                    }
+                    .into(),
+                );
                 queue.push(AggregationUpdateJob::DecreaseActiveCounts {
-                    task_ids: new_follower_ids.clone(),
+                    task_ids: new_follower_ids,
                 })
-            }
-            // Parent is a leaf node, the children are followers of it now.
-            if !upper_ids.is_empty() {
+            } else if decrease_active_count {
+                queue.push(AggregationUpdateJob::DecreaseActiveCounts {
+                    task_ids: new_follower_ids,
+                })
+            } else if add_followers {
                 queue.push(
                     InnerOfUppersHasNewFollowersJob {
                         upper_ids,
@@ -70,14 +90,18 @@ pub fn connect_children(
                     .into(),
                 );
             }
-        } else {
+        } else if should_track_activeness {
+            // Parent is an aggregating node. We run the normal code to connect the children.
+            queue.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
+                upper_id: parent_task_id,
+                new_follower_ids: new_follower_ids.clone(),
+            });
             // We need to decrease the active count because we temporarily increased it during
             // connect_child.
-            if should_track_activeness {
-                queue.push(AggregationUpdateJob::DecreaseActiveCounts {
-                    task_ids: new_follower_ids.clone(),
-                });
-            }
+            queue.push(AggregationUpdateJob::DecreaseActiveCounts {
+                task_ids: new_follower_ids,
+            });
+        } else {
             // Parent is an aggregating node. We run the normal code to connect the children.
             queue.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
                 upper_id: parent_task_id,
