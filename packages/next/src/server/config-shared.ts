@@ -1119,6 +1119,7 @@ export interface NextConfig {
    * Add public (in browser) runtime configuration to your app
    *
    * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
+   * @deprecated Runtime config is deprecated and will be removed in Next.js 16.
    */
   publicRuntimeConfig?: { [key: string]: any }
 
@@ -1126,6 +1127,7 @@ export interface NextConfig {
    * Add server runtime configuration to your app
    *
    * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
+   * @deprecated Runtime config is deprecated and will be removed in Next.js 16.
    */
   serverRuntimeConfig?: { [key: string]: any }
 
