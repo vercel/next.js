@@ -60,11 +60,6 @@ jobs:
           else
             echo "  - 📦 This will PUBLISH packages to npm"
           fi
-      
-      - name: Change npm name
-        run: pnpm run change-npm-name "${{ inputs.npm-name }}"
-        working-directory: ./rspack
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -75,6 +70,10 @@ jobs:
 
       - name: Setup pnpm
         run: corepack prepare
+
+      - name: Change npm name
+        run: pnpm run change-npm-name "${{ inputs.npm-name }}"
+        working-directory: ./rspack
 
       - name: Cache pnpm dependencies
         uses: actions/cache@v3
