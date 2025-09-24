@@ -152,31 +152,30 @@ describe('Middleware Rewrite', () => {
     })
 
     it('should trigger getServerSideProps on back navigation when middleware is present', async () => {
-      const home1 = await fetchViaHTTP(next.url, '/')
-      expect(home1.status).toBe(200)
+      const browser = await webdriver(next.url, '/')
 
-      const home1Text = await home1.text()
-      const home1Timestamp = home1Text.match(/now.*?(\d+)/)?.[1]
+      const home1Timestamp = await browser.eval(
+        'document.querySelector(".now")?.textContent'
+      )
       expect(home1Timestamp).toBeDefined()
 
-      const rewritten = await fetchViaHTTP(
-        next.url,
-        '/fallback-true-blog/rewritten'
+      await browser.elementByCss('a[href="/ssg"]').click()
+      await browser.waitForElementByCss('h1')
+      const ssgText = await browser.eval('document.body.innerText')
+      expect(ssgText).toContain('SSG Page')
+
+      await browser.back()
+      await browser.waitForElementByCss('.now')
+
+      const home2Timestamp = await browser.eval(
+        'document.querySelector(".now")?.textContent'
       )
-      expect(rewritten.status).toBe(200)
-
-      const rewrittenText = await rewritten.text()
-      expect(rewrittenText).toContain('About Page')
-
-      const home2 = await fetchViaHTTP(next.url, '/')
-      expect(home2.status).toBe(200)
-
-      const home2Text = await home2.text()
-      const home2Timestamp = home2Text.match(/now.*?(\d+)/)?.[1]
       expect(home2Timestamp).toBeDefined()
 
       expect(home1Timestamp).not.toBe(home2Timestamp)
       expect(parseInt(home2Timestamp)).toBeGreaterThan(parseInt(home1Timestamp))
+
+      await browser.close()
     })
 
     it('should have props for afterFiles rewrite to SSG page', async () => {
