@@ -1205,7 +1205,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
                    "source": "app/sync-cookies/page.tsx (17:25) @ CookiesReadingComponent
-               > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+               > 17 |   const token = (cookies() as any).get('token')
                     |                         ^",
                    "stack": [
                      "CookiesReadingComponent app/sync-cookies/page.tsx (17:25)",
@@ -1217,7 +1217,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies/page.tsx (17:66) @ CookiesReadingComponent
-               > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+               > 17 |   const token = (cookies() as any).get('token')
                     |                                                                  ^",
                    "stack": [
                      "CookiesReadingComponent app/sync-cookies/page.tsx (17:66)",
@@ -1233,7 +1233,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
                    "source": "app/sync-cookies/page.tsx (17:25) @ CookiesReadingComponent
-               > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+               > 17 |   const token = (cookies() as any).get('token')
                     |                         ^",
                    "stack": [
                      "CookiesReadingComponent app/sync-cookies/page.tsx (17:25)",
@@ -1245,7 +1245,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies/page.tsx (17:66) @ CookiesReadingComponent
-               > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+               > 17 |   const token = (cookies() as any).get('token')
                     |                                                                  ^",
                    "stack": [
                      "CookiesReadingComponent app/sync-cookies/page.tsx (17:66)",
@@ -1261,7 +1261,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
                    "source": "app/sync-cookies/page.tsx (17:17) @ CookiesReadingComponent
-               > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+               > 17 |   const token = (cookies() as any).get('token')
                     |                 ^",
                    "stack": [
                      "CookiesReadingComponent app/sync-cookies/page.tsx (17:17)",
@@ -1273,7 +1273,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies/page.tsx (17:66) @ CookiesReadingComponent
-               > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+               > 17 |   const token = (cookies() as any).get('token')
                     |                                                                  ^",
                    "stack": [
                      "CookiesReadingComponent app/sync-cookies/page.tsx (17:66)",
@@ -1305,7 +1305,7 @@ describe('Cache Components Errors', () => {
                      at stringify (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
-                 > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                 > 17 |   const token = (cookies() as any).get('token')
                       |                                                                  ^
                    18 |
                    19 |   return (
@@ -1324,7 +1324,7 @@ describe('Cache Components Errors', () => {
                      at b (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
-                 > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                 > 17 |   const token = (cookies() as any).get('token')
                       |                                                                  ^
                    18 |
                    19 |   return (
@@ -1343,7 +1343,7 @@ describe('Cache Components Errors', () => {
                      at stringify (<anonymous>)
                    15 |
                    16 | async function CookiesReadingComponent() {
-                 > 17 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+                 > 17 |   const token = (cookies() as any).get('token')
                       |                                                                  ^
                    18 |
                    19 |   return (
@@ -1387,7 +1387,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-cookies-runtime/page.tsx (24:25) @ CookiesReadingComponent
-               > 24 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+               > 24 |   const token = (cookies() as any).get('token')
                     |                         ^",
                    "stack": [
                      "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:25)",
@@ -1399,7 +1399,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies-runtime/page.tsx (24:66) @ CookiesReadingComponent
-               > 24 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+               > 24 |   const token = (cookies() as any).get('token')
                     |                                                                  ^",
                    "stack": [
                      "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:66)",
@@ -1415,7 +1415,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-cookies-runtime/page.tsx (24:25) @ CookiesReadingComponent
-               > 24 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+               > 24 |   const token = (cookies() as any).get('token')
                     |                         ^",
                    "stack": [
                      "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:25)",
@@ -1427,7 +1427,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies-runtime/page.tsx (24:66) @ CookiesReadingComponent
-               > 24 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+               > 24 |   const token = (cookies() as any).get('token')
                     |                                                                  ^",
                    "stack": [
                      "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:66)",
@@ -1443,7 +1443,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-cookies-runtime/page.tsx (24:17) @ CookiesReadingComponent
-               > 24 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+               > 24 |   const token = (cookies() as any).get('token')
                     |                 ^",
                    "stack": [
                      "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:17)",
@@ -1455,7 +1455,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies-runtime/page.tsx (24:66) @ CookiesReadingComponent
-               > 24 |   const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+               > 24 |   const token = (cookies() as any).get('token')
                     |                                                                  ^",
                    "stack": [
                      "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:66)",
@@ -1516,7 +1516,7 @@ describe('Cache Components Errors', () => {
                               "environmentLabel": "Prerender",
                               "label": "Console Error",
                               "source": "app/sync-draft-mode/page.tsx (23:31) @ DraftModeReadingComponent
-                            > 23 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
+                            > 23 |   const isEnabled = (draftMode() as any)
                                  |                               ^",
                               "stack": [
                                 "DraftModeReadingComponent app/sync-draft-mode/page.tsx (23:31)",
@@ -1531,7 +1531,7 @@ describe('Cache Components Errors', () => {
                  "environmentLabel": "Prerender",
                  "label": "Console Error",
                  "source": "app/sync-draft-mode/page.tsx (23:31) @ DraftModeReadingComponent
-               > 23 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
+               > 23 |   const isEnabled = (draftMode() as any)
                     |                               ^",
                  "stack": [
                    "DraftModeReadingComponent app/sync-draft-mode/page.tsx (23:31)",
@@ -1546,7 +1546,7 @@ describe('Cache Components Errors', () => {
                               "environmentLabel": "Prerender",
                               "label": "Console Error",
                               "source": "app/sync-draft-mode/page.tsx (23:21) @ DraftModeReadingComponent
-                            > 23 |   const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
+                            > 23 |   const isEnabled = (draftMode() as any)
                                  |                     ^",
                               "stack": [
                                 "DraftModeReadingComponent app/sync-draft-mode/page.tsx (23:21)",
@@ -1593,7 +1593,7 @@ describe('Cache Components Errors', () => {
                                 "environmentLabel": "Prerender",
                                 "label": "Console Error",
                                 "source": "app/sync-headers/page.tsx (17:29) @ HeadersReadingComponent
-                            > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                            > 17 |   const userAgent = (headers() as any).get(
                                  |                             ^",
                                 "stack": [
                                   "HeadersReadingComponent app/sync-headers/page.tsx (17:29)",
@@ -1605,7 +1605,7 @@ describe('Cache Components Errors', () => {
                                 "environmentLabel": "Prerender",
                                 "label": "Runtime TypeError",
                                 "source": "app/sync-headers/page.tsx (17:70) @ HeadersReadingComponent
-                            > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                            > 17 |   const userAgent = (headers() as any).get(
                                  |                                                                      ^",
                                 "stack": [
                                   "HeadersReadingComponent app/sync-headers/page.tsx (17:70)",
@@ -1621,7 +1621,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
                    "source": "app/sync-headers/page.tsx (17:29) @ HeadersReadingComponent
-               > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+               > 17 |   const userAgent = (headers() as any).get(
                     |                             ^",
                    "stack": [
                      "HeadersReadingComponent app/sync-headers/page.tsx (17:29)",
@@ -1633,7 +1633,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers/page.tsx (17:70) @ HeadersReadingComponent
-               > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+               > 17 |   const userAgent = (headers() as any).get(
                     |                                                                      ^",
                    "stack": [
                      "HeadersReadingComponent app/sync-headers/page.tsx (17:70)",
@@ -1649,7 +1649,7 @@ describe('Cache Components Errors', () => {
                                 "environmentLabel": "Prerender",
                                 "label": "Console Error",
                                 "source": "app/sync-headers/page.tsx (17:21) @ HeadersReadingComponent
-                            > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                            > 17 |   const userAgent = (headers() as any).get(
                                  |                     ^",
                                 "stack": [
                                   "HeadersReadingComponent app/sync-headers/page.tsx (17:21)",
@@ -1661,7 +1661,7 @@ describe('Cache Components Errors', () => {
                                 "environmentLabel": "Prerender",
                                 "label": "Runtime TypeError",
                                 "source": "app/sync-headers/page.tsx (17:70) @ HeadersReadingComponent
-                            > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                            > 17 |   const userAgent = (headers() as any).get(
                                  |                                                                      ^",
                                 "stack": [
                                   "HeadersReadingComponent app/sync-headers/page.tsx (17:70)",
@@ -1693,7 +1693,7 @@ describe('Cache Components Errors', () => {
                      at stringify (<anonymous>)
                    15 |
                    16 | async function HeadersReadingComponent() {
-                 > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                 > 17 |   const userAgent = (headers() as any).get(
                       |                                                                      ^
                    18 |     'user-agent'
                    19 |   )
@@ -1712,7 +1712,7 @@ describe('Cache Components Errors', () => {
                      at b (<anonymous>)
                    15 |
                    16 | async function HeadersReadingComponent() {
-                 > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                 > 17 |   const userAgent = (headers() as any).get(
                       |                                                                      ^
                    18 |     'user-agent'
                    19 |   )
@@ -1731,7 +1731,7 @@ describe('Cache Components Errors', () => {
                      at stringify (<anonymous>)
                    15 |
                    16 | async function HeadersReadingComponent() {
-                 > 17 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+                 > 17 |   const userAgent = (headers() as any).get(
                       |                                                                      ^
                    18 |     'user-agent'
                    19 |   )
@@ -1775,7 +1775,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-headers-runtime/page.tsx (24:29) @ HeadersReadingComponent
-               > 24 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+               > 24 |   const userAgent = (headers() as any).get(
                     |                             ^",
                    "stack": [
                      "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:29)",
@@ -1787,7 +1787,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers-runtime/page.tsx (24:70) @ HeadersReadingComponent
-               > 24 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+               > 24 |   const userAgent = (headers() as any).get(
                     |                                                                      ^",
                    "stack": [
                      "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:70)",
@@ -1803,7 +1803,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-headers-runtime/page.tsx (24:29) @ HeadersReadingComponent
-               > 24 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+               > 24 |   const userAgent = (headers() as any).get(
                     |                             ^",
                    "stack": [
                      "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:29)",
@@ -1815,7 +1815,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers-runtime/page.tsx (24:70) @ HeadersReadingComponent
-               > 24 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+               > 24 |   const userAgent = (headers() as any).get(
                     |                                                                      ^",
                    "stack": [
                      "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:70)",
@@ -1831,7 +1831,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-headers-runtime/page.tsx (24:21) @ HeadersReadingComponent
-               > 24 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+               > 24 |   const userAgent = (headers() as any).get(
                     |                     ^",
                    "stack": [
                      "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:21)",
@@ -1843,7 +1843,7 @@ describe('Cache Components Errors', () => {
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers-runtime/page.tsx (24:70) @ HeadersReadingComponent
-               > 24 |   const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
+               > 24 |   const userAgent = (headers() as any).get(
                     |                                                                      ^",
                    "stack": [
                      "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:70)",

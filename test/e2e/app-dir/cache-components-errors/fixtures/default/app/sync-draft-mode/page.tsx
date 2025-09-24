@@ -1,4 +1,4 @@
-import { draftMode, UnsafeUnwrappedDraftMode } from 'next/headers'
+import { draftMode } from 'next/headers'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
@@ -20,8 +20,7 @@ export default async function Page() {
 
 async function DraftModeReadingComponent() {
   await new Promise((r) => process.nextTick(r))
-  const isEnabled = (draftMode() as unknown as UnsafeUnwrappedDraftMode)
-    .isEnabled
+  const isEnabled = (draftMode() as any).isEnabled
   return (
     <div>
       this component read the draftMode isEnabled status synchronously:{' '}

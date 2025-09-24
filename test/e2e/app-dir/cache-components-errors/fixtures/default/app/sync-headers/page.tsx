@@ -1,4 +1,4 @@
-import { headers, type UnsafeUnwrappedHeaders } from 'next/headers'
+import { headers } from 'next/headers'
 
 export default async function Page() {
   return (
@@ -14,9 +14,7 @@ export default async function Page() {
 }
 
 async function HeadersReadingComponent() {
-  const userAgent = (headers() as unknown as UnsafeUnwrappedHeaders).get(
-    'user-agent'
-  )
+  const userAgent = (headers() as any).get('user-agent')
   return (
     <div>
       this component reads the `user-agent` header synchronously: {userAgent}

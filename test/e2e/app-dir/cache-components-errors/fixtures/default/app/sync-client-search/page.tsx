@@ -1,7 +1,5 @@
 'use client'
 
-import { type UnsafeUnwrappedSearchParams } from 'next/server'
-
 type SearchParams = { foo: string | string[] | undefined }
 export default function Page(props: { searchParams: Promise<SearchParams> }) {
   return (
@@ -21,9 +19,7 @@ function SearchParamsReadingComponent({
 }: {
   searchParams: Promise<SearchParams>
 }) {
-  const fooParam = (
-    searchParams as unknown as UnsafeUnwrappedSearchParams<typeof searchParams>
-  ).foo
+  const fooParam = (searchParams as any).foo
   return (
     <div>
       this component reads the `foo` search param:{' '}
