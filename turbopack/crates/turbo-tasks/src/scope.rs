@@ -10,6 +10,7 @@ use std::{
         atomic::{AtomicUsize, Ordering},
     },
     thread::{self, Thread},
+    time::{Duration, Instant},
 };
 
 use futures::FutureExt;
@@ -44,10 +45,39 @@ impl ScopeInner {
     }
 
     fn wait(&self) {
-        let _span = info_span!("blocking").entered();
-        while self.remaining_tasks.load(Ordering::Acquire) != 0 {
-            thread::park();
+        if self.remaining_tasks.load(Ordering::Acquire) == 0 {
+            return;
         }
+
+        let _span = info_span!("blocking").entered();
+
+        // Park up to 1ms without block_in_place to avoid the overhead.
+        const TIMEOUT: Duration = Duration::from_millis(1);
+        let beginning_park = Instant::now();
+
+        let mut timeout_remaining = TIMEOUT;
+        loop {
+            thread::park_timeout(timeout_remaining);
+            if self.remaining_tasks.load(Ordering::Acquire) == 0 {
+                return;
+            }
+            let elapsed = beginning_park.elapsed();
+            if elapsed >= TIMEOUT {
+                break;
+            }
+            timeout_remaining = TIMEOUT - elapsed;
+        }
+
+        // Park with block_in_place to allow to continue other work
+        block_in_place(|| {
+            while self.remaining_tasks.load(Ordering::Acquire) != 0 {
+                thread::park();
+            }
+        });
+    }
+
+    fn wait_and_rethrow_panic(&self) {
+        self.wait();
         if let Some((err, _)) = self.panic.lock().take() {
             panic::resume_unwind(err);
         }
@@ -147,7 +177,7 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
 
 impl<'scope, 'env: 'scope, R: Send + 'env> Drop for Scope<'scope, 'env, R> {
     fn drop(&mut self) {
-        self.inner.wait();
+        self.inner.wait_and_rethrow_panic();
     }
 }
 
@@ -163,25 +193,23 @@ where
     R: Send + 'env,
     F: for<'scope> FnOnce(&'scope Scope<'scope, 'env, R>) + 'env,
 {
-    block_in_place(|| {
-        let mut results = Vec::with_capacity(number_of_tasks);
-        for _ in 0..number_of_tasks {
-            results.push(Mutex::new(None));
-        }
-        let results = results.into_boxed_slice();
-        let result = {
-            // SAFETY: We drop the Scope later.
-            let scope = unsafe { Scope::new(&results) };
-            catch_unwind(AssertUnwindSafe(|| f(&scope)))
-        };
-        if let Err(panic) = result {
-            panic::resume_unwind(panic);
-        }
-        results.into_iter().map(|mutex| {
-            mutex
-                .into_inner()
-                .expect("All values are set when the scope returns without panic")
-        })
+    let mut results = Vec::with_capacity(number_of_tasks);
+    for _ in 0..number_of_tasks {
+        results.push(Mutex::new(None));
+    }
+    let results = results.into_boxed_slice();
+    let result = {
+        // SAFETY: We drop the Scope later.
+        let scope = unsafe { Scope::new(&results) };
+        catch_unwind(AssertUnwindSafe(|| f(&scope)))
+    };
+    if let Err(panic) = result {
+        panic::resume_unwind(panic);
+    }
+    results.into_iter().map(|mutex| {
+        mutex
+            .into_inner()
+            .expect("All values are set when the scope returns without panic")
     })
 }
 
