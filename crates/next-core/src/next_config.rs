@@ -880,6 +880,7 @@ pub struct ExperimentalConfig {
     worker_threads: Option<bool>,
 
     turbopack_minify: Option<bool>,
+    turbopack_module_ids: Option<ModuleIds>,
     turbopack_persistent_caching: Option<bool>,
     turbopack_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
@@ -893,9 +894,6 @@ pub struct ExperimentalConfig {
     /// present.
     #[serde(default)]
     turbopack_use_builtin_babel: Option<bool>,
-    /// The module ID strategy to use for Turbopack.
-    #[serde(default)]
-    turbopack_module_ids: Option<ModuleIds>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
