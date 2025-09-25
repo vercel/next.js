@@ -502,6 +502,7 @@ jobs:
 
         export NEXT_TEST_MODE=start
         export NEXT_TEST_WASM=true
+        export IS_WEBPACK_TEST=1
         node run-tests.js \
           test/production/pages-dir/production/test/index.test.ts \
           test/e2e/streaming-ssr/index.test.ts
@@ -711,8 +712,8 @@ jobs:
 
     secrets: inherit
 
-  test-dev:
-    name: test dev
+  test-webpack-dev:
+    name: test webpack dev
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
@@ -728,6 +729,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
+        export IS_WEBPACK_TEST=1
         export NEXT_TEST_MODE=dev
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
@@ -819,7 +821,7 @@ jobs:
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
-  test-prod:
+  test-webpack-prod:
     name: test prod
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
@@ -836,6 +838,7 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: |
+        export IS_WEBPACK_TEST=1
         export NEXT_TEST_MODE=start
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
@@ -843,7 +846,7 @@ jobs:
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
-  test-integration:
+  test-webpack-integration:
     name: test integration
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
@@ -875,6 +878,7 @@ jobs:
     with:
       nodeVersion: 20.9.0
       afterBuild: |
+        export IS_WEBPACK_TEST=1
         export NEXT_TEST_REACT_VERSION="${{ matrix.react }}"
 
         node run-tests.js \
@@ -1057,9 +1061,9 @@ jobs:
         'test-unit',
         'test-next-config-ts-native-ts-dev',
         'test-next-config-ts-native-ts-prod',
-        'test-dev',
-        'test-prod',
-        'test-integration',
+        'test-webpack-dev',
+        'test-webpack-prod',
+        'test-webpack-integration',
         'test-firefox-safari',
         'test-ppr-dev',
         'test-ppr-prod',
