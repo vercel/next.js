@@ -36,8 +36,8 @@ export class FileLogger {
         fs.writeFileSync(this.logFilePath, '')
       }
       this.isInitialized = true
-    } catch (error) {
-      console.error(error)
+    } catch {
+      // skip the error
     }
   }
 
