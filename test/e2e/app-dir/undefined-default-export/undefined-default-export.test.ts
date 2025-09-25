@@ -1,16 +1,13 @@
 import path from 'path'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { isNextStart, nextTestSetup } from 'e2e-utils'
 
 describe('Undefined default export', () => {
   const { next, isNextDev } = nextTestSetup({
-    files: new FileRef(
-      path.join(__dirname, 'fixtures', 'undefined-default-export')
-    ),
+    files: path.join(__dirname),
+    skipStart: isNextStart,
+    skipDeployment: true,
   })
 
-  // TODO: This is currently always true. It's just here to already indent the
-  // code, so that git blame is preserved in the subsequent commit, when we're
-  // moving the file.
   if (isNextDev) {
     it('should error if page component does not have default export', async () => {
       const browser = await next.browser('/specific-path/1')
@@ -52,6 +49,27 @@ describe('Undefined default export', () => {
          "stack": [],
        }
       `)
+    })
+  } else {
+    it('errors the build with unhelpful error messages', async () => {
+      const { cliOutput, exitCode } = await next.build()
+
+      expect(exitCode).toBe(1)
+
+      expect(cliOutput).toContain(
+        `Error occurred prerendering page "/specific-path/1". Read more: https://nextjs.org/docs/messages/prerender-error
+Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.Module`
+      )
+
+      expect(cliOutput).toContain(
+        `Error occurred prerendering page "/specific-path/2". Read more: https://nextjs.org/docs/messages/prerender-error
+Error: Element type is invalid: expected a string (for built-in components) or a class/function (for composite components) but got: object.`
+      )
+
+      expect(cliOutput).toContain(
+        `Error occurred prerendering page "/will-not-found". Read more: https://nextjs.org/docs/messages/prerender-error
+Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.Module`
+      )
     })
   }
 })
