@@ -122,13 +122,11 @@ pub fn connect_children(
     if len >= MIN_CHILDREN_FOR_PARALLEL {
         let new_follower_ids = new_follower_ids.into_vec();
         let chunk_size = good_chunk_size(len);
-        let _ = scope_and_block(len.div_ceil(chunk_size) - 1, |scope| {
-            let mut iter = into_chunks(new_follower_ids, chunk_size);
-            let first_chunk = iter.next().unwrap();
-            for chunk in iter {
+        let _ = scope_and_block(len.div_ceil(chunk_size), |scope| {
+            for chunk in into_chunks(new_follower_ids, chunk_size) {
                 let upper_ids = &upper_ids;
                 let child_ctx = ctx.child_context();
-                scope.spawn(async move {
+                scope.spawn(move || {
                     let mut ctx = child_ctx.create();
                     let new_follower_ids = chunk.collect::<SmallVec<[_; 4]>>();
                     process_new_children(
@@ -140,17 +138,6 @@ pub fn connect_children(
                         should_track_activeness,
                     );
                 });
-            }
-            {
-                let new_follower_ids = first_chunk.collect::<SmallVec<[_; 4]>>();
-                process_new_children(
-                    ctx,
-                    new_follower_ids,
-                    upper_ids.clone(),
-                    parent_task_id,
-                    has_active_count,
-                    should_track_activeness,
-                );
             }
         });
     } else {
