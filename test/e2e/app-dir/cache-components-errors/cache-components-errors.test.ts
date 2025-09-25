@@ -1100,7 +1100,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                "environmentLabel": null,
                "label": "Console Error",
                "source": "app/sync-client-search/page.tsx (23:42) @ SearchParamsReadingComponent
@@ -1137,7 +1137,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "description": "Route "/sync-server-search" used \`searchParams.foo\`. \`searchParams\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "description": "Route "/sync-server-search" used \`searchParams.foo\`. \`searchParams\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                "environmentLabel": "Prerender",
                "label": "Console Error",
                "source": "app/sync-server-search/page.tsx (29:42) @ SearchParamsReadingComponent
@@ -1168,7 +1168,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
                    "source": "app/sync-cookies/page.tsx (18:25) @ CookiesReadingComponent
@@ -1196,7 +1196,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
                    "source": "app/sync-cookies/page.tsx (17:25) @ CookiesReadingComponent
@@ -1224,7 +1224,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
                    "source": "app/sync-cookies/page.tsx (18:17) @ CookiesReadingComponent
@@ -1350,7 +1350,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-cookies-runtime/page.tsx (24:25) @ CookiesReadingComponent
@@ -1378,7 +1378,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-cookies-runtime/page.tsx (24:25) @ CookiesReadingComponent
@@ -1406,7 +1406,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-cookies-runtime/page.tsx (24:17) @ CookiesReadingComponent
@@ -1457,7 +1457,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                 "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                  "environmentLabel": "Prerender",
                  "label": "Console Error",
                  "source": "app/sync-draft-mode/page.tsx (24:31) @ DraftModeReadingComponent
@@ -1472,7 +1472,7 @@ describe('Cache Components Errors', () => {
             } else if (isRspack) {
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                 "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                  "environmentLabel": "Prerender",
                  "label": "Console Error",
                  "source": "app/sync-draft-mode/page.tsx (23:31) @ DraftModeReadingComponent
@@ -1487,7 +1487,7 @@ describe('Cache Components Errors', () => {
             } else {
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                 "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                  "environmentLabel": "Prerender",
                  "label": "Console Error",
                  "source": "app/sync-draft-mode/page.tsx (24:21) @ DraftModeReadingComponent
@@ -1519,7 +1519,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
                    "source": "app/sync-headers/page.tsx (18:29) @ HeadersReadingComponent
@@ -1547,7 +1547,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
                    "source": "app/sync-headers/page.tsx (17:29) @ HeadersReadingComponent
@@ -1575,7 +1575,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
                    "source": "app/sync-headers/page.tsx (18:21) @ HeadersReadingComponent
@@ -1701,7 +1701,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-headers-runtime/page.tsx (24:29) @ HeadersReadingComponent
@@ -1729,7 +1729,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-headers-runtime/page.tsx (24:29) @ HeadersReadingComponent
@@ -1757,7 +1757,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayRedbox(`
                [
                  {
-                   "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` should be awaited before using its value. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+                   "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
                    "source": "app/sync-headers-runtime/page.tsx (24:21) @ HeadersReadingComponent
@@ -1806,7 +1806,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               await expect(browser).toDisplayCollapsedRedbox(`
                             {
-                              "description": "A param property was accessed directly with \`params.slug\`. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
+                              "description": "A param property was accessed directly with \`params.slug\`. \`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
                               "environmentLabel": null,
                               "label": "Console Error",
                               "source": "app/sync-client-params/[slug]/page.tsx (20:39) @ ParamsReadingComponent
@@ -1821,7 +1821,7 @@ describe('Cache Components Errors', () => {
             } else {
               await expect(browser).toDisplayCollapsedRedbox(`
                             {
-                              "description": "A param property was accessed directly with \`params.slug\`. \`params\` is now a Promise and should be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
+                              "description": "A param property was accessed directly with \`params.slug\`. \`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.",
                               "environmentLabel": null,
                               "label": "Console Error",
                               "source": "app/sync-client-params/[slug]/page.tsx (20:39) @ ParamsReadingComponent
@@ -1857,7 +1857,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "description": "Route "/sync-server-params/[slug]" used \`params.slug\`. \`params\` should be awaited before using its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
+               "description": "Route "/sync-server-params/[slug]" used \`params.slug\`. \`params\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                "environmentLabel": "Prerender",
                "label": "Console Error",
                "source": "app/sync-server-params/[slug]/page.tsx (24:39) @ ParamsReadingComponent
