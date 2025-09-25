@@ -110,7 +110,6 @@ import {
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
-import type { FileLogger } from './browser-logs/file-logger'
 import { getFileLogger } from './browser-logs/file-logger'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
@@ -262,7 +261,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   public activeWebpackConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
   >
-  private fileLogger: FileLogger
 
   constructor(
     dir: string,
@@ -322,9 +320,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     // Initialize log monitor for file logging
     // Enable logging by default in development mode
-    const mcpServerEnabled = !!config.experimental?.mcpServer
-    this.fileLogger = getFileLogger()
-    this.fileLogger.initialize(this.distDir, mcpServerEnabled)
+    const mcpServerEnabled = !!config.experimental.mcpServer
+    const fileLogger = getFileLogger()
+    fileLogger.initialize(this.distDir, mcpServerEnabled)
   }
 
   public async run(

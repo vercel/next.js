@@ -217,7 +217,7 @@ export async function createHotReloaderTurbopack(
 
   // Initialize log monitor for file logging
   // Enable logging by default in development mode
-  const mcpServerEnabled = !!nextConfig.experimental?.mcpServer
+  const mcpServerEnabled = !!nextConfig.experimental.mcpServer
   const fileLogger = getFileLogger()
   fileLogger.initialize(distDir, mcpServerEnabled)
 

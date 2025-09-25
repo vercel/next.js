@@ -13,24 +13,21 @@ describe('log-file', () => {
     return
   }
 
+  const logFilePath = path.join(
+    next.testDir,
+    '.next',
+    'logs',
+    'next-development.log'
+  )
+
   function hasLogFile(): boolean {
-    const logPath = path.join(
-      next.testDir,
-      '.next',
-      'logs',
-      'next-development.log'
-    )
+    const logPath = logFilePath
 
     return fs.existsSync(logPath)
   }
 
   function readLogFile(): string {
-    const logPath = path.join(
-      next.testDir,
-      '.next',
-      'logs',
-      'next-development.log'
-    )
+    const logPath = logFilePath
     if (fs.existsSync(logPath)) {
       return fs.readFileSync(logPath, 'utf8')
     }
@@ -80,6 +77,11 @@ describe('log-file', () => {
 
     if (isNextDev) {
       await retry(async () => {
+        // DEBUG log the files under .next
+        require('console').log(
+          'Files under .next:',
+          fs.readdirSync(path.join(next.testDir, '.next'))
+        )
         expect(hasLogFile()).toBe(true)
 
         const newLogContent = getNewLogContent()
@@ -119,6 +121,11 @@ describe('log-file', () => {
 
     if (isNextDev) {
       await retry(async () => {
+        // DEBUG log the files under .next
+        require('console').log(
+          'Files under .next:',
+          fs.readdirSync(path.join(next.testDir, '.next'))
+        )
         expect(hasLogFile()).toBe(true)
 
         const newLogContent = getNewLogContent()
@@ -142,6 +149,11 @@ describe('log-file', () => {
 
     if (isNextDev) {
       await retry(async () => {
+        // DEBUG log the files under .next
+        require('console').log(
+          'Files under .next:',
+          fs.readdirSync(path.join(next.testDir, '.next'))
+        )
         expect(hasLogFile()).toBe(true)
 
         const newLogContent = getNewLogContent()

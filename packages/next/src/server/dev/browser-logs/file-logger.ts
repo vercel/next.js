@@ -36,8 +36,8 @@ export class FileLogger {
         fs.writeFileSync(this.logFilePath, '')
       }
       this.isInitialized = true
-    } catch {
-      // skip the error
+    } catch (error) {
+      console.error(error)
     }
   }
 
@@ -135,19 +135,15 @@ export class FileLogger {
       return
     }
 
-    try {
-      const logEntry: LogEntry = {
-        timestamp: this.formatTimestamp(),
-        source,
-        level,
-        message,
-      }
-
-      const formattedEntry = this.formatLogEntry(logEntry)
-      this.enqueueLog(formattedEntry)
-    } catch (error) {
-      console.error(error)
+    const logEntry: LogEntry = {
+      timestamp: this.formatTimestamp(),
+      source,
+      level,
+      message,
     }
+
+    const formattedEntry = this.formatLogEntry(logEntry)
+    this.enqueueLog(formattedEntry)
   }
 
   logServer(level: string, message: string): void {
