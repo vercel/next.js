@@ -4,7 +4,6 @@ import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   throwToInterruptStaticGeneration,
   postponeWithTracking,
-  trackDynamicDataInDynamicRender,
   annotateDynamicAccess,
   delayUntilRuntimeStage,
 } from '../app-render/dynamic-rendering'
@@ -193,14 +192,7 @@ function createRenderSearchParams(
       // Semantically we only need the dev tracking when running in `next dev`
       // but since you would never use next dev with production NODE_ENV we use this
       // as a proxy so we can statically exclude this code from production builds.
-      if (process.env.__NEXT_CACHE_COMPONENTS) {
-        return makeUntrackedSearchParamsWithDevWarnings(
-          underlyingSearchParams,
-          workStore
-        )
-      }
-
-      return makeDynamicallyTrackedSearchParamsWithDevWarnings(
+      return makeUntrackedSearchParamsWithDevWarnings(
         underlyingSearchParams,
         workStore
       )
@@ -504,7 +496,7 @@ function makeUntrackedSearchParams(
   return promise
 }
 
-function makeDynamicallyTrackedSearchParamsWithDevWarnings(
+function makeUntrackedSearchParamsWithDevWarnings(
   underlyingSearchParams: SearchParams,
   store: WorkStore
 ): Promise<SearchParams> {
@@ -532,10 +524,6 @@ function makeDynamicallyTrackedSearchParamsWithDevWarnings(
             store.route,
             expression
           )
-        }
-        const workUnitStore = workUnitAsyncStorage.getStore()
-        if (workUnitStore) {
-          trackDynamicDataInDynamicRender(workUnitStore)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -595,80 +583,6 @@ function makeDynamicallyTrackedSearchParamsWithDevWarnings(
           expression
         )
       }
-      if (typeof prop === 'string') {
-        if (
-          !wellKnownProperties.has(prop) &&
-          (proxiedProperties.has(prop) ||
-            // We are accessing a property that doesn't exist on the promise nor
-            // the underlying searchParams.
-            Reflect.has(target, prop) === false)
-        ) {
-          const expression = describeStringPropertyAccess('searchParams', prop)
-          warnForSyncAccess(store.route, expression)
-        }
-      }
-      return ReflectAdapter.get(target, prop, receiver)
-    },
-    set(target, prop, value, receiver) {
-      if (typeof prop === 'string') {
-        proxiedProperties.delete(prop)
-      }
-      return Reflect.set(target, prop, value, receiver)
-    },
-    has(target, prop) {
-      if (typeof prop === 'string') {
-        if (
-          !wellKnownProperties.has(prop) &&
-          (proxiedProperties.has(prop) ||
-            // We are accessing a property that doesn't exist on the promise nor
-            // the underlying searchParams.
-            Reflect.has(target, prop) === false)
-        ) {
-          const expression = describeHasCheckingStringProperty(
-            'searchParams',
-            prop
-          )
-          warnForSyncAccess(store.route, expression)
-        }
-      }
-      return Reflect.has(target, prop)
-    },
-    ownKeys(target) {
-      const expression = '`Object.keys(searchParams)` or similar'
-      warnForIncompleteEnumeration(store.route, expression, unproxiedProperties)
-      return Reflect.ownKeys(target)
-    },
-  })
-
-  CachedSearchParams.set(underlyingSearchParams, proxiedPromise)
-  return proxiedPromise
-}
-
-function makeUntrackedSearchParamsWithDevWarnings(
-  underlyingSearchParams: SearchParams,
-  store: WorkStore
-): Promise<SearchParams> {
-  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
-  if (cachedSearchParams) {
-    return cachedSearchParams
-  }
-
-  const proxiedProperties = new Set<string>()
-  const unproxiedProperties: Array<string> = []
-  const promise = makeDevtoolsIOAwarePromise(underlyingSearchParams)
-
-  Object.keys(underlyingSearchParams).forEach((prop) => {
-    if (wellKnownProperties.has(prop)) {
-      // These properties cannot be shadowed because they need to be the
-      // true underlying value for Promises to work correctly at runtime
-      unproxiedProperties.push(prop)
-    } else {
-      proxiedProperties.add(prop)
-    }
-  })
-
-  const proxiedPromise = new Proxy(promise, {
-    get(target, prop, receiver) {
       if (typeof prop === 'string') {
         if (
           !wellKnownProperties.has(prop) &&
