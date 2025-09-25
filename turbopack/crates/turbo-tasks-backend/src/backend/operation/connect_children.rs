@@ -116,7 +116,7 @@ pub fn connect_children(
         }
     }
 
-    const MIN_CHILDREN_FOR_PARALLEL: usize = 10240;
+    const MIN_CHILDREN_FOR_PARALLEL: usize = 10000;
 
     let len = new_follower_ids.len();
     if len >= MIN_CHILDREN_FOR_PARALLEL {
