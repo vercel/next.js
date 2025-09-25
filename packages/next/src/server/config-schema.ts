@@ -437,6 +437,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         turbopackMemoryLimit: z.number().optional(),
         turbopackMinify: z.boolean().optional(),
         turbopackPersistentCaching: z.boolean().optional(),
+        turbopackPersistentCachingForBuild: z.boolean().optional(),
         turbopackSourceMaps: z.boolean().optional(),
         turbopackTreeShaking: z.boolean().optional(),
         turbopackRemoveUnusedExports: z.boolean().optional(),

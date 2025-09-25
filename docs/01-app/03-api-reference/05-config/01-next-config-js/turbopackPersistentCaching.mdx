@@ -13,12 +13,17 @@ Turbopack Persistent Caching enables Turbopack to reduce work across `next dev` 
 
 > **Good to know**: Note that while `next dev` and `next build` can share cached data with each other, most cache entries are command-specific due to different configuration and environment variables.
 
+> **Note**: Persistent Caching for `next build` is enabled with a separate flag, `turbopackPersistentCachingForBuild`. Once it's stable, it will be merged into `turbopackPersistentCaching`.
+
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
+    // Enable persistent caching for `next dev`
     turbopackPersistentCaching: true,
+    // Enable persistent caching for `next build`
+    turbopackPersistentCachingForBuild: true,
   },
 }
 
@@ -29,7 +34,10 @@ export default nextConfig
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
+    // Enable persistent caching for `next dev`
     turbopackPersistentCaching: true,
+    // Enable persistent caching for `next build`
+    turbopackPersistentCachingForBuild: true,
   },
 }
 
@@ -40,4 +48,5 @@ module.exports = nextConfig
 
 | Version   | Changes                                     |
 | --------- | ------------------------------------------- |
+| `v16.0.0` | Separate flag for `next build` added        |
 | `v15.5.0` | Persistent caching released as experimental |

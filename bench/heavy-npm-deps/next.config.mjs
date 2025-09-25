@@ -8,6 +8,7 @@ const nextConfig = {
   },
   experimental: {
     turbopackPersistentCaching: process.env.TURBO_CACHE === '1',
+    turbopackPersistentCachingForBuild: process.env.TURBO_CACHE === '1',
   },
 }
 

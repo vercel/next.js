@@ -358,6 +358,10 @@ function assignDefaultsAndValidate(
       throw new CanaryOnlyError({
         feature: 'experimental.turbopackPersistentCaching',
       })
+    } else if (result.experimental?.turbopackPersistentCachingForBuild) {
+      throw new CanaryOnlyError({
+        feature: 'experimental.turbopackPersistentCachingForBuild',
+      })
     }
   }
 

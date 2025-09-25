@@ -206,7 +206,7 @@ import {
 } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 
 import { turbopackBuild } from './turbopack-build'
-import { isPersistentCachingEnabled } from '../shared/lib/turbopack/utils'
+import { isPersistentCachingEnabledForBuild } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
 import { durationToString } from './duration-to-string'
@@ -2756,7 +2756,7 @@ export default async function build(
         },
         {
           featureName: 'turbopackPersistentCaching',
-          invocationCount: isPersistentCachingEnabled(config) ? 1 : 0,
+          invocationCount: isPersistentCachingEnabledForBuild(config) ? 1 : 0,
         },
       ]
       telemetry.record(

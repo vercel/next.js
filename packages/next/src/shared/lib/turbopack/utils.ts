@@ -319,3 +319,9 @@ export function isPersistentCachingEnabled(
 ): boolean {
   return config.experimental?.turbopackPersistentCaching || false
 }
+
+export function isPersistentCachingEnabledForBuild(
+  config: NextConfigComplete
+): boolean {
+  return config.experimental?.turbopackPersistentCachingForBuild || false
+}

@@ -17,6 +17,7 @@ const nextConfig = {
   },
   experimental: {
     turbopackPersistentCaching: true,
+    turbopackPersistentCachingForBuild: true,
   },
   env: {
     NEXT_PUBLIC_CONFIG_ENV: 'hello world',
