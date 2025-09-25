@@ -751,6 +751,7 @@ export async function createHotReloaderTurbopack(
       ? [
           getMcpMiddleware(
             projectPath,
+            distDir,
             (message) => hotReloader.send(message),
             () => clients.size
           ),

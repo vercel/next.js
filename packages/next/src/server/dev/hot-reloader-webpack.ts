@@ -1647,6 +1647,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         ? [
             getMcpMiddleware(
               this.dir,
+              this.distDir,
               (message) => this.send(message),
               () => this.webpackHotMiddleware?.getClientCount() ?? 0
             ),
