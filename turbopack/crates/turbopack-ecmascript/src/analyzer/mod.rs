@@ -1772,6 +1772,10 @@ impl JsValue {
                         "fs",
                         "The Node.js fs module: https://nodejs.org/api/fs.html",
                     ),
+                    WellKnownObjectKind::FsExtraModule | WellKnownObjectKind::FsExtraModuleDefault => (
+                        "fs-extra",
+                        "The Node.js fs-extra module: https://github.com/jprichardson/node-fs-extra",
+                    ),
                     WellKnownObjectKind::FsModulePromises => (
                         "fs/promises",
                         "The Node.js fs module: https://nodejs.org/api/fs.html#promises-api",
@@ -3450,6 +3454,8 @@ pub enum WellKnownObjectKind {
     FsModule,
     FsModuleDefault,
     FsModulePromises,
+    FsExtraModule,
+    FsExtraModuleDefault,
     UrlModule,
     UrlModuleDefault,
     ChildProcess,

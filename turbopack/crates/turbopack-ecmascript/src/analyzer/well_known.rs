@@ -600,6 +600,9 @@ async fn well_known_object_member(
         WellKnownObjectKind::FsModule
         | WellKnownObjectKind::FsModuleDefault
         | WellKnownObjectKind::FsModulePromises => fs_module_member(kind, prop),
+        WellKnownObjectKind::FsExtraModule | WellKnownObjectKind::FsExtraModuleDefault => {
+            fs_extra_module_member(kind, prop)
+        }
         WellKnownObjectKind::UrlModule | WellKnownObjectKind::UrlModuleDefault => {
             url_module_member(kind, prop)
         }
@@ -690,6 +693,45 @@ fn fs_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
         ),
         true,
         "unsupported property on Node.js fs module",
+    )
+}
+
+fn fs_extra_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
+    if let Some(word) = prop.as_str() {
+        match (kind, word) {
+            // regular fs methods
+            (
+                ..,
+                "realpath" | "realpathSync" | "stat" | "statSync" | "existsSync"
+                | "createReadStream" | "exists" | "open" | "openSync" | "readFile" | "readFileSync",
+            ) => {
+                return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(
+                    word.into(),
+                ));
+            }
+            // fs-extra specific
+            (
+                ..,
+                "pathExists" | "pathExistsSync" | "readJson" | "readJSON" | "readJsonSync"
+                | "readJSONSync",
+            ) => {
+                return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(
+                    word.into(),
+                ));
+            }
+            (WellKnownObjectKind::FsExtraModule, "default") => {
+                return JsValue::WellKnownObject(WellKnownObjectKind::FsExtraModuleDefault);
+            }
+            _ => {}
+        }
+    }
+    JsValue::unknown(
+        JsValue::member(
+            Box::new(JsValue::WellKnownObject(WellKnownObjectKind::FsExtraModule)),
+            Box::new(prop),
+        ),
+        true,
+        "unsupported property on fs-extra module",
     )
 }
 

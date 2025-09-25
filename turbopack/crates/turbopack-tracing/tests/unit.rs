@@ -44,12 +44,13 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // TODO fix failures
 #[rstest]
 #[case::amd_disable("amd-disable")]
-// #[case::array_emission("array-emission")]
+#[case::array_emission("array-emission")]
 #[case::array_holes("array-holes")]
+// Ternary currently becomes Unknown as opposed to Alternatives when the condition isn't static
 // #[case::asset_conditional("asset-conditional")]
 #[case::asset_fs_array_expr("asset-fs-array-expr")]
 #[case::asset_fs_array_expr_node_prefix("asset-fs-array-expr-node-prefix")]
-// #[case::asset_fs_extra("asset-fs-extra")]
+#[case::asset_fs_extra("asset-fs-extra")]
 #[case::asset_fs_inline_path_babel("asset-fs-inline-path-babel")]
 #[case::asset_fs_inline_path_enc_es("asset-fs-inline-path-enc-es")]
 #[case::asset_fs_inline_path_enc_es_2("asset-fs-inline-path-enc-es-2")]
@@ -273,6 +274,8 @@ async fn to_list(assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>) -> Result<Vec<Rc
 }
 
 static TRAILING_COMMA: LazyLock<Regex> = LazyLock::new(|| Regex::new(r",[\s\n]*\]").unwrap());
+static LINE_COMMENTS_COMMA: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?m)^\s*//.*$").unwrap());
 
 fn node_file_trace(input_path: &str) -> Result<()> {
     let r = &mut {
@@ -305,8 +308,9 @@ fn node_file_trace(input_path: &str) -> Result<()> {
 
             let reference = std::fs::read_to_string(reference)?;
             // crude JS -> JSON conversion
-            let reference = TRAILING_COMMA
-                .replace(&reference, "]")
+            let reference = TRAILING_COMMA.replace(&reference, "]");
+            let reference = LINE_COMMENTS_COMMA
+                .replace_all(&reference, "")
                 .replace(";", "")
                 .replace('\'', "\"");
             let reference = serde_json::from_str::<Vec<String>>(&reference)?
