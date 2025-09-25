@@ -560,7 +560,6 @@ pub struct TurbopackConfig {
     pub rules: Option<FxIndexMap<RcStr, RuleConfigCollection>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
-    pub module_ids: Option<ModuleIds>,
 }
 
 #[derive(
@@ -894,6 +893,9 @@ pub struct ExperimentalConfig {
     /// present.
     #[serde(default)]
     turbopack_use_builtin_babel: Option<bool>,
+    /// The module ID strategy to use for Turbopack.
+    #[serde(default)]
+    turbopack_module_ids: Option<ModuleIds>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1807,9 +1809,8 @@ impl NextConfig {
             // Ignore configuration in development mode, HMR only works with `named`
             NextMode::Development => ModuleIds::Named.cell(),
             NextMode::Build => self
-                .turbopack
-                .as_ref()
-                .and_then(|t| t.module_ids)
+                .experimental
+                .turbopack_module_ids
                 .unwrap_or(ModuleIds::Deterministic)
                 .cell(),
         })
