@@ -1176,7 +1176,7 @@ Streaming metadata allows Next.js to render and send the initial UI to browser, 
 
 When `generateMetadata` resolves, the resulting metadata tags are appended to the `<body>`.
 
-Streaming metadata improves perceived performance by reducing [TTFB](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) and can help [LCP](https://developer.mozilla.org/docs/Glossary/First_contentful_paint) for users and JS-capable bots.
+Streaming metadata improves perceived performance by reducing [TTFB](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) and can help [LCP](https://developer.mozilla.org/docs/Glossary/Largest_contentful_paint) by allowing visual content to stream first.
 
 For **HTML-limited bots** that can’t execute JavaScript (e.g. `Twitterbot`, `Slackbot`, `Bingbot`), the metadata will be available in the `<head>`. Next.js won't start sending HTML until `generateMetadata` resolves.
 

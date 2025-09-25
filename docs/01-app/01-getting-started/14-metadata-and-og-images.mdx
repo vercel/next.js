@@ -120,7 +120,7 @@ export default function Page({ params, searchParams }) {}
 
 For dynamically rendered pages, if resolving `generateMetadata` delays rendering UI, Next.js streams the resolved metadata separately and injects it into the HTML as soon as it's ready.
 
-This improves perceived performance by reducing [TTFB](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) and often [LCP](https://developer.mozilla.org/docs/Glossary/First_contentful_paint).
+This improves perceived performance by reducing [TTFB](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte).
 
 Bots that can’t execute JavaScript are **opted out of this behavior**. The initial HTML contains the resolved metadata in the `<head>`.
 
