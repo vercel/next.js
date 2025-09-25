@@ -118,17 +118,17 @@ export default function Page({ params, searchParams }) {}
 
 ### Streaming metadata
 
-For dynamically rendered pages, if resolving generateMetadata might block rendering, Next.js streams the resolved metadata separately and injects it into the HTML as soon as it's ready.
+For dynamically rendered pages, if resolving `generateMetadata` delays rendering UI, Next.js streams the resolved metadata separately and injects it into the HTML as soon as it's ready.
 
-Bots that can’t execute JavaScript are **opted out of this behavior**. The HTML received by these bots contains metadata in the `<head>` tag.
+This improves perceived performance by reducing [TTFB](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) and often [LCP](https://developer.mozilla.org/docs/Glossary/First_contentful_paint).
 
-This improves perceived performance by reducing [TTFB](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) and often [LCP](https://developer.mozilla.org/docs/Glossary/First_contentful_paint) for users and JS-capable bots.
+Bots that can’t execute JavaScript are **opted out of this behavior**. The initial HTML contains the resolved metadata in the `<head>`.
 
 Statically rendered pages don’t use streaming since metadata is resolved at build time.
 
 You can customize which user agents receive blocking metadata, or **disable streaming metadata** completely, with the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots#disabling) option in your Next.js config file.
 
-Learn more about [Streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata).
+Learn more about [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata).
 
 ### Memoizing data requests
 
