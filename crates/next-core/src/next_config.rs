@@ -91,6 +91,7 @@ pub struct NextConfig {
     pub experimental: ExperimentalConfig,
     pub images: ImageConfig,
     pub page_extensions: Vec<RcStr>,
+    pub react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     pub react_production_profiling: Option<bool>,
     pub react_strict_mode: Option<bool>,
     pub transpile_packages: Option<Vec<RcStr>>,
@@ -816,7 +817,6 @@ pub struct ExperimentalConfig {
     web_vitals_attribution: Option<Vec<RcStr>>,
     server_actions: Option<ServerActionsOrLegacyBool>,
     sri: Option<SubResourceIntegrity>,
-    react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     cache_components: Option<bool>,
     use_cache: Option<bool>,
     root_params: Option<bool>,
@@ -1634,7 +1634,7 @@ impl NextConfig {
 
     #[turbo_tasks::function]
     pub fn react_compiler_options(&self) -> Vc<OptionalReactCompilerOptions> {
-        let options = &self.experimental.react_compiler;
+        let options = &self.react_compiler;
 
         let options = match options {
             Some(ReactCompilerOptionsOrBoolean::Boolean(true)) => {

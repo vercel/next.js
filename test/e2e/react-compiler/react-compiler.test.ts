@@ -1,5 +1,5 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
-import { assertHasRedbox, retry } from 'next-test-utils'
+import { assertHasRedbox } from 'next-test-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
 
@@ -44,13 +44,6 @@ describe.each(['default', 'babelrc'] as const)(
         'babel-plugin-react-compiler': '0.0.0-experimental-3fde738-20250918',
         ...dependencies,
       },
-    })
-
-    it('should show an experimental warning', async () => {
-      await retry(() => {
-        expect(next.cliOutput).toContain('Experiments (use with caution)')
-        expect(stripAnsi(next.cliOutput)).toContain('✓ reactCompiler')
-      })
     })
 
     it('should memoize Components', async () => {

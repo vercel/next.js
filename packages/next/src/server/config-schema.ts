@@ -458,19 +458,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         testProxy: z.boolean().optional(),
         defaultTestRunner: z.enum(SUPPORTED_TEST_RUNNERS_LIST).optional(),
         allowDevelopmentBuild: z.literal(true).optional(),
-        reactCompiler: z.union([
-          z.boolean(),
-          z
-            .object({
-              compilationMode: z
-                .enum(['infer', 'annotation', 'all'])
-                .optional(),
-              panicThreshold: z
-                .enum(['none', 'critical_errors', 'all_errors'])
-                .optional(),
-            })
-            .optional(),
-        ]),
+
         reactDebugChannel: z.boolean().optional(),
         staticGenerationRetryCount: z.number().int().optional(),
         staticGenerationMaxConcurrency: z.number().int().optional(),
@@ -655,6 +643,17 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
     publicRuntimeConfig: z.record(z.string(), z.any()).optional(),
+    reactCompiler: z.union([
+      z.boolean(),
+      z
+        .object({
+          compilationMode: z.enum(['infer', 'annotation', 'all']).optional(),
+          panicThreshold: z
+            .enum(['none', 'critical_errors', 'all_errors'])
+            .optional(),
+        })
+        .optional(),
+    ]),
     reactProductionProfiling: z.boolean().optional(),
     reactStrictMode: z.boolean().nullable().optional(),
     reactMaxHeadersLength: z.number().nonnegative().int().optional(),
