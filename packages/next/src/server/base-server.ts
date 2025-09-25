@@ -2558,8 +2558,12 @@ export default abstract class Server<
       i18n: this.i18nProvider?.fromRequest(req, pathname),
     }
 
+    const existingMatch = getRequestMeta(ctx.req, 'match')
+
     try {
-      for await (const match of this.matchers.matchAll(pathname, options)) {
+      for await (const match of existingMatch
+        ? [existingMatch]
+        : this.matchers.matchAll(pathname, options)) {
         // when a specific invoke-output is meant to be matched
         // ensure a prior dynamic route/page doesn't take priority
         const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
