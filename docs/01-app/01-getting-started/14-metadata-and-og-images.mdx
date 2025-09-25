@@ -13,6 +13,7 @@ related:
     - app/api-reference/file-conventions/metadata/opengraph-image
     - app/api-reference/file-conventions/metadata/robots
     - app/api-reference/file-conventions/metadata/sitemap
+    - app/api-reference/config/next-config-js/htmlLimitedBots
 ---
 
 The Metadata APIs can be used to define your application metadata for improved SEO and web shareability and include:
@@ -117,11 +118,17 @@ export default function Page({ params, searchParams }) {}
 
 ### Streaming metadata
 
-For dynamically rendered pages, if resolving `generateMetadata` might block rendering, Next.js streams the resolved metadata separately and injects it into the HTML as soon as it's ready.
+If metadata isn’t immediately ready, Next.js renders and sends the initial UI. As soon as `generateMetadata` resolves its results are streamed to the client. The streamed metadata tags are appended to the `<body>`.
 
-Statically rendered pages don’t use this behavior since metadata is resolved at build time.
+Bots that can’t execute JavaScript are **opted out of this behavior**. Next.js waits for `generateMetadata` before sending the initial UI. The HTML received by these bots contains metadata in the `<head>` tag.
 
-Learn more about [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata).
+This improves perceived performance by reducing [TTFB](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) and often [LCP](https://developer.mozilla.org/docs/Glossary/First_contentful_paint) for users and JS-capable bots.
+
+Statically rendered pages don’t use streaming since metadata is resolved at build time.
+
+You can customize which user agents receive blocking metadata, or **disable streaming metadata** completely, with the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots#disabling) option in your Next.js config file.
+
+Learn more about [Streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata).
 
 ### Memoizing data requests
 
