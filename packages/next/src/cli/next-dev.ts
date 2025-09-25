@@ -44,6 +44,7 @@ export type NextDevOptions = {
   disableSourceMaps: boolean
   turbo?: boolean
   turbopack?: boolean
+  webpack?: boolean
   port: number
   hostname?: string
   experimentalHttps?: boolean
