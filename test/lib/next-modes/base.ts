@@ -330,7 +330,7 @@ export class NextInstance {
           !finalDependencies['babel-plugin-react-compiler']
         ) {
           finalDependencies['babel-plugin-react-compiler'] =
-            '0.0.0-experimental-3fde738-20250918'
+            '0.0.0-experimental-ff4e0fd-20260324'
         }
 
         if (skipInstall || skipIsolatedNext) {

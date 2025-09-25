@@ -173,7 +173,7 @@
     "ajv": "8.17.1",
     "alex": "9.1.0",
     "async-sema": "3.0.1",
-    "babel-plugin-react-compiler": "0.0.0-experimental-1371fcb-20260227",
+    "babel-plugin-react-compiler": "0.0.0-experimental-ff4e0fd-20260324",
     "browserslist": "4.28.1",
     "buffer": "5.6.0",
     "cheerio": "0.22.0",
