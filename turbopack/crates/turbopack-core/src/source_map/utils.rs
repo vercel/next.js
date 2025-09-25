@@ -60,7 +60,10 @@ struct SourceMapJson {
     sources_content: Option<Vec<Option<String>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     names: Option<Vec<String>>,
-    mappings: String,
+    // We just need to hold onto `mappings` for serialization/deserialization, so there's no point
+    // in decoding/encoding the string. Store it as a `RawValue`. Ideally this would be a reference
+    // to the RawValue, but we deserialize using `from_reader`, which does not support that.
+    mappings: Box<serde_json::value::RawValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
     ignore_list: Option<Vec<u32>>,
 
