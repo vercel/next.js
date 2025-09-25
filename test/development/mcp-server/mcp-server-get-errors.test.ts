@@ -168,24 +168,26 @@ describe('mcp-server get_errors tool', () => {
 
        \`\`\`
        ./app/build-error/page.tsx
-       Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
-          ,-[4:1]
-        1 | export default function BuildErrorPage() {
-        2 |   // Syntax error - missing closing brace
-        3 |   return <div>Page
-        4 | }
-          : ^
-          \`----
-         x Expected '</', got '<eof>'
-          ,-[4:1]
-        1 | export default function BuildErrorPage() {
-        2 |   // Syntax error - missing closing brace
-        3 |   return <div>Page
-        4 | }
-          \`----
-
-       Caused by:
-           Syntax Error
+         × Module build failed:
+         ╰─▶   × Error:   x Unexpected token. Did you mean \`{'}'}\` or \`&rbrace;\`?
+               │    ,-[4:1]
+               │  1 | export default function BuildErrorPage() {
+               │  2 |   // Syntax error - missing closing brace
+               │  3 |   return <div>Page
+               │  4 | }
+               │    : ^
+               │    \`----
+               │   x Expected '</', got '<eof>'
+               │    ,-[4:1]
+               │  1 | export default function BuildErrorPage() {
+               │  2 |   // Syntax error - missing closing brace
+               │  3 |   return <div>Page
+               │  4 | }
+               │    \`----
+               │
+               │
+               │ Caused by:
+               │     Syntax Error
        \`\`\`
 
        ---"

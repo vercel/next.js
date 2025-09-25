@@ -133,10 +133,10 @@ describe('ReactRefreshLogBox', () => {
          "label": "Build Error",
          "source": "./index.js
          × Module not found: Can't resolve 'b' in '<FIXME-project-root>'
-          ╭─[2:17]
+          ╭─[2:0]
         1 │ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
         2 │ import Comp from 'b';
-          ·                  ───
+          · ─────────────────────
         3 │ export default function Oops() {
         4 │     return /*#__PURE__*/ _jsxDEV("div", {
           ╰────
@@ -202,10 +202,10 @@ describe('ReactRefreshLogBox', () => {
          "label": "Build Error",
          "source": "./pages/index.js
          × Module not found: Can't resolve 'b' in '<FIXME-project-root>/pages'
-          ╭─[2:17]
+          ╭─[2:0]
         1 │ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
         2 │ import Comp from 'b';
-          ·                  ───
+          · ─────────────────────
         3 │ export default function Oops() {
         4 │     return /*#__PURE__*/ _jsxDEV("div", {
           ╰────
@@ -277,10 +277,10 @@ describe('ReactRefreshLogBox', () => {
          "label": "Build Error",
          "source": "./pages/_app.js
          × Module not found: Can't resolve './non-existent.css' in '<FIXME-project-root>/pages'
-          ╭─[2:7]
+          ╭─[2:0]
         1 │ import { jsxDEV as _jsxDEV } from "react/jsx-dev-runtime";
         2 │ import './non-existent.css';
-          ·        ────────────────────
+          · ────────────────────────────
         3 │ export default function App({ Component, pageProps }) {
         4 │     return /*#__PURE__*/ _jsxDEV(Component, {
           ╰────",

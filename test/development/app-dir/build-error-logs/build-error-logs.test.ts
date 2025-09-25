@@ -5,6 +5,7 @@ describe('build-error-logs', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
+  const isRspack = !!process.env.NEXT_RSPACK
 
   it('should only log error a single time', async () => {
     await next.fetch('/')
@@ -18,6 +19,8 @@ describe('build-error-logs', () => {
 
     if (isTurbopack) {
       expect(moduleNotFoundLogs).toHaveLength(1)
+    } else if (isRspack) {
+      expect(moduleNotFoundLogs).toHaveLength(2)
     } else {
       // FIXME: next with webpack still logs the same error too many times
       expect(moduleNotFoundLogs).toHaveLength(3)
