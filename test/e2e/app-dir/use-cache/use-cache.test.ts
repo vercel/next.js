@@ -1093,6 +1093,225 @@ describe('use-cache', () => {
     // the outer 'use cache'), and this expectation needs to be flipped.
     expect(description).not.toBe(initialDescription)
   })
+
+  if (withCacheComponents) {
+    it('can resume a cached generateMetadata function', async () => {
+      // First load the page with JavaScript disabled, to ensure that the
+      // generateMetadata result was included in the prerendered shell.
+      let browser = await next.browser('/generate-metadata-resume', {
+        disableJavaScript: true,
+      })
+
+      // The title must be in the head if it was prerendered.
+      const title = await browser
+        .elementByCss('head title', { state: 'attached' })
+        .text()
+      expect(title).toBeDateString()
+
+      await browser.close()
+
+      // Load the page again, now with JavaScript enabled.
+      browser = await next.browser('/generate-metadata-resume')
+
+      // If there was no cache hit from the RDC during the resume, we'd observe
+      // a different title.
+      expect(await browser.eval('document.title')).toBe(title)
+    })
+
+    it('can resume a cached generateMetadata function that does not read params', async () => {
+      // First load the page with JavaScript disabled, to ensure that the
+      // generateMetadata result was included in the prerendered shell.
+      let browser = await next.browser(
+        '/generate-metadata-resume/params-unused/foo',
+        { disableJavaScript: true }
+      )
+
+      // The metadata must be in the head if it was prerendered.
+      const title = await browser
+        .elementByCss('head title', { state: 'attached' })
+        .text()
+      expect(title).toBeDateString()
+      const description = await browser
+        .elementByCss('head meta[name="description"]', { state: 'attached' })
+        .getAttribute('content')
+      expect(description).toBeDateString()
+
+      await browser.close()
+
+      // Load the page again, now with JavaScript enabled.
+      browser = await next.browser(
+        '/generate-metadata-resume/params-unused/foo'
+      )
+
+      // If there was no cache hit from the RDC during the resume, we'd observe
+      // different metadata.
+      const title2 = await browser.eval('document.title')
+      const description2 = await browser
+        // Select the last meta element, in case another one was added during
+        // the resume due to a cache miss.
+        .elementByCss('meta[name="description"]:last-of-type')
+        .getAttribute('content')
+
+      if (isNextDev) {
+        expect(title2).toBe(title)
+        expect(description2).toBe(description)
+      } else {
+        // TODO: Omitting unused params from cache keys (and upgrading cache
+        // keys when they are used) is not yet implemented. Remove this else
+        // branch once it is.
+        expect(title2).not.toBe(title)
+        expect(description2).not.toBe(description)
+      }
+    })
+
+    it('makes a cached generateMetadata function that reads params dynamic during prerendering', async () => {
+      // First load the page with JavaScript disabled, to ensure that no
+      // generateMetadata result was included in the prerendered shell.
+      let browser = await next.browser(
+        '/generate-metadata-resume/params-used/foo',
+        { disableJavaScript: true }
+      )
+
+      // The metadata would be in the head if it was prerendered.
+      expect(
+        await browser
+          .elementByCss('head', { state: 'attached' })
+          .hasElementByCss('title')
+      ).toBe(false)
+      expect(
+        await browser
+          .elementByCss('head', { state: 'attached' })
+          .hasElementByCss('meta[name="description"]')
+      ).toBe(false)
+
+      // However, it should have been added to the body during the resume.
+      const title = await browser.eval('document.title')
+      expect(title).toBeDefined()
+      expect(title).toBeDateString()
+      const description = await browser
+        .elementByCss('meta[name="description"]')
+        .getAttribute('content')
+      expect(description).toBeDateString()
+
+      await browser.close()
+
+      // Load the page again, now with JavaScript enabled.
+      browser = await next.browser('/generate-metadata-resume/params-used/foo')
+
+      // We should see the same cached metadata again.
+      expect(await browser.eval('document.title')).toBe(title)
+      expect(
+        await browser
+          .elementByCss('meta[name="description"]')
+          .getAttribute('content')
+      ).toBe(description)
+    })
+
+    it('can resume a cached generateViewport function', async () => {
+      // First load the page with JavaScript disabled, to ensure that the
+      // generateViewport result was included in the prerendered shell.
+      let browser = await next.browser('/generate-viewport-resume', {
+        disableJavaScript: true,
+      })
+
+      // The meta tag must be in the head if it was prerendered.
+      const viewport = await browser
+        .elementByCss('head meta[name="viewport"]', { state: 'attached' })
+        .getAttribute('content')
+      const [, initialScale] = viewport.match(/initial-scale=([\d.]+)/) ?? []
+      expect(Number(initialScale)).toBeNumber()
+      await browser.close()
+
+      // Load the page again, now with JavaScript enabled.
+      browser = await next.browser('/generate-viewport-resume')
+
+      // If there was no cache hit from the RDC during the resume, we'd observe
+      // a different value.
+      const viewport2 = await browser
+        // Select the last meta element, in case another one was added during
+        // the resume due to a cache miss.
+        .elementByCss('meta[name="viewport"]:last-of-type', {
+          state: 'attached',
+        })
+        .getAttribute('content')
+      const [, initialScale2] = viewport2.match(/initial-scale=([\d.]+)/) ?? []
+      expect(initialScale2).toBe(initialScale)
+    })
+
+    it('can resume a cached generateViewport function that does not read params', async () => {
+      // First load the page with JavaScript disabled, to ensure that the
+      // generateViewport result was included in the prerendered shell.
+      let browser = await next.browser(
+        '/generate-viewport-resume/params-unused/red',
+        { disableJavaScript: true }
+      )
+
+      // The meta tag must be in the head if it was prerendered.
+      const viewport = await browser
+        .elementByCss('head meta[name="viewport"]', { state: 'attached' })
+        .getAttribute('content')
+      const [, initialScale, maximumScale] =
+        viewport.match(/initial-scale=([\d.]+), maximum-scale=([\d.]+)/) ?? []
+      expect(Number(initialScale)).toBeNumber()
+      expect(Number(maximumScale)).toBeNumber()
+
+      await browser.close()
+
+      // Load the page again, now with JavaScript enabled.
+      browser = await next.browser(
+        '/generate-viewport-resume/params-unused/red'
+      )
+
+      // If there was no cache hit from the RDC during the resume, we'd observe
+      // a different meta tag.
+      const viewport2 = await browser
+        // Select the last meta element, in case another one was added during
+        // the resume due to a cache miss.
+        .elementByCss('meta[name="viewport"]:last-of-type', {
+          state: 'attached',
+        })
+        .getAttribute('content')
+      const [, initialScale2, maximumScale2] =
+        viewport2.match(/initial-scale=([\d.]+), maximum-scale=([\d.]+)/) ?? []
+
+      if (isNextDev) {
+        expect(initialScale2).toBe(initialScale)
+        expect(maximumScale2).toBe(maximumScale)
+      } else {
+        // TODO: Omitting unused params from cache keys (and upgrading cache
+        // keys when they are used) is not yet implemented. Remove this else
+        // branch once it is.
+        expect(initialScale2).not.toBe(initialScale)
+        expect(maximumScale2).not.toBe(maximumScale)
+      }
+    })
+
+    it('makes a cached generateViewport function that reads params dynamic during prerendering', async () => {
+      // The page is fully dynamic, so we can only observe that the values are
+      // cached on subsequent requests.
+      let browser = await next.browser(
+        '/generate-viewport-resume/params-used/red'
+      )
+
+      const viewport = await browser
+        .elementByCss('meta[name="viewport"]', { state: 'attached' })
+        .getAttribute('content')
+      const [, initialScale, maximumScale] =
+        viewport.match(/initial-scale=([\d.]+), maximum-scale=([\d.]+)/) ?? []
+      expect(Number(initialScale)).toBeNumber()
+      expect(Number(maximumScale)).toBeNumber()
+
+      await browser.refresh()
+
+      const viewport2 = await browser
+        .elementByCss('meta[name="viewport"]', { state: 'attached' })
+        .getAttribute('content')
+      const [, initialScale2, maximumScale2] =
+        viewport2.match(/initial-scale=([\d.]+), maximum-scale=([\d.]+)/) ?? []
+      expect(initialScale2).toBe(initialScale)
+      expect(maximumScale2).toBe(maximumScale)
+    })
+  }
 })
 
 async function getSanitizedLogs(browser: Playwright): Promise<string[]> {

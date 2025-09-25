@@ -23,6 +23,7 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { StaticMetadata } from './types/icons'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import type { Params } from '../../server/request/params'
+import type { SearchParams } from '../../server/request/search-params'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
 import 'server-only'
@@ -58,6 +59,11 @@ import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
 import { createServerParamsForMetadata } from '../../server/request/params'
 import type { MetadataBaseURL } from './resolvers/resolve-url'
+import { isUseCacheFunction } from '../client-and-server-references'
+import type {
+  UseCacheLayoutProps,
+  UseCachePageProps,
+} from '../../server/use-cache/use-cache-wrapper'
 
 type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
@@ -87,12 +93,16 @@ type BuildState = {
 }
 
 type LayoutProps = {
-  params: { [key: string]: any }
+  params: Promise<Params>
 }
+
 type PageProps = {
-  params: { [key: string]: any }
-  searchParams: { [key: string]: any }
+  params: Promise<Params>
+  searchParams: Promise<SearchParams>
 }
+
+type SegmentProps = LayoutProps | PageProps
+type UseCacheSegmentProps = UseCacheLayoutProps | UseCachePageProps
 
 function isFavicon(icon: IconDescriptor | undefined): boolean {
   if (!icon) {
@@ -461,11 +471,13 @@ function mergeViewport({
 
 function getDefinedViewport(
   mod: any,
-  props: any,
+  props: SegmentProps,
   tracingProps: { route: string }
 ): Viewport | ViewportResolver | null {
   if (typeof mod.generateViewport === 'function') {
     const { route } = tracingProps
+    const segmentProps = createSegmentProps(mod.generateViewport, props)
+
     return (parent: ResolvingViewport) =>
       getTracer().trace(
         ResolveMetadataSpan.generateViewport,
@@ -475,7 +487,7 @@ function getDefinedViewport(
             'next.page': route,
           },
         },
-        () => mod.generateViewport(props, parent)
+        () => mod.generateViewport(segmentProps, parent)
       )
   }
   return mod.viewport || null
@@ -483,11 +495,13 @@ function getDefinedViewport(
 
 function getDefinedMetadata(
   mod: any,
-  props: any,
+  props: SegmentProps,
   tracingProps: { route: string }
 ): Metadata | MetadataResolver | null {
   if (typeof mod.generateMetadata === 'function') {
     const { route } = tracingProps
+    const segmentProps = createSegmentProps(mod.generateMetadata, props)
+
     return (parent: ResolvingMetadata) =>
       getTracer().trace(
         ResolveMetadataSpan.generateMetadata,
@@ -497,15 +511,31 @@ function getDefinedMetadata(
             'next.page': route,
           },
         },
-        () => mod.generateMetadata(props, parent)
+        () => mod.generateMetadata(segmentProps, parent)
       )
   }
   return mod.metadata || null
 }
 
+/**
+ * If `fn` is a `'use cache'` function, we add special markers to the props,
+ * that the cache wrapper reads and removes, before passing the props to the
+ * user function.
+ */
+function createSegmentProps(
+  fn: Function,
+  props: SegmentProps
+): SegmentProps | UseCacheSegmentProps {
+  return isUseCacheFunction(fn)
+    ? 'searchParams' in props
+      ? { ...props, $$isPage: true }
+      : { ...props, $$isLayout: true }
+    : props
+}
+
 async function collectStaticImagesFiles(
   metadata: AppDirModules['metadata'],
-  props: any,
+  props: SegmentProps,
   type: keyof NonNullable<AppDirModules['metadata']>
 ) {
   if (!metadata?.[type]) return undefined
@@ -522,7 +552,7 @@ async function collectStaticImagesFiles(
 
 async function resolveStaticMetadata(
   modules: AppDirModules,
-  props: any
+  props: SegmentProps
 ): Promise<StaticMetadata> {
   const { metadata } = modules
   if (!metadata) return null
@@ -557,7 +587,7 @@ async function collectMetadata({
   tree: LoaderTree
   metadataItems: MetadataItems
   errorMetadataItem: MetadataItems[number]
-  props: any
+  props: SegmentProps
   route: string
   errorConvention?: MetadataErrorType
 }) {
@@ -608,7 +638,7 @@ async function collectViewport({
   tree: LoaderTree
   viewportItems: ViewportItems
   errorViewportItemRef: ErrorViewportItemRef
-  props: any
+  props: SegmentProps
   route: string
   errorConvention?: MetadataErrorType
 }) {
@@ -700,25 +730,14 @@ async function resolveMetadataItemsImpl(
   }
 
   const params = createServerParamsForMetadata(currentParams, workStore)
-
-  let layerProps: LayoutProps | PageProps
-  if (isPage) {
-    layerProps = {
-      params,
-      searchParams,
-    }
-  } else {
-    layerProps = {
-      params,
-    }
-  }
+  const props: SegmentProps = isPage ? { params, searchParams } : { params }
 
   await collectMetadata({
     tree,
     metadataItems,
     errorMetadataItem,
     errorConvention,
-    props: layerProps,
+    props,
     route: currentTreePrefix
       // __PAGE__ shouldn't be shown in a route
       .filter((s) => s !== PAGE_SEGMENT_KEY)

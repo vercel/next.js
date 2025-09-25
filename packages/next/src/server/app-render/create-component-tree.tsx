@@ -25,8 +25,8 @@ import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/framework/boundary-constants'
 import type {
-  UseCacheLayoutComponentProps,
-  UseCachePageComponentProps,
+  UseCacheLayoutProps,
+  UseCachePageProps,
 } from '../use-cache/use-cache-wrapper'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 import {
@@ -793,14 +793,14 @@ async function createComponentTreeInternal(
       let searchParams = createServerSearchParamsForServerPage(query, workStore)
 
       if (isUseCacheFunction(PageComponent)) {
-        const UseCachePageComponent: React.ComponentType<UseCachePageComponentProps> =
+        const UseCachePageComponent: React.ComponentType<UseCachePageProps> =
           PageComponent
 
         pageElement = (
           <UseCachePageComponent
             params={params}
             searchParams={searchParams}
-            $$isPageComponent
+            $$isPage
           />
         )
       } else {
@@ -951,14 +951,14 @@ async function createComponentTreeInternal(
       let serverSegment: React.ReactNode
 
       if (isUseCacheFunction(SegmentComponent)) {
-        const UseCacheLayoutComponent: React.ComponentType<UseCacheLayoutComponentProps> =
+        const UseCacheLayoutComponent: React.ComponentType<UseCacheLayoutProps> =
           SegmentComponent
 
         serverSegment = (
           <UseCacheLayoutComponent
             {...parallelRouteProps}
             params={params}
-            $$isLayoutComponent
+            $$isLayout
           />
         )
       } else {
