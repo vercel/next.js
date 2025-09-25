@@ -4,6 +4,7 @@ import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   throwToInterruptStaticGeneration,
   postponeWithTracking,
+  trackDynamicDataInDynamicRender,
   annotateDynamicAccess,
   delayUntilRuntimeStage,
 } from '../app-render/dynamic-rendering'
@@ -192,7 +193,14 @@ function createRenderSearchParams(
       // Semantically we only need the dev tracking when running in `next dev`
       // but since you would never use next dev with production NODE_ENV we use this
       // as a proxy so we can statically exclude this code from production builds.
-      return makeUntrackedSearchParamsWithDevWarnings(
+      if (process.env.__NEXT_CACHE_COMPONENTS) {
+        return makeUntrackedSearchParamsWithDevWarnings(
+          underlyingSearchParams,
+          workStore
+        )
+      }
+
+      return makeDynamicallyTrackedSearchParamsWithDevWarnings(
         underlyingSearchParams,
         workStore
       )
@@ -496,6 +504,105 @@ function makeUntrackedSearchParams(
   return promise
 }
 
+function makeDynamicallyTrackedSearchParamsWithDevWarnings(
+  underlyingSearchParams: SearchParams,
+  store: WorkStore
+): Promise<SearchParams> {
+  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
+  if (cachedSearchParams) {
+    return cachedSearchParams
+  }
+
+  const proxiedUnderlying = new Proxy(underlyingSearchParams, {
+    get(target, prop, receiver) {
+      if (typeof prop === 'string') {
+        if (store.dynamicShouldError) {
+          const expression = describeStringPropertyAccess('searchParams', prop)
+          throwWithStaticGenerationBailoutErrorWithDynamicError(
+            store.route,
+            expression
+          )
+        }
+        const workUnitStore = workUnitAsyncStorage.getStore()
+        if (workUnitStore) {
+          trackDynamicDataInDynamicRender(workUnitStore)
+        }
+      }
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+    has(target, prop) {
+      if (typeof prop === 'string') {
+        if (store.dynamicShouldError) {
+          const expression = describeHasCheckingStringProperty(
+            'searchParams',
+            prop
+          )
+          throwWithStaticGenerationBailoutErrorWithDynamicError(
+            store.route,
+            expression
+          )
+        }
+      }
+      return Reflect.has(target, prop)
+    },
+    ownKeys(target) {
+      if (store.dynamicShouldError) {
+        const expression =
+          '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
+        throwWithStaticGenerationBailoutErrorWithDynamicError(
+          store.route,
+          expression
+        )
+      }
+      return Reflect.ownKeys(target)
+    },
+  })
+
+  // We don't use makeResolvedReactPromise here because searchParams
+  // supports copying with spread and we don't want to unnecessarily
+  // instrument the promise with spreadable properties of ReactPromise.
+  const promise = makeDevtoolsIOAwarePromise(proxiedUnderlying)
+
+  const proxiedPromise = new Proxy(promise, {
+    get(target, prop, receiver) {
+      if (prop === 'then' && store.dynamicShouldError) {
+        const expression = '`searchParams.then`'
+        throwWithStaticGenerationBailoutErrorWithDynamicError(
+          store.route,
+          expression
+        )
+      }
+      if (typeof prop === 'string') {
+        if (!wellKnownProperties.has(prop)) {
+          const expression = describeStringPropertyAccess('searchParams', prop)
+          warnForSyncAccess(store.route, expression)
+        }
+      }
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+    has(target, prop) {
+      if (typeof prop === 'string') {
+        if (!wellKnownProperties.has(prop)) {
+          const expression = describeHasCheckingStringProperty(
+            'searchParams',
+            prop
+          )
+          warnForSyncAccess(store.route, expression)
+        }
+      }
+      return Reflect.has(target, prop)
+    },
+    ownKeys(target) {
+      const expression = '`Object.keys(searchParams)` or similar'
+      warnForSyncAccess(store.route, expression)
+      return Reflect.ownKeys(target)
+    },
+  })
+
+  CachedSearchParams.set(underlyingSearchParams, proxiedPromise)
+  return proxiedPromise
+}
+
 function makeUntrackedSearchParamsWithDevWarnings(
   underlyingSearchParams: SearchParams,
   store: WorkStore
@@ -521,18 +628,6 @@ function makeUntrackedSearchParamsWithDevWarnings(
 
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {
-      if (
-        // This was preserved from `makeDynamicallyTrackedExoticSearchParamsWithDevWarnings`
-        !process.env.__NEXT_CACHE_COMPONENTS &&
-        prop === 'then' &&
-        store.dynamicShouldError
-      ) {
-        const expression = '`searchParams.then`'
-        throwWithStaticGenerationBailoutErrorWithDynamicError(
-          store.route,
-          expression
-        )
-      }
       if (typeof prop === 'string') {
         if (
           !wellKnownProperties.has(prop) &&
