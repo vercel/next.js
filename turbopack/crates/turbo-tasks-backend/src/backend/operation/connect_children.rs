@@ -122,7 +122,7 @@ pub fn connect_children(
     if len >= MIN_CHILDREN_FOR_PARALLEL {
         let new_follower_ids = new_follower_ids.into_vec();
         let chunk_size = good_chunk_size(len);
-        let _ = scope_and_block(len.div_ceil(chunk_size), |scope| {
+        let _ = scope_and_block(len.div_ceil(chunk_size) - 1, |scope| {
             let mut iter = into_chunks(new_follower_ids, chunk_size);
             let first_chunk = iter.next().unwrap();
             for chunk in iter {
