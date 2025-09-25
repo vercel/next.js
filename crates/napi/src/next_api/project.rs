@@ -34,7 +34,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, ReadRef, ResolvedVc,
     TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, UpdateInfo, Vc, get_effects,
-    message_queue::{CompilationEvent, Severity, TimingEvent},
+    message_queue::{CompilationEvent, Severity},
     trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
@@ -882,7 +882,6 @@ pub async fn project_write_all_entrypoints_to_disk(
     let ctx = &project.turbopack_ctx;
     let container = project.container;
     let tt = ctx.turbo_tasks();
-    let tt_clone = tt.clone();
 
     let (entrypoints, issues, diags) = tt
         .run(async move {
@@ -899,17 +898,8 @@ pub async fn project_write_all_entrypoints_to_disk(
                 .read_strongly_consistent()
                 .await?;
 
-            // Start timing writing the files to disk
-            let now = Instant::now();
-
             // Write the files to disk
             effects.apply().await?;
-
-            // Send a compilation event to indicate that the files have been written to disk
-            tt_clone.send_compilation_event(Arc::new(TimingEvent::new(
-                "Finished writing to disk".to_owned(),
-                now.elapsed(),
-            )));
 
             Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
         })
