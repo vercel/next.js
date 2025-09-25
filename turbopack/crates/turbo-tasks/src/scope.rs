@@ -215,7 +215,10 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
 
         self.inner.remaining_tasks.fetch_add(1, Ordering::Relaxed);
 
-        if index < *WORKER_TASKS {
+        // The first job always goes to the work_queue to be worked on by the main thread.
+        // After that we spawn a new worker for every job until we reach WORKER_TASKS.
+        // After that we queue up jobs in the work_queue again.
+        if (1..=*WORKER_TASKS).contains(&index) {
             let inner = self.inner.clone();
             // Spawn a worker task that will process that tasks and potentially more.
             self.handle.spawn(async move {
