@@ -712,8 +712,8 @@ jobs:
 
     secrets: inherit
 
-  test-webpack-dev:
-    name: test webpack dev
+  test-dev: # TODO: rename to include webpack
+    name: test dev
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
@@ -754,8 +754,10 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      # Should this be using turbopack? a variation?
       afterBuild: |
         export NEXT_TEST_MODE=dev
+        export IS_WEBPACK_TEST=1
 
         node run-tests.js \
           test/e2e/app-dir/app/index.test.ts \
@@ -782,6 +784,7 @@ jobs:
     with:
       nodeVersion: 20.9.0
       afterBuild: |
+        export IS_WEBPACK_TEST=1
         node run-tests.js \
           --concurrency 4 \
           test/production/pages-dir/production/test/index.test.ts \
@@ -810,6 +813,7 @@ jobs:
     with:
       afterBuild: |
         export NEXT_TEST_MODE=start
+        export IS_WEBPACK_TEST=1
 
         node run-tests.js --type production \
           test/e2e/app-dir/app/index.test.ts \
@@ -821,7 +825,7 @@ jobs:
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
-  test-webpack-prod:
+  test-prod:
     name: test prod
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
@@ -846,7 +850,7 @@ jobs:
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
-  test-webpack-integration:
+  test-integration:
     name: test integration
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
@@ -1061,9 +1065,9 @@ jobs:
         'test-unit',
         'test-next-config-ts-native-ts-dev',
         'test-next-config-ts-native-ts-prod',
-        'test-webpack-dev',
-        'test-webpack-prod',
-        'test-webpack-integration',
+        'test-dev',
+        'test-prod',
+        'test-integration',
         'test-firefox-safari',
         'test-ppr-dev',
         'test-ppr-prod',
