@@ -2735,6 +2735,7 @@ module.exports = /******/ (function (modules) {
       const { processEnv } = __webpack_require__('4VNc')
       processEnv([])
 
+      const runtimeConfig = {}
       const { parse } = __webpack_require__('bzos')
       const { parse: parseQs } = __webpack_require__('8xkj')
       const { renderToHTML } = __webpack_require__('KK5V')
@@ -2821,6 +2822,7 @@ module.exports = /******/ (function (modules) {
           canonicalBase: '',
           buildId: 'xXPgpxsbhoEyVP2leRiec',
           assetPrefix: '',
+          runtimeConfig: runtimeConfig.publicRuntimeConfig || {},
           previewProps: {
             previewModeId: '9e0f19a11fe1be22878bdb16da136d9e',
             previewModeSigningKey:

@@ -2,6 +2,7 @@ use std::{collections::BTreeSet, sync::LazyLock};
 
 use anyhow::{Context, Result};
 use regex::Regex;
+use serde::Serialize;
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
@@ -16,7 +17,7 @@ use turbopack_core::{
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 use crate::{
-    next_config::{NextConfig, ReactCompilerCompilationMode},
+    next_config::{NextConfig, ReactCompilerCompilationMode, ReactCompilerOptions},
     next_import_map::try_get_next_package,
     next_shared::webpack_rules::{
         ManuallyConfiguredBuiltinLoaderIssue, WebpackLoaderBuiltinCondition,
@@ -145,15 +146,38 @@ pub async fn get_babel_loader_rules(
     }
 
     let mut loader_conditions = Vec::new();
-    if let Some(react_compiler_options) = &*react_compiler_options
+    if let Some(react_compiler_options) = react_compiler_options.as_ref()
         && let Some(babel_plugin_path) =
             resolve_babel_plugin_react_compiler(next_config, project_path).await?
     {
         let react_compiler_options = react_compiler_options.await?;
+
+        // we don't want to accept user-supplied `environment` options, but we do want to pass
+        // `enableNameAnonymousFunctions` down to the babel plugin based on dev/prod.
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct EnvironmentOptions {
+            enable_name_anonymous_functions: bool,
+        }
+
+        #[derive(Serialize)]
+        struct ResolvedOptions<'a> {
+            #[serde(flatten)]
+            base: &'a ReactCompilerOptions,
+            environment: EnvironmentOptions,
+        }
+
+        let resolved_options = ResolvedOptions {
+            base: &react_compiler_options,
+            environment: EnvironmentOptions {
+                enable_name_anonymous_functions: builtin_conditions
+                    .contains(&WebpackLoaderBuiltinCondition::Development),
+            },
+        };
         let react_compiler_plugins =
             serde_json::Value::Array(vec![serde_json::Value::Array(vec![
                 serde_json::Value::String(babel_plugin_path.into_owned()),
-                serde_json::to_value(&*react_compiler_options)
+                serde_json::to_value(resolved_options)
                     .expect("react compiler options JSON serialization should never fail"),
             ])]);
 

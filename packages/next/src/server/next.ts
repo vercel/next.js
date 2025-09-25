@@ -6,7 +6,7 @@ import type {
 import type { UrlWithParsedQuery } from 'url'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Duplex } from 'stream'
-import type { NextUrlWithParsedQuery } from './request-meta'
+import type { NextUrlWithParsedQuery, RequestMeta } from './request-meta'
 
 import './require-hook'
 import './node-polyfill-crypto'
@@ -145,6 +145,27 @@ export class NextServer implements NextWrapperServer {
         const requestHandler = await this.getServerRequestHandler()
         return requestHandler(req, res, parsedUrl)
       })
+    }
+  }
+
+  /**
+   * @internal - this method is internal to Next.js and should not be used
+   * directly by end-users, only used in testing
+   */
+  getRequestHandlerWithMetadata(meta: RequestMeta): RequestHandler {
+    return async (
+      req: IncomingMessage,
+      res: ServerResponse,
+      parsedUrl?: UrlWithParsedQuery
+    ) => {
+      return getTracer().trace(
+        NextServerSpan.getRequestHandlerWithMetadata,
+        async () => {
+          const server = await this.getServer()
+          const handler = server.getRequestHandlerWithMetadata(meta)
+          return handler(req, res, parsedUrl)
+        }
+      )
     }
   }
 

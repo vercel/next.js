@@ -2,8 +2,13 @@ import type { ServerResponse, IncomingMessage } from 'http'
 import { getOrCreateMcpServer } from './get-or-create-mcp-server'
 import { parseBody } from '../api-utils/node/parse-body'
 import { StreamableHTTPServerTransport } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp'
+import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
 
-export function getMcpMiddleware(projectPath: string) {
+export function getMcpMiddleware(
+  projectPath: string,
+  sendHmrMessage: (message: HmrMessageSentToBrowser) => void,
+  getActiveConnectionCount: () => number
+) {
   return async function (
     req: IncomingMessage,
     res: ServerResponse,
@@ -13,7 +18,11 @@ export function getMcpMiddleware(projectPath: string) {
     if (!pathname.startsWith('/_next/mcp')) {
       return next()
     }
-    const mcpServer = getOrCreateMcpServer(projectPath)
+    const mcpServer = getOrCreateMcpServer(
+      projectPath,
+      sendHmrMessage,
+      getActiveConnectionCount
+    )
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
     })
