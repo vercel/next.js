@@ -513,6 +513,9 @@ function makeDynamicallyTrackedSearchParamsWithDevWarnings(
     return cachedSearchParams
   }
 
+  const proxiedProperties = new Set<string>()
+  const unproxiedProperties: Array<string> = []
+
   // We have an unfortunate sequence of events that requires this initialization logic. We want to instrument the underlying
   // searchParams object to detect if you are accessing values in dev. This is used for warnings and for things like the static prerender
   // indicator. However when we pass this proxy to our Promise.resolve() below the VM checks if the resolved value is a promise by looking
@@ -573,6 +576,16 @@ function makeDynamicallyTrackedSearchParamsWithDevWarnings(
     promiseInitialized = true
   })
 
+  Object.keys(underlyingSearchParams).forEach((prop) => {
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+      unproxiedProperties.push(prop)
+    } else {
+      proxiedProperties.add(prop)
+    }
+  })
+
   const proxiedPromise = new Proxy(promise, {
     get(target, prop, receiver) {
       if (prop === 'then' && store.dynamicShouldError) {
@@ -583,16 +596,34 @@ function makeDynamicallyTrackedSearchParamsWithDevWarnings(
         )
       }
       if (typeof prop === 'string') {
-        if (!wellKnownProperties.has(prop)) {
+        if (
+          !wellKnownProperties.has(prop) &&
+          (proxiedProperties.has(prop) ||
+            // We are accessing a property that doesn't exist on the promise nor
+            // the underlying searchParams.
+            Reflect.has(target, prop) === false)
+        ) {
           const expression = describeStringPropertyAccess('searchParams', prop)
           warnForSyncAccess(store.route, expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
     },
+    set(target, prop, value, receiver) {
+      if (typeof prop === 'string') {
+        proxiedProperties.delete(prop)
+      }
+      return Reflect.set(target, prop, value, receiver)
+    },
     has(target, prop) {
       if (typeof prop === 'string') {
-        if (!wellKnownProperties.has(prop)) {
+        if (
+          !wellKnownProperties.has(prop) &&
+          (proxiedProperties.has(prop) ||
+            // We are accessing a property that doesn't exist on the promise nor
+            // the underlying searchParams.
+            Reflect.has(target, prop) === false)
+        ) {
           const expression = describeHasCheckingStringProperty(
             'searchParams',
             prop
@@ -604,7 +635,7 @@ function makeDynamicallyTrackedSearchParamsWithDevWarnings(
     },
     ownKeys(target) {
       const expression = '`Object.keys(searchParams)` or similar'
-      warnForSyncAccess(store.route, expression)
+      warnForIncompleteEnumeration(store.route, expression, unproxiedProperties)
       return Reflect.ownKeys(target)
     },
   })
