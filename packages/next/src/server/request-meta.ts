@@ -21,6 +21,28 @@ export type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
   [NEXT_REQUEST_META]?: RequestMeta
 }
 
+/**
+ * The callback function to call when a response cache entry was generated or
+ * looked up in the cache. When it returns true, the server assumes that the
+ * handler has already responded to the request and will not do so itself.
+ */
+export type OnCacheEntryHandler = (
+  /**
+   * The response cache entry that was generated or looked up in the cache.
+   */
+  cacheEntry: ResponseCacheEntry,
+
+  /**
+   * The request metadata.
+   */
+  requestMeta: {
+    /**
+     * The URL that was used to make the request.
+     */
+    url: string | undefined
+  }
+) => Promise<boolean | void> | boolean | void
+
 export interface RequestMeta {
   /**
    * The query that was used to make the request.
@@ -126,23 +148,13 @@ export interface RequestMeta {
    *
    * @deprecated Use `onCacheEntryV2` instead.
    */
-  onCacheEntry?: (
-    cacheEntry: ResponseCacheEntry,
-    requestMeta: {
-      url: string | undefined
-    }
-  ) => Promise<boolean | void> | boolean | void
+  onCacheEntry?: OnCacheEntryHandler
 
   /**
    * If provided, this will be called when a response cache entry was generated
    * or looked up in the cache.
    */
-  onCacheEntryV2?: (
-    cacheEntry: ResponseCacheEntry,
-    requestMeta: {
-      url: string | undefined
-    }
-  ) => Promise<boolean | void> | boolean | void
+  onCacheEntryV2?: OnCacheEntryHandler
 
   /**
    * The previous revalidate before rendering 404 page for notFound: true

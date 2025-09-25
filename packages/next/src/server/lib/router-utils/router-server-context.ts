@@ -28,6 +28,8 @@ export type RouterServerContext = Record<
       parsedUrl?: UrlWithParsedQuery,
       setHeaders?: boolean
     ) => Promise<void>
+    // current loaded public runtime config
+    publicRuntimeConfig?: NextConfigComplete['publicRuntimeConfig']
     // exposing nextConfig for dev mode specifically
     nextConfig?: NextConfigComplete
     // whether running in custom server mode

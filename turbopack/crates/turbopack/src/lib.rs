@@ -477,10 +477,10 @@ async fn process_default(
         reference_type = display(&reference_type)
     );
     if !span.is_disabled() {
-        // Need to use record, otherwise future is not Send for some reason.
-        let module_asset_context_ref = module_asset_context.await?;
-        span.record("layer", module_asset_context_ref.layer.name().as_str());
+        // You can't await multiple times in the span macro call parameters.
+        span.record("layer", module_asset_context.await?.layer.name().as_str());
     }
+
     process_default_internal(
         module_asset_context,
         source,

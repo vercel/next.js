@@ -14549,6 +14549,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/development-runtime-config/test/index.test.js": {
+    "passed": [
+      "should work with runtime-config in next.config.js empty runtime-config",
+      "should work with runtime-config in next.config.js with runtime-config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/disable-js/test/index.test.js": {
     "passed": [
       "disabled runtime JS development mode should have a script for each preload link",

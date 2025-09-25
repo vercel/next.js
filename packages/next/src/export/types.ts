@@ -54,6 +54,7 @@ export interface ExportPageInput {
   ampValidatorPath?: string
   trailingSlash?: boolean
   buildExport?: boolean
+  serverRuntimeConfig: { [key: string]: any }
   subFolders?: boolean
   optimizeCss: any
   disableOptimizedLoading: any

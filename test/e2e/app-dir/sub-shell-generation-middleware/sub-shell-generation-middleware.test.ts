@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import * as cheerio from 'cheerio'
 import { retry } from 'next-test-utils'
+import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 describe('middleware-static-rewrite', () => {
   const { next, isNextDeploy, isNextDev } = nextTestSetup({
@@ -122,6 +123,91 @@ describe('middleware-static-rewrite', () => {
       expect($('[data-layout="/rewrite/[slug]"]').data('sentinel')).toBe(
         'runtime'
       )
+    })
+
+    it('should revalidate the overview page without replacing it with a 404', async () => {
+      const url = new URL('/my-team', 'http://localhost')
+      const rsc = computeCacheBustingSearchParam(
+        '1',
+        '/_tree',
+        undefined,
+        undefined
+      )
+
+      url.searchParams.set('_rsc', rsc)
+
+      let res = await next.fetch(url.pathname + url.search, {
+        headers: {
+          Cookie: 'overview-param=grid',
+          RSC: '1',
+          'Next-Router-Prefetch': '1',
+          'Next-Router-Segment-Prefetch': '/_tree',
+        },
+      })
+
+      // A 404 here represents a routing issue that was resolved by an upstream
+      // PR in the builder: https://github.com/vercel/vercel/pull/13927
+      expect(res.status).toBe(200)
+
+      // Now, let's verify that we both got rewritten to the correct page, and
+      // that we're being served the prerender shell.
+      expect(res.headers.get('x-nextjs-rewritten-path')).toBe(
+        '/my-team/~/overview/grid'
+      )
+      expect(res.headers.get('x-nextjs-postponed')).toBe('2')
+      expect(res.headers.get('x-nextjs-prerender')).toBe('1')
+
+      // Grab the RSC content.
+      const rsc1 = await res.text()
+
+      // Grab the title which includes the random number.
+      const title1 = rsc1.match(/Grid Page (\d+\.\d+)/)?.[1]
+      expect(title1).toBeDefined()
+
+      // Now, let's trigger a revalidation for the page.
+      res = await next.fetch(
+        '/api?path=/my-team&path=/my-team/~/overview/grid&path=/[first]/~/overview/grid'
+      )
+
+      // Now, let's keep polling the prefetch until it's revalidated.
+      let rsc2: string
+      await retry(async () => {
+        res = await next.fetch(url.pathname + url.search, {
+          headers: {
+            Cookie: 'overview-param=grid',
+            RSC: '1',
+            'Next-Router-Prefetch': '1',
+            'Next-Router-Segment-Prefetch': '/_tree',
+          },
+        })
+
+        // A 404 here represents a routing issue that was resolved by an upstream
+        // PR in the builder: https://github.com/vercel/vercel/pull/13927
+        expect(res.status).toBe(200)
+
+        // We're expecting that the title has changed, so let's compare that the
+        // rsc payload is different.
+        rsc2 = await res.text()
+        expect(rsc1).not.toBe(rsc2)
+      })
+
+      // Now that the revalidation has been completed, let's also verify that
+      // it revalidated correctly.
+      expect(res.headers.get('x-nextjs-postponed')).toBe('2')
+      expect(res.headers.get('x-nextjs-rewritten-path')).toBe(
+        '/my-team/~/overview/grid'
+      )
+
+      // We expect that the only difference between the two RSC contents is the
+      // title.
+      const title2 = rsc2.match(/Grid Page (\d+\.\d+)/)?.[1]
+      expect(title2).toBeDefined()
+      expect(title2).not.toBe(title1)
+
+      // Let's compare the RSC contents, with the titles removed.
+      const cleaned1 = rsc1.replace(/Grid Page (\d+\.\d+)/, 'Grid Page')
+      const cleaned2 = rsc2.replace(/Grid Page (\d+\.\d+)/, 'Grid Page')
+      expect(cleaned1).toBe(cleaned2)
     })
   } else {
     // Here we're validating that there is a static page generated for the

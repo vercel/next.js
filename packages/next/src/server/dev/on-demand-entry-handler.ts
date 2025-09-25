@@ -36,13 +36,17 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  HMR_MESSAGE_SENT_TO_SERVER,
+} from './hot-reloader-types'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
+import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -992,12 +996,21 @@ export function onDemandEntryHandler({
             typeof data !== 'string' ? data.toString() : data
           )
 
-          if (parsedData.event === 'ping') {
+          if (parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.PING) {
             if (parsedData.appDirRoute) {
               handleAppDirPing(parsedData.tree)
             } else {
               handlePing(parsedData.page)
             }
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE
+          ) {
+            handleErrorStateResponse(
+              parsedData.requestId,
+              parsedData.errorState,
+              parsedData.url
+            )
           }
         } catch {}
       })

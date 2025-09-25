@@ -204,6 +204,10 @@ export const getHandler = ({
         query: hasStaticProps ? {} : originalQuery,
       })
 
+      const publicRuntimeConfig: Record<string, string> =
+        routerServerContext?.publicRuntimeConfig ||
+        nextConfig.publicRuntimeConfig
+
       const handleResponse = async (span?: Span) => {
         const responseGenerator: ResponseGenerator = async ({
           previousCacheEntry,
@@ -278,6 +282,12 @@ export const getHandler = ({
                       nextConfig.experimental.disableOptimizedLoading,
                     largePageDataBytes:
                       nextConfig.experimental.largePageDataBytes,
+                    // Only the `publicRuntimeConfig` key is exposed to the client side
+                    // It'll be rendered as part of __NEXT_DATA__ on the client side
+                    runtimeConfig:
+                      Object.keys(publicRuntimeConfig).length > 0
+                        ? publicRuntimeConfig
+                        : undefined,
 
                     isExperimentalCompile,
 
