@@ -480,7 +480,7 @@ where
 
 /// Analyse a provided [EcmascriptModuleAsset] and return a [AnalyzeEcmascriptModuleResult].
 #[turbo_tasks::function]
-pub(crate) async fn analyze_ecmascript_module(
+pub async fn analyze_ecmascript_module(
     module: ResolvedVc<EcmascriptModuleAsset>,
     part: Option<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
@@ -501,7 +501,7 @@ pub(crate) async fn analyze_ecmascript_module(
     }
 }
 
-pub async fn analyze_ecmascript_module_internal(
+async fn analyze_ecmascript_module_internal(
     module: ResolvedVc<EcmascriptModuleAsset>,
     part: Option<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
