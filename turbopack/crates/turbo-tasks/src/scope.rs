@@ -240,7 +240,6 @@ impl<'scope, 'env: 'scope, R: Send + 'env> Scope<'scope, 'env, R> {
                 .lock()
                 .push_back(WorkQueueJob::Job(index, f));
             self.inner.work_queue_condition_var.notify_one();
-            return;
         }
     }
 }
