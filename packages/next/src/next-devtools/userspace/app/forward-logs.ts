@@ -19,8 +19,8 @@ import { safeStringify } from '../../../lib/is-error'
 class ClientFileLogger {
   private logEntries: Array<{
     timestamp: string
-    level: string
-    message: string
+    level: string // log level
+    message: string // log message
   }> = []
 
   private formatTimestamp(): string {
@@ -34,7 +34,7 @@ class ClientFileLogger {
   }
 
   log(level: string, args: any[]): void {
-    if (isIgnoredLog(args)) {
+    if (isReactServerReplayedLog(args)) {
       return
     }
 
@@ -189,11 +189,11 @@ const sendClientFileLogs = () => {
     })
 
     logQueue.socket.send(payload)
-    clientFileLogger.clear()
   } catch (error) {
+    console.error(error)
+  } finally {
     // Clear logs regardless of send success to prevent memory leaks
     clientFileLogger.clear()
-    console.error(error)
   }
 }
 
@@ -504,7 +504,10 @@ const isHMR = (args: any[]) => {
   return false
 }
 
-const isIgnoredLog = (args: any[]) => {
+/**
+ * Matches the format of logs arguments React replayed from the RSC.
+ */
+const isReactServerReplayedLog = (args: any[]) => {
   if (args.length < 3) {
     return false
   }
@@ -519,7 +522,6 @@ const isIgnoredLog = (args: any[]) => {
     return false
   }
 
-  // kinda hacky, we should define a common format for these strings so we can safely ignore
   return format.startsWith('%c%s%c') && styles.includes('background:')
 }
 
@@ -555,7 +557,7 @@ export const initializeDebugLogForwarding = (router: 'app' | 'pages'): void => {
         if (isHMR(args)) {
           return
         }
-        if (isIgnoredLog(args)) {
+        if (isReactServerReplayedLog(args)) {
           return
         }
         createLogEntry(method, args)
