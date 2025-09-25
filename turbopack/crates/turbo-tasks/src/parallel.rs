@@ -25,7 +25,7 @@ where
     let f = &f;
     let _results = scope_and_block(len.div_ceil(chunk_size), |scope| {
         for chunk in items.chunks(chunk_size) {
-            scope.spawn(async move {
+            scope.spawn(move || {
                 for item in chunk {
                     f(item);
                 }
@@ -49,7 +49,7 @@ where
     let f = &f;
     let _results = scope_and_block(len.div_ceil(chunk_size), |scope| {
         for chunk in into_chunks(items, chunk_size) {
-            scope.spawn(async move {
+            scope.spawn(move || {
                 // SAFETY: Even when f() panics we drop all items in the chunk.
                 for item in chunk {
                     f(item);
@@ -78,7 +78,7 @@ where
     let f = &f;
     scope_and_block(len.div_ceil(chunk_size), |scope| {
         for chunk in items.chunks(chunk_size) {
-            scope.spawn(async move {
+            scope.spawn(move || {
                 for item in chunk {
                     f(item)?;
                 }
@@ -108,7 +108,7 @@ where
     let f = &f;
     scope_and_block(len.div_ceil(chunk_size), |scope| {
         for chunk in items.chunks_mut(chunk_size) {
-            scope.spawn(async move {
+            scope.spawn(move || {
                 for item in chunk {
                     f(item)?;
                 }
@@ -138,7 +138,7 @@ where
     let f = &f;
     scope_and_block(len.div_ceil(chunk_size), |scope| {
         for chunk in into_chunks(items, chunk_size) {
-            scope.spawn(async move {
+            scope.spawn(move || {
                 for item in chunk {
                     f(item)?;
                 }
@@ -167,7 +167,7 @@ where
     let f = &f;
     scope_and_block(len.div_ceil(chunk_size), |scope| {
         for chunk in items.chunks(chunk_size) {
-            scope.spawn(async move { chunk.iter().map(f).collect::<Vec<_>>() })
+            scope.spawn(move || chunk.iter().map(f).collect::<Vec<_>>())
         }
     })
     .flatten()
@@ -192,7 +192,7 @@ where
     let f = &f;
     scope_and_block(len.div_ceil(chunk_size), |scope| {
         for chunk in into_chunks(items, chunk_size) {
-            scope.spawn(async move { chunk.map(f).collect::<Vec<_>>() })
+            scope.spawn(move || chunk.map(f).collect::<Vec<_>>())
         }
     })
     .flatten()
