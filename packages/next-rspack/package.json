@@ -7,6 +7,6 @@
   },
   "types": "index.d.ts",
   "dependencies": {
-    "@rspack/core": "1.5.0"
+    "@next/rspack-core": "npm:@next-rspack/core@0.0.1-canary.4"
   }
 }
