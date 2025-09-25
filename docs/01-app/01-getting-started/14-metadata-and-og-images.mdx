@@ -118,9 +118,9 @@ export default function Page({ params, searchParams }) {}
 
 ### Streaming metadata
 
-If metadata isn’t immediately ready, Next.js renders and sends the initial UI. As soon as `generateMetadata` resolves its results are streamed to the client. The streamed metadata tags are appended to the `<body>`.
+For dynamically rendered pages, if resolving generateMetadata might block rendering, Next.js streams the resolved metadata separately and injects it into the HTML as soon as it's ready.
 
-Bots that can’t execute JavaScript are **opted out of this behavior**. Next.js waits for `generateMetadata` before sending the initial UI. The HTML received by these bots contains metadata in the `<head>` tag.
+Bots that can’t execute JavaScript are **opted out of this behavior**. The HTML received by these bots contains metadata in the `<head>` tag.
 
 This improves perceived performance by reducing [TTFB](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) and often [LCP](https://developer.mozilla.org/docs/Glossary/First_contentful_paint) for users and JS-capable bots.
 
