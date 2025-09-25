@@ -2242,15 +2242,6 @@ export default async function getBaseWebpackConfig(
         : undefined,
   }
 
-  if (isRspack) {
-    // @ts-ignore
-    // Disable Rspack's incremental buildChunkGraph due to Next.js compatibility issues
-    // TODO: Remove this workaround after Rspack 1.5.1 release
-    webpack5Config.experiments.incremental = {
-      buildChunkGraph: false,
-    }
-  }
-
   webpack5Config.module!.parser = {
     javascript: {
       url: 'relative',
