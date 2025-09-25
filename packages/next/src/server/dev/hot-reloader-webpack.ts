@@ -322,7 +322,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     // Initialize log monitor for file logging
     // Enable logging by default in development mode
-    const mcpServerEnabled = config.experimental?.mcpServer !== false
+    const mcpServerEnabled = !!config.experimental?.mcpServer
     this.fileLogger = getFileLogger()
     this.fileLogger.initialize(this.distDir, mcpServerEnabled)
   }

@@ -258,7 +258,11 @@ export const logQueue: {
     })
   },
   onSocketReady: (socket: WebSocket) => {
-    // Always set up socket for file logging, regardless of terminal setting
+    // When MCP or terminal logging is enabled, we enable the socket connection,
+    // otherwise it will not proceed.
+    if (!isTerminalLoggingEnabled && !process.env.__NEXT_MCP_SERVER) {
+      return
+    }
     if (socket.readyState !== WebSocket.OPEN) {
       // invariant
       return

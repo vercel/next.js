@@ -54,12 +54,12 @@ describe('FileLogger', () => {
 
     expect(lines).toHaveLength(2)
 
-    // Check format: [timestamp] [source] level message
+    // Check format: [timestamp] source level message
     expect(lines[0]).toMatch(
-      /^\[\d{2}:\d{2}:\d{2}\.\d{3}\] \[Browser\] LOG {5}Test message$/
+      /^\[\d{2}:\d{2}:\d{2}\.\d{3}\] Browser LOG {5}Test message$/
     )
     expect(lines[1]).toMatch(
-      /^\[\d{2}:\d{2}:\d{2}\.\d{3}\] \[Server\] ERROR {3}Server error$/
+      /^\[\d{2}:\d{2}:\d{2}\.\d{3}\] Server {2}ERROR {3}Server error$/
     )
   })
 
@@ -115,9 +115,9 @@ describe('FileLogger', () => {
     const lines = logContent.trim().split('\n')
 
     // All levels should be padded to 7 characters
-    expect(lines[0]).toMatch(/\[Browser\] LOG {5}Short level/)
-    expect(lines[1]).toMatch(/\[Browser\] WARN {4}Medium level/)
-    expect(lines[2]).toMatch(/\[Browser\] ERROR {3}Long level/)
+    expect(lines[0]).toMatch(/Browser LOG {5}Short level/)
+    expect(lines[1]).toMatch(/Browser WARN {4}Medium level/)
+    expect(lines[2]).toMatch(/Browser ERROR {3}Long level/)
   })
 
   it('should not create log file when mcpServer is disabled', () => {

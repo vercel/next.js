@@ -70,7 +70,6 @@ export class FileLogger {
     if (this.flushTimer) {
       clearTimeout(this.flushTimer)
       this.flushTimer = null
-      return // Timer already scheduled
     }
 
     this.flushTimer = setTimeout(() => {
