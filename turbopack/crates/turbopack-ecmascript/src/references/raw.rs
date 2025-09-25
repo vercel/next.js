@@ -2,24 +2,24 @@ use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     reference::ModuleReference,
     resolve::{ModuleResolveResult, pattern::Pattern, resolve_raw},
-    source::Source,
 };
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct FileSourceReference {
-    pub source: ResolvedVc<Box<dyn Source>>,
-    pub path: ResolvedVc<Pattern>,
+    context_dir: FileSystemPath,
+    path: ResolvedVc<Pattern>,
 }
 
 #[turbo_tasks::value_impl]
 impl FileSourceReference {
     #[turbo_tasks::function]
-    pub fn new(source: ResolvedVc<Box<dyn Source>>, path: ResolvedVc<Pattern>) -> Vc<Self> {
-        Self::cell(FileSourceReference { source, path })
+    pub fn new(context_dir: FileSystemPath, path: ResolvedVc<Pattern>) -> Vc<Self> {
+        Self::cell(FileSourceReference { context_dir, path })
     }
 }
 
@@ -27,17 +27,19 @@ impl FileSourceReference {
 impl ModuleReference for FileSourceReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let context_dir = self.source.ident().path().await?.parent();
-
         let span = tracing::info_span!(
             "trace file",
             pattern = display(self.path.to_string().await?)
         );
         async {
-            resolve_raw(context_dir, *self.path, false)
-                .as_raw_module_result()
-                .resolve()
-                .await
+            resolve_raw(
+                self.context_dir.clone(),
+                *self.path,
+                /* force_in_lookup_dir */ false,
+            )
+            .as_raw_module_result()
+            .resolve()
+            .await
         }
         .instrument(span)
         .await
