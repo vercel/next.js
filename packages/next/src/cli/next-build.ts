@@ -5,11 +5,12 @@ import { existsSync } from 'fs'
 import { italic } from '../lib/picocolors'
 import build from '../build'
 import { warn } from '../build/output/log'
-import { parseBundlerArgs, printAndExit } from '../server/lib/utils'
+import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
+import { parseBundlerArgs } from '../lib/bundler'
 
 export type NextBuildOptions = {
   debug?: boolean
@@ -83,7 +84,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  const isTurbopack = parseBundlerArgs(options)
+  const bundler = parseBundlerArgs(options)
 
   return build(
     dir,
@@ -93,7 +94,7 @@ const nextBuild = (options: NextBuildOptions, directory?: string) => {
     lint,
     !mangling,
     experimentalAppOnly,
-    isTurbopack,
+    bundler,
     experimentalBuildMode,
     traceUploadUrl
   )

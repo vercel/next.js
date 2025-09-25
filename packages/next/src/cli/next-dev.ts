@@ -11,7 +11,6 @@ import {
   printAndExit,
   formatNodeOptions,
   formatDebugAddress,
-  parseBundlerArgs,
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -39,6 +38,11 @@ import { once } from 'node:events'
 import { clearTimeout } from 'timers'
 import { flushAllTraces, trace } from '../trace'
 import { traceId } from '../trace/shared'
+import {
+  Bundler,
+  finalizeBundlerFromConfig,
+  parseBundlerArgs,
+} from '../lib/bundler'
 
 export type NextDevOptions = {
   disableSourceMaps: boolean
@@ -60,11 +64,11 @@ let dir: string
 let child: undefined | ChildProcess
 // The config in next-dev is only used to access config.distDir for telemetry and trace.
 let config: NextConfigComplete
-let isTurboSession = false
+let bundler: Bundler
 let traceUploadUrl: string
 let sessionStopHandled = false
-let sessionStarted = Date.now()
-let sessionSpan = trace('next-dev')
+const sessionStarted = Date.now()
+const sessionSpan = trace('next-dev')
 
 // How long should we wait for the child to cleanly exit after sending
 // SIGINT/SIGTERM to the child process before sending SIGKILL?
@@ -125,11 +129,13 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       new Telemetry({
         distDir: path.join(dir, config.distDir),
       })
+    // Reading the config can modify environment variables that influence the bundler selection.
+    bundler = finalizeBundlerFromConfig(bundler)
 
     telemetry.record(
       eventCliSessionStopped({
         cliCommand: 'dev',
-        turboFlag: isTurboSession,
+        turboFlag: bundler === Bundler.Turbopack,
         durationMilliseconds: Date.now() - sessionStarted,
         pagesDir,
         appDir,
@@ -148,7 +154,7 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
       mode: 'dev',
       projectDir: dir,
       distDir: config.distDir,
-      isTurboSession,
+      isTurboSession: bundler === Bundler.Turbopack,
     })
   }
 
@@ -170,9 +176,7 @@ const nextDev = async (
   portSource: PortSource,
   directory?: string
 ) => {
-  const isTurbopack = parseBundlerArgs(options)
-
-  isTurboSession = isTurbopack
+  bundler = parseBundlerArgs(options)
 
   dir = getProjectDir(process.env.NEXT_PRIVATE_DEV_DIR || directory)
 
@@ -285,7 +289,9 @@ const nextDev = async (
         stdio: 'inherit',
         env: {
           ...defaultEnv,
-          ...(isTurbopack ? { TURBOPACK: '1' } : undefined),
+          ...(bundler === Bundler.Turbopack
+            ? { TURBOPACK: process.env.TURBOPACK }
+            : undefined),
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,
           NODE_EXTRA_CA_CERTS: startServerOptions.selfSignedCertificate
@@ -333,12 +339,13 @@ const nextDev = async (
               (await loadConfig(PHASE_DEVELOPMENT_SERVER, dir, {
                 silent: true,
               }))
+            bundler = finalizeBundlerFromConfig(bundler)
             uploadTrace({
               traceUploadUrl,
               mode: 'dev',
               projectDir: dir,
               distDir: config.distDir,
-              isTurboSession,
+              isTurboSession: bundler === Bundler.Turbopack,
               sync: true,
             })
           }
