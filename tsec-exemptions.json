@@ -18,6 +18,9 @@
   "ban-script-appendchild-calls": [
     "packages/next/src/next-devtools/dev-overlay.browser.tsx"
   ],
+  "ban-eval-calls": [
+    "packages/next/src/server/app-render/create-component-tree.tsx"
+  ],
   "ban-script-content-assignments": ["packages/next/src/client/script.tsx"],
   "ban-script-src-assignments": [
     "packages/next/src/client/script.tsx",

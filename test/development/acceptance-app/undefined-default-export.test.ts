@@ -17,14 +17,17 @@ describe('Undefined default export', () => {
       '/specific-path/server'
     )
     const { browser } = sandbox
-
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "The default export is not a React Component in "/specific-path/server/page"",
+       "description": "Error: The default export is not a React Component.",
        "environmentLabel": null,
        "label": "Runtime Error",
-       "source": null,
-       "stack": [],
+       "source": "app/(group)/specific-path/server/page.js (1:1) @ eval
+     > 1 | // Check the content of this module for missing export.
+         | ^",
+       "stack": [
+         "eval app/(group)/specific-path/server/page.js (1:1)",
+       ],
      }
     `)
   })
@@ -41,15 +44,19 @@ describe('Undefined default export', () => {
       ]),
       '/specific-path/server'
     )
-    const { browser } = sandbox
 
+    const { browser } = sandbox
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "The default export is not a React Component in "/specific-path/server/layout"",
+       "description": "Error: The default export is not a React Component.",
        "environmentLabel": null,
        "label": "Runtime Error",
-       "source": null,
-       "stack": [],
+       "source": "app/(group)/specific-path/server/layout.js (1:1) @ eval
+     > 1 | // Check the content of this module for missing export.
+         | ^",
+       "stack": [
+         "eval app/(group)/specific-path/server/layout.js (1:1)",
+       ],
      }
     `)
   })
@@ -70,14 +77,17 @@ describe('Undefined default export', () => {
       '/will-not-found'
     )
     const { browser } = sandbox
-
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "The default export is not a React Component in "/will-not-found/not-found"",
+       "description": "Error: The default export is not a React Component.",
        "environmentLabel": null,
        "label": "Runtime Error",
-       "source": null,
-       "stack": [],
+       "source": "app/will-not-found/not-found.js (1:1) @ eval
+     > 1 | // Check the content of this module for missing export.
+         | ^",
+       "stack": [
+         "eval app/will-not-found/not-found.js (1:1)",
+       ],
      }
     `)
   })
@@ -85,7 +95,6 @@ describe('Undefined default export', () => {
   it('should error when page component export is not valid', async () => {
     await using sandbox = await createSandbox(next, undefined, '/')
     const { browser } = sandbox
-    const cliOutputLength = next.cliOutput.length
 
     await next.patchFile('app/page.js', 'const a = 123')
 
@@ -99,11 +108,15 @@ describe('Undefined default export', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "The default export is not a React Component in "/page"",
+       "description": "Error: The default export is not a React Component.",
        "environmentLabel": null,
        "label": "Runtime Error",
-       "source": null,
-       "stack": [],
+       "source": "app/page.js (1:1) @ eval
+     > 1 | // Check the content of this module for missing export.
+         | ^",
+       "stack": [
+         "eval app/page.js (1:1)",
+       ],
      }
     `)
   })
@@ -119,15 +132,19 @@ describe('Undefined default export', () => {
       ]),
       '/server-with-errors/page-export-initial-error'
     )
-    const { browser } = sandbox
 
+    const { browser } = sandbox
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "The default export is not a React Component in "/server-with-errors/page-export-initial-error/page"",
+       "description": "Error: The default export is not a React Component.",
        "environmentLabel": null,
        "label": "Runtime Error",
-       "source": null,
-       "stack": [],
+       "source": "app/server-with-errors/page-export-initial-error/page.js (1:1) @ eval
+     > 1 | // Check the content of this module for missing export.
+         | ^",
+       "stack": [
+         "eval app/server-with-errors/page-export-initial-error/page.js (1:1)",
+       ],
      }
     `)
   })
