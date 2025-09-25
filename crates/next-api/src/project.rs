@@ -334,7 +334,7 @@ impl ProjectContainer {
         Ok(())
     }
 
-    #[tracing::instrument(level = "info", name = "update project", skip_all)]
+    #[tracing::instrument(level = "info", name = "update project options", skip_all)]
     pub async fn update(self: Vc<Self>, options: PartialProjectOptions) -> Result<()> {
         let PartialProjectOptions {
             root_path,

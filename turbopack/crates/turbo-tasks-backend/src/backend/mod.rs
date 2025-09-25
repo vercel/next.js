@@ -25,7 +25,7 @@ use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
-use tracing::{Span, field::Empty, info_span};
+use tracing::{Span, field::Empty, info_span, trace_span};
 use turbo_tasks::{
     CellId, FxDashMap, FxIndexMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
     SessionId, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId, TurboTasksBackendApi,
@@ -1215,6 +1215,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         if self.should_persist() {
             // Schedule the snapshot job
+            let _span = Span::none().entered();
             turbo_tasks.schedule_backend_background_job(TurboTasksBackendJob::InitialSnapshot);
         }
     }
@@ -1232,6 +1233,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             self.verify_aggregation_graph(turbo_tasks, false);
         }
         if self.should_persist() {
+            let _span = tracing::info_span!("persist on stop").entered();
             self.snapshot();
         }
         self.task_cache.drop_contents();
@@ -2216,11 +2218,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(120);
                         const IDLE_TIMEOUT: Duration = Duration::from_secs(2);
 
-                        let time = if matches!(job, TurboTasksBackendJob::InitialSnapshot) {
-                            FIRST_SNAPSHOT_WAIT
-                        } else {
-                            SNAPSHOT_INTERVAL
-                        };
+                        let (time, mut reason) =
+                            if matches!(job, TurboTasksBackendJob::InitialSnapshot) {
+                                (FIRST_SNAPSHOT_WAIT, "initial snapshot timeout")
+                            } else {
+                                (SNAPSHOT_INTERVAL, "regular snapshot interval")
+                            };
 
                         let until = last_snapshot + time;
                         if until > Instant::now() {
@@ -2253,6 +2256,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                     },
                                     _ = tokio::time::sleep_until(idle_time) => {
                                         if turbo_tasks.is_idle() {
+                                            reason = "idle timeout";
                                             break;
                                         }
                                     },
@@ -2260,6 +2264,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             }
                         }
 
+                        let _span = info_span!("persist", reason = reason).entered();
                         let this = self.clone();
                         let snapshot = this.snapshot();
                         if let Some((snapshot_start, new_data)) = snapshot {
@@ -2273,6 +2278,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 Ordering::Relaxed,
                             );
 
+                            let _span = Span::none().entered();
                             turbo_tasks.schedule_backend_background_job(
                                 TurboTasksBackendJob::FollowUpSnapshot,
                             );
@@ -2302,7 +2308,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         0..data.len()
                     };
 
-                    let _span = info_span!("prefetching").entered();
+                    let _span = trace_span!("prefetching").entered();
                     let mut ctx = self.execute_context(turbo_tasks);
                     for i in range {
                         let (&task, &with_data) = data.get_index(i).unwrap();

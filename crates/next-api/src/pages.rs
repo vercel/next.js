@@ -1625,7 +1625,6 @@ impl Endpoint for PageEndpoint {
                     .await?;
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
                     .owned()
-                    .instrument(tracing::info_span!("client_paths"))
                     .await?;
                 (server_paths, client_paths)
             } else {

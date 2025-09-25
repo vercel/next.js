@@ -158,7 +158,7 @@ async fn build_manifest(
         mode,
     } = &*manifest.await?;
     let span = tracing::info_span!(
-        "build ClientReferenceManifest",
+        "build client reference manifest",
         entry_name = display(&entry_name)
     );
     async move {

@@ -547,7 +547,7 @@ async fn analyze_ecmascript_module_internal(
     } = *module.determine_module_type().await?;
 
     if let Some(package_json) = referenced_package_json {
-        let span = tracing::info_span!("package.json reference");
+        let span = tracing::trace_span!("package.json reference");
         async {
             analysis.add_reference(
                 PackageJsonReference::new(package_json.clone())
@@ -561,7 +561,7 @@ async fn analyze_ecmascript_module_internal(
     }
 
     if analyze_types {
-        let span = tracing::info_span!("tsconfig reference");
+        let span = tracing::trace_span!("tsconfig reference");
         async {
             match &*find_context_file(path.parent(), tsconfig(), false).await? {
                 FindContextFileResult::Found(tsconfig, _) => {
@@ -636,7 +636,7 @@ async fn analyze_ecmascript_module_internal(
 
     let pos = program.span().lo;
     if analyze_types {
-        let span = tracing::info_span!("type references");
+        let span = tracing::trace_span!("type references");
         async {
             if let Some(comments) = comments.get_leading(pos) {
                 for comment in comments.iter() {
@@ -675,7 +675,7 @@ async fn analyze_ecmascript_module_internal(
     }
 
     if options.extract_source_map {
-        let span = tracing::info_span!("source map reference");
+        let span = tracing::trace_span!("source map reference");
         async {
             if let Some((source_map, reference)) = parse_source_map_comment(
                 source,
@@ -699,13 +699,13 @@ async fn analyze_ecmascript_module_internal(
     let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
     let mut var_graph = {
-        let _span = tracing::info_span!("analyze variable values").entered();
+        let _span = tracing::trace_span!("analyze variable values").entered();
         set_handler_and_globals(&handler, globals, || {
             create_graph(program, eval_context, analyze_mode)
         })
     };
 
-    let span = tracing::info_span!("esm import references");
+    let span = tracing::trace_span!("esm import references");
     let import_references = async {
         let mut import_references = Vec::with_capacity(eval_context.imports.references().len());
         for (i, r) in eval_context.imports.references().enumerate() {
@@ -759,7 +759,7 @@ async fn analyze_ecmascript_module_internal(
     .instrument(span)
     .await?;
 
-    let span = tracing::info_span!("exports");
+    let span = tracing::trace_span!("exports");
     let (webpack_runtime, webpack_entry, webpack_chunks) = async {
         let (webpack_runtime, webpack_entry, webpack_chunks, mut esm_exports) =
             set_handler_and_globals(&handler, globals, || {
@@ -885,7 +885,7 @@ async fn analyze_ecmascript_module_internal(
     let mut ignore_effect_span = None;
     // Check if it was a webpack entry
     if let Some((request, webpack_runtime_span)) = webpack_runtime {
-        let span = tracing::info_span!("webpack runtime reference");
+        let span = tracing::trace_span!("webpack runtime reference");
         async {
             let request = Request::parse(request.into()).to_resolved().await?;
             let runtime = resolve_as_webpack_runtime(*origin, *request, *transforms)
@@ -932,7 +932,7 @@ async fn analyze_ecmascript_module_internal(
         .await?;
     }
     // TODO: we can do this when constructing the var graph
-    let span = tracing::info_span!("async module handling");
+    let span = tracing::trace_span!("async module handling");
     async {
         let top_level_await_span =
             set_handler_and_globals(&handler, globals, || has_top_level_await(program));
@@ -964,7 +964,7 @@ async fn analyze_ecmascript_module_internal(
     .instrument(span)
     .await?;
 
-    let span = tracing::info_span!("effects processing");
+    let span = tracing::trace_span!("effects processing");
     async {
         let effects = take(&mut var_graph.effects);
 
