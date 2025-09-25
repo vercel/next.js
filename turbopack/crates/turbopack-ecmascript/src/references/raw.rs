@@ -48,7 +48,7 @@ impl ModuleReference for FileSourceReference {
                 context_dir,
                 *self.path,
                 self.collect_affecting_sources,
-                false,
+                /* force_in_lookup_dir */ false,
             )
             .as_raw_module_result()
             .resolve()

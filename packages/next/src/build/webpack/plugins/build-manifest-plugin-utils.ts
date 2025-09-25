@@ -72,9 +72,9 @@ export function createEdgeRuntimeManifest(
     `globalThis.__BUILD_MANIFEST.lowPriorityFiles = [\n` +
     manifestFilenames
       .map((filename) => {
-        return `"/static/" + process.env.__NEXT_BUILD_ID + "/${filename}",\n`
+        return `"/static/" + process.env.__NEXT_BUILD_ID + "/${filename}"`
       })
-      .join(',') +
+      .join(',\n') +
     `\n];`
 
   return manifestDefCode + lowPriorityFilesCode

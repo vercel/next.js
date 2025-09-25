@@ -30,6 +30,7 @@ import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
+  getOriginalStackFrames,
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
@@ -112,6 +113,8 @@ import {
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
+import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -734,9 +737,26 @@ export async function createHotReloaderTurbopack(
       },
     }),
     ...(nextConfig.experimental.mcpServer
-      ? [getMcpMiddleware(projectPath)]
+      ? [
+          getMcpMiddleware(
+            projectPath,
+            (message) => hotReloader.send(message),
+            () => clients.size
+          ),
+        ]
       : []),
   ]
+
+  setStackFrameResolver(async (request) => {
+    return getOriginalStackFrames({
+      project,
+      projectPath,
+      isServer: request.isServer,
+      isEdgeServer: request.isEdgeServer,
+      isAppDirectory: request.isAppDirectory,
+      frames: request.frames,
+    })
+  })
 
   let versionInfoCached: ReturnType<typeof getVersionInfo> | undefined
   // This fetch, even though not awaited, is not kicked off eagerly because the first `fetch()` in
@@ -916,6 +936,15 @@ export async function createHotReloaderTurbopack(
                   config: nextConfig.experimental.browserDebugInfoInTerminal,
                 })
               }
+              break
+            }
+
+            case 'mcp-error-state-response': {
+              handleErrorStateResponse(
+                parsedData.requestId,
+                parsedData.errorState,
+                parsedData.url
+              )
               break
             }
 

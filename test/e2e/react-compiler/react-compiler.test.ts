@@ -16,88 +16,158 @@ function normalizeCodeLocInfo(str) {
   )
 }
 
-describe.each(['default', 'babelrc'])('react-compiler %s', (variant) => {
-  const dependencies = (global as any).isNextDeploy
-    ? // `link` is incompatible with the npm version used when this test is deployed
-      {
-        'reference-library': 'file:./reference-library',
-      }
-    : {
-        'reference-library': 'link:./reference-library',
-      }
-  const { next, isNextDev } = nextTestSetup({
-    files:
-      variant === 'babelrc'
-        ? __dirname
-        : {
-            app: new FileRef(join(__dirname, 'app')),
-            'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
-            'reference-library': new FileRef(
-              join(__dirname, 'reference-library')
-            ),
-          },
-
-    dependencies: {
-      'babel-plugin-react-compiler': '19.1.0-rc.2',
-      ...dependencies,
-    },
-  })
-
-  it('should show an experimental warning', async () => {
-    await retry(() => {
-      expect(next.cliOutput).toContain('Experiments (use with caution)')
-      expect(stripAnsi(next.cliOutput)).toContain('✓ reactCompiler')
+describe.each(['default', 'babelrc'] as const)(
+  'react-compiler %s',
+  (variant) => {
+    const dependencies = (global as any).isNextDeploy
+      ? // `link` is incompatible with the npm version used when this test is deployed
+        {
+          'reference-library': 'file:./reference-library',
+        }
+      : {
+          'reference-library': 'link:./reference-library',
+        }
+    const { next, isNextDev, isTurbopack } = nextTestSetup({
+      files:
+        variant === 'babelrc'
+          ? __dirname
+          : {
+              app: new FileRef(join(__dirname, 'app')),
+              'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
+              'reference-library': new FileRef(
+                join(__dirname, 'reference-library')
+              ),
+            },
+      // TODO: set only config instead once bundlers are consistent
+      buildArgs: ['--profile'],
+      dependencies: {
+        'babel-plugin-react-compiler': '0.0.0-experimental-3fde738-20250918',
+        ...dependencies,
+      },
     })
-  })
 
-  it('should render', async () => {
-    const browser = await next.browser('/')
-
-    await retry(async () => {
-      const text = await browser
-        .elementByCss('#react-compiler-enabled-message')
-        .text()
-      expect(text).toMatch(/React compiler is enabled with \d+ memo slots/)
+    it('should show an experimental warning', async () => {
+      await retry(() => {
+        expect(next.cliOutput).toContain('Experiments (use with caution)')
+        expect(stripAnsi(next.cliOutput)).toContain('✓ reactCompiler')
+      })
     })
-  })
 
-  it('should work with a library that uses the react-server condition', async () => {
-    const outputIndex = next.cliOutput.length
-    await next.render('/library-react-server')
+    it('should memoize Components', async () => {
+      const browser = await next.browser('/')
 
-    const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
-    expect(cliOutput).not.toMatch(/error/)
-  })
+      expect(await browser.eval('window.staticChildRenders')).toEqual(1)
+      expect(
+        await browser.elementByCss('[data-testid="parent-commits"]').text()
+      ).toEqual('Parent commits: 1')
 
-  it('should work with a library using use client', async () => {
-    const outputIndex = next.cliOutput.length
-    await next.render('/library-client')
+      await browser.elementByCss('button').click()
+      await browser.elementByCss('button').click()
+      await browser.elementByCss('button').click()
 
-    const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
-    expect(cliOutput).not.toMatch(/error/)
-  })
+      expect(await browser.eval('window.staticChildRenders')).toEqual(1)
+      expect(
+        await browser.elementByCss('[data-testid="parent-commits"]').text()
+      ).toEqual('Parent commits: 4')
+    })
 
-  it('throws if the React Compiler is used in a React Server environment', async () => {
-    const outputIndex = next.cliOutput.length
-    const browser = await next.browser('/library-missing-react-server')
+    it('should work with a library that uses the react-server condition', async () => {
+      const outputIndex = next.cliOutput.length
+      await next.render('/library-react-server')
 
-    const cliOutput = normalizeCodeLocInfo(
-      stripAnsi(next.cliOutput.slice(outputIndex))
-    )
-    if (isNextDev) {
-      // TODO(NDX-663): Unhelpful error message.
-      // Should say that the library should have a react-server entrypoint that doesn't use the React Compiler.
-      expect(cliOutput).toContain(
-        '' +
-          "\n ⨯ TypeError: Cannot read properties of undefined (reading 'H')" +
-          // location not important. Just that this is the only frame.
-          // TODO: Stack should start at product code. Possible React limitation.
-          '\n    at Container (**)' +
-          // Will just point to original file location
-          '\n  2 |'
+      const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+      expect(cliOutput).not.toMatch(/error/)
+    })
+
+    it('should work with a library using use client', async () => {
+      const outputIndex = next.cliOutput.length
+      await next.render('/library-client')
+
+      const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+      expect(cliOutput).not.toMatch(/error/)
+    })
+
+    it('should name functions in dev', async () => {
+      const browser = await next.browser('/function-naming')
+      await browser.waitForElementByCss(
+        '[data-testid="call-frame"][aria-busy="false"]',
+        5000
       )
 
-      await assertHasRedbox(browser)
-    }
-  })
-})
+      const callFrame = await browser
+        .elementByCss('[data-testid="call-frame"]')
+        .text()
+      const devFunctionName =
+        variant === 'babelrc' && !isTurbopack
+          ? // next/babel transpiles away arrow functions defeating the React Compiler naming
+            // TODO: Does Webpack or Turbopack get the Babel config right?
+            'PageUseEffect'
+          : // expected naming heuristic from React Compiler. This may change in future.
+            // Just make sure this is the heuristic from the React Compiler not something else.
+            'Page[useEffect()]'
+      if (isNextDev) {
+        if (isTurbopack) {
+          // FIXME: https://linear.app/vercel/issue/NAR-351
+          await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "test-top-frame",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": null,
+           "stack": [
+             "<FIXME-file-protocol>",
+           ],
+         }
+        `)
+        } else {
+          await expect(browser).toDisplayCollapsedRedbox(`
+         {
+           "description": "test-top-frame",
+           "environmentLabel": null,
+           "label": "Console Error",
+           "source": "app/function-naming/page.tsx (8:19) @ ${devFunctionName}
+         >  8 |     const error = new Error('test-top-frame')
+              |                   ^",
+           "stack": [
+             "${devFunctionName} app/function-naming/page.tsx (8:19)",
+           ],
+         }
+        `)
+        }
+        // We care more about the sourcemapped frame in the Redbox.
+        // This assertion is only here to show that the negative assertion below is valid.
+        expect(normalizeCodeLocInfo(callFrame)).toEqual(
+          `    at ${devFunctionName} (**)`
+        )
+      } else {
+        expect(normalizeCodeLocInfo(callFrame)).not.toEqual(
+          `    at ${devFunctionName} (**)`
+        )
+      }
+    })
+
+    it('throws if the React Compiler is used in a React Server environment', async () => {
+      const outputIndex = next.cliOutput.length
+      const browser = await next.browser('/library-missing-react-server')
+
+      const cliOutput = normalizeCodeLocInfo(
+        stripAnsi(next.cliOutput.slice(outputIndex))
+      )
+      if (isNextDev) {
+        // TODO(NDX-663): Unhelpful error message.
+        // Should say that the library should have a react-server entrypoint that doesn't use the React Compiler.
+        expect(cliOutput).toContain(
+          '' +
+            "\n ⨯ TypeError: Cannot read properties of undefined (reading 'H')" +
+            // location not important. Just that this is the only frame.
+            // TODO: Stack should start at product code. Possible React limitation.
+            '\n    at Container (**)' +
+            // Will just point to original file location
+            '\n  2 |'
+        )
+
+        await assertHasRedbox(browser)
+      }
+    })
+  }
+)

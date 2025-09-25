@@ -10,6 +10,7 @@ import { type webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
+  getOriginalStackFrames,
 } from './middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix, dirname } from 'path'
@@ -105,6 +106,7 @@ import {
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
+import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 
@@ -1622,9 +1624,28 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         },
       }),
       ...(this.config.experimental.mcpServer
-        ? [getMcpMiddleware(this.dir)]
+        ? [
+            getMcpMiddleware(
+              this.dir,
+              (message) => this.send(message),
+              () => this.webpackHotMiddleware?.getClientCount() ?? 0
+            ),
+          ]
         : []),
     ]
+
+    setStackFrameResolver(async (request) => {
+      return getOriginalStackFrames({
+        isServer: request.isServer,
+        isEdgeServer: request.isEdgeServer,
+        isAppDirectory: request.isAppDirectory,
+        frames: request.frames,
+        clientStats: () => this.clientStats,
+        serverStats: () => this.serverStats,
+        edgeServerStats: () => this.edgeServerStats,
+        rootDirectory: this.dir,
+      })
+    })
   }
 
   public invalidate(

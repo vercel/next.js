@@ -25,7 +25,7 @@ use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
-use tracing::{field::Empty, info_span};
+use tracing::{Span, field::Empty, info_span};
 use turbo_tasks::{
     CellId, FxDashMap, FxIndexMap, KeyValuePair, RawVc, ReadCellOptions, ReadConsistency,
     SessionId, TRANSIENT_TASK_BIT, TaskExecutionReason, TaskId, TraitTypeId, TurboTasksBackendApi,
@@ -413,6 +413,13 @@ impl<B: BackingStorage> Drop for OperationGuard<'_, B> {
             }
         }
     }
+}
+
+/// Intermediate result of step 1 of task execution completion.
+struct TaskExecutionCompletePrepareResult {
+    pub new_children: FxHashSet<TaskId>,
+    pub removed_data: Vec<CachedDataItem>,
+    pub is_now_immutable: bool,
 }
 
 // Operations
@@ -1724,8 +1731,54 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         self.track_task_duration(task_id, duration);
 
-        //// STEP 1 ////
+        let Some(TaskExecutionCompletePrepareResult {
+            new_children,
+            mut removed_data,
+            is_now_immutable,
+        }) = self.task_execution_completed_prepare(
+            &mut ctx,
+            &span,
+            task_id,
+            cell_counters,
+            stateful,
+            has_invalidator,
+        )
+        else {
+            // Task was stale and has been rescheduled
+            return true;
+        };
 
+        // When restoring from persistent caching the following might not be executed (since we can
+        // suspend in `CleanupOldEdgesOperation`), but that's ok as the task is still dirty and
+        // would be executed again.
+
+        if self.task_execution_completed_connect(&mut ctx, task_id, new_children, is_now_immutable)
+        {
+            // Task was stale and has been rescheduled
+            return true;
+        }
+
+        if self.task_execution_completed_finish(&mut ctx, task_id, &mut removed_data) {
+            // Task was stale and has been rescheduled
+            return true;
+        }
+
+        drop(removed_data);
+
+        self.task_execution_completed_cleanup(&mut ctx, task_id);
+
+        false
+    }
+
+    fn task_execution_completed_prepare(
+        &self,
+        ctx: &mut impl ExecuteContext<'_>,
+        span: &Span,
+        task_id: TaskId,
+        cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
+        stateful: bool,
+        has_invalidator: bool,
+    ) -> Option<TaskExecutionCompletePrepareResult> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(in_progress) = get_mut!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
@@ -1772,9 +1825,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 AggregationUpdateJob::DecreaseActiveCounts {
                     task_ids: new_children.into_iter().collect(),
                 },
-                &mut ctx,
+                ctx,
             );
-            return true;
+            return None;
         }
 
         if cfg!(not(feature = "no_fast_stale")) || !stale {
@@ -1848,13 +1901,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             None
         };
 
-        // Prepare all new children
         if has_children {
+            // Prepare all new children
             prepare_new_children(task_id, &mut task, &new_children, &mut queue);
-        }
 
-        // Filter actual new children
-        if has_children {
+            // Filter actual new children
             old_edges.extend(
                 iter_many!(task, Child { task } => task)
                     .filter(|task| !new_children.remove(task))
@@ -1931,15 +1982,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Remove outdated edges first, before removing in_progress+dirty flag.
             // We need to make sure all outdated edges are removed before the task can potentially
             // be scheduled and executed again
-            CleanupOldEdgesOperation::run(task_id, old_edges, queue, &mut ctx);
+            CleanupOldEdgesOperation::run(task_id, old_edges, queue, ctx);
         }
 
-        // When restoring from persistent caching the following might not be executed (since we can
-        // suspend in `CleanupOldEdgesOperation`), but that's ok as the task is still dirty and
-        // would be executed again.
+        Some(TaskExecutionCompletePrepareResult {
+            new_children,
+            removed_data,
+            is_now_immutable,
+        })
+    }
 
-        //// STEP 2 ////
-
+    fn task_execution_completed_connect(
+        &self,
+        ctx: &mut impl ExecuteContext<'_>,
+        task_id: TaskId,
+        new_children: FxHashSet<TaskId>,
+        is_now_immutable: bool,
+    ) -> bool {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(in_progress) = get!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
@@ -1975,7 +2034,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 AggregationUpdateJob::DecreaseActiveCounts {
                     task_ids: new_children.into_iter().collect(),
                 },
-                &mut ctx,
+                ctx,
             );
             return true;
         }
@@ -1988,7 +2047,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut queue = AggregationUpdateQueue::new();
 
-        if has_children {
+        let has_new_children = !new_children.is_empty();
+        if has_new_children {
             let has_active_count = ctx.should_track_activeness()
                 && get!(task, Activeness).map_or(false, |activeness| activeness.active_counter > 0);
             connect_children(
@@ -2003,12 +2063,21 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         drop(task);
 
-        if has_children {
+        if has_new_children {
             #[cfg(feature = "trace_task_completion")]
             let _span = tracing::trace_span!("connect new children").entered();
-            queue.execute(&mut ctx);
+            queue.execute(ctx);
         }
 
+        false
+    }
+
+    fn task_execution_completed_finish(
+        &self,
+        ctx: &mut impl ExecuteContext<'_>,
+        task_id: TaskId,
+        removed_data: &mut Vec<CachedDataItem>,
+    ) -> bool {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(in_progress) = remove!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
@@ -2114,13 +2183,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(task);
 
         if let Some(data_update) = data_update {
-            AggregationUpdateQueue::run(data_update, &mut ctx);
+            AggregationUpdateQueue::run(data_update, ctx);
         }
 
-        drop(removed_data);
+        false
+    }
 
-        //// STEP 4 ////
-
+    fn task_execution_completed_cleanup(&self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         task.shrink_to_fit(CachedDataItemType::CellData);
         task.shrink_to_fit(CachedDataItemType::CellTypeMaxIndex);
@@ -2128,8 +2197,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task.shrink_to_fit(CachedDataItemType::OutputDependency);
         task.shrink_to_fit(CachedDataItemType::CollectiblesDependency);
         drop(task);
-
-        false
     }
 
     fn run_backend_job<'a>(

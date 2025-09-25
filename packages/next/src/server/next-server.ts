@@ -13,7 +13,11 @@ import type RenderResult from './render-result'
 import type { FetchEventResult } from './web/types'
 import type { PrerenderManifest, RoutesManifest } from '../build'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
-import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
+import type {
+  NextParsedUrlQuery,
+  NextUrlWithParsedQuery,
+  RequestMeta,
+} from './request-meta'
 import type { Params } from './request/params'
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { RouteMatch } from './route-matches/route-match'
@@ -27,7 +31,7 @@ import type { WaitUntil } from './after/builtin-request-context'
 import fs from 'fs'
 import { join, relative } from 'path'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
-import { addRequestMeta, getRequestMeta } from './request-meta'
+import { addRequestMeta, getRequestMeta, setRequestMeta } from './request-meta'
 import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
@@ -1271,6 +1275,17 @@ export default class NextNodeServer extends BaseServer<
       return wrapRequestHandlerNode(handler)
     }
     return handler
+  }
+
+  /**
+   * @internal - this method is internal to Next.js and should not be used directly by end-users
+   */
+  public getRequestHandlerWithMetadata(meta: RequestMeta): NodeRequestHandler {
+    const handler = this.makeRequestHandler()
+    return (req, res, parsedUrl) => {
+      setRequestMeta(req, meta)
+      return handler(req, res, parsedUrl)
+    }
   }
 
   private makeRequestHandler(): NodeRequestHandler {

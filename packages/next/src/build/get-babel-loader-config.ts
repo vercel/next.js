@@ -1,3 +1,4 @@
+import type { EnvironmentConfig } from 'babel-plugin-react-compiler'
 import path from 'path'
 import type { JSONValue, ReactCompilerOptions } from '../server/config-shared'
 import type { NextBabelLoaderOptions } from './babel/loader/types'
@@ -23,16 +24,14 @@ const getReactCompilerPlugins = (
     return undefined
   }
 
-  const defaultOptions: ReactCompilerOptions = isDev
-    ? {
-        // TODO: enable `environment.enableNameAnonymousFunctions`Ï
-      }
-    : {}
+  const environment: Pick<EnvironmentConfig, 'enableNameAnonymousFunctions'> = {
+    enableNameAnonymousFunctions: isDev,
+  }
   const options: ReactCompilerOptions =
     typeof maybeOptions === 'boolean' ? {} : maybeOptions
   const compilerOptions: JSONValue = {
-    ...defaultOptions,
     ...options,
+    environment,
   }
   return [[getReactCompiler(), compilerOptions]]
 }

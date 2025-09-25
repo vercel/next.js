@@ -3510,7 +3510,7 @@ function chainGestureCancellation(root, scheduledGesture, prevCancel) {
       var runningTransition = scheduledGesture.running;
       if (null !== runningTransition) {
         var pendingLanesExcludingGestureLane = root.pendingLanes & -65;
-        0 !== (pendingLanesExcludingGestureLane & 124) ||
+        0 !== (pendingLanesExcludingGestureLane & 127) ||
         0 !== (pendingLanesExcludingGestureLane & 4194048)
           ? ((runningTransition = root.stoppingGestures),
             null !== runningTransition &&
@@ -5155,7 +5155,7 @@ function updateSyncExternalStore(subscribe, getSnapshot, getServerSnapshot) {
     );
     if (null === workInProgressRoot) throw Error(formatProdErrorMessage(349));
     isHydrating$jscomp$0 ||
-      0 !== (renderLanes & 124) ||
+      0 !== (renderLanes & 127) ||
       pushStoreConsistencyCheck(fiber, getSnapshot, getServerSnapshot);
   }
   return getServerSnapshot;
@@ -6077,7 +6077,7 @@ var HooksDispatcherOnMount = {
         getServerSnapshot = getSnapshot();
         if (null === workInProgressRoot)
           throw Error(formatProdErrorMessage(349));
-        0 !== (workInProgressRootRenderLanes & 124) ||
+        0 !== (workInProgressRootRenderLanes & 127) ||
           pushStoreConsistencyCheck(fiber, getSnapshot, getServerSnapshot);
       }
       hook.memoizedState = getServerSnapshot;
@@ -12857,7 +12857,7 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
   if (0 !== (executionContext & 6)) throw Error(formatProdErrorMessage(327));
   var shouldTimeSlice =
       (!forceSync &&
-        0 === (lanes & 124) &&
+        0 === (lanes & 127) &&
         0 === (lanes & root$jscomp$0.expiredLanes)) ||
       checkIfRootIsPrerendering(root$jscomp$0, lanes),
     exitStatus = shouldTimeSlice
@@ -14192,7 +14192,8 @@ function commitGestureOnRoot(
       pendingTransitionTypes,
       flushGestureMutations,
       flushGestureAnimations,
-      reportViewTransitionError
+      reportViewTransitionError,
+      null
     );
   }
 }
@@ -19877,14 +19878,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2245 = React.version;
 if (
-  "19.2.0-experimental-1eca9a27-20250922" !==
+  "19.2.0-experimental-e2332183-20250924" !==
   isomorphicReactPackageVersion$jscomp$inline_2245
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2245,
-      "19.2.0-experimental-1eca9a27-20250922"
+      "19.2.0-experimental-e2332183-20250924"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -19906,10 +19907,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2947 = {
   bundleType: 0,
-  version: "19.2.0-experimental-1eca9a27-20250922",
+  version: "19.2.0-experimental-e2332183-20250924",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.2.0-experimental-1eca9a27-20250922"
+  reconcilerVersion: "19.2.0-experimental-e2332183-20250924"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2948 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -20167,4 +20168,4 @@ exports.observeVisibleRects = function (
     }
   };
 };
-exports.version = "19.2.0-experimental-1eca9a27-20250922";
+exports.version = "19.2.0-experimental-e2332183-20250924";
