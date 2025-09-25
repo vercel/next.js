@@ -28,7 +28,7 @@
     "change-npm-name": "node ./change-npm-name.js"
   },
   "dependencies": {
-    "@rspack/core": "1.4.10",
+    "@rspack/core": "1.5.0",
     "@next/rspack-binding": "workspace:*"
   }
 }
