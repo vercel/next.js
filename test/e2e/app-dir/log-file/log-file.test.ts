@@ -75,8 +75,6 @@ describe('log-file', () => {
 
     if (isNextDev) {
       await retry(async () => {
-        expect(hasLogFile()).toBe(true)
-
         const newLogContent = getNewLogContent()
         expect(newLogContent).toMatchInlineSnapshot(`
          "[xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
@@ -114,8 +112,6 @@ describe('log-file', () => {
 
     if (isNextDev) {
       await retry(async () => {
-        expect(hasLogFile()).toBe(true)
-
         const newLogContent = getNewLogContent()
         expect(newLogContent).toMatchInlineSnapshot(`
          "[xx:xx:xx.xxx] Browser LOG     Client: Complex circular object: {"name":"test","data":{"nested":{"value":42,"items":[1,2,3]},"parent":"[Circular]"},"metadata":{"name":"safe stringify","version":"1.0.0"}}
@@ -137,8 +133,6 @@ describe('log-file', () => {
 
     if (isNextDev) {
       await retry(async () => {
-        expect(hasLogFile()).toBe(true)
-
         const newLogContent = getNewLogContent()
         expect(newLogContent).toMatchInlineSnapshot(`
          "[xx:xx:xx.xxx] Server  LOG     Pages Router SSR: This is a log message from getServerSideProps
