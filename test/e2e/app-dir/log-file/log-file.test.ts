@@ -76,7 +76,7 @@ describe('log-file', () => {
     // Request to RSC page and wait for hydration
     await next.browser('/server')
     // Wait for logs to be written (increased timeout for batched logging)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await new Promise((resolve) => setTimeout(resolve, 1500))
 
     if (isNextDev) {
       await retry(async () => {
@@ -113,7 +113,7 @@ describe('log-file', () => {
       )
     }, 3 * 1000)
     // Wait for logs to be written (reduced timeout with faster flush)
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 1500))
     if (isNextDev) {
       await retry(async () => {
         const newLogContent = getNewLogContent()
@@ -134,7 +134,7 @@ describe('log-file', () => {
     // Make request to page with getServerSideProps
     await next.browser('/pages-router-page')
     // Wait for logs to be written (increased timeout for batched logging)
-    await new Promise((resolve) => setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 1500))
 
     if (isNextDev) {
       await retry(async () => {

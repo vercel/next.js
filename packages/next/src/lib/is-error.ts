@@ -19,7 +19,7 @@ export default function isError(err: unknown): err is NextError {
   )
 }
 
-function safeStringify(obj: any) {
+export function safeStringify(obj: any) {
   const seen = new WeakSet()
 
   return JSON.stringify(obj, (_key, value) => {

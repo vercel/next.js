@@ -67,11 +67,13 @@ export class FileLogger {
   }
 
   private scheduleFlush(): void {
+    // Debounce the flush
     if (this.flushTimer) {
       clearTimeout(this.flushTimer)
       this.flushTimer = null
     }
 
+    // Delay the log flush to ensure more logs can be batched together asynchronously
     this.flushTimer = setTimeout(() => {
       this.flush()
     }, 100)

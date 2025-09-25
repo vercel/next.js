@@ -13,6 +13,7 @@ import {
   patchConsoleMethod,
 } from '../../shared/forward-logs-shared'
 import { preLogSerializationClone, logStringify } from './forward-logs-utils'
+import { safeStringify } from '../../../lib/is-error'
 
 // Client-side file logger for browser logs
 class ClientFileLogger {
@@ -45,11 +46,7 @@ class ClientFileLogger {
           return String(arg)
         if (arg === null) return 'null'
         if (arg === undefined) return 'undefined'
-        try {
-          return JSON.stringify(arg)
-        } catch {
-          return '[Circular or complex object]'
-        }
+        return safeStringify(arg)
       })
       .join(' ')
 
