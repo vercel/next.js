@@ -14,12 +14,7 @@ describe('log-file', () => {
   }
 
   function getLogFilePath(): string {
-    const logFilePath = path.join(
-      next.testDir,
-      '.next',
-      'logs',
-      'next-development.log'
-    )
+    const logFilePath = path.join(next.distDir, 'logs', 'next-development.log')
     return logFilePath
   }
 
@@ -80,11 +75,6 @@ describe('log-file', () => {
 
     if (isNextDev) {
       await retry(async () => {
-        // DEBUG log the files under .next
-        require('console').log(
-          'Files under .next:',
-          fs.readdirSync(path.join(next.testDir, '.next'))
-        )
         expect(hasLogFile()).toBe(true)
 
         const newLogContent = getNewLogContent()
@@ -124,11 +114,6 @@ describe('log-file', () => {
 
     if (isNextDev) {
       await retry(async () => {
-        // DEBUG log the files under .next
-        require('console').log(
-          'Files under .next:',
-          fs.readdirSync(path.join(next.testDir, '.next'))
-        )
         expect(hasLogFile()).toBe(true)
 
         const newLogContent = getNewLogContent()
@@ -152,11 +137,6 @@ describe('log-file', () => {
 
     if (isNextDev) {
       await retry(async () => {
-        // DEBUG log the files under .next
-        require('console').log(
-          'Files under .next:',
-          fs.readdirSync(path.join(next.testDir, '.next'))
-        )
         expect(hasLogFile()).toBe(true)
 
         const newLogContent = getNewLogContent()
