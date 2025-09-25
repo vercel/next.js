@@ -163,7 +163,7 @@ function createStaticPrerenderSearchParams(
     case 'prerender-legacy':
       // We are in a legacy static generation and need to interrupt the
       // prerender when search params are accessed.
-      return makeErroringExoticSearchParams(workStore, prerenderStore)
+      return makeErroringSearchParams(workStore, prerenderStore)
     default:
       return prerenderStore satisfies never
   }
@@ -259,7 +259,7 @@ function makeHangingSearchParams(
   return proxiedPromise
 }
 
-function makeErroringExoticSearchParams(
+function makeErroringSearchParams(
   workStore: WorkStore,
   prerenderStore: PrerenderStoreLegacy | PrerenderStorePPR
 ): Promise<SearchParams> {
@@ -283,98 +283,9 @@ function makeErroringExoticSearchParams(
         return ReflectAdapter.get(target, prop, receiver)
       }
 
-      switch (prop) {
-        case 'then': {
-          const expression =
-            '`await searchParams`, `searchParams.then`, or similar'
-          if (workStore.dynamicShouldError) {
-            throwWithStaticGenerationBailoutErrorWithDynamicError(
-              workStore.route,
-              expression
-            )
-          } else if (prerenderStore.type === 'prerender-ppr') {
-            // PPR Prerender (no cacheComponents)
-            postponeWithTracking(
-              workStore.route,
-              expression,
-              prerenderStore.dynamicTracking
-            )
-          } else {
-            // Legacy Prerender
-            throwToInterruptStaticGeneration(
-              expression,
-              workStore,
-              prerenderStore
-            )
-          }
-          return
-        }
-        case 'status': {
-          const expression =
-            '`use(searchParams)`, `searchParams.status`, or similar'
-          if (workStore.dynamicShouldError) {
-            throwWithStaticGenerationBailoutErrorWithDynamicError(
-              workStore.route,
-              expression
-            )
-          } else if (prerenderStore.type === 'prerender-ppr') {
-            // PPR Prerender (no cacheComponents)
-            postponeWithTracking(
-              workStore.route,
-              expression,
-              prerenderStore.dynamicTracking
-            )
-          } else {
-            // Legacy Prerender
-            throwToInterruptStaticGeneration(
-              expression,
-              workStore,
-              prerenderStore
-            )
-          }
-          return
-        }
-        default: {
-          if (typeof prop === 'string' && !wellKnownProperties.has(prop)) {
-            const expression = describeStringPropertyAccess(
-              'searchParams',
-              prop
-            )
-            if (workStore.dynamicShouldError) {
-              throwWithStaticGenerationBailoutErrorWithDynamicError(
-                workStore.route,
-                expression
-              )
-            } else if (prerenderStore.type === 'prerender-ppr') {
-              // PPR Prerender (no cacheComponents)
-              postponeWithTracking(
-                workStore.route,
-                expression,
-                prerenderStore.dynamicTracking
-              )
-            } else {
-              // Legacy Prerender
-              throwToInterruptStaticGeneration(
-                expression,
-                workStore,
-                prerenderStore
-              )
-            }
-          }
-          return ReflectAdapter.get(target, prop, receiver)
-        }
-      }
-    },
-    has(target, prop) {
-      // We don't expect key checking to be used except for testing the existence of
-      // searchParams so we make all has tests trigger dynamic. this means that `promise.then`
-      // can resolve to the then function on the Promise prototype but 'then' in promise will assume
-      // you are testing whether the searchParams has a 'then' property.
-      if (typeof prop === 'string') {
-        const expression = describeHasCheckingStringProperty(
-          'searchParams',
-          prop
-        )
+      if (typeof prop === 'string' && prop === 'then') {
+        const expression =
+          '`await searchParams`, `searchParams.then`, or similar'
         if (workStore.dynamicShouldError) {
           throwWithStaticGenerationBailoutErrorWithDynamicError(
             workStore.route,
@@ -395,29 +306,8 @@ function makeErroringExoticSearchParams(
             prerenderStore
           )
         }
-        return false
       }
-      return ReflectAdapter.has(target, prop)
-    },
-    ownKeys() {
-      const expression =
-        '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
-      if (workStore.dynamicShouldError) {
-        throwWithStaticGenerationBailoutErrorWithDynamicError(
-          workStore.route,
-          expression
-        )
-      } else if (prerenderStore.type === 'prerender-ppr') {
-        // PPR Prerender (no cacheComponents)
-        postponeWithTracking(
-          workStore.route,
-          expression,
-          prerenderStore.dynamicTracking
-        )
-      } else {
-        // Legacy Prerender
-        throwToInterruptStaticGeneration(expression, workStore, prerenderStore)
-      }
+      return ReflectAdapter.get(target, prop, receiver)
     },
   })
 
@@ -426,7 +316,7 @@ function makeErroringExoticSearchParams(
 }
 
 /**
- * This is a variation of `makeErroringExoticSearchParams` that always throws an
+ * This is a variation of `makeErroringSearchParams` that always throws an
  * error on access, because accessing searchParams inside of `"use cache"` is
  * not allowed.
  */

@@ -261,7 +261,7 @@ function createStaticPrerenderParams(
       if (fallbackParams) {
         for (const key in underlyingParams) {
           if (fallbackParams.has(key)) {
-            return makeErroringExoticParams(
+            return makeErroringParams(
               underlyingParams,
               fallbackParams,
               workStore,
@@ -371,7 +371,7 @@ function makeHangingParams(
   return promise
 }
 
-function makeErroringExoticParams(
+function makeErroringParams(
   underlyingParams: Params,
   fallbackParams: OpaqueFallbackRouteParams,
   workStore: WorkStore,
@@ -423,43 +423,6 @@ function makeErroringExoticParams(
           },
           enumerable: true,
         })
-        Object.defineProperty(promise, prop, {
-          get() {
-            const expression = describeStringPropertyAccess('params', prop)
-            // In most dynamic APIs we also throw if `dynamic = "error"` however
-            // for params is only dynamic when we're generating a fallback shell
-            // and even when `dynamic = "error"` we still support generating dynamic
-            // fallback shells
-            // TODO remove this comment when cacheComponents is the default since there
-            // will be no `dynamic = "error"`
-            if (prerenderStore.type === 'prerender-ppr') {
-              // PPR Prerender (no cacheComponents)
-              postponeWithTracking(
-                workStore.route,
-                expression,
-                prerenderStore.dynamicTracking
-              )
-            } else {
-              // Legacy Prerender
-              throwToInterruptStaticGeneration(
-                expression,
-                workStore,
-                prerenderStore
-              )
-            }
-          },
-          set(newValue) {
-            Object.defineProperty(promise, prop, {
-              value: newValue,
-              writable: true,
-              enumerable: true,
-            })
-          },
-          enumerable: true,
-          configurable: true,
-        })
-      } else {
-        ;(promise as any)[prop] = underlyingParams[prop]
       }
     }
   })
