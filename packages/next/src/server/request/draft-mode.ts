@@ -164,7 +164,7 @@ function createDraftModeAccessError(
   const prefix = route ? `Route "${route}" ` : 'This route '
   return new Error(
     `${prefix}used ${expression}. ` +
-      `\`draftMode()\` should be awaited before using its value. ` +
+      `\`draftMode()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
@@ -184,7 +184,7 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
 
     if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
-        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. \`draftMode()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     }
 
@@ -231,7 +231,7 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
           workUnitStore.revalidate = 0
 
           const err = new DynamicServerError(
-            `Route ${workStore.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+            `Route ${workStore.route} couldn't be rendered statically because it used \`${expression}\`. \`draftMode\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
           )
           workStore.dynamicUsageDescription = expression
           workStore.dynamicUsageStack = err.stack

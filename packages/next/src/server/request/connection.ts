@@ -44,7 +44,7 @@ export function connection(): Promise<void> {
 
     if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
-        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection\`. \`connection\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     }
 

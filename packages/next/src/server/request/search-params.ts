@@ -646,7 +646,7 @@ function createSearchAccessError(
   const prefix = route ? `Route "${route}" ` : 'This route '
   return new Error(
     `${prefix}used ${expression}. ` +
-      `\`searchParams\` should be awaited before using its properties. ` +
+      `\`searchParams\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
@@ -659,7 +659,7 @@ function createIncompleteEnumerationError(
   const prefix = route ? `Route "${route}" ` : 'This route '
   return new Error(
     `${prefix}used ${expression}. ` +
-      `\`searchParams\` should be awaited before using its properties. ` +
+      `\`searchParams\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. ` +
       `The following properties were not available through enumeration ` +
       `because they conflict with builtin or well-known property names: ` +
       `${describeListOfPropertyNames(missingProperties)}. ` +

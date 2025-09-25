@@ -88,7 +88,7 @@ export function headers(): Promise<ReadonlyHeaders> {
 
     if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
-        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. \`headers\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
     }
 
@@ -247,7 +247,7 @@ function createHeadersAccessError(
   const prefix = route ? `Route "${route}" ` : 'This route '
   return new Error(
     `${prefix}used ${expression}. ` +
-      `\`headers()\` should be awaited before using its value. ` +
+      `\`headers()\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }

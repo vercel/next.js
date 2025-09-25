@@ -85,7 +85,7 @@ function makeUntrackedSearchParamsWithDevWarnings(
 function warnForSyncAccess(expression: string) {
   console.error(
     `A searchParam property was accessed directly with ${expression}. ` +
-      `\`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. ` +
+      `\`searchParams\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
@@ -93,7 +93,7 @@ function warnForSyncAccess(expression: string) {
 function warnForSyncSpread() {
   console.error(
     `The keys of \`searchParams\` were accessed directly. ` +
-      `\`searchParams\` should be unwrapped with \`React.use()\` before accessing its properties. ` +
+      `\`searchParams\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
