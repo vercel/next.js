@@ -106,21 +106,7 @@ describe.each(['default', 'babelrc'] as const)(
             // Just make sure this is the heuristic from the React Compiler not something else.
             'Page[useEffect()]'
       if (isNextDev) {
-        if (isTurbopack) {
-          // FIXME: https://linear.app/vercel/issue/NAR-351
-          await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "description": "test-top-frame",
-           "environmentLabel": null,
-           "label": "Console Error",
-           "source": null,
-           "stack": [
-             "<FIXME-file-protocol>",
-           ],
-         }
-        `)
-        } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+        await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "test-top-frame",
            "environmentLabel": null,
@@ -133,7 +119,6 @@ describe.each(['default', 'babelrc'] as const)(
            ],
          }
         `)
-        }
         // We care more about the sourcemapped frame in the Redbox.
         // This assertion is only here to show that the negative assertion below is valid.
         expect(normalizeCodeLocInfo(callFrame)).toEqual(

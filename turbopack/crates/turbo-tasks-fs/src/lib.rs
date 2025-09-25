@@ -1,11 +1,14 @@
-#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
-#![feature(btree_cursors)] // needed for the `InvalidatorMap` and watcher, reduces time complexity
-#![feature(trivial_bounds)]
-#![feature(min_specialization)]
-#![feature(iter_advance_by)]
-#![feature(io_error_more)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(btree_cursors)] // needed for the `InvalidatorMap` and watcher, reduces time complexity
+#![feature(io_error_more)]
+#![feature(iter_advance_by)]
+#![feature(min_specialization)]
+// if `normalize_lexically` isn't eventually stabilized, we can copy the implementation from the
+// stdlib into our source tree
+#![feature(normalize_lexically)]
+#![feature(trivial_bounds)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 #![allow(clippy::mutable_key_type)]
 
 pub mod attach;
@@ -250,6 +253,7 @@ struct DiskFileSystemInner {
 impl DiskFileSystemInner {
     /// Returns the root as Path
     fn root_path(&self) -> &Path {
+        // just in case there's a windows unc path prefix we remove it with `dunce`
         simplified(Path::new(&*self.root))
     }
 
@@ -460,8 +464,48 @@ impl DiskFileSystem {
         self.inner.watcher.stop_watching();
     }
 
+    /// Try to convert [`Path`] to [`FileSystemPath`]. Return `None` if the file path leaves the
+    /// filesystem root. If no `relative_to` argument is given, it is assumed that the `sys_path` is
+    /// relative to the [`DiskFileSystem`] root.
+    ///
+    /// Attempts to convert absolute paths to paths relative to the filesystem root, though we only
+    /// attempt to do so lexically.
+    ///
+    /// Assumes `self` is the `DiskFileSystem` contained in `vc_self`. This API is a bit awkward
+    /// because:
+    /// - [`Path`]/[`PathBuf`] should not be stored in the persistent cache, so the function cannot
+    ///   be a [`turbo_tasks::function`].
+    /// - It's a little convenient for this function to be sync.
+    pub fn try_from_sys_path(
+        &self,
+        vc_self: ResolvedVc<DiskFileSystem>,
+        sys_path: &Path,
+        relative_to: Option<&FileSystemPath>,
+    ) -> Option<FileSystemPath> {
+        let vc_self = ResolvedVc::upcast(vc_self);
+
+        let sys_path = simplified(sys_path);
+        let sys_path = if sys_path.is_absolute() {
+            Cow::Borrowed(sys_path.strip_prefix(self.inner.root_path()).ok()?)
+        } else if let Some(relative_to) = relative_to {
+            debug_assert_eq!(
+                relative_to.fs, vc_self,
+                "`relative_to.fs` must match current the current `ResolvedVc<DiskFileSystem>`"
+            );
+            let mut joined_sys_path = PathBuf::from(unix_to_sys(&relative_to.path).into_owned());
+            joined_sys_path.push(sys_path);
+            Cow::Owned(joined_sys_path)
+        } else {
+            Cow::Borrowed(sys_path)
+        };
+
+        Some(FileSystemPath {
+            fs: vc_self,
+            path: RcStr::from(sys_to_unix(sys_path.to_str()?)),
+        })
+    }
+
     pub fn to_sys_path(&self, fs_path: FileSystemPath) -> Result<PathBuf> {
-        // just in case there's a windows unc path prefix we remove it with `dunce`
         let path = self.inner.root_path();
         Ok(if fs_path.path.is_empty() {
             path.to_path_buf()
