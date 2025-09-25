@@ -101,7 +101,7 @@ describe('log-file', () => {
       const logs = await browser.log()
       expect(logs).toContainEqual(
         expect.objectContaining({
-          message: 'Client: This is a log message from client component',
+          message: expect.stringContaining('Client: Complex circular object'),
           source: 'log',
         })
       )
@@ -119,7 +119,7 @@ describe('log-file', () => {
         const newLogContent = getNewLogContent()
 
         expect(newLogContent).toMatchInlineSnapshot(`
-         "[xx:xx:xx.xxx] Browser LOG     Client: This is a log message from client component
+         "[xx:xx:xx.xxx] Browser LOG     Client: Complex circular object: {"name":"test","data":{"nested":{"value":42,"items":[1,2,3]},"parent":"[Circular]"},"metadata":{"name":"safe stringify","version":"1.0.0"}}
          [xx:xx:xx.xxx] Browser ERROR   Client: This is an error message from client component
          [xx:xx:xx.xxx] Browser WARN    Client: This is a warning message from client component
          "
