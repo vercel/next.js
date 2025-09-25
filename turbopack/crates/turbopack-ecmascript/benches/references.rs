@@ -1,7 +1,7 @@
 use std::{path::PathBuf, time::Duration};
 
 use anyhow::Result;
-use criterion::{Bencher, BenchmarkId, Criterion, criterion_group, criterion_main};
+use criterion::{BatchSize, Bencher, BenchmarkId, Criterion, criterion_group, criterion_main};
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TurboTasks};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
@@ -106,34 +106,47 @@ struct BenchInput {
 }
 
 fn bench_full(b: &mut Bencher, input: &BenchInput) {
-    let rt = tokio::runtime::Builder::new_current_thread()
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
         .build()
         .unwrap();
 
-    b.to_async(rt).iter(async || {
-        let tt = TurboTasks::new(TurboTasksBackend::new(
-            BackendOptions {
-                dependency_tracking: false,
-                storage_mode: None,
-                ..Default::default()
-            },
-            noop_backing_storage(),
-        ));
-
-        let BenchInput {
-            root_dir,
-            file,
-            analyze_mode,
-        } = *input;
-
-        tt.run_once(async move {
-            let module = setup(root_dir, file, analyze_mode).await?;
-            analyze_ecmascript_module(*module, None).await?;
-            Ok(())
-        })
-        .await
-        .unwrap()
-    });
+    b.to_async(rt).iter_batched(
+        || {
+            let tt = TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions {
+                    dependency_tracking: false,
+                    storage_mode: None,
+                    ..Default::default()
+                },
+                noop_backing_storage(),
+            ));
+            let BenchInput {
+                root_dir,
+                file,
+                analyze_mode,
+            } = *input;
+            let module = tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current()
+                    .block_on(tt.run_once(async move {
+                        let module = setup(root_dir, file, analyze_mode).await?;
+                        Ok(module)
+                    }))
+                    .unwrap()
+            });
+            (tt, module)
+        },
+        |(tt, module)| async move {
+            tt.run_once(async move {
+                analyze_ecmascript_module(*module, None).await?;
+                Ok(())
+            })
+            .await
+            .unwrap()
+        },
+        BatchSize::SmallInput,
+    );
 }
 
 criterion_group!(references_benches, benchmark);
