@@ -9839,12 +9839,14 @@
   },
   "test/e2e/react-compiler/react-compiler.test.ts": {
     "passed": [
-      "react-compiler babelrc should render",
+      "react-compiler babelrc should memoize Components",
+      "react-compiler babelrc should name functions in dev",
       "react-compiler babelrc should show an experimental warning",
       "react-compiler babelrc should work with a library that uses the react-server condition",
       "react-compiler babelrc should work with a library using use client",
       "react-compiler babelrc throws if the React Compiler is used in a React Server environment",
-      "react-compiler default should render",
+      "react-compiler default should memoize Components",
+      "react-compiler default should name functions in dev",
       "react-compiler default should show an experimental warning",
       "react-compiler default should work with a library that uses the react-server condition",
       "react-compiler default should work with a library using use client",
@@ -11389,8 +11391,10 @@
   "test/integration/config-mjs/test/index.test.ts": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
+      "Configuration renders public config on the server only",
+      "Configuration renders server config on the server only",
       "Configuration should disable X-Powered-By header support",
-      "Configuration should have env variables available on the client"
+      "Configuration should have config available on the client"
     ],
     "failed": [],
     "pending": [],
@@ -11465,8 +11469,10 @@
   "test/integration/config/test/index.test.js": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
+      "Configuration renders public config on the server only",
+      "Configuration renders server config on the server only",
       "Configuration should disable X-Powered-By header support",
-      "Configuration should have env variables available on the client"
+      "Configuration should have config available on the client"
     ],
     "failed": [],
     "pending": [],
@@ -21005,6 +21011,7 @@
       "Production Usage Misc should add prefetch tags when Link prefetch prop is used",
       "Production Usage Misc should allow to access /static/ and /_next/",
       "Production Usage Misc should handle already finished responses",
+      "Production Usage Misc should have default runtime values when not defined",
       "Production Usage Misc should not add autoExport for non pre-rendered pages",
       "Production Usage Misc should not have runtimeConfig in __NEXT_DATA__",
       "Production Usage Misc should reload the page on page script error",
@@ -21345,6 +21352,7 @@
       "required server files app router should not send invalid soft tags to cache handler",
       "required server files app router should properly handle fallback for bot request",
       "required server files app router should properly handle prerender for bot request",
+      "required server files app router should properly handle resume request that looks like a data request",
       "required server files app router should properly stream resume with Next-Resume",
       "required server files app router should send cache tags in minimal mode for ISR",
       "required server files app router should still render when postponed is corrupted with Next-Resume",
