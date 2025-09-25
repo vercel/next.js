@@ -2560,13 +2560,24 @@ export default abstract class Server<
 
     const existingMatch = getRequestMeta(ctx.req, 'match')
 
+    let fastPath = true
+    // when a specific invoke-output is meant to be matched
+    // ensure a prior dynamic route/page doesn't take priority
+    const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
+
+    if (
+      !this.minimalMode &&
+      typeof invokeOutput === 'string' &&
+      isDynamicRoute(invokeOutput || '') &&
+      invokeOutput !== existingMatch?.definition.pathname
+    ) {
+      fastPath = false
+    }
+
     try {
-      for await (const match of existingMatch
+      for await (const match of fastPath && existingMatch
         ? [existingMatch]
         : this.matchers.matchAll(pathname, options)) {
-        // when a specific invoke-output is meant to be matched
-        // ensure a prior dynamic route/page doesn't take priority
-        const invokeOutput = getRequestMeta(ctx.req, 'invokeOutput')
         if (
           !this.minimalMode &&
           typeof invokeOutput === 'string' &&
