@@ -110,7 +110,7 @@ import {
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
-import type { FileLogger} from './browser-logs/file-logger';
+import type { FileLogger } from './browser-logs/file-logger'
 import { getFileLogger } from './browser-logs/file-logger'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)

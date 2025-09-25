@@ -82,9 +82,9 @@ describe('log-file', () => {
       await retry(async () => {
         const newLogContent = getNewLogContent()
         expect(newLogContent).toMatchInlineSnapshot(`
-         "[xx:xx:xx.xxx] [Server] LOG     RSC: This is a log message from server component
-         [xx:xx:xx.xxx] [Server] ERROR   RSC: This is an error message from server component
-         [xx:xx:xx.xxx] [Server] WARN    RSC: This is a warning message from server component
+         "[xx:xx:xx.xxx] Server  LOG     RSC: This is a log message from server component
+         [xx:xx:xx.xxx] Server  ERROR   RSC: This is an error message from server component
+         [xx:xx:xx.xxx] Server  WARN    RSC: This is a warning message from server component
          "
         `)
       })
@@ -119,9 +119,9 @@ describe('log-file', () => {
         const newLogContent = getNewLogContent()
 
         expect(newLogContent).toMatchInlineSnapshot(`
-         "[xx:xx:xx.xxx] [Browser] LOG     Client: This is a log message from client component
-         [xx:xx:xx.xxx] [Browser] ERROR   Client: This is an error message from client component
-         [xx:xx:xx.xxx] [Browser] WARN    Client: This is a warning message from client component
+         "[xx:xx:xx.xxx] Browser LOG     Client: This is a log message from client component
+         [xx:xx:xx.xxx] Browser ERROR   Client: This is an error message from client component
+         [xx:xx:xx.xxx] Browser WARN    Client: This is a warning message from client component
          "
         `)
       }, 2 * 1000)
@@ -140,11 +140,11 @@ describe('log-file', () => {
       await retry(async () => {
         const newLogContent = getNewLogContent()
         expect(newLogContent).toMatchInlineSnapshot(`
-         "[xx:xx:xx.xxx] [Server] LOG     Pages Router SSR: This is a log message from getServerSideProps
-         [xx:xx:xx.xxx] [Server] ERROR   Pages Router SSR: This is an error message from getServerSideProps
-         [xx:xx:xx.xxx] [Server] WARN    Pages Router SSR: This is a warning message from getServerSideProps
-         [xx:xx:xx.xxx] [Server] LOG     Pages Router isomorphic: This is a log message from render
-         [xx:xx:xx.xxx] [Browser] LOG     Pages Router isomorphic: This is a log message from render
+         "[xx:xx:xx.xxx] Server  LOG     Pages Router SSR: This is a log message from getServerSideProps
+         [xx:xx:xx.xxx] Server  ERROR   Pages Router SSR: This is an error message from getServerSideProps
+         [xx:xx:xx.xxx] Server  WARN    Pages Router SSR: This is a warning message from getServerSideProps
+         [xx:xx:xx.xxx] Server  LOG     Pages Router isomorphic: This is a log message from render
+         [xx:xx:xx.xxx] Browser LOG     Pages Router isomorphic: This is a log message from render
          "
         `)
       })

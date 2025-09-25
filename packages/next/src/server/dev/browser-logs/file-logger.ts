@@ -42,6 +42,7 @@ export class FileLogger {
   }
 
   private formatTimestamp(): string {
+    // Use performance.now() instead of Date.now() for avoid sync IO of cache components
     const now = performance.now()
     const hours = Math.floor(now / 3600000)
       .toString()
@@ -61,7 +62,8 @@ export class FileLogger {
   private formatLogEntry(entry: LogEntry): string {
     const { timestamp, source, level, message } = entry
     const levelPadded = level.toUpperCase().padEnd(7, ' ') // Pad level to 7 characters for alignment
-    return `[${timestamp}] [${source}] ${levelPadded} ${message}\n`
+    const sourcePadded = source === 'Browser' ? source : 'Server '
+    return `[${timestamp}] ${sourcePadded} ${levelPadded} ${message}\n`
   }
 
   private scheduleFlush(): void {
