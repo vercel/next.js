@@ -1,6 +1,6 @@
 module.exports = {
   experimental: {
-    turbopackPersistentCaching: true
-    turbopackPersistentCachingForBuild: true
+    turbopackPersistentCaching: true,
+    turbopackPersistentCachingForBuild: true,
   }
 }
