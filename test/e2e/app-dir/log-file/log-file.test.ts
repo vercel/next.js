@@ -13,21 +13,24 @@ describe('log-file', () => {
     return
   }
 
-  const logFilePath = path.join(
-    next.testDir,
-    '.next',
-    'logs',
-    'next-development.log'
-  )
+  function getLogFilePath(): string {
+    const logFilePath = path.join(
+      next.testDir,
+      '.next',
+      'logs',
+      'next-development.log'
+    )
+    return logFilePath
+  }
 
   function hasLogFile(): boolean {
-    const logPath = logFilePath
+    const logPath = getLogFilePath()
 
     return fs.existsSync(logPath)
   }
 
   function readLogFile(): string {
-    const logPath = logFilePath
+    const logPath = getLogFilePath()
     if (fs.existsSync(logPath)) {
       return fs.readFileSync(logPath, 'utf8')
     }
