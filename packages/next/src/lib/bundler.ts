@@ -64,7 +64,10 @@ export function parseBundlerArgs(options: {
     return Bundler.Turbopack
   }
   if (bundlerFlags.has(Bundler.Turbopack)) {
-    process.env.TURBOPACK = '1'
+    // Only conditionally assign to the environment variable, preserving already set values.
+    // If it was set to 'auto' because no flag was set and this function is called a second time we
+    // would upgrade to '1' but we don't really want that.
+    process.env.TURBOPACK ??= '1'
     return Bundler.Turbopack
   }
   // Otherwise it is one of rspack or webpack. At this point there must be exactly one key in the map.
@@ -77,7 +80,7 @@ export function parseBundlerArgs(options: {
  * Rspack is configured via next config by setting an environment variable (yay, side effects) so this should only be called after parsing the config.
  */
 export function finalizeBundlerFromConfig(fromOptions: Bundler) {
-  // Reading the next config can modify relevant environment variables.
+  // Reading the next config can set NEXT_RSPACK environment variables.
   if (process.env.NEXT_RSPACK) {
     return Bundler.Rspack
   }
