@@ -114,6 +114,7 @@ import {
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -943,6 +944,15 @@ export async function createHotReloaderTurbopack(
               handleErrorStateResponse(
                 parsedData.requestId,
                 parsedData.errorState,
+                parsedData.url
+              )
+              break
+            }
+
+            case 'mcp-page-metadata-response': {
+              handlePageMetadataResponse(
+                parsedData.requestId,
+                parsedData.segmentTrieData,
                 parsedData.url
               )
               break

@@ -42,9 +42,11 @@ import type { VersionInfo } from '../server/dev/parse-version-info'
 import {
   insertSegmentNode,
   removeSegmentNode,
+  getSegmentTrieRoot,
 } from './dev-overlay/segment-explorer-trie'
 import type { SegmentNodeState } from './userspace/app/segment-explorer-node'
 import type { DevToolsConfig } from './dev-overlay/shared'
+import type { SegmentTrieData } from '../shared/lib/mcp-page-metadata-types'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -79,10 +81,6 @@ type OverlayStateWithRouter = OverlayState & { routerType: 'pages' | 'app' }
 
 let currentOverlayState: OverlayStateWithRouter | null = null
 
-export function getCurrentOverlayState(): OverlayStateWithRouter | null {
-  return currentOverlayState
-}
-
 export function getSerializedOverlayState(): OverlayStateWithRouter | null {
   // Serialize error objects properly since Error properties are non-enumerable
   // This is used when sending state via HMR/JSON.stringify
@@ -100,6 +98,17 @@ export function getSerializedOverlayState(): OverlayStateWithRouter | null {
           }
         : null,
     })),
+  }
+}
+
+export function getSegmentTrieData(): SegmentTrieData | null {
+  if (!currentOverlayState) {
+    return null
+  }
+  const trieRoot = getSegmentTrieRoot()
+  return {
+    segmentTrie: trieRoot,
+    routerType: currentOverlayState.routerType,
   }
 }
 
