@@ -1,6 +1,6 @@
 {
   "name": "@next/rspack-core",
-  "version": "0.0.1-canary.3",
+  "version": "0.0.1-canary.4",
   "homepage": "https://nextjs.org",
   "bugs": {
     "url": "https://github.com/vercel/next.js/issues"
