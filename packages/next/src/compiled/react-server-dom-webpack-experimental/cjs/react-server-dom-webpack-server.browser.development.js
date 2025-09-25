@@ -936,6 +936,7 @@
         model,
         null,
         !1,
+        null,
         abortSet,
         type,
         null,
@@ -1079,6 +1080,7 @@
         thenable,
         task.keyPath,
         task.implicitSlot,
+        task.formatContext,
         request.abortableTasks,
         task.time,
         task.debugOwner,
@@ -1212,6 +1214,7 @@
           task.model,
           task.keyPath,
           task.implicitSlot,
+          task.formatContext,
           request.abortableTasks,
           task.time,
           task.debugOwner,
@@ -1296,6 +1299,7 @@
           task.model,
           task.keyPath,
           task.implicitSlot,
+          task.formatContext,
           request.abortableTasks,
           task.time,
           task.debugOwner,
@@ -1608,6 +1612,7 @@
         task.model,
         task.keyPath,
         task.implicitSlot,
+        task.formatContext,
         request.abortableTasks,
         task.time,
         task.debugOwner,
@@ -1623,6 +1628,7 @@
         task.model,
         task.keyPath,
         task.implicitSlot,
+        task.formatContext,
         request.abortableTasks,
         task.time,
         task.debugOwner,
@@ -1680,11 +1686,13 @@
             (task.implicitSlot = validated),
             request
           );
-        if (
-          null != type &&
-          "object" === typeof type &&
-          !isClientReference(type)
-        )
+        if (null == type || "object" !== typeof type || isClientReference(type))
+          "string" === typeof type &&
+            ((ref = task.formatContext),
+            ref !== ref &&
+              null != props.children &&
+              outlineModelWithFormatContext(request, props.children, ref));
+        else
           switch (type.$$typeof) {
             case REACT_LAZY_TYPE:
               type = callLazyInitInDEV(type);
@@ -1777,6 +1785,7 @@
       model,
       keyPath,
       implicitSlot,
+      formatContext,
       abortSet,
       lastTimestamp,
       debugOwner,
@@ -1796,6 +1805,7 @@
         model: model,
         keyPath: keyPath,
         implicitSlot: implicitSlot,
+        formatContext: formatContext,
         ping: function () {
           return pingTask(request, task);
         },
@@ -1942,11 +1952,15 @@
       }
     }
     function outlineModel(request, value) {
+      return outlineModelWithFormatContext(request, value, null);
+    }
+    function outlineModelWithFormatContext(request, value, formatContext) {
       value = createTask(
         request,
         value,
         null,
         !1,
+        formatContext,
         request.abortableTasks,
         performance.now(),
         null,
@@ -2087,6 +2101,7 @@
           model,
           null,
           !1,
+          null,
           request.abortableTasks,
           performance.now(),
           null,
@@ -2139,6 +2154,7 @@
               task.model,
               task.keyPath,
               task.implicitSlot,
+              task.formatContext,
               request.abortableTasks,
               task.time,
               task.debugOwner,

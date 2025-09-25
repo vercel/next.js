@@ -1169,11 +1169,16 @@
       );
     }
     function getSuspenseContentFormatContext(resumableState, parentContext) {
+      resumableState = getSuspenseViewTransition(parentContext.viewTransition);
+      var subtreeScope = parentContext.tagScope | 16;
+      null !== resumableState &&
+        "none" !== resumableState.share &&
+        (subtreeScope |= 64);
       return createFormatContext(
         parentContext.insertionMode,
         parentContext.selectedValue,
-        parentContext.tagScope | 16,
-        getSuspenseViewTransition(parentContext.viewTransition)
+        subtreeScope,
+        resumableState
       );
     }
     function pushTextInstance(target, text, renderState, textEmbedded) {
@@ -3006,6 +3011,9 @@
               ("t" !== srcSet[2] && "T" !== srcSet[2]) ||
               ("a" !== srcSet[3] && "A" !== srcSet[3]))
           ) {
+            null !== hoistableState &&
+              formatContext.tagScope & 64 &&
+              (hoistableState.suspenseyImages = !0);
             var sizes = "string" === typeof props.sizes ? props.sizes : void 0,
               key$jscomp$0 = srcSet ? srcSet + "\n" + (sizes || "") : src,
               promotablePreloads = renderState.preloads.images,
@@ -3622,7 +3630,7 @@
       );
     }
     function createHoistableState() {
-      return { styles: new Set(), stylesheets: new Set() };
+      return { styles: new Set(), stylesheets: new Set(), suspenseyImages: !1 };
     }
     function preloadBootstrapScriptOrModule(
       resumableState,
@@ -3730,6 +3738,12 @@
     function hoistHoistables(parentState, childState) {
       childState.styles.forEach(hoistStyleQueueDependency, parentState);
       childState.stylesheets.forEach(hoistStylesheetDependency, parentState);
+      childState.suspenseyImages && (parentState.suspenseyImages = !0);
+    }
+    function hasSuspenseyContent(hoistableState) {
+      return (
+        0 < hoistableState.stylesheets.size || hoistableState.suspenseyImages
+      );
     }
     function getComponentNameFromType(type) {
       if (null == type) return null;
@@ -4510,7 +4524,11 @@
       return "";
     }
     function isEligibleForOutlining(request, boundary) {
-      return 500 < boundary.byteSize && null === boundary.contentPreamble;
+      return (
+        (500 < boundary.byteSize ||
+          hasSuspenseyContent(boundary.contentState)) &&
+        null === boundary.contentPreamble
+      );
     }
     function defaultErrorHandler(error) {
       if (
@@ -7873,8 +7891,10 @@
             hoistHoistables(hoistableState, boundary.fallbackState),
           flushSubtree(request, destination, segment, hoistableState);
       else if (
+        !flushingPartialBoundaries &&
         isEligibleForOutlining(request, boundary) &&
-        flushedByteSize + boundary.byteSize > request.progressiveChunkSize
+        (flushedByteSize + boundary.byteSize > request.progressiveChunkSize ||
+          hasSuspenseyContent(boundary.contentState))
       )
         (boundary.rootSegmentID = request.nextSegmentId++),
           request.completedBoundaries.push(boundary),
@@ -8323,6 +8343,7 @@
           completeWriting(destination);
           currentView = new Uint8Array(2048);
           writtenBytes = 0;
+          flushingPartialBoundaries = !0;
           var partialBoundaries = request.partialBoundaries;
           for (i = 0; i < partialBoundaries.length; i++) {
             a: {
@@ -8375,6 +8396,7 @@
             }
           }
           partialBoundaries.splice(0, i);
+          flushingPartialBoundaries = !1;
           var largeBoundaries = request.completedBoundaries;
           for (i = 0; i < largeBoundaries.length; i++)
             if (
@@ -8388,22 +8410,23 @@
           largeBoundaries.splice(0, i);
         }
       } finally {
-        0 === request.allPendingTasks &&
-        0 === request.clientRenderedBoundaries.length &&
-        0 === request.completedBoundaries.length
-          ? ((request.flushScheduled = !1),
-            (i = request.resumableState),
-            i.hasBody && writeChunk(destination, endChunkForTag("body")),
-            i.hasHtml && writeChunk(destination, endChunkForTag("html")),
-            completeWriting(destination),
-            0 !== request.abortableTasks.size &&
-              console.error(
-                "There was still abortable task at the root when we closed. This is a bug in React."
-              ),
-            (request.status = CLOSED),
-            destination.close(),
-            (request.destination = null))
-          : completeWriting(destination);
+        (flushingPartialBoundaries = !1),
+          0 === request.allPendingTasks &&
+          0 === request.clientRenderedBoundaries.length &&
+          0 === request.completedBoundaries.length
+            ? ((request.flushScheduled = !1),
+              (i = request.resumableState),
+              i.hasBody && writeChunk(destination, endChunkForTag("body")),
+              i.hasHtml && writeChunk(destination, endChunkForTag("html")),
+              completeWriting(destination),
+              0 !== request.abortableTasks.size &&
+                console.error(
+                  "There was still abortable task at the root when we closed. This is a bug in React."
+                ),
+              (request.status = CLOSED),
+              destination.close(),
+              (request.destination = null))
+            : completeWriting(destination);
       }
     }
     function startWork(request) {
@@ -8508,11 +8531,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.2.0-canary-e2332183-20250924" !== isomorphicReactPackageVersion)
+      if ("19.2.0-canary-b0c1dc01-20250925" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.2.0-canary-e2332183-20250924\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.2.0-canary-b0c1dc01-20250925\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react"),
@@ -10058,7 +10081,8 @@
       didWarnAboutReassigningProps = !1,
       didWarnAboutGenerators = !1,
       didWarnAboutMaps = !1,
-      flushedByteSize = 0;
+      flushedByteSize = 0,
+      flushingPartialBoundaries = !1;
     ensureCorrectIsomorphicReactVersion();
     ensureCorrectIsomorphicReactVersion();
     exports.prerender = function (children, options) {
@@ -10202,5 +10226,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.2.0-canary-e2332183-20250924";
+    exports.version = "19.2.0-canary-b0c1dc01-20250925";
   })();
