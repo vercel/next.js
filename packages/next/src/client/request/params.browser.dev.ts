@@ -66,7 +66,9 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
 
 function warnForSyncAccess(expression: string) {
   console.error(
-    `A param property was accessed directly with ${expression}. \`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing properties of the underlying params object. In this version of Next.js direct access to param properties is still supported to facilitate migration but in a future version you will be required to unwrap \`params\` with \`React.use()\`.`
+    `A param property was accessed directly with ${expression}. ` +
+      `\`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
 }
 
