@@ -18,15 +18,22 @@ describe('config-turbopack', () => {
   describe('when turbopack is auto selected', () => {
     if (process.env.IS_TURBOPACK_TEST) {
       beforeAll(() => {
+        // This is hacky since it isn't a public API, but it's the only way to test this.
+        // If next started ignoring IS_TURBOPACK_TEST we could possibly change nextTestSetup to not set the turbopack flag.
         process.env.TURBOPACK = 'auto'
       })
       afterAll(() => {
-        process.env.TURBOPACK = TURBOPACK_FLAG
+        if (TURBOPACK_FLAG) {
+          process.env.TURBOPACK = TURBOPACK_FLAG
+        } else {
+          delete process.env.TURBOPACK
+        }
       })
     }
     describe('when webpack is configured but Turbopack is not', () => {
       const { next, isTurbopack, isNextDev, isNextStart } = nextTestSetup({
         skipStart: Boolean(process.env.TURBOPACK_BUILD),
+        turbo: false,
         files: {
           ...page,
           'next.config.js': `
