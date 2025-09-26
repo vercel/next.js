@@ -460,14 +460,13 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     : // We don't want to force an environment transition when this params is not part of the fallback params set
       Promise.resolve(underlyingParams)
 
+  // Track which properties we should warn for.
   const proxiedProperties = new Set<string>()
-  const unproxiedProperties: Array<string> = []
 
   Object.keys(underlyingParams).forEach((prop) => {
     if (wellKnownProperties.has(prop)) {
       // These properties cannot be shadowed because they need to be the
       // true underlying value for Promises to work correctly at runtime
-      unproxiedProperties.push(prop)
     } else {
       proxiedProperties.add(prop)
     }
@@ -494,7 +493,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
     },
     ownKeys(target) {
       const expression = '`...params` or similar expression'
-      warnForIncompleteEnumeration(store.route, expression, unproxiedProperties)
+      warnForSyncAccess(store.route, expression)
       return Reflect.ownKeys(target)
     },
   })
@@ -507,9 +506,6 @@ const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
   createParamsAccessError
 )
 
-const warnForIncompleteEnumeration =
-  createDedupedByCallsiteServerErrorLoggerDev(createIncompleteEnumerationError)
-
 function createParamsAccessError(
   route: string | undefined,
   expression: string
@@ -520,41 +516,4 @@ function createParamsAccessError(
       `\`params\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
-}
-
-function createIncompleteEnumerationError(
-  route: string | undefined,
-  expression: string,
-  missingProperties: Array<string>
-) {
-  const prefix = route ? `Route "${route}" ` : 'This route '
-  return new Error(
-    `${prefix}used ${expression}. ` +
-      `\`params\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. ` +
-      `The following properties were not available through enumeration ` +
-      `because they conflict with builtin property names: ` +
-      `${describeListOfPropertyNames(missingProperties)}. ` +
-      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-  )
-}
-
-function describeListOfPropertyNames(properties: Array<string>) {
-  switch (properties.length) {
-    case 0:
-      throw new InvariantError(
-        'Expected describeListOfPropertyNames to be called with a non-empty list of strings.'
-      )
-    case 1:
-      return `\`${properties[0]}\``
-    case 2:
-      return `\`${properties[0]}\` and \`${properties[1]}\``
-    default: {
-      let description = ''
-      for (let i = 0; i < properties.length - 1; i++) {
-        description += `\`${properties[i]}\`, `
-      }
-      description += `, and \`${properties[properties.length - 1]}\``
-      return description
-    }
-  }
 }

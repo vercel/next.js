@@ -395,8 +395,8 @@ function makeUntrackedSearchParamsWithDevWarnings(
     return cachedSearchParams
   }
 
+  // Track which properties we should warn for.
   const proxiedProperties = new Set<string>()
-  const unproxiedProperties: Array<string> = []
 
   // We have an unfortunate sequence of events that requires this initialization logic. We want to instrument the underlying
   // searchParams object to detect if you are accessing values in dev. This is used for warnings and for things like the static prerender
@@ -458,7 +458,6 @@ function makeUntrackedSearchParamsWithDevWarnings(
     if (wellKnownProperties.has(prop)) {
       // These properties cannot be shadowed because they need to be the
       // true underlying value for Promises to work correctly at runtime
-      unproxiedProperties.push(prop)
     } else {
       proxiedProperties.add(prop)
     }
@@ -513,7 +512,7 @@ function makeUntrackedSearchParamsWithDevWarnings(
     },
     ownKeys(target) {
       const expression = '`Object.keys(searchParams)` or similar'
-      warnForIncompleteEnumeration(store.route, expression, unproxiedProperties)
+      warnForSyncAccess(store.route, expression)
       return Reflect.ownKeys(target)
     },
   })
@@ -526,9 +525,6 @@ const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
   createSearchAccessError
 )
 
-const warnForIncompleteEnumeration =
-  createDedupedByCallsiteServerErrorLoggerDev(createIncompleteEnumerationError)
-
 function createSearchAccessError(
   route: string | undefined,
   expression: string
@@ -539,41 +535,4 @@ function createSearchAccessError(
       `\`searchParams\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
-}
-
-function createIncompleteEnumerationError(
-  route: string | undefined,
-  expression: string,
-  missingProperties: Array<string>
-) {
-  const prefix = route ? `Route "${route}" ` : 'This route '
-  return new Error(
-    `${prefix}used ${expression}. ` +
-      `\`searchParams\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. ` +
-      `The following properties were not available through enumeration ` +
-      `because they conflict with builtin or well-known property names: ` +
-      `${describeListOfPropertyNames(missingProperties)}. ` +
-      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-  )
-}
-
-function describeListOfPropertyNames(properties: Array<string>) {
-  switch (properties.length) {
-    case 0:
-      throw new InvariantError(
-        'Expected describeListOfPropertyNames to be called with a non-empty list of strings.'
-      )
-    case 1:
-      return `\`${properties[0]}\``
-    case 2:
-      return `\`${properties[0]}\` and \`${properties[1]}\``
-    default: {
-      let description = ''
-      for (let i = 0; i < properties.length - 1; i++) {
-        description += `\`${properties[i]}\`, `
-      }
-      description += `, and \`${properties[properties.length - 1]}\``
-      return description
-    }
-  }
 }
