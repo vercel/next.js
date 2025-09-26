@@ -3,7 +3,7 @@ import { warnOnce } from '../../build/output/log'
 export function getRspackCore() {
   warnRspack()
   try {
-    // eslint-disable-next-line import/no-extraneous-dependencies
+    // eslint-disable-next-line @next/internal/typechecked-require
     return require('next-rspack/rspack-core')
   } catch (e) {
     if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
