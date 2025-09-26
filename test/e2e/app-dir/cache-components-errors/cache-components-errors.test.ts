@@ -2331,7 +2331,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
                {
-                 "description": "Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "description": "Route /use-cache-cookies used "cookies()" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies()" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-cookies/page.tsx (22:18) @ CookiesReadingComponent
@@ -2345,7 +2345,7 @@ describe('Cache Components Errors', () => {
             } else {
               await expect(browser).toDisplayRedbox(`
                {
-                 "description": "Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "description": "Route /use-cache-cookies used "cookies()" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies()" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-cookies/page.tsx (22:18) @ CookiesReadingComponent
@@ -2374,7 +2374,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route /use-cache-cookies used "cookies()" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies()" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at CookiesReadingComponent (bundler:///app/use-cache-cookies/page.tsx:22:18)
                    20 |   // in userland.
                    21 |   try {
@@ -2391,7 +2391,7 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route /use-cache-cookies used "cookies()" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies()" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at <unknown> (bundler:///app/use-cache-cookies/page.tsx:22:11)
                    20 |   // in userland.
                    21 |   try {
@@ -2410,7 +2410,7 @@ describe('Cache Components Errors', () => {
             } else {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route /use-cache-cookies used "cookies()" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies()" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at CookiesReadingComponent (bundler:///app/use-cache-cookies/page.tsx:22:18)
                      at <unknown> (bundler:///<next-src>)
                    20 |   // in userland.
@@ -2428,7 +2428,7 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-cookies used "cookies" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route /use-cache-cookies used "cookies()" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "cookies()" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -2574,7 +2574,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
                {
-                 "description": "Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "description": "Route /use-cache-headers used "headers()" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers()" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-headers/page.tsx (21:18) @ HeadersReadingComponent
@@ -2588,7 +2588,7 @@ describe('Cache Components Errors', () => {
             } else {
               await expect(browser).toDisplayRedbox(`
                {
-                 "description": "Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "description": "Route /use-cache-headers used "headers()" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers()" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-headers/page.tsx (21:18) @ HeadersReadingComponent
@@ -2617,7 +2617,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route /use-cache-headers used "headers()" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers()" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at HeadersReadingComponent (bundler:///app/use-cache-headers/page.tsx:21:18)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
@@ -2634,7 +2634,7 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route /use-cache-headers used "headers()" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers()" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at <unknown> (bundler:///app/use-cache-headers/page.tsx:21:11)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
                    20 |   try {
@@ -2653,7 +2653,7 @@ describe('Cache Components Errors', () => {
             } else {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route /use-cache-headers used "headers()" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers()" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at HeadersReadingComponent (bundler:///app/use-cache-headers/page.tsx:21:18)
                      at <unknown> (bundler:///<next-src>)
                    19 |   // to ensure that this error is shown even when it's caught in userland.
@@ -2671,7 +2671,7 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route /use-cache-headers used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
+                 "Error: Route /use-cache-headers used "headers()" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers()" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -3242,7 +3242,7 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               await expect(browser).toDisplayRedbox(`
                {
-                 "description": "Route /use-cache-private-connection used "connection" inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "description": "Route /use-cache-private-connection used "connection()" inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-private-connection/page.tsx (25:21) @ Private
@@ -3256,7 +3256,7 @@ describe('Cache Components Errors', () => {
             } else {
               await expect(browser).toDisplayRedbox(`
                {
-                 "description": "Route /use-cache-private-connection used "connection" inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
+                 "description": "Route /use-cache-private-connection used "connection()" inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache",
                  "environmentLabel": null,
                  "label": "Runtime Error",
                  "source": "app/use-cache-private-connection/page.tsx (25:21) @ Private

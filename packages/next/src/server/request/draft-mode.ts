@@ -231,7 +231,7 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
           workUnitStore.revalidate = 0
 
           const err = new DynamicServerError(
-            `Route ${workStore.route} couldn't be rendered statically because it used \`${expression}\`. \`draftMode\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+            `Route ${workStore.route} couldn't be rendered statically because it used \`${expression}\`. \`draftMode()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
           )
           workStore.dynamicUsageDescription = expression
           workStore.dynamicUsageStack = err.stack
