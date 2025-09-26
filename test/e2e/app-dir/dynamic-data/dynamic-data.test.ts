@@ -235,7 +235,7 @@ describe('dynamic-data with dynamic = "error"', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route /search with \`dynamic = "error"\` couldn't be rendered statically because it used \`searchParams.then\`. Dynamic API is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+           "description": "Route /search with \`dynamic = "error"\` couldn't be rendered statically because it used \`searchParams.then\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
            "environmentLabel": "Server",
            "label": "Runtime Error",
            "source": "app/search/page.js (12:31) @ Page
