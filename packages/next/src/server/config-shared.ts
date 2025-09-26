@@ -425,7 +425,7 @@ export interface ExperimentalConfig {
   /**
    * Enable persistent caching for the turbopack dev server.
    */
-  turbopackPersistentCaching?: boolean
+  turbopackPersistentCachingForDev?: boolean
 
   /**
    * Enable persistent caching for the turbopack build.
