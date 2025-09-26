@@ -307,9 +307,7 @@
     "passed": [
       "Undefined default export should error if layout component does not have default export",
       "Undefined default export should error if not-found component does not have default export when trigger not-found boundary",
-      "Undefined default export should error if page component does not have default export",
-      "Undefined default export should error when page component export is not valid",
-      "Undefined default export should error when page component export is not valid on initial load"
+      "Undefined default export should error if page component does not have default export"
     ],
     "failed": [],
     "pending": [],
@@ -1195,10 +1193,10 @@
     "runtimeError": false
   },
   "test/development/basic/barrel-optimization/barrel-optimization-mui.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "Skipped in Turbopack optimizePackageImports - mui should support MUI"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1942,10 +1940,45 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/mcp-server/mcp-server.test.ts": {
+  "test/development/mcp-server/mcp-server-get-errors.test.ts": {
     "passed": [
-      "mcp-server should initialize MCP server and list available tools",
-      "mcp-server should return exact absolute path for get_project_path tool"
+      "mcp-server get_errors tool should capture errors from multiple browser sessions",
+      "mcp-server get_errors tool should capture runtime errors with source-mapped stack frames",
+      "mcp-server get_errors tool should handle no browser sessions gracefully",
+      "mcp-server get_errors tool should return no errors for clean page"
+    ],
+    "failed": [
+      "mcp-server get_errors tool should capture build errors when directly visiting error page"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/mcp-server/mcp-server-get-logs.test.ts": {
+    "passed": [
+      "get-logs MCP tool should return log file path via MCP get_logs tool"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/mcp-server/mcp-server-get-page-metadata.test.ts": {
+    "passed": [
+      "mcp-server get_page_metadata tool app router should handle multiple browser sessions",
+      "mcp-server get_page_metadata tool app router should return metadata for basic page",
+      "mcp-server get_page_metadata tool app router should return metadata for parallel routes",
+      "mcp-server get_page_metadata tool pages router should return metadata showing pages router type",
+      "mcp-server get_page_metadata tool pages router should show pages router type for about page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/mcp-server/mcp-server-get-project-path.test.ts": {
+    "passed": [
+      "mcp-server get_project_path tool should return correct project path via get_project_path tool"
     ],
     "failed": [],
     "pending": [],
@@ -3727,7 +3760,6 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -3741,6 +3773,7 @@
       "app dir - basic server components client components should have consistent query and params handling",
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
+      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
       "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
@@ -3785,7 +3818,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite"
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -5383,6 +5416,17 @@
     "pending": [
       "Error test if the loader file export a named function in Build and Start build and start only should show the build error"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/log-file/log-file.test.ts": {
+    "passed": [
+      "log-file should capture RSC logging in log file",
+      "log-file should capture client logging in log file",
+      "log-file should capture logging in pages router"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -11618,12 +11662,14 @@
   },
   "test/e2e/react-compiler/react-compiler.test.ts": {
     "passed": [
-      "react-compiler babelrc should render",
+      "react-compiler babelrc should memoize Components",
+      "react-compiler babelrc should name functions in dev",
       "react-compiler babelrc should show an experimental warning",
       "react-compiler babelrc should work with a library that uses the react-server condition",
       "react-compiler babelrc should work with a library using use client",
       "react-compiler babelrc throws if the React Compiler is used in a React Server environment",
-      "react-compiler default should render",
+      "react-compiler default should memoize Components",
+      "react-compiler default should name functions in dev",
       "react-compiler default should show an experimental warning",
       "react-compiler default should work with a library that uses the react-server condition",
       "react-compiler default should work with a library using use client",
@@ -13161,8 +13207,10 @@
   "test/integration/config-mjs/test/index.test.ts": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
+      "Configuration renders public config on the server only",
+      "Configuration renders server config on the server only",
       "Configuration should disable X-Powered-By header support",
-      "Configuration should have env variables available on the client"
+      "Configuration should have config available on the client"
     ],
     "failed": [],
     "pending": [],
@@ -13237,8 +13285,10 @@
   "test/integration/config/test/index.test.js": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
+      "Configuration renders public config on the server only",
+      "Configuration renders server config on the server only",
       "Configuration should disable X-Powered-By header support",
-      "Configuration should have env variables available on the client"
+      "Configuration should have config available on the client"
     ],
     "failed": [],
     "pending": [],
@@ -14174,6 +14224,16 @@
   },
   "test/integration/development-hmr-refresh/test/index.test.js": {
     "passed": ["page should not reload when the file is not changed"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/development-runtime-config/test/index.test.js": {
+    "passed": [
+      "should work with runtime-config in next.config.js empty runtime-config",
+      "should work with runtime-config in next.config.js with runtime-config"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
