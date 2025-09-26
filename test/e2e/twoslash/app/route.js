@@ -1,10 +1,24 @@
 import { createTwoslasher } from 'twoslash'
+import ts from 'typescript'
 
-const code = `'hello'.toUpperCase()`
-const twoslasher = createTwoslasher()
+export function GET(request) {
+  try {
+    const options = request.nextUrl.searchParams.has('esnext')
+      ? {
+          target: ts.ScriptTarget.ESNext,
+          lib: ['ESNext', 'DOM', 'esnext', 'dom', 'es2020'],
+        }
+      : {}
 
-export function GET() {
-  const result = twoslasher(code)
+    const code = `type X = Promise<number>;
+'hello'.toUpperCase()`
+    const twoslasher = createTwoslasher({
+      compilerOptions: options,
+    })
+    const result = twoslasher(code)
 
-  return Response.json(result)
+    return Response.json(result)
+  } catch (e) {
+    return Response.json({ error: e })
+  }
 }

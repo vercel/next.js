@@ -14,6 +14,7 @@ const nextConfig: NextConfig = {
           'lib.*.d.ts'
         )
       ),
+      './node_modules/@types/node/**',
     ],
   },
   serverExternalPackages: ['twoslash'],
