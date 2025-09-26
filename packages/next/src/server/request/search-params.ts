@@ -349,23 +349,6 @@ export function makeErroringSearchParamsForUseCache(
 
       return ReflectAdapter.get(target, prop, receiver)
     },
-    has: function has(target, prop) {
-      // We don't expect key checking to be used except for testing the existence of
-      // searchParams so we make all has tests throw an error. this means that `promise.then`
-      // can resolve to the then function on the Promise prototype but 'then' in promise will assume
-      // you are testing whether the searchParams has a 'then' property.
-      if (
-        typeof prop === 'string' &&
-        (prop === 'then' || !wellKnownProperties.has(prop))
-      ) {
-        throwForSearchParamsAccessInUseCache(workStore, has)
-      }
-
-      return ReflectAdapter.has(target, prop)
-    },
-    ownKeys: function ownKeys() {
-      throwForSearchParamsAccessInUseCache(workStore, ownKeys)
-    },
   })
 
   CachedSearchParamsForUseCache.set(workStore, proxiedPromise)
