@@ -16,7 +16,7 @@ export function useMergedRef<TElement>(
 
   // NOTE: In theory, we could skip the wrapping if only one of the refs is non-null.
   // (this happens often if the user doesn't pass a ref to Link/Form/Image)
-  // But this can cause us to leak a cleanup-ref into user code (e.g. via `<Link legacyBehavior>`),
+  // But this can cause us to leak a cleanup-ref into user code (previously via `<Link legacyBehavior>`),
   // and the user might pass that ref into ref-merging library that doesn't support cleanup refs
   // (because it hasn't been updated for React 19)
   // which can then cause things to blow up, because a cleanup-returning ref gets called with `null`.

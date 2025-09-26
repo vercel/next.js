@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
@@ -11,10 +11,12 @@ use crate::version::{VersionedAssetContent, VersionedContent};
 #[turbo_tasks::value_trait]
 pub trait Asset {
     /// The content of the [Asset].
+    #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent>;
 
     /// The content of the [Asset] alongside its version.
-    async fn versioned_content(self: Vc<Self>) -> Result<Vc<Box<dyn VersionedContent>>> {
+    #[turbo_tasks::function]
+    fn versioned_content(self: Vc<Self>) -> Result<Vc<Box<dyn VersionedContent>>> {
         Ok(Vc::upcast(VersionedAssetContent::new(self.content())))
     }
 }
@@ -32,7 +34,7 @@ pub enum AssetContent {
 #[turbo_tasks::value_impl]
 impl AssetContent {
     #[turbo_tasks::function]
-    pub async fn file(file: ResolvedVc<FileContent>) -> Result<Vc<Self>> {
+    pub fn file(file: ResolvedVc<FileContent>) -> Result<Vc<Self>> {
         Ok(AssetContent::File(file).cell())
     }
 
@@ -41,9 +43,10 @@ impl AssetContent {
         let this = self.await?;
         match &*this {
             AssetContent::File(content) => Ok(content.parse_json()),
-            AssetContent::Redirect { .. } => {
-                Ok(FileJsonContent::unparseable("a redirect can't be parsed as json").cell())
-            }
+            AssetContent::Redirect { .. } => Ok(FileJsonContent::unparsable(rcstr!(
+                "a redirect can't be parsed as json"
+            ))
+            .cell()),
         }
     }
 
@@ -61,7 +64,7 @@ impl AssetContent {
         let this = self.await?;
         match &*this {
             AssetContent::File(content) => Ok(content.lines()),
-            AssetContent::Redirect { .. } => Ok(FileLinesContent::Unparseable.cell()),
+            AssetContent::Redirect { .. } => Ok(FileLinesContent::Unparsable.cell()),
         }
     }
 
@@ -79,27 +82,30 @@ impl AssetContent {
         let this = self.await?;
         match &*this {
             AssetContent::File(content) => Ok(content.parse_json_with_comments()),
-            AssetContent::Redirect { .. } => {
-                Ok(FileJsonContent::unparseable("a redirect can't be parsed as json").cell())
-            }
+            AssetContent::Redirect { .. } => Ok(FileJsonContent::unparsable(rcstr!(
+                "a redirect can't be parsed as json"
+            ))
+            .cell()),
         }
     }
 
     #[turbo_tasks::function]
-    pub async fn write(self: Vc<Self>, path: Vc<FileSystemPath>) -> Result<()> {
+    pub async fn write(self: Vc<Self>, path: FileSystemPath) -> Result<()> {
         let this = self.await?;
         match &*this {
             AssetContent::File(file) => {
-                let _ = path.write(**file);
+                path.write(**file).as_side_effect().await?;
             }
             AssetContent::Redirect { target, link_type } => {
-                let _ = path.write_link(
+                path.write_link(
                     LinkContent::Link {
                         target: target.clone(),
                         link_type: *link_type,
                     }
                     .cell(),
-                );
+                )
+                .as_side_effect()
+                .await?;
             }
         }
         Ok(())

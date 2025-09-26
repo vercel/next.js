@@ -138,7 +138,11 @@ async fn aggregate_more(node: ResolvedVc<AggregatedGraph>) -> Result<Vc<Aggregat
     // only one kind of aggregation can't eliminate cycles with that
     // number of nodes. Alternating the aggregation will get rid of all
     // cycles
-    let aggregation = if depth > 0 && depth % 2 == 0 { 3 } else { 2 };
+    let aggregation = if depth > 0 && depth.is_multiple_of(2) {
+        3
+    } else {
+        2
+    };
     for _ in 0..aggregation {
         for &node in in_progress.iter() {
             content.insert(node);

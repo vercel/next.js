@@ -45,11 +45,20 @@ export const getExtensionRegexString = (
 }
 
 /**
+ * Matches the static metadata files, e.g. /robots.txt, /sitemap.xml, /favicon.ico, etc.
+ * @param appDirRelativePath the relative file path to app/
+ * @returns if the path is a static metadata file route
+ */
+export function isStaticMetadataFile(appDirRelativePath: string) {
+  return isMetadataRouteFile(appDirRelativePath, [], true)
+}
+
+/**
  * Determine if the file is a metadata route file entry
  * @param appDirRelativePath the relative file path to app/
  * @param pageExtensions the js extensions, such as ['js', 'jsx', 'ts', 'tsx']
  * @param strictlyMatchExtensions if it's true, match the file with page extension, otherwise match the file with default corresponding extension
- * @returns {boolean} if the file is a metadata route file
+ * @returns if the file is a metadata route file
  */
 export function isMetadataRouteFile(
   appDirRelativePath: string,

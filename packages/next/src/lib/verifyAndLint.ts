@@ -24,6 +24,8 @@ export async function verifyAndLint(
   try {
     lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
       exposedMethods: ['runLintCheck'],
+      debuggerPortOffset: -1,
+      isolatedMemory: false,
       numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,

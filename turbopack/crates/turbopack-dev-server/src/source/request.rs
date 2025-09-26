@@ -1,5 +1,5 @@
 use hyper::{HeaderMap, Uri};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
+use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
 use super::Body;
 

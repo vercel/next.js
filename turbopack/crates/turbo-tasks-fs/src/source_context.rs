@@ -94,7 +94,7 @@ pub struct SourceContextLines<'a>(pub Vec<SourceContextLine<'a>>);
 impl Display for SourceContextLines<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for line in &self.0 {
-            write!(f, "{}", line)?;
+            write!(f, "{line}")?;
         }
         Ok(())
     }
@@ -129,7 +129,7 @@ pub fn get_source_context<'a>(
             }
             let (a, b) = s.split_at(s.floor_char_boundary(98));
             let (_, c) = b.split_at(b.ceil_char_boundary(b.len() - 99));
-            Cow::Owned(format!("{}...{}", a, c))
+            Cow::Owned(format!("{a}...{c}"))
         }
         match (i.cmp(&start_line), i.cmp(&end_line)) {
             // outside

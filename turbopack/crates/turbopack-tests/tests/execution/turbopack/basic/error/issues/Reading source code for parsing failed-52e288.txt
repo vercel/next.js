@@ -1,0 +1,11 @@
+error - [load] /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/broken.js  Reading source code for parsing failed
+  
+  An unexpected error happened while trying to read the source code to parse: failed to convert rope into string
+  
+  Caused by:
+  - invalid utf-8 sequence of 1 bytes from index 1
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/broken.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/error/input/index.js

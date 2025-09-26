@@ -2,11 +2,11 @@ import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
-import webdriver, { BrowserInterface } from 'next-webdriver'
+import webdriver, { Playwright } from 'next-webdriver'
 
 import type { HistoryState } from 'next/dist/shared/lib/router/router'
 
-const emitPopsStateEvent = (browser: BrowserInterface, state: HistoryState) =>
+const emitPopsStateEvent = (browser: Playwright, state: HistoryState) =>
   browser.eval(
     `window.dispatchEvent(new PopStateEvent("popstate", { state: ${JSON.stringify(
       state

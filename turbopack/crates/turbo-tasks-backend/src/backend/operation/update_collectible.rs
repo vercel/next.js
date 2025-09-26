@@ -5,13 +5,12 @@ use turbo_tasks::TaskId;
 
 use crate::{
     backend::{
-        get_many,
+        TaskDataCategory, get_many,
         operation::{
-            get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
-            AggregationUpdateQueue, ExecuteContext, Operation,
+            AggregatedDataUpdate, AggregationUpdateJob, AggregationUpdateQueue, ExecuteContext,
+            Operation, get_aggregation_number, is_root_node,
         },
         storage::{get, update_count},
-        TaskDataCategory,
     },
     data::CollectibleRef,
 };
@@ -25,10 +24,6 @@ impl UpdateCollectibleOperation {
         mut count: i32,
         mut ctx: impl ExecuteContext,
     ) {
-        if !ctx.should_track_children() {
-            // Collectibles are not supported without children tracking
-            return;
-        }
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         if count < 0 {
             // Ensure it's an root node

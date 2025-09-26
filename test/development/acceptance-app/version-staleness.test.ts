@@ -3,9 +3,9 @@ import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
-import { BrowserInterface } from 'next-webdriver'
+import { Playwright } from 'next-webdriver'
 
-function getStaleness(browser: BrowserInterface) {
+function getStaleness(browser: Playwright) {
   return browser
     .waitForElementByCss('.nextjs-container-build-error-version-status')
     .text()

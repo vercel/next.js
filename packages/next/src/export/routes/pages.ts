@@ -17,14 +17,18 @@ import type {
 } from '../../server/lib/mock-request'
 import { isInAmpMode } from '../../shared/lib/amp-mode'
 import {
+  HTML_CONTENT_TYPE_HEADER,
   NEXT_DATA_SUFFIX,
   SERVER_PROPS_EXPORT_ERROR,
 } from '../../lib/constants'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
-import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { FileType, fileExists } from '../../lib/file-exists'
 import { lazyRenderPagesPage } from '../../server/route-modules/pages/module.render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
+import {
+  getAmpValidatorInstance,
+  getBundledAmpValidatorFilepath,
+} from '../helpers/get-amp-html-validator'
 
 /**
  * Renders & exports a page associated with the /pages directory
@@ -59,9 +63,7 @@ export async function exportPagesPage(
   }
 
   if (!ampValidatorPath) {
-    ampValidatorPath = require.resolve(
-      'next/dist/compiled/amphtml-validator/validator_wasm.js'
-    )
+    ampValidatorPath = getBundledAmpValidatorFilepath()
   }
 
   const inAmpMode = isInAmpMode(ampState)
@@ -95,7 +97,10 @@ export async function exportPagesPage(
   let renderResult: RenderResult | undefined
 
   if (typeof components.Component === 'string') {
-    renderResult = RenderResult.fromStatic(components.Component)
+    renderResult = RenderResult.fromStatic(
+      components.Component,
+      HTML_CONTENT_TYPE_HEADER
+    )
 
     if (hasOrigQueryValues) {
       throw new Error(
@@ -135,9 +140,44 @@ export async function exportPagesPage(
     ampPageName: string,
     validatorPath: string | undefined
   ) => {
-    const validator = await AmpHtmlValidator.getInstance(validatorPath)
+    const validator = await getAmpValidatorInstance(validatorPath)
     const result = validator.validateString(rawAmpHtml)
-    const errors = result.errors.filter((e) => e.severity === 'ERROR')
+    const errors = result.errors.filter((error) => {
+      if (error.severity === 'ERROR') {
+        // Unclear yet if these actually prevent the page from being indexed by the AMP cache.
+        // These are coming from React so all we can do is ignore them for now.
+
+        // <link rel="expect" blocking="render" />
+        // https://github.com/ampproject/amphtml/issues/40279
+        if (
+          error.code === 'DISALLOWED_ATTR' &&
+          error.params[0] === 'blocking' &&
+          error.params[1] === 'link'
+        ) {
+          return false
+        }
+        // <template> without type
+        // https://github.com/ampproject/amphtml/issues/40280
+        if (
+          error.code === 'MANDATORY_ATTR_MISSING' &&
+          error.params[0] === 'type' &&
+          error.params[1] === 'template'
+        ) {
+          return false
+        }
+        // <template> without type
+        // https://github.com/ampproject/amphtml/issues/40280
+        if (
+          error.code === 'MISSING_REQUIRED_EXTENSION' &&
+          error.params[0] === 'template' &&
+          error.params[1] === 'amp-mustache'
+        ) {
+          return false
+        }
+        return true
+      }
+      return false
+    })
     const warnings = result.errors.filter((e) => e.severity !== 'ERROR')
 
     if (warnings.length || errors.length) {

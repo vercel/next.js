@@ -4,10 +4,13 @@ import { COMPILER_NAMES } from '../../../../shared/lib/constants'
 import type { ConfigurationContext } from '../utils'
 import DevToolsIgnorePlugin from '../../plugins/devtools-ignore-list-plugin'
 import EvalSourceMapDevToolPlugin from '../../plugins/eval-source-map-dev-tool-plugin'
+import { getRspackCore } from '../../../../shared/lib/get-rspack'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
     modulePath.includes('node_modules') ||
+    modulePath.endsWith('__nextjs-internal-proxy.cjs') ||
+    modulePath.endsWith('__nextjs-internal-proxy.mjs') ||
     // Only relevant for when Next.js is symlinked e.g. in the Next.js monorepo
     modulePath.includes('next/dist')
   )
@@ -32,15 +35,11 @@ export const base = curry(function base(
 
   // https://webpack.js.org/configuration/devtool/#development
   if (ctx.isDevelopment) {
-    if (process.env.__NEXT_TEST_MODE && !process.env.__NEXT_TEST_WITH_DEVTOOL) {
-      config.devtool = false
-    } else {
-      // `eval-source-map` provides full-fidelity source maps for the
-      // original source, including columns and original variable names.
-      // This is desirable so the in-browser debugger can correctly pause
-      // and show scoped variables with their original names.
-      config.devtool = 'eval-source-map'
-    }
+    // `eval-source-map` provides full-fidelity source maps for the
+    // original source, including columns and original variable names.
+    // This is desirable so the in-browser debugger can correctly pause
+    // and show scoped variables with their original names.
+    config.devtool = 'eval-source-map'
   } else {
     if (
       ctx.isEdgeRuntime ||
@@ -65,15 +64,23 @@ export const base = curry(function base(
         shouldIgnorePath,
       })
     )
-  } else if (config.devtool === 'eval-source-map' && !process.env.NEXT_RSPACK) {
+  } else if (config.devtool === 'eval-source-map') {
     // We're using a fork of `eval-source-map`
     config.devtool = false
-    config.plugins.push(
-      new EvalSourceMapDevToolPlugin({
-        moduleFilenameTemplate: config.output?.devtoolModuleFilenameTemplate,
-        shouldIgnorePath,
-      })
-    )
+    if (process.env.NEXT_RSPACK) {
+      config.plugins.push(
+        new (getRspackCore().EvalSourceMapDevToolPlugin)({
+          moduleFilenameTemplate: config.output?.devtoolModuleFilenameTemplate,
+        })
+      )
+    } else {
+      config.plugins.push(
+        new EvalSourceMapDevToolPlugin({
+          moduleFilenameTemplate: config.output?.devtoolModuleFilenameTemplate,
+          shouldIgnorePath,
+        })
+      )
+    }
   }
 
   // TODO: add codemod for "Should not import the named export" with JSON files

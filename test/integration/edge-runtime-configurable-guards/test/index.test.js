@@ -30,7 +30,6 @@ const context = {
   ),
 }
 const appOption = {
-  env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
   onStdout(msg) {
     context.logs.output += msg
     context.logs.stdout += msg

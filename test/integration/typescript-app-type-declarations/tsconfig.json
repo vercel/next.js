@@ -3,7 +3,7 @@
     "baseUrl": ".",
     "esModuleInterop": true,
     "module": "esnext",
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "target": "es5",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,

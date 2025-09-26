@@ -4,6 +4,7 @@ import type {
   ExternalObject,
   RefCell,
   NapiTurboEngineOptions,
+  NapiSourceDiagnostic,
 } from './generated-native'
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
@@ -15,7 +16,10 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions?: NapiTurboEngineOptions
     ): Promise<Project>
-    startTurbopackTraceServer(traceFilePath: string): void
+    startTurbopackTraceServer(
+      traceFilePath: string,
+      port: number | undefined
+    ): void
 
     nextBuild?: any
   }
@@ -43,6 +47,22 @@ export interface Binding {
   reactCompiler: {
     isReactCompilerRequired(filename: string): Promise<boolean>
   }
+
+  rspack: {
+    getModuleNamedExports(resourcePath: string): Promise<string[]>
+    warnForEdgeRuntime(
+      source: string,
+      isProduction: boolean
+    ): Promise<NapiSourceDiagnostic[]>
+  }
+  expandNextJsTemplate(
+    content: Buffer,
+    templatePath: string,
+    nextPackageDirPath: string,
+    replacements: Record<`VAR_${string}`, string>,
+    injections: Record<string, string>,
+    imports: Record<string, string | null>
+  ): string
 }
 
 export type StyledString =
@@ -95,7 +115,13 @@ export interface Issue {
     }
   }
   documentationLink: string
-  subIssues: Issue[]
+  importTraces?: PlainTraceItem[][]
+}
+export interface PlainTraceItem {
+  fsName: string
+  path: string
+  rootPath: string
+  layer?: string
 }
 
 export interface Diagnostics {
@@ -182,6 +208,13 @@ export type UpdateMessage =
       value: UpdateInfo
     }
 
+export type CompilationEvent = {
+  typeName: string
+  message: string
+  severity: string
+  eventData: any
+}
+
 export interface UpdateInfo {
   duration: number
   tasks: number
@@ -215,6 +248,12 @@ export interface Project {
   updateInfoSubscribe(
     aggregationMs: number
   ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+
+  compilationEventsSubscribe(
+    eventTypes?: string[]
+  ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
+
+  invalidatePersistentCache(): Promise<void>
 
   shutdown(): Promise<void>
 
@@ -318,18 +357,22 @@ export type WrittenEndpoint =
 
 export interface ProjectOptions {
   /**
-   * A root path from which all files must be nested under. Trying to access
-   * a file outside this root will fail. Think of this as a chroot.
+   * An absolute root path (Unix or Windows path) from which all files must be nested under. Trying
+   * to access a file outside this root will fail, so think of this as a chroot.
+   * E.g. `/home/user/projects/my-repo`.
    */
   rootPath: string
 
   /**
-   * A path inside the root_path which contains the app/pages directories.
+   * A path which contains the app/pages directories, relative to `root_path`, always a Unix path.
+   * E.g. `apps/my-app`
    */
   projectPath: string
 
   /**
-   * The path to the .next directory.
+   * A path where to emit the build outputs, relative to [`Project::project_path`], always a Unix
+   * path. Corresponds to next.config.js's `distDir`.
+   * E.g. `.next`
    */
   distDir: string
 
@@ -337,17 +380,6 @@ export interface ProjectOptions {
    * The next.config.js contents.
    */
   nextConfig: NextConfigComplete
-
-  /**
-   * Jsconfig, or tsconfig contents.
-   *
-   * Next.js implicitly requires to read it to support few options
-   * https://nextjs.org/docs/architecture/nextjs-compiler#legacy-decorators
-   * https://nextjs.org/docs/architecture/nextjs-compiler#importsource
-   */
-  jsConfig: {
-    compilerOptions: object
-  }
 
   /**
    * A map of environment variables to use when compiling code.
@@ -395,15 +427,21 @@ export interface ProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling: boolean
+
+  /**
+   * The version of Node.js that is available/currently running.
+   */
+  currentNodeJsVersion: string
 }
 
 export interface DefineEnv {
-  client: RustifiedEnv
-  edge: RustifiedEnv
-  nodejs: RustifiedEnv
+  client: RustifiedOptionalEnv
+  edge: RustifiedOptionalEnv
+  nodejs: RustifiedOptionalEnv
 }
 
 export type RustifiedEnv = { name: string; value: string }[]
+export type RustifiedOptionalEnv = { name: string; value: string | undefined }[]
 
 export interface GlobalEntrypoints {
   app: Endpoint | undefined

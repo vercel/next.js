@@ -1,8 +1,8 @@
 use anyhow::Result;
 use swc_core::{ecma::ast::Expr, quote};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
-use turbopack_core::resolve::parse::Request;
+use turbopack_core::{self, resolve::parse::Request};
 
 /// Creates a IIFE expression that throws a "Cannot find module" error for the
 /// given request string
@@ -33,6 +33,6 @@ pub async fn request_to_string(request: Vc<Request>) -> Result<Vc<RcStr>> {
             .await?
             .request()
             // TODO: Handle Request::Dynamic, Request::Alternatives
-            .unwrap_or_else(|| "unknown".into()),
+            .unwrap_or(rcstr!("unknown")),
     ))
 }

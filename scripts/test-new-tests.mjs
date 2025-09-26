@@ -79,13 +79,15 @@ async function main() {
   }
 
   const RUN_TESTS_ARGS = ['run-tests.js', '-c', '1', '--retries', '0']
-
+  const PR_NUMBER = process.env.GH_PR_NUMBER
   // Only override the test version for deploy tests, as they need to run against
   // the artifacts for the pull request. Otherwise, we don't need to specify this property,
   // as tests will run against the local version of Next.js
   const nextTestVersion =
     testMode === 'deploy'
-      ? `https://vercel-packages.vercel.app/next/commits/${commitSha}/next`
+      ? PR_NUMBER
+        ? `https://vercel-packages.vercel.app/next/prs/${PR_NUMBER}/next`
+        : `https://vercel-packages.vercel.app/next/commits/${commitSha}/next`
       : undefined
 
   if (nextTestVersion) {
@@ -128,14 +130,29 @@ async function main() {
 
   for (let i = 0; i < attempts; i++) {
     console.log(`\n\nRun ${i + 1}/${attempts} for ${testMode} tests (Webpack)`)
+
+    // We apply the external tests filter before the process.env so that if
+    // it's defined in the environment, it overrides the default filter.
+    // This is required for supporting the experimental tests setup.
+    const NEXT_EXTERNAL_TESTS_FILTERS = process.env.NEXT_EXTERNAL_TESTS_FILTERS
+      ? process.env.NEXT_EXTERNAL_TESTS_FILTERS
+      : testMode === 'deploy'
+        ? 'test/deploy-tests-manifest.json'
+        : undefined
+
+    if (NEXT_EXTERNAL_TESTS_FILTERS) {
+      console.log(
+        `Applying external tests filter: ${NEXT_EXTERNAL_TESTS_FILTERS}`
+      )
+    }
+
     await execa('node', [...RUN_TESTS_ARGS, ...currentTests], {
       ...EXECA_OPTS_STDIO,
       env: {
         ...process.env,
+        NEXT_EXTERNAL_TESTS_FILTERS,
         NEXT_TEST_MODE: testMode,
         NEXT_TEST_VERSION: nextTestVersion,
-        NEXT_EXTERNAL_TESTS_FILTERS:
-          testMode === 'deploy' ? 'test/deploy-tests-manifest.json' : undefined,
       },
     })
   }
@@ -153,10 +170,6 @@ async function main() {
           NEXT_TEST_VERSION: nextTestVersion,
           IS_TURBOPACK_TEST: '1',
           TURBOPACK_BUILD: testMode === 'start' ? '1' : undefined,
-          NEXT_EXTERNAL_TESTS_FILTERS:
-            testMode === 'dev'
-              ? 'test/turbopack-dev-tests-manifest.json'
-              : 'test/turbopack-build-tests-manifest.json',
         },
       })
     }

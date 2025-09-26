@@ -518,7 +518,7 @@ Or run this command again without the --no-install flag to do both automatically
       owner: repoOwner,
       repo: repoName,
       head: branchName,
-      base: 'canary',
+      base: process.env.GITHUB_REF || 'canary',
       draft: false,
       title: prTitle,
       body: prDescription,

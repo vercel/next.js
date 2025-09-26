@@ -141,6 +141,25 @@ export async function collectBuildTraces({
         )
       }
 
+      // Under standalone mode, we need to ensure that the cache entry debug
+      // handler is traced so it can be copied. This is only used for testing,
+      // and is not used in production.
+      if (
+        process.env.__NEXT_TEST_MODE &&
+        process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+      ) {
+        sharedEntriesSet.push(
+          require.resolve(
+            path.isAbsolute(process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS)
+              ? process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+              : path.join(
+                  dir,
+                  process.env.NEXT_PRIVATE_DEBUG_CACHE_ENTRY_HANDLERS
+                )
+          )
+        )
+      }
+
       if (cacheHandlers) {
         for (const handlerPath of Object.values(cacheHandlers)) {
           if (handlerPath) {
@@ -499,12 +518,19 @@ export async function collectBuildTraces({
         addToTracedFiles(root, relativeModulePath, minimalServerTracedFiles)
       }
 
+      const serverTracedFilesSorted = Array.from(serverTracedFiles)
+      serverTracedFilesSorted.sort()
+      const minimalServerTracedFilesSorted = Array.from(
+        minimalServerTracedFiles
+      )
+      minimalServerTracedFilesSorted.sort()
+
       await Promise.all([
         fs.writeFile(
           nextServerTraceOutput,
           JSON.stringify({
             version: 1,
-            files: Array.from(serverTracedFiles),
+            files: serverTracedFilesSorted,
           } as {
             version: number
             files: string[]
@@ -514,7 +540,7 @@ export async function collectBuildTraces({
           nextMinimalTraceOutput,
           JSON.stringify({
             version: 1,
-            files: Array.from(minimalServerTracedFiles),
+            files: minimalServerTracedFilesSorted,
           } as {
             version: number
             files: string[]

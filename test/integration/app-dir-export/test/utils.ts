@@ -42,6 +42,8 @@ export const expectedWhenTrailingSlashTrue = [
     ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
     : []),
   '_next/static/test-build-id/_ssgManifest.js',
+  '_not-found/index.html',
+  '_not-found/index.txt',
   'another/first/index.html',
   'another/first/index.txt',
   'another/index.html',
@@ -72,6 +74,8 @@ const expectedWhenTrailingSlashFalse = [
     ? ['_next/static/test-build-id/_clientMiddlewareManifest.json']
     : []),
   '_next/static/test-build-id/_ssgManifest.js',
+  '_not-found.html',
+  '_not-found.txt',
   'another.html',
   'another.txt',
   'another/first.html',
@@ -117,7 +121,7 @@ export async function runTests({
   dynamicParams?: string
   dynamicApiRoute?: string
   generateStaticParamsOpt?: 'set noop' | 'set client'
-  expectedErrMsg?: string
+  expectedErrMsg?: string | RegExp
 }) {
   if (trailingSlash !== undefined) {
     nextConfig.replace(
@@ -125,17 +129,18 @@ export async function runTests({
       `trailingSlash: ${trailingSlash},`
     )
   }
+
   if (dynamicPage !== undefined) {
     slugPage.replace(
-      `const dynamic = 'force-static'`,
-      `const dynamic = ${dynamicPage}`
+      `export const dynamic = 'force-static'`,
+      dynamicPage === 'undefined' ? '' : `export const dynamic = ${dynamicPage}`
     )
   }
 
   if (dynamicApiRoute !== undefined) {
     apiJson.replace(
-      `const dynamic = 'force-static'`,
-      `const dynamic = ${dynamicApiRoute}`
+      `export const dynamic = 'force-static'`,
+      `export const dynamic = ${dynamicApiRoute}`
     )
   }
 
@@ -179,7 +184,11 @@ export async function runTests({
         await assertHasRedbox(browser)
         const header = await getRedboxHeader(browser)
         const source = await getRedboxSource(browser)
-        expect(`${header}\n${source}`).toContain(expectedErrMsg)
+        if (expectedErrMsg instanceof RegExp) {
+          expect(`${header}\n${source}`).toContain(expectedErrMsg)
+        } else {
+          expect(`${header}\n${source}`).toContain(expectedErrMsg)
+        }
       } else {
         await check(() => result.stderr, /error/i)
       }

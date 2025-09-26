@@ -10,7 +10,9 @@ function normalizeBrowserConsoleStackTrace(trace: unknown) {
   return (
     trace
       // Removes React's internals i.e. incomplete ignore-listing
-      .split(/at react-stack-bottom-frame.*/m)[0]
+      .split(
+        /at (react-stack-bottom-frame|Object\.react_stack_bottom_frame).*/m
+      )[0]
       // Remove the location `()` part in every line of stack trace;
       .replace(/\(.*\)/g, '')
       // Remove the leading spaces in every line of stack trace;
@@ -58,7 +60,7 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "Error: browser error",
+       "description": "browser error",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": "app/browser/uncaught/page.js (5:11) @ useThrowError
@@ -93,7 +95,7 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "description": "Error: browser error",
+       "description": "browser error",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": "app/browser/caught/page.js (34:11) @ useThrowError
@@ -130,7 +132,7 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "description": "Error: ssr error",
+       "description": "ssr error",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": "app/ssr/page.js (4:9) @ useThrowError
@@ -158,7 +160,7 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "description": "Error: string in rejected promise",
+       "description": "string in rejected promise",
        "environmentLabel": null,
        "label": "Runtime Error",
        "source": null,

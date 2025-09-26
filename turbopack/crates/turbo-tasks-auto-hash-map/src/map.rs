@@ -8,10 +8,11 @@ use std::{
 use hashbrown::hash_map::HashMap;
 use rustc_hash::FxHasher;
 use serde::{
+    Deserialize, Deserializer, Serialize, Serializer,
     de::{MapAccess, Visitor},
     ser::SerializeMap,
-    Deserialize, Deserializer, Serialize, Serializer,
 };
+use shrink_to_fit::ShrinkToFit;
 use smallvec::SmallVec;
 
 use crate::{MAX_LIST_SIZE, MIN_HASH_SIZE};
@@ -287,10 +288,9 @@ impl<K: Eq + Hash, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
         Q: Hash + Eq + ?Sized,
     {
         match self {
-            AutoMap::List(list) => {
-                list.iter()
-                    .find_map(|(k, v)| if *k.borrow() == *key { Some(v) } else { None })
-            }
+            AutoMap::List(list) => list
+                .iter()
+                .find_map(|(k, v)| if *k.borrow() == *key { Some(v) } else { None }),
             AutoMap::Map(map) => map.get(key),
         }
     }
@@ -298,10 +298,9 @@ impl<K: Eq + Hash, V, H: BuildHasher, const I: usize> AutoMap<K, V, H, I> {
     /// see [HashMap::get_mut](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.get_mut)
     pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
         match self {
-            AutoMap::List(list) => {
-                list.iter_mut()
-                    .find_map(|(k, v)| if *k == *key { Some(v) } else { None })
-            }
+            AutoMap::List(list) => list
+                .iter_mut()
+                .find_map(|(k, v)| if *k == *key { Some(v) } else { None }),
             AutoMap::Map(map) => map.get_mut(key),
         }
     }
@@ -841,6 +840,33 @@ where
 {
 }
 
+impl<K: Eq + Hash, V: Eq + Hash, MH: BuildHasher, const I: usize> Hash for AutoMap<K, V, MH, I> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // Hash the length first to distinguish maps of different sizes
+        self.len().hash(state);
+
+        // Use a commutative approach to ensure equal maps have equal hashes
+        // regardless of iteration order
+        let mut combined_hash = 0u64;
+
+        for (k, v) in self.iter() {
+            use std::{collections::hash_map::DefaultHasher, hash::Hasher};
+
+            // Hash each key-value pair independently
+            let mut entry_hasher = DefaultHasher::new();
+            k.hash(&mut entry_hasher);
+            v.hash(&mut entry_hasher);
+            let entry_hash = entry_hasher.finish();
+
+            // Combine using XOR to make it order-independent
+            combined_hash ^= entry_hash;
+        }
+
+        // Hash the combined result
+        combined_hash.hash(state);
+    }
+}
+
 impl<K, V, H, const I: usize> FromIterator<(K, V)> for AutoMap<K, V, H, I>
 where
     K: Eq + Hash,
@@ -902,6 +928,25 @@ where
     }
 }
 
+impl<K, V, H, const I: usize> ShrinkToFit for AutoMap<K, V, H, I>
+where
+    K: Eq + Hash,
+    V: Eq,
+    H: BuildHasher + Default,
+{
+    fn shrink_to_fit(&mut self) {
+        if self.len() < MIN_HASH_SIZE {
+            self.convert_to_list();
+        }
+
+        match self {
+            AutoMap::List(list) => list.shrink_to_fit(),
+            AutoMap::Map(map) => {
+                hashbrown::HashMap::shrink_to_fit(map);
+            }
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;

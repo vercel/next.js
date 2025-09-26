@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_custom_transforms::transforms::dynamic::{next_dynamic, NextDynamicMode};
+use next_custom_transforms::transforms::dynamic::{NextDynamicMode, next_dynamic};
 use swc_core::{atoms::atom, common::FileName, ecma::ast::Program};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
@@ -27,8 +27,9 @@ pub async fn get_next_dynamic_transform_rule(
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![dynamic_transform]),
+            preprocess: ResolvedVc::cell(vec![]),
+            main: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![dynamic_transform]),
         }],
     ))
 }

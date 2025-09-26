@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, NonLocalValue, OperationValue,
-    ReadRef, ResolvedVc, State, TraitRef, Vc,
+    IntoTraitRef, NonLocalValue, OperationValue, ReadRef, ResolvedVc, State, TraitRef, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileContent, LinkType};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
@@ -18,14 +18,17 @@ pub struct OptionVersionedContent(Option<ResolvedVc<Box<dyn VersionedContent>>>)
 #[turbo_tasks::value_trait]
 pub trait VersionedContent {
     /// The content of the [Asset].
+    #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<AssetContent>;
 
     /// Get a [`Version`] implementor that contains enough information to
     /// identify and diff a future [`VersionedContent`] against it.
+    #[turbo_tasks::function]
     fn version(self: Vc<Self>) -> Vc<Box<dyn Version>>;
 
     /// Describes how to update the content from an earlier version to the
     /// latest available one.
+    #[turbo_tasks::function]
     async fn update(self: Vc<Self>, from: Vc<Box<dyn Version>>) -> Result<Vc<Update>> {
         // By default, since we can't make any assumptions about the versioning
         // scheme of the content, we ask for a full invalidation, except in the
@@ -128,6 +131,7 @@ pub trait Version {
     /// Get a unique identifier of the version as a string. There is no way
     /// to convert an id back to its original `Version`, so the original object
     /// needs to be stored somewhere.
+    #[turbo_tasks::function]
     fn id(self: Vc<Self>) -> Vc<RcStr>;
 }
 
@@ -138,6 +142,7 @@ pub trait Version {
 /// together.
 #[turbo_tasks::value_trait]
 pub trait MergeableVersionedContent: VersionedContent {
+    #[turbo_tasks::function]
     fn get_merger(self: Vc<Self>) -> Vc<Box<dyn VersionedContentMerger>>;
 }
 
@@ -145,6 +150,7 @@ pub trait MergeableVersionedContent: VersionedContent {
 /// single one.
 #[turbo_tasks::value_trait]
 pub trait VersionedContentMerger {
+    #[turbo_tasks::function]
     fn merge(self: Vc<Self>, contents: Vc<VersionedContents>) -> Vc<Box<dyn VersionedContent>>;
 }
 
@@ -268,8 +274,7 @@ pub struct VersionState {
 impl VersionState {
     #[turbo_tasks::function]
     pub fn get(&self) -> Vc<Box<dyn Version>> {
-        let version = TraitRef::cell(self.version.get().0.clone());
-        version
+        TraitRef::cell(self.version.get().0.clone())
     }
 }
 

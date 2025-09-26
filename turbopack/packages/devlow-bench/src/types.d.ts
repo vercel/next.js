@@ -1,1 +1,1 @@
-declare module "pidusage-tree";
+declare module 'pidusage-tree'

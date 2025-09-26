@@ -1,4 +1,4 @@
-import DefaultCacheHandler from '../lib/cache-handlers/default'
+import DefaultCacheHandler from '../lib/cache-handlers/default.external'
 import type { CacheHandlerCompat } from '../lib/cache-handlers/types'
 
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE

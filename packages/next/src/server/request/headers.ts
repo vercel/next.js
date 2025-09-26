@@ -2,24 +2,31 @@ import {
   HeadersAdapter,
   type ReadonlyHeaders,
 } from '../web/spec-extension/adapters/headers'
-import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
 import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
+import {
+  throwForMissingRequestStore,
   workUnitAsyncStorage,
   type PrerenderStoreModern,
 } from '../app-render/work-unit-async-storage.external'
 import {
+  delayUntilRuntimeStage,
   postponeWithTracking,
-  abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
   trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  makeDevtoolsIOAwarePromise,
+  makeHangingPromise,
+} from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { scheduleImmediate } from '../../lib/scheduler'
 import { isRequestAPICallableInsideAfter } from './utils'
+import { InvariantError } from '../../shared/lib/invariant-error'
+import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 
 /**
  * In this version of Next.js `headers()` returns a Promise however you can still reference the properties of the underlying Headers instance
@@ -54,6 +61,7 @@ export type UnsafeUnwrappedHeaders = ReadonlyHeaders
  * Read more: [Next.js Docs: `headers`](https://nextjs.org/docs/app/api-reference/functions/headers)
  */
 export function headers(): Promise<ReadonlyHeaders> {
+  const callingExpression = 'headers'
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 
@@ -76,16 +84,32 @@ export function headers(): Promise<ReadonlyHeaders> {
     }
 
     if (workUnitStore) {
-      if (workUnitStore.type === 'cache') {
-        throw new Error(
-          `Route ${workStore.route} used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-        )
-      } else if (workUnitStore.type === 'unstable-cache') {
-        throw new Error(
-          `Route ${workStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-        )
+      switch (workUnitStore.type) {
+        case 'cache': {
+          const error = new Error(
+            `Route ${workStore.route} used "headers" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+          )
+          Error.captureStackTrace(error, headers)
+          workStore.invalidDynamicUsageError ??= error
+          throw error
+        }
+        case 'unstable-cache':
+          throw new Error(
+            `Route ${workStore.route} used "headers" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "headers" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+          )
+        case 'prerender':
+        case 'prerender-client':
+        case 'private-cache':
+        case 'prerender-runtime':
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'request':
+          break
+        default:
+          workUnitStore satisfies never
       }
     }
+
     if (workStore.dynamicShouldError) {
       throw new StaticGenBailoutError(
         `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
@@ -93,53 +117,87 @@ export function headers(): Promise<ReadonlyHeaders> {
     }
 
     if (workUnitStore) {
-      if (workUnitStore.type === 'prerender') {
-        // dynamicIO Prerender
-        // We don't track dynamic access here because access will be tracked when you access
-        // one of the properties of the headers object.
-        return makeDynamicallyTrackedExoticHeaders(
-          workStore.route,
-          workUnitStore
-        )
-      } else if (workUnitStore.type === 'prerender-ppr') {
-        // PPR Prerender (no dynamicIO)
-        // We are prerendering with PPR. We need track dynamic access here eagerly
-        // to keep continuity with how headers has worked in PPR without dynamicIO.
-        // TODO consider switching the semantic to throw on property access instead
-        postponeWithTracking(
-          workStore.route,
-          'headers',
-          workUnitStore.dynamicTracking
-        )
-      } else if (workUnitStore.type === 'prerender-legacy') {
-        // Legacy Prerender
-        // We are in a legacy static generation mode while prerendering
-        // We track dynamic access here so we don't need to wrap the headers in
-        // individual property access tracking.
-        throwToInterruptStaticGeneration('headers', workStore, workUnitStore)
+      switch (workUnitStore.type) {
+        case 'prerender':
+          return makeHangingHeaders(workStore, workUnitStore)
+        case 'prerender-client':
+          const exportName = '`headers`'
+          throw new InvariantError(
+            `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
+          )
+        case 'prerender-ppr':
+          // PPR Prerender (no cacheComponents)
+          // We are prerendering with PPR. We need track dynamic access here eagerly
+          // to keep continuity with how headers has worked in PPR without cacheComponents.
+          // TODO consider switching the semantic to throw on property access instead
+          return postponeWithTracking(
+            workStore.route,
+            callingExpression,
+            workUnitStore.dynamicTracking
+          )
+        case 'prerender-legacy':
+          // Legacy Prerender
+          // We are in a legacy static generation mode while prerendering
+          // We track dynamic access here so we don't need to wrap the headers in
+          // individual property access tracking.
+          return throwToInterruptStaticGeneration(
+            callingExpression,
+            workStore,
+            workUnitStore
+          )
+        case 'prerender-runtime':
+          return delayUntilRuntimeStage(
+            workUnitStore,
+            makeUntrackedHeaders(workUnitStore.headers)
+          )
+        case 'private-cache':
+          // Private caches are delayed until the runtime stage in use-cache-wrapper,
+          // so we don't need an additional delay here.
+          if (process.env.__NEXT_CACHE_COMPONENTS) {
+            return makeUntrackedHeaders(workUnitStore.headers)
+          }
+          return makeUntrackedExoticHeaders(workUnitStore.headers)
+        case 'request':
+          trackDynamicDataInDynamicRender(workUnitStore)
+
+          if (process.env.NODE_ENV === 'development') {
+            // Semantically we only need the dev tracking when running in `next dev`
+            // but since you would never use next dev with production NODE_ENV we use this
+            // as a proxy so we can statically exclude this code from production builds.
+            if (process.env.__NEXT_CACHE_COMPONENTS) {
+              return makeUntrackedHeadersWithDevWarnings(
+                workUnitStore.headers,
+                workStore?.route
+              )
+            }
+
+            return makeUntrackedExoticHeadersWithDevWarnings(
+              workUnitStore.headers,
+              workStore?.route
+            )
+          } else {
+            if (process.env.__NEXT_CACHE_COMPONENTS) {
+              return makeUntrackedHeaders(workUnitStore.headers)
+            }
+
+            return makeUntrackedExoticHeaders(workUnitStore.headers)
+          }
+          break
+        default:
+          workUnitStore satisfies never
       }
     }
-    // We fall through to the dynamic context below but we still track dynamic access
-    // because in dev we can still error for things like using headers inside a cache context
-    trackDynamicDataInDynamicRender(workStore, workUnitStore)
   }
 
-  const requestStore = getExpectedRequestStore('headers')
-  if (process.env.NODE_ENV === 'development' && !workStore?.isPrefetchRequest) {
-    return makeUntrackedExoticHeadersWithDevWarnings(
-      requestStore.headers,
-      workStore?.route
-    )
-  } else {
-    return makeUntrackedExoticHeaders(requestStore.headers)
-  }
+  // If we end up here, there was no work store or work unit store present.
+  throwForMissingRequestStore(callingExpression)
 }
 
 interface CacheLifetime {}
 const CachedHeaders = new WeakMap<CacheLifetime, Promise<ReadonlyHeaders>>()
 
-function makeDynamicallyTrackedExoticHeaders(
-  route: string,
+function makeHangingHeaders(
+  workStore: WorkStore,
   prerenderStore: PrerenderStoreModern
 ): Promise<ReadonlyHeaders> {
   const cachedHeaders = CachedHeaders.get(prerenderStore)
@@ -149,144 +207,24 @@ function makeDynamicallyTrackedExoticHeaders(
 
   const promise = makeHangingPromise<ReadonlyHeaders>(
     prerenderStore.renderSignal,
+    workStore.route,
     '`headers()`'
   )
   CachedHeaders.set(prerenderStore, promise)
 
-  Object.defineProperties(promise, {
-    append: {
-      value: function append() {
-        const expression = `\`headers().append(${describeNameArg(arguments[0])}, ...)\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    delete: {
-      value: function _delete() {
-        const expression = `\`headers().delete(${describeNameArg(arguments[0])})\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    get: {
-      value: function get() {
-        const expression = `\`headers().get(${describeNameArg(arguments[0])})\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    has: {
-      value: function has() {
-        const expression = `\`headers().has(${describeNameArg(arguments[0])})\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    set: {
-      value: function set() {
-        const expression = `\`headers().set(${describeNameArg(arguments[0])}, ...)\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    getSetCookie: {
-      value: function getSetCookie() {
-        const expression = '`headers().getSetCookie()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    forEach: {
-      value: function forEach() {
-        const expression = '`headers().forEach(...)`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    keys: {
-      value: function keys() {
-        const expression = '`headers().keys()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    values: {
-      value: function values() {
-        const expression = '`headers().values()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    entries: {
-      value: function entries() {
-        const expression = '`headers().entries()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    [Symbol.iterator]: {
-      value: function () {
-        const expression = '`headers()[Symbol.iterator]()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-  } satisfies HeadersExtensions)
+  return promise
+}
+
+function makeUntrackedHeaders(
+  underlyingHeaders: ReadonlyHeaders
+): Promise<ReadonlyHeaders> {
+  const cachedHeaders = CachedHeaders.get(underlyingHeaders)
+  if (cachedHeaders) {
+    return cachedHeaders
+  }
+
+  const promise = Promise.resolve(underlyingHeaders)
+  CachedHeaders.set(underlyingHeaders, promise)
 
   return promise
 }
@@ -350,9 +288,7 @@ function makeUntrackedExoticHeadersWithDevWarnings(
     return cachedHeaders
   }
 
-  const promise = new Promise<ReadonlyHeaders>((resolve) =>
-    scheduleImmediate(() => resolve(underlyingHeaders))
-  )
+  const promise = makeDevtoolsIOAwarePromise(underlyingHeaders)
 
   CachedHeaders.set(underlyingHeaders, promise)
 
@@ -460,22 +396,83 @@ function makeUntrackedExoticHeadersWithDevWarnings(
   return promise
 }
 
+// Similar to `makeUntrackedExoticHeadersWithDevWarnings`, but just logging the
+// sync access without actually defining the headers properties on the promise.
+function makeUntrackedHeadersWithDevWarnings(
+  underlyingHeaders: ReadonlyHeaders,
+  route?: string
+): Promise<ReadonlyHeaders> {
+  const cachedHeaders = CachedHeaders.get(underlyingHeaders)
+  if (cachedHeaders) {
+    return cachedHeaders
+  }
+
+  const promise = makeDevtoolsIOAwarePromise(underlyingHeaders)
+
+  const proxiedPromise = new Proxy(promise, {
+    get(target, prop, receiver) {
+      switch (prop) {
+        case Symbol.iterator: {
+          warnForSyncAccess(route, '`...headers()` or similar iteration')
+          break
+        }
+        case 'append':
+        case 'delete':
+        case 'get':
+        case 'has':
+        case 'set':
+        case 'getSetCookie':
+        case 'forEach':
+        case 'keys':
+        case 'values':
+        case 'entries': {
+          warnForSyncAccess(route, `\`headers().${prop}\``)
+          break
+        }
+        default: {
+          // We only warn for well-defined properties of the headers object.
+        }
+      }
+
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+  })
+
+  CachedHeaders.set(underlyingHeaders, proxiedPromise)
+
+  return proxiedPromise
+}
+
 function describeNameArg(arg: unknown) {
   return typeof arg === 'string' ? `'${arg}'` : '...'
 }
 
 function syncIODev(route: string | undefined, expression: string) {
   const workUnitStore = workUnitAsyncStorage.getStore()
-  if (
-    workUnitStore &&
-    workUnitStore.type === 'request' &&
-    workUnitStore.prerenderPhase === true
-  ) {
-    // When we're rendering dynamically in dev we need to advance out of the
-    // Prerender environment when we read Request data synchronously
-    const requestStore = workUnitStore
-    trackSynchronousRequestDataAccessInDev(requestStore)
+
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'request':
+        if (workUnitStore.prerenderPhase === true) {
+          // When we're rendering dynamically in dev, we need to advance out of
+          // the Prerender environment when we read Request data synchronously.
+          trackSynchronousRequestDataAccessInDev(workUnitStore)
+        }
+        break
+      case 'prerender':
+      case 'prerender-client':
+      case 'prerender-runtime':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+      case 'cache':
+      case 'private-cache':
+      case 'unstable-cache':
+        break
+      default:
+        workUnitStore satisfies never
+    }
   }
+
   // In all cases we warn normally
   warnForSyncAccess(route, expression)
 }

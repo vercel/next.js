@@ -1,4 +1,5 @@
 import { getDigestForWellKnownError } from './create-error-handler'
+import { isReactLargeShellError } from './react-large-shell-error'
 
 export function printDebugThrownValueForProspectiveRender(
   thrownValue: unknown,
@@ -7,6 +8,12 @@ export function printDebugThrownValueForProspectiveRender(
   // We don't need to print well-known Next.js errors.
   if (getDigestForWellKnownError(thrownValue)) {
     return
+  }
+
+  if (isReactLargeShellError(thrownValue)) {
+    // TODO: Aggregate
+    console.error(thrownValue)
+    return undefined
   }
 
   let message: undefined | string

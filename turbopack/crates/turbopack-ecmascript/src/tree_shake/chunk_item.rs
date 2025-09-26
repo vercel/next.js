@@ -8,8 +8,9 @@ use turbopack_core::{
     module_graph::ModuleGraph,
 };
 
-use super::{asset::EcmascriptModulePartAsset, part_of_module, split_module};
+use super::asset::EcmascriptModulePartAsset;
 use crate::{
+    EcmascriptAnalyzableExt,
     chunk::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType,
@@ -18,7 +19,6 @@ use crate::{
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     tree_shake::side_effect_module::SideEffectsModule,
     utils::StringifyModuleId,
-    EcmascriptModuleContent, EcmascriptModuleContentOptions,
 };
 
 /// This is an implementation of [ChunkItem] for
@@ -28,7 +28,6 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModulePartChunkItem {
     pub(super) module: ResolvedVc<EcmascriptModulePartAsset>,
-    pub(super) module_graph: ResolvedVc<ModuleGraph>,
     pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -42,47 +41,19 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
     async fn content_with_async_module_info(
         &self,
-        async_module_info: Option<ResolvedVc<AsyncModuleInfo>>,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let module = self.module.await?;
-
-        let split_data = split_module(*module.full_module);
-        let parsed = part_of_module(split_data, module.part.clone())
-            .to_resolved()
-            .await?;
-
         let analyze = self.module.analyze();
         let analyze_ref = analyze.await?;
-        let async_module_options = analyze_ref
-            .async_module
-            .module_options(async_module_info.map(|info| *info));
+        let async_module_options = analyze_ref.async_module.module_options(async_module_info);
 
-        let module_type_result = *module.full_module.determine_module_type().await?;
-        let generate_source_map = *self
-            .chunking_context
-            .reference_module_source_maps(*ResolvedVc::upcast(self.module))
-            .await?;
-
-        let content = EcmascriptModuleContent::new(EcmascriptModuleContentOptions {
-            parsed,
-            ident: self.module.ident().to_resolved().await?,
-            specified_module_type: module_type_result.module_type,
-            module_graph: self.module_graph,
-            chunking_context: self.chunking_context,
-            references: analyze.references().to_resolved().await?,
-            esm_references: analyze_ref.esm_references,
-            code_generation: analyze_ref.code_generation,
-            async_module: analyze_ref.async_module,
-            generate_source_map,
-            original_source_map: analyze_ref.source_map,
-            exports: analyze_ref.exports,
-            async_module_info,
-        });
+        let content = self
+            .module
+            .module_content(*self.chunking_context, async_module_info);
 
         Ok(EcmascriptChunkItemContent::new(
             content,
             *self.chunking_context,
-            *module.full_module.await?.options,
             async_module_options,
         ))
     }
@@ -97,7 +68,7 @@ impl ChunkItem for EcmascriptModulePartChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *ResolvedVc::upcast(self.chunking_context)
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -155,10 +126,10 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
         for &side_effect in self.module.await?.side_effects.iter() {
             let need_await = 'need_await: {
                 let async_module = *side_effect.get_async_module().await?;
-                if let Some(async_module) = async_module {
-                    if async_module.await?.has_top_level_await {
-                        break 'need_await true;
-                    }
+                if let Some(async_module) = async_module
+                    && async_module.await?.has_top_level_await
+                {
+                    break 'need_await true;
                 }
                 false
             };
@@ -198,7 +169,6 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
             rewrite_source_path: None,
             options: EcmascriptChunkItemOptions {
                 strict: true,
-                exports: true,
                 async_module: if has_top_level_await {
                     Some(AsyncModuleOptions {
                         has_top_level_await: true,
@@ -208,6 +178,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
                 },
                 ..Default::default()
             },
+            additional_ids: Default::default(),
             placeholder_for_future_extensions: (),
         }
         .cell())

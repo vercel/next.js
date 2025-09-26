@@ -56,9 +56,6 @@ describe('required server files', () => {
         eslint: {
           ignoreDuringBuilds: true,
         },
-        experimental: {
-          nodeMiddleware: Boolean(process.env.TEST_NODE_MIDDLEWARE),
-        },
         output: 'standalone',
         async rewrites() {
           return {
@@ -164,6 +161,7 @@ describe('required server files', () => {
   })
 
   afterAll(async () => {
+    delete process.env.NOW_BUILDER
     delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
   })
@@ -379,29 +377,35 @@ describe('required server files', () => {
     ).toContain('"cacheMaxMemorySize":0')
   })
 
-  // TODO(mischnic) do these files even exist in turbopack?
-  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-    'should output middleware correctly',
-    async () => {
-      if (!process.env.TEST_NODE_MIDDLEWARE) {
-        // eslint-disable-next-line jest/no-standalone-expect
-        expect(
-          await fs.pathExists(
-            join(
-              next.testDir,
-              'standalone/.next/server/edge-runtime-webpack.js'
-            )
-          )
-        ).toBe(true)
-      }
-      // eslint-disable-next-line jest/no-standalone-expect
+  it('should output middleware correctly', async () => {
+    if (process.env.TEST_NODE_MIDDLEWARE) {
       expect(
         await fs.pathExists(
           join(next.testDir, 'standalone/.next/server/middleware.js')
         )
       ).toBe(true)
+    } else {
+      let manifest = await fs.readJSON(
+        join(next.testDir, 'standalone/.next/server/middleware-manifest.json')
+      )
+      let middleware = manifest.middleware['/']
+      let files = [
+        ...middleware.files,
+        ...middleware.wasm.map((f) => f.filePath),
+        ...middleware.assets.map((f) => f.filePath),
+      ]
+      console.log(files)
+      for (const file of files) {
+        try {
+          expect(
+            await fs.pathExists(join(next.testDir, 'standalone/.next', file))
+          ).toBe(true)
+        } catch (err) {
+          throw new Error('Missing file ' + file)
+        }
+      }
     }
-  )
+  })
 
   it('should output required-server-files manifest correctly', async () => {
     expect(requiredFilesManifest.version).toBe(1)
@@ -1266,7 +1270,7 @@ describe('required server files', () => {
     )
 
     const json = await res.json()
-    expect(json.query).toEqual({ another: 'value', rest: ['index'] })
+    expect(json.query).toEqual({ another: 'value' })
     expect(json.url).toBe('/api/optional/index?another=value')
   })
 

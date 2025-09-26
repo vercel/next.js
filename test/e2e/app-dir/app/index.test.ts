@@ -2,6 +2,10 @@ import { nextTestSetup } from 'e2e-utils'
 import { check, retry, waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 import stripAnsi from 'strip-ansi'
+import {
+  NEXT_RSC_UNION_QUERY,
+  RSC_HEADER,
+} from 'next/dist/client/components/app-router-headers'
 
 // TODO: We should decide on an established pattern for gating test assertions
 // on experimental flags. For example, as a first step we could all the common
@@ -75,14 +79,6 @@ describe('app dir - basic', () => {
   }
 
   if (isNextStart && !process.env.NEXT_EXPERIMENTAL_COMPILE) {
-    if (!process.env.NEXT_EXPERIMENTAL_COMPILE) {
-      it('should have correct size in build output', async () => {
-        expect(next.cliOutput).toMatch(
-          /\/dashboard\/another.*? *?[^0]\d{1,} [\w]{1,}B/
-        )
-      })
-    }
-
     it('should have correct preferredRegion values in manifest', async () => {
       const middlewareManifest = JSON.parse(
         await next.readFile('.next/server/middleware-manifest.json')
@@ -306,21 +302,45 @@ describe('app dir - basic', () => {
   }
 
   it('should use text/x-component for flight', async () => {
-    const res = await next.fetch('/dashboard/deployments/123', {
+    const res = await next.fetch(
+      `/dashboard/deployments/123?${NEXT_RSC_UNION_QUERY}`,
+      {
+        headers: {
+          [RSC_HEADER]: '1',
+        },
+      }
+    )
+    expect(res.headers.get('Content-Type')).toBe('text/x-component')
+  })
+
+  it('should use text/x-component for flight with edge runtime', async () => {
+    const res = await next.fetch(`/dashboard?${NEXT_RSC_UNION_QUERY}`, {
       headers: {
-        ['RSC'.toString()]: '1',
+        [RSC_HEADER]: '1',
       },
     })
     expect(res.headers.get('Content-Type')).toBe('text/x-component')
   })
 
-  it('should use text/x-component for flight with edge runtime', async () => {
-    const res = await next.fetch('/dashboard', {
+  it('should return the `vary` header from edge runtime', async () => {
+    const res = await next.fetch('/dashboard')
+    expect(res.headers.get('x-edge-runtime')).toBe('1')
+    expect(res.headers.get('vary')).toBe(
+      'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch'
+    )
+  })
+
+  it('should return the `vary` header from pages for flight requests', async () => {
+    const res = await next.fetch(`/?${NEXT_RSC_UNION_QUERY}`, {
       headers: {
-        ['RSC'.toString()]: '1',
+        [RSC_HEADER]: '1',
       },
     })
-    expect(res.headers.get('Content-Type')).toBe('text/x-component')
+    expect(res.headers.get('vary')).toBe(
+      isNextDeploy
+        ? 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch'
+        : 'rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, Accept-Encoding'
+    )
   })
 
   it('should pass props from getServerSideProps in root layout', async () => {
@@ -1711,6 +1731,57 @@ describe('app dir - basic', () => {
       }
     })
 
+    it('should pass manual `nonce`', async () => {
+      const html = await next.render('/script-manual-nonce')
+      const $ = cheerio.load(html)
+      let scripts = $('script, link[rel="preload"][as="script"]')
+
+      scripts = scripts.filter((_, element) =>
+        (element.attribs.src || element.attribs.href)?.startsWith('/test')
+      )
+
+      expect(scripts.length).toBeGreaterThan(0)
+
+      scripts.each((_, element) => {
+        expect(element.attribs.nonce).toBeTruthy()
+      })
+
+      if (!isNextDev) {
+        const browser = await next.browser('/script-manual-nonce')
+
+        await retry(async () => {
+          await browser.elementByCss('#get-order').click()
+          const order = JSON.parse(await browser.elementByCss('#order').text())
+          expect(order?.length).toBe(2)
+        })
+      }
+    })
+
+    it('should pass manual `nonce` pages', async () => {
+      const html = await next.render('/pages-script-manual-nonce')
+      const $ = cheerio.load(html)
+      let scripts = $('script, link[rel="preload"][as="script"]')
+
+      scripts = scripts.filter((_, element) =>
+        (element.attribs.src || element.attribs.href)?.startsWith('/test')
+      )
+
+      expect(scripts.length).toBeGreaterThan(0)
+
+      scripts.each((_, element) => {
+        expect(element.attribs.nonce).toBeTruthy()
+      })
+
+      if (!isNextDev) {
+        await retry(async () => {
+          const browser = await next.browser('/pages-script-manual-nonce')
+          await browser.elementByCss('#get-order').click()
+          const order = JSON.parse(await browser.elementByCss('#order').text())
+          expect(order?.length).toBe(2)
+        })
+      }
+    })
+
     it('should pass nonce when using next/font', async () => {
       const html = await next.render('/script-nonce/with-next-font')
       const $ = cheerio.load(html)
@@ -1742,40 +1813,24 @@ describe('app dir - basic', () => {
       expect($('body').find('script[async]').length).toBe(1)
     })
 
-    // Turbopack doesn't use eval by default, so we can check strict CSP.
-    if (!isNextDev || isTurbopack) {
-      // This test is here to ensure that we don't accidentally turn CSP off
-      // for the prod version.
-      it('should successfully bootstrap even when using CSP', async () => {
-        // This path has a nonce applied in middleware
-        const browser = await next.browser('/bootstrap/with-nonce')
-        const response = await next.fetch('/bootstrap/with-nonce')
-        // We expect this page to response with CSP headers requiring a nonce for scripts
-        expect(response.headers.get('content-security-policy')).toContain(
-          "script-src 'nonce"
-        )
-        // We expect to find the updated text which demonstrates our app
-        // was able to bootstrap successfully (scripts run)
-        expect(
-          await browser.eval('document.getElementById("val").textContent')
-        ).toBe('[[updated]]')
+    // This test is here to ensure that we don't accidentally turn CSP off
+    // for the prod version.
+    it('should successfully bootstrap even when using CSP', async () => {
+      // This path has a nonce applied in middleware
+      const browser = await next.browser('/bootstrap/with-nonce')
+      const response = await next.fetch('/bootstrap/with-nonce')
+      // We expect this page to response with CSP headers requiring a nonce for scripts
+      expect(response.headers.get('content-security-policy')).toEqual(
+        isNextDev
+          ? "script-src 'nonce-my-random-nonce' 'strict-dynamic' 'unsafe-eval';"
+          : "script-src 'nonce-my-random-nonce' 'strict-dynamic';"
+      )
+      // We expect to find the updated text which demonstrates our app
+      // was able to bootstrap successfully (scripts run)
+      await retry(async () => {
+        expect(await browser.elementByCss('#val').text()).toEqual('[[updated]]')
       })
-    } else {
-      it('should fail to bootstrap when using CSP in Dev due to eval', async () => {
-        const browser = await next.browser('/bootstrap/with-nonce')
-        // We expect our app to fail to bootstrap due to invalid eval use in Dev.
-        // We assert the html is in it's SSR'd state.
-        expect(
-          await browser.eval('document.getElementById("val").textContent')
-        ).toBe('initial')
-
-        const response = await next.fetch('/bootstrap/with-nonce')
-        // We expect this page to response with CSP headers requiring a nonce for scripts
-        expect(response.headers.get('content-security-policy')).toContain(
-          "script-src 'nonce"
-        )
-      })
-    }
+    })
   })
 
   // this one comes at the end to not change behavior from above

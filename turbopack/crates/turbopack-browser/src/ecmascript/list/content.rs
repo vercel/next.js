@@ -6,7 +6,7 @@ use indoc::writedoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, IntoTraitRef, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc,
+    FxIndexMap, IntoTraitRef, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::File;
 use turbopack_core::{
@@ -26,7 +26,7 @@ use super::{
     version::EcmascriptDevChunkListVersion,
 };
 use crate::chunking_context::{
-    CurrentChunkMethod, CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR,
+    CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod,
 };
 
 #[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
@@ -154,8 +154,10 @@ impl EcmascriptDevChunkListContent {
         // `TURBOPACK_CHUNK_LISTS` global variable.
         writedoc!(
             code,
+            // `||=` would be better but we need to be es2020 compatible
+            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
             r#"
-                (globalThis.TURBOPACK_CHUNK_LISTS = globalThis.TURBOPACK_CHUNK_LISTS || []).push({{
+                (globalThis.TURBOPACK_CHUNK_LISTS || (globalThis.TURBOPACK_CHUNK_LISTS = [])).push({{
                     script: {script_or_path},
                     chunks: {:#},
                     source: {:#}

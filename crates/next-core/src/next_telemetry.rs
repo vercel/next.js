@@ -1,5 +1,5 @@
-use turbo_rcstr::RcStr;
-use turbo_tasks::{fxindexmap, Vc};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{Vc, fxindexmap};
 use turbopack_core::diagnostics::{Diagnostic, DiagnosticPayload};
 
 /// A structure that keeps track of whether a particular Next.js feature is
@@ -17,7 +17,7 @@ pub struct NextFeatureTelemetry {
 impl NextFeatureTelemetry {
     pub fn new(feature_name: RcStr, enabled: bool) -> Self {
         NextFeatureTelemetry {
-            event_name: "EVENT_BUILD_FEATURE_USAGE".into(),
+            event_name: rcstr!("EVENT_BUILD_FEATURE_USAGE"),
             feature_name,
             enabled,
         }
@@ -28,7 +28,7 @@ impl NextFeatureTelemetry {
 impl Diagnostic for NextFeatureTelemetry {
     #[turbo_tasks::function]
     fn category(&self) -> Vc<RcStr> {
-        Vc::cell("NextFeatureTelemetry_category_tbd".into())
+        Vc::cell(rcstr!("NextFeatureTelemetry_category_tbd"))
     }
 
     #[turbo_tasks::function]
@@ -57,7 +57,7 @@ pub struct ModuleFeatureTelemetry {
 impl ModuleFeatureTelemetry {
     pub fn new(feature_name: RcStr, invocation_count: usize) -> Self {
         ModuleFeatureTelemetry {
-            event_name: "EVENT_BUILD_FEATURE_USAGE".into(),
+            event_name: rcstr!("EVENT_BUILD_FEATURE_USAGE"),
             feature_name,
             invocation_count,
         }
@@ -68,7 +68,7 @@ impl ModuleFeatureTelemetry {
 impl Diagnostic for ModuleFeatureTelemetry {
     #[turbo_tasks::function]
     fn category(&self) -> Vc<RcStr> {
-        Vc::cell("ModuleFeatureTelemetry_category_tbd".into())
+        Vc::cell(rcstr!("ModuleFeatureTelemetry_category_tbd"))
     }
 
     #[turbo_tasks::function]

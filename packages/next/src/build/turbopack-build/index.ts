@@ -1,24 +1,19 @@
 import path from 'path'
-import {
-  formatNodeOptions,
-  getParsedNodeOptionsWithoutInspect,
-} from '../../server/lib/utils'
+
 import { Worker } from '../../lib/worker'
 import { NextBuildContext } from '../build-context'
 
 async function turbopackBuildWithWorker() {
-  const nodeOptions = getParsedNodeOptionsWithoutInspect()
-
   try {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
       exposedMethods: ['workerMain', 'waitForShutdown'],
+      debuggerPortOffset: -1,
+      isolatedMemory: false,
       numWorkers: 1,
       maxRetries: 0,
       forkOptions: {
         env: {
-          ...process.env,
           NEXT_PRIVATE_BUILD_WORKER: '1',
-          NODE_OPTIONS: formatNodeOptions(nodeOptions),
         },
       },
     }) as Worker & typeof import('./impl')
@@ -56,10 +51,14 @@ async function turbopackBuildWithWorker() {
 export function turbopackBuild(
   withWorker: boolean
 ): ReturnType<typeof import('./impl').turbopackBuild> {
-  if (withWorker) {
-    return turbopackBuildWithWorker()
-  } else {
-    const build = (require('./impl') as typeof import('./impl')).turbopackBuild
-    return build()
-  }
+  const nextBuildSpan = NextBuildContext.nextBuildSpan!
+  return nextBuildSpan.traceChild('run-turbopack').traceAsyncFn(async () => {
+    if (withWorker) {
+      return await turbopackBuildWithWorker()
+    } else {
+      const build = (require('./impl') as typeof import('./impl'))
+        .turbopackBuild
+      return await build()
+    }
+  })
 }

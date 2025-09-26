@@ -12,10 +12,10 @@ use turbopack_trace_utils::tracing::{TraceRow, TraceValue};
 
 use super::TraceFormat;
 use crate::{
+    FxIndexMap,
     span::SpanIndex,
     store_container::{StoreContainer, StoreWriteGuard},
     timestamp::Timestamp,
-    FxIndexMap,
 };
 
 #[derive(Default)]

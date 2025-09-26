@@ -3,7 +3,6 @@ import type { IncrementalCache } from '../lib/incremental-cache'
 import type { RenderOpts } from '../app-render/types'
 import type { FetchMetric } from '../base-http'
 import type { RequestLifecycleOpts } from '../base-server'
-import type { FallbackRouteParams } from '../request/fallback-params'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { CacheLife } from '../use-cache/cache-life'
 
@@ -12,6 +11,7 @@ import { AfterContext } from '../after/after-context'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { createLazyResult, type LazyResult } from '../lib/lazy-result'
 import { getCacheHandlerEntries } from '../use-cache/handlers'
+import { createSnapshot } from '../app-render/async-local-storage'
 
 export type WorkStoreContext = {
   /**
@@ -19,13 +19,8 @@ export type WorkStoreContext = {
    */
   page: string
 
-  /**
-   * The route parameters that are currently unknown.
-   */
-  fallbackRouteParams: FallbackRouteParams | null
-
-  requestEndedState?: { ended?: boolean }
   isPrefetchRequest?: boolean
+  nonce?: string
   renderOpts: {
     cacheLifeProfiles?: { [profile: string]: CacheLife }
     incrementalCache?: IncrementalCache
@@ -35,7 +30,7 @@ export type WorkStoreContext = {
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'dynamicIO' | 'authInterrupts'
+      'isRoutePPREnabled' | 'cacheComponents' | 'authInterrupts'
     >
 
     /**
@@ -59,11 +54,11 @@ export type WorkStoreContext = {
     | 'assetPrefix'
     | 'supportsDynamicResponse'
     | 'shouldWaitOnAllReady'
-    | 'isRevalidate'
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
     | 'dev'
+    | 'hasReadableErrorStacks'
   > &
     RequestLifecycleOpts &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
@@ -80,12 +75,11 @@ export type WorkStoreContext = {
 
 export function createWorkStore({
   page,
-  fallbackRouteParams,
   renderOpts,
-  requestEndedState,
   isPrefetchRequest,
   buildId,
   previouslyRevalidatedTags,
+  nonce,
 }: WorkStoreContext): WorkStore {
   /**
    * Rules of Static & Dynamic HTML:
@@ -110,34 +104,46 @@ export function createWorkStore({
     !renderOpts.isDraftMode &&
     !renderOpts.isPossibleServerAction
 
+  const isDevelopment = renderOpts.dev ?? false
+
+  const shouldTrackFetchMetrics =
+    isDevelopment ||
+    // The only times we want to track fetch metrics outside of development is
+    // when we are performing a static generation and we either are in debug
+    // mode, or tracking fetch metrics was specifically opted into.
+    (isStaticGeneration &&
+      (!!process.env.NEXT_DEBUG_BUILD ||
+        process.env.NEXT_SSG_FETCH_METRICS === '1'))
+
   const store: WorkStore = {
     isStaticGeneration,
     page,
-    fallbackRouteParams,
     route: normalizeAppPath(page),
     incrementalCache:
       // we fallback to a global incremental cache for edge-runtime locally
       // so that it can access the fs cache without mocks
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
-    isRevalidate: renderOpts.isRevalidate,
-    isPrerendering: renderOpts.nextExport,
+    isBuildTimePrerendering: renderOpts.nextExport,
+    hasReadableErrorStacks: renderOpts.hasReadableErrorStacks,
     fetchCache: renderOpts.fetchCache,
     isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,
 
     isDraftMode: renderOpts.isDraftMode,
 
-    requestEndedState,
     isPrefetchRequest,
     buildId,
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
+    nonce,
 
     afterContext: createAfterContext(renderOpts),
-    dynamicIOEnabled: renderOpts.experimental.dynamicIO,
-    dev: renderOpts.dev ?? false,
+    cacheComponentsEnabled: renderOpts.experimental.cacheComponents,
+    dev: isDevelopment,
     previouslyRevalidatedTags,
     refreshTagsByCacheKind: createRefreshTagsByCacheKind(),
+    runInCleanSnapshot: createSnapshot(),
+    shouldTrackFetchMetrics,
   }
 
   // TODO: remove this when we resolve accessing the store outside the execution context

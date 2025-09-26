@@ -31,11 +31,6 @@ describe('production - app dir - build output', () => {
   })
 
   it('should match the expected output format', async () => {
-    expect(output).toContain('Size')
-    expect(output).toContain('First Load JS')
-    expect(output).toContain('+ First Load JS shared by all')
-    expect(output).toContain('└ other shared chunks (total)')
-
     // output type
     expect(output).toContain('○  (Static)  prerendered as static content')
   })

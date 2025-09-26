@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
-import { Request } from 'playwright'
 
 describe('rsc-query-routing', () => {
   const { next } = nextTestSetup({
@@ -11,7 +10,7 @@ describe('rsc-query-routing', () => {
     const browser = await next.browser('/redirect')
 
     const rscRequestUrls: string[] = []
-    browser.on('request', (req: Request) => {
+    browser.on('request', (req) => {
       if (req.url().includes('?_rsc=')) {
         rscRequestUrls.push(req.url())
       }
@@ -35,7 +34,7 @@ describe('rsc-query-routing', () => {
     const browser = await next.browser('/rewrite')
 
     const rscRequestUrls: string[] = []
-    browser.on('request', (req: Request) => {
+    browser.on('request', (req) => {
       if (req.url().includes('?_rsc=')) {
         rscRequestUrls.push(req.url())
       }

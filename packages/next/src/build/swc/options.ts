@@ -7,7 +7,7 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
-import { isWebpackServerOnlyLayer, isWebpackAppPagesLayer } from '../utils'
+import { shouldUseReactServerCondition, isWebpackAppPagesLayer } from '../utils'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 
 const nextDirname = path.dirname(require.resolve('next/package.json'))
@@ -70,9 +70,10 @@ function getBaseSWCOptions({
   serverComponents,
   serverReferenceHashSalt,
   bundleLayer,
-  isDynamicIo,
+  isCacheComponents,
   cacheHandlers,
   useCacheEnabled,
+  trackDynamicImports,
 }: {
   filename: string
   jest?: boolean
@@ -90,11 +91,12 @@ function getBaseSWCOptions({
   serverComponents?: boolean
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
-  isDynamicIo?: boolean
+  isCacheComponents?: boolean
   cacheHandlers?: ExperimentalConfig['cacheHandlers']
   useCacheEnabled?: boolean
+  trackDynamicImports?: boolean
 }) {
-  const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
+  const isReactServerLayer = shouldUseReactServerCondition(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -215,7 +217,7 @@ function getBaseSWCOptions({
       serverComponents && !jest
         ? {
             isReactServerLayer,
-            dynamicIoEnabled: isDynamicIo,
+            cacheComponentsEnabled: isCacheComponents,
             useCacheEnabled,
           }
         : undefined,
@@ -226,7 +228,7 @@ function getBaseSWCOptions({
             isDevelopment: development,
             useCacheEnabled,
             hashSalt: serverReferenceHashSalt,
-            cacheKinds: ['default', 'remote'].concat(
+            cacheKinds: ['default', 'remote', 'private'].concat(
               cacheHandlers ? Object.keys(cacheHandlers) : []
             ),
           }
@@ -235,6 +237,7 @@ function getBaseSWCOptions({
     // On server side of pages router we prefer CJS.
     preferEsm: esm,
     lintCodemodComments: true,
+    trackDynamicImports: trackDynamicImports,
     debugFunctionName: development,
 
     ...(supportedBrowsers && supportedBrowsers.length > 0
@@ -273,16 +276,19 @@ function getEmotionOptions(
     return null
   }
   let autoLabel = !!development
-  switch (typeof emotionConfig === 'object' && emotionConfig.autoLabel) {
-    case 'never':
-      autoLabel = false
-      break
-    case 'always':
-      autoLabel = true
-      break
-    case 'dev-only':
-    default:
-      break
+  if (typeof emotionConfig === 'object' && emotionConfig.autoLabel) {
+    switch (emotionConfig.autoLabel) {
+      case 'never':
+        autoLabel = false
+        break
+      case 'always':
+        autoLabel = true
+        break
+      case 'dev-only':
+        break
+      default:
+        emotionConfig.autoLabel satisfies never
+    }
   }
   return {
     enabled: true,
@@ -367,7 +373,7 @@ export function getLoaderSWCOptions({
   pagesDir,
   appDir,
   isPageFile,
-  isDynamicIo,
+  isCacheComponents,
   hasReactRefresh,
   modularizeImports,
   optimizeServerReact,
@@ -384,6 +390,7 @@ export function getLoaderSWCOptions({
   esm,
   cacheHandlers,
   useCacheEnabled,
+  trackDynamicImports,
 }: {
   filename: string
   development: boolean
@@ -394,7 +401,7 @@ export function getLoaderSWCOptions({
   hasReactRefresh: boolean
   optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
-  isDynamicIo?: boolean
+  isCacheComponents?: boolean
   optimizePackageImports?: NonNullable<
     NextConfig['experimental']
   >['optimizePackageImports']
@@ -410,6 +417,7 @@ export function getLoaderSWCOptions({
   bundleLayer?: WebpackLayerName
   cacheHandlers: ExperimentalConfig['cacheHandlers']
   useCacheEnabled?: boolean
+  trackDynamicImports?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -427,9 +435,10 @@ export function getLoaderSWCOptions({
     serverComponents,
     serverReferenceHashSalt,
     esm: !!esm,
-    isDynamicIo,
+    isCacheComponents,
     cacheHandlers,
     useCacheEnabled,
+    trackDynamicImports,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],

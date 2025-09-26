@@ -3,10 +3,7 @@ import { RequestCookies } from '../cookies'
 import { ResponseCookies } from '../cookies'
 import { ReflectAdapter } from './reflect'
 import { workAsyncStorage } from '../../../app-render/work-async-storage.external'
-import {
-  getExpectedRequestStore,
-  type RequestStore,
-} from '../../../app-render/work-unit-async-storage.external'
+import type { RequestStore } from '../../../app-render/work-unit-async-storage.external'
 
 /**
  * @internal
@@ -180,21 +177,21 @@ export class MutableRequestCookiesAdapter {
   }
 }
 
-export function wrapWithMutableAccessCheck(
-  responseCookies: ResponseCookies
+export function createCookiesWithMutableAccessCheck(
+  requestStore: RequestStore
 ): ResponseCookies {
-  const wrappedCookies = new Proxy(responseCookies, {
+  const wrappedCookies = new Proxy(requestStore.mutableCookies, {
     get(target, prop, receiver) {
       switch (prop) {
         case 'delete':
           return function (...args: [string] | [ResponseCookie]) {
-            ensureCookiesAreStillMutable('cookies().delete')
+            ensureCookiesAreStillMutable(requestStore, 'cookies().delete')
             target.delete(...args)
             return wrappedCookies
           }
         case 'set':
           return function (...args: SetCookieArgs) {
-            ensureCookiesAreStillMutable('cookies().set')
+            ensureCookiesAreStillMutable(requestStore, 'cookies().set')
             target.set(...args)
             return wrappedCookies
           }
@@ -218,8 +215,10 @@ export function areCookiesMutableInCurrentPhase(requestStore: RequestStore) {
  *   'render' -> 'after'
  *   'action' -> 'render'
  * */
-function ensureCookiesAreStillMutable(callingExpression: string) {
-  const requestStore = getExpectedRequestStore(callingExpression)
+function ensureCookiesAreStillMutable(
+  requestStore: RequestStore,
+  _callingExpression: string
+) {
   if (!areCookiesMutableInCurrentPhase(requestStore)) {
     // TODO: maybe we can give a more precise error message based on callingExpression?
     throw new ReadonlyRequestCookiesError()

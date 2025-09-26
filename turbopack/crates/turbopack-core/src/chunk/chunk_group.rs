@@ -1,40 +1,47 @@
-use std::collections::HashSet;
+use std::{cell::RefCell, collections::HashSet, sync::atomic::AtomicBool};
 
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::rcstr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 
 use super::{
-    availability_info::AvailabilityInfo, chunking::make_chunks, Chunk, ChunkGroupContent,
-    ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext,
+    Chunk, ChunkGroupContent, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext,
+    availability_info::AvailabilityInfo, chunking::make_chunks,
 };
 use crate::{
     chunk::{
-        chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
         ChunkableModule, ChunkingType,
+        chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
     },
     environment::ChunkLoading,
     module::Module,
     module_graph::{
-        module_batch::{ChunkableModuleBatchGroup, ChunkableModuleOrBatch, ModuleOrBatch},
-        module_batches::{BatchingConfig, ModuleBatchesGraphEdge},
         GraphTraversalAction, ModuleGraph,
+        merged_modules::MergedModuleInfo,
+        module_batch::{
+            ChunkableModuleBatchGroup, ChunkableModuleOrBatch, ModuleBatch, ModuleBatchGroup,
+            ModuleOrBatch,
+        },
+        module_batches::{BatchingConfig, ModuleBatchesGraphEdge},
     },
-    output::OutputAssets,
+    output::{OutputAsset, OutputAssets},
     reference::ModuleReference,
     traced_asset::TracedAsset,
 };
 
 pub struct MakeChunkGroupResult {
     pub chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
+    pub referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     pub availability_info: AvailabilityInfo,
 }
 
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
-    chunk_group_entries: impl IntoIterator<IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send>
-        + Send
-        + Clone,
+    chunk_group_entries: impl IntoIterator<
+        IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send,
+    > + Send
+    + Clone,
     module_graph: Vc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     availability_info: AvailabilityInfo,
@@ -44,6 +51,7 @@ pub async fn make_chunk_group(
         ChunkLoading::Edge
     );
     let should_trace = *chunking_context.is_tracing_enabled().await?;
+    let should_merge_modules = *chunking_context.is_module_merging_enabled().await?;
     let batching_config = chunking_context.batching_config();
 
     let ChunkGroupContent {
@@ -51,12 +59,14 @@ pub async fn make_chunk_group(
         batch_groups,
         async_modules,
         traced_modules,
+        availability_info,
     } = chunk_group_content(
         module_graph,
         chunk_group_entries.clone(),
         availability_info,
         can_split_async,
         should_trace,
+        should_merge_modules,
         batching_config,
     )
     .await?;
@@ -94,17 +104,12 @@ pub async fn make_chunk_group(
         .try_join()
         .await?;
 
-    // Compute new [AvailabilityInfo]
-    let availability_info = availability_info
-        .with_modules(Vc::cell(chunkable_items))
-        .await?;
-
     // Insert async chunk loaders for every referenced async module
     let async_loaders = async_modules
         .into_iter()
         .map(async |module| {
             chunking_context
-                .async_loader_chunk_item(*module, module_graph, Value::new(availability_info))
+                .async_loader_chunk_item(*module, module_graph, availability_info)
                 .to_resolved()
                 .await
         })
@@ -150,13 +155,13 @@ pub async fn make_chunk_group(
         chunking_context,
         chunk_items,
         chunk_item_batch_groups,
-        "".into(),
-        ResolvedVc::cell(referenced_output_assets),
+        rcstr!(""),
     )
     .await?;
 
     Ok(MakeChunkGroupResult {
         chunks,
+        referenced_output_assets,
         availability_info,
     })
 }
@@ -182,11 +187,13 @@ pub async fn references_to_output_assets(
 
 pub async fn chunk_group_content(
     module_graph: Vc<ModuleGraph>,
-    chunk_group_entries: impl IntoIterator<IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send>
-        + Send,
+    chunk_group_entries: impl IntoIterator<
+        IntoIter = impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + Send,
+    > + Send,
     availability_info: AvailabilityInfo,
     can_split_async: bool,
     should_trace: bool,
+    should_merge_modules: bool,
     batching_config: Vc<BatchingConfig>,
 ) -> Result<ChunkGroupContent> {
     let module_batches_graph = module_graph.module_batches(batching_config).await?;
@@ -218,7 +225,7 @@ pub async fn chunk_group_content(
         entries.push(module_batches_graph.get_entry_index(entry).await?);
     }
 
-    module_batches_graph.traverse_edges_from_entries_topological(
+    module_batches_graph.traverse_edges_from_entries_dfs(
         entries,
         &mut state,
         |parent_info, &node, state| {
@@ -264,9 +271,7 @@ pub async fn chunk_group_content(
             };
 
             Ok(match edge.ty {
-                ChunkingType::Parallel
-                | ChunkingType::ParallelInheritAsync
-                | ChunkingType::Shared { .. } => {
+                ChunkingType::Parallel { .. } | ChunkingType::Shared { .. } => {
                     if is_available {
                         GraphTraversalAction::Exclude
                     } else if state
@@ -315,17 +320,168 @@ pub async fn chunk_group_content(
         },
     )?;
 
+    // This needs to use the unmerged items
+    let availability_info = availability_info
+        .with_modules(Vc::cell(state.chunkable_items.clone()))
+        .await?;
+
+    let should_merge_modules = if should_merge_modules {
+        let merged_modules = module_graph.merged_modules();
+        let merged_modules_ref = merged_modules.await?;
+        Some((merged_modules, merged_modules_ref))
+    } else {
+        None
+    };
+
+    let chunkable_items = if let Some((merged_modules, merged_modules_ref)) = &should_merge_modules
+    {
+        state
+            .chunkable_items
+            .into_iter()
+            .map(async |chunkable_module| match chunkable_module {
+                ChunkableModuleOrBatch::Module(module) => {
+                    if !merged_modules_ref.should_create_chunk_item_for(ResolvedVc::upcast(module))
+                    {
+                        return Ok(None);
+                    }
+
+                    let module = if let Some(replacement) =
+                        merged_modules_ref.should_replace_module(ResolvedVc::upcast(module))
+                    {
+                        replacement
+                    } else {
+                        module
+                    };
+
+                    Ok(Some(ChunkableModuleOrBatch::Module(module)))
+                }
+                ChunkableModuleOrBatch::Batch(batch) => Ok(Some(ChunkableModuleOrBatch::Batch(
+                    map_module_batch(*merged_modules, *batch)
+                        .to_resolved()
+                        .await?,
+                ))),
+                ChunkableModuleOrBatch::None(i) => Ok(Some(ChunkableModuleOrBatch::None(i))),
+            })
+            .try_flat_join()
+            .await?
+    } else {
+        state.chunkable_items.into_iter().collect()
+    };
+
     let mut batch_groups = FxIndexSet::default();
-    for &module in &state.chunkable_items {
+    for &module in &chunkable_items {
         if let Some(batch_group) = module_batches_graph.get_batch_group(&module.into()) {
             batch_groups.insert(batch_group);
         }
     }
 
+    let batch_groups = if let Some((merged_modules, _)) = &should_merge_modules {
+        batch_groups
+            .into_iter()
+            .map(|group| map_module_batch_group(*merged_modules, *group).to_resolved())
+            .try_join()
+            .await?
+    } else {
+        batch_groups.into_iter().collect()
+    };
+
     Ok(ChunkGroupContent {
-        chunkable_items: state.chunkable_items,
+        chunkable_items,
         batch_groups,
         async_modules: state.async_modules,
         traced_modules: state.traced_modules,
+        availability_info,
     })
+}
+
+#[turbo_tasks::function]
+async fn map_module_batch(
+    merged_modules: Vc<MergedModuleInfo>,
+    batch: Vc<ModuleBatch>,
+) -> Result<Vc<ModuleBatch>> {
+    let merged_modules = merged_modules.await?;
+    let batch_ref = batch.await?;
+
+    let modified = RefCell::new(false);
+    let modules = batch_ref
+        .modules
+        .iter()
+        .flat_map(|&module| {
+            if !merged_modules.should_create_chunk_item_for(ResolvedVc::upcast(module)) {
+                *modified.borrow_mut() = true;
+                return None;
+            }
+
+            let module = if let Some(replacement) =
+                merged_modules.should_replace_module(ResolvedVc::upcast(module))
+            {
+                *modified.borrow_mut() = true;
+                replacement
+            } else {
+                module
+            };
+
+            Some(module)
+        })
+        .collect::<Vec<_>>();
+
+    if modified.into_inner() {
+        Ok(ModuleBatch::new(
+            ResolvedVc::deref_vec(modules),
+            batch_ref.chunk_groups.clone(),
+        ))
+    } else {
+        Ok(batch)
+    }
+}
+
+#[turbo_tasks::function]
+async fn map_module_batch_group(
+    merged_modules: Vc<MergedModuleInfo>,
+    group: Vc<ModuleBatchGroup>,
+) -> Result<Vc<ModuleBatchGroup>> {
+    let merged_modules_ref = merged_modules.await?;
+    let group_ref = group.await?;
+
+    let modified = AtomicBool::new(false);
+    let items = group_ref
+        .items
+        .iter()
+        .copied()
+        .map(async |chunkable_module| match chunkable_module {
+            ModuleOrBatch::Module(module) => {
+                if !merged_modules_ref.should_create_chunk_item_for(module) {
+                    modified.store(true, std::sync::atomic::Ordering::Relaxed);
+                    return Ok(None);
+                }
+
+                let module =
+                    if let Some(replacement) = merged_modules_ref.should_replace_module(module) {
+                        modified.store(true, std::sync::atomic::Ordering::Relaxed);
+                        ResolvedVc::upcast(replacement)
+                    } else {
+                        module
+                    };
+
+                Ok(Some(ModuleOrBatch::Module(module)))
+            }
+            ModuleOrBatch::Batch(batch) => {
+                let replacement = map_module_batch(merged_modules, *batch)
+                    .to_resolved()
+                    .await?;
+                if replacement != batch {
+                    modified.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
+                Ok(Some(ModuleOrBatch::Batch(replacement)))
+            }
+            ModuleOrBatch::None(i) => Ok(Some(ModuleOrBatch::None(i))),
+        })
+        .try_flat_join()
+        .await?;
+
+    if modified.into_inner() {
+        Ok(ModuleBatchGroup::new(items, group_ref.chunk_groups.clone()))
+    } else {
+        Ok(group)
+    }
 }

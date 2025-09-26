@@ -4,7 +4,7 @@ title: Cannot access Request information or uncached data in `generateViewport()
 
 ## Why This Error Occurred
 
-When `dynamicIO` is enabled, Next.js requires that `generateViewport()` not depend on uncached data or Request data unless you explicitly opt into having a fully dynamic page. If you encountered this error, it means that `generateViewport` depends on one of these types of data and you have not specifically indicated that the affected route should be entirely dynamic.
+When `cacheComponents` is enabled, Next.js requires that `generateViewport()` not depend on uncached data or Request data unless you explicitly opt into having a fully dynamic page. If you encountered this error, it means that `generateViewport` depends on one of these types of data and you have not specifically indicated that the affected route should be entirely dynamic.
 
 ## Possible Ways to Fix It
 
@@ -104,6 +104,6 @@ export default async function Layout({ children }) {
 
 ## Useful Links
 
-- [`generateViewport()`](docs/app/api-reference/functions/generate-viewport)
-- [`cookies()`](docs/app/api-reference/functions/cookies)
+- [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport)
+- [`cookies()`](/docs/app/api-reference/functions/cookies)
 - [`"use cache"`](/docs/app/api-reference/directives/use-cache)

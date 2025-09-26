@@ -1,4 +1,4 @@
-import webdriver, { type BrowserInterface } from 'next-webdriver'
+import webdriver, { type Playwright } from 'next-webdriver'
 import { nextTestSetup } from 'e2e-utils'
 import { check, assertNoConsoleErrors, retry } from 'next-test-utils'
 
@@ -7,14 +7,14 @@ describe('router autoscrolling on navigation', () => {
     files: __dirname,
   })
 
-  const getTopScroll = async (browser: BrowserInterface) =>
+  const getTopScroll = async (browser: Playwright) =>
     await browser.eval('document.documentElement.scrollTop')
 
-  const getLeftScroll = async (browser: BrowserInterface) =>
+  const getLeftScroll = async (browser: Playwright) =>
     await browser.eval('document.documentElement.scrollLeft')
 
   const waitForScrollToComplete = async (
-    browser: BrowserInterface,
+    browser: Playwright,
     options: { x: number; y: number }
   ) => {
     await retry(async () => {
@@ -26,7 +26,7 @@ describe('router autoscrolling on navigation', () => {
   }
 
   const scrollTo = async (
-    browser: BrowserInterface,
+    browser: Playwright,
     options: { x: number; y: number }
   ) => {
     await browser.eval(`window.scrollTo(${options.x}, ${options.y})`)
@@ -247,6 +247,32 @@ describe('router autoscrolling on navigation', () => {
       await check(() => browser.eval('window.scrollY'), 0)
       await browser.waitForElementByCss('#content-that-is-visible')
       await check(() => browser.eval('window.scrollY'), 0)
+    })
+
+    it('should scroll to top when navigating to same page with different search params', async () => {
+      const browser = await next.browser('/loading-scroll?skipSleep=1')
+
+      await retry(async () => {
+        // scroll to the links at the bottom of the page
+        await browser.eval(`document.getElementById("pages").scrollIntoView()`)
+
+        // grab the current scroll position
+        const scrollY = await browser.eval(`window.scrollY`)
+
+        // sanity check: we should not be scrolled to the top
+        expect(scrollY).not.toBe(0)
+      })
+
+      // click a link
+      await browser.elementByCss("a[href='?page=2&skipSleep=1']").click()
+
+      // assert the new page id has been committed
+      expect(await browser.elementById('current-page').text()).toBe('2')
+
+      await retry(async () => {
+        // we should have scrolled to the top
+        expect(await browser.eval(`window.scrollY`)).toBe(0)
+      })
     })
   })
 })

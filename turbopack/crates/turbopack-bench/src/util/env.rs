@@ -1,6 +1,6 @@
 use std::{error::Error, str::FromStr};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 
 /// Reads an environment variable.
 pub fn read_env<T>(name: &str, default: T) -> Result<T>

@@ -15,12 +15,6 @@ impl KeyValueDatabase for NoopKvDb {
     where
         Self: 'l;
 
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        tx
-    }
-
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
         Ok(())
     }
@@ -90,6 +84,10 @@ impl SerialWriteBatch<'_> for NoopWriteBatch {
     fn delete(&mut self, _key_space: KeySpace, _key: WriteBuffer<'_>) -> Result<()> {
         Ok(())
     }
+
+    fn flush(&mut self, _key_space: KeySpace) -> Result<()> {
+        Ok(())
+    }
 }
 
 impl ConcurrentWriteBatch<'_> for NoopWriteBatch {
@@ -103,6 +101,10 @@ impl ConcurrentWriteBatch<'_> for NoopWriteBatch {
     }
 
     fn delete(&self, _key_space: KeySpace, _key: WriteBuffer<'_>) -> Result<()> {
+        Ok(())
+    }
+
+    unsafe fn flush(&self, _key_space: KeySpace) -> Result<()> {
         Ok(())
     }
 }

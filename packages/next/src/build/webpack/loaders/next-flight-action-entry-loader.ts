@@ -6,7 +6,7 @@ export type NextFlightActionEntryLoaderOptions = {
 
 export type FlightActionEntryLoaderActions = [
   path: string,
-  actions: { id: string; exportedName: string }[],
+  actions: { id: string; exportedName?: string; filename?: string }[],
 ][]
 
 function nextFlightActionEntryLoader(

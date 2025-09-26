@@ -1,7 +1,7 @@
 [package]
 name = "turbo-static"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 license = "MIT"
 
 [dependencies]
@@ -20,7 +20,6 @@ serde_path_to_error = "0.1.16"
 syn = { version = "2", features = ["parsing", "full", "visit", "extra-traits"] }
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 tracing.workspace = true
-walkdir = "2.5.0"
 
 [lints]
 workspace = true

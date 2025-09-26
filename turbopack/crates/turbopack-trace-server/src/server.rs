@@ -4,9 +4,9 @@ use std::{
     thread::spawn,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
-use tungstenite::{accept, Message};
+use tungstenite::{Message, accept};
 
 use crate::{
     store::SpanId,
@@ -73,15 +73,6 @@ pub enum ClientToServerMessage {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct SpanViewEvent {
-    pub start: Timestamp,
-    pub duration: Timestamp,
-    pub name: String,
-    pub id: Option<SpanId>,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
 pub struct Filter {
     pub op: Op,
     pub value: u64,
@@ -128,7 +119,7 @@ pub fn serve(store: Arc<StoreContainer>, port: u16) {
         spawn(move || {
             let websocket = accept(stream.unwrap()).unwrap();
             if let Err(err) = handle_connection(websocket, store) {
-                eprintln!("Error: {:?}", err);
+                eprintln!("Error: {err:?}");
             }
         });
     }

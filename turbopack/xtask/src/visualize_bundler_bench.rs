@@ -135,7 +135,7 @@ pub fn generate(summary_path: PathBuf, filter_bundlers: Option<FxHashSet<&str>>)
         };
 
         let Ok(bundler) = Bundler::from_str(&function_id) else {
-            eprintln!("Skipping benchmark with unknown bundler: {}", function_id);
+            eprintln!("Skipping benchmark with unknown bundler: {function_id}");
             continue;
         };
 

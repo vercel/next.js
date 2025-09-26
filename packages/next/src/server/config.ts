@@ -3,13 +3,19 @@ import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
 import * as Log from '../build/output/log'
-import { CONFIG_FILES, PHASE_DEVELOPMENT_SERVER } from '../shared/lib/constants'
+import * as ciEnvironment from '../server/ci-info'
+import {
+  CONFIG_FILES,
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_EXPORT,
+  PHASE_PRODUCTION_BUILD,
+  type PHASE_TYPE,
+} from '../shared/lib/constants'
 import { defaultConfig, normalizeConfig } from './config-shared'
 import type {
   ExperimentalConfig,
   NextConfigComplete,
   NextConfig,
-  TurbopackLoaderItem,
 } from './config-shared'
 
 import { loadWebpackHook } from './config-utils'
@@ -17,7 +23,10 @@ import { imageConfigDefault } from '../shared/lib/image-config'
 import type { ImageConfig } from '../shared/lib/image-config'
 import { loadEnvConfig, updateInitialEnv } from '@next/env'
 import { flushAndExit } from '../telemetry/flush-and-exit'
-import { findRootDir } from '../lib/find-root'
+import {
+  findRootDirAndLockFiles,
+  warnDuplicatedLockFiles,
+} from '../lib/find-root'
 import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
@@ -30,6 +39,9 @@ import { normalizeZodErrors } from '../shared/lib/zod'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import { findDir } from '../lib/find-pages-dir'
 import { CanaryOnlyError, isStableBuild } from '../shared/lib/canary-only'
+import { interopDefault } from '../lib/interop-default'
+import { djb2Hash } from '../shared/lib/hash'
+import type { NextAdapter } from '../build/adapter/build-complete'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -64,8 +76,8 @@ export function warnOptionHasBeenDeprecated(
     let found = true
     const nestedPropertyKeys = nestedPropertyKey.split('.')
     for (const key of nestedPropertyKeys) {
-      if (current[key] !== undefined) {
-        current = current[key]
+      if ((current as any)[key] !== undefined) {
+        current = (current as any)[key]
       } else {
         found = false
         break
@@ -77,6 +89,63 @@ export function warnOptionHasBeenDeprecated(
     }
   }
   return hasWarned
+}
+
+function checkDeprecations(
+  userConfig: NextConfig,
+  configFileName: string,
+  silent: boolean,
+  dir: string
+) {
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'amp',
+    `Built-in amp support is deprecated and the \`amp\` configuration option will be removed in Next.js 16.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.amp',
+    `Built-in amp support is deprecated and the \`experimental.amp\` configuration option will be removed in Next.js 16.`,
+    silent
+  )
+
+  if (userConfig.experimental?.dynamicIO !== undefined) {
+    warnOptionHasBeenDeprecated(
+      userConfig,
+      'experimental.dynamicIO',
+      `\`experimental.dynamicIO\` has been renamed to \`experimental.cacheComponents\`. Please update your ${configFileName} file accordingly.`,
+      silent
+    )
+  }
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.instrumentationHook',
+    `\`experimental.instrumentationHook\` is no longer needed, because \`instrumentation.js\` is available by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    userConfig,
+    'experimental.after',
+    `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  // i18n deprecation for App Router
+  if (userConfig.i18n) {
+    const hasAppDir = Boolean(findDir(dir, 'app'))
+    if (hasAppDir) {
+      warnOptionHasBeenDeprecated(
+        userConfig,
+        'i18n',
+        `i18n configuration in ${configFileName} is unsupported in App Router.\nLearn more about internationalization in App Router: https://nextjs.org/docs/app/building-your-application/routing/internationalization`,
+        silent
+      )
+    }
+  }
 }
 
 export function warnOptionHasBeenMovedOutOfExperimental(
@@ -98,10 +167,12 @@ export function warnOptionHasBeenMovedOutOfExperimental(
     const newKeys = newKey.split('.')
     while (newKeys.length > 1) {
       const key = newKeys.shift()!
-      current[key] = current[key] || {}
-      current = current[key]
+      ;(current as any)[key] = (current as any)[key] || {}
+      current = (current as any)[key]
     }
-    current[newKeys.shift()!] = (config.experimental as any)[oldExperimentalKey]
+    ;(current as any)[newKeys.shift()!] = (config.experimental as any)[
+      oldExperimentalKey
+    ]
   }
 
   return config
@@ -123,7 +194,7 @@ function warnCustomizedOption(
     if (!(seg in current)) {
       return
     }
-    current = current[seg]
+    current = (current as any)[seg]
   }
 
   if (!silent && current !== defaultValue) {
@@ -133,27 +204,50 @@ function warnCustomizedOption(
   }
 }
 
-function assignDefaults(
+/**
+ * Assigns defaults to the user config and validates the config.
+ *
+ * @param dir - The directory of the project.
+ * @param userConfig - The user config.
+ * @param silent - Whether to suppress warnings.
+ * @returns The complete config.
+ */
+function assignDefaultsAndValidate(
   dir: string,
-  userConfig: { [key: string]: any },
-  silent: boolean
-) {
+  userConfig: NextConfig & { configFileName: string },
+  silent: boolean,
+  configuredExperimentalFeatures: ConfiguredExperimentalFeature[],
+  phase: PHASE_TYPE
+): NextConfigComplete {
   const configFileName = userConfig.configFileName
-  if (typeof userConfig.exportTrailingSlash !== 'undefined') {
+  if (typeof (userConfig as any).exportTrailingSlash !== 'undefined') {
     if (!silent) {
       Log.warn(
         `The "exportTrailingSlash" option has been renamed to "trailingSlash". Please update your ${configFileName}.`
       )
     }
     if (typeof userConfig.trailingSlash === 'undefined') {
-      userConfig.trailingSlash = userConfig.exportTrailingSlash
+      userConfig.trailingSlash = (userConfig as any).exportTrailingSlash
     }
-    delete userConfig.exportTrailingSlash
+    delete (userConfig as any).exportTrailingSlash
+  }
+
+  // Handle migration of experimental.dynamicIO to experimental.cacheComponents
+  if (userConfig.experimental?.dynamicIO !== undefined) {
+    // If cacheComponents was not explicitly set by the user (i.e., it's still the default value),
+    // use the dynamicIO value. We check against the user config, not the merged result.
+    if (userConfig.experimental?.cacheComponents === undefined) {
+      userConfig.experimental.cacheComponents =
+        userConfig.experimental.dynamicIO
+    }
+
+    // Remove the deprecated property
+    delete userConfig.experimental.dynamicIO
   }
 
   const config = Object.keys(userConfig).reduce<{ [key: string]: any }>(
     (currentConfig, key) => {
-      const value = userConfig[key]
+      const value = (userConfig as any)[key]
 
       if (value === undefined || value === null) {
         return currentConfig
@@ -205,9 +299,15 @@ function assignDefaults(
         })
       }
 
-      if (!!value && value.constructor === Object) {
+      const defaultValue = (defaultConfig as Record<string, unknown>)[key]
+
+      if (
+        !!value &&
+        value.constructor === Object &&
+        typeof defaultValue === 'object'
+      ) {
         currentConfig[key] = {
-          ...defaultConfig[key],
+          ...defaultValue,
           ...Object.keys(value).reduce<any>((c, k) => {
             const v = value[k]
             if (v !== undefined && v !== null) {
@@ -223,18 +323,21 @@ function assignDefaults(
       return currentConfig
     },
     {}
-  )
+  ) as NextConfig & { configFileName: string }
 
-  // TODO: remove these once we've made PPR default
-  // If this was defaulted to true, it implies that the configuration was
-  // overridden for testing to be defaulted on.
-  if (defaultConfig.experimental?.ppr) {
-    Log.warn(
-      `\`experimental.ppr\` has been defaulted to \`true\` because \`__NEXT_EXPERIMENTAL_PPR\` was set to \`true\` during testing.`
-    )
+  const result = {
+    ...defaultConfig,
+    ...config,
+    experimental: {
+      ...defaultConfig.experimental,
+      ...config.experimental,
+    },
   }
 
-  const result = { ...defaultConfig, ...config }
+  // ensure correct default is set for api-resolver revalidate handling
+  if (!result.experimental?.trustHostHeader && ciEnvironment.hasNextSupport) {
+    result.experimental.trustHostHeader = true
+  }
 
   if (
     result.experimental?.allowDevelopmentBuild &&
@@ -249,14 +352,12 @@ function assignDefaults(
     // Prevents usage of certain experimental features outside of canary
     if (result.experimental?.ppr) {
       throw new CanaryOnlyError({ feature: 'experimental.ppr' })
-    } else if (result.experimental?.dynamicIO) {
-      throw new CanaryOnlyError({ feature: 'experimental.dynamicIO' })
+    } else if (result.experimental?.cacheComponents) {
+      throw new CanaryOnlyError({ feature: 'experimental.cacheComponents' })
     } else if (result.experimental?.turbopackPersistentCaching) {
       throw new CanaryOnlyError({
         feature: 'experimental.turbopackPersistentCaching',
       })
-    } else if (result.experimental?.nodeMiddleware) {
-      throw new CanaryOnlyError({ feature: 'experimental.nodeMiddleware' })
     }
   }
 
@@ -475,52 +576,6 @@ function assignDefaults(
     silent
   )
 
-  warnOptionHasBeenDeprecated(
-    result,
-    'experimental.instrumentationHook',
-    `\`experimental.instrumentationHook\` is no longer needed, because \`instrumentation.js\` is available by default. You can remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    result,
-    'experimental.after',
-    `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    result,
-    'devIndicators.appIsrStatus',
-    `\`devIndicators.appIsrStatus\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
-    silent
-  )
-
-  warnOptionHasBeenDeprecated(
-    result,
-    'devIndicators.buildActivity',
-    `\`devIndicators.buildActivity\` is deprecated and no longer configurable. Please remove it from ${configFileName}.`,
-    silent
-  )
-
-  const hasWarnedBuildActivityPosition = warnOptionHasBeenDeprecated(
-    result,
-    'devIndicators.buildActivityPosition',
-    `\`devIndicators.buildActivityPosition\` has been renamed to \`devIndicators.position\`. Please update your ${configFileName} file accordingly.`,
-    silent
-  )
-  if (
-    hasWarnedBuildActivityPosition &&
-    result.devIndicators !== false &&
-    result.devIndicators?.buildActivityPosition &&
-    result.devIndicators.buildActivityPosition !== result.devIndicators.position
-  ) {
-    Log.warnOnce(
-      `The \`devIndicators\` option \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") conflicts with \`position\` ("${result.devIndicators.position}"). Using \`buildActivityPosition\` ("${result.devIndicators.buildActivityPosition}") for backward compatibility.`
-    )
-    result.devIndicators.position = result.devIndicators.buildActivityPosition
-  }
-
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'bundlePagesExternals',
@@ -574,6 +629,13 @@ function assignDefaults(
     result,
     'swrDelta',
     'expireTime',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'typedRoutes',
+    'typedRoutes',
     configFileName,
     silent
   )
@@ -669,39 +731,39 @@ function assignDefaults(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
-  if (result?.outputFileTracingRoot && !result?.turbopack?.root) {
-    dset(result, ['turbopack', 'root'], result.outputFileTracingRoot)
+  const tracingRoot = result?.outputFileTracingRoot
+  const turbopackRoot = result?.turbopack?.root
+
+  // If both provided, validate they match. If not, use outputFileTracingRoot.
+  if (tracingRoot && turbopackRoot && tracingRoot !== turbopackRoot) {
+    Log.warn(
+      `Both \`outputFileTracingRoot\` and \`turbopack.root\` are set, but they must have the same value.\n` +
+        `Using \`outputFileTracingRoot\` value: ${tracingRoot}.`
+    )
   }
 
-  // use the closest lockfile as tracing root
-  if (!result?.outputFileTracingRoot || !result?.turbopack?.root) {
-    let rootDir = findRootDir(dir)
-
-    if (rootDir) {
-      if (!result?.outputFileTracingRoot) {
-        result.outputFileTracingRoot = rootDir
-      }
-
-      if (!result?.turbopack?.root) {
-        dset(result, ['turbopack', 'root'], rootDir)
-      }
+  let rootDir = tracingRoot || turbopackRoot
+  if (!rootDir) {
+    const { rootDir: foundRootDir, lockFiles } = findRootDirAndLockFiles(dir)
+    rootDir = foundRootDir
+    if (!silent) {
+      warnDuplicatedLockFiles(lockFiles)
     }
   }
+
+  if (!rootDir) {
+    throw new Error(
+      'Failed to find the root directory of the project. This is a bug in Next.js.'
+    )
+  }
+
+  // Ensure both properties are set to the same value
+  result.outputFileTracingRoot = rootDir
+  dset(result, ['turbopack', 'root'], rootDir)
 
   setHttpClientAndAgentOptions(result || defaultConfig)
 
   if (result.i18n) {
-    const hasAppDir = Boolean(findDir(dir, 'app'))
-
-    if (hasAppDir) {
-      warnOptionHasBeenDeprecated(
-        result,
-        'i18n',
-        `i18n configuration in ${configFileName} is unsupported in App Router.\nLearn more about internationalization in App Router: https://nextjs.org/docs/app/building-your-application/routing/internationalization`,
-        silent
-      )
-    }
-
     const { i18n } = result
     const i18nType = typeof i18n
 
@@ -910,18 +972,6 @@ function assignDefaults(
           result.expireTime ?? defaultDefault.expire
       }
     }
-    // This is the most dynamic cache life profile.
-    const secondsCacheLifeProfile = result.experimental.cacheLife['seconds']
-    if (
-      secondsCacheLifeProfile &&
-      secondsCacheLifeProfile.stale === undefined
-    ) {
-      // We default this to whatever stale time you had configured for dynamic content.
-      // Since this is basically a dynamic cache life profile.
-      const dynamicStaleTime = result.experimental.staleTimes?.dynamic
-      secondsCacheLifeProfile.stale =
-        dynamicStaleTime ?? defaultConfig.experimental?.staleTimes?.dynamic
-    }
   }
 
   if (result.experimental?.cacheHandlers) {
@@ -937,13 +987,23 @@ function assignDefaults(
     const invalidHandlerItems: Array<{ key: string; reason: string }> = []
 
     for (const key of handlerKeys) {
-      if (!allowedHandlerNameRegex.test(key)) {
+      if (key === 'private') {
+        invalidHandlerItems.push({
+          key,
+          reason:
+            'The cache handler for "use cache: private" cannot be customized.',
+        })
+      } else if (!allowedHandlerNameRegex.test(key)) {
         invalidHandlerItems.push({
           key,
           reason: 'key must only use characters a-z and -',
         })
       } else {
-        const handlerPath = result.experimental.cacheHandlers[key]
+        const handlerPath = (
+          result.experimental.cacheHandlers as {
+            [handlerName: string]: string | undefined
+          }
+        )[key]
 
         if (handlerPath && !existsSync(handlerPath)) {
           invalidHandlerItems.push({
@@ -976,9 +1036,6 @@ function assignDefaults(
 
   const userProvidedOptimizePackageImports =
     result.experimental?.optimizePackageImports || []
-  if (!result.experimental) {
-    result.experimental = {}
-  }
 
   result.experimental.optimizePackageImports = [
     ...new Set([
@@ -1013,11 +1070,10 @@ function assignDefaults(
       '@effect/sql-mssql',
       '@effect/sql-mysql2',
       '@effect/sql-pg',
-      '@effect/sql-squlite-node',
-      '@effect/sql-squlite-bun',
-      '@effect/sql-squlite-wasm',
-      '@effect/sql-squlite-react-native',
-      '@effect/sql-squlite-wasm',
+      '@effect/sql-sqlite-node',
+      '@effect/sql-sqlite-bun',
+      '@effect/sql-sqlite-wasm',
+      '@effect/sql-sqlite-react-native',
       '@effect/rpc',
       '@effect/rpc-http',
       '@effect/typeclass',
@@ -1071,33 +1127,194 @@ function assignDefaults(
     result.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
   }
 
-  // "use cache" was originally implicitly enabled with the dynamicIO flag, so
-  // we transfer the value for dynamicIO to the explicit useCache flag to ensure
+  // "use cache" was originally implicitly enabled with the cacheComponents flag, so
+  // we transfer the value for cacheComponents to the explicit useCache flag to ensure
   // backwards compatibility.
   if (result.experimental.useCache === undefined) {
-    result.experimental.useCache = result.experimental.dynamicIO
+    result.experimental.useCache = result.experimental.cacheComponents
   }
 
-  return result
+  // If cacheComponents is enabled, we also enable PPR.
+  if (result.experimental.cacheComponents) {
+    if (
+      userConfig.experimental?.ppr === false ||
+      userConfig.experimental?.ppr === 'incremental'
+    ) {
+      throw new Error(
+        `\`experimental.ppr\` can not be \`${JSON.stringify(userConfig.experimental?.ppr)}\` when \`experimental.cacheComponents\` is \`true\`. PPR is implicitly enabled when Cache Components is enabled.`
+      )
+    }
+
+    result.experimental.ppr = true
+
+    if (
+      configuredExperimentalFeatures &&
+      // If we've already noted that the `process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`
+      // has enabled the feature, we don't need to note it again.
+      process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS !== 'true' &&
+      process.env.__NEXT_EXPERIMENTAL_PPR !== 'true'
+    ) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'ppr',
+        true,
+        'enabled by `experimental.cacheComponents`'
+      )
+    }
+  }
+
+  // If ppr is enabled and the user hasn't configured rdcForNavigations, we
+  // enable it by default.
+  if (
+    result.experimental.ppr &&
+    userConfig.experimental?.rdcForNavigations === undefined
+  ) {
+    result.experimental.rdcForNavigations = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'rdcForNavigations',
+        true,
+        'enabled by `experimental.ppr`'
+      )
+    }
+  }
+
+  // If rdcForNavigations is enabled, but ppr is not, we throw an error.
+  if (result.experimental.rdcForNavigations && !result.experimental.ppr) {
+    throw new Error(
+      '`experimental.rdcForNavigations` is enabled, but `experimental.ppr` is not.'
+    )
+  }
+
+  // We require clientSegmentCache to be enabled if clientParamParsing is
+  // enabled. This is because clientParamParsing is only relevant when
+  // clientSegmentCache is enabled.
+  if (
+    result.experimental.clientParamParsing &&
+    !result.experimental.clientSegmentCache
+  ) {
+    throw new Error(
+      `\`experimental.clientParamParsing\` can not be \`true\` when \`experimental.clientSegmentCache\` is \`false\`. Client param parsing is only relevant when client segment cache is enabled.`
+    )
+  }
+
+  if (
+    phase === PHASE_DEVELOPMENT_SERVER &&
+    result.experimental?.isolatedDevBuild
+  ) {
+    result.distDir = join(result.distDir, 'dev')
+  }
+
+  return result as NextConfigComplete
 }
 
+async function applyModifyConfig(
+  config: NextConfigComplete,
+  phase: PHASE_TYPE,
+  silent: boolean
+): Promise<NextConfigComplete> {
+  // we always call modify config  and phase can be used to only
+  // modify for specific times
+  if (config.experimental?.adapterPath) {
+    const adapterMod = interopDefault(
+      await import(
+        pathToFileURL(require.resolve(config.experimental.adapterPath)).href
+      )
+    ) as NextAdapter
+
+    if (typeof adapterMod.modifyConfig === 'function') {
+      if (!silent) {
+        Log.info(`Applying modifyConfig from ${adapterMod.name}`)
+      }
+
+      config = await adapterMod.modifyConfig(config, {
+        phase,
+      })
+    }
+  }
+  return config
+}
+
+// Cache config with keys to handle multiple configurations (e.g., multi-zone)
+const configCache = new Map<
+  string,
+  {
+    rawConfig: any
+    config: NextConfigComplete
+    configuredExperimentalFeatures: ConfiguredExperimentalFeature[]
+  }
+>()
+
+// Generate cache key based on parameters that affect config output
+// We need a unique key for cache because there can be multiple values
+function getCacheKey(
+  phase: PHASE_TYPE,
+  dir: string,
+  customConfig?: object | null,
+  reactProductionProfiling?: boolean,
+  debugPrerender?: boolean
+): string {
+  // The next.config.js is unique per project, so we can use the dir as the major key
+  // to generate the unique config key.
+  const keyData = JSON.stringify({
+    dir,
+    phase,
+    hasCustomConfig: Boolean(customConfig),
+    reactProductionProfiling: Boolean(reactProductionProfiling),
+    debugPrerender: Boolean(debugPrerender),
+  })
+
+  return djb2Hash(keyData).toString(36)
+}
 export default async function loadConfig(
-  phase: string,
+  phase: PHASE_TYPE,
   dir: string,
   {
     customConfig,
     rawConfig,
     silent = true,
-    onLoadUserConfig,
+    reportExperimentalFeatures,
     reactProductionProfiling,
+    debugPrerender,
   }: {
     customConfig?: object | null
     rawConfig?: boolean
     silent?: boolean
-    onLoadUserConfig?: (conf: NextConfig) => void
+    reportExperimentalFeatures?: (
+      configuredExperimentalFeatures: ConfiguredExperimentalFeature[]
+    ) => void
     reactProductionProfiling?: boolean
+    debugPrerender?: boolean
   } = {}
 ): Promise<NextConfigComplete> {
+  // Generate cache key based on parameters that affect config output
+  const cacheKey = getCacheKey(
+    phase,
+    dir,
+    customConfig,
+    reactProductionProfiling,
+    debugPrerender
+  )
+
+  // Check if we have a cached result
+  const cachedResult = configCache.get(cacheKey)
+  if (cachedResult) {
+    // Call the experimental features callback if provided
+    if (reportExperimentalFeatures) {
+      reportExperimentalFeatures(cachedResult.configuredExperimentalFeatures)
+    }
+
+    // Return raw config if requested and available
+    if (rawConfig && cachedResult.rawConfig) {
+      return cachedResult.rawConfig
+    }
+
+    return cachedResult.config
+  }
+
+  // Original implementation continues below...
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
     try {
       loadWebpackHook()
@@ -1111,7 +1328,20 @@ export default async function loadConfig(
   }
 
   if (process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
-    return JSON.parse(process.env.__NEXT_PRIVATE_STANDALONE_CONFIG)
+    // we don't apply assignDefaults or modifyConfig here as it
+    // has already been applied
+    const standaloneConfig = JSON.parse(
+      process.env.__NEXT_PRIVATE_STANDALONE_CONFIG
+    )
+
+    // Cache the standalone config
+    configCache.set(cacheKey, {
+      config: standaloneConfig,
+      rawConfig: standaloneConfig,
+      configuredExperimentalFeatures: [],
+    })
+
+    return standaloneConfig
   }
 
   const curLog = silent
@@ -1125,28 +1355,41 @@ export default async function loadConfig(
   loadEnvConfig(dir, phase === PHASE_DEVELOPMENT_SERVER, curLog)
 
   let configFileName = 'next.config.js'
+  const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
 
   if (customConfig) {
-    return assignDefaults(
-      dir,
-      {
-        configOrigin: 'server',
-        configFileName,
-        ...customConfig,
-      },
+    // Check deprecation warnings on the custom config before merging with defaults
+    checkDeprecations(customConfig as NextConfig, configFileName, silent, dir)
+
+    const config = await applyModifyConfig(
+      assignDefaultsAndValidate(
+        dir,
+        {
+          configOrigin: 'server',
+          configFileName,
+          ...customConfig,
+        },
+        silent,
+        configuredExperimentalFeatures,
+        phase
+      ),
+      phase,
       silent
-    ) as NextConfigComplete
+    )
+
+    // Cache the custom config result
+    configCache.set(cacheKey, {
+      config,
+      rawConfig: customConfig,
+      configuredExperimentalFeatures,
+    })
+
+    reportExperimentalFeatures?.(configuredExperimentalFeatures)
+
+    return config
   }
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
-
-  if (process.env.__NEXT_TEST_MODE) {
-    if (path) {
-      Log.info(`Loading config from ${path}`)
-    } else {
-      Log.info('No config file found')
-    }
-  }
 
   // If config file was found
   if (path?.length) {
@@ -1167,6 +1410,7 @@ export default async function loadConfig(
       } else if (configFileName === 'next.config.ts') {
         userConfigModule = await transpileConfig({
           nextConfigPath: path,
+          configFileName,
           cwd: dir,
         })
       } else {
@@ -1182,6 +1426,15 @@ export default async function loadConfig(
       updateInitialEnv(newEnv)
 
       if (rawConfig) {
+        // Cache the raw config
+        configCache.set(cacheKey, {
+          config: userConfigModule as NextConfigComplete,
+          rawConfig: userConfigModule,
+          configuredExperimentalFeatures,
+        })
+
+        reportExperimentalFeatures?.(configuredExperimentalFeatures)
+
         return userConfigModule
       }
     } catch (err) {
@@ -1192,48 +1445,44 @@ export default async function loadConfig(
       throw err
     }
 
-    const userConfig = (await normalizeConfig(
-      phase,
-      userConfigModule.default || userConfigModule
-    )) as NextConfig
+    const loadedConfig = Object.freeze(
+      (await normalizeConfig(
+        phase,
+        interopDefault(userConfigModule)
+      )) as NextConfig
+    )
 
-    if (!process.env.NEXT_MINIMAL) {
-      // We only validate the config against schema in non minimal mode
-      const { configSchema } =
-        require('./config-schema') as typeof import('./config-schema')
-      const state = configSchema.safeParse(userConfig)
+    if (loadedConfig.experimental) {
+      for (const name of Object.keys(
+        loadedConfig.experimental
+      ) as (keyof ExperimentalConfig)[]) {
+        const value = loadedConfig.experimental[name]
 
-      if (state.success === false) {
-        // error message header
-        const messages = [`Invalid ${configFileName} options detected: `]
-
-        const [errorMessages, shouldExit] = normalizeNextConfigZodErrors(
-          state.error
-        )
-        // ident list item
-        for (const error of errorMessages) {
-          messages.push(`    ${error}`)
+        if (name.startsWith('turbopack') && !process.env.TURBOPACK) {
+          // Ignore any Turbopack config if Turbopack is not enabled
+          continue
         }
 
-        // error message footer
-        messages.push(
-          'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
+        addConfiguredExperimentalFeature(
+          configuredExperimentalFeatures,
+          name,
+          value
         )
-
-        if (shouldExit) {
-          for (const message of messages) {
-            console.error(message)
-          }
-          await flushAndExit(1)
-        } else {
-          for (const message of messages) {
-            curLog.warn(message)
-          }
-        }
       }
     }
 
-    if (userConfig.target && userConfig.target !== 'server') {
+    // Clone a new userConfig each time to avoid mutating the original
+    const userConfig = cloneObject(loadedConfig) as NextConfig
+
+    // Check deprecation warnings on the actual user config before merging with defaults
+    checkDeprecations(userConfig, configFileName, silent, dir)
+
+    // Always validate the config against schema in non minimal mode
+    if (!process.env.NEXT_MINIMAL && !silent) {
+      validateConfigSchema(userConfig, configFileName, curLog.warn)
+    }
+
+    if ((userConfig as any).target && (userConfig as any).target !== 'server') {
       throw new Error(
         `The "target" property is no longer supported in ${configFileName}.\n` +
           'See more info here https://nextjs.org/docs/messages/deprecated-target-config'
@@ -1253,49 +1502,9 @@ export default async function loadConfig(
       userConfig.reactProductionProfiling = reactProductionProfiling
     }
 
-    if (
-      userConfig.experimental?.turbo?.loaders &&
-      !userConfig.experimental?.turbo?.rules
-    ) {
-      curLog.warn(
-        'experimental.turbo.loaders is now deprecated. Please update next.config.js to use experimental.turbo.rules as soon as possible.\n' +
-          'The new option is similar, but the key should be a glob instead of an extension.\n' +
-          'Example: loaders: { ".mdx": ["mdx-loader"] } -> rules: { "*.mdx": ["mdx-loader"] }" }\n' +
-          'See more info here https://nextjs.org/docs/app/api-reference/next-config-js/turbo'
-      )
-
-      const rules: Record<string, TurbopackLoaderItem[]> = {}
-      for (const [ext, loaders] of Object.entries(
-        userConfig.experimental.turbo.loaders
-      )) {
-        rules['*' + ext] = loaders as TurbopackLoaderItem[]
-      }
-
-      userConfig.experimental.turbo.rules = rules
-    }
-
-    if (userConfig.experimental?.turbo) {
-      curLog.warn(
-        'The config property `experimental.turbo` is deprecated. Move this setting to `config.turbopack` as Turbopack is now stable.'
-      )
-
-      // Merge the two configs, preferring values in `config.turbopack`.
-      userConfig.turbopack = {
-        ...userConfig.experimental.turbo,
-        ...userConfig.turbopack,
-      }
-      userConfig.experimental.turbopackMemoryLimit ??=
-        userConfig.experimental.turbo.memoryLimit
-      userConfig.experimental.turbopackMinify ??=
-        userConfig.experimental.turbo.minify
-      userConfig.experimental.turbopackTreeShaking ??=
-        userConfig.experimental.turbo.treeShaking
-      userConfig.experimental.turbopackSourceMaps ??=
-        userConfig.experimental.turbo.sourceMaps
-    }
-
     if (userConfig.experimental?.useLightningcss) {
-      const { loadBindings } = require('next/dist/build/swc')
+      const { loadBindings } =
+        require('../build/swc') as typeof import('../build/swc')
       const isLightningSupported = (await loadBindings())?.css?.lightning
 
       if (!isLightningSupported) {
@@ -1312,8 +1521,14 @@ export default async function loadConfig(
       userConfig.htmlLimitedBots = userConfig.htmlLimitedBots.source
     }
 
-    onLoadUserConfig?.(userConfig)
-    const completeConfig = assignDefaults(
+    enforceExperimentalFeatures(userConfig, {
+      isDefaultConfig: false,
+      configuredExperimentalFeatures,
+      debugPrerender,
+      phase,
+    })
+
+    const completeConfig = assignDefaultsAndValidate(
       dir,
       {
         configOrigin: relative(dir, path),
@@ -1321,16 +1536,33 @@ export default async function loadConfig(
         configFileName,
         ...userConfig,
       },
-      silent
-    ) as NextConfigComplete
-    return completeConfig
+      silent,
+      configuredExperimentalFeatures,
+      phase
+    )
+
+    const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
+
+    // Cache the final result
+    configCache.set(cacheKey, {
+      config: finalConfig,
+      rawConfig: userConfigModule, // Store the original user config module
+      configuredExperimentalFeatures,
+    })
+
+    if (reportExperimentalFeatures) {
+      reportExperimentalFeatures(configuredExperimentalFeatures)
+    }
+
+    return finalConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
     const unsupportedConfig = findUp.sync(
       [
         `${configBaseName}.cjs`,
         `${configBaseName}.cts`,
-        `${configBaseName}.mts`,
+        // TODO: Remove `as any` once we bump @types/node to v22.10.0+
+        ...((process.features as any).typescript ? [] : ['next.config.mts']),
         `${configBaseName}.json`,
         `${configBaseName}.jsx`,
         `${configBaseName}.tsx`,
@@ -1346,58 +1578,393 @@ export default async function loadConfig(
     }
   }
 
+  const clonedDefaultConfig = cloneObject(defaultConfig) as NextConfig
+
+  enforceExperimentalFeatures(clonedDefaultConfig, {
+    isDefaultConfig: true,
+    configuredExperimentalFeatures,
+    debugPrerender,
+    phase,
+  })
+
   // always call assignDefaults to ensure settings like
   // reactRoot can be updated correctly even with no next.config.js
-  const completeConfig = assignDefaults(
+  const completeConfig = assignDefaultsAndValidate(
     dir,
-    defaultConfig,
-    silent
+    { ...clonedDefaultConfig, configFileName },
+    silent,
+    configuredExperimentalFeatures,
+    phase
   ) as NextConfigComplete
-  completeConfig.configFileName = configFileName
+
   setHttpClientAndAgentOptions(completeConfig)
-  return completeConfig
-}
 
-export type ConfiguredExperimentalFeature =
-  | { name: keyof ExperimentalConfig; type: 'boolean'; value: boolean }
-  | { name: keyof ExperimentalConfig; type: 'number'; value: number }
-  | { name: keyof ExperimentalConfig; type: 'other' }
+  const finalConfig = await applyModifyConfig(completeConfig, phase, silent)
 
-export function getConfiguredExperimentalFeatures(
-  userNextConfigExperimental: NextConfig['experimental']
-) {
-  const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
+  // Cache the default config result
+  configCache.set(cacheKey, {
+    config: finalConfig,
+    rawConfig: clonedDefaultConfig,
+    configuredExperimentalFeatures,
+  })
 
-  if (!userNextConfigExperimental) {
-    return configuredExperimentalFeatures
+  if (reportExperimentalFeatures) {
+    reportExperimentalFeatures(configuredExperimentalFeatures)
   }
 
-  // defaultConfig.experimental is predefined and will never be undefined
-  // This is only a type guard for the typescript
-  if (defaultConfig.experimental) {
-    for (const name of Object.keys(
-      userNextConfigExperimental
-    ) as (keyof ExperimentalConfig)[]) {
-      const value = userNextConfigExperimental[name]
+  return finalConfig
+}
 
-      if (name === 'turbo' && !process.env.TURBOPACK) {
-        // Ignore any Turbopack config if Turbopack is not enabled
-        continue
+export type ConfiguredExperimentalFeature = {
+  key: keyof ExperimentalConfig
+  value: ExperimentalConfig[keyof ExperimentalConfig]
+  reason?: string
+}
+
+function enforceExperimentalFeatures(
+  config: NextConfig,
+  options: {
+    isDefaultConfig: boolean
+    configuredExperimentalFeatures: ConfiguredExperimentalFeature[] | undefined
+    debugPrerender: boolean | undefined
+    phase: PHASE_TYPE
+  }
+) {
+  const {
+    configuredExperimentalFeatures,
+    debugPrerender,
+    isDefaultConfig,
+    phase,
+  } = options
+
+  config.experimental ??= {}
+
+  if (
+    debugPrerender &&
+    (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
+  ) {
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'serverSourceMaps',
+      true,
+      configuredExperimentalFeatures
+    )
+
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      process.env.TURBOPACK ? 'turbopackMinify' : 'serverMinification',
+      false,
+      configuredExperimentalFeatures
+    )
+
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'enablePrerenderSourceMaps',
+      true,
+      configuredExperimentalFeatures
+    )
+
+    setExperimentalFeatureForDebugPrerender(
+      config.experimental,
+      'prerenderEarlyExit',
+      false,
+      configuredExperimentalFeatures
+    )
+  }
+
+  // TODO: Remove this once we've made Cache Components the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.ppr === undefined ||
+      (isDefaultConfig && !config.experimental.ppr))
+  ) {
+    config.experimental.ppr = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'ppr',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made Cache Components the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.ppr === undefined ||
+      (isDefaultConfig && !config.experimental.ppr))
+  ) {
+    config.experimental.ppr = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'ppr',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made Client Segment Cache the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.clientSegmentCache === undefined ||
+      (isDefaultConfig && !config.experimental.clientSegmentCache))
+  ) {
+    config.experimental.clientSegmentCache = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'clientSegmentCache',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made Client Param Parsing the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.clientParamParsing === undefined ||
+      (isDefaultConfig && !config.experimental.clientParamParsing))
+  ) {
+    config.experimental.clientParamParsing = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'clientParamParsing',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made Cache Components the default.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.cacheComponents === undefined ||
+      (isDefaultConfig && !config.experimental.cacheComponents))
+  ) {
+    config.experimental.cacheComponents = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'cacheComponents',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made RDC for Navigations the default for PPR.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.rdcForNavigations === undefined ||
+      (isDefaultConfig && !config.experimental.rdcForNavigations))
+  ) {
+    config.experimental.rdcForNavigations = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'rdcForNavigations',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_CACHE_COMPONENTS`'
+      )
+    }
+  }
+
+  // TODO: Remove this once we've made RDC for Navigations the default for PPR.
+  if (
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.rdcForNavigations === undefined ||
+      (isDefaultConfig && !config.experimental.rdcForNavigations))
+  ) {
+    config.experimental.rdcForNavigations = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'rdcForNavigations',
+        true,
+        'enabled by `__NEXT_EXPERIMENTAL_PPR`'
+      )
+    }
+  }
+
+  if (
+    process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
+    // We do respect an explicit value in the user config.
+    (config.experimental.reactCompiler === undefined ||
+      (isDefaultConfig && !config.experimental.reactCompiler))
+  ) {
+    config.experimental.reactCompiler = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'reactCompiler',
+        true,
+        'enabled by `__NEXT_ENABLE_REACT_COMPILER`'
+      )
+    }
+  }
+
+  if (
+    config.experimental.enablePrerenderSourceMaps === undefined &&
+    config.experimental.cacheComponents === true
+  ) {
+    config.experimental.enablePrerenderSourceMaps = true
+
+    if (configuredExperimentalFeatures) {
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        'enablePrerenderSourceMaps',
+        true,
+        'enabled by `experimental.cacheComponents`'
+      )
+    }
+  }
+}
+
+function addConfiguredExperimentalFeature<
+  KeyType extends keyof ExperimentalConfig,
+>(
+  configuredExperimentalFeatures: ConfiguredExperimentalFeature[],
+  key: KeyType,
+  value: ExperimentalConfig[KeyType],
+  reason?: string
+) {
+  if (value !== (defaultConfig.experimental as Record<string, unknown>)[key]) {
+    configuredExperimentalFeatures.push({ key, value, reason })
+  }
+}
+
+function setExperimentalFeatureForDebugPrerender<
+  KeyType extends keyof ExperimentalConfig,
+>(
+  experimentalConfig: ExperimentalConfig,
+  key: KeyType,
+  value: ExperimentalConfig[KeyType],
+  configuredExperimentalFeatures: ConfiguredExperimentalFeature[] | undefined
+) {
+  if (experimentalConfig[key] !== value) {
+    experimentalConfig[key] = value
+
+    if (configuredExperimentalFeatures) {
+      const action =
+        value === true ? 'enabled' : value === false ? 'disabled' : 'set'
+
+      const reason = `${action} by \`--debug-prerender\``
+
+      addConfiguredExperimentalFeature(
+        configuredExperimentalFeatures,
+        key,
+        value,
+        reason
+      )
+    }
+  }
+}
+
+function cloneObject(obj: any): any {
+  // Primitives & null
+  if (obj === null || typeof obj !== 'object') {
+    return obj
+  }
+
+  // RegExp → clone via constructor
+  if (obj instanceof RegExp) {
+    return new RegExp(obj.source, obj.flags)
+  }
+
+  // Function → just reuse the function reference
+  if (typeof obj === 'function') {
+    return obj
+  }
+
+  // Arrays → map each element
+  if (Array.isArray(obj)) {
+    return obj.map(cloneObject)
+  }
+
+  // Detect non‑plain objects (class instances)
+  const proto = Object.getPrototypeOf(obj)
+  const isPlainObject = proto === Object.prototype || proto === null
+
+  // If it's not a plain object, just return the original
+  if (!isPlainObject) {
+    return obj
+  }
+
+  // Plain object → create a new object with the same prototype
+  // and copy all properties, cloning data properties and keeping
+  // accessor properties (getters/setters) as‑is.
+  const result = Object.create(proto)
+  for (const key of Reflect.ownKeys(obj)) {
+    const descriptor = Object.getOwnPropertyDescriptor(obj, key)
+
+    if (descriptor && (descriptor.get || descriptor.set)) {
+      // Accessor property → copy descriptor as‑is (get/set functions)
+      Object.defineProperty(result, key, descriptor)
+    } else {
+      // Data property → clone the value
+      result[key] = cloneObject(obj[key])
+    }
+  }
+
+  return result
+}
+
+async function validateConfigSchema(
+  userConfig: NextConfig,
+  configFileName: string,
+  warn: (message: string) => void
+) {
+  // We only validate the config against schema in non minimal mode
+  const { configSchema } =
+    require('./config-schema') as typeof import('./config-schema')
+  const state = configSchema.safeParse(userConfig)
+
+  if (!state.success) {
+    // error message header
+    const messages = [`Invalid ${configFileName} options detected: `]
+
+    const [errorMessages, shouldExit] = normalizeNextConfigZodErrors(
+      state.error
+    )
+    // ident list item
+    for (const error of errorMessages) {
+      messages.push(`    ${error}`)
+    }
+
+    // error message footer
+    messages.push(
+      'See more info here: https://nextjs.org/docs/messages/invalid-next-config'
+    )
+
+    if (shouldExit) {
+      for (const message of messages) {
+        console.error(message)
       }
-
-      if (
-        name in defaultConfig.experimental &&
-        value !== defaultConfig.experimental[name]
-      ) {
-        configuredExperimentalFeatures.push(
-          typeof value === 'boolean'
-            ? { name, type: 'boolean', value }
-            : typeof value === 'number'
-              ? { name, type: 'number', value }
-              : { name, type: 'other' }
-        )
+      await flushAndExit(1)
+    } else {
+      for (const message of messages) {
+        warn(message)
       }
     }
   }
-  return configuredExperimentalFeatures
 }

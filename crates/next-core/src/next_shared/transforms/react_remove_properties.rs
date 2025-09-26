@@ -6,7 +6,10 @@ use turbopack::module_options::ModuleRule;
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 use super::get_ecma_transform_rule;
-use crate::next_config::{NextConfig, ReactRemoveProperties};
+use crate::{
+    next_config::{NextConfig, ReactRemoveProperties},
+    next_shared::transforms::EcmascriptTransformStage,
+};
 
 /// Returns a rule which applies the react_remove_properties transform.
 pub async fn get_react_remove_properties_transform_rule(
@@ -34,7 +37,7 @@ pub async fn get_react_remove_properties_transform_rule(
             get_ecma_transform_rule(
                 Box::new(ReactRemovePropertiesTransformer { config }),
                 enable_mdx_rs,
-                true,
+                EcmascriptTransformStage::Preprocess,
             )
         });
 

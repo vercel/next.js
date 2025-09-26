@@ -1,6 +1,6 @@
 ---
 title: How to build micro-frontends using multi-zones and Next.js
-nav_title: Multi-Zones
+nav_title: Multi-zones
 description: Learn how to build micro-frontends using Next.js Multi-Zones to deploy multiple Next.js apps under a single domain.
 ---
 
@@ -73,7 +73,7 @@ const nextConfig = {
 
 With the Multi Zones set-up, you need to route the paths to the correct zone since they are served by different applications. You can use any HTTP proxy to do this, but one of the Next.js applications can also be used to route requests for the entire domain.
 
-To route to the correct zone using a Next.js application, you can use [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites). For each path served by a different zone, you would add a rewrite rule to send that path to the domain of the other zone. For example:
+To route to the correct zone using a Next.js application, you can use [`rewrites`](/docs/app/api-reference/config/next-config-js/rewrites). For each path served by a different zone, you would add a rewrite rule to send that path to the domain of the other zone, and you also need to rewrite the requests for the static assets. For example:
 
 ```js filename="next.config.js"
 async rewrites() {
@@ -85,6 +85,10 @@ async rewrites() {
         {
             source: '/blog/:path+',
             destination: `${process.env.BLOG_DOMAIN}/blog/:path+`,
+        },
+        {
+            source: '/blog-static/:path+',
+            destination: `${process.env.BLOG_DOMAIN}/blog-static/:path+`,
         }
     ];
 }
@@ -117,13 +121,11 @@ The Next.js applications that make up the different zones can live in any reposi
 
 Since the pages in different zones may be released at different times, feature flags can be useful for enabling or disabling features in unison across the different zones.
 
-For [Next.js on Vercel](https://vercel.com?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) applications, you can use a [monorepo](https://vercel.com/blog/monorepos-are-changing-how-teams-build-software?utm_source=next-site&utm_medium=docs&utm_campaign=next-website) to deploy all affected zones with a single `git push`.
-
 <AppOnly>
 
 ## Server Actions
 
-When using [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) with Multi-Zones, you must explicitly allow the user-facing origin since your user facing domain may serve multiple applications. In your `next.config.js` file, add the following lines:
+When using [Server Actions](/docs/app/getting-started/updating-data) with Multi-Zones, you must explicitly allow the user-facing origin since your user facing domain may serve multiple applications. In your `next.config.js` file, add the following lines:
 
 ```js filename="next.config.js"
 const nextConfig = {

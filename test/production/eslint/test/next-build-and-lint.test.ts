@@ -50,24 +50,19 @@ describe('Next Build', () => {
               stdio: ['pipe', 'pipe', 'inherit'],
             }
           )
-          const { parser, plugins, settings } = JSON.parse(
+          const { parser, settings, ...eslintConfigAfterSetup } = JSON.parse(
             eslintConfigAfterSetupJSON
           )
 
+          expect(
+            getEslintConfigSnapshot(eslintConfigAfterSetup)
+          ).toMatchSnapshot()
           expect({
             parser,
-            plugins,
             settings,
           }).toEqual({
             // parser: require.resolve('eslint-config-next')
             parser: expect.stringContaining('eslint-config-next'),
-            plugins: [
-              'react-hooks',
-              'jsx-a11y',
-              'react',
-              'import',
-              '@next/next',
-            ],
             settings: {
               'import/parsers': expect.any(Object),
               'import/resolver': expect.any(Object),
@@ -140,24 +135,19 @@ describe('Next Build', () => {
               stdio: ['pipe', 'pipe', 'inherit'],
             }
           )
-          const { parser, plugins, settings } = JSON.parse(
+          const { parser, settings, ...eslintConfigAfterSetup } = JSON.parse(
             eslintConfigAfterSetupJSON
           )
 
+          expect(
+            getEslintConfigSnapshot(eslintConfigAfterSetup)
+          ).toMatchSnapshot()
           expect({
             parser,
-            plugins,
             settings,
           }).toEqual({
             // parser: require.resolve('eslint-config-next')
             parser: expect.stringContaining('eslint-config-next'),
-            plugins: [
-              'react-hooks',
-              'jsx-a11y',
-              'react',
-              'import',
-              '@next/next',
-            ],
             settings: {
               'import/parsers': expect.any(Object),
               'import/resolver': expect.any(Object),
@@ -228,25 +218,19 @@ describe('Next Build', () => {
               stdio: ['pipe', 'pipe', 'inherit'],
             }
           )
-          const { parser, plugins, settings } = JSON.parse(
+          const { parser, settings, ...eslintConfigAfterSetup } = JSON.parse(
             eslintConfigAfterSetupJSON
           )
 
+          expect(
+            getEslintConfigSnapshot(eslintConfigAfterSetup)
+          ).toMatchSnapshot()
           expect({
             parser,
-            plugins,
             settings,
           }).toEqual({
             // parser: require.resolve('@typescript-eslint/parser')
             parser: expect.stringContaining('@typescript-eslint/parser'),
-            plugins: [
-              'react-hooks',
-              'jsx-a11y',
-              'react',
-              'import',
-              '@next/next',
-              '@typescript-eslint',
-            ],
             settings: {
               'import/parsers': expect.any(Object),
               'import/resolver': expect.any(Object),
@@ -319,25 +303,19 @@ describe('Next Build', () => {
               stdio: ['pipe', 'pipe', 'inherit'],
             }
           )
-          const { parser, plugins, settings } = JSON.parse(
+          const { parser, settings, ...eslintConfigAfterSetup } = JSON.parse(
             eslintConfigAfterSetupJSON
           )
 
+          expect(
+            getEslintConfigSnapshot(eslintConfigAfterSetup)
+          ).toMatchSnapshot()
           expect({
             parser,
-            plugins,
             settings,
           }).toEqual({
             // parser: require.resolve('@typescript-eslint/parser')
             parser: expect.stringContaining('@typescript-eslint/parser'),
-            plugins: [
-              'react-hooks',
-              'jsx-a11y',
-              'react',
-              'import',
-              '@next/next',
-              '@typescript-eslint',
-            ],
             settings: {
               'import/parsers': expect.any(Object),
               'import/resolver': expect.any(Object),
@@ -372,3 +350,23 @@ describe('Next Build', () => {
     }
   )
 })
+
+/**
+ * Rules being turned off (i.e. remove from snapshot) would be breaking change (requires removal of eslint-disable directive)
+ * Rules being added that are turned off would not be a breaking change (no eslint-disable directive required)
+ * Rules being added with a severity would be a breaking change (requires addition of eslint-disable directive)
+ */
+function getEslintConfigSnapshot(eslintConfig: any) {
+  return {
+    ...eslintConfig,
+    rules: Object.fromEntries(
+      Object.entries(eslintConfig.rules).filter(
+        ([, config]: [ruleName: string, config: [severity: unknown]]) => {
+          const [severity] = config
+
+          return severity !== 0 && severity !== 'off'
+        }
+      )
+    ),
+  }
+}

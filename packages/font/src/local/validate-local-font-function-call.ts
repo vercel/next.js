@@ -86,13 +86,9 @@ export function validateLocalFontFunctionCall(
   if (Array.isArray(declarations)) {
     declarations.forEach((declaration) => {
       if (
-        [
-          'font-family',
-          'src',
-          'font-display',
-          'font-weight',
-          'font-style',
-        ].includes(declaration?.prop)
+        ['src', 'font-display', 'font-weight', 'font-style'].includes(
+          declaration?.prop
+        )
       ) {
         nextFontError(`Invalid declaration prop: \`${declaration.prop}\``)
       }

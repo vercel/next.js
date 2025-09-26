@@ -40,6 +40,7 @@ export const wellKnownProperties = new Set([
 
   // React introspection
   'displayName',
+  '_debugInfo',
 
   // Common tested properties
   // fallthrough

@@ -1,7 +1,6 @@
 use std::{
     borrow::Borrow,
     fs::{self, File},
-    hash::BuildHasherDefault,
     io::{BufWriter, Read, Write},
     mem::transmute,
     path::PathBuf,
@@ -10,7 +9,7 @@ use std::{
 
 use anyhow::{Ok, Result};
 use byteorder::WriteBytesExt;
-use rustc_hash::{FxHashMap, FxHasher};
+use rustc_hash::FxHashMap;
 use turbo_tasks::FxDashMap;
 
 use crate::database::{
@@ -105,12 +104,6 @@ impl<T: KeyValueDatabase> KeyValueDatabase for StartupCacheLayer<T> {
         = T::ReadTransaction<'l>
     where
         Self: 'l;
-
-    fn lower_read_transaction<'l: 'i + 'r, 'i: 'r, 'r>(
-        tx: &'r Self::ReadTransaction<'l>,
-    ) -> &'r Self::ReadTransaction<'i> {
-        T::lower_read_transaction(tx)
-    }
 
     fn is_empty(&self) -> bool {
         self.database.is_empty()
@@ -290,6 +283,10 @@ impl<'a, B: SerialWriteBatch<'a>> SerialWriteBatch<'a> for StartupCacheWriteBatc
         }
         self.batch.delete(key_space, key)
     }
+
+    fn flush(&mut self, key_space: KeySpace) -> Result<()> {
+        self.batch.flush(key_space)
+    }
 }
 
 impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a> for StartupCacheWriteBatch<'a, B> {
@@ -307,6 +304,10 @@ impl<'a, B: ConcurrentWriteBatch<'a>> ConcurrentWriteBatch<'a> for StartupCacheW
             cache.insert(key.to_vec(), None);
         }
         self.batch.delete(key_space, key)
+    }
+
+    unsafe fn flush(&self, key_space: KeySpace) -> Result<()> {
+        unsafe { self.batch.flush(key_space) }
     }
 }
 

@@ -5,7 +5,7 @@ use swc_core::ecma::{
     atoms::Atom,
 };
 
-use super::{graph::find_turbopack_part_id_in_asserts, PartId};
+use super::{PartId, graph::find_turbopack_part_id_in_asserts};
 
 /// A loader used to merge module items after splitting.
 pub trait Load {
@@ -38,7 +38,7 @@ where
     }
 
     /// Merges module content by appending the content of imported modules. This
-    /// is recursive, so a single call is enoguh.
+    /// is recursive, so a single call is enough.
     pub fn merge_recursively(&mut self, entry: Module) -> Result<Module, Error> {
         let mut content = vec![];
         let mut extra_body = vec![];

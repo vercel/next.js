@@ -19,6 +19,7 @@
 
 export type { NavigationResult } from './segment-cache-impl/navigation'
 export type { PrefetchTask } from './segment-cache-impl/scheduler'
+export type { NormalizedSearch } from './segment-cache-impl/cache-key'
 
 const notEnabled: any = () => {
   throw new Error(
@@ -29,66 +30,81 @@ const notEnabled: any = () => {
 export const prefetch: typeof import('./segment-cache-impl/prefetch').prefetch =
   process.env.__NEXT_CLIENT_SEGMENT_CACHE
     ? function (...args) {
-        return require('./segment-cache-impl/prefetch').prefetch(...args)
+        return (
+          require('./segment-cache-impl/prefetch') as typeof import('./segment-cache-impl/prefetch')
+        ).prefetch(...args)
       }
     : notEnabled
 
 export const navigate: typeof import('./segment-cache-impl/navigation').navigate =
   process.env.__NEXT_CLIENT_SEGMENT_CACHE
     ? function (...args) {
-        return require('./segment-cache-impl/navigation').navigate(...args)
+        return (
+          require('./segment-cache-impl/navigation') as typeof import('./segment-cache-impl/navigation')
+        ).navigate(...args)
       }
     : notEnabled
 
 export const revalidateEntireCache: typeof import('./segment-cache-impl/cache').revalidateEntireCache =
   process.env.__NEXT_CLIENT_SEGMENT_CACHE
     ? function (...args) {
-        return require('./segment-cache-impl/cache').revalidateEntireCache(
-          ...args
-        )
+        return (
+          require('./segment-cache-impl/cache') as typeof import('./segment-cache-impl/cache')
+        ).revalidateEntireCache(...args)
       }
     : notEnabled
 
 export const getCurrentCacheVersion: typeof import('./segment-cache-impl/cache').getCurrentCacheVersion =
   process.env.__NEXT_CLIENT_SEGMENT_CACHE
     ? function (...args) {
-        return require('./segment-cache-impl/cache').getCurrentCacheVersion(
-          ...args
-        )
+        return (
+          require('./segment-cache-impl/cache') as typeof import('./segment-cache-impl/cache')
+        ).getCurrentCacheVersion(...args)
       }
     : notEnabled
 
 export const schedulePrefetchTask: typeof import('./segment-cache-impl/scheduler').schedulePrefetchTask =
   process.env.__NEXT_CLIENT_SEGMENT_CACHE
     ? function (...args) {
-        return require('./segment-cache-impl/scheduler').schedulePrefetchTask(
-          ...args
-        )
+        return (
+          require('./segment-cache-impl/scheduler') as typeof import('./segment-cache-impl/scheduler')
+        ).schedulePrefetchTask(...args)
       }
     : notEnabled
 
 export const cancelPrefetchTask: typeof import('./segment-cache-impl/scheduler').cancelPrefetchTask =
   process.env.__NEXT_CLIENT_SEGMENT_CACHE
     ? function (...args) {
-        return require('./segment-cache-impl/scheduler').cancelPrefetchTask(
-          ...args
-        )
+        return (
+          require('./segment-cache-impl/scheduler') as typeof import('./segment-cache-impl/scheduler')
+        ).cancelPrefetchTask(...args)
       }
     : notEnabled
 
 export const reschedulePrefetchTask: typeof import('./segment-cache-impl/scheduler').reschedulePrefetchTask =
   process.env.__NEXT_CLIENT_SEGMENT_CACHE
     ? function (...args) {
-        return require('./segment-cache-impl/scheduler').reschedulePrefetchTask(
-          ...args
-        )
+        return (
+          require('./segment-cache-impl/scheduler') as typeof import('./segment-cache-impl/scheduler')
+        ).reschedulePrefetchTask(...args)
+      }
+    : notEnabled
+
+export const isPrefetchTaskDirty: typeof import('./segment-cache-impl/scheduler').isPrefetchTaskDirty =
+  process.env.__NEXT_CLIENT_SEGMENT_CACHE
+    ? function (...args) {
+        return (
+          require('./segment-cache-impl/scheduler') as typeof import('./segment-cache-impl/scheduler')
+        ).isPrefetchTaskDirty(...args)
       }
     : notEnabled
 
 export const createCacheKey: typeof import('./segment-cache-impl/cache-key').createCacheKey =
   process.env.__NEXT_CLIENT_SEGMENT_CACHE
     ? function (...args) {
-        return require('./segment-cache-impl/cache-key').createCacheKey(...args)
+        return (
+          require('./segment-cache-impl/cache-key') as typeof import('./segment-cache-impl/cache-key')
+        ).createCacheKey(...args)
       }
     : notEnabled
 
@@ -109,9 +125,10 @@ export const enum NavigationResultTag {
  */
 export const enum PrefetchPriority {
   /**
-   * Assigned to any visible link that was hovered/touched at some point. This
-   * is not removed on mouse exit, because a link that was momentarily
-   * hovered is more likely to to be interacted with than one that was not.
+   * Assigned to the most recently hovered/touched link. Special network
+   * bandwidth is reserved for this task only. There's only ever one Intent-
+   * priority task at a time; when a new Intent task is scheduled, the previous
+   * one is bumped down to Default.
    */
   Intent = 2,
   /**
@@ -124,3 +141,24 @@ export const enum PrefetchPriority {
    */
   Background = 0,
 }
+
+export const enum FetchStrategy {
+  // Deliberately ordered so we can easily compare two segments
+  // and determine if one segment is "more specific" than another
+  // (i.e. if it's likely that it contains more data)
+  LoadingBoundary = 0,
+  PPR = 1,
+  PPRRuntime = 2,
+  Full = 3,
+}
+
+/**
+ * A subset of fetch strategies used for prefetch tasks.
+ * A prefetch task can't know if it should use `PPR` or `LoadingBoundary`
+ * until we complete the initial tree prefetch request, so we use `PPR` to signal both cases
+ * and adjust it based on the route when actually fetching.
+ * */
+export type PrefetchTaskFetchStrategy =
+  | FetchStrategy.PPR
+  | FetchStrategy.PPRRuntime
+  | FetchStrategy.Full

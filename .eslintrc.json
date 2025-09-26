@@ -2,7 +2,8 @@
   // This is the default eslint config that is used by IDEs. It does not use
   // computation-heavy type-checked rules to ensure maximum responsiveness while
   // writing code. In addition, there is .eslintrc.cli.json that does use
-  // type-checked rules, and it is used when running `pnpm lint-eslint`.
+  // type-checked rules in addition to the rules defined here, and it is used
+  // when running `pnpm lint-eslint` locally or in CI.
   "$schema": "https://json.schemastore.org/eslintrc",
   "root": true,
   "parser": "@babel/eslint-parser",
@@ -37,7 +38,14 @@
   },
   "overrides": [
     {
-      "files": ["test/**/*.js", "test/**/*.ts", "**/*.test.ts"],
+      "files": [
+        "test/**/*.js",
+        "test/**/*.ts",
+        "test/**/*.tsx",
+        "**/*.test.ts",
+        "**/*.test.tsx"
+      ],
+      "excludedFiles": ["test/tmp/**"],
       "extends": ["plugin:jest/recommended"],
       "rules": {
         "jest/expect-expect": "off",
@@ -48,7 +56,7 @@
         "jest/no-export": "off",
         "jest/no-standalone-expect": [
           "error",
-          { "additionalTestBlockFunctions": ["retry"] }
+          { "additionalTestBlockFunctions": ["retry", "itCI", "itHeaded"] }
         ]
       }
     },
@@ -58,7 +66,7 @@
         "plugin:@typescript-eslint/recommended",
         "plugin:@typescript-eslint/stylistic"
       ],
-      "files": ["**/*.ts", "**/*.tsx"],
+      "files": ["**/*.ts", "**/*.tsx", "**/*.mts"],
       "parser": "@typescript-eslint/parser",
       "parserOptions": {
         "sourceType": "module",
@@ -126,8 +134,10 @@
       }
     },
     {
-      "files": ["packages/**/*.tsx?"],
+      "files": ["packages/**/*.ts", "packages/**/*.tsx"],
+      "plugins": ["@next/eslint-plugin-internal"],
       "rules": {
+        "@next/internal/typechecked-require": "error",
         "jsdoc/no-types": "error",
         "jsdoc/no-undefined-types": "error"
       }
@@ -166,6 +176,7 @@
       "files": ["packages/**"],
       "excludedFiles": [
         "packages/next/taskfile*.js",
+        "packages/next/next-devtools.webpack-config.js",
         "packages/next/next-runtime.webpack-config.js"
       ],
       "rules": {
@@ -237,6 +248,16 @@
       "rules": {
         "react/jsx-no-undef": "off"
       }
+    },
+    {
+      "files": [
+        "packages/next/src/next-devtools/dev-overlay/**/*.tsx",
+        "packages/next/src/next-devtools/dev-overlay/**/*.ts"
+      ],
+      "extends": ["plugin:react-hooks/recommended"],
+      "rules": {
+        "react-hooks/exhaustive-deps": "error"
+      }
     }
   ],
   "rules": {
@@ -294,12 +315,33 @@
     "no-octal": "error",
     "no-octal-escape": "error",
     "no-regex-spaces": "error",
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["*/next-devtools/dev-overlay*"],
+            "message": "Use `next/dist/compiled/next-devtools` (`src/next-devtools/dev-overlay/entrypoint.ts`) instead. Prefer `src/next-devtools/shared/` for shared utils."
+          }
+        ]
+      }
+    ],
     "no-restricted-syntax": [
       "error",
       "WithStatement",
       {
         "message": "substr() is deprecated, use slice() or substring() instead",
         "selector": "MemberExpression > Identifier[name='substr']"
+      },
+      // ban plain workUnitStore.type if statements and ternaries
+      {
+        "selector": "BinaryExpression[left.object.name='workUnitStore'][left.property.name='type'][operator=/^(?:===|!==)$/]",
+        "message": "Use an exhaustive switch on `workUnitStore.type` (with a `never`-based default) instead of using if statements or ternaries."
+      },
+      // ban optional-chained workUnitStore?.type if statements and ternaries
+      {
+        "selector": "BinaryExpression[left.type='ChainExpression'][left.expression.object.name='workUnitStore'][left.expression.property.name='type'][operator=/^(?:===|!==)$/]",
+        "message": "Use an exhaustive switch on `workUnitStore.type` (with a `never`-based default) instead of using if statements or ternaries."
       }
     ],
     "no-script-url": "error",

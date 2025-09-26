@@ -1,4 +1,3 @@
-import type { Request } from 'playwright'
 import { join } from 'path'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
@@ -13,7 +12,7 @@ describe('i18-preferred-locale-redirect', () => {
     })
 
     let requestedPreferredLocalePathCount = 0
-    browser.on('request', (request: Request) => {
+    browser.on('request', (request) => {
       if (new URL(request.url(), 'http://n').pathname === '/id') {
         requestedPreferredLocalePathCount++
       }

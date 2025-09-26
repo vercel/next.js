@@ -30,7 +30,12 @@ export const projectSpecification: ProjectSpecification = {
       'node_modules/next',
       '.gitignore',
     ],
-    deps: ['next', 'react', 'react-dom'],
+    deps: [
+      'next',
+      'react',
+      'react-dom',
+      ...(process.env.NEXT_RSPACK ? ['next-rspack'] : []),
+    ],
     // TODO: Remove @eslint/eslintrc once eslint-config-next is pure Flat config
     devDeps: ['eslint', 'eslint-config-next', '@eslint/eslintrc'],
   },
@@ -170,12 +175,12 @@ export const projectSpecification: ProjectSpecification = {
   },
   'app-api': {
     js: {
-      deps: ['next'],
+      deps: ['next', ...(process.env.NEXT_RSPACK ? ['next-rspack'] : [])],
       devDeps: [],
       files: ['app/route.js', 'app/[slug]/route.js', 'jsconfig.json'],
     },
     ts: {
-      deps: ['next'],
+      deps: ['next', ...(process.env.NEXT_RSPACK ? ['next-rspack'] : [])],
       devDeps: ['@types/node', '@types/react', 'typescript'],
       files: [
         'app/route.ts',

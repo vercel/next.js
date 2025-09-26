@@ -18,7 +18,7 @@ function runTests() {
   it('should minify correctly by removing whitespace', async () => {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
-    const href = $('link').attr('href')
+    const href = $('link[rel="preload"]').attr('href')
     const css = await renderViaHTTP(appPort, href)
     if (process.env.IS_TURBOPACK_TEST) {
       expect(css).toContain(

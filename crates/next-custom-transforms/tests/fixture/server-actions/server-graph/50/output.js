@@ -8,8 +8,9 @@ export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "f03128060c414d59f8552e47
       {c}
     </div>;
 });
+registerServerReference($$RSC_SERVER_CACHE_0, "f03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "default",
     writable: false
 });
-export default registerServerReference($$RSC_SERVER_CACHE_0, "f03128060c414d59f8552e4788b846c0d2b7f74743", null);
+export default $$RSC_SERVER_CACHE_0;

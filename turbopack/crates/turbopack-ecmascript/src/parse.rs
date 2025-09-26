@@ -1,47 +1,51 @@
 use std::{future::Future, sync::Arc};
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
+use bytes_str::BytesStr;
 use rustc_hash::FxHashSet;
 use swc_core::{
     base::SwcComments,
     common::{
-        errors::{Handler, HANDLER},
+        BytePos, FileName, GLOBALS, Globals, LineCol, Mark, SyntaxContext,
+        errors::{HANDLER, Handler},
         input::StringInput,
-        source_map::SourceMapGenConfig,
-        BytePos, FileName, Globals, LineCol, Mark, SyntaxContext, GLOBALS,
+        source_map::{Files, SourceMapGenConfig, build_source_map},
     },
     ecma::{
         ast::{EsVersion, Id, ObjectPatProp, Pat, Program, VarDecl},
         lints::{config::LintConfig, rules::LintParams},
-        parser::{lexer::Lexer, EsSyntax, Parser, Syntax, TsSyntax},
+        parser::{EsSyntax, Parser, Syntax, TsSyntax, lexer::Lexer},
         transforms::base::{
-            helpers::{Helpers, HELPERS},
+            helpers::{HELPERS, Helpers},
             resolver,
         },
-        visit::{noop_visit_type, Visit, VisitMutWith, VisitWith},
+        visit::{Visit, VisitMutWith, VisitWith, noop_visit_type},
     },
 };
-use tracing::Instrument;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{util::WrapFuture, ResolvedVc, Value, ValueToString, Vc};
-use turbo_tasks_fs::{rope::Rope, FileContent, FileSystemPath};
+use tracing::{Instrument, instrument};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc, util::WrapFuture};
+use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
+    SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
     error::PrettyPrintError,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
+    },
     source::Source,
     source_map::utils::add_default_ignore_list,
-    SOURCE_URL_PROTOCOL,
 };
 use turbopack_swc_utils::emitter::IssueEmitter;
 
 use super::EcmascriptModuleAssetType;
 use crate::{
+    EcmascriptInputTransform,
     analyzer::graph::EvalContext,
     swc_comments::ImmutableComments,
     transform::{EcmascriptInputTransforms, TransformContext},
-    EcmascriptInputTransform,
 };
 
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
@@ -60,7 +64,7 @@ pub enum ParseResult {
         #[turbo_tasks(debug_ignore, trace_ignore)]
         source_map: Arc<swc_core::common::SourceMap>,
     },
-    Unparseable {
+    Unparsable {
         messages: Option<Vec<RcStr>>,
     },
     NotFound,
@@ -75,38 +79,79 @@ impl PartialEq for ParseResult {
     }
 }
 
-pub fn generate_js_source_map(
-    files_map: Arc<swc_core::common::SourceMap>,
+/// `original_source_maps_complete` indicates whether the `original_source_maps` cover the whole
+/// map, i.e. whether every module that ended up in `mappings` had an original sourcemap.
+#[instrument(level = "info", name = "generate source map", skip_all)]
+pub fn generate_js_source_map<'a>(
+    files_map: &impl Files,
     mappings: Vec<(BytePos, LineCol)>,
-    original_source_map: Option<&Rope>,
+    original_source_maps: impl IntoIterator<Item = &'a Rope>,
+    original_source_maps_complete: bool,
+    inline_sources_content: bool,
 ) -> Result<Rope> {
-    let input_map = if let Some(original_source_map) = original_source_map {
-        Some(match sourcemap::decode(original_source_map.read())? {
-            sourcemap::DecodedMap::Regular(source_map) => source_map,
-            // swc only accepts flattened sourcemaps as input
-            sourcemap::DecodedMap::Index(source_map_index) => source_map_index.flatten()?,
-            _ => return Err(sourcemap::Error::IncompatibleSourceMap.into()),
-        })
-    } else {
-        None
-    };
+    let original_source_maps = original_source_maps
+        .into_iter()
+        .map(|map| map.to_bytes())
+        .collect::<Vec<_>>();
+    let original_source_maps = original_source_maps
+        .iter()
+        .map(|map| Ok(swc_sourcemap::lazy::decode(map)?.into_source_map()?))
+        .collect::<Result<Vec<_>>>()?;
 
-    let mut map = files_map.build_source_map_with_config(
+    let fast_path_single_original_source_map =
+        original_source_maps.len() == 1 && original_source_maps_complete;
+
+    let mut new_mappings = build_source_map(
+        files_map,
         &mappings,
-        input_map.as_ref(),
-        InlineSourcesContentConfig {},
+        None,
+        &InlineSourcesContentConfig {
+            // If we are going to adjust the source map, we are going to throw the source contents
+            // of this source map away regardless.
+            //
+            // In other words, we don't need the content of `B` in source map chain of A -> B -> C.
+            // We only need the source content of `A`, and a way to map the content of `B` back to
+            // `A`, while constructing the final source map, `C`.
+            inline_sources_content: inline_sources_content && !fast_path_single_original_source_map,
+        },
     );
-    add_default_ignore_list(&mut map);
 
-    let mut result = vec![];
-    map.to_writer(&mut result)?;
-    Ok(Rope::from(result))
+    if original_source_maps.is_empty() {
+        // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
+        // need to adjust mappings
+
+        add_default_ignore_list(&mut new_mappings);
+
+        let mut result = vec![];
+        new_mappings.to_writer(&mut result)?;
+        Ok(Rope::from(result))
+    } else if fast_path_single_original_source_map {
+        let mut map = original_source_maps.into_iter().next().unwrap();
+        // TODO: Make this more efficient
+        map.adjust_mappings(new_mappings);
+
+        // TODO: Enable this when we have a way to handle the ignore list
+        // add_default_ignore_list(&mut map);
+        let map = map.into_raw_sourcemap();
+        let result = serde_json::to_vec(&map)?;
+        Ok(Rope::from(result))
+    } else {
+        let mut map = new_mappings.adjust_mappings_from_multiple(original_source_maps);
+
+        add_default_ignore_list(&mut map);
+
+        let mut result = vec![];
+        map.to_writer(&mut result)?;
+        Ok(Rope::from(result))
+    }
 }
 
 /// A config to generate a source map which includes the source content of every
 /// source file. SWC doesn't inline sources content by default when generating a
 /// sourcemap, so we need to provide a custom config to do it.
-pub struct InlineSourcesContentConfig {}
+pub struct InlineSourcesContentConfig {
+    inline_sources_content: bool,
+}
 
 impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn file_name_to_source(&self, f: &FileName) -> String {
@@ -119,18 +164,22 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     }
 
     fn inline_sources_content(&self, _f: &FileName) -> bool {
-        true
+        self.inline_sources_content
     }
 }
 
 #[turbo_tasks::function]
 pub async fn parse(
     source: ResolvedVc<Box<dyn Source>>,
-    ty: Value<EcmascriptModuleAssetType>,
-    transforms: Vc<EcmascriptInputTransforms>,
+    ty: EcmascriptModuleAssetType,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
-    let name = source.ident().to_string().await?.to_string();
-    let span = tracing::info_span!("parse ecmascript", name = name, ty = display(&*ty));
+    let span = tracing::info_span!(
+        "parse ecmascript",
+        name = display(source.ident().to_string().await?),
+        ty = display(&ty)
+    );
+
     match parse_internal(source, ty, transforms)
         .instrument(span)
         .await
@@ -145,27 +194,25 @@ pub async fn parse(
 
 async fn parse_internal(
     source: ResolvedVc<Box<dyn Source>>,
-    ty: Value<EcmascriptModuleAssetType>,
-    transforms: Vc<EcmascriptInputTransforms>,
+    ty: EcmascriptModuleAssetType,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
-    let fs_path_vc = source.ident().path();
-    let fs_path = &*fs_path_vc.await?;
+    let fs_path = source.ident().path().owned().await?;
     let ident = &*source.ident().to_string().await?;
     let file_path_hash = hash_xxh3_hash64(&*source.ident().to_string().await?) as u128;
-    let ty = ty.into_value();
     let content = match content.await {
         Ok(content) => content,
         Err(error) => {
             let error: RcStr = PrettyPrintError(&error).to_string().into();
             ReadSourceIssue {
-                source,
+                source: IssueSource::from_source_only(source),
                 error: error.clone(),
             }
             .resolved_cell()
             .emit();
 
-            return Ok(ParseResult::Unparseable {
+            return Ok(ParseResult::Unparsable {
                 messages: Some(vec![error]),
             }
             .cell());
@@ -174,53 +221,60 @@ async fn parse_internal(
     Ok(match &*content {
         AssetContent::File(file) => match &*file.await? {
             FileContent::NotFound => ParseResult::NotFound.cell(),
-            FileContent::Content(file) => match file.content().to_str() {
-                Ok(string) => {
-                    let transforms = &*transforms.await?;
-                    match parse_file_content(
-                        string.into_owned(),
-                        fs_path_vc,
-                        fs_path,
-                        ident,
-                        source.ident().query().owned().await?,
-                        file_path_hash,
-                        source,
-                        ty,
-                        transforms,
-                    )
-                    .await
-                    {
-                        Ok(result) => result,
-                        Err(e) => {
-                            return Err(e).context(anyhow!(
-                                "Transforming and/or parsing of {} failed",
-                                source.ident().to_string().await?
-                            ));
+            FileContent::Content(file) => {
+                match BytesStr::from_utf8(file.content().clone().into_bytes()) {
+                    Ok(string) => {
+                        let transforms = &*transforms.await?;
+                        match parse_file_content(
+                            string,
+                            &fs_path,
+                            ident,
+                            source.ident().await?.query.clone(),
+                            file_path_hash,
+                            source,
+                            ty,
+                            transforms,
+                        )
+                        .await
+                        {
+                            Ok(result) => result,
+                            Err(e) => {
+                                return Err(e).context(anyhow!(
+                                    "Transforming and/or parsing of {} failed",
+                                    source.ident().to_string().await?
+                                ));
+                            }
                         }
                     }
-                }
-                Err(error) => {
-                    let error: RcStr = PrettyPrintError(&error).to_string().into();
-                    ReadSourceIssue {
-                        source,
-                        error: error.clone(),
+                    Err(error) => {
+                        let error: RcStr = PrettyPrintError(
+                            &anyhow::anyhow!(error).context("failed to convert rope into string"),
+                        )
+                        .to_string()
+                        .into();
+                        ReadSourceIssue {
+                            // Technically we could supply byte offsets to the issue source, but
+                            // that would cause another utf8 error to be produced when we attempt to
+                            // infer line/column offsets
+                            source: IssueSource::from_source_only(source),
+                            error: error.clone(),
+                        }
+                        .resolved_cell()
+                        .emit();
+                        ParseResult::Unparsable {
+                            messages: Some(vec![error]),
+                        }
+                        .cell()
                     }
-                    .resolved_cell()
-                    .emit();
-                    ParseResult::Unparseable {
-                        messages: Some(vec![error]),
-                    }
-                    .cell()
                 }
-            },
+            }
         },
-        AssetContent::Redirect { .. } => ParseResult::Unparseable { messages: None }.cell(),
+        AssetContent::Redirect { .. } => ParseResult::Unparsable { messages: None }.cell(),
     })
 }
 
 async fn parse_file_content(
-    string: String,
-    fs_path_vc: Vc<FileSystemPath>,
+    string: BytesStr,
     fs_path: &FileSystemPath,
     ident: &str,
     query: RcStr,
@@ -233,14 +287,14 @@ async fn parse_file_content(
     let (emitter, collector) = IssueEmitter::new(
         source,
         source_map.clone(),
-        Some("Ecmascript file had an error".into()),
+        Some(rcstr!("Ecmascript file had an error")),
     );
     let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
     let (emitter, collector_parse) = IssueEmitter::new(
         source,
         source_map.clone(),
-        Some("Parsing ecmascript source code failed".into()),
+        Some(rcstr!("Parsing ecmascript source code failed")),
     );
     let parser_handler = Handler::with_emitter(true, false, Box::new(emitter));
     let globals = Arc::new(Globals::new());
@@ -305,7 +359,7 @@ async fn parse_file_content(
                 }
 
                 if !has_errors.is_empty() {
-                    return Ok(ParseResult::Unparseable {
+                    return Ok(ParseResult::Unparsable {
                         messages: Some(has_errors),
                     });
                 }
@@ -318,7 +372,7 @@ async fn parse_file_content(
 
                         e.emit();
 
-                        return Ok(ParseResult::Unparseable {
+                        return Ok(ParseResult::Unparsable {
                             messages: Some(messages),
                         });
                     }
@@ -333,6 +387,8 @@ async fn parse_file_content(
                 EcmascriptModuleAssetType::Typescript { .. }
                     | EcmascriptModuleAssetType::TypescriptDeclaration
             );
+
+            let helpers=Helpers::new(true);
             let span = tracing::trace_span!("swc_resolver").entered();
 
             parsed_program.visit_mut_with(&mut resolver(
@@ -357,7 +413,11 @@ async fn parse_file_content(
             parsed_program.mutate(swc_core::ecma::lints::rules::lint_pass(rules));
             drop(span);
 
-            parsed_program.mutate(swc_core::ecma::transforms::proposal::explicit_resource_management::explicit_resource_management());
+            HELPERS.set(&helpers, || {
+                parsed_program.mutate(
+                    swc_core::ecma::transforms::proposal::explicit_resource_management::explicit_resource_management(),
+                );
+            });
 
             let var_with_ts_declare = if is_typescript {
                 VarDeclWithTsDeclareCollector::collect(&parsed_program)
@@ -365,6 +425,7 @@ async fn parse_file_content(
                 FxHashSet::default()
             };
 
+            let mut helpers = helpers.data();
             let transform_context = TransformContext {
                 comments: &comments,
                 source_map: &source_map,
@@ -374,19 +435,20 @@ async fn parse_file_content(
                 file_name_str: fs_path.file_name(),
                 file_name_hash: file_path_hash,
                 query_str: query,
-                file_path: fs_path_vc.to_resolved().await?,
+                file_path: fs_path.clone(),
+                source
             };
             let span = tracing::trace_span!("transforms");
             async {
                 for transform in transforms.iter() {
-                    transform
-                        .apply(&mut parsed_program, &transform_context)
+                    helpers = transform
+                        .apply(&mut parsed_program, &transform_context, helpers)
                         .await?;
                 }
                 anyhow::Ok(())
             }
-            .instrument(span)
-            .await?;
+                .instrument(span)
+                .await?;
 
             if parser_handler.has_errors() {
                 let messages = if let Some(error) = collector_parse.last_emitted_issue() {
@@ -400,16 +462,19 @@ async fn parse_file_content(
                     None
                 };
                 let messages =
-                    Some(messages.unwrap_or_else(|| vec![String::clone(&fm.src).into()]));
-                return Ok(ParseResult::Unparseable { messages });
+                    Some(messages.unwrap_or_else(|| vec![fm.src.clone().into()]));
+                return Ok(ParseResult::Unparsable { messages });
             }
 
-            parsed_program.visit_mut_with(
-                &mut swc_core::ecma::transforms::base::helpers::inject_helpers(unresolved_mark),
-            );
+            let helpers = Helpers::from_data(helpers);
+            HELPERS.set(&helpers, || {
+                parsed_program.mutate(
+                    swc_core::ecma::transforms::base::helpers::inject_helpers(unresolved_mark),
+                );
+            });
 
             let eval_context = EvalContext::new(
-                &parsed_program,
+                Some(&parsed_program),
                 unresolved_mark,
                 top_level_mark,
                 Arc::new(var_with_ts_declare),
@@ -429,11 +494,11 @@ async fn parse_file_content(
         },
         |f, cx| {
             GLOBALS.set(globals_ref, || {
-                HANDLER.set(&handler, || HELPERS.set(&Helpers::new(true), || f.poll(cx)))
+                HANDLER.set(&handler, || f.poll(cx))
             })
         },
     )
-    .await?;
+        .await?;
     if let ParseResult::Ok {
         globals: ref mut g, ..
     } = result
@@ -448,7 +513,7 @@ async fn parse_file_content(
 
 #[turbo_tasks::value]
 struct ReadSourceIssue {
-    source: ResolvedVc<Box<dyn Source>>,
+    source: IssueSource,
     error: RcStr,
 }
 
@@ -456,12 +521,12 @@ struct ReadSourceIssue {
 impl Issue for ReadSourceIssue {
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+        self.source.file_path()
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        StyledString::Text("Reading source code for parsing failed".into()).cell()
+        StyledString::Text(rcstr!("Reading source code for parsing failed")).cell()
     }
 
     #[turbo_tasks::function]
@@ -479,14 +544,18 @@ impl Issue for ReadSourceIssue {
         ))
     }
 
-    #[turbo_tasks::function]
-    fn severity(&self) -> Vc<IssueSeverity> {
-        IssueSeverity::Error.cell()
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
     }
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
         IssueStage::Load.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }
 

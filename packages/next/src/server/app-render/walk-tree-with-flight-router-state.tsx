@@ -2,14 +2,18 @@ import type {
   FlightDataPath,
   FlightDataSegment,
   FlightRouterState,
-  PreloadCallbacks,
   Segment,
-} from './types'
+  HeadData,
+} from '../../shared/lib/app-router-types'
+import type { PreloadCallbacks } from './types'
 import { matchSegment } from '../../client/components/match-segments'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { getPreloadableFonts } from './get-preloadable-fonts'
-import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
+import {
+  createFlightRouterStateFromLoaderTree,
+  createRouteTreePrefetch,
+} from './create-flight-router-state-from-loader-tree'
 import type { AppRenderContext } from './app-render'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
 import {
@@ -17,7 +21,6 @@ import {
   addSearchParamsIfPageSegment,
 } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
-import type { HeadData } from '../../shared/lib/app-router-context.shared-runtime'
 import { getSegmentParam } from './get-segment-param'
 
 /**
@@ -53,7 +56,7 @@ export async function walkTreeWithFlightRouterState({
   getViewportReady: () => Promise<void>
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
-  StreamingMetadataOutlet: React.ComponentType
+  StreamingMetadataOutlet: React.ComponentType | null
 }): Promise<FlightDataPath[]> {
   const {
     renderOpts: { nextFontManifest, experimental },
@@ -153,18 +156,47 @@ export async function walkTreeWithFlightRouterState({
         ? flightRouterState[0]
         : actualSegment
 
-    const routerState = createFlightRouterStateFromLoaderTree(
-      // Create router state using the slice of the loaderTree
-      loaderTreeToFilter,
-      getDynamicParamFromSegment,
-      query
-    )
+    const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
+      ? // Route tree prefetch requests contain some extra information
+        createRouteTreePrefetch(loaderTreeToFilter, getDynamicParamFromSegment)
+      : createFlightRouterStateFromLoaderTree(
+          loaderTreeToFilter,
+          getDynamicParamFromSegment,
+          query
+        )
+
     return [
       [
         overriddenSegment,
         routerState,
         null,
         [null, null],
+        true,
+      ] satisfies FlightDataSegment,
+    ]
+  }
+
+  // Similar to the previous branch. This flag is sent by the client to request
+  // only the metadata for a page. No segment data.
+  if (flightRouterState && flightRouterState[3] === 'metadata-only') {
+    const overriddenSegment =
+      flightRouterState &&
+      canSegmentBeOverridden(actualSegment, flightRouterState[0])
+        ? flightRouterState[0]
+        : actualSegment
+    const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
+      ? createRouteTreePrefetch(loaderTreeToFilter, getDynamicParamFromSegment)
+      : createFlightRouterStateFromLoaderTree(
+          loaderTreeToFilter,
+          getDynamicParamFromSegment,
+          query
+        )
+    return [
+      [
+        overriddenSegment,
+        routerState,
+        null,
+        rscHead,
         false,
       ] satisfies FlightDataSegment,
     ]
@@ -202,7 +234,6 @@ export async function walkTreeWithFlightRouterState({
         getMetadataReady,
         preloadCallbacks,
         authInterrupts: experimental.authInterrupts,
-        StreamingMetadata: null,
         StreamingMetadataOutlet,
       }
     )

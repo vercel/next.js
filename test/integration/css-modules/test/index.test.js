@@ -43,7 +43,6 @@ describe('Basic CSS Module Support', () => {
       it('should have compiled successfully', () => {
         expect(code).toBe(0)
         expect(stdout).toMatch(/Compiled successfully/)
-        expect(stdout).toContain('.css')
       })
 
       it(`should've emitted a single CSS file`, async () => {
@@ -137,7 +136,7 @@ describe('3rd Party CSS Module Support', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".index-module__jAE1EW__foo{position:relative}.index-module__jAE1EW__foo .bar,.index-module__jAE1EW__foo .baz{height:100%;overflow:hidden}.index-module__jAE1EW__foo .lol{width:80%}.index-module__jAE1EW__foo>.lel{width:80%}"`
+            `".index-module__jAE1EW__foo{position:relative}.index-module__jAE1EW__foo .bar{height:100%;overflow:hidden}.index-module__jAE1EW__foo .baz{height:100%;overflow:hidden}.index-module__jAE1EW__foo .lol{width:80%}.index-module__jAE1EW__foo>.lel{width:80%}"`
           )
         } else {
           expect(
@@ -303,9 +302,12 @@ describe.skip('Invalid CSS Module Usage in node_modules', () => {
         expect(stderr).toMatch(
           /CSS Modules.*cannot.*be imported from within.*node_modules/
         )
-        expect(stderr).toMatch(
-          /Location:.*node_modules[\\/]example[\\/]index\.mjs/
-        )
+        // Skip: Rspack loaders cannot access module issuer info for location details
+        if (!process.env.NEXT_RSPACK) {
+          expect(stderr).toMatch(
+            /Location:.*node_modules[\\/]example[\\/]index\.mjs/
+          )
+        }
       })
     }
   )
@@ -331,9 +333,12 @@ describe.skip('Invalid Global CSS Module Usage in node_modules', () => {
         expect(stderr).toMatch(
           /Global CSS.*cannot.*be imported from within.*node_modules/
         )
-        expect(stderr).toMatch(
-          /Location:.*node_modules[\\/]example[\\/]index\.mjs/
-        )
+        // Skip: Rspack loaders cannot access module issuer info for location details
+        if (!process.env.NEXT_RSPACK) {
+          expect(stderr).toMatch(
+            /Location:.*node_modules[\\/]example[\\/]index\.mjs/
+          )
+        }
       })
     }
   )
@@ -412,71 +417,77 @@ describe('Valid CSS Module Usage from within node_modules', () => {
   )
 })
 
-describe('Valid Nested CSS Module Usage from within node_modules', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      const appDir = join(fixturesDir, 'nm-module-nested')
+// Disabled with Turbopack because `composes` from `.css` files in `.module.css` files is not supported.
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+  'Valid Nested CSS Module Usage from within node_modules',
+  () => {
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        const appDir = join(fixturesDir, 'nm-module-nested')
 
-      let appPort
-      let app
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-        const { code, stdout } = await nextBuild(appDir, [], {
-          stdout: true,
+        let appPort
+        let app
+        beforeAll(async () => {
+          await remove(join(appDir, '.next'))
+          const { code, stdout } = await nextBuild(appDir, [], {
+            stdout: true,
+          })
+
+          if (code !== 0) {
+            console.error(stdout)
+            throw new Error('Build failed')
+          }
+
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
+        })
+        afterAll(async () => {
+          await killApp(app)
         })
 
-        if (code !== 0) {
-          console.error(stdout)
-          throw new Error('Build failed')
-        }
+        // eslint-disable-next-line jest/no-identical-title
+        it(`should've prerendered with relevant data`, async () => {
+          const content = await renderViaHTTP(appPort, '/')
+          const $ = cheerio.load(content)
 
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(async () => {
-        await killApp(app)
-      })
-
-      it(`should've prerendered with relevant data`, async () => {
-        const content = await renderViaHTTP(appPort, '/')
-        const $ = cheerio.load(content)
-
-        const cssPreload = $('#nm-div')
-        expect(cssPreload.text()).toMatchInlineSnapshot(
-          `"{"message":"Why hello there"} {"subClass":"example_subClass__m6Tyy other_className__OA8dV"}"`
-        )
-      })
-
-      it(`should've emitted a single CSS file`, async () => {
-        const content = await renderViaHTTP(appPort, '/')
-        const $ = cheerio.load(content)
-
-        const cssSheet = $('link[rel="stylesheet"]')
-        expect(cssSheet.length).toBe(1)
-        const stylesheet = cssSheet.attr('href')
-
-        const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
-          res.text()
-        )
-
-        if (process.env.IS_TURBOPACK_TEST) {
-          expect(
-            cssContent.replace(/\/\*.*?\*\//g, '').trim()
-          ).toMatchInlineSnapshot(
-            `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:#ff0}.example_subClass__m6Tyy{background:blue}"`
+          const cssPreload = $('#nm-div')
+          expect(cssPreload.text()).toMatchInlineSnapshot(
+            `"{"message":"Why hello there"} {"subClass":"example_subClass__m6Tyy other_className__OA8dV"}"`
           )
-        } else {
-          expect(
-            cssContent.replace(/\/\*.*?\*\//g, '').trim()
-          ).toMatchInlineSnapshot(
-            `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:yellow}.example_subClass__m6Tyy{background:blue}"`
+        })
+
+        // eslint-disable-next-line jest/no-identical-title
+        it(`should've emitted a single CSS file`, async () => {
+          const content = await renderViaHTTP(appPort, '/')
+          const $ = cheerio.load(content)
+
+          const cssSheet = $('link[rel="stylesheet"]')
+          expect(cssSheet.length).toBe(1)
+          const stylesheet = cssSheet.attr('href')
+
+          const cssContent = await fetchViaHTTP(appPort, stylesheet).then(
+            (res) => res.text()
           )
-        }
-      })
-    }
-  )
-})
+
+          if (process.env.IS_TURBOPACK_TEST) {
+            expect(
+              cssContent.replace(/\/\*.*?\*\//g, '').trim()
+            ).toMatchInlineSnapshot(
+              `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:#ff0}.example_subClass__m6Tyy{background:blue}"`
+            )
+          } else {
+            expect(
+              cssContent.replace(/\/\*.*?\*\//g, '').trim()
+            ).toMatchInlineSnapshot(
+              `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:yellow}.example_subClass__m6Tyy{background:blue}"`
+            )
+          }
+        })
+      }
+    )
+  }
+)
 
 describe('CSS Module Composes Usage (Basic)', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -535,62 +546,65 @@ describe('CSS Module Composes Usage (Basic)', () => {
     }
   )
 })
+;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+  'CSS Module Composes Usage (External)',
+  () => {
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        // This is a very bad feature. Do not use it.
+        const appDir = join(fixturesDir, 'composes-external')
 
-describe('CSS Module Composes Usage (External)', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      // This is a very bad feature. Do not use it.
-      const appDir = join(fixturesDir, 'composes-external')
-
-      let appPort
-      let app
-      beforeAll(async () => {
-        await remove(join(appDir, '.next'))
-        console.log({ appDir })
-        const { code, stdout } = await nextBuild(appDir, [], {
-          stdout: true,
+        let appPort
+        let app
+        beforeAll(async () => {
+          await remove(join(appDir, '.next'))
+          console.log({ appDir })
+          const { code, stdout } = await nextBuild(appDir, [], {
+            stdout: true,
+          })
+          if (code !== 0) {
+            console.error(stdout)
+            throw new Error('Build failed')
+          }
+          appPort = await findPort()
+          app = await nextStart(appDir, appPort)
         })
-        if (code !== 0) {
-          console.error(stdout)
-          throw new Error('Build failed')
-        }
-        appPort = await findPort()
-        app = await nextStart(appDir, appPort)
-      })
-      afterAll(async () => {
-        await killApp(app)
-      })
+        afterAll(async () => {
+          await killApp(app)
+        })
 
-      it(`should've emitted a single CSS file`, async () => {
-        const content = await renderViaHTTP(appPort, '/')
-        const $ = cheerio.load(content)
+        // eslint-disable-next-line jest/no-identical-title
+        it(`should've emitted a single CSS file`, async () => {
+          const content = await renderViaHTTP(appPort, '/')
+          const $ = cheerio.load(content)
 
-        const cssSheet = $('link[rel="stylesheet"]')
-        expect(cssSheet.length).toBe(1)
-        const stylesheet = cssSheet.attr('href')
+          const cssSheet = $('link[rel="stylesheet"]')
+          expect(cssSheet.length).toBe(1)
+          const stylesheet = cssSheet.attr('href')
 
-        const cssContent = await fetchViaHTTP(appPort, stylesheet).then((res) =>
-          res.text()
-        )
-
-        if (process.env.IS_TURBOPACK_TEST) {
-          expect(
-            cssContent.replace(/\/\*.*?\*\//g, '').trim()
-          ).toMatchInlineSnapshot(
-            `".other_className__eZV4M{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
+          const cssContent = await fetchViaHTTP(appPort, stylesheet).then(
+            (res) => res.text()
           )
-        } else {
-          expect(
-            cssContent.replace(/\/\*.*?\*\//g, '').trim()
-          ).toMatchInlineSnapshot(
-            `".other_className__eZV4M{background:red;color:yellow}.index_subClass__eDzaW{background:blue}"`
-          )
-        }
-      })
-    }
-  )
-})
+
+          if (process.env.IS_TURBOPACK_TEST) {
+            expect(
+              cssContent.replace(/\/\*.*?\*\//g, '').trim()
+            ).toMatchInlineSnapshot(
+              `".other_className__eZV4M{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
+            )
+          } else {
+            expect(
+              cssContent.replace(/\/\*.*?\*\//g, '').trim()
+            ).toMatchInlineSnapshot(
+              `".other_className__eZV4M{background:red;color:yellow}.index_subClass__eDzaW{background:blue}"`
+            )
+          }
+        })
+      }
+    )
+  }
+)
 
 describe('Dynamic Route CSS Module Usage', () => {
   ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
@@ -709,7 +723,6 @@ describe('Catch-all Route CSS Module Usage', () => {
           expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
             .toMatchInlineSnapshot(`
            ".index-module___rV4CG__home{background:red}
-
            .\\35 5css-module__qe774W__home{color:green}"
           `)
         } else {

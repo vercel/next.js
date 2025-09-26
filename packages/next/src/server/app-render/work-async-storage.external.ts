@@ -1,7 +1,6 @@
 import type { AsyncLocalStorage } from 'async_hooks'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { FetchMetrics } from '../base-http'
-import type { FallbackRouteParams } from '../request/fallback-params'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { AfterContext } from '../after/after-context'
@@ -25,18 +24,19 @@ export interface WorkStore {
    */
   readonly route: string
 
-  /**
-   * The set of unknown route parameters. Accessing these will be tracked as
-   * a dynamic access.
-   */
-  readonly fallbackRouteParams: FallbackRouteParams | null
-
   readonly incrementalCache?: IncrementalCache
   readonly cacheLifeProfiles?: { [profile: string]: CacheLife }
 
   readonly isOnDemandRevalidate?: boolean
-  readonly isPrerendering?: boolean
-  readonly isRevalidate?: boolean
+  readonly isBuildTimePrerendering?: boolean
+
+  /**
+   * This is true when:
+   * - source maps are generated
+   * - source maps are applied
+   * - minification is disabled
+   */
+  readonly hasReadableErrorStacks?: boolean
 
   forceDynamic?: boolean
   fetchCache?: AppSegmentConfig['fetchCache']
@@ -51,12 +51,13 @@ export interface WorkStore {
   dynamicUsageStack?: string
 
   /**
-   * Invalid usage errors might be caught in userland. We attach them to the
-   * work store to ensure we can still fail the build or dev render.
+   * Invalid dynamic usage errors might be caught in userland. We attach them to
+   * the work store to ensure we can still fail the build, or show en error in
+   * dev mode.
    */
   // TODO: Collect an array of errors, and throw as AggregateError when
   // `serializeError` and the Dev Overlay support it.
-  invalidUsageError?: Error
+  invalidDynamicUsageError?: Error
 
   nextFetchId?: number
   pathWasRevalidated?: boolean
@@ -82,12 +83,11 @@ export interface WorkStore {
   readonly refreshTagsByCacheKind: Map<string, LazyResult<void>>
 
   fetchMetrics?: FetchMetrics
+  shouldTrackFetchMetrics: boolean
 
   isDraftMode?: boolean
   isUnstableNoStore?: boolean
   isPrefetchRequest?: boolean
-
-  requestEndedState?: { ended?: boolean }
 
   buildId: string
 
@@ -95,9 +95,22 @@ export interface WorkStore {
     Record<string, { files: string[] }>
   >
   readonly assetPrefix?: string
+  readonly nonce?: string
 
-  dynamicIOEnabled: boolean
+  cacheComponentsEnabled: boolean
   dev: boolean
+
+  /**
+   * Run the given function inside a clean AsyncLocalStorage snapshot. This is
+   * useful when generating cache entries, to ensure that the cache generation
+   * cannot read anything from the context we're currently executing in, which
+   * might include request-specific things like `cookies()` inside a
+   * `React.cache()`.
+   */
+  runInCleanSnapshot: <R, TArgs extends any[]>(
+    fn: (...args: TArgs) => R,
+    ...args: TArgs
+  ) => R
 }
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>

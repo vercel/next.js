@@ -143,6 +143,20 @@ describe('Config Experimental Warning', () => {
     expect(stdout).toMatch(' · cpus: 2')
   })
 
+  it('should show the configured value for string features', async () => {
+    configFile.write(`
+      module.exports = {
+        experimental: {
+          ppr: 'incremental'
+        }
+      }
+    `)
+
+    const stdout = await collectStdoutFromDev(appDir)
+    expect(stdout).toMatch(experimentalHeader)
+    expect(stdout).toMatch(' · ppr: "incremental"')
+  })
+
   it('should show warning with config from object with experimental and multiple keys', async () => {
     configFile.write(`
       module.exports = {

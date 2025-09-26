@@ -7,8 +7,10 @@ const CHANGE_ITEM_GROUPS = {
   docs: [
     'bench',
     'docs',
+    'apps/docs',
     'errors',
     'examples',
+    '.changeset',
     'UPGRADING.md',
     'contributing.md',
     'contributing',

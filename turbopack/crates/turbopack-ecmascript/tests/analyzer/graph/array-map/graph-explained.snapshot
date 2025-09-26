@@ -1,16 +1,16 @@
-*anonymous function 170* = (...) => [file]
+*anonymous function 170* (const after eval) = (...) => [file]
 
-*anonymous function 254* = (...) => FreeVar(require)["resolve"](file)
+*anonymous function 254* (const after eval) = (...) => FreeVar(require)["resolve"](file)
 
-*anonymous function 88* = (...) => file
+*anonymous function 88* (const after eval) = (...) => file
 
-a = ["../lib/a.js", "../lib/b.js"]
+a (const after eval) = ["../lib/a.js", "../lib/b.js"]
 
-b = ["../lib/a.js", "../lib/b.js"]["map"](*anonymous function 88*)
+b (const after eval) = ["../lib/a.js", "../lib/b.js"]["map"](*anonymous function 88*)
 
-c = ["../lib/a.js", "../lib/b.js"]["map"](*anonymous function 170*)
+c (const after eval) = ["../lib/a.js", "../lib/b.js"]["map"](*anonymous function 170*)
 
-d = ["../lib/a.js", "../lib/b.js"]["map"](*anonymous function 254*)
+d (const after eval) = ["../lib/a.js", "../lib/b.js"]["map"](*anonymous function 254*)
 
 file#3 = arguments[0]
 
@@ -20,4 +20,4 @@ file#5 = arguments[0]
 
 file#6 = arguments[0]
 
-func = (...) => FreeVar(require)["resolve"](file)
+func (const after eval) = (...) => FreeVar(require)["resolve"](file)
