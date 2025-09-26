@@ -3,8 +3,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-  "start": "next start",
-  "refactor:alias": "node ./scripts/replace-imports.js"
+    "start": "next start"
   },
   "dependencies": {
     "@formatjs/intl-localematcher": "0.5.7",
