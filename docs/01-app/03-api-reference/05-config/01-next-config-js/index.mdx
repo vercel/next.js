@@ -123,7 +123,10 @@ export default async (phase, { defaultConfig }) => {
 import type { NextConfig } from 'next'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 
-export default (phase: string): NextConfig | Record<string, unknown> => {
+export default (
+  phase: string,
+  { defaultConfig }: { defaultConfig: NextConfig }
+): NextConfig => {
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     return {
       /* development only config options here */
