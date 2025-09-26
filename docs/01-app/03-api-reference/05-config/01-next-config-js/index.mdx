@@ -58,7 +58,7 @@ You can also use a function:
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
-export default async function (
+export default function (
   phase: string,
   { defaultConfig }: { defaultConfig: NextConfig }
 ) {
@@ -72,7 +72,7 @@ export default async function (
 ```js filename="next.config.mjs" switcher
 // @ts-check
 
-export default async (phase, { defaultConfig }) => {
+export default (phase, { defaultConfig }) => {
   /**
    * @type {import('next').NextConfig}
    */

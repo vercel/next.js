@@ -146,7 +146,9 @@ const nextConfig = {
   },
   outputFileTracingIncludes: {
     '/api/another': ['./necessary-folder/**/*'],
-    '/api/login/\\[\\[...slug\\]\\]': ['./node_modules/aws-crt/dist/bin/**/*'],
+    '/api/login/\\[\\[\\.\\.\\.slug\\]\\]': [
+      './node_modules/aws-crt/dist/bin/**/*',
+    ],
   },
 }
 
