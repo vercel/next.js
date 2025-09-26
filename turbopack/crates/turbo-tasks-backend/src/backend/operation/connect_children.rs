@@ -20,7 +20,7 @@ pub fn connect_children(
     parent_task_id: TaskId,
     mut parent_task: impl TaskGuard,
     new_children: FxHashSet<TaskId>,
-    has_active_count: bool,
+    parent_has_active_count: bool,
     should_track_activeness: bool,
 ) {
     debug_assert!(!new_children.is_empty());
@@ -46,7 +46,7 @@ pub fn connect_children(
         new_follower_ids: SmallVec<[TaskId; 4]>,
         upper_ids: Option<SmallVec<[TaskId; 4]>>,
         parent_task_id: TaskId,
-        has_active_count: bool,
+        parent_has_active_count: bool,
         should_track_activeness: bool,
     ) {
         debug_assert!(!new_follower_ids.is_empty());
@@ -62,7 +62,7 @@ pub fn connect_children(
             // active count was temporarily increased during connect_child. We need to
             // increase the active count when the parent has active count, because it's
             // added as follower.
-            let decrease_active_count = should_track_activeness && !has_active_count;
+            let decrease_active_count = should_track_activeness && !parent_has_active_count;
 
             // We special case the situation when we need to do both operations to avoid
             // cloning the new follower ids unnecessarily.
@@ -134,7 +134,7 @@ pub fn connect_children(
                         new_follower_ids,
                         upper_ids.clone(),
                         parent_task_id,
-                        has_active_count,
+                        parent_has_active_count,
                         should_track_activeness,
                     );
                 });
@@ -146,7 +146,7 @@ pub fn connect_children(
             new_follower_ids,
             upper_ids,
             parent_task_id,
-            has_active_count,
+            parent_has_active_count,
             should_track_activeness,
         );
     }
