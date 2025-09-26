@@ -13,20 +13,18 @@ export default function Page() {
 `,
 }
 
+const TURBOPACK_FLAG = process.env.TURBOPACK
 describe('config-turbopack', () => {
   describe('when turbopack is auto selected', () => {
-    beforeAll(() => {
-      if (process.env.IS_TURBOPACK_TEST) {
+    if (process.env.IS_TURBOPACK_TEST) {
+      beforeAll(() => {
         process.env.TURBOPACK = 'auto'
-      }
-    })
-    afterAll(() => {
-      if (process.env.IS_TURBOPACK_TEST) {
-        delete process.env.TURBOPACK
-      }
-    })
-
-    describe('when webpack is configured but Turbopack is not and turbopack is auto selected', () => {
+      })
+      afterAll(() => {
+        process.env.TURBOPACK = TURBOPACK_FLAG
+      })
+    }
+    describe('when webpack is configured but Turbopack is not', () => {
       const { next, isTurbopack, isNextDev, isNextStart } = nextTestSetup({
         skipStart: Boolean(process.env.TURBOPACK_BUILD),
         files: {
