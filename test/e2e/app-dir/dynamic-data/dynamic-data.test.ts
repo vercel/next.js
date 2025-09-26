@@ -178,7 +178,7 @@ describe('dynamic-data with dynamic = "error"', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route /cookies with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. \`cookies\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+           "description": "Route /cookies with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. \`cookies\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
            "environmentLabel": "Server",
            "label": "Runtime Error",
            "source": "app/cookies/page.js (14:24) @ Page
@@ -216,7 +216,7 @@ describe('dynamic-data with dynamic = "error"', () => {
       try {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Route /headers with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. \`headers\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
+           "description": "Route /headers with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`. \`headers\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
            "environmentLabel": "Server",
            "label": "Runtime Error",
            "source": "app/headers/page.js (14:35) @ Page
