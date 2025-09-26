@@ -3987,6 +3987,11 @@
           queue.next = componentIdentity;
         }
     }
+    function throwOnUseEffectEventCall() {
+      throw Error(
+        "A function wrapped in useEffectEvent can't be called during rendering."
+      );
+    }
     function unsupportedStartTransition() {
       throw Error("startTransition cannot be called during server rendering.");
     }
@@ -9656,6 +9661,9 @@
         },
         useCacheRefresh: function () {
           return unsupportedRefresh;
+        },
+        useEffectEvent: function () {
+          return throwOnUseEffectEventCall;
         }
       },
       currentResumableState = null,
@@ -9758,5 +9766,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.2.0-canary-b0c1dc01-20250925";
+    exports.version = "19.2.0-canary-df38ac9a-20250926";
   })();

@@ -225,6 +225,46 @@
         ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
         : [resolvedModuleData.id, resolvedModuleData.chunks, name];
     }
+    function preload(href, as, options) {
+      if ("string" === typeof href) {
+        var request = resolveRequest();
+        if (request) {
+          var hints = request.hints,
+            key = "L";
+          if ("image" === as && options) {
+            var imageSrcSet = options.imageSrcSet,
+              imageSizes = options.imageSizes,
+              uniquePart = "";
+            "string" === typeof imageSrcSet && "" !== imageSrcSet
+              ? ((uniquePart += "[" + imageSrcSet + "]"),
+                "string" === typeof imageSizes &&
+                  (uniquePart += "[" + imageSizes + "]"))
+              : (uniquePart += "[][]" + href);
+            key += "[image]" + uniquePart;
+          } else key += "[" + as + "]" + href;
+          hints.has(key) ||
+            (hints.add(key),
+            (options = trimOptions(options))
+              ? emitHint(request, "L", [href, as, options])
+              : emitHint(request, "L", [href, as]));
+        } else previousDispatcher.L(href, as, options);
+      }
+    }
+    function preloadModule$1(href, options) {
+      if ("string" === typeof href) {
+        var request = resolveRequest();
+        if (request) {
+          var hints = request.hints,
+            key = "m|" + href;
+          if (hints.has(key)) return;
+          hints.add(key);
+          return (options = trimOptions(options))
+            ? emitHint(request, "m", [href, options])
+            : emitHint(request, "m", href);
+        }
+        previousDispatcher.m(href, options);
+      }
+    }
     function trimOptions(options) {
       if (null == options) return null;
       var hasProperties = !1,
@@ -234,6 +274,105 @@
         null != options[key] &&
           ((hasProperties = !0), (trimmed[key] = options[key]));
       return hasProperties ? trimmed : null;
+    }
+    function getChildFormatContext(parentContext, type, props) {
+      switch (type) {
+        case "img":
+          type = props.src;
+          var srcSet = props.srcSet;
+          if (
+            !(
+              "lazy" === props.loading ||
+              (!type && !srcSet) ||
+              ("string" !== typeof type && null != type) ||
+              ("string" !== typeof srcSet && null != srcSet) ||
+              "low" === props.fetchPriority ||
+              parentContext & 3
+            ) &&
+            ("string" !== typeof type ||
+              ":" !== type[4] ||
+              ("d" !== type[0] && "D" !== type[0]) ||
+              ("a" !== type[1] && "A" !== type[1]) ||
+              ("t" !== type[2] && "T" !== type[2]) ||
+              ("a" !== type[3] && "A" !== type[3])) &&
+            ("string" !== typeof srcSet ||
+              ":" !== srcSet[4] ||
+              ("d" !== srcSet[0] && "D" !== srcSet[0]) ||
+              ("a" !== srcSet[1] && "A" !== srcSet[1]) ||
+              ("t" !== srcSet[2] && "T" !== srcSet[2]) ||
+              ("a" !== srcSet[3] && "A" !== srcSet[3]))
+          ) {
+            var sizes = "string" === typeof props.sizes ? props.sizes : void 0;
+            var input = props.crossOrigin;
+            preload(type || "", "image", {
+              imageSrcSet: srcSet,
+              imageSizes: sizes,
+              crossOrigin:
+                "string" === typeof input
+                  ? "use-credentials" === input
+                    ? input
+                    : ""
+                  : void 0,
+              integrity: props.integrity,
+              type: props.type,
+              fetchPriority: props.fetchPriority,
+              referrerPolicy: props.referrerPolicy
+            });
+          }
+          return parentContext;
+        case "link":
+          type = props.rel;
+          srcSet = props.href;
+          if (
+            !(
+              parentContext & 1 ||
+              null != props.itemProp ||
+              "string" !== typeof type ||
+              "string" !== typeof srcSet ||
+              "" === srcSet
+            )
+          )
+            switch (type) {
+              case "preload":
+                preload(srcSet, props.as, {
+                  crossOrigin: props.crossOrigin,
+                  integrity: props.integrity,
+                  nonce: props.nonce,
+                  type: props.type,
+                  fetchPriority: props.fetchPriority,
+                  referrerPolicy: props.referrerPolicy,
+                  imageSrcSet: props.imageSrcSet,
+                  imageSizes: props.imageSizes,
+                  media: props.media
+                });
+                break;
+              case "modulepreload":
+                preloadModule$1(srcSet, {
+                  as: props.as,
+                  crossOrigin: props.crossOrigin,
+                  integrity: props.integrity,
+                  nonce: props.nonce
+                });
+                break;
+              case "stylesheet":
+                preload(srcSet, "stylesheet", {
+                  crossOrigin: props.crossOrigin,
+                  integrity: props.integrity,
+                  nonce: props.nonce,
+                  type: props.type,
+                  fetchPriority: props.fetchPriority,
+                  referrerPolicy: props.referrerPolicy,
+                  media: props.media
+                });
+            }
+          return parentContext;
+        case "picture":
+          return parentContext | 2;
+        case "noscript":
+          return parentContext | 1;
+        default:
+          return parentContext;
+      }
     }
     function collectStackTracePrivate(error, structuredStackTrace) {
       error = [];
@@ -916,7 +1055,7 @@
         model,
         null,
         !1,
-        null,
+        0,
         abortSet,
         type,
         null,
@@ -1654,13 +1793,11 @@
             (task.implicitSlot = validated),
             request
           );
-        if (null == type || "object" !== typeof type || isClientReference(type))
-          "string" === typeof type &&
-            ((ref = task.formatContext),
-            ref !== ref &&
-              null != props.children &&
-              outlineModelWithFormatContext(request, props.children, ref));
-        else
+        if (
+          null != type &&
+          "object" === typeof type &&
+          !isClientReference(type)
+        )
           switch (type.$$typeof) {
             case REACT_LAZY_TYPE:
               type = callLazyInitInDEV(type);
@@ -1696,6 +1833,17 @@
             case REACT_ELEMENT_TYPE:
               type._store.validated = 1;
           }
+        else if ("string" === typeof type) {
+          ref = task.formatContext;
+          var newFormatContext = getChildFormatContext(ref, type, props);
+          ref !== newFormatContext &&
+            null != props.children &&
+            outlineModelWithFormatContext(
+              request,
+              props.children,
+              newFormatContext
+            );
+        }
       } else
         return renderFunctionComponent(
           request,
@@ -1707,20 +1855,20 @@
         );
       ref = task.keyPath;
       null === key ? (key = ref) : null !== ref && (key = ref + "," + key);
-      var debugStack = null;
+      newFormatContext = null;
       ref = task.debugOwner;
       null !== ref && outlineComponentInfo(request, ref);
       if (null !== task.debugStack) {
-        debugStack = filterStackTrace(
+        newFormatContext = filterStackTrace(
           request,
           parseStackTrace(task.debugStack, 1)
         );
         var id = outlineDebugModel(
           request,
-          { objectLimit: 2 * debugStack.length + 1 },
-          debugStack
+          { objectLimit: 2 * newFormatContext.length + 1 },
+          newFormatContext
         );
-        request.writtenObjects.set(debugStack, serializeByValueID(id));
+        request.writtenObjects.set(newFormatContext, serializeByValueID(id));
       }
       request = [
         REACT_ELEMENT_TYPE,
@@ -1728,7 +1876,7 @@
         key,
         props,
         ref,
-        debugStack,
+        newFormatContext,
         validated
       ];
       task = task.implicitSlot && null !== key ? [request] : request;
@@ -1920,7 +2068,7 @@
       }
     }
     function outlineModel(request, value) {
-      return outlineModelWithFormatContext(request, value, null);
+      return outlineModelWithFormatContext(request, value, 0);
     }
     function outlineModelWithFormatContext(request, value, formatContext) {
       value = createTask(
@@ -2066,7 +2214,7 @@
           model,
           null,
           !1,
-          null,
+          0,
           request.abortableTasks,
           performance.now(),
           null,
@@ -4523,46 +4671,8 @@
           } else previousDispatcher.C(href, crossOrigin);
         }
       },
-      L: function (href, as, options) {
-        if ("string" === typeof href) {
-          var request = resolveRequest();
-          if (request) {
-            var hints = request.hints,
-              key = "L";
-            if ("image" === as && options) {
-              var imageSrcSet = options.imageSrcSet,
-                imageSizes = options.imageSizes,
-                uniquePart = "";
-              "string" === typeof imageSrcSet && "" !== imageSrcSet
-                ? ((uniquePart += "[" + imageSrcSet + "]"),
-                  "string" === typeof imageSizes &&
-                    (uniquePart += "[" + imageSizes + "]"))
-                : (uniquePart += "[][]" + href);
-              key += "[image]" + uniquePart;
-            } else key += "[" + as + "]" + href;
-            hints.has(key) ||
-              (hints.add(key),
-              (options = trimOptions(options))
-                ? emitHint(request, "L", [href, as, options])
-                : emitHint(request, "L", [href, as]));
-          } else previousDispatcher.L(href, as, options);
-        }
-      },
-      m: function (href, options) {
-        if ("string" === typeof href) {
-          var request = resolveRequest();
-          if (request) {
-            var hints = request.hints,
-              key = "m|" + href;
-            if (hints.has(key)) return;
-            hints.add(key);
-            return (options = trimOptions(options))
-              ? emitHint(request, "m", [href, options])
-              : emitHint(request, "m", href);
-          }
-          previousDispatcher.m(href, options);
-        }
-      },
+      L: preload,
+      m: preloadModule$1,
       X: function (src, options) {
         if ("string" === typeof src) {
           var request = resolveRequest();
@@ -4752,8 +4862,9 @@
         useCacheRefresh: function () {
           return unsupportedRefresh;
         }
-      },
-      currentOwner = null,
+      };
+    HooksDispatcher.useEffectEvent = unsupportedHook;
+    var currentOwner = null,
       DefaultAsyncDispatcher = {
         getCacheForType: function (resourceType) {
           var cache = (cache = resolveRequest()) ? cache.cache : new Map();

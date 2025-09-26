@@ -473,9 +473,6 @@ exports.createElement = function (type, config, children) {
 exports.createRef = function () {
   return { current: null };
 };
-exports.experimental_useEffectEvent = function (callback) {
-  return ReactSharedInternals.H.useEffectEvent(callback);
-};
 exports.experimental_useOptimistic = function (passthrough, reducer) {
   return useOptimistic(passthrough, reducer);
 };
@@ -558,6 +555,9 @@ exports.useDeferredValue = function (value, initialValue) {
 exports.useEffect = function (create, deps) {
   return ReactSharedInternals.H.useEffect(create, deps);
 };
+exports.useEffectEvent = function (callback) {
+  return ReactSharedInternals.H.useEffectEvent(callback);
+};
 exports.useId = function () {
   return ReactSharedInternals.H.useId();
 };
@@ -597,4 +597,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.2.0-experimental-b0c1dc01-20250925";
+exports.version = "19.2.0-experimental-df38ac9a-20250926";
