@@ -67,37 +67,44 @@ export function interpolateParallelRouteParams(
       // interpolate it because it's already marked as being unknown.
       !fallbackRouteParams?.has(segmentParam.param)
     ) {
-      if (
-        segmentParam.type === 'catchall' ||
-        segmentParam.type === 'optional-catchall'
-      ) {
-        // For catchall parameters, take all remaining segments from this depth
-        const remainingSegments = pathSegments.slice(depth)
+      switch (segmentParam.type) {
+        case 'catchall':
+        case 'optional-catchall':
+        case 'catchall-intercepted':
+          // For catchall parameters, take all remaining segments from this depth
+          const remainingSegments = pathSegments.slice(depth)
 
-        // Process each segment to handle any dynamic params
-        const processedSegments = remainingSegments.flatMap((pathSegment) => {
-          const param = parseParameter(pathSegment)
-          // If the segment matches a param, return the param value otherwise,
-          // it's a static segment, so just return that. We don't use the
-          // `getParamValue` function here because we don't want the values to
-          // be encoded, that's handled on get by the `getDynamicParam`
-          // function.
-          return interpolated[param.key] ?? param.key
-        })
+          // Process each segment to handle any dynamic params
+          const processedSegments = remainingSegments
+            .flatMap((pathSegment) => {
+              const param = getSegmentParam(pathSegment)
+              // If the segment matches a param, return the param value otherwise,
+              // it's a static segment, so just return that. We don't use the
+              // `getParamValue` function here because we don't want the values to
+              // be encoded, that's handled on get by the `getDynamicParam`
+              // function.
+              return param ? interpolated[param.param] : pathSegment
+            })
+            .filter((s) => s !== undefined)
 
-        interpolated[segmentParam.param] = processedSegments
-      } else if (
-        segmentParam.type === 'dynamic' ||
-        segmentParam.type === 'dynamic-intercepted'
-      ) {
-        // For regular dynamic parameters, take the segment at this depth
-        if (depth < pathSegments.length) {
-          const pathSegment = pathSegments[depth]
-          const param = parseParameter(pathSegment)
+          if (processedSegments.length > 0) {
+            interpolated[segmentParam.param] = processedSegments
+          }
+          break
+        case 'dynamic':
+        case 'dynamic-intercepted':
+          // For regular dynamic parameters, take the segment at this depth
+          if (depth < pathSegments.length) {
+            const pathSegment = pathSegments[depth]
+            const param = getSegmentParam(pathSegment)
 
-          interpolated[segmentParam.param] =
-            interpolated[param.key] ?? param.key
-        }
+            interpolated[segmentParam.param] = param
+              ? interpolated[param.param]
+              : pathSegment
+          }
+          break
+        default:
+          segmentParam.type satisfies never
       }
     }
 
