@@ -160,8 +160,9 @@ export async function validateTurboNextConfig({
     Log.error('Unexpected error occurred while checking config', e)
   }
 
-  // If the build was defaulted to Turbopack, we want to warn about possibly ignored webpack configuration.
-  // Otherwise the user explicitly picked turbopack and thus we expect that they have configured it correctly.
+  // If the build was defaulted to Turbopack, we want to warn about possibly ignored webpack
+  // configuration. Otherwise the user explicitly picked turbopack and thus we expect that
+  // they have configured it correctly.
   if (process.env.TURBOPACK === 'auto' && hasWebpackConfig && !hasTurboConfig) {
     const logMethod = isDev ? Log.warn : Log.error
     // In a production build with auto-detected Turbopack, we want to fail the build.

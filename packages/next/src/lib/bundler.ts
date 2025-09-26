@@ -30,7 +30,7 @@ export function parseBundlerArgs(options: {
   } else if (process.env.TURBOPACK) {
     // We don't really want to support this but it is trivial and not really confusing.
     // If we don't support it and someone sets it, we would have inconsistent behavior
-    // since some parts of next would read the return valuye of this function and other
+    // since some parts of next would read the return value of this function and other
     // parts will read the env variable.
     setBundlerFlag(Bundler.Turbopack, 'TURBOPACK')
   } else if (process.env.IS_TURBOPACK_TEST) {
@@ -44,7 +44,8 @@ export function parseBundlerArgs(options: {
     setBundlerFlag(Bundler.Webpack, 'IS_WEBPACK_TEST')
   }
 
-  // Mostly this is set via the NextConfig but it can also be set via the command line which is common for testing.
+  // Mostly this is set via the NextConfig but it can also be set via the command line which is
+  // common for testing.
   if (process.env.NEXT_RSPACK) {
     setBundlerFlag(Bundler.Rspack, 'NEXT_RSPACK')
   }
@@ -77,7 +78,8 @@ export function parseBundlerArgs(options: {
 /**
  * Finalize the bundler based on the config.
  *
- * Rspack is configured via next config by setting an environment variable (yay, side effects) so this should only be called after parsing the config.
+ * Rspack is configured via next config by setting an environment variable (yay, side effects)
+ * so this should only be called after parsing the config.
  */
 export function finalizeBundlerFromConfig(fromOptions: Bundler) {
   // Reading the next config can set NEXT_RSPACK environment variables.
