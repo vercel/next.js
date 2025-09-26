@@ -1010,7 +1010,10 @@ export function cache(
       if (isPageSegmentFunction(args)) {
         isPageOrLayoutSegmentFunction = true
 
-        const [{ params: outerParams, searchParams: outerSearchParams }] = args
+        const [
+          { params: outerParams, searchParams: outerSearchParams },
+          ...otherOuterArgs
+        ] = args
 
         const props: UseCachePageInnerProps = {
           params: outerParams,
@@ -1023,13 +1026,16 @@ export function cache(
           props.searchParams = outerSearchParams
         }
 
-        args = [props]
+        args = [props, ...otherOuterArgs]
 
         fn = {
-          [name]: async ({
-            params: _innerParams,
-            searchParams: innerSearchParams,
-          }: UseCachePageInnerProps) =>
+          [name]: async (
+            {
+              params: _innerParams,
+              searchParams: innerSearchParams,
+            }: UseCachePageInnerProps,
+            ...otherInnerArgs: unknown[]
+          ) =>
             originalFn.apply(null, [
               {
                 params: outerParams,
@@ -1044,25 +1050,36 @@ export function cache(
                   // need to ensure that an error is shown.
                   makeErroringSearchParamsForUseCache(workStore),
               },
+              ...otherInnerArgs,
             ]),
         }[name] as (...args: unknown[]) => Promise<unknown>
       } else if (isLayoutSegmentFunction(args)) {
         isPageOrLayoutSegmentFunction = true
 
-        const [{ params: outerParams, $$isLayout, ...outerSlots }] = args
+        const [
+          { params: outerParams, $$isLayout, ...outerSlots },
+          ...otherOuterArgs
+        ] = args
+
         // Overwrite the props to omit $$isLayout. Note that slots are only
         // passed to the layout component (if any are defined), and not to
         // generateMetadata nor generateViewport. For those functions,
         // outerSlots/innerSlots is an empty object, which is fine because we're
         // just spreading it into the props.
-        args = [{ params: outerParams, ...outerSlots }]
+        args = [{ params: outerParams, ...outerSlots }, ...otherOuterArgs]
 
         fn = {
-          [name]: async ({
-            params: _innerParams,
-            ...innerSlots
-          }: Omit<UseCacheLayoutProps, '$$isLayout'>) =>
-            originalFn.apply(null, [{ params: outerParams, ...innerSlots }]),
+          [name]: async (
+            {
+              params: _innerParams,
+              ...innerSlots
+            }: Omit<UseCacheLayoutProps, '$$isLayout'>,
+            ...otherInnerArgs: unknown[]
+          ) =>
+            originalFn.apply(null, [
+              { params: outerParams, ...innerSlots },
+              ...otherInnerArgs,
+            ]),
         }[name] as (...args: unknown[]) => Promise<unknown>
       }
 
@@ -1608,7 +1625,9 @@ export function cache(
  * Returns `true` if the `'use cache'` function is the page component itself,
  * or `generateMetadata`/`generateViewport` in a page file.
  */
-function isPageSegmentFunction(args: any[]): args is [UseCachePageProps] {
+function isPageSegmentFunction(
+  args: any[]
+): args is [UseCachePageProps, ...unknown[]] {
   const [maybeProps] = args
 
   return (
@@ -1622,7 +1641,9 @@ function isPageSegmentFunction(args: any[]): args is [UseCachePageProps] {
  * Returns `true` if the `'use cache'` function is the layout component itself,
  * or `generateMetadata`/`generateViewport` in a layout file.
  */
-function isLayoutSegmentFunction(args: any[]): args is [UseCacheLayoutProps] {
+function isLayoutSegmentFunction(
+  args: any[]
+): args is [UseCacheLayoutProps, ...unknown[]] {
   const [maybeProps] = args
 
   return (

@@ -1,12 +1,11 @@
-import { Metadata } from 'next'
+import { Metadata, ResolvingMetadata } from 'next'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}): Promise<Metadata> {
+export async function generateMetadata(
+  { params }: { params: Promise<{ slug: string }> },
+  parent: ResolvingMetadata
+): Promise<Metadata> {
   'use cache'
 
   // Explicitly not reading params here. The title should appear in the
@@ -14,7 +13,13 @@ export async function generateMetadata({
   // cache hit (from the RDC), but omitting unused params from cache keys (and
   // upgrading cache keys when they are used) is not yet implemented.
 
-  return { title: new Date().toISOString() }
+  const { metadataBase } = await parent
+
+  return {
+    title: new Date().toISOString(),
+    metadataBase: metadataBase?.replace('/bar', '/baz'),
+    alternates: { canonical: '/qux' },
+  }
 }
 
 export default function Page() {

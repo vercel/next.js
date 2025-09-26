@@ -1,5 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoConsoleErrors, retry } from 'next-test-utils'
+import {
+  assertNoConsoleErrors,
+  assertNoErrorToast,
+  retry,
+} from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { format } from 'util'
 import { Playwright } from 'next-webdriver'
@@ -1162,6 +1166,21 @@ describe('use-cache', () => {
         expect(title2).not.toBe(title)
         expect(description2).not.toBe(description)
       }
+    })
+
+    it('can serialize parent metadata as generateMetadata argument', async () => {
+      const browser = await next.browser(
+        '/generate-metadata-resume/params-unused/foo'
+      )
+
+      const canonicalUrl = await browser
+        .elementByCss('link[rel="canonical"]')
+        .getAttribute('href')
+
+      expect(canonicalUrl).toBe('https://example.com/baz/qux')
+
+      // There should be no timeout error.
+      await assertNoErrorToast(browser)
     })
 
     it('makes a cached generateMetadata function that reads params dynamic during prerendering', async () => {
