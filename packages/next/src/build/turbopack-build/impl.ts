@@ -4,8 +4,8 @@ import { isPersistentCachingEnabledForBuild } from '../../shared/lib/turbopack/u
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, loadBindings } from '../swc'
 import {
-  rawEntrypointsToEntrypoints,
   handleRouteType,
+  rawEntrypointsToEntrypoints,
 } from '../handle-entrypoints'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { promises as fs } from 'fs'
@@ -18,6 +18,7 @@ import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers, printBuildErrors } from '../utils'
 import { normalizePath } from '../../lib/normalize-path'
+import type { RawEntrypoints, TurbopackResult } from '../swc/types'
 
 export async function turbopackBuild(): Promise<{
   duration: number
@@ -104,20 +105,21 @@ export async function turbopackBuild(): Promise<{
 
     let appDirOnly = NextBuildContext.appDirOnly!
     const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
-    printBuildErrors(entrypoints)
+    printBuildErrors(entrypoints, dev)
 
-    if (!('routes' in entrypoints)) {
-      throw new Error('Turbopack build failed')
+    let routes = entrypoints.routes
+    if (!routes) {
+      // This should never ever happen, there should be an error issue, or the bindings call should
+      // have thrown.
+      throw new Error(`Turbopack build failed`)
     }
 
-    const hasPagesEntries = Array.from(entrypoints.routes.values()).some(
-      (route) => {
-        if (route.type === 'page' || route.type === 'page-api') {
-          return true
-        }
-        return false
+    const hasPagesEntries = Array.from(routes.values()).some((route) => {
+      if (route.type === 'page' || route.type === 'page-api') {
+        return true
       }
-    )
+      return false
+    })
     // If there's no pages entries, then we are in app-dir-only mode
     if (!hasPagesEntries) {
       appDirOnly = true
@@ -129,15 +131,11 @@ export async function turbopackBuild(): Promise<{
       encryptionKey,
     })
 
-    if (!('routes' in entrypoints)) {
-      // This should never ever happen, there should be an error issue, or the bindings call should
-      // have thrown.
-      throw new Error(`Turbopack build failed`)
-    }
+    const currentEntrypoints = await rawEntrypointsToEntrypoints(
+      entrypoints as TurbopackResult<RawEntrypoints>
+    )
 
-    const currentEntrypoints = await rawEntrypointsToEntrypoints(entrypoints)
-
-    const promises: Promise<any>[] = []
+    const promises: Promise<void>[] = []
 
     if (!appDirOnly) {
       for (const [page, route] of currentEntrypoints.page) {

@@ -847,7 +847,7 @@ impl NapiEntrypoints {
 
 #[turbo_tasks::value(serialization = "none")]
 struct EntrypointsWithIssues {
-    entrypoints: ReadRef<EntrypointsOperation>,
+    entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
@@ -859,10 +859,8 @@ async fn get_entrypoints_with_issues_operation(
 ) -> Result<Vc<EntrypointsWithIssues>> {
     let entrypoints_operation =
         EntrypointsOperation::new(project_container_entrypoints_operation(container));
-    let entrypoints = entrypoints_operation.read_strongly_consistent().await?;
-    let issues = get_issues(entrypoints_operation).await?;
-    let diagnostics = get_diagnostics(entrypoints_operation).await?;
-    let effects = Arc::new(get_effects(entrypoints_operation).await?);
+    let (entrypoints, issues, diagnostics, effects) =
+        strongly_consistent_catch_collectables(entrypoints_operation).await?;
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
@@ -1012,13 +1010,18 @@ pub fn project_entrypoints_subscribe(
         func,
         move || {
             async move {
-                let entrypoints_with_issues_op = project_container_entrypoints_operation(container);
-                let entrypoints_operation = EntrypointsOperation::new(entrypoints_with_issues_op);
-                let (entrypoints, issues, diagnostics, effects) =
-                    strongly_consistent_catch_collectables(entrypoints_operation).await?;
+                let entrypoints_with_issues_op = get_entrypoints_with_issues_operation(container);
+                let EntrypointsWithIssues {
+                    entrypoints,
+                    issues,
+                    diagnostics,
+                    effects,
+                } = &*entrypoints_with_issues_op
+                    .read_strongly_consistent()
+                    .await?;
 
                 effects.apply().await?;
-                Ok((entrypoints, issues.clone(), diagnostics.clone()))
+                Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
         },

@@ -7,7 +7,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{FileSystem, FileSystemPath, to_sys_path};
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueStage, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{
         AliasPattern, ExternalTraced, ExternalType, ResolveAliasMap, SubpathValue,
@@ -1253,6 +1253,10 @@ impl Issue for MissingNextFolderIssue {
         self.path.clone().cell()
     }
 
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Fatal
+    }
+
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
         IssueStage::Resolve.into()
@@ -1268,7 +1272,7 @@ impl Issue for MissingNextFolderIssue {
         Ok(StyledString::Stack(vec![
             StyledString::Line(vec![
                 StyledString::Text(
-                    "Warning: Next.js inferred your workspace root, but it may not be correct.".into(),
+                    "Error: Next.js inferred your workspace root, but it may not be correct.".into(),
                 ),
             ]),
             StyledString::Line(vec![

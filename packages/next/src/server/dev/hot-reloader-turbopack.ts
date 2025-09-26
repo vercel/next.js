@@ -630,17 +630,16 @@ export async function createHotReloaderTurbopack(
       // Always process issues/diagnostics, even if there are no entrypoints yet
       processTopLevelIssues(currentTopLevelIssues, entrypoints)
 
-      // When the first value is optional, routes may be missing. In that case we
-      // only surface issues and skip handling entrypoints until they exist.
-      const routes = (entrypoints as any).routes as Map<string, any> | undefined
-      if (!routes) {
-        printBuildErrors(entrypoints)
+      // Certain crtical issues prevent any entrypoints from being constructed so return early
+      if (!('routes' in entrypoints)) {
+        printBuildErrors(entrypoints, true)
 
         currentEntriesHandlingResolve!()
         currentEntriesHandlingResolve = undefined
         continue
       }
 
+      const routes = entrypoints.routes
       const existingRoutes = [
         ...currentEntrypoints.app.keys(),
         ...currentEntrypoints.page.keys(),
