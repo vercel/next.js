@@ -126,10 +126,11 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             makeUntrackedCookies(workUnitStore.cookies)
           )
         case 'private-cache':
+          // Private caches are delayed until the runtime stage in use-cache-wrapper,
+          // so we don't need an additional delay here.
           if (process.env.__NEXT_CACHE_COMPONENTS) {
             return makeUntrackedCookies(workUnitStore.cookies)
           }
-
           return makeUntrackedExoticCookies(workUnitStore.cookies)
         case 'request':
           trackDynamicDataInDynamicRender(workUnitStore)

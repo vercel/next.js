@@ -2,11 +2,16 @@ use std::{mem::take, sync::LazyLock};
 
 use anyhow::{Result, bail};
 use regex::Regex;
-use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::LoaderRuleItem;
+use turbopack_core::issue::IssueExt;
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
+
+use crate::{
+    next_config::NextConfig, next_shared::webpack_rules::ManuallyConfiguredBuiltinLoaderIssue,
+};
 
 // Try to match any reasonably-written glob pattern that might be intended to match `*.sass` or
 // `*.scss` (e.g. isn't just a full wildcard match with no extension)
@@ -17,7 +22,9 @@ static SASS_GLOB_RE: LazyLock<Regex> = LazyLock::new(|| {
 static SASS_LOADER_RE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(^|/)@?sass[-/]loader($|/|\.)").unwrap());
 
-pub async fn detect_likely_sass_loader(
+/// Detect manually-configured sass loaders. This is used to generate a warning, suggesting using
+/// the built-in sass support.
+async fn detect_likely_sass_loader(
     webpack_rules: &[(RcStr, LoaderRuleItem)],
 ) -> Result<Option<RcStr>> {
     for (glob, rule) in webpack_rules {
@@ -35,9 +42,35 @@ pub async fn detect_likely_sass_loader(
 }
 
 pub async fn get_sass_loader_rules(
-    sass_options: Vc<JsonValue>,
+    project_path: &FileSystemPath,
+    next_config: Vc<NextConfig>,
+    user_webpack_rules: &[(RcStr, LoaderRuleItem)],
 ) -> Result<Vec<(RcStr, LoaderRuleItem)>> {
-    let sass_options = sass_options.await?;
+    let use_builtin_sass = next_config
+        .experimental_turbopack_use_builtin_sass()
+        .await?;
+
+    match *use_builtin_sass {
+        Some(true) => {}
+        Some(false) => return Ok(Vec::new()),
+        None => {
+            if let Some(glob) = detect_likely_sass_loader(user_webpack_rules).await? {
+                ManuallyConfiguredBuiltinLoaderIssue {
+                    glob,
+                    loader: rcstr!("sass-loader"),
+                    config_key: rcstr!("experimental.turbopackUseBuiltinSass"),
+                    config_file_path: next_config
+                        .config_file_path(project_path.clone())
+                        .owned()
+                        .await?,
+                }
+                .resolved_cell()
+                .emit();
+            }
+        }
+    }
+
+    let sass_options = next_config.sass_config().await?;
     let Some(mut sass_options) = sass_options.as_object().cloned() else {
         bail!("sass_options must be an object");
     };

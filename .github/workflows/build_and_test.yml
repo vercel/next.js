@@ -678,6 +678,39 @@ jobs:
 
     secrets: inherit
 
+  test-new-tests-deploy-experimental:
+    name: Test new tests when deployed (experimental)
+    needs:
+      [
+        'optimize-ci',
+        'test-experimental-prod',
+        'test-new-tests-dev',
+        'test-new-tests-start',
+      ]
+    # test-new-tests-if
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' }}
+    # test-new-tests-end-if
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: |
+        export __NEXT_EXPERIMENTAL_PPR=true # for compatibility with the existing tests
+        export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
+        export NEXT_E2E_TEST_TIMEOUT=240000
+        export GH_PR_NUMBER=${{ github.event.pull_request && github.event.pull_request.number || '' }}
+        node scripts/test-new-tests.mjs \
+          --mode deploy \
+          --group ${{ matrix.group }}
+      stepName: 'test-new-tests-deploy-experimental-${{matrix.group}}'
+
+    secrets: inherit
+
   test-dev:
     name: test dev
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
@@ -980,6 +1013,7 @@ jobs:
         export __NEXT_EXPERIMENTAL_CACHE_COMPONENTS=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/experimental-tests-manifest.json"
         export NEXT_TEST_MODE=dev
+        export __NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD=true
 
         node run-tests.js \
           --timings \
@@ -1042,6 +1076,7 @@ jobs:
         'test-new-tests-dev',
         'test-new-tests-start',
         'test-new-tests-deploy',
+        'test-new-tests-deploy-experimental',
         'test-turbopack-production',
         'test-turbopack-production-integration',
         'test-unit-windows',

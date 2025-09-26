@@ -592,21 +592,9 @@ import path from 'path'
 
       await writeFile(
         tsConfigBase,
-        `{ "compilerOptions": { "verbatimModuleSyntax": true } }`
-      )
-      await writeFile(tsConfig, `{ "extends": "./tsconfig.base.json" }`)
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
-        stderr: true,
-        stdout: true,
-      })
-      expect(stderr + stdout).not.toContain('isolatedModules')
-      expect(code).toBe(0)
-
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-       "{
-         "extends": "./tsconfig.base.json",
-         "compilerOptions": {
+        `{ 
+        "compilerOptions": {
+           "verbatimModuleSyntax": true,
            "target": "ES2017",
            "lib": [
              "dom",
@@ -640,9 +628,20 @@ import path from 'path'
          "exclude": [
            "node_modules"
          ]
-       }
-       "
-      `)
+        }`
+      )
+      await writeFile(tsConfig, `{ "extends": "./tsconfig.base.json" }`)
+      await new Promise((resolve) => setTimeout(resolve, 500))
+      const { code, stderr, stdout } = await nextBuild(appDir, undefined, {
+        stderr: true,
+        stdout: true,
+      })
+      expect(stderr + stdout).not.toContain('isolatedModules')
+      expect(code).toBe(0)
+
+      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(
+        `"{ "extends": "./tsconfig.base.json" }"`
+      )
     })
 
     it('allows you to extend another configuration file', async () => {
@@ -703,15 +702,9 @@ import path from 'path'
       expect(stderr + stdout).not.toContain('moduleResolution')
       expect(code).toBe(0)
 
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-        "{
-          "extends": "./tsconfig.base.json",
-          "compilerOptions": {
-            "target": "ES2017"
-          }
-        }
-        "
-      `)
+      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(
+        `"{ "extends": "./tsconfig.base.json" }"`
+      )
     })
 
     it('creates compilerOptions when you extend another config', async () => {
@@ -771,16 +764,9 @@ import path from 'path'
       expect(stderr + stdout).not.toContain('moduleResolution')
       expect(code).toBe(0)
 
-      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(`
-        "{
-          "extends": "./tsconfig.base.json",
-          "compilerOptions": {
-            "target": "ES2017",
-            "incremental": true
-          }
-        }
-        "
-      `)
+      expect(await readFile(tsConfig, 'utf8')).toMatchInlineSnapshot(
+        `"{ "extends": "./tsconfig.base.json" }"`
+      )
     })
 
     // TODO: Enable this test when repo has upgraded to TypeScript 5.4. Currently tested as E2E: tsconfig-module-preserve

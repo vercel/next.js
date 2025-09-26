@@ -8,7 +8,12 @@ import { ChildProcess } from 'child_process'
 import { createNextInstall } from '../create-next-install'
 import { Span } from 'next/dist/trace'
 import webdriver from '../next-webdriver'
-import { renderViaHTTP, fetchViaHTTP, findPort } from 'next-test-utils'
+import {
+  renderViaHTTP,
+  fetchViaHTTP,
+  findPort,
+  getDistDir,
+} from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
 import { Playwright } from 'next-webdriver'
@@ -75,6 +80,7 @@ export class NextInstance {
   protected resolutions?: PackageJson['resolutions']
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
+  public distDir: string
   tmpRepoDir: string
   protected isStopping: boolean = false
   protected isDestroyed: boolean = false
@@ -204,6 +210,7 @@ export class NextInstance {
           `next-test-${Date.now()}-${(Math.random() * 1000) | 0}`,
           this.subDir
         )
+        this.distDir = getDistDir()
 
         const reactVersion =
           process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
@@ -216,6 +223,14 @@ export class NextInstance {
           '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
+        }
+
+        if (
+          process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
+          !finalDependencies['babel-plugin-react-compiler']
+        ) {
+          finalDependencies['babel-plugin-react-compiler'] =
+            '0.0.0-experimental-3fde738-20250918'
         }
 
         if (skipInstall || skipIsolatedNext) {
@@ -236,7 +251,7 @@ export class NextInstance {
                 scripts: {
                   // since we can't get the build id as a build artifact, make it
                   // available under the static files
-                  'post-build': 'cp .next/BUILD_ID .next/static/__BUILD_ID',
+                  'post-build': `cp ${this.distDir}/BUILD_ID ${this.distDir}/static/__BUILD_ID`,
                   ...pkgScripts,
                   build:
                     (pkgScripts['build'] || this.buildCommand || 'next build') +
@@ -296,6 +311,25 @@ export class NextInstance {
           throw new Error(
             `nextConfig provided on "createNext()" and as a file "${nextConfigFile}", use one or the other to continue`
           )
+        }
+
+        if (this.nextConfig?.distDir) {
+          this.distDir = this.nextConfig.distDir
+        }
+        // Same logic as we get the basePath in isNextDeploy
+        if (nextConfigFile) {
+          const content = await fs.readFile(
+            path.join(this.testDir, nextConfigFile),
+            'utf8'
+          )
+          if (content.includes('distDir')) {
+            const match = content.match(
+              /['"`]?distDir['"`]?:.*?['"`](.*?)['"`]/
+            )?.[1]
+            if (match) {
+              this.distDir = match
+            }
+          }
         }
 
         if (this.nextConfig || (isNextDeploy && !nextConfigFile)) {
@@ -366,6 +400,14 @@ export class NextInstance {
           // env variable during deploy
           if (process.env.NEXT_PRIVATE_TEST_MODE) {
             process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
+          }
+
+          // alias experimental feature flags for deployment compatibility
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_PPR) {
+            process.env.__NEXT_EXPERIMENTAL_PPR = process.env.NEXT_PRIVATE_EXPERIMENTAL_PPR
+          }
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
+            process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
           }
         `
           )
@@ -506,7 +548,7 @@ export class NextInstance {
       if (process.env.TRACE_PLAYWRIGHT) {
         await fs
           .cp(
-            path.join(this.testDir, '.next/trace'),
+            path.join(this.testDir, this.distDir, 'trace'),
             path.join(
               __dirname,
               '../../traces',

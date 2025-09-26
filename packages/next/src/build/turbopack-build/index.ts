@@ -52,15 +52,13 @@ export function turbopackBuild(
   withWorker: boolean
 ): ReturnType<typeof import('./impl').turbopackBuild> {
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
-  return nextBuildSpan
-    .traceChild('run-turbopack-compiler')
-    .traceAsyncFn(async () => {
-      if (withWorker) {
-        return await turbopackBuildWithWorker()
-      } else {
-        const build = (require('./impl') as typeof import('./impl'))
-          .turbopackBuild
-        return await build()
-      }
-    })
+  return nextBuildSpan.traceChild('run-turbopack').traceAsyncFn(async () => {
+    if (withWorker) {
+      return await turbopackBuildWithWorker()
+    } else {
+      const build = (require('./impl') as typeof import('./impl'))
+        .turbopackBuild
+      return await build()
+    }
+  })
 }

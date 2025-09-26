@@ -25,7 +25,7 @@ use crate::{
     embed_js::{VIRTUAL_PACKAGE_NAME, next_js_fs},
     mode::NextMode,
     next_client::context::ClientContextType,
-    next_config::NextConfig,
+    next_config::{NextConfig, OptionFileSystemPath},
     next_edge::unsupported::NextEdgeUnsupportedModuleReplacer,
     next_font::google::{
         GOOGLE_FONTS_INTERNAL_PREFIX, NextFontGoogleCssModuleReplacer,
@@ -704,7 +704,7 @@ async fn insert_next_server_special_aliases(
         ServerContextType::AppSSR { app_dir }
         | ServerContextType::AppRSC { app_dir, .. }
         | ServerContextType::AppRoute { app_dir, .. } => {
-            let next_package = get_next_package(app_dir.clone()).owned().await?;
+            let next_package = get_next_package(app_dir.clone()).await?;
             import_map.insert_exact_alias(
                 rcstr!("styled-jsx"),
                 request_to_import_mapping(next_package.clone(), rcstr!("styled-jsx")),
@@ -1134,7 +1134,7 @@ async fn insert_next_shared_aliases(
         .resolved_cell(),
     );
 
-    let next_package = get_next_package(project_path.clone()).owned().await?;
+    let next_package = get_next_package(project_path.clone()).await?;
     import_map.insert_singleton_alias(rcstr!("@swc/helpers"), next_package.clone());
     import_map.insert_singleton_alias(rcstr!("styled-jsx"), next_package.clone());
     import_map.insert_singleton_alias(rcstr!("next"), project_path.clone());
@@ -1233,8 +1233,17 @@ async fn insert_next_shared_aliases(
     Ok(())
 }
 
+pub async fn get_next_package(context_directory: FileSystemPath) -> Result<FileSystemPath> {
+    try_get_next_package(context_directory)
+        .owned()
+        .await?
+        .context("Next.js package not found")
+}
+
 #[turbo_tasks::function]
-pub async fn get_next_package(context_directory: FileSystemPath) -> Result<Vc<FileSystemPath>> {
+pub async fn try_get_next_package(
+    context_directory: FileSystemPath,
+) -> Result<Vc<OptionFileSystemPath>> {
     let root = context_directory.root().owned().await?;
     let result = resolve(
         context_directory,
@@ -1242,11 +1251,11 @@ pub async fn get_next_package(context_directory: FileSystemPath) -> Result<Vc<Fi
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
         node_cjs_resolve_options(root),
     );
-    let source = result
-        .first_source()
-        .await?
-        .context("Next.js package not found")?;
-    Ok(source.ident().path().await?.parent().cell())
+    if let Some(source) = &*result.first_source().await? {
+        Ok(Vc::cell(Some(source.ident().path().await?.parent())))
+    } else {
+        Ok(Vc::cell(None))
+    }
 }
 
 pub async fn insert_alias_option<const N: usize>(

@@ -108,6 +108,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                         emulate_environment: Some(
                             compile_time_info.environment().to_resolved().await?,
                         ),
+                        collect_affecting_sources: true,
                         ..Default::default()
                     }
                     .cell(),

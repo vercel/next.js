@@ -16,16 +16,15 @@ import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/canary-only'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 
-export type NextConfigComplete = Required<NextConfig> & {
+export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   images: Required<ImageConfigComplete>
   typescript: TypeScriptConfig
-  configOrigin?: string
-  configFile?: string
+  configFile: string | undefined
   configFileName: string
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
   htmlLimitedBots: string | undefined
-  experimental: Omit<ExperimentalConfig, 'turbo'>
+  experimental: ExperimentalConfig
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -89,23 +88,24 @@ export interface StyledComponentsConfig {
   cssProp?: boolean
 }
 
-type JSONValue =
+export type JSONValue =
   | string
   | number
   | boolean
   | JSONValue[]
   | { [k: string]: JSONValue }
 
+// At the moment, Turbopack options must be JSON-serializable, so restrict values.
+export type TurbopackLoaderOptions = Record<string, JSONValue>
+
 export type TurbopackLoaderItem =
   | string
   | {
       loader: string
-      // At the moment, Turbopack options must be JSON-serializable, so restrict values.
-      options?: Record<string, JSONValue>
+      options?: TurbopackLoaderOptions
     }
 
 export type TurbopackLoaderBuiltinCondition =
-  | 'default'
   | 'browser'
   | 'foreign'
   | 'development'
@@ -168,51 +168,10 @@ export interface TurbopackOptions {
   rules?: Record<string, TurbopackRuleConfigCollection>
 
   /**
-   * The module ID strategy to use for Turbopack.
-   * If not set, the default is `'named'` for development and `'deterministic'`
-   * for production.
-   */
-  moduleIds?: 'named' | 'deterministic'
-
-  /**
    * This is the repo root usually and only files above this
    * directory can be resolved by turbopack.
    */
   root?: string
-}
-
-export interface DeprecatedExperimentalTurboOptions extends TurbopackOptions {
-  /**
-   * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
-   *
-   * @deprecated Use `rules` instead.
-   * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)
-   */
-  loaders?: Record<string, TurbopackLoaderItem[]>
-
-  /**
-   * A target memory limit for turbo, in bytes.
-   * @deprecated Use `experimental.turbopackMemoryLimit` instead.
-   */
-  memoryLimit?: number
-
-  /**
-   * Enable minification. Defaults to true in build mode and false in dev mode.
-   * @deprecated Use `experimental.turbopackMinify` instead.
-   */
-  minify?: boolean
-
-  /**
-   * Enable tree shaking for the turbopack dev server and build.
-   * @deprecated Use `experimental.turbopackTreeShaking` instead.
-   */
-  treeShaking?: boolean
-
-  /**
-   * Enable source maps. Defaults to true.
-   * @deprecated Use `experimental.turbopackSourceMaps` instead.
-   */
-  sourceMaps?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -248,15 +207,36 @@ export interface NextJsWebpackConfig {
 }
 
 /**
- * Set of options for the react compiler next.js
- * currently supports.
+ * Set of options for React Compiler that Next.js currently supports.
  *
- * This can be changed without breaking changes while supporting
- * react compiler in the experimental phase.
+ * These options may be changed in breaking ways at any time without notice
+ * while support for React Compiler is experimental.
+ *
+ * @see https://react.dev/reference/react-compiler/configuration
  */
 export interface ReactCompilerOptions {
+  /**
+   * Controls the strategy for determining which functions the React Compiler
+   * will optimize.
+   *
+   * The default is `'infer'`, which uses intelligent heuristics to identify
+   * React components and hooks.
+   *
+   * When using `infer`, Next.js applies its own heuristics before calling
+   * `react-compiler`. This improves compilation performance by avoiding extra
+   * invocations of Babel and reducing redundant parsing of code.
+   *
+   * @see https://react.dev/reference/react-compiler/compilationMode
+   */
   compilationMode?: 'infer' | 'annotation' | 'all'
-  panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
+  /**
+   * Controls how the React Compiler handles errors during compilation.
+   *
+   * The default is `'none'`, which skips components which cannot be compiled.
+   *
+   * @see https://react.dev/reference/react-compiler/panicThreshold
+   */
+  panicThreshold?: 'none' | 'critical_errors' | 'all_errors'
 }
 
 export interface IncomingRequestLoggingConfig {
@@ -388,6 +368,8 @@ export interface ExperimentalConfig {
     skipValidation?: boolean
   }
   disableOptimizedLoading?: boolean
+
+  /** @deprecated A no-op as of Next 16, size metrics were removed from the build output. */
   gzipSize?: boolean
   craCompat?: boolean
   esmExternals?: boolean | 'loose'
@@ -421,12 +403,6 @@ export interface ExperimentalConfig {
   optimizeServerReact?: boolean
 
   /**
-   * @deprecated Use `config.turbopack` instead.
-   * Run `npx @next/codemod@latest next-experimental-turbo-to-turbopack .` to migrate automatically.
-   */
-  turbo?: DeprecatedExperimentalTurboOptions
-
-  /**
    * A target memory limit for turbo, in bytes.
    */
   turbopackMemoryLimit?: number
@@ -435,6 +411,11 @@ export interface ExperimentalConfig {
    * Enable minification. Defaults to true in build mode and false in dev mode.
    */
   turbopackMinify?: boolean
+
+  /**
+   * Enable support for `with {type: "module"}` for ESM imports.
+   */
+  turbopackImportTypeBytes?: boolean
 
   /**
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
@@ -487,8 +468,13 @@ export interface ExperimentalConfig {
   turbopackUseSystemTlsCerts?: boolean
 
   /**
-   * Set this to `false` to disable the automatic configuration of the babel loader when a babel
-   * configuration file is present. The babel loader configuration is enabled by default.
+   * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
+   * configuration file is present. This option is enabled by default.
+   *
+   * If this is set to `false`, but `experimental.reactCompiler` is `true`, the built-in Babel will
+   * still be configured, but any Babel configuration files on disk will be ignored. If you wish to
+   * use React Compiler with a different manually-configured `babel-loader`, you should disable both
+   * this and `experimental.reactCompiler`.
    */
   turbopackUseBuiltinBabel?: boolean
 
@@ -792,18 +778,32 @@ export interface ExperimentalConfig {
       }
 
   /**
-   * When enabled, will only opt-in to special smooth scroll handling when
-   * data-scroll-behavior="smooth" is present on the <html> element.
-   * This will be the default, non-configurable behavior in the next major version.
-   *
-   * @default false
-   */
-  optimizeRouterScrolling?: boolean
-
-  /**
    * Enable accessing root params via the `next/root-params` module.
    */
   rootParams?: boolean
+
+  /**
+   * Use an isolated directory for development builds to prevent conflicts
+   * with production builds. Development builds will use `{distDir}/dev`
+   * instead of `{distDir}`.
+   */
+  isolatedDevBuild?: boolean
+
+  /**
+   * Enable the Model Context Protocol (MCP) server for AI-assisted development.
+   * When enabled, Next.js will expose an MCP server at `/_next/mcp` that provides
+   * code intelligence and project context to AI assistants.
+   *
+   * @default false
+   */
+  mcpServer?: boolean
+
+  /**
+   * The module ID strategy to use for Turbopack.
+   * If not set, the default is `'named'` for development and `'deterministic'`
+   * for production.
+   */
+  turbopackModuleIds?: 'named' | 'deterministic'
 }
 
 export type ExportPathMap = {
@@ -875,7 +875,7 @@ export type ExportPathMap = {
  *
  * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/app/api-reference/config/next-config-js)
  */
-export interface NextConfig extends Record<string, any> {
+export interface NextConfig {
   allowedDevOrigins?: string[]
 
   exportPathMap?: (
@@ -1304,6 +1304,26 @@ export interface NextConfig extends Record<string, any> {
    * /Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i
    */
   htmlLimitedBots?: RegExp
+
+  /**
+   * @internal
+   */
+  configFile?: string | undefined
+
+  /**
+   * @internal
+   */
+  configOrigin?: string | undefined
+
+  /**
+   * @internal
+   */
+  _originalRedirects?: any
+
+  /**
+   * @internal
+   */
+  _originalRewrites?: any
 }
 
 export const defaultConfig = Object.freeze({
@@ -1462,7 +1482,6 @@ export const defaultConfig = Object.freeze({
     disablePostcssPresetEnv: undefined,
     amp: undefined,
     urlImports: undefined,
-    turbo: undefined,
     typedEnv: false,
     clientTraceMetadata: undefined,
     parallelServerCompiles: false,
@@ -1495,7 +1514,8 @@ export const defaultConfig = Object.freeze({
     slowModuleDetection: undefined,
     globalNotFound: false,
     browserDebugInfoInTerminal: false,
-    optimizeRouterScrolling: false,
+    isolatedDevBuild:
+      process.env.__NEXT_EXPERIMENTAL_ISOLATED_DEV_BUILD === 'true',
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

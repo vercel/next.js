@@ -38,7 +38,6 @@
             ),
         ],
         span: 40..47,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -125,7 +124,6 @@
             ),
         ],
         span: 93..100,
-        in_try: false,
     },
     Call {
         func: FreeVar(
@@ -203,7 +201,6 @@
             ),
         ],
         span: 122..129,
-        in_try: false,
     },
     FreeVar {
         var: "require",
@@ -244,7 +241,6 @@
             ),
         ],
         span: 149..156,
-        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -304,7 +300,6 @@
             ),
         ],
         span: 171..183,
-        in_try: false,
     },
     FreeVar {
         var: "process",
@@ -361,7 +356,6 @@
             ),
         ],
         span: 171..178,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -616,7 +610,6 @@
             ),
         ],
         span: 236..243,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -926,7 +919,6 @@
             ),
         ],
         span: 313..320,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1044,7 +1036,6 @@
             ),
         ],
         span: 345..361,
-        in_try: false,
     },
     FreeVar {
         var: "process",
@@ -1101,7 +1092,6 @@
             ),
         ],
         span: 345..352,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1298,7 +1288,6 @@
             ),
         ],
         span: 400..407,
-        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -1358,7 +1347,6 @@
             ),
         ],
         span: 419..431,
-        in_try: false,
     },
     FreeVar {
         var: "process",
@@ -1415,7 +1403,6 @@
             ),
         ],
         span: 419..426,
-        in_try: false,
     },
     Member {
         obj: FreeVar(
@@ -1475,7 +1462,6 @@
             ),
         ],
         span: 438..454,
-        in_try: false,
     },
     FreeVar {
         var: "process",
@@ -1532,7 +1518,6 @@
             ),
         ],
         span: 438..445,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -1732,7 +1717,6 @@
             ),
         ],
         span: 493..500,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -1795,7 +1779,6 @@
             ),
         ],
         span: 512..518,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -1858,7 +1841,6 @@
             ),
         ],
         span: 522..532,
-        in_try: false,
     },
     Call {
         func: Variable(
@@ -2064,7 +2046,6 @@
             ),
         ],
         span: 570..577,
-        in_try: false,
     },
     Member {
         obj: Variable(
@@ -2127,7 +2108,6 @@
             ),
         ],
         span: 592..598,
-        in_try: false,
     },
     Call {
         func: Variable(

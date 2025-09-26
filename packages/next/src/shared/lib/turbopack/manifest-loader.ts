@@ -10,13 +10,11 @@ import type {
   StatsCompilation as WebpackStats,
 } from 'webpack'
 import type { BuildManifest } from '../../../server/get-page-files'
-import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
 import type { REACT_LOADABLE_MANIFEST } from '../constants'
 import {
-  APP_BUILD_MANIFEST,
   APP_PATHS_MANIFEST,
   BUILD_MANIFEST,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
@@ -35,13 +33,6 @@ import type { SetupOpts } from '../../../server/lib/router-utils/setup-dev-bundl
 import { deleteCache } from '../../../server/dev/require-cache'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
-import {
-  type ClientBuildManifest,
-  normalizeRewritesForBuildManifest,
-  srcEmptySsgManifest,
-  processRoute,
-  createEdgeRuntimeManifest,
-} from '../../../build/webpack/plugins/build-manifest-plugin'
 import getAssetPathFromRoute from '../router/utils/get-asset-path-from-route'
 import { getEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
@@ -55,6 +46,13 @@ import {
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 import { safePathToRegexp } from '../router/utils/route-match-utils'
 import type { Entrypoints } from '../../../build/swc/types'
+import {
+  normalizeRewritesForBuildManifest,
+  type ClientBuildManifest,
+  srcEmptySsgManifest,
+  processRoute,
+  createEdgeRuntimeManifest,
+} from '../../../build/webpack/plugins/build-manifest-plugin-utils'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -68,7 +66,6 @@ type TurbopackMiddlewareManifest = MiddlewareManifest & {
 type ManifestName =
   | typeof MIDDLEWARE_MANIFEST
   | typeof BUILD_MANIFEST
-  | typeof APP_BUILD_MANIFEST
   | typeof PAGES_MANIFEST
   | typeof WEBPACK_STATS
   | typeof APP_PATHS_MANIFEST
@@ -134,7 +131,6 @@ function readPartialManifest<T>(
 
 export class TurbopackManifestLoader {
   private actionManifests: Map<EntryKey, ActionManifest> = new Map()
-  private appBuildManifests: Map<EntryKey, AppBuildManifest> = new Map()
   private appPathsManifests: Map<EntryKey, PagesManifest> = new Map()
   private buildManifests: Map<EntryKey, BuildManifest> = new Map()
   private clientBuildManifests: Map<EntryKey, ClientBuildManifest> = new Map()
@@ -164,7 +160,6 @@ export class TurbopackManifestLoader {
 
   delete(key: EntryKey) {
     this.actionManifests.delete(key)
-    this.appBuildManifests.delete(key)
     this.appPathsManifests.delete(key)
     this.buildManifests.delete(key)
     this.clientBuildManifests.delete(key)
@@ -249,36 +244,6 @@ export class TurbopackManifestLoader {
     writeFileAtomic(
       actionManifestJsPath,
       `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`
-    )
-  }
-
-  loadAppBuildManifest(pageName: string): void {
-    this.appBuildManifests.set(
-      getEntryKey('app', 'server', pageName),
-      readPartialManifest(this.distDir, APP_BUILD_MANIFEST, pageName, 'app')
-    )
-  }
-
-  private mergeAppBuildManifests(manifests: Iterable<AppBuildManifest>) {
-    const manifest: AppBuildManifest = {
-      pages: {},
-    }
-    for (const m of manifests) {
-      Object.assign(manifest.pages, m.pages)
-    }
-    manifest.pages = sortObjectByKey(manifest.pages)
-    return manifest
-  }
-
-  private writeAppBuildManifest(): void {
-    const appBuildManifest = this.mergeAppBuildManifests(
-      this.appBuildManifests.values()
-    )
-    const appBuildManifestPath = join(this.distDir, APP_BUILD_MANIFEST)
-    deleteCache(appBuildManifestPath)
-    writeFileAtomic(
-      appBuildManifestPath,
-      JSON.stringify(appBuildManifest, null, 2)
     )
   }
 
@@ -765,7 +730,6 @@ export class TurbopackManifestLoader {
     entrypoints: Entrypoints
   }): void {
     this.writeActionManifest()
-    this.writeAppBuildManifest()
     this.writeAppPathsManifest()
     this.writeBuildManifest(entrypoints, devRewrites, productionRewrites)
     this.writeFallbackBuildManifest()

@@ -84,7 +84,6 @@
     "scrollRestoration": false,
     "externalDir": false,
     "disableOptimizedLoading": false,
-    "gzipSize": true,
     "craCompat": false,
     "esmExternals": true,
     "fullySpecified": false,

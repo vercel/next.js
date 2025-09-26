@@ -30,6 +30,7 @@ import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
+  getOriginalStackFrames,
 } from './middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
@@ -96,7 +97,10 @@ import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../../build/utils'
-import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
+import {
+  receiveBrowserLogsTurbopack,
+  handleClientFileLogs,
+} from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
 import {
   devToolsConfigMiddleware,
@@ -111,6 +115,11 @@ import {
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-shared-utils'
+import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
+import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
+import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
+import { getFileLogger } from './browser-logs/file-logger'
 
 const wsServer = new ws.Server({ noServer: true })
 const isTestMode = !!(
@@ -206,6 +215,12 @@ export async function createHotReloaderTurbopack(
   // Ensure the hotReloaderSpan is flushed immediately as it's the parentSpan for all processing
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
+
+  // Initialize log monitor for file logging
+  // Enable logging by default in development mode
+  const mcpServerEnabled = !!nextConfig.experimental.mcpServer
+  const fileLogger = getFileLogger()
+  fileLogger.initialize(distDir, mcpServerEnabled)
 
   const encryptionKey = await generateEncryptionKeyBase64({
     isBuild: false,
@@ -732,7 +747,28 @@ export async function createHotReloaderTurbopack(
         })
       },
     }),
+    ...(nextConfig.experimental.mcpServer
+      ? [
+          getMcpMiddleware(
+            projectPath,
+            distDir,
+            (message) => hotReloader.send(message),
+            () => clients.size
+          ),
+        ]
+      : []),
   ]
+
+  setStackFrameResolver(async (request) => {
+    return getOriginalStackFrames({
+      project,
+      projectPath,
+      isServer: request.isServer,
+      isEdgeServer: request.isEdgeServer,
+      isAppDirectory: request.isAppDirectory,
+      frames: request.frames,
+    })
+  })
 
   let versionInfoCached: ReturnType<typeof getVersionInfo> | undefined
   // This fetch, even though not awaited, is not kicked off eagerly because the first `fetch()` in
@@ -912,6 +948,34 @@ export async function createHotReloaderTurbopack(
                   config: nextConfig.experimental.browserDebugInfoInTerminal,
                 })
               }
+              break
+            }
+            case 'client-file-logs': {
+              // Always log to file regardless of terminal flag
+              await handleClientFileLogs(parsedData.logs)
+              break
+            }
+            case 'ping': {
+              // Handle ping events to keep WebSocket connections alive
+              // No-op - just acknowledge the ping
+              break
+            }
+
+            case 'mcp-error-state-response': {
+              handleErrorStateResponse(
+                parsedData.requestId,
+                parsedData.errorState,
+                parsedData.url
+              )
+              break
+            }
+
+            case 'mcp-page-metadata-response': {
+              handlePageMetadataResponse(
+                parsedData.requestId,
+                parsedData.segmentTrieData,
+                parsedData.url
+              )
               break
             }
 

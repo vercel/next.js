@@ -88,7 +88,7 @@ export function onRequestError(
   request: {
     path: string // resource path, e.g. /blog?name=foo
     method: string // request method. e.g. GET, POST, etc
-    headers: { [key: string]: string }
+    headers: { [key: string]: string | string[] }
   },
   context: {
     routerKind: 'Pages Router' | 'App Router' // the router type

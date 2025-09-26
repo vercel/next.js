@@ -25,7 +25,9 @@ use turbo_tasks::{
     util::{SharedError, StaticOrArc},
 };
 
-pub use crate::run::{Registration, run, run_with_tt, run_without_cache_check};
+pub use crate::run::{
+    Registration, run, run_once, run_once_without_cache_check, run_with_tt, run_without_cache_check,
+};
 
 enum Task {
     Spawned(Event),
@@ -118,13 +120,20 @@ impl TurboTasksCallApi for VcStorage {
         unreachable!()
     }
 
+    fn run(
+        &self,
+        _future: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
+    ) -> Pin<
+        Box<dyn Future<Output = Result<(), turbo_tasks::backend::TurboTasksExecutionError>> + Send>,
+    > {
+        unreachable!()
+    }
+
     fn run_once(
         &self,
         _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<
-        Box<
-            (dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static),
-        >,
+        Box<dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static>,
     > {
         unreachable!()
     }
@@ -134,9 +143,7 @@ impl TurboTasksCallApi for VcStorage {
         _reason: StaticOrArc<dyn InvalidationReason>,
         _future: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<
-        Box<
-            (dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static),
-        >,
+        Box<dyn futures::Future<Output = Result<(), anyhow::Error>> + std::marker::Send + 'static>,
     > {
         unreachable!()
     }

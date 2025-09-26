@@ -146,7 +146,7 @@ export function runWorkerCode(fn: Function): Promise<WorkerResult> {
 
 describe('unhandled-rejection filter', () => {
   describe('environment variable configuration', () => {
-    it('should not install filter by default', async () => {
+    it('should install filter by default', async () => {
       async function testForWorker() {
         require('next/dist/server/node-environment-extensions/unhandled-rejection')
 
@@ -160,7 +160,7 @@ describe('unhandled-rejection filter', () => {
 
       expect(exitCode).toBe(0)
       expect(messages).toEqual(
-        expect.arrayContaining([expect.objectContaining({ count: 0 })])
+        expect.arrayContaining([expect.objectContaining({ count: 1 })])
       )
     })
 

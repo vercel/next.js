@@ -227,7 +227,7 @@ impl ModuleOptions {
             execution_context,
             tree_shaking_mode,
             keep_last_successful_parse,
-            is_tracing,
+            analyze_mode,
             ..
         } = *module_options_context.await?;
 
@@ -255,7 +255,6 @@ impl ModuleOptions {
             RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Analyze)),
         ]);
 
-        let mut ts_preprocess = vec![];
         let mut ecma_preprocess = vec![];
         let mut postprocess = vec![];
 
@@ -281,7 +280,7 @@ impl ModuleOptions {
             ignore_dynamic_requests,
             extract_source_map: matches!(ecmascript_source_maps, SourceMapsType::Full),
             keep_last_successful_parse,
-            is_tracing,
+            analyze_mode,
             enable_typeof_window_inlining,
             ..Default::default()
         };
@@ -290,15 +289,6 @@ impl ModuleOptions {
         if let Some(environment) = environment {
             postprocess.push(EcmascriptInputTransform::PresetEnv(environment));
         }
-
-        let ts_transform = if let Some(options) = enable_typescript_transform {
-            let options = options.await?;
-            Some(EcmascriptInputTransform::TypeScript {
-                use_define_for_class_fields: options.use_define_for_class_fields,
-            })
-        } else {
-            None
-        };
 
         let decorators_transform = if let Some(options) = &enable_decorators {
             let options = options.await?;
@@ -315,13 +305,6 @@ impl ModuleOptions {
             None
         };
 
-        if let Some(ts_transform) = &ts_transform {
-            if let Some(decorators_transform) = &decorators_transform {
-                ts_preprocess.splice(0..0, [decorators_transform.clone(), ts_transform.clone()]);
-            } else {
-                ts_preprocess.splice(0..0, [ts_transform.clone()]);
-            }
-        }
         if let Some(decorators_transform) = &decorators_transform {
             // Apply decorators transform for the ModuleType::Ecmascript as well after
             // constructing ts_app_transforms. Ecmascript can have decorators for
@@ -334,7 +317,6 @@ impl ModuleOptions {
             ecma_preprocess.splice(0..0, [decorators_transform.clone()]);
         }
 
-        let ts_preprocess = ResolvedVc::cell(ts_preprocess);
         let ecma_preprocess = ResolvedVc::cell(ecma_preprocess);
         let main = ResolvedVc::<EcmascriptInputTransforms>::cell(vec![]);
         let postprocess = ResolvedVc::cell(postprocess);
@@ -381,88 +363,6 @@ impl ModuleOptions {
                     preprocess: ecma_preprocess,
                     main,
                     postprocess,
-                    options: EcmascriptOptions {
-                        specified_module_type: SpecifiedModuleType::CommonJs,
-                        ..ecmascript_options
-                    }
-                    .resolved_cell(),
-                })],
-            ),
-            ModuleRule::new_all(
-                RuleCondition::ResourcePathEndsWith(".ts".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    preprocess: ts_preprocess,
-                    main,
-                    postprocess,
-                    tsx: false,
-                    analyze_types: enable_types,
-                    options: ecmascript_options_vc,
-                })],
-            ),
-            ModuleRule::new_all(
-                RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    preprocess: ts_preprocess,
-                    main,
-                    postprocess,
-                    tsx: true,
-                    analyze_types: enable_types,
-                    options: ecmascript_options_vc,
-                })],
-            ),
-            ModuleRule::new_all(
-                RuleCondition::ResourcePathEndsWith(".mts".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    preprocess: ts_preprocess,
-                    main,
-                    postprocess,
-                    tsx: false,
-                    analyze_types: enable_types,
-                    options: EcmascriptOptions {
-                        specified_module_type: SpecifiedModuleType::EcmaScript,
-                        ..ecmascript_options
-                    }
-                    .resolved_cell(),
-                })],
-            ),
-            ModuleRule::new_all(
-                RuleCondition::ResourcePathEndsWith(".mtsx".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    preprocess: ts_preprocess,
-                    main,
-                    postprocess,
-                    tsx: true,
-                    analyze_types: enable_types,
-                    options: EcmascriptOptions {
-                        specified_module_type: SpecifiedModuleType::EcmaScript,
-                        ..ecmascript_options
-                    }
-                    .resolved_cell(),
-                })],
-            ),
-            ModuleRule::new_all(
-                RuleCondition::ResourcePathEndsWith(".cts".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    preprocess: ts_preprocess,
-                    main,
-                    postprocess,
-                    tsx: false,
-                    analyze_types: enable_types,
-                    options: EcmascriptOptions {
-                        specified_module_type: SpecifiedModuleType::CommonJs,
-                        ..ecmascript_options
-                    }
-                    .resolved_cell(),
-                })],
-            ),
-            ModuleRule::new_all(
-                RuleCondition::ResourcePathEndsWith(".ctsx".to_string()),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
-                    preprocess: ts_preprocess,
-                    main,
-                    postprocess,
-                    tsx: true,
-                    analyze_types: enable_types,
                     options: EcmascriptOptions {
                         specified_module_type: SpecifiedModuleType::CommonJs,
                         ..ecmascript_options
@@ -543,6 +443,106 @@ impl ModuleOptions {
                 vec![ModuleRuleEffect::ModuleType(ModuleType::StaticUrlCss)],
             ),
         ];
+
+        if let Some(options) = enable_typescript_transform {
+            let ts_preprocess = ResolvedVc::cell(
+                decorators_transform
+                    .clone()
+                    .into_iter()
+                    .chain(std::iter::once(EcmascriptInputTransform::TypeScript {
+                        use_define_for_class_fields: options.await?.use_define_for_class_fields,
+                    }))
+                    .collect(),
+            );
+
+            rules.splice(
+                0..0,
+                [
+                    ModuleRule::new_all(
+                        RuleCondition::ResourcePathEndsWith(".ts".to_string()),
+                        vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                            preprocess: ts_preprocess,
+                            main,
+                            postprocess,
+                            tsx: false,
+                            analyze_types: enable_types,
+                            options: ecmascript_options_vc,
+                        })],
+                    ),
+                    ModuleRule::new_all(
+                        RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
+                        vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                            preprocess: ts_preprocess,
+                            main,
+                            postprocess,
+                            tsx: true,
+                            analyze_types: enable_types,
+                            options: ecmascript_options_vc,
+                        })],
+                    ),
+                    ModuleRule::new_all(
+                        RuleCondition::ResourcePathEndsWith(".mts".to_string()),
+                        vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                            preprocess: ts_preprocess,
+                            main,
+                            postprocess,
+                            tsx: false,
+                            analyze_types: enable_types,
+                            options: EcmascriptOptions {
+                                specified_module_type: SpecifiedModuleType::EcmaScript,
+                                ..ecmascript_options
+                            }
+                            .resolved_cell(),
+                        })],
+                    ),
+                    ModuleRule::new_all(
+                        RuleCondition::ResourcePathEndsWith(".mtsx".to_string()),
+                        vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                            preprocess: ts_preprocess,
+                            main,
+                            postprocess,
+                            tsx: true,
+                            analyze_types: enable_types,
+                            options: EcmascriptOptions {
+                                specified_module_type: SpecifiedModuleType::EcmaScript,
+                                ..ecmascript_options
+                            }
+                            .resolved_cell(),
+                        })],
+                    ),
+                    ModuleRule::new_all(
+                        RuleCondition::ResourcePathEndsWith(".cts".to_string()),
+                        vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                            preprocess: ts_preprocess,
+                            main,
+                            postprocess,
+                            tsx: false,
+                            analyze_types: enable_types,
+                            options: EcmascriptOptions {
+                                specified_module_type: SpecifiedModuleType::CommonJs,
+                                ..ecmascript_options
+                            }
+                            .resolved_cell(),
+                        })],
+                    ),
+                    ModuleRule::new_all(
+                        RuleCondition::ResourcePathEndsWith(".ctsx".to_string()),
+                        vec![ModuleRuleEffect::ModuleType(ModuleType::Typescript {
+                            preprocess: ts_preprocess,
+                            main,
+                            postprocess,
+                            tsx: true,
+                            analyze_types: enable_types,
+                            options: EcmascriptOptions {
+                                specified_module_type: SpecifiedModuleType::CommonJs,
+                                ..ecmascript_options
+                            }
+                            .resolved_cell(),
+                        })],
+                    ),
+                ],
+            );
+        }
 
         if let Some(webpack_loaders_options) = enable_webpack_loaders {
             let webpack_loaders_options = webpack_loaders_options.await?;

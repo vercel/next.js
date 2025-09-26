@@ -3,7 +3,7 @@ import fsp from 'fs/promises'
 import path from 'path'
 
 describe('500-page app-router-only', () => {
-  const { next, isNextStart, isTurbopack, isNextDeploy } = nextTestSetup({
+  const { next, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -48,17 +48,9 @@ describe('500-page app-router-only', () => {
       const pagesDir = path.join(next.testDir, '.next', 'server', 'pages')
       const files = await fsp.readdir(pagesDir)
       expect(files).not.toContain('500')
-      if (isTurbopack) {
-        // In turbopack, _app, _document, _error are still generated with manifest, but no javascript files.
-        // The manifest are under the folder, they're still needed for static generation.
-        expect(files).not.toContain('_app.js')
-        expect(files).not.toContain('_document.js')
-        expect(files).not.toContain('_error.js')
-      } else {
-        expect(files).not.toContain('_app')
-        expect(files).not.toContain('_document')
-        expect(files).not.toContain('_error')
-      }
+      expect(files).not.toContain('_app')
+      expect(files).not.toContain('_document')
+      expect(files).not.toContain('_error')
     })
   }
 })
