@@ -9,9 +9,9 @@ describe('twoslash', () => {
   })
 
   it('should annotate twoslash types', async () => {
-    const { code, nodes } = JSON.parse(await next.render('/'))
+    const { code, nodes, error } = JSON.parse(await next.render('/'))
 
-    expect({ code, nodes }).toMatchInlineSnapshot(`
+    expect({ code, nodes, error }).toMatchInlineSnapshot(`
      {
        "code": "'hello'.toUpperCase()",
        "nodes": [
