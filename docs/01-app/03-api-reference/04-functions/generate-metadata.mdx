@@ -1174,15 +1174,15 @@ There are two default `meta` tags that are always added even if a route doesn't 
 
 Streaming metadata allows Next.js to render and send the initial UI to browser, without waiting for `generateMetadata` to complete.
 
-When `generateMetadata` resolves, the resulting metadata tags are appended to the `<body>`.
+When `generateMetadata` resolves, the resulting metadata tags are appended to the `<body>` tag.
 
-Streaming metadata improves perceived performance by reducing [TTFB](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) and can help [LCP](https://developer.mozilla.org/docs/Glossary/Largest_contentful_paint) by allowing visual content to stream first.
+Streaming metadata improves perceived performance by reducing [TTFB](https://developer.mozilla.org/docs/Glossary/Time_to_first_byte) and can help lowering [LCP](https://developer.mozilla.org/docs/Glossary/Largest_contentful_paint) time.
 
-For **HTML-limited bots** that can’t execute JavaScript (e.g. `Twitterbot`, `Slackbot`, `Bingbot`), the metadata will be available in the `<head>`. Next.js won't start sending HTML until `generateMetadata` resolves.
+For **HTML-limited bots** that can’t execute JavaScript (e.g. `Twitterbot`, `Slackbot`, `Bingbot`), metadata continues to block page rendering. The resulting metadata will be available in the `<head>` tag.
 
 Next.js automatically detects **HTML-limited bots** by looking at the User Agent header. You can use the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots) option in your Next.js config file to override the default [User Agent list](https://github.com/vercel/next.js/blob/canary/packages/next/src/shared/lib/router/utils/html-bots.ts).
 
-For example, to fully disable streaming metadata.
+For example, to fully disable streaming metadata:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
