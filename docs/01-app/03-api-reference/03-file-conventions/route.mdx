@@ -118,6 +118,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<'/users/[id]'>) {
 > **Good to know**
 >
 > - Types are generated during `next dev`, `next build` or `next typegen`.
+> - After type generation, the `RouteContext` helper is globally available. It doesn't need to be imported.
 
 ## Examples
 
