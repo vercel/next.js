@@ -116,6 +116,14 @@ pub fn connect_children(
         }
     }
 
+    // Connecting a child varies a lot, but it's in the range of 10-30µs.
+    // Usually many tasks run in parallel and so it this operation.
+    // But sometimes there is only one task running and everybody waits on it.
+    // In this case we want to avoid a long single threaded operation.
+    // Where there are more than 10k children we parallelize the operation.
+    // This avoids long pauses of more than 30µs * 10k = 300ms.
+    // We don't want to parallelize too eagerly as spawning tasks and the temporary allocations have
+    // a cost as well.
     const MIN_CHILDREN_FOR_PARALLEL: usize = 10000;
 
     let len = new_follower_ids.len();
