@@ -1,1 +1,1 @@
-module.exports = require("@next/rspack-core");
+module.exports = require('@next/rspack-core')
