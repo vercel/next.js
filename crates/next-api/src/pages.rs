@@ -69,7 +69,7 @@ use crate::{
     dynamic_imports::{
         DynamicImportedChunks, NextDynamicChunkAvailability, collect_next_dynamic_chunks,
     },
-    font::create_font_manifest,
+    font::FontManifest,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::get_global_information_for_endpoint,
     nft_json::NftJsonAsset,
@@ -199,18 +199,23 @@ impl PagesProject {
                         .to_resolved()
                         .await?,
                     ),
-                    data_endpoint: ResolvedVc::upcast(
-                        PageEndpoint::new(
-                            PageEndpointType::Data,
-                            self,
-                            pathname,
-                            original_name,
-                            page,
-                            pages_structure,
-                        )
-                        .to_resolved()
-                        .await?,
-                    ),
+                    // The data endpoint is only needed in development mode to support HMR
+                    data_endpoint: if self.project().next_mode().await?.is_development() {
+                        Some(ResolvedVc::upcast(
+                            PageEndpoint::new(
+                                PageEndpointType::Data,
+                                self,
+                                pathname,
+                                original_name,
+                                page,
+                                pages_structure,
+                            )
+                            .to_resolved()
+                            .await?,
+                        ))
+                    } else {
+                        None
+                    },
                 })
             })
         };
@@ -653,7 +658,7 @@ impl PageEndpoint {
             if self.ty == PageEndpointType::Data {
                 rcstr!("?server-data")
             } else {
-                RcStr::default()
+                rcstr!("")
             },
         )))
     }
@@ -719,8 +724,8 @@ impl PageEndpoint {
         let this = self.await?;
         let project = this.pages_project.project();
 
-        let should_trace = project.next_mode().await?.is_production();
         if *project.per_page_module_graph().await? {
+            let should_trace = project.next_mode().await?.is_production();
             let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
             // Implements layout segment optimization to compute a graph "chain" for document, app,
             // page
@@ -1350,17 +1355,19 @@ impl PageEndpoint {
         let node_root = this.pages_project.project().node_root().owned().await?;
 
         if emit_manifests == EmitManifests::Full {
-            let next_font_manifest_output = create_font_manifest(
-                this.pages_project.project().client_root().owned().await?,
-                node_root.clone(),
-                this.pages_project.pages_dir().owned().await?,
-                &this.original_name,
-                &manifest_path_prefix,
-                &this.pathname,
-                *client_assets,
-                false,
-            )
-            .await?;
+            let next_font_manifest_output = ResolvedVc::upcast(
+                FontManifest {
+                    client_root: this.pages_project.project().client_root().owned().await?,
+                    node_root: node_root.clone(),
+                    dir: this.pages_project.pages_dir().owned().await?,
+                    original_name: this.original_name.clone(),
+                    manifest_path_prefix: manifest_path_prefix.clone().into(),
+                    pathname: this.pathname.clone(),
+                    client_assets,
+                    app_dir: false,
+                }
+                .resolved_cell(),
+            );
             server_assets.push(next_font_manifest_output);
         }
 
@@ -1585,16 +1592,16 @@ impl Endpoint for PageEndpoint {
         let span = {
             match &this.ty {
                 PageEndpointType::Html => {
-                    tracing::info_span!("page endpoint HTML", name = original_name.to_string())
+                    tracing::info_span!("page endpoint HTML", name = display(original_name))
                 }
                 PageEndpointType::Data => {
-                    tracing::info_span!("page endpoint data", name = original_name.to_string())
+                    tracing::info_span!("page endpoint data", name = display(original_name))
                 }
                 PageEndpointType::Api => {
-                    tracing::info_span!("page endpoint API", name = original_name.to_string())
+                    tracing::info_span!("page endpoint API", name = display(original_name))
                 }
                 PageEndpointType::SsrOnly => {
-                    tracing::info_span!("page endpoint SSR", name = original_name.to_string())
+                    tracing::info_span!("page endpoint SSR", name = display(original_name))
                 }
             }
         };
@@ -1623,7 +1630,6 @@ impl Endpoint for PageEndpoint {
                     .await?;
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
                     .owned()
-                    .instrument(tracing::info_span!("client_paths"))
                     .await?;
                 (server_paths, client_paths)
             } else {

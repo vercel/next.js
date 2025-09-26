@@ -158,7 +158,6 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
     )
     .optional(),
   resolveExtensions: z.array(z.string()).optional(),
-  moduleIds: z.enum(['named', 'deterministic']).optional(),
   root: z.string().optional(),
 })
 
@@ -446,6 +445,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         turbopackUseSystemTlsCerts: z.boolean().optional(),
         turbopackUseBuiltinBabel: z.boolean().optional(),
         turbopackUseBuiltinSass: z.boolean().optional(),
+        turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
         optimizePackageImports: z.array(z.string()).optional(),
         optimizeServerReact: z.boolean().optional(),
         clientTraceMetadata: z.array(z.string()).optional(),
@@ -653,6 +653,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
     pageExtensions: z.array(z.string()).min(1).optional(),
     poweredByHeader: z.boolean().optional(),
     productionBrowserSourceMaps: z.boolean().optional(),
+    publicRuntimeConfig: z.record(z.string(), z.any()).optional(),
     reactProductionProfiling: z.boolean().optional(),
     reactStrictMode: z.boolean().nullable().optional(),
     reactMaxHeadersLength: z.number().nonnegative().int().optional(),
@@ -685,6 +686,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       .catchall(z.any())
       .optional(),
     serverExternalPackages: z.array(z.string()).optional(),
+    serverRuntimeConfig: z.record(z.string(), z.any()).optional(),
     skipMiddlewareUrlNormalize: z.boolean().optional(),
     skipTrailingSlashRedirect: z.boolean().optional(),
     staticPageGenerationTimeout: z.number().optional(),

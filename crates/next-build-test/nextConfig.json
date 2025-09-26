@@ -53,6 +53,8 @@
   "productionBrowserSourceMaps": false,
   "optimizeFonts": true,
   "excludeDefaultMomentLocales": true,
+  "serverRuntimeConfig": {},
+  "publicRuntimeConfig": {},
   "reactProductionProfiling": false,
   "reactStrictMode": true,
   "httpAgentOptions": {

@@ -166,7 +166,7 @@ async fn pick_endpoint(
         }
         EndpointSelector::RoutePageData(name) => {
             if let Some(Route::Page { data_endpoint, .. }) = endpoints.routes.get(&name) {
-                Some(*data_endpoint)
+                *data_endpoint
             } else {
                 None
             }

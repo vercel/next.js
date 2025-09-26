@@ -23,9 +23,9 @@ use next_core::{
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        AppPathsManifest, BuildManifest, ClientReferenceManifest, EdgeFunctionDefinition,
-        MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
-        client_reference_manifest::ClientReferenceManifestOptions,
+        AppPathsManifest, BuildManifest, EdgeFunctionDefinition, MiddlewareMatcher,
+        MiddlewaresManifestV2, PagesManifest, Regions,
+        client_reference_manifest::ClientReferenceManifest,
     },
     next_server::{
         ServerContextType, get_server_module_options_context, get_server_resolve_options_context,
@@ -74,7 +74,7 @@ use turbopack_ecmascript::resolve::cjs_resolve;
 
 use crate::{
     dynamic_imports::{NextDynamicChunkAvailability, collect_next_dynamic_chunks},
-    font::create_font_manifest,
+    font::FontManifest,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::get_global_information_for_endpoint,
     nft_json::NftJsonAsset,
@@ -1239,18 +1239,10 @@ impl AppEndpoint {
             )
             .await?;
 
-            let mut client_shared_chunks = vec![];
-            for &chunk in client_shared_chunk_group.assets.await? {
-                client_assets.insert(chunk);
+            client_assets.extend(client_shared_chunk_group.referenced_assets.await?);
 
-                let chunk_path = chunk.path().await?;
-                if chunk_path.has_extension(".js") {
-                    client_shared_chunks.push(chunk);
-                }
-            }
-            for &chunk in client_shared_chunk_group.referenced_assets.await? {
-                client_assets.insert(chunk);
-            }
+            let client_shared_chunks = client_shared_chunk_group.assets.owned().await?;
+            client_assets.extend(client_shared_chunks.iter().copied());
 
             (
                 client_shared_chunk_group.availability_info,
@@ -1462,8 +1454,8 @@ impl AppEndpoint {
         let mut client_reference_manifest = None;
 
         if emit_rsc_manifests {
-            let entry_manifest =
-                ClientReferenceManifest::build_output(ClientReferenceManifestOptions {
+            let entry_manifest = ResolvedVc::upcast(
+                ClientReferenceManifest {
                     node_root: node_root.clone(),
                     client_relative_path: client_relative_path.clone(),
                     entry_name: app_entry.original_name.clone(),
@@ -1475,9 +1467,9 @@ impl AppEndpoint {
                     next_config: project.next_config().to_resolved().await?,
                     runtime,
                     mode: *project.next_mode().await?,
-                })
-                .to_resolved()
-                .await?;
+                }
+                .resolved_cell(),
+            );
             server_assets.insert(entry_manifest);
             if runtime == NextRuntime::Edge {
                 middleware_assets.insert(entry_manifest);
@@ -1485,17 +1477,19 @@ impl AppEndpoint {
             client_reference_manifest = Some(entry_manifest);
         }
         if emit_manifests == EmitManifests::Full {
-            let next_font_manifest_output = create_font_manifest(
-                project.client_root().owned().await?,
-                node_root.clone(),
-                this.app_project.app_dir().owned().await?,
-                &app_entry.original_name,
-                &app_entry.original_name,
-                &app_entry.original_name,
-                *client_assets,
-                true,
-            )
-            .await?;
+            let next_font_manifest_output = ResolvedVc::upcast(
+                FontManifest {
+                    client_root: project.client_root().owned().await?,
+                    node_root: node_root.clone(),
+                    dir: this.app_project.app_dir().owned().await?,
+                    original_name: app_entry.original_name.clone(),
+                    manifest_path_prefix: app_entry.original_name.clone(),
+                    pathname: app_entry.original_name.clone(),
+                    client_assets,
+                    app_dir: true,
+                }
+                .resolved_cell(),
+            );
             server_assets.insert(next_font_manifest_output);
         }
 
@@ -1835,7 +1829,7 @@ impl AppEndpoint {
                     {
                         let span = tracing::trace_span!(
                             "layout segment",
-                            name = server_component.ident().to_string().await?.as_str()
+                            name = display(server_component.ident().to_string().await?)
                         );
                         async {
                             let ChunkGroupResult {
@@ -1999,7 +1993,6 @@ impl Endpoint for AppEndpoint {
                     .await?;
                 let client_paths = all_paths_in_root(output_assets, client_relative_root)
                     .owned()
-                    .instrument(tracing::info_span!("client_paths"))
                     .await?;
                 (server_paths, client_paths)
             } else {

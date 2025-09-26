@@ -32,12 +32,20 @@
 
 /// <reference types="webpack/module.d.ts" />
 
-import { dispatcher } from 'next/dist/compiled/next-devtools'
+import {
+  dispatcher,
+  getSerializedOverlayState,
+  getSegmentTrieData,
+} from 'next/dist/compiled/next-devtools'
 import { register } from '../../../../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { addMessageListener, sendMessage } from './websocket'
 import formatWebpackMessages from '../../../../shared/lib/format-webpack-messages'
-import { HMR_MESSAGE_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
+import type { McpPageMetadataResponse } from '../../../../shared/lib/mcp-page-metadata-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  HMR_MESSAGE_SENT_TO_SERVER,
+} from '../../../../server/dev/hot-reloader-types'
 import type {
   AddedPageMessage,
   DevPagesManifestUpdateMessage,
@@ -393,6 +401,28 @@ function processMessage(message: HmrMessageSentToBrowser) {
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:
       // These action types are handled in src/client/page-bootstrap.ts
       break
+    case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE: {
+      const errorState = getSerializedOverlayState()
+      const response = {
+        event: HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE,
+        requestId: message.requestId,
+        errorState,
+        url: window.location.href,
+      }
+      sendMessage(JSON.stringify(response))
+      break
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA: {
+      const segmentTrieData = getSegmentTrieData()
+      const response: McpPageMetadataResponse = {
+        event: HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE,
+        requestId: message.requestId,
+        segmentTrieData,
+        url: window.location.href,
+      }
+      sendMessage(JSON.stringify(response))
+      return
+    }
     default:
       message satisfies never
   }

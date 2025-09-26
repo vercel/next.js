@@ -401,6 +401,10 @@ impl AnalyzeEcmascriptModuleResultBuilder {
 
         let references: Vec<_> = self.references.into_iter().collect();
 
+        if !self.analyze_mode.is_code_gen() {
+            debug_assert!(self.code_gens.is_empty());
+        }
+
         self.code_gens.shrink_to_fit();
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
@@ -427,7 +431,10 @@ struct AnalysisState<'a> {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
     var_graph: &'a VarGraph,
-    define_process_cwd: bool,
+    /// Whether to allow tracing to reference files from the project root. This is used to prevent
+    /// random node_modules packages from tracing the entire project due to some dynamic
+    /// `path.join(foo, bar)` call.
+    allow_project_root_tracing: bool,
     /// This is the current state of known values of function
     /// arguments.
     fun_args_values: Mutex<FxHashMap<u32, Vec<JsValue>>>,
@@ -460,7 +467,7 @@ impl AnalysisState<'_> {
                     &self.free_var_references,
                     self.var_graph,
                     attributes,
-                    self.define_process_cwd,
+                    self.allow_project_root_tracing,
                 )
             },
             &self.fun_args_values,
@@ -480,14 +487,14 @@ where
 
 /// Analyse a provided [EcmascriptModuleAsset] and return a [AnalyzeEcmascriptModuleResult].
 #[turbo_tasks::function]
-pub(crate) async fn analyze_ecmascript_module(
+pub async fn analyze_ecmascript_module(
     module: ResolvedVc<EcmascriptModuleAsset>,
     part: Option<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-    let span = {
-        let module = module.ident().to_string().await?.to_string();
-        tracing::info_span!("analyze ecmascript module", name = module)
-    };
+    let span = tracing::info_span!(
+        "analyze ecmascript module",
+        name = display(module.ident().to_string().await?)
+    );
     let result = analyze_ecmascript_module_internal(module, part)
         .instrument(span)
         .await;
@@ -501,7 +508,7 @@ pub(crate) async fn analyze_ecmascript_module(
     }
 }
 
-pub async fn analyze_ecmascript_module_internal(
+async fn analyze_ecmascript_module_internal(
     module: ResolvedVc<EcmascriptModuleAsset>,
     part: Option<ModulePart>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
@@ -540,7 +547,7 @@ pub async fn analyze_ecmascript_module_internal(
     } = *module.determine_module_type().await?;
 
     if let Some(package_json) = referenced_package_json {
-        let span = tracing::info_span!("package.json reference");
+        let span = tracing::trace_span!("package.json reference");
         async {
             analysis.add_reference(
                 PackageJsonReference::new(package_json.clone())
@@ -554,7 +561,7 @@ pub async fn analyze_ecmascript_module_internal(
     }
 
     if analyze_types {
-        let span = tracing::info_span!("tsconfig reference");
+        let span = tracing::trace_span!("tsconfig reference");
         async {
             match &*find_context_file(path.parent(), tsconfig(), false).await? {
                 FindContextFileResult::Found(tsconfig, _) => {
@@ -572,7 +579,12 @@ pub async fn analyze_ecmascript_module_internal(
         .await?;
     }
 
-    let parsed = parsed.await?;
+    let parsed = if !analyze_mode.is_code_gen() {
+        // We are never code-gening the module, so we can drop the AST after the analysis.
+        parsed.final_read_hint().await?
+    } else {
+        parsed.await?
+    };
 
     let ParseResult::Ok {
         program,
@@ -624,7 +636,7 @@ pub async fn analyze_ecmascript_module_internal(
 
     let pos = program.span().lo;
     if analyze_types {
-        let span = tracing::info_span!("type references");
+        let span = tracing::trace_span!("type references");
         async {
             if let Some(comments) = comments.get_leading(pos) {
                 for comment in comments.iter() {
@@ -663,7 +675,7 @@ pub async fn analyze_ecmascript_module_internal(
     }
 
     if options.extract_source_map {
-        let span = tracing::info_span!("source map reference");
+        let span = tracing::trace_span!("source map reference");
         async {
             if let Some((source_map, reference)) = parse_source_map_comment(
                 source,
@@ -687,13 +699,13 @@ pub async fn analyze_ecmascript_module_internal(
     let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
     let mut var_graph = {
-        let _span = tracing::info_span!("analyze variable values").entered();
+        let _span = tracing::trace_span!("analyze variable values").entered();
         set_handler_and_globals(&handler, globals, || {
             create_graph(program, eval_context, analyze_mode)
         })
     };
 
-    let span = tracing::info_span!("esm import references");
+    let span = tracing::trace_span!("esm import references");
     let import_references = async {
         let mut import_references = Vec::with_capacity(eval_context.imports.references().len());
         for (i, r) in eval_context.imports.references().enumerate() {
@@ -747,7 +759,7 @@ pub async fn analyze_ecmascript_module_internal(
     .instrument(span)
     .await?;
 
-    let span = tracing::info_span!("exports");
+    let span = tracing::trace_span!("exports");
     let (webpack_runtime, webpack_entry, webpack_chunks) = async {
         let (webpack_runtime, webpack_entry, webpack_chunks, mut esm_exports) =
             set_handler_and_globals(&handler, globals, || {
@@ -757,7 +769,6 @@ pub async fn analyze_ecmascript_module_internal(
                     &import_references,
                     &mut analysis,
                     analyze_mode,
-                    &var_graph,
                 );
                 // ModuleReferencesVisitor has already called analysis.add_esm_reexport_reference
                 // for any references in esm_exports
@@ -874,7 +885,7 @@ pub async fn analyze_ecmascript_module_internal(
     let mut ignore_effect_span = None;
     // Check if it was a webpack entry
     if let Some((request, webpack_runtime_span)) = webpack_runtime {
-        let span = tracing::info_span!("webpack runtime reference");
+        let span = tracing::trace_span!("webpack runtime reference");
         async {
             let request = Request::parse(request.into()).to_resolved().await?;
             let runtime = resolve_as_webpack_runtime(*origin, *request, *transforms)
@@ -921,7 +932,7 @@ pub async fn analyze_ecmascript_module_internal(
         .await?;
     }
     // TODO: we can do this when constructing the var graph
-    let span = tracing::info_span!("async module handling");
+    let span = tracing::trace_span!("async module handling");
     async {
         let top_level_await_span =
             set_handler_and_globals(&handler, globals, || has_top_level_await(program));
@@ -953,7 +964,7 @@ pub async fn analyze_ecmascript_module_internal(
     .instrument(span)
     .await?;
 
-    let span = tracing::info_span!("effects processing");
+    let span = tracing::trace_span!("effects processing");
     async {
         let effects = take(&mut var_graph.effects);
 
@@ -963,7 +974,12 @@ pub async fn analyze_ecmascript_module_internal(
             origin,
             compile_time_info,
             var_graph: &var_graph,
-            define_process_cwd: !source.ident().path().await?.path.contains("/node_modules/"),
+            allow_project_root_tracing: !source
+                .ident()
+                .path()
+                .await?
+                .path
+                .contains("/node_modules/"),
             fun_args_values: Default::default(),
             var_cache: Default::default(),
             first_import_meta: true,
@@ -1607,6 +1623,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         ignore_dynamic_requests,
         url_rewrite_behavior,
         collect_affecting_sources,
+        allow_project_root_tracing,
         ..
     } = state;
     fn explain_args(args: &[JsValue]) -> (String, String) {
@@ -1722,6 +1739,18 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         }
         return Ok(());
     }
+
+    let get_traced_project_dir = async || {
+        // readFileSync("./foo") should always be relative to the project root, but this is
+        // dangerous inside of node_modules as it can cause a lot of false positives in the
+        // tracing, if some package does `path.join(dynamic)`, it would include everything from
+        // the project root as well.
+        if allow_project_root_tracing {
+            compile_time_info.environment().cwd().owned().await
+        } else {
+            Ok(Some(source.ident().path().await?.parent()))
+        }
+    };
 
     match func {
         JsValue::Alternatives {
@@ -1951,11 +1980,17 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         return Ok(());
                     }
                 }
-                analysis.add_reference(
-                    FileSourceReference::new(*source, Pattern::new(pat), collect_affecting_sources)
+                if let Some(context_dir) = get_traced_project_dir().await? {
+                    analysis.add_reference(
+                        FileSourceReference::new(
+                            context_dir,
+                            Pattern::new(pat),
+                            collect_affecting_sources,
+                        )
                         .to_resolved()
                         .await?,
-                );
+                    );
+                }
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -2000,11 +2035,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     return Ok(());
                 }
             }
-            analysis.add_reference(
-                FileSourceReference::new(*source, Pattern::new(pat), collect_affecting_sources)
-                    .to_resolved()
-                    .await?,
-            );
+            if let Some(context_dir) = get_traced_project_dir().await? {
+                analysis.add_reference(
+                    DirAssetReference::new(context_dir, Pattern::new(pat))
+                        .to_resolved()
+                        .await?,
+                );
+            }
             return Ok(());
         }
 
@@ -2040,11 +2077,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     return Ok(());
                 }
             }
-            analysis.add_reference(
-                DirAssetReference::new(*source, Pattern::new(pat))
-                    .to_resolved()
-                    .await?,
-            );
+            if let Some(context_dir) = get_traced_project_dir().await? {
+                analysis.add_reference(
+                    DirAssetReference::new(context_dir, Pattern::new(pat))
+                        .to_resolved()
+                        .await?,
+                );
+            }
             return Ok(());
         }
         JsValue::WellKnownFunction(WellKnownFunctionKind::ChildProcessSpawnMethod(name))
@@ -2088,10 +2127,12 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 if dynamic {
                     show_dynamic_warning = true;
                 }
-                if !dynamic || !ignore_dynamic_requests {
+                if (!dynamic || !ignore_dynamic_requests)
+                    && let Some(context_dir) = get_traced_project_dir().await?
+                {
                     analysis.add_reference(
                         FileSourceReference::new(
-                            *source,
+                            context_dir,
                             Pattern::new(pat),
                             collect_affecting_sources,
                         )
@@ -2322,11 +2363,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                     .await?;
                                 js_value_to_pattern(&linked_func_call)
                             };
-                            analysis.add_reference(
-                                DirAssetReference::new(*source, Pattern::new(abs_pattern))
-                                    .to_resolved()
-                                    .await?,
-                            );
+                            if let Some(context_dir) = get_traced_project_dir().await? {
+                                analysis.add_reference(
+                                    DirAssetReference::new(context_dir, Pattern::new(abs_pattern))
+                                        .to_resolved()
+                                        .await?,
+                                );
+                            }
                             return Ok(());
                         }
                     }
@@ -2385,11 +2428,13 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         .await?;
                     js_value_to_pattern(&linked_func_call)
                 };
-                analysis.add_reference(
-                    DirAssetReference::new(*source, Pattern::new(abs_pattern))
-                        .to_resolved()
-                        .await?,
-                );
+                if let Some(context_dir) = get_traced_project_dir().await? {
+                    analysis.add_reference(
+                        DirAssetReference::new(context_dir, Pattern::new(abs_pattern))
+                            .to_resolved()
+                            .await?,
+                    );
+                }
                 return Ok(());
             }
             let (args, hints) = explain_args(&args);
@@ -2437,27 +2482,32 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             if args.len() == 2
                 && let Some(JsValue::Object { parts, .. }) = args.get(1)
             {
-                let resolved_dirs = parts
-                    .iter()
-                    .filter_map(|object_part| match object_part {
-                        ObjectPart::KeyValue(
-                            JsValue::Constant(key),
-                            JsValue::Array { items: dirs, .. },
-                        ) if key.as_str() == Some("includeDirs") => {
-                            Some(dirs.iter().filter_map(|dir| dir.as_str()))
-                        }
-                        _ => None,
-                    })
-                    .flatten()
-                    .map(|dir| {
-                        DirAssetReference::new(*source, Pattern::new(Pattern::Constant(dir.into())))
+                if let Some(context_dir) = get_traced_project_dir().await? {
+                    let resolved_dirs = parts
+                        .iter()
+                        .filter_map(|object_part| match object_part {
+                            ObjectPart::KeyValue(
+                                JsValue::Constant(key),
+                                JsValue::Array { items: dirs, .. },
+                            ) if key.as_str() == Some("includeDirs") => {
+                                Some(dirs.iter().filter_map(|dir| dir.as_str()))
+                            }
+                            _ => None,
+                        })
+                        .flatten()
+                        .map(|dir| {
+                            DirAssetReference::new(
+                                context_dir.clone(),
+                                Pattern::new(Pattern::Constant(dir.into())),
+                            )
                             .to_resolved()
-                    })
-                    .try_join()
-                    .await?;
+                        })
+                        .try_join()
+                        .await?;
 
-                for resolved_dir_ref in resolved_dirs {
-                    analysis.add_reference(resolved_dir_ref);
+                    for resolved_dir_ref in resolved_dirs {
+                        analysis.add_reference(resolved_dir_ref);
+                    }
                 }
 
                 return Ok(());
@@ -2930,7 +2980,7 @@ async fn value_visitor(
     >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
-    define_process_cwd: bool,
+    allow_project_root_tracing: bool,
 ) -> Result<(JsValue, bool)> {
     let (mut v, modified) = value_visitor_inner(
         origin,
@@ -2939,7 +2989,7 @@ async fn value_visitor(
         free_var_references,
         var_graph,
         attributes,
-        define_process_cwd,
+        allow_project_root_tracing,
     )
     .await?;
     v.normalize_shallow();
@@ -2956,7 +3006,7 @@ async fn value_visitor_inner(
     >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
-    define_process_cwd: bool,
+    allow_project_root_tracing: bool,
 ) -> Result<(JsValue, bool)> {
     let ImportAttributes { ignore, .. } = *attributes;
     // This check is just an optimization
@@ -3083,7 +3133,7 @@ async fn value_visitor_inner(
         }
         _ => {
             let (mut v, mut modified) =
-                replace_well_known(v, compile_time_info, define_process_cwd).await?;
+                replace_well_known(v, compile_time_info, allow_project_root_tracing).await?;
             modified = replace_builtin(&mut v) || modified;
             modified = modified || v.make_nested_operations_unknown();
             return Ok((v, modified));
@@ -3261,7 +3311,6 @@ struct ModuleReferencesVisitor<'a> {
     webpack_runtime: Option<(RcStr, Span)>,
     webpack_entry: bool,
     webpack_chunks: Vec<Lit>,
-    var_graph: &'a VarGraph,
 }
 
 impl<'a> ModuleReferencesVisitor<'a> {
@@ -3270,7 +3319,6 @@ impl<'a> ModuleReferencesVisitor<'a> {
         import_references: &'a [ResolvedVc<EsmAssetReference>],
         analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
         analyze_mode: AnalyzeMode,
-        var_graph: &'a VarGraph,
     ) -> Self {
         Self {
             analyze_mode,
@@ -3282,28 +3330,6 @@ impl<'a> ModuleReferencesVisitor<'a> {
             webpack_runtime: None,
             webpack_entry: false,
             webpack_chunks: Vec::new(),
-            var_graph,
-        }
-    }
-}
-
-impl<'a> ModuleReferencesVisitor<'a> {
-    /// Returns true if the given export identifier is considered "live".  This means it might
-    /// change values after module evaluation.
-    fn is_export_ident_live(&self, id: &Ident) -> bool {
-        if let Some(crate::analyzer::graph::VarMeta {
-            value: _,
-            assignment_scopes: assignment_kinds,
-        }) = self.var_graph.values.get(&id.to_id())
-        {
-            // If all assignments are in module scope, the export is not live.
-            *assignment_kinds != crate::analyzer::graph::AssignmentScopes::AllInModuleEvalScope
-        } else {
-            // If we haven't computed a value for it, that means it might be
-            // A free variable
-            // an imported variable
-            // In those cases, we just assume that the value is live since we don't know anything
-            true
         }
     }
 }
@@ -3312,10 +3338,10 @@ fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstParent
     ast_path.iter().map(|n| n.kind()).collect()
 }
 
-fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(&Ident)) {
+fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(RcStr)) {
     match pat {
         Pat::Ident(BindingIdent { id, .. }) => {
-            f(id);
+            f(id.sym.as_str().into());
         }
         Pat::Array(ArrayPat { elems, .. }) => elems.iter().for_each(|e| {
             if let Some(e) = e {
@@ -3331,7 +3357,7 @@ fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(&Ident)) {
                     for_each_ident_in_pat(value, f);
                 }
                 ObjectPatProp::Assign(AssignPatProp { key, .. }) => {
-                    f(key);
+                    f(key.sym.as_str().into());
                 }
                 ObjectPatProp::Rest(RestPat { arg, .. }) => {
                     for_each_ident_in_pat(arg, f);
@@ -3372,7 +3398,6 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             .map(find_turbopack_part_id_in_asserts)
             .is_some();
 
-        // This is for a statement like `export {a, b as c}` with no `from` clause.
         if export.src.is_none() {
             for spec in export.specifiers.iter() {
                 fn to_rcstr(name: &ModuleExportName) -> RcStr {
@@ -3413,24 +3438,14 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                                     EsmExport::ImportedNamespace(ResolvedVc::upcast(esm_ref))
                                 }
                             } else {
-                                let liveness = match orig {
-                                    ModuleExportName::Ident(ident) => {
-                                        if self.is_export_ident_live(ident) {
-                                            Liveness::Live
-                                        } else {
-                                            Liveness::Constant
-                                        }
-                                    }
-                                    ModuleExportName::Str(_) => Liveness::Constant,
-                                };
-
                                 EsmExport::LocalBinding(
                                     binding_name,
                                     if is_fake_esm {
-                                        // it is likely that these are not always actually mutable.
                                         Liveness::Mutable
                                     } else {
-                                        liveness
+                                        // If this is `export {foo} from 'mod'` and `foo` is a const
+                                        // in mod then we could export as Const here.
+                                        Liveness::Live
                                     },
                                 )
                             }
@@ -3455,27 +3470,30 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
     ) {
         {
             let decl: &Decl = &export.decl;
-            let insert_export_binding = &mut |id: &Ident| {
-                let liveness = if self.is_export_ident_live(id) {
-                    Liveness::Live
-                } else {
-                    Liveness::Constant
-                };
-                let name: RcStr = id.sym.as_str().into();
+            let insert_export_binding = &mut |name: RcStr, liveness: Liveness| {
                 self.esm_exports
                     .insert(name.clone(), EsmExport::LocalBinding(name, liveness));
             };
             match decl {
                 Decl::Class(ClassDecl { ident, .. }) | Decl::Fn(FnDecl { ident, .. }) => {
-                    insert_export_binding(ident);
+                    // TODO: examine whether the value is ever mutated rather than just checking
+                    // 'const'
+                    insert_export_binding(ident.sym.as_str().into(), Liveness::Live);
                 }
                 Decl::Var(var_decl) => {
-                    var_decl
-                        .decls
-                        .iter()
-                        .for_each(|VarDeclarator { name, .. }| {
-                            for_each_ident_in_pat(name, insert_export_binding);
-                        });
+                    // TODO: examine whether the value is ever mutated rather than just checking
+                    // 'const'
+                    let liveness = match var_decl.kind {
+                        VarDeclKind::Var => Liveness::Live,
+                        VarDeclKind::Let => Liveness::Live,
+                        VarDeclKind::Const => Liveness::Constant,
+                    };
+                    let decls = &*var_decl.decls;
+                    decls.iter().for_each(|VarDeclarator { name, .. }| {
+                        for_each_ident_in_pat(name, &mut |name| {
+                            insert_export_binding(name, liveness)
+                        })
+                    });
                 }
                 Decl::Using(_) => {
                     // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#:~:text=You%20cannot%20use%20export%20on%20a%20using%20or%20await%20using%20declaration
@@ -3523,22 +3541,21 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
     ) {
         match &export.decl {
             DefaultDecl::Class(ClassExpr { ident, .. }) | DefaultDecl::Fn(FnExpr { ident, .. }) => {
-                let export = match ident {
-                    Some(ident) => EsmExport::LocalBinding(
-                        ident.sym.as_str().into(),
-                        if self.is_export_ident_live(ident) {
+                self.esm_exports.insert(
+                    rcstr!("default"),
+                    EsmExport::LocalBinding(
+                        ident
+                            .as_ref()
+                            .map(|i| i.sym.as_str().into())
+                            .unwrap_or_else(|| magic_identifier::mangle("default export").into()),
+                        // Default export declarations can only be mutated if they have a name.
+                        if ident.is_some() {
                             Liveness::Live
                         } else {
                             Liveness::Constant
                         },
                     ),
-                    // If there is no name, like `export default function(){}` then it is not live.
-                    None => EsmExport::LocalBinding(
-                        magic_identifier::mangle("default export").into(),
-                        Liveness::Constant,
-                    ),
-                };
-                self.esm_exports.insert(rcstr!("default"), export);
+                );
             }
             DefaultDecl::TsInterfaceDecl(..) => {
                 // ignore

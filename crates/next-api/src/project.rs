@@ -334,7 +334,7 @@ impl ProjectContainer {
         Ok(())
     }
 
-    #[tracing::instrument(level = "info", name = "update project", skip_all)]
+    #[tracing::instrument(level = "info", name = "update project options", skip_all)]
     pub async fn update(self: Vc<Self>, options: PartialProjectOptions) -> Result<()> {
         let PartialProjectOptions {
             root_path,
@@ -848,12 +848,7 @@ impl Project {
         let mut endpoints = Vec::new();
 
         let entrypoints = self.entrypoints().await?;
-
-        // Always include these basic pages endpoints regardless of `app_dir_only`. The user's
-        // page routes themselves are excluded below.
-        endpoints.push(entrypoints.pages_error_endpoint);
-        endpoints.push(entrypoints.pages_app_endpoint);
-        endpoints.push(entrypoints.pages_document_endpoint);
+        let mut is_pages_entries_added = false;
 
         if let Some(middleware) = &entrypoints.middleware {
             endpoints.push(middleware.endpoint);
@@ -868,15 +863,31 @@ impl Project {
             match route {
                 Route::Page {
                     html_endpoint,
-                    data_endpoint: _,
+                    data_endpoint,
                 } => {
                     if !app_dir_only {
                         endpoints.push(*html_endpoint);
+                        if !is_pages_entries_added {
+                            endpoints.push(entrypoints.pages_error_endpoint);
+                            endpoints.push(entrypoints.pages_app_endpoint);
+                            endpoints.push(entrypoints.pages_document_endpoint);
+                            is_pages_entries_added = true;
+                        }
+                        // This only exists in development mode for HMR
+                        if let Some(data_endpoint) = data_endpoint {
+                            endpoints.push(*data_endpoint);
+                        }
                     }
                 }
                 Route::PageApi { endpoint } => {
                     if !app_dir_only {
                         endpoints.push(*endpoint);
+                        if !is_pages_entries_added {
+                            endpoints.push(entrypoints.pages_error_endpoint);
+                            endpoints.push(entrypoints.pages_app_endpoint);
+                            endpoints.push(entrypoints.pages_document_endpoint);
+                            is_pages_entries_added = true;
+                        }
                     }
                 }
                 Route::AppPage(page_routes) => {
@@ -991,7 +1002,7 @@ impl Project {
         let this = self.await?;
         Ok(get_server_compile_time_info(
             // `/ROOT` corresponds to `[project]/`, so we need exactly the `path` part.
-            format!("/ROOT/{}", self.project_path().await?.path).into(),
+            self.project_path(),
             this.define_env.nodejs(),
             self.current_node_js_version(),
         ))

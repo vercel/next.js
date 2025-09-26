@@ -1,5 +1,6 @@
+import type { EnvironmentConfig } from 'babel-plugin-react-compiler'
 import path from 'path'
-import type { ReactCompilerOptions } from '../server/config-shared'
+import type { JSONValue, ReactCompilerOptions } from '../server/config-shared'
 import type { NextBabelLoaderOptions } from './babel/loader/types'
 
 function getReactCompiler() {
@@ -15,27 +16,24 @@ function getReactCompiler() {
 }
 
 const getReactCompilerPlugins = (
-  options: boolean | ReactCompilerOptions | undefined,
-  isServer: boolean
-) => {
-  if (!options || isServer) {
+  maybeOptions: boolean | ReactCompilerOptions | undefined,
+  isServer: boolean,
+  isDev: boolean
+): undefined | JSONValue[] => {
+  if (!maybeOptions || isServer) {
     return undefined
   }
 
-  const compilerOptions = typeof options === 'boolean' ? {} : options
-  if (options) {
-    return [
-      [
-        getReactCompiler(),
-        {
-          // https://react.dev/reference/react-compiler/panicThreshold
-          panicThreshold: 'none',
-          ...compilerOptions,
-        },
-      ],
-    ]
+  const environment: Pick<EnvironmentConfig, 'enableNameAnonymousFunctions'> = {
+    enableNameAnonymousFunctions: isDev,
   }
-  return undefined
+  const options: ReactCompilerOptions =
+    typeof maybeOptions === 'boolean' ? {} : maybeOptions
+  const compilerOptions: JSONValue = {
+    ...options,
+    environment,
+  }
+  return [[getReactCompiler(), compilerOptions]]
 }
 
 const getBabelLoader = (
@@ -67,7 +65,8 @@ const getBabelLoader = (
       hasJsxRuntime: true,
       reactCompilerPlugins: getReactCompilerPlugins(
         reactCompilerOptions,
-        isServer
+        isServer,
+        dev
       ),
       reactCompilerExclude,
     }
@@ -90,11 +89,13 @@ const getReactCompilerLoader = (
   reactCompilerOptions: boolean | ReactCompilerOptions | undefined,
   cwd: string,
   isServer: boolean,
-  reactCompilerExclude: ((excludePath: string) => boolean) | undefined
+  reactCompilerExclude: ((excludePath: string) => boolean) | undefined,
+  isDev: boolean
 ) => {
   const reactCompilerPlugins = getReactCompilerPlugins(
     reactCompilerOptions,
-    isServer
+    isServer,
+    isDev
   )
   if (!reactCompilerPlugins) {
     return undefined

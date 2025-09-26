@@ -138,7 +138,7 @@ impl Visit<(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>)> for Outpu
         node: &(ResolvedVc<Box<dyn OutputAsset>>, Option<ReadRef<RcStr>>),
     ) -> tracing::Span {
         if let Some(ident) = &node.1 {
-            tracing::info_span!("asset", name = display(ident))
+            tracing::trace_span!("asset", name = display(ident))
         } else {
             Span::current()
         }

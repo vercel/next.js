@@ -54,11 +54,16 @@ impl UpdateOutputOperation {
 
         'output: {
             let mut task = ctx.task(task_id, TaskDataCategory::All);
+            let in_progress_state = get!(task, InProgress);
+            if matches!(in_progress_state, Some(InProgressState::Canceled)) {
+                // Skip updating the output when the task was canceled
+                break 'output;
+            }
             let Some(InProgressState::InProgress(box InProgressStateInner {
                 stale,
                 new_children,
                 ..
-            })) = get!(task, InProgress)
+            })) = in_progress_state
             else {
                 panic!("Task is not in progress while updating the output");
             };

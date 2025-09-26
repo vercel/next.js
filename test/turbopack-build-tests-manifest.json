@@ -11002,6 +11002,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/integration/development-runtime-config/test/index.test.js": {
+    "passed": [
+      "should work with runtime-config in next.config.js empty runtime-config",
+      "should work with runtime-config in next.config.js with runtime-config"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/integration/disable-js/test/index.test.js": {
     "passed": [
       "disabled runtime JS production mode should not have __NEXT_DATA__ script",
@@ -19406,6 +19416,7 @@
       "Production Usage Misc should handle already finished responses",
       "Production Usage Misc should have default runtime values when not defined",
       "Production Usage Misc should not add autoExport for non pre-rendered pages",
+      "Production Usage Misc should not have runtimeConfig in __NEXT_DATA__",
       "Production Usage Misc should reload the page on page script error",
       "Production Usage Misc should reload the page on page script error with prefetch",
       "Production Usage Runtime errors should call getInitialProps on _error page during a client side component error",
