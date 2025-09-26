@@ -19,14 +19,12 @@ function makeUntrackedSearchParamsWithDevWarnings(
   }
 
   const proxiedProperties = new Set<string>()
-  const unproxiedProperties: Array<string> = []
   const promise = Promise.resolve(underlyingSearchParams)
 
   Object.keys(underlyingSearchParams).forEach((prop) => {
     if (wellKnownProperties.has(prop)) {
       // These properties cannot be shadowed because they need to be the
       // true underlying value for Promises to work correctly at runtime
-      unproxiedProperties.push(prop)
     } else {
       proxiedProperties.add(prop)
     }

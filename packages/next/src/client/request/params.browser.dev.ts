@@ -1,7 +1,6 @@
 import type { Params } from '../../server/request/params'
 
 import { ReflectAdapter } from '../../server/web/spec-extension/adapters/reflect'
-import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   describeStringPropertyAccess,
   wellKnownProperties,
@@ -24,7 +23,6 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
   const promise = Promise.resolve(underlyingParams)
 
   const proxiedProperties = new Set<string>()
-  const unproxiedProperties: Array<string> = []
 
   Object.keys(underlyingParams).forEach((prop) => {
     if (wellKnownProperties.has(prop)) {
@@ -55,7 +53,7 @@ function makeDynamicallyTrackedParamsWithDevWarnings(
       return ReflectAdapter.set(target, prop, value, receiver)
     },
     ownKeys(target) {
-      warnForEnumeration(unproxiedProperties)
+      warnForEnumeration()
       return Reflect.ownKeys(target)
     },
   })
@@ -72,43 +70,12 @@ function warnForSyncAccess(expression: string) {
   )
 }
 
-function warnForEnumeration(missingProperties: Array<string>) {
-  if (missingProperties.length) {
-    const describedMissingProperties =
-      describeListOfPropertyNames(missingProperties)
-    console.error(
-      `params are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
-        `\`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. ` +
-        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-    )
-  } else {
-    console.error(
-      `params are being enumerated. ` +
-        `\`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. ` +
-        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-    )
-  }
-}
-
-function describeListOfPropertyNames(properties: Array<string>) {
-  switch (properties.length) {
-    case 0:
-      throw new InvariantError(
-        'Expected describeListOfPropertyNames to be called with a non-empty list of strings.'
-      )
-    case 1:
-      return `\`${properties[0]}\``
-    case 2:
-      return `\`${properties[0]}\` and \`${properties[1]}\``
-    default: {
-      let description = ''
-      for (let i = 0; i < properties.length - 1; i++) {
-        description += `\`${properties[i]}\`, `
-      }
-      description += `, and \`${properties[properties.length - 1]}\``
-      return description
-    }
-  }
+function warnForEnumeration() {
+  console.error(
+    `params are being enumerated. ` +
+      `\`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+  )
 }
 
 export function createRenderParamsFromClient(
