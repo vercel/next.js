@@ -86,7 +86,7 @@ import {
   getDigestForWellKnownError,
 } from './create-error-handler'
 import { dynamicParamTypes } from './get-short-dynamic-param-type'
-import { getSegmentParam } from './get-segment-param'
+import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 import { getScriptNonceFromHeader } from './get-script-nonce-from-header'
 import { parseAndValidateFlightRouterState } from './parse-and-validate-flight-router-state'
 import { createFlightRouterStateFromLoaderTree } from './create-flight-router-state-from-loader-tree'
@@ -181,7 +181,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 
 import { HTML_CONTENT_TYPE_HEADER, INFINITE_CACHE } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
-import { parseLoaderTree } from './parse-loader-tree'
+import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
 import {
   createPrerenderResumeDataCache,
   createRenderResumeDataCache,

@@ -1,5 +1,5 @@
-import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
-import type { LoaderTree } from '../lib/app-dir-module'
+import { DEFAULT_SEGMENT_KEY } from '../../segment'
+import type { LoaderTree } from '../../../../server/lib/app-dir-module'
 
 export function parseLoaderTree(tree: LoaderTree) {
   const [segment, parallelRoutes, modules] = tree

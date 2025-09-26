@@ -4,8 +4,8 @@ import type { OpaqueFallbackRouteParams } from '../../../../server/request/fallb
 import type { Params } from '../../../../server/request/params'
 import type { DynamicParamTypesShort } from '../../app-router-types'
 import { InvariantError } from '../../invariant-error'
-import { parseLoaderTree } from '../../../../server/app-render/parse-loader-tree'
-import { getSegmentParam } from '../../../../server/app-render/get-segment-param'
+import { parseLoaderTree } from './parse-loader-tree'
+import { getSegmentParam } from './get-segment-param'
 
 /**
  * Gets the value of a param from the params object. This correctly handles the

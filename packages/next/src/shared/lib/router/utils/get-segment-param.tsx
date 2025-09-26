@@ -1,5 +1,5 @@
-import { INTERCEPTION_ROUTE_MARKERS } from '../../shared/lib/router/utils/interception-routes'
-import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
+import { INTERCEPTION_ROUTE_MARKERS } from './interception-routes'
+import type { DynamicParamTypes } from '../../app-router-types'
 
 /**
  * Parse dynamic route segment to type of parameter
