@@ -334,7 +334,7 @@ impl ProjectContainer {
         Ok(())
     }
 
-    #[tracing::instrument(level = "info", name = "update project", skip_all)]
+    #[tracing::instrument(level = "info", name = "update project options", skip_all)]
     pub async fn update(self: Vc<Self>, options: PartialProjectOptions) -> Result<()> {
         let PartialProjectOptions {
             root_path,
@@ -863,7 +863,7 @@ impl Project {
             match route {
                 Route::Page {
                     html_endpoint,
-                    data_endpoint: _,
+                    data_endpoint,
                 } => {
                     if !app_dir_only {
                         endpoints.push(*html_endpoint);
@@ -872,6 +872,10 @@ impl Project {
                             endpoints.push(entrypoints.pages_app_endpoint);
                             endpoints.push(entrypoints.pages_document_endpoint);
                             is_pages_entries_added = true;
+                        }
+                        // This only exists in development mode for HMR
+                        if let Some(data_endpoint) = data_endpoint {
+                            endpoints.push(*data_endpoint);
                         }
                     }
                 }
@@ -998,7 +1002,7 @@ impl Project {
         let this = self.await?;
         Ok(get_server_compile_time_info(
             // `/ROOT` corresponds to `[project]/`, so we need exactly the `path` part.
-            format!("/ROOT/{}", self.project_path().await?.path).into(),
+            self.project_path(),
             this.define_env.nodejs(),
             self.current_node_js_version(),
         ))

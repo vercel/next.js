@@ -225,6 +225,14 @@ export class NextInstance {
           ...this.packageJson?.dependencies,
         }
 
+        if (
+          process.env.__NEXT_ENABLE_REACT_COMPILER === 'true' &&
+          !finalDependencies['babel-plugin-react-compiler']
+        ) {
+          finalDependencies['babel-plugin-react-compiler'] =
+            '0.0.0-experimental-3fde738-20250918'
+        }
+
         if (skipInstall || skipIsolatedNext) {
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
           await fs.mkdir(this.testDir, { recursive: true })
@@ -392,6 +400,14 @@ export class NextInstance {
           // env variable during deploy
           if (process.env.NEXT_PRIVATE_TEST_MODE) {
             process.env.__NEXT_TEST_MODE = process.env.NEXT_PRIVATE_TEST_MODE
+          }
+
+          // alias experimental feature flags for deployment compatibility
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_PPR) {
+            process.env.__NEXT_EXPERIMENTAL_PPR = process.env.NEXT_PRIVATE_EXPERIMENTAL_PPR
+          }
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
+            process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
           }
         `
           )

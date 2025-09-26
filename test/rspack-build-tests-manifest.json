@@ -708,10 +708,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-middleware/app-middleware-in-src-dir.test.ts": {
+    "passed": [
+      "app dir - middleware with middleware in src dir works without crashing when using RequestStore"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-middleware/app-middleware-without-pages-dir.test.ts": {
+    "passed": ["app dir - middleware without pages dir Updates headers"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-middleware/app-middleware.test.ts": {
     "passed": [
-      "app dir - middleware with middleware in src dir works without crashing when using RequestStore",
-      "app dir - middleware without pages dir Updates headers",
       "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
       "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
       "app-dir with middleware Mutate request headers for Edge Functions Supports draft mode",
@@ -1857,7 +1871,6 @@
       "Cache Components Errors Build With --prerender-debug With `use cache: private` in `unstable_cache` should error the build",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` in `use cache` should error the build",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
-      "Cache Components Errors Build With --prerender-debug With `use cache: private` with `headers()` should not fail the build and show no runtime error (caught in userland)",
       "Cache Components Errors Build With --prerender-debug With `use cache: private` without Suspense should error the build",
       "Cache Components Errors Build Without --prerender-debug Dynamic Boundary should partially prerender when all dynamic components are inside a Suspense boundary",
       "Cache Components Errors Build Without --prerender-debug Dynamic Metadata - Dynamic Route should partially prerender when all dynamic components are inside a Suspense boundary",
@@ -1905,7 +1918,6 @@
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` in `unstable_cache` should error the build",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` in `use cache` should error the build",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` with `connection()` should not fail the build and show no runtime error (caught in userland)",
-      "Cache Components Errors Build Without --prerender-debug With `use cache: private` with `headers()` should not fail the build and show no runtime error (caught in userland)",
       "Cache Components Errors Build Without --prerender-debug With `use cache: private` without Suspense should error the build"
     ],
     "failed": [],
@@ -5938,20 +5950,10 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/router-disable-smooth-scroll/router-disable-smooth-scroll.legacy.test.ts": {
-    "passed": [
-      "router smooth scroll optimization (legacy with data attribute) should not warn when data attribute is present even in legacy mode",
-      "router smooth scroll optimization (legacy) should work with smooth scroll CSS and warn in development"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/router-disable-smooth-scroll/router-disable-smooth-scroll.optimized.test.ts": {
     "passed": [
-      "router smooth scroll optimization (optimized early exit) should exit early when CSS smooth scroll detected but no data attribute",
-      "router smooth scroll optimization (optimized) should work with smooth scroll CSS and data attribute without warning"
+      "router smooth scroll optimization (optimized early exit) should warn in dev when CSS smooth scroll detected but no data attribute",
+      "router smooth scroll optimization should work with smooth scroll CSS and data attribute without warning"
     ],
     "failed": [],
     "pending": [],
@@ -6696,21 +6698,25 @@
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a private cache",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting a quickly-expiring public cache",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting cookies()",
+      "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting headers()",
       "runtime prefetching errors aborts the prerender without logging an error when sync IO is used after awaiting searchParams",
       "runtime prefetching errors should trigger error boundaries for errors that occurred in runtime-prefetched content",
       "runtime prefetching in a page can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching in a page includes cookies, but not dynamic content",
       "runtime prefetching in a page includes dynamic params, but not dynamic content",
+      "runtime prefetching in a page includes headers, but not dynamic content",
       "runtime prefetching in a page includes root params, but not dynamic content",
       "runtime prefetching in a page includes search params, but not dynamic content",
       "runtime prefetching in a private cache can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching in a private cache includes cookies, but not dynamic content",
       "runtime prefetching in a private cache includes dynamic params, but not dynamic content",
+      "runtime prefetching in a private cache includes headers, but not dynamic content",
       "runtime prefetching in a private cache includes root params, but not dynamic content",
       "runtime prefetching in a private cache includes search params, but not dynamic content",
       "runtime prefetching passed to a public cache can completely prefetch a page that uses cookies and no uncached IO",
       "runtime prefetching passed to a public cache includes cookies, but not dynamic content",
       "runtime prefetching passed to a public cache includes dynamic params, but not dynamic content",
+      "runtime prefetching passed to a public cache includes headers, but not dynamic content",
       "runtime prefetching passed to a public cache includes root params, but not dynamic content",
       "runtime prefetching passed to a public cache includes search params, but not dynamic content",
       "runtime prefetching should not cache runtime prefetch responses in the browser cache or server-side different cookies should return different prefetch results - in a page",
@@ -7089,6 +7095,7 @@
   "test/e2e/app-dir/typed-routes/typed-routes.test.ts": {
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
+      "typed-routes should exit typegen successfully",
       "typed-routes should generate RouteContext type for route handlers",
       "typed-routes should generate route types correctly",
       "typed-routes should throw type errors"
@@ -7437,8 +7444,8 @@
   },
   "test/e2e/app-dir/with-babel/with-babel.test.ts": {
     "passed": [
-      "with babel with babel should contain og package files in middleware",
-      "with babel with babel should support babel in app dir"
+      "with babel should contain og package files in middleware",
+      "with babel should support babel in app dir"
     ],
     "failed": [],
     "pending": [],
@@ -7533,6 +7540,13 @@
     ],
     "failed": [],
     "pending": ["Async modules can render async AMP pages"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/babel/index.test.js": {
+    "passed": ["Babel Should compile a page with flowtype correctly"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9668,11 +9682,18 @@
   },
   "test/e2e/persistent-caching/persistent-caching.test.ts": {
     "passed": [
-      "persistent-caching should allow to change files while stopped (run 1)",
-      "persistent-caching should allow to change files while stopped (run 2)",
-      "persistent-caching should allow to change files while stopped (run 3)"
+      "persistent-caching should allow to change files while stopped (loader change)",
+      "persistent-caching should allow to change files while stopped (next config change)"
     ],
-    "failed": ["persistent-caching should persistent cache loaders"],
+    "failed": [
+      "persistent-caching should allow to change files while stopped (Pages change)",
+      "persistent-caching should allow to change files while stopped (RCC change)",
+      "persistent-caching should allow to change files while stopped (RSC change)",
+      "persistent-caching should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
+      "persistent-caching should allow to change files while stopped (env var change)",
+      "persistent-caching should allow to change files while stopped (rename app page)",
+      "persistent-caching should persistent cache loaders"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9818,12 +9839,14 @@
   },
   "test/e2e/react-compiler/react-compiler.test.ts": {
     "passed": [
-      "react-compiler babelrc should render",
+      "react-compiler babelrc should memoize Components",
+      "react-compiler babelrc should name functions in dev",
       "react-compiler babelrc should show an experimental warning",
       "react-compiler babelrc should work with a library that uses the react-server condition",
       "react-compiler babelrc should work with a library using use client",
       "react-compiler babelrc throws if the React Compiler is used in a React Server environment",
-      "react-compiler default should render",
+      "react-compiler default should memoize Components",
+      "react-compiler default should name functions in dev",
       "react-compiler default should show an experimental warning",
       "react-compiler default should work with a library that uses the react-server condition",
       "react-compiler default should work with a library using use client",
@@ -10207,6 +10230,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/transpile-packages-typescript-foreign/index.test.ts": {
+    "passed": [
+      "transpile-packages-typescript-foreign with transpilePackages should work"
+    ],
+    "failed": [
+      "transpile-packages-typescript-foreign without transpilePackages should fail"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/transpile-packages/index.test.ts": {
     "passed": [
       "transpile packages css should handle css modules imports inside transpiled modules",
@@ -10252,16 +10286,6 @@
     "passed": ["turbopack-loader-config should only run the test in turbopack"],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/turbopack-turbo-config-compatibility/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "turbopack-turbo-config-compatibility including both turbopack and deprecated experimental turbo config prefers turbopack config over deprecated experimental turbo config",
-      "turbopack-turbo-config-compatibility only including deprecated experimental turbo config still uses the deprecated experimental turbo config"
-    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -11079,15 +11103,6 @@
   },
   "test/integration/babel-next-image/babel-next-image.test.js": {
     "passed": ["babel-next-image should work with babel and next/image"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/babel/test/index.test.js": {
-    "passed": [
-      "Babel Rendering via HTTP Should compile a page with flowtype correctly"
-    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -20479,6 +20494,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/production/bundle-size/bundle-size.test.ts": {
+    "passed": [
+      "bundle-size should not load too much: App Router: adding a client component",
+      "bundle-size should not load too much: App Router: between RSC-only identical pages",
+      "bundle-size should not load too much: Pages Router: between identical pages"
+    ],
+    "failed": [
+      "bundle-size should not load too much: App Router: between identical pages with a client component"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/production/ci-missing-typescript-deps/index.test.ts": {
     "passed": [
       "ci-missing-typescript-deps should not throw an error if beta version of @types/react and @types/react-dom is installed",
@@ -21324,6 +21352,7 @@
       "required server files app router should not send invalid soft tags to cache handler",
       "required server files app router should properly handle fallback for bot request",
       "required server files app router should properly handle prerender for bot request",
+      "required server files app router should properly handle resume request that looks like a data request",
       "required server files app router should properly stream resume with Next-Resume",
       "required server files app router should send cache tags in minimal mode for ISR",
       "required server files app router should still render when postponed is corrupted with Next-Resume",

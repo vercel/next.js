@@ -158,7 +158,6 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
     )
     .optional(),
   resolveExtensions: z.array(z.string()).optional(),
-  moduleIds: z.enum(['named', 'deterministic']).optional(),
   root: z.string().optional(),
 })
 
@@ -446,6 +445,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         turbopackUseSystemTlsCerts: z.boolean().optional(),
         turbopackUseBuiltinBabel: z.boolean().optional(),
         turbopackUseBuiltinSass: z.boolean().optional(),
+        turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
         optimizePackageImports: z.array(z.string()).optional(),
         optimizeServerReact: z.boolean().optional(),
         clientTraceMetadata: z.array(z.string()).optional(),

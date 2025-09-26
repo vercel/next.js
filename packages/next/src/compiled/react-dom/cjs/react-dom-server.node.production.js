@@ -659,11 +659,16 @@ function getSuspenseFallbackFormatContext(resumableState, parentContext) {
   );
 }
 function getSuspenseContentFormatContext(resumableState, parentContext) {
+  resumableState = getSuspenseViewTransition(parentContext.viewTransition);
+  var subtreeScope = parentContext.tagScope | 16;
+  null !== resumableState &&
+    "none" !== resumableState.share &&
+    (subtreeScope |= 64);
   return createFormatContext(
     parentContext.insertionMode,
     parentContext.selectedValue,
-    parentContext.tagScope | 16,
-    getSuspenseViewTransition(parentContext.viewTransition)
+    subtreeScope,
+    resumableState
   );
 }
 var textSeparator = stringToPrecomputedChunk("\x3c!-- --\x3e");
@@ -2085,6 +2090,9 @@ function pushStartInstance(
           ("t" !== srcSet[2] && "T" !== srcSet[2]) ||
           ("a" !== srcSet[3] && "A" !== srcSet[3]))
       ) {
+        null !== hoistableState &&
+          formatContext.tagScope & 64 &&
+          (hoistableState.suspenseyImages = !0);
         var sizes = "string" === typeof props.sizes ? props.sizes : void 0,
           key$jscomp$0 = srcSet ? srcSet + "\n" + (sizes || "") : src,
           promotablePreloads = renderState.preloads.images,
@@ -2777,7 +2785,7 @@ function writeStyleResourceAttributeInJS(destination, name, value) {
   writeChunk(destination, escapeJSObjectForInstructionScripts(name));
 }
 function createHoistableState() {
-  return { styles: new Set(), stylesheets: new Set() };
+  return { styles: new Set(), stylesheets: new Set(), suspenseyImages: !1 };
 }
 function prefetchDNS(href) {
   var request = resolveRequest();
@@ -3185,6 +3193,10 @@ function hoistStylesheetDependency(stylesheet) {
 function hoistHoistables(parentState, childState) {
   childState.styles.forEach(hoistStyleQueueDependency, parentState);
   childState.stylesheets.forEach(hoistStylesheetDependency, parentState);
+  childState.suspenseyImages && (parentState.suspenseyImages = !0);
+}
+function hasSuspenseyContent(hoistableState) {
+  return 0 < hoistableState.stylesheets.size || hoistableState.suspenseyImages;
 }
 var bind = Function.prototype.bind,
   requestStorage = new async_hooks.AsyncLocalStorage(),
@@ -3950,7 +3962,10 @@ function describeComponentStackByType(type) {
   return "";
 }
 function isEligibleForOutlining(request, boundary) {
-  return 500 < boundary.byteSize && null === boundary.contentPreamble;
+  return (
+    (500 < boundary.byteSize || hasSuspenseyContent(boundary.contentState)) &&
+    null === boundary.contentPreamble
+  );
 }
 function defaultErrorHandler(error) {
   if (
@@ -6372,8 +6387,10 @@ function flushSegment(request, destination, segment, hoistableState) {
       hoistableState && hoistHoistables(hoistableState, boundary.fallbackState),
       flushSubtree(request, destination, segment, hoistableState);
   else if (
+    !flushingPartialBoundaries &&
     isEligibleForOutlining(request, boundary) &&
-    flushedByteSize + boundary.byteSize > request.progressiveChunkSize
+    (flushedByteSize + boundary.byteSize > request.progressiveChunkSize ||
+      hasSuspenseyContent(boundary.contentState))
   )
     (boundary.rootSegmentID = request.nextSegmentId++),
       request.completedBoundaries.push(boundary),
@@ -6507,6 +6524,7 @@ function flushPartiallyCompletedSegment(
   destination = writeChunkAndReturn(destination, completeSegmentScriptEnd);
   return destination;
 }
+var flushingPartialBoundaries = !1;
 function flushCompletedQueues(request, destination) {
   currentView = new Uint8Array(2048);
   writtenBytes = 0;
@@ -6705,7 +6723,7 @@ function flushCompletedQueues(request, destination) {
       completeWriting(destination);
       currentView = new Uint8Array(2048);
       writtenBytes = 0;
-      destinationHasCapacity$1 = !0;
+      flushingPartialBoundaries = destinationHasCapacity$1 = !0;
       var partialBoundaries = request.partialBoundaries;
       for (i = 0; i < partialBoundaries.length; i++) {
         var boundary$66 = partialBoundaries[i];
@@ -6758,6 +6776,7 @@ function flushCompletedQueues(request, destination) {
         }
       }
       partialBoundaries.splice(0, i);
+      flushingPartialBoundaries = !1;
       var largeBoundaries = request.completedBoundaries;
       for (i = 0; i < largeBoundaries.length; i++)
         if (!flushCompletedBoundary(request, destination, largeBoundaries[i])) {
@@ -6769,19 +6788,20 @@ function flushCompletedQueues(request, destination) {
       largeBoundaries.splice(0, i);
     }
   } finally {
-    0 === request.allPendingTasks &&
-    0 === request.clientRenderedBoundaries.length &&
-    0 === request.completedBoundaries.length
-      ? ((request.flushScheduled = !1),
-        (i = request.resumableState),
-        i.hasBody && writeChunk(destination, endChunkForTag("body")),
-        i.hasHtml && writeChunk(destination, endChunkForTag("html")),
-        completeWriting(destination),
-        flushBuffered(destination),
-        (request.status = 14),
-        destination.end(),
-        (request.destination = null))
-      : (completeWriting(destination), flushBuffered(destination));
+    (flushingPartialBoundaries = !1),
+      0 === request.allPendingTasks &&
+      0 === request.clientRenderedBoundaries.length &&
+      0 === request.completedBoundaries.length
+        ? ((request.flushScheduled = !1),
+          (i = request.resumableState),
+          i.hasBody && writeChunk(destination, endChunkForTag("body")),
+          i.hasHtml && writeChunk(destination, endChunkForTag("html")),
+          completeWriting(destination),
+          flushBuffered(destination),
+          (request.status = 14),
+          destination.end(),
+          (request.destination = null))
+        : (completeWriting(destination), flushBuffered(destination));
   }
 }
 function startWork(request) {
@@ -6865,11 +6885,11 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.2.0-canary-e2332183-20250924" !== isomorphicReactPackageVersion)
+  if ("19.2.0-canary-b0c1dc01-20250925" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.2.0-canary-e2332183-20250924\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.2.0-canary-b0c1dc01-20250925\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -7207,4 +7227,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.2.0-canary-e2332183-20250924";
+exports.version = "19.2.0-canary-b0c1dc01-20250925";

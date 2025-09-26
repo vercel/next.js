@@ -7,8 +7,8 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
-    trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
+    Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -16,7 +16,7 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets},
 };
 
-use crate::next_config::{CrossOriginConfig, RouteHas};
+use crate::next_config::RouteHas;
 
 #[derive(Serialize, Default, Debug)]
 pub struct PagesManifest {
@@ -46,10 +46,18 @@ impl OutputAsset for BuildManifest {
     async fn references(&self) -> Result<Vc<OutputAssets>> {
         let chunks: Vec<ReadRef<OutputAssets>> = self.pages.values().try_join().await?;
 
+        let root_main_files = self
+            .root_main_files
+            .iter()
+            .map(async |c| Ok(c.path().await?.has_extension(".js").then_some(*c)))
+            .try_flat_join()
+            .await?;
+
         let references = chunks
             .into_iter()
-            .flat_map(|c| c.into_iter().copied()) // once again, rustc struggles here
-            .chain(self.root_main_files.iter().copied())
+            .flatten()
+            .copied()
+            .chain(root_main_files.into_iter())
             .chain(self.polyfill_files.iter().copied())
             .collect();
 
@@ -78,7 +86,7 @@ impl Asset for BuildManifest {
         let pages: Vec<(RcStr, Vec<RcStr>)> = self
             .pages
             .iter()
-            .map(|(k, chunks)| async move {
+            .map(async |(k, chunks)| {
                 Ok((
                     k.clone(),
                     chunks
@@ -116,15 +124,20 @@ impl Asset for BuildManifest {
         let root_main_files: Vec<RcStr> = self
             .root_main_files
             .iter()
-            .copied()
             .map(async |chunk| {
                 let chunk_path = chunk.path().await?;
-                Ok(client_relative_path
-                    .get_path_to(&chunk_path)
-                    .context("failed to resolve client-relative path to root_main_file")?
-                    .into())
+                if !chunk_path.has_extension(".js") {
+                    Ok(None)
+                } else {
+                    Ok(Some(
+                        client_relative_path
+                            .get_path_to(&chunk_path)
+                            .context("failed to resolve client-relative path to root_main_file")?
+                            .into(),
+                    ))
+                }
             })
-            .try_join()
+            .try_flat_join()
             .await?;
 
         let manifest = SerializedBuildManifest {
@@ -403,69 +416,6 @@ pub enum ActionManifestModuleId<'a> {
 pub enum ActionLayer {
     Rsc,
     ActionBrowser,
-}
-
-#[derive(Serialize, Default, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct ClientReferenceManifest {
-    pub module_loading: ModuleLoading,
-    /// Mapping of module path and export name to client module ID and required
-    /// client chunks.
-    pub client_modules: ManifestNode,
-    /// Mapping of client module ID to corresponding SSR module ID and required
-    /// SSR chunks.
-    pub ssr_module_mapping: FxIndexMap<ModuleId, ManifestNode>,
-    /// Same as `ssr_module_mapping`, but for Edge SSR.
-    #[serde(rename = "edgeSSRModuleMapping")]
-    pub edge_ssr_module_mapping: FxIndexMap<ModuleId, ManifestNode>,
-    /// Mapping of client module ID to corresponding RSC module ID and required
-    /// RSC chunks.
-    pub rsc_module_mapping: FxIndexMap<ModuleId, ManifestNode>,
-    /// Same as `rsc_module_mapping`, but for Edge RSC.
-    #[serde(rename = "edgeRscModuleMapping")]
-    pub edge_rsc_module_mapping: FxIndexMap<ModuleId, ManifestNode>,
-    /// Mapping of server component path to required CSS client chunks.
-    #[serde(rename = "entryCSSFiles")]
-    pub entry_css_files: FxIndexMap<RcStr, FxIndexSet<CssResource>>,
-    /// Mapping of server component path to required JS client chunks.
-    #[serde(rename = "entryJSFiles")]
-    pub entry_js_files: FxIndexMap<RcStr, FxIndexSet<RcStr>>,
-}
-
-#[derive(Serialize, Debug, Clone, Eq, Hash, PartialEq)]
-pub struct CssResource {
-    pub path: RcStr,
-    pub inlined: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub content: Option<RcStr>,
-}
-
-#[derive(Serialize, Default, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct ModuleLoading {
-    pub prefix: RcStr,
-    pub cross_origin: Option<CrossOriginConfig>,
-}
-
-#[derive(Serialize, Default, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ManifestNode {
-    /// Mapping of export name to manifest node entry.
-    #[serde(flatten)]
-    pub module_exports: FxIndexMap<RcStr, ManifestNodeEntry>,
-}
-
-#[derive(Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct ManifestNodeEntry {
-    /// Turbopack module ID.
-    pub id: ModuleId,
-    /// Export name.
-    pub name: RcStr,
-    /// Chunks for the module. JS and CSS.
-    pub chunks: Vec<RcStr>,
-    // TODO(WEB-434)
-    pub r#async: bool,
 }
 
 #[derive(Serialize, Debug, Eq, PartialEq, Hash, Clone)]

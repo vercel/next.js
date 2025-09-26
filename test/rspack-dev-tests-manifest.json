@@ -1124,6 +1124,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/watch-config-file/index.test.ts": {
+    "passed": [
+      "app-dir watch-config-file should output config file change and restart server for app router"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-hmr/hmr-env.test.ts": {
     "passed": [
       "app-dir hmr-env should update server components pages when env files is changed (edge)",
@@ -1143,6 +1152,15 @@
       "app-dir-hmr filesystem changes should not break when renaming a folder",
       "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
       "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-hmr/server-restart.test.ts": {
+    "passed": [
+      "app-dir server restart should reload the page when the server restarts"
     ],
     "failed": [],
     "pending": [],
@@ -1918,6 +1936,16 @@
   "test/development/load-config-freq/load-config-freq.test.ts": {
     "passed": [
       "load-config-freq should only load next config once when start next dev server"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/mcp-server/mcp-server.test.ts": {
+    "passed": [
+      "mcp-server should initialize MCP server and list available tools",
+      "mcp-server should return exact absolute path for get_project_path tool"
     ],
     "failed": [],
     "pending": [],
@@ -3070,10 +3098,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-middleware/app-middleware-in-src-dir.test.ts": {
+    "passed": [
+      "app dir - middleware with middleware in src dir works without crashing when using RequestStore"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-middleware/app-middleware-without-pages-dir.test.ts": {
+    "passed": ["app dir - middleware without pages dir Updates headers"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-middleware/app-middleware.test.ts": {
     "passed": [
-      "app dir - middleware with middleware in src dir works without crashing when using RequestStore",
-      "app dir - middleware without pages dir Updates headers",
       "app-dir with middleware Mutate request headers for Edge Functions Adds new headers",
       "app-dir with middleware Mutate request headers for Edge Functions Deletes headers",
       "app-dir with middleware Mutate request headers for Edge Functions Supports draft mode",
@@ -3685,6 +3727,7 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -3698,7 +3741,6 @@
       "app dir - basic server components client components should have consistent query and params handling",
       "app dir - basic server components dynamic routes should only pass params that apply to the layout",
       "app dir - basic server components middleware should strip internal query parameters from requests to middleware for redirect",
-      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite",
       "app dir - basic server components next/router should support router.back and router.forward",
       "app dir - basic server components should include client component layout with server component route should include it client-side",
       "app dir - basic server components should include client component layout with server component route should include it server-side",
@@ -3743,7 +3785,7 @@
     ],
     "failed": [
       "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
+      "app dir - basic server components middleware should strip internal query parameters from requests to middleware for rewrite"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -11439,11 +11481,18 @@
   },
   "test/e2e/persistent-caching/persistent-caching.test.ts": {
     "passed": [
-      "persistent-caching should allow to change files while stopped (run 1)",
-      "persistent-caching should allow to change files while stopped (run 2)",
-      "persistent-caching should allow to change files while stopped (run 3)"
+      "persistent-caching should allow to change files while stopped (loader change)",
+      "persistent-caching should allow to change files while stopped (next config change)"
     ],
-    "failed": ["persistent-caching should persistent cache loaders"],
+    "failed": [
+      "persistent-caching should allow to change files while stopped (Pages change)",
+      "persistent-caching should allow to change files while stopped (RCC change)",
+      "persistent-caching should allow to change files while stopped (RSC change)",
+      "persistent-caching should allow to change files while stopped (RSC change, RCC change, Pages change, rename app page, loader change, next config change, env var change)",
+      "persistent-caching should allow to change files while stopped (env var change)",
+      "persistent-caching should allow to change files while stopped (rename app page)",
+      "persistent-caching should persistent cache loaders"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12010,16 +12059,6 @@
     "passed": ["turbopack-loader-config should only run the test in turbopack"],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/turbopack-turbo-config-compatibility/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "turbopack-turbo-config-compatibility including both turbopack and deprecated experimental turbo config prefers turbopack config over deprecated experimental turbo config",
-      "turbopack-turbo-config-compatibility only including deprecated experimental turbo config still uses the deprecated experimental turbo config"
-    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -14135,16 +14174,6 @@
   },
   "test/integration/development-hmr-refresh/test/index.test.js": {
     "passed": ["page should not reload when the file is not changed"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/development-runtime-config/test/index.test.js": {
-    "passed": [
-      "should work with runtime-config in next.config.js empty runtime-config",
-      "should work with runtime-config in next.config.js with runtime-config"
-    ],
     "failed": [],
     "pending": [],
     "flakey": [],

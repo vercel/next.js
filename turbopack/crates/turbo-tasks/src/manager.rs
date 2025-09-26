@@ -16,7 +16,7 @@ use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use tokio::{select, sync::mpsc::Receiver, task_local};
 use tokio_util::task::TaskTracker;
-use tracing::{Instrument, Level, instrument};
+use tracing::{Instrument, instrument};
 
 use crate::{
     Completion, InvalidationReason, InvalidationReasonSet, OutputContent, ReadCellOptions,
@@ -535,16 +535,18 @@ impl<B: Backend + 'static> TurboTasks<B> {
         rx.await?
     }
 
+    #[tracing::instrument(level = "trace", skip_all, name = "turbo_tasks::run")]
     pub async fn run<T: TraceRawVcs + Send + 'static>(
         &self,
         future: impl Future<Output = Result<T>> + Send + 'static,
     ) -> Result<T, TurboTasksExecutionError> {
+        self.begin_foreground_job();
         // it's okay for execution ids to overflow and wrap, they're just used for an assert
         let execution_id = self.execution_id_factory.wrapping_get();
         let current_task_state =
             Arc::new(RwLock::new(CurrentTaskState::new_temporary(execution_id)));
 
-        TURBO_TASKS
+        let result = TURBO_TASKS
             .scope(
                 self.pin(),
                 CURRENT_TASK_STATE.scope(current_task_state, async {
@@ -563,7 +565,9 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     }
                 }),
             )
-            .await
+            .await;
+        self.finish_foreground_job();
+        result
     }
 
     pub fn start_once_process(&self, future: impl Future<Output = ()> + Send + 'static) {
@@ -1192,12 +1196,12 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
 }
 
 impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
-    #[instrument(level = Level::INFO, skip_all, name = "invalidate")]
+    #[instrument(level = "info", skip_all, name = "invalidate")]
     fn invalidate(&self, task: TaskId) {
         self.backend.invalidate_task(task, self);
     }
 
-    #[instrument(level = Level::INFO, skip_all, name = "invalidate", fields(name = display(&reason)))]
+    #[instrument(level = "info", skip_all, name = "invalidate", fields(name = display(&reason)))]
     fn invalidate_with_reason(&self, task: TaskId, reason: StaticOrArc<dyn InvalidationReason>) {
         {
             let (_, reason_set) = &mut *self.aggregated_update.lock().unwrap();

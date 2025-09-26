@@ -560,7 +560,6 @@ pub struct TurbopackConfig {
     pub rules: Option<FxIndexMap<RcStr, RuleConfigCollection>>,
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
-    pub module_ids: Option<ModuleIds>,
 }
 
 #[derive(
@@ -881,6 +880,7 @@ pub struct ExperimentalConfig {
     worker_threads: Option<bool>,
 
     turbopack_minify: Option<bool>,
+    turbopack_module_ids: Option<ModuleIds>,
     turbopack_persistent_caching: Option<bool>,
     turbopack_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
@@ -1807,9 +1807,8 @@ impl NextConfig {
             // Ignore configuration in development mode, HMR only works with `named`
             NextMode::Development => ModuleIds::Named.cell(),
             NextMode::Build => self
-                .turbopack
-                .as_ref()
-                .and_then(|t| t.module_ids)
+                .experimental
+                .turbopack_module_ids
                 .unwrap_or(ModuleIds::Deterministic)
                 .cell(),
         })

@@ -896,11 +896,16 @@
       );
     }
     function getSuspenseContentFormatContext(resumableState, parentContext) {
+      resumableState = getSuspenseViewTransition(parentContext.viewTransition);
+      var subtreeScope = parentContext.tagScope | 16;
+      null !== resumableState &&
+        "none" !== resumableState.share &&
+        (subtreeScope |= 64);
       return createFormatContext(
         parentContext.insertionMode,
         parentContext.selectedValue,
-        parentContext.tagScope | 16,
-        getSuspenseViewTransition(parentContext.viewTransition)
+        subtreeScope,
+        resumableState
       );
     }
     function makeId(resumableState, treeId, localId) {
@@ -2784,6 +2789,9 @@
               ("t" !== srcSet[2] && "T" !== srcSet[2]) ||
               ("a" !== srcSet[3] && "A" !== srcSet[3]))
           ) {
+            null !== hoistableState &&
+              formatContext.tagScope & 64 &&
+              (hoistableState.suspenseyImages = !0);
             var sizes = "string" === typeof props.sizes ? props.sizes : void 0,
               key$jscomp$0 = srcSet ? srcSet + "\n" + (sizes || "") : src,
               promotablePreloads = renderState.preloads.images,
@@ -3502,7 +3510,7 @@
       destination.push(attributeName);
     }
     function createHoistableState() {
-      return { styles: new Set(), stylesheets: new Set() };
+      return { styles: new Set(), stylesheets: new Set(), suspenseyImages: !1 };
     }
     function preloadBootstrapScriptOrModule(
       resumableState,
@@ -3610,6 +3618,7 @@
     function hoistHoistables(parentState, childState) {
       childState.styles.forEach(hoistStyleQueueDependency, parentState);
       childState.stylesheets.forEach(hoistStylesheetDependency, parentState);
+      childState.suspenseyImages && (parentState.suspenseyImages = !0);
     }
     function createRenderState(resumableState, generateStaticMarkup) {
       var idPrefix = resumableState.idPrefix,
@@ -4614,7 +4623,9 @@
       return "";
     }
     function isEligibleForOutlining(request, boundary) {
-      return 500 < boundary.byteSize && null === boundary.contentPreamble;
+      return (
+        (500 < boundary.byteSize || !1) && null === boundary.contentPreamble
+      );
     }
     function defaultErrorHandler(error) {
       if (
@@ -8291,6 +8302,7 @@
           destination.push(endSuspenseBoundary)
         );
       if (
+        !flushingPartialBoundaries &&
         isEligibleForOutlining(request, boundary) &&
         flushedByteSize + boundary.byteSize > request.progressiveChunkSize
       )
@@ -8819,6 +8831,7 @@
               return;
             }
           completedBoundaries.splice(0, i);
+          flushingPartialBoundaries = !0;
           var partialBoundaries = request.partialBoundaries;
           for (i = 0; i < partialBoundaries.length; i++) {
             a: {
@@ -8871,6 +8884,7 @@
             }
           }
           partialBoundaries.splice(0, i);
+          flushingPartialBoundaries = !1;
           var largeBoundaries = request.completedBoundaries;
           for (i = 0; i < largeBoundaries.length; i++)
             if (
@@ -8884,23 +8898,24 @@
           largeBoundaries.splice(0, i);
         }
       } finally {
-        0 === request.allPendingTasks &&
-          0 === request.clientRenderedBoundaries.length &&
-          0 === request.completedBoundaries.length &&
-          ((request.flushScheduled = !1),
-          null === request.trackedPostpones &&
-            ((i = request.resumableState),
-            i.hasBody &&
-              ((partialBoundaries = endChunkForTag("body")),
-              destination.push(partialBoundaries)),
-            i.hasHtml && ((i = endChunkForTag("html")), destination.push(i))),
-          0 !== request.abortableTasks.size &&
-            console.error(
-              "There was still abortable task at the root when we closed. This is a bug in React."
-            ),
-          (request.status = CLOSED),
-          destination.push(null),
-          (request.destination = null));
+        (flushingPartialBoundaries = !1),
+          0 === request.allPendingTasks &&
+            0 === request.clientRenderedBoundaries.length &&
+            0 === request.completedBoundaries.length &&
+            ((request.flushScheduled = !1),
+            null === request.trackedPostpones &&
+              ((i = request.resumableState),
+              i.hasBody &&
+                ((partialBoundaries = endChunkForTag("body")),
+                destination.push(partialBoundaries)),
+              i.hasHtml && ((i = endChunkForTag("html")), destination.push(i))),
+            0 !== request.abortableTasks.size &&
+              console.error(
+                "There was still abortable task at the root when we closed. This is a bug in React."
+              ),
+            (request.status = CLOSED),
+            destination.push(null),
+            (request.destination = null));
       }
     }
     function startWork(request) {
@@ -10510,7 +10525,8 @@
       didWarnAboutReassigningProps = !1,
       didWarnAboutGenerators = !1,
       didWarnAboutMaps = !1,
-      flushedByteSize = 0;
+      flushedByteSize = 0,
+      flushingPartialBoundaries = !1;
     exports.renderToStaticMarkup = function (children, options) {
       return renderToStringImpl(
         children,
@@ -10527,5 +10543,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.2.0-experimental-e2332183-20250924";
+    exports.version = "19.2.0-experimental-b0c1dc01-20250925";
   })();

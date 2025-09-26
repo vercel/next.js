@@ -16,9 +16,37 @@ The development process with `next dev` is different than `next build` and `next
 
 ### 1. Check your computer's antivirus
 
-Antivirus software can slow down file access.
+Antivirus software can slow down file access. While this is more common on Windows machines, this can be an issue for any system with an antivirus tool installed.
 
-Try adding your project folder to the antivirus exclusion list. While this is more common on Windows machines, we recommend this for any system with an antivirus tool installed.
+On Windows, you can add your project to the [Microsoft Defender Antivirus exclusion list](https://support.microsoft.com/en-us/windows/virus-and-threat-protection-in-the-windows-security-app-1362f4cd-d71a-b52a-0b66-c2820032b65e#bkmk_threat-protection-settings).
+
+1. Open the **"Windows Security"** application and then select **"Virus & threat protection"** &rarr; **"Manage settings"** &rarr; **"Add or remove exclusions"**.
+2. Add a **"Folder"** exclusion. Select your project folder.
+
+On macOS, you can disable [Gatekeeper](https://support.apple.com/guide/security/gatekeeper-and-runtime-protection-sec5599b66df/web) inside of your terminal.
+
+1. Run `sudo spctl developer-mode enable-terminal` in your terminal.
+2. Open the **"System Settings"** app and then select **"Privacy & Security"** &rarr; **"Developer Tools"**.
+3. Ensure your terminal is listed and enabled. If you're using a third-party terminal like iTerm or Ghostty, add that to the list.
+4. Restart your terminal.
+
+<Image
+  alt="Screenshot of macOS System Settings showing the Privacy & Security pane"
+  srcLight="/docs/light/macos-gatekeeper-privacy-and-security.png"
+  srcDark="/docs/dark/macos-gatekeeper-privacy-and-security.png"
+  width="723"
+  height="250"
+/>
+
+<Image
+  alt="Screenshot of macOS System Settings showing the Developer Tools options"
+  srcLight="/docs/light/macos-gatekeeper-developer-tools.png"
+  srcDark="/docs/dark/macos-gatekeeper-developer-tools.png"
+  width="723"
+  height="250"
+/>
+
+If you or your employer have configured any other Antivirus solutions on your system, you should inspect the relevant settings for those products.
 
 ### 2. Update Next.js and enable Turbopack
 

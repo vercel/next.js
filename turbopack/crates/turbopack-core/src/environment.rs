@@ -9,6 +9,7 @@ use swc_core::ecma::preset_env::{Version, Versions};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TaskInput, Vc};
 use turbo_tasks_env::ProcessEnv;
+use turbo_tasks_fs::FileSystemPathOption;
 
 use crate::target::CompileTarget;
 
@@ -213,7 +214,7 @@ impl Environment {
     }
 
     #[turbo_tasks::function]
-    pub async fn cwd(&self) -> Result<Vc<Option<RcStr>>> {
+    pub async fn cwd(&self) -> Result<Vc<FileSystemPathOption>> {
         let env = self;
         Ok(match env.execution {
             ExecutionEnvironment::NodeJsBuildTime(env)
@@ -258,7 +259,7 @@ pub struct NodeJsEnvironment {
     pub compile_target: ResolvedVc<CompileTarget>,
     pub node_version: ResolvedVc<NodeJsVersion>,
     // user specified process.cwd
-    pub cwd: ResolvedVc<Option<RcStr>>,
+    pub cwd: ResolvedVc<FileSystemPathOption>,
 }
 
 impl Default for NodeJsEnvironment {

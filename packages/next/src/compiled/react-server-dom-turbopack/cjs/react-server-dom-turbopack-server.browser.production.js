@@ -769,7 +769,7 @@ function RequestInstance(
   this.onPostpone = void 0 === onPostpone ? noop : onPostpone;
   this.onAllReady = onAllReady;
   this.onFatalError = onFatalError;
-  type = createTask(this, model, null, !1, abortSet);
+  type = createTask(this, model, null, !1, null, abortSet);
   pingedTasks.push(type);
 }
 var currentRequest = null;
@@ -779,6 +779,7 @@ function serializeThenable(request, task, thenable) {
     thenable,
     task.keyPath,
     task.implicitSlot,
+    task.formatContext,
     request.abortableTasks
   );
   switch (thenable.status) {
@@ -878,6 +879,7 @@ function serializeReadableStream(request, task, stream) {
       task.model,
       task.keyPath,
       task.implicitSlot,
+      task.formatContext,
       request.abortableTasks
     );
   request.pendingChunks++;
@@ -896,7 +898,11 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
           var endStreamRow = streamTask.id.toString(16) + ":C\n";
         else
           try {
-            var chunkId = outlineModel(request, entry.value);
+            var chunkId = outlineModelWithFormatContext(
+              request,
+              entry.value,
+              null
+            );
             endStreamRow =
               streamTask.id.toString(16) +
               ":C" +
@@ -953,6 +959,7 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
     task.model,
     task.keyPath,
     task.implicitSlot,
+    task.formatContext,
     request.abortableTasks
   );
   request.pendingChunks++;
@@ -1067,6 +1074,7 @@ function deferTask(request, task) {
     task.model,
     task.keyPath,
     task.implicitSlot,
+    task.formatContext,
     request.abortableTasks
   );
   pingTask(request, task);
@@ -1113,6 +1121,12 @@ function renderElement(request, task, type, key, ref, props) {
       case REACT_MEMO_TYPE:
         return renderElement(request, task, type.type, key, ref, props);
     }
+  else
+    "string" === typeof type &&
+      ((ref = task.formatContext),
+      ref !== ref &&
+        null != props.children &&
+        outlineModelWithFormatContext(request, props.children, ref));
   request = key;
   key = task.keyPath;
   null === request
@@ -1135,7 +1149,14 @@ function pingTask(request, task) {
           return performWork(request);
         }));
 }
-function createTask(request, model, keyPath, implicitSlot, abortSet) {
+function createTask(
+  request,
+  model,
+  keyPath,
+  implicitSlot,
+  formatContext,
+  abortSet
+) {
   request.pendingChunks++;
   var id = request.nextChunkId++;
   "object" !== typeof model ||
@@ -1149,6 +1170,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
     model: model,
     keyPath: keyPath,
     implicitSlot: implicitSlot,
+    formatContext: formatContext,
     ping: function () {
       return pingTask(request, task);
     },
@@ -1193,6 +1215,7 @@ function createTask(request, model, keyPath, implicitSlot, abortSet) {
             task.model,
             task.keyPath,
             task.implicitSlot,
+            task.formatContext,
             request.abortableTasks
           );
           var ping = JSCompiler_inline_result.ping;
@@ -1293,8 +1316,15 @@ function serializeClientReference(
     );
   }
 }
-function outlineModel(request, value) {
-  value = createTask(request, value, null, !1, request.abortableTasks);
+function outlineModelWithFormatContext(request, value, formatContext) {
+  value = createTask(
+    request,
+    value,
+    null,
+    !1,
+    formatContext,
+    request.abortableTasks
+  );
   retryTask(request, value);
   return value.id;
 }
@@ -1333,7 +1363,14 @@ function serializeBlob(request, blob) {
     }
   }
   var model = [blob.type],
-    newTask = createTask(request, model, null, !1, request.abortableTasks),
+    newTask = createTask(
+      request,
+      model,
+      null,
+      !1,
+      null,
+      request.abortableTasks
+    ),
     reader = blob.stream().getReader();
   request.cacheController.signal.addEventListener("abort", abortBlob);
   reader.read().then(progress).catch(error);
@@ -1454,17 +1491,17 @@ function renderModelDestructive(
     if (value instanceof Map)
       return (
         (value = Array.from(value)),
-        "$Q" + outlineModel(request, value).toString(16)
+        "$Q" + outlineModelWithFormatContext(request, value, null).toString(16)
       );
     if (value instanceof Set)
       return (
         (value = Array.from(value)),
-        "$W" + outlineModel(request, value).toString(16)
+        "$W" + outlineModelWithFormatContext(request, value, null).toString(16)
       );
     if ("function" === typeof FormData && value instanceof FormData)
       return (
         (value = Array.from(value.entries())),
-        "$K" + outlineModel(request, value).toString(16)
+        "$K" + outlineModelWithFormatContext(request, value, null).toString(16)
       );
     if (value instanceof Error) return "$Z";
     if (value instanceof ArrayBuffer)
@@ -1499,8 +1536,9 @@ function renderModelDestructive(
       return (
         (parentPropertyName = elementReference.call(value)),
         parentPropertyName === value
-          ? "$i" +
-            outlineModel(request, Array.from(parentPropertyName)).toString(16)
+          ? ((value = Array.from(parentPropertyName)),
+            "$i" +
+              outlineModelWithFormatContext(request, value, null).toString(16))
           : renderFragment(request, task, Array.from(parentPropertyName))
       );
     if ("function" === typeof ReadableStream && value instanceof ReadableStream)
@@ -1585,10 +1623,11 @@ function renderModelDestructive(
               null === parentPropertyName
                 ? null
                 : Promise.resolve(parentPropertyName)),
-            (request = outlineModel(request, {
-              id: value.$$id,
-              bound: parentPropertyName
-            })),
+            (request = outlineModelWithFormatContext(
+              request,
+              { id: value.$$id, bound: parentPropertyName },
+              null
+            )),
             task.set(value, request),
             (request = "$F" + request.toString(16))),
         request
